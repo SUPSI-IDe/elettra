@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Elettra helps planners manage electric bus fleets, stops, and shifts with clarity." />
+    <title>Elettra | Electric Shift Planner</title>
+    <script type="module" src="/src/main.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <div class="header-content">
+        <div class="header-brand">Elettra</div>
+        <div class="header-actions">
+          <a href="#language">Language</a>
+          <a href="#settings">User settings</a>
+        </div>
+      </div>
+    </header>
+    <main>
+      <nav aria-label="Main navigation">
+        <details open>
+          <summary>Fleet</summary>
+          <ul>
+            <li><a href="#buses">Buses</a></li>
+            <li><a href="#custom-stops">Custom Stops</a></li>
+            <li><a href="#shifts">Shifts</a></li>
+          </ul>
+        </details>
+        <details>
+          <summary>Simulation</summary>
+          <ul>
+            <li><a href="#placeholder-first">Placeholder First</a></li>
+            <li><a href="#dummy-second">Dummy Second</a></li>
+            <li><a href="#fake-third">Fake Third</a></li>
+          </ul>
+        </details>
+      </nav>
+      <article>
+        <section id="buses" x-data="buses">
+          <div class="section-header">
+            <h1>Buses</h1>
+            <button class="btn btn--primary">Add bus</button>
+          </div>
+          <div class="section-content">
+            <div class="list">
+              <h2>Bus models</h2>
+              <div class="toolbar">
+                <label class="search">
+                  <span class="visually-hidden">Search bus models</span>
+                  <span class="search__icon" aria-hidden="true">🔍</span>
+                  <input type="text" placeholder="Search bus models" x-model="modelQuery" />
+                </label>
+                <div class="actions">
+                  <button class="btn btn--ghost" aria-label="Delete selected bus models">Delete</button>
+                  <button class="btn btn--ghost" aria-label="Edit selected bus models">Edit</button>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="table" aria-label="Bus models">
+                  <caption class="visually-hidden">Available bus models</caption>
+                  <thead>
+                    <tr>
+                      <th class="col-checkbox" scope="col"><span class="visually-hidden">Select model</span></th>
+                      <th scope="col">Model</th>
+                      <th scope="col">Manufacturer</th>
+                      <th scope="col">Description</th>
+                      <th class="col-action" scope="col"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="model in filteredModels" :key="model.id">
+                      <tr>
+                        <td><input type="checkbox" :aria-label="`Select model ${model.name}`" /></td>
+                        <td x-text="model.name"></td>
+                        <td x-text="model.manufacturer"></td>
+                        <td x-text="model.description"></td>
+                        <td class="col-action">
+                          <button class="btn btn--ghost" :aria-label="`Add bus for model ${model.name}`">Add bus</button>
+                        </td>
+                      </tr>
+                    </template>
+                    <tr x-show="filteredModels.length === 0">
+                      <td colspan="5">No models found</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <nav class="pages" aria-label="Bus model pages">
+                  <template x-for="page in modelTotalPages" :key="page">
+                    <button 
+                      class="page" 
+                      :class="{ 'is-active': page === modelPage }"
+                      :aria-current="page === modelPage ? 'page' : null"
+                      @click="setModelPage(page)"
+                      x-text="page"
+                    ></button>
+                  </template>
+                </nav>
+              </div>
+            </div>
+            <div class="list">
+              <h2>Buses</h2>
+              <div class="toolbar">
+                <label class="search">
+                  <span class="visually-hidden">Search buses</span>
+                  <span class="search__icon" aria-hidden="true">🔍</span>
+                  <input type="text" placeholder="Search buses" x-model="busQuery" />
+                </label>
+                <div class="actions">
+                  <button class="btn btn--ghost" aria-label="Delete selected buses">Delete</button>
+                  <button class="btn btn--ghost" aria-label="Edit selected buses">Edit</button>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="table" aria-label="Buses">
+                  <caption class="visually-hidden">Buses assigned to available models</caption>
+                  <thead>
+                    <tr>
+                      <th class="col-checkbox" scope="col"><span class="visually-hidden">Select bus</span></th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Model</th>
+                      <th scope="col">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="bus in filteredBuses" :key="bus.id">
+                      <tr>
+                        <td><input type="checkbox" :aria-label="`Select bus ${bus.name}`" /></td>
+                        <td x-text="bus.name"></td>
+                        <td x-text="bus.model"></td>
+                        <td x-text="bus.description"></td>
+                      </tr>
+                    </template>
+                    <tr x-show="filteredBuses.length === 0">
+                      <td colspan="4">No buses found</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <nav class="pages" aria-label="Bus pages">
+                  <template x-for="page in busTotalPages" :key="page">
+                    <button 
+                      class="page" 
+                      :class="{ 'is-active': page === busPage }"
+                      :aria-current="page === busPage ? 'page' : null"
+                      @click="setBusPage(page)"
+                      x-text="page"
+                    ></button>
+                  </template>
+                </nav>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="custom-stops" x-data="customStops">
+          <div class="section-header">
+            <h1>Custom stops</h1>
+            <button class="btn btn--primary">Add custom stop</button>
+          </div>
+          <div class="section-content">
+            <div class="list">
+              <div class="toolbar">
+                <label class="search">
+                  <span class="visually-hidden">Search custom stops</span>
+                  <span class="search__icon" aria-hidden="true">🔍</span>
+                  <input type="text" placeholder="Search custom stops" x-model="query" />
+                </label>
+                <div class="actions">
+                  <button class="btn btn--ghost" aria-label="Delete selected custom stops">Delete</button>
+                  <button class="btn btn--ghost" aria-label="Edit selected custom stops">Edit</button>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="table" aria-label="Custom stops">
+                  <caption class="visually-hidden">Configured custom stops</caption>
+                  <thead>
+                    <tr>
+                      <th class="col-checkbox" scope="col"><span class="visually-hidden">Select custom stop</span></th>
+                      <th scope="col">Id</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Address</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="stop in filteredStops" :key="stop.id">
+                      <tr>
+                        <td><input type="checkbox" :aria-label="`Select stop ${stop.name}`" /></td>
+                        <td x-text="stop.id"></td>
+                        <td x-text="stop.name"></td>
+                        <td x-text="stop.type"></td>
+                        <td x-text="stop.address"></td>
+                      </tr>
+                    </template>
+                    <tr x-show="filteredStops.length === 0">
+                      <td colspan="5">No custom stops found</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <nav class="pages" aria-label="Custom stop pages">
+                  <template x-for="page in totalPages" :key="page">
+                    <button 
+                      class="page" 
+                      :class="{ 'is-active': page === currentPage }"
+                      :aria-current="page === currentPage ? 'page' : null"
+                      @click="setPage(page)"
+                      x-text="page"
+                    ></button>
+                  </template>
+                </nav>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="shifts" x-data="shifts">
+          <div class="section-header">
+            <h1>Shifts</h1>
+            <button class="btn btn--primary">Add shift</button>
+          </div>
+          <div class="section-content">
+            <div class="list">
+              <div class="toolbar">
+                <label class="search">
+                  <span class="visually-hidden">Search shifts</span>
+                  <span class="search__icon" aria-hidden="true">🔍</span>
+                  <input type="text" placeholder="Search shifts" x-model="query" />
+                </label>
+                <div class="actions">
+                  <button class="btn btn--ghost" aria-label="Delete selected shifts">Delete</button>
+                  <button class="btn btn--ghost" aria-label="Duplicate selected shifts">Duplicate</button>
+                  <button class="btn btn--ghost" aria-label="Edit selected shifts">Edit</button>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="table" aria-label="Shifts">
+                  <caption class="visually-hidden">Scheduled shifts and assigned buses</caption>
+                  <thead>
+                    <tr>
+                      <th class="col-checkbox" scope="col"><span class="visually-hidden">Select shift</span></th>
+                      <th scope="col">Id</th>
+                      <th scope="col">Shift name</th>
+                      <th scope="col">Bus name</th>
+                      <th scope="col">Starting time</th>
+                      <th scope="col">Ending time</th>
+                      <th scope="col">Route</th>
+                      <th class="col-action" scope="col"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="shift in filteredShifts" :key="shift.id">
+                      <tr>
+                        <td><input type="checkbox" :aria-label="`Select shift ${shift.shiftName} for ${shift.busName}`" /></td>
+                        <td x-text="shift.id"></td>
+                        <td x-text="shift.shiftName"></td>
+                        <td x-text="shift.busName"></td>
+                        <td x-text="shift.startingTime"></td>
+                        <td x-text="shift.endingTime"></td>
+                        <td x-text="shift.route"></td>
+                        <td class="col-action">
+                          <button class="btn btn--ghost" :aria-label="`Visualize shift ${shift.shiftName} for ${shift.busName}`">Visualize shift</button>
+                        </td>
+                      </tr>
+                    </template>
+                    <tr x-show="filteredShifts.length === 0">
+                      <td colspan="8">No shifts found</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <nav class="pages" aria-label="Shift pages">
+                  <template x-for="page in totalPages" :key="page">
+                    <button 
+                      class="page" 
+                      :class="{ 'is-active': page === currentPage }"
+                      :aria-current="page === currentPage ? 'page' : null"
+                      @click="setPage(page)"
+                      x-text="page"
+                    ></button>
+                  </template>
+                </nav>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="placeholder-first"></section>
+        <section id="dummy-second"></section>
+        <section id="fake-third"></section>
+      </article>
+    </main>
+    <footer>
+      <div class="footer-content">
+        <div class="footer-brand">Elettra | Electric Shift Planner</div>
+        <a href="#privacy">Privacy policy</a>
+      </div>
+    </footer>
+  </body>
+</html>
+
