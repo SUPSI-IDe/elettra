@@ -1,0 +1,59 @@
+<section class="buses">
+    <header class="buses-header"> 
+        <h1>Buses</h1>
+        <p>Add a bus model and then a bus</p>
+        <button type="button" data-action="add-bus-model">Add Bus Model</button>
+    </header>
+    <p class="flash-message" data-role="flash" role="status" aria-live="polite" hidden></p>
+    <main class="buses-grid">
+        <section class="bus-models">
+            <h2>Bus Models</h2>
+            <div class="table-controls">
+                <input type="text" placeholder="Search models">
+                <div class="actions">
+                    <button type="button" data-action="delete-selected-models">Delete</button>
+                    <button type="button" data-action="edit-selected-model">Edit</button>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="checkbox"><input type="checkbox" aria-label="Select all bus models"></th>
+                        <th class="model">Model</th>
+                        <th class="manufacturer">Manufacturer</th>
+                        <th class="description">Description</th>
+                        <th class="actions"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="buses-list">
+            <h2>Buses</h2>
+            <div class="table-controls">
+                <label for="model-filter" class="sr-only">Filter by bus model</label>
+                <select id="model-filter" aria-label="Filter buses by model">
+                    <option value="">All bus models</option>
+                </select>
+                <div class="actions">
+                    <button type="button" data-action="delete-selected-buses">Delete</button>
+                    <button type="button" data-action="edit-selected-bus">Edit</button>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="checkbox"><input type="checkbox" aria-label="Select all buses"></th>
+                        <th class="name">Bus Name</th>
+                        <th class="model">Bus Model</th>
+                        <th class="description">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </section>
+    </main>
+</section>

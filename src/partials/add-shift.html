@@ -1,0 +1,108 @@
+<section class="add-shift">
+    <header>
+        <h1>Add Shift</h1>
+        <p class="intro">Compose a reliable shift by selecting scheduled trips and confirming depots.</p>
+    </header>
+    <main>
+        <form data-form="add-shift" novalidate>
+            <p class="form-feedback" data-role="feedback" role="status" aria-live="polite" hidden></p>
+            <div class="add-shift-grid">
+                <section class="scheduled-trips" aria-labelledby="scheduled-trips-heading">
+                    <header class="section-header">
+                        <h2 id="scheduled-trips-heading">Scheduled trips</h2>
+                        <div class="filters">
+                            <div class="form-group">
+                                <label for="scheduled-trips-line">Line</label>
+                                <select id="scheduled-trips-line" name="line" data-filter="line">
+                                    <option value="">All lines</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="scheduled-trips-day">Day</label>
+                                <select id="scheduled-trips-day" name="day" data-filter="day">
+                                    <option value="">All days</option>
+                                </select>
+                            </div>
+                        </div>
+                    </header>
+                    <div class="table-wrapper">
+                        <table>
+                            <caption class="sr-only">Scheduled trips available to add to the shift</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col" class="time">Time</th>
+                                    <th scope="col" class="line">Line</th>
+                                    <th scope="col" class="route">From–To</th>
+                                    <th scope="col" class="actions"><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody data-role="scheduled-trips-body">
+                            </tbody>
+                        </table>
+                        <p class="table-empty" data-role="scheduled-trips-empty" hidden>No trips match the current filters.</p>
+                    </div>
+                </section>
+
+                <section class="shift-details" aria-labelledby="shift-details-heading">
+                    <header class="section-header">
+                        <h2 id="shift-details-heading">Shift details</h2>
+                        <div class="start-controls">
+                            <div class="form-group">
+                                <label for="shift-name">Shift name</label>
+                                <input type="text" id="shift-name" name="name" required autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label for="shift-bus">Bus</label>
+                                <select id="shift-bus" name="busId" required>
+                                    <option value="">Select a bus</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="shift-start-time">Start time</label>
+                                <input type="time" id="shift-start-time" name="startTime" data-field="start-time" step="60" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="shift-start-depot">Start depot</label>
+                                <select id="shift-start-depot" name="startDepot" data-field="start-depot" required>
+                                    <option value="">Select a depot</option>
+                                </select>
+                            </div>
+                        </div>
+                    </header>
+                    <div class="table-wrapper">
+                        <table>
+                            <caption class="sr-only">Trips included in the shift</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col" class="time">Time</th>
+                                    <th scope="col" class="route">From–To</th>
+                                    <th scope="col" class="actions"><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody data-role="shift-trips-body">
+                            </tbody>
+                        </table>
+                        <p class="table-empty" data-role="shift-trips-empty" hidden>No trips added to this shift yet.</p>
+                    </div>
+                    <div class="end-controls">
+                        <div class="form-group">
+                            <label for="shift-end-time">End time</label>
+                            <input type="time" id="shift-end-time" name="endTime" data-field="end-time" step="60" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="shift-end-depot">Return to depot</label>
+                            <select id="shift-end-depot" name="endDepot" data-field="end-depot" required>
+                                <option value="">Select a depot</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            <div class="form-actions">
+                <button type="button" data-action="cancel">Cancel</button>
+                <button type="button" data-action="visualize-shift">Visualize shift</button>
+                <button type="submit">Save shift</button>
+            </div>
+        </form>
+    </main>
+</section>

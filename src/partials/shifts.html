@@ -1,0 +1,35 @@
+<section class="shifts">
+    <header class="shifts-header">
+        <h1>Shifts</h1>
+        <button type="button" data-action="add-shift">Add Shift</button>
+    </header>
+    <p class="flash-message" data-role="flash" role="status" aria-live="polite" hidden></p>
+    <main>
+        <div class="table-controls">
+            <label class="sr-only" for="shifts-filter">Filter shifts</label>
+            <input id="shifts-filter" type="search" placeholder="Search shifts">
+            <button type="button" data-action="delete-selected-shifts">Delete</button>
+            <button type="button" data-action="duplicate-selected-shifts">Duplicate</button>
+            <button type="button" data-action="edit-selected-shifts">Edit</button>
+        </div>
+        <div class="shifts-table">
+            <table>
+                <caption class="sr-only">Current shifts</caption>
+                <thead>
+                    <tr>
+                        <th class="checkbox"><input type="checkbox" aria-label="Select all shifts"></th>
+                        <th class="id" scope="col">Id</th>
+                        <th class="name" scope="col">Shift name</th>
+                        <th class="bus" scope="col">Bus name</th>
+                        <th class="start" scope="col">Start time</th>
+                        <th class="end" scope="col">End time</th>
+                        <th class="route" scope="col">Route</th>
+                        <th class="actions" scope="col"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody data-role="shifts-body">
+                </tbody>
+            </table>
+        </div>
+    </main>
+</section>

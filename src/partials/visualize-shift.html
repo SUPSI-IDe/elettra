@@ -1,0 +1,68 @@
+<section class="visualize-shift" aria-labelledby="visualize-shift-heading">
+    <header class="visualize-shift__header">
+        <button type="button" data-action="back" class="visualize-shift__back">Back</button>
+        <h1 id="visualize-shift-heading">Visualize shift</h1>
+    </header>
+    <main>
+        <div class="visualize-shift-grid">
+            <section class="shift-summary" aria-labelledby="shift-summary-heading">
+                <header class="shift-summary__header">
+                    <h2 id="shift-summary-heading" data-field="name">Shift name</h2>
+                    <p class="shift-summary__bus" data-field="bus-name" hidden></p>
+                </header>
+                <section class="shift-summary__block" aria-labelledby="shift-start-heading">
+                    <h3 id="shift-start-heading">Start</h3>
+                    <dl class="shift-summary__details">
+                        <div>
+                            <dt>Time</dt>
+                            <dd data-field="start-time">00:00</dd>
+                        </div>
+                        <div>
+                            <dt>Depot</dt>
+                            <dd data-field="start-depot">Depot name</dd>
+                        </div>
+                    </dl>
+                </section>
+                <div class="shift-summary__table">
+                    <table>
+                        <caption class="sr-only">Trips included in this shift</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col" class="time">Time</th>
+                                <th scope="col" class="route">From–To</th>
+                                <th scope="col" class="actions"><span class="sr-only">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody data-role="trips-body">
+                            <tr>
+                                <td colspan="3" class="empty">No trips available.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="shift-summary__empty" data-role="trips-empty" hidden>No trips in this shift yet.</p>
+                </div>
+                <section class="shift-summary__block" aria-labelledby="shift-end-heading">
+                    <h3 id="shift-end-heading">Return</h3>
+                    <dl class="shift-summary__details">
+                        <div>
+                            <dt>Time</dt>
+                            <dd data-field="end-time">00:00</dd>
+                        </div>
+                        <div>
+                            <dt>Depot</dt>
+                            <dd data-field="end-depot">Depot name</dd>
+                        </div>
+                    </dl>
+                </section>
+            </section>
+            <section class="shift-visualization" aria-labelledby="shift-visualization-heading">
+                <header class="shift-visualization__header">
+                    <h2 id="shift-visualization-heading">Timeline</h2>
+                </header>
+                <div class="timeline" data-role="timeline" role="img" aria-label="Shift timeline chart">
+                    <p class="timeline__placeholder">Timeline will render when data is available.</p>
+                </div>
+            </section>
+        </div>
+    </main>
+</section>

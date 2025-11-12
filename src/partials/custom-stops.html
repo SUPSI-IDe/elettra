@@ -1,0 +1,30 @@
+<section class="custom-stops">
+    <header class="custom-stops-header">
+        <h1>Custom Stops</h1>
+        <button type="button">Add Custom Stop</button>
+    </header>
+    <p class="flash-message" data-role="flash" role="status" aria-live="polite" hidden></p>
+    <main>
+        <div class="table-controls">
+            <label for="custom-stops-filter" class="sr-only">Filter custom stops</label>
+            <input id="custom-stops-filter" type="search" placeholder="Search stops">
+            <button type="button" data-action="delete-selected-stops">Delete</button>
+            <button type="button" data-action="edit-selected-stops">Edit</button>
+        </div>
+        <div class="custom-stop-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="checkbox"><input type="checkbox" aria-label="Select all stops"></th>
+                        <th class="id">Id</th>
+                        <th class="name">Name</th>
+                        <th class="type">Type</th>
+                        <th class="address">Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</section>

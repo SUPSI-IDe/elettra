@@ -1,0 +1,53 @@
+<section class="add-custom-stop">
+    <header>
+        <h1>Add Custom Stop</h1>
+        <p class="intro">Capture the essentials so dispatch can rely on this location.</p>
+    </header>
+    <main>
+        <form data-form="add-custom-stop" novalidate>
+            <p class="form-feedback" data-role="feedback" role="status" aria-live="polite" hidden></p>
+            <div class="form-group">
+                <label for="custom-stop-name">Name</label>
+                <input type="text" id="custom-stop-name" name="name" required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="custom-stop-type">Type</label>
+                <select id="custom-stop-type" name="type">
+                    <option value="">Select a type</option>
+                    <option value="depot">Depot</option>
+                    <option value="charging">Charging</option>
+                    <option value="hub">Hub</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="custom-stop-address">Address</label>
+                <textarea id="custom-stop-address" name="address" rows="3" required autocomplete="street-address"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="custom-stop-city">City</label>
+                <input type="text" id="custom-stop-city" name="city" autocomplete="address-level2">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="custom-stop-latitude">Latitude <span aria-hidden="true">(optional)</span></label>
+                    <input type="number" id="custom-stop-latitude" name="latitude" step="any" inputmode="decimal">
+                </div>
+                <div class="form-group">
+                    <label for="custom-stop-longitude">Longitude <span aria-hidden="true">(optional)</span></label>
+                    <input type="number" id="custom-stop-longitude" name="longitude" step="any" inputmode="decimal">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="custom-stop-notes">Notes <span aria-hidden="true">(optional)</span></label>
+                <textarea id="custom-stop-notes" name="notes" rows="3"></textarea>
+            </div>
+            <div class="map-placeholder" data-role="map-placeholder" aria-hidden="true">
+                Map selection will appear here.
+            </div>
+            <div class="form-actions">
+                <button type="button" data-action="cancel">Cancel</button>
+                <button type="submit">Save Custom Stop</button>
+            </div>
+        </form>
+    </main>
+</section>
