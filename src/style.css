@@ -385,7 +385,7 @@ table input[type="checkbox"] {
     gap: 1rem;
 }
 
-.add-shift-grid {
+.shift-form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;

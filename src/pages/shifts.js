@@ -204,7 +204,7 @@ export const initializeShifts = async (root = document, options = {}) => {
     searchInput?.addEventListener('input', applyFilter);
 
     addButton?.addEventListener('click', () => {
-        triggerPartialLoad('add-shift');
+        triggerPartialLoad('shift-form');
     });
 
     deleteButton?.addEventListener('click', async () => {
@@ -276,7 +276,7 @@ export const initializeShifts = async (root = document, options = {}) => {
 
         const id = ids[0];
 
-        triggerPartialLoad('add-shift', { mode: 'edit', shiftId: id });
+        triggerPartialLoad('shift-form', { mode: 'edit', shiftId: id });
     });
 
     table?.addEventListener('click', (event) => {

@@ -444,13 +444,13 @@ const readShiftTripsFromStructure = (shift = {}) => {
     return structure.map(toTripFromStructure).filter(Boolean);
 };
 
-export const initializeAddShift = async (root = document, options = {}) => {
-    const section = root.querySelector('section.add-shift');
+export const initializeShiftForm = async (root = document, options = {}) => {
+    const section = root.querySelector('section.shift-form');
     if (!section) {
         return;
     }
 
-    const form = section.querySelector('form[data-form="add-shift"]');
+    const form = section.querySelector('form[data-form="shift-form"]');
     if (!form) {
         return;
     }

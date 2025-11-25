@@ -1,5 +1,5 @@
 import { initializeAddBusModel } from './pages/add-bus-model';
-import { initializeAddShift } from './pages/add-shift';
+import { initializeShiftForm } from './pages/shift-form';
 import { initializeAddCustomStop } from './pages/add-custom-stop';
 import { initializeBuses } from './pages/buses';
 import { initializeCustomStops } from './pages/custom-stops';
@@ -80,8 +80,8 @@ export const initializeNavigation = (root = document) => {
             case 'shifts':
                 initializeShifts(target, options);
                 break;
-            case 'add-shift':
-                initializeAddShift(target, options);
+            case 'shift-form':
+                initializeShiftForm(target, options);
                 break;
             case 'add-custom-stop':
                 initializeAddCustomStop(target, options);
