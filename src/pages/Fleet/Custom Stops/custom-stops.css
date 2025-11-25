@@ -1,0 +1,115 @@
+.custom-stops-header {
+    padding: .5rem;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: .5rem
+}
+
+.custom-stops-header h1 {
+    flex: 1;
+}
+
+.add-custom-stop {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 2rem;
+    max-width: 720px;
+}
+
+.add-custom-stop header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.add-custom-stop header h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #1c1c1c;
+}
+
+.add-custom-stop .intro {
+    font-size: 0.95rem;
+    color: #4f4f4f;
+    max-width: 48ch;
+}
+
+.add-custom-stop main {
+    display: flex;
+    flex-direction: column;
+}
+
+.add-custom-stop form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    max-width: clamp(22rem, 60vw, 32rem);
+}
+
+.add-custom-stop .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.add-custom-stop label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #272727;
+}
+
+.add-custom-stop input,
+.add-custom-stop textarea,
+.add-custom-stop select {
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #d3d3d3;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    background-color: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.add-custom-stop input:focus,
+.add-custom-stop textarea:focus,
+.add-custom-stop select:focus {
+    border-color: #4a9da6;
+    outline: 2px solid transparent;
+    box-shadow: 0 0 0 3px rgba(142, 229, 227, 0.35);
+}
+
+.add-custom-stop textarea {
+    min-height: 7.5rem;
+    resize: vertical;
+}
+
+.add-custom-stop .form-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.add-custom-stop .form-feedback {
+    min-height: 1.25rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+}
+
+.add-custom-stop .form-feedback[hidden] {
+    display: none;
+}
+
+.add-custom-stop .form-feedback[data-tone='error'] {
+    color: inherit;
+}
+
+.add-custom-stop .form-feedback[data-tone='success'] {
+    color: inherit;
+}
+
+.add-custom-stop .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 1rem;
+}

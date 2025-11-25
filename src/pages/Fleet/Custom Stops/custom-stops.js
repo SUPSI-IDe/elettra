@@ -1,7 +1,8 @@
-import { deleteDepot, fetchDepots, updateDepot } from '../api';
-import { resolveUserId } from '../auth';
-import { bindSelectAll } from '../dom/tables';
-import { triggerPartialLoad } from '../events';
+import './custom-stops.css';
+import { deleteDepot, fetchDepots, updateDepot } from '../../../api';
+import { resolveUserId } from '../../../auth';
+import { bindSelectAll } from '../../../dom/tables';
+import { triggerPartialLoad } from '../../../events';
 
 const text = (value) =>
     value === null || value === undefined ? '' : String(value);

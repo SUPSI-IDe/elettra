@@ -1,3 +1,4 @@
+import './shifts.css';
 import {
     createShift,
     fetchBuses,
@@ -6,11 +7,11 @@ import {
     fetchShiftById,
     fetchTripsByRoute,
     updateShift,
-} from '../api';
-import { resolveUserId } from '../auth';
-import { triggerPartialLoad } from '../events';
-import { getOwnedBuses, setOwnedBuses } from '../store';
-import { textContent, toggleFormDisabled, updateFeedback } from '../ui-helpers';
+} from '../../../api';
+import { resolveUserId } from '../../../auth';
+import { triggerPartialLoad } from '../../../events';
+import { getOwnedBuses, setOwnedBuses } from '../../../store';
+import { textContent, toggleFormDisabled, updateFeedback } from '../../../ui-helpers';
 
 const text = (value) =>
     value === null || value === undefined ? '' : String(value);

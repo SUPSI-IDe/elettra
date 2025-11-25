@@ -1,6 +1,7 @@
-import { fetchShiftById } from '../api';
-import { triggerPartialLoad } from '../events';
-import { textContent } from '../ui-helpers';
+import './shifts.css';
+import { fetchShiftById } from '../../../api';
+import { triggerPartialLoad } from '../../../events';
+import { textContent } from '../../../ui-helpers';
 
 const text = (value) =>
     value === null || value === undefined ? '' : String(value);

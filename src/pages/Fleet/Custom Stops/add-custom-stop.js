@@ -1,7 +1,8 @@
-import { createDepot } from '../api';
-import { resolveUserId } from '../auth';
-import { triggerPartialLoad } from '../events';
-import { toggleFormDisabled, updateFeedback } from '../ui-helpers';
+import './custom-stops.css';
+import { createDepot } from '../../../api';
+import { resolveUserId } from '../../../auth';
+import { triggerPartialLoad } from '../../../events';
+import { toggleFormDisabled, updateFeedback } from '../../../ui-helpers';
 
 const parseCoordinate = (value) => {
     if (typeof value !== 'string') {

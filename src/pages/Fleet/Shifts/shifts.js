@@ -1,12 +1,13 @@
+import './shifts.css';
 import {
     createShift,
     deleteShift,
     fetchShiftById,
     fetchShifts,
-} from '../api';
-import { bindSelectAll } from '../dom/tables';
-import { triggerPartialLoad } from '../events';
-import { textContent } from '../ui-helpers';
+} from '../../../api';
+import { bindSelectAll } from '../../../dom/tables';
+import { triggerPartialLoad } from '../../../events';
+import { textContent } from '../../../ui-helpers';
 
 const text = (value) =>
     value === null || value === undefined ? '' : String(value);

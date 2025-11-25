@@ -1,19 +1,22 @@
-import { initializeAddBusModel } from './pages/add-bus-model';
-import { initializeShiftForm } from './pages/shift-form';
-import { initializeAddCustomStop } from './pages/add-custom-stop';
-import { initializeBuses } from './pages/buses';
-import { initializeCustomStops } from './pages/custom-stops';
-import { initializeShifts } from './pages/shifts';
-import { initializeVisualizeShift } from './pages/visualize-shift';
+import { initializeAddBusModel } from './pages/Fleet/Buses/add-bus-model';
+import { initializeShiftForm } from './pages/Fleet/Shifts/shift-form';
+import { initializeAddCustomStop } from './pages/Fleet/Custom Stops/add-custom-stop';
+import { initializeBuses } from './pages/Fleet/Buses/buses';
+import { initializeCustomStops } from './pages/Fleet/Custom Stops/custom-stops';
+import { initializeShifts } from './pages/Fleet/Shifts/shifts';
+import { initializeVisualizeShift } from './pages/Fleet/Shifts/visualize-shift';
 
-const partials = import.meta.glob('./partials/*.html', {
+const partials = import.meta.glob('./pages/**/*.html', {
     query: '?raw',
     import: 'default',
 });
 
 const slugFrom = (node) => node?.dataset.partial?.trim() || '';
 
-const getLoader = (slug) => partials[`./partials/${slug}.html`];
+const getLoader = (slug) => {
+    const key = Object.keys(partials).find((k) => k.endsWith(`/${slug}.html`));
+    return partials[key];
+};
 
 const renderInto = (container) => (html = '') => {
     container.innerHTML = html;

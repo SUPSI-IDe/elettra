@@ -1,0 +1,136 @@
+.buses-header {
+    padding: .5rem;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: .5rem
+}
+
+.buses-header h1 {
+    flex: 1;
+}
+
+.buses-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .5rem;
+    padding: .5rem;
+    overflow-y: auto;
+}
+
+.bus-models,
+.buses-list {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.bus-models h2,
+.buses-list h2 {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+@media (max-width: 1024px) {
+    .buses-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.add-bus-model {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 2rem;
+    max-width: 720px;
+}
+
+.add-bus-model header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.add-bus-model header h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #1c1c1c;
+}
+
+.add-bus-model .intro {
+    font-size: 0.95rem;
+    color: #4f4f4f;
+    max-width: 48ch;
+}
+
+.add-bus-model main {
+    display: flex;
+    flex-direction: column;
+}
+
+.add-bus-model form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    max-width: clamp(22rem, 60vw, 32rem);
+}
+
+.add-bus-model .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.add-bus-model label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #272727;
+}
+
+.add-bus-model input,
+.add-bus-model textarea {
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #d3d3d3;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    background-color: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.add-bus-model input:focus,
+.add-bus-model textarea:focus {
+    border-color: #4a9da6;
+    outline: 2px solid transparent;
+    box-shadow: 0 0 0 3px rgba(142, 229, 227, 0.35);
+}
+
+.add-bus-model textarea {
+    min-height: 7.5rem;
+    resize: vertical;
+}
+
+.add-bus-model .form-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.add-bus-model .form-feedback {
+    min-height: 1.25rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+}
+
+.add-bus-model .form-feedback[hidden] {
+    display: none;
+}
+
+.add-bus-model .form-feedback[data-tone='error'] {
+    color: inherit;
+}
+
+.add-bus-model .form-feedback[data-tone='success'] {
+    color: inherit;
+}
