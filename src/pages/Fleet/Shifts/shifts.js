@@ -4,6 +4,7 @@ import {
     deleteShift,
     fetchShiftById,
     fetchShifts,
+    fetchStopsByTripId,
 } from '../../../api';
 import { bindSelectAll } from '../../../dom/tables';
 import { triggerPartialLoad } from '../../../events';
@@ -66,6 +67,28 @@ const renderEmpty = (tbody) => {
     `;
 };
 
+const parseTime = (time) => {
+    const match = /^\s*(\d{1,2}):(\d{2})/.exec(time ?? '');
+    if (!match) {
+        return null;
+    }
+    const hours = Number.parseInt(match[1], 10);
+    const minutes = Number.parseInt(match[2], 10);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+        return null;
+    }
+    return hours * 60 + minutes;
+};
+
+const formatTime = (minutes) => {
+    if (minutes === null || minutes === undefined || Number.isNaN(minutes)) {
+        return '—';
+    }
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
 const renderRows = (tbody, shifts = []) => {
     if (!tbody) {
         return;
@@ -87,14 +110,55 @@ const renderRows = (tbody, shifts = []) => {
                     ? '—'
                     : `${tripsCount} trip${tripsCount === 1 ? '' : 's'}`;
 
-            const startTime =
+            let startTime =
                 text(shift?.start_time).trim() ||
-                text(shift?.startTime).trim() ||
-                '—';
-            const endTime =
+                text(shift?.startTime).trim();
+            let endTime =
                 text(shift?.end_time).trim() ||
-                text(shift?.endTime).trim() ||
-                '—';
+                text(shift?.endTime).trim();
+
+            if ((!startTime || !endTime) && structure.length > 0) {
+                const times = structure.flatMap((item) => {
+                    const trip = item?.trip ?? {};
+                    const nestedTrip = trip?.trip ?? {};
+                    const stopTimes = Array.isArray(trip?.stop_times)
+                        ? trip.stop_times
+                        : Array.isArray(nestedTrip?.stop_times)
+                        ? nestedTrip.stop_times
+                        : [];
+
+                    return [
+                        trip.departure_time,
+                        trip.arrival_time,
+                        trip.start_time,
+                        trip.end_time,
+                        nestedTrip.departure_time,
+                        nestedTrip.arrival_time,
+                        nestedTrip.start_time,
+                        nestedTrip.end_time,
+                        stopTimes[0]?.departure_time,
+                        stopTimes[0]?.arrival_time,
+                        stopTimes[stopTimes.length - 1]?.departure_time,
+                        stopTimes[stopTimes.length - 1]?.arrival_time,
+                    ];
+                });
+
+                const minutes = times
+                    .map(parseTime)
+                    .filter((m) => m !== null);
+
+                if (minutes.length > 0) {
+                    if (!startTime) {
+                        startTime = formatTime(Math.min(...minutes));
+                    }
+                    if (!endTime) {
+                        endTime = formatTime(Math.max(...minutes));
+                    }
+                }
+            }
+
+            startTime = startTime || '—';
+            endTime = endTime || '—';
 
             const rowId = text(shift?.id);
             const rowName = text(shift?.name);
@@ -120,6 +184,77 @@ const renderRows = (tbody, shifts = []) => {
         .join('');
 
     tbody.innerHTML = rows;
+
+    shifts.forEach((shift) => {
+        const row = tbody.querySelector(`tr[data-id="${shift.id}"]`);
+        updateShiftTimes(row, shift);
+    });
+};
+
+const updateShiftTimes = async (row, shift) => {
+    if (!row || !shift) {
+        return;
+    }
+
+    const startCell = row.querySelector('.start');
+    const endCell = row.querySelector('.end');
+
+    if (
+        !startCell ||
+        !endCell ||
+        (startCell.textContent !== '—' && endCell.textContent !== '—')
+    ) {
+        return;
+    }
+
+    const structure = Array.isArray(shift?.structure) ? shift.structure : [];
+    if (structure.length === 0) {
+        return;
+    }
+
+    const sorted = [...structure].sort(
+        (a, b) => (a.sequence_number || 0) - (b.sequence_number || 0),
+    );
+    const firstItem = sorted[0];
+    const lastItem = sorted[sorted.length - 1];
+
+    try {
+        let startTime = null;
+        let endTime = null;
+
+        const firstTripId = firstItem?.trip_id;
+        const lastTripId = lastItem?.trip_id;
+
+        if (firstTripId) {
+            const stops = await fetchStopsByTripId(firstTripId);
+            if (stops?.length) {
+                startTime = stops[0].departure_time || stops[0].arrival_time;
+                if (firstTripId === lastTripId) {
+                    endTime =
+                        stops[stops.length - 1].arrival_time ||
+                        stops[stops.length - 1].departure_time;
+                }
+            }
+        }
+
+        if (lastTripId && lastTripId !== firstTripId) {
+            const stops = await fetchStopsByTripId(lastTripId);
+            if (stops?.length) {
+                endTime =
+                    stops[stops.length - 1].arrival_time ||
+                    stops[stops.length - 1].departure_time;
+            }
+        }
+
+        if (startTime) {
+            startCell.textContent = formatTime(parseTime(startTime));
+        }
+        if (endTime) {
+            endCell.textContent = formatTime(parseTime(endTime));
+        }
+    } catch (e) {
+        console.warn('Failed to update shift times', e);
+    }
 };
 
 const getSelectedIdsFrom = (table) =>

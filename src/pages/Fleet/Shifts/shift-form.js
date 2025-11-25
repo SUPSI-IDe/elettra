@@ -2,9 +2,11 @@ import './shifts.css';
 import {
     createShift,
     fetchBuses,
+    fetchBusById,
     fetchDepots,
     fetchRoutes,
     fetchShiftById,
+    fetchStopsByTripId,
     fetchTripsByRoute,
     updateShift,
 } from '../../../api';
@@ -173,6 +175,8 @@ const normalizeTrip = (trip = {}) => {
             trip?.trip?.departureTime,
             trip?.trip?.start_time,
             trip?.trip?.startTime,
+            stopTimes[0]?.departure_time,
+            stopTimes[0]?.departureTime,
         ),
     );
 
@@ -186,6 +190,8 @@ const normalizeTrip = (trip = {}) => {
             trip?.trip?.arrivalTime,
             trip?.trip?.end_time,
             trip?.trip?.endTime,
+            stopTimes[stopTimes.length - 1]?.arrival_time,
+            stopTimes[stopTimes.length - 1]?.arrivalTime,
         ),
     );
 
@@ -443,6 +449,36 @@ const readShiftTripsFromStructure = (shift = {}) => {
         return [];
     }
     return structure.map(toTripFromStructure).filter(Boolean);
+};
+
+const hydrateShift = async (shift) => {
+    if (!shift || !Array.isArray(shift.structure) || shift.structure.length === 0) {
+        return shift;
+    }
+
+    const structure = await Promise.all(
+        shift.structure.map(async (item) => {
+            if (!item.trip_id) {
+                return item;
+            }
+            try {
+                const stopTimes = await fetchStopsByTripId(item.trip_id);
+                return {
+                    ...item,
+                    stop_times: stopTimes,
+                    trip: {
+                        ...(item.trip || {}),
+                        stop_times: stopTimes,
+                    },
+                };
+            } catch (error) {
+                console.error(`Failed to load stops for trip ${item.trip_id}`, error);
+                return item;
+            }
+        }),
+    );
+
+    return { ...shift, structure };
 };
 
 export const initializeShiftForm = async (root = document, options = {}) => {
@@ -1146,7 +1182,33 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     if (isEditMode) {
         if (shift) {
-            applyShiftPrefill(shift);
+            const busId = firstAvailable(
+                shift?.bus_id,
+                shift?.busId,
+                shift?.bus?.id,
+                shift?.bus?.bus_id,
+            );
+
+            // If the bus is not in the loaded list, try to fetch it to get the name
+            if (busId && busSelect instanceof HTMLSelectElement) {
+                const exists = Array.from(busSelect.options).some(
+                    (opt) => opt.value === String(busId),
+                );
+                if (!exists) {
+                    try {
+                        const bus = await fetchBusById(busId);
+                        if (bus) {
+                            // Patch the shift object so prefill uses the correct name
+                            shift.bus = { ...(shift.bus || {}), ...bus };
+                        }
+                    } catch (error) {
+                        console.error('Failed to fetch missing bus details', error);
+                    }
+                }
+            }
+
+            const hydratedShift = await hydrateShift(shift);
+            applyShiftPrefill(hydratedShift);
             updateFeedback(feedback, 'Shift ready to edit.', 'info');
             toggleFormDisabled(form, false);
             if (nameInput instanceof HTMLInputElement) {

@@ -656,6 +656,14 @@ export const initializeVisualizeShift = async (root = document, options = {}) =>
             }));
 
             state.trips = readShiftTripsFromStructure({ ...shift, structure: enrichedStructure });
+
+            // Fallback: try to get depot names from the first/last trip stops if still missing
+            if (!state.startDepotName && state.trips.length > 0) {
+                state.startDepotName = state.trips[0].start_stop_name || '';
+            }
+            if (!state.endDepotName && state.trips.length > 0) {
+                state.endDepotName = state.trips[state.trips.length - 1].end_stop_name || '';
+            }
         } catch (error) {
             console.error('Unable to load shift for visualization', error);
             ensurePlaceholder(
