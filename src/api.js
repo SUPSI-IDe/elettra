@@ -30,6 +30,7 @@ const CURRENT_USER_PATH = '/auth/me';
 const SHIFTS_PATH = '/api/v1/user/shifts/';
 const GTFS_ROUTES_PATH = '/api/v1/gtfs/gtfs-routes/';
 const GTFS_TRIPS_BY_ROUTE_PATH = '/api/v1/gtfs/gtfs-trips/by-route/';
+const GTFS_STOPS_BY_TRIP_PATH = '/api/v1/gtfs/gtfs-stops/by-trip/';
 
 const readAccessToken = () =>
     localStorage.getItem('access_token') ||
@@ -723,6 +724,46 @@ export const fetchTripsByRoute = async ({
             payload?.detail?.[0]?.msg ??
             payload?.detail ??
             'Unable to load trips.';
+        throw new Error(message);
+    }
+    return payload;
+};
+
+export const fetchStopsByTripId = async (tripId) => {
+    if (!tripId) {
+        throw new Error('Missing tripId');
+    }
+    const headers = authHeaders();
+    const response = await fetch(`${GTFS_STOPS_BY_TRIP_PATH}${encodeURIComponent(tripId)}`, {
+        method: 'GET',
+        headers,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+        const message =
+            payload?.detail?.[0]?.msg ??
+            payload?.detail ??
+            'Unable to load stops for trip.';
+        throw new Error(message);
+    }
+    return payload;
+};
+
+export const fetchDepotById = async (depotId) => {
+    if (!depotId) {
+        throw new Error('Missing depotId');
+    }
+    const headers = authHeaders();
+    const response = await fetch(`${DEPOTS_PATH}${encodeURIComponent(depotId)}`, {
+        method: 'GET',
+        headers,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+        const message =
+            payload?.detail?.[0]?.msg ??
+            payload?.detail ??
+            'Unable to load depot.';
         throw new Error(message);
     }
     return payload;

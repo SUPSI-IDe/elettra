@@ -221,3 +221,5 @@ table input[type="checkbox"] {
     display: none;
 }
 
+
+@import './pages/Fleet/Shifts/shift-visualization.css';

@@ -1,0 +1,65 @@
+
+/* Shift Visualization */
+.timeline {
+    width: 100%;
+    height: 600px; /* Or whatever height fits */
+    background-color: #fff;
+    border-radius: 8px;
+    /* padding: 20px; handled by D3 margins */
+    overflow: hidden; /* Prevent scrollbars if svg is slightly off */
+}
+
+.timeline svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.axis path,
+.axis line {
+    fill: none;
+    stroke: #ccc;
+    shape-rendering: crispEdges;
+}
+
+.axis text {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    fill: #666;
+}
+
+.grid line {
+    stroke: #eee;
+    stroke-opacity: 0.7;
+    shape-rendering: crispEdges;
+}
+
+.grid path {
+    stroke-width: 0;
+}
+
+.trip-line {
+    fill: none;
+    stroke: #007bff;
+    stroke-width: 2px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    transition: stroke-width 0.2s ease;
+}
+
+.trip-line:hover {
+    stroke-width: 4px;
+    cursor: pointer;
+}
+
+.stop-dot {
+    fill: #007bff;
+    stroke: #fff;
+    stroke-width: 1px;
+    transition: r 0.2s ease;
+}
+
+.stop-dot:hover {
+    r: 6px;
+    cursor: pointer;
+}

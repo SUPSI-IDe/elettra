@@ -65,4 +65,15 @@
             </section>
         </div>
     </main>
+    <script type="module">
+        import { renderShiftVisualization, generateMockData } from './shift-visualization.js';
+
+        const data = generateMockData();
+        renderShiftVisualization('[data-role="timeline"]', data);
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+             renderShiftVisualization('[data-role="timeline"]', data);
+        });
+    </script>
 </section>
