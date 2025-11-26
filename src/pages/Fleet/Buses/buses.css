@@ -1,9 +1,9 @@
 .buses-header {
-    padding: .5rem;
+    padding: var(--spacing-sm);
     display: flex;
     flex-direction: row;
     align-items: flex-end;
-    gap: .5rem
+    gap: var(--spacing-sm)
 }
 
 .buses-header h1 {
@@ -13,8 +13,8 @@
 .buses-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: .5rem;
-    padding: .5rem;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
     overflow-y: auto;
 }
 
@@ -27,7 +27,7 @@
 
 .bus-models h2,
 .buses-list h2 {
-    margin-bottom: 1rem;
+    margin-bottom: var(--spacing-md);
     font-size: 1rem;
     font-weight: 600;
     color: #333;
@@ -42,15 +42,15 @@
 .add-bus-model {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    padding: 2rem;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-xl);
     max-width: 720px;
 }
 
 .add-bus-model header {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--spacing-sm);
 }
 
 .add-bus-model header h1 {
@@ -73,7 +73,7 @@
 .add-bus-model form {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: var(--spacing-lg);
     max-width: clamp(22rem, 60vw, 32rem);
 }
 

@@ -1,9 +1,9 @@
 .shifts-header {
-    padding: .5rem;
+    padding: var(--spacing-sm);
     display: flex;
     flex-direction: row;
     align-items: flex-end;
-    gap: .5rem
+    gap: var(--spacing-sm)
 }
 
 .shifts-header h1 {
@@ -13,20 +13,220 @@
 .shift-form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: var(--spacing-xl);
+    align-items: start;
+}
+
+.shift-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-xl);
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.shift-form header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.shift-form header h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #1c1c1c;
+}
+
+.shift-form .intro {
+    font-size: 0.95rem;
+    color: #4f4f4f;
+    max-width: 60ch;
+}
+
+.shift-form main {
+    display: flex;
+    flex-direction: column;
+}
+
+.shift-form form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    width: 100%;
+}
+
+.shift-form .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+.shift-form h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1c1c1c;
+}
+
+.shift-form .filters,
+.shift-form .start-controls,
+.shift-form .end-controls {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.shift-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 150px;
+}
+
+.shift-form label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #272727;
+}
+
+.shift-form input,
+.shift-form select {
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #d3d3d3;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    background-color: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    width: 100%;
+}
+
+.shift-form input:focus,
+.shift-form select:focus {
+    border-color: #4a9da6;
+    outline: 2px solid transparent;
+    box-shadow: 0 0 0 3px rgba(142, 229, 227, 0.35);
+}
+
+.shift-form .table-wrapper {
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-md);
+    max-height: 500px;
+    overflow-y: auto;
+    background: white;
+}
+
+.shift-form table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.shift-form th {
+    background-color: #fafafa;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    font-weight: 600;
+    color: #666;
+}
+
+.shift-form td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.shift-form .form-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid #e5e5e5;
+}
+
+.shift-form button {
+    padding: 0.65rem 1.25rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.shift-form button[type="submit"] {
+    background-color: #0f3c3c;
+    color: white;
+    border: 1px solid #0f3c3c;
+}
+
+.shift-form button[type="submit"]:hover {
+    background-color: #092525;
+}
+
+.shift-form button[data-action="cancel"] {
+    background-color: white;
+    border: 1px solid #d3d3d3;
+    color: #4f4f4f;
+}
+
+.shift-form button[data-action="cancel"]:hover {
+    background-color: #f5f5f5;
+}
+
+.shift-form button[data-action="visualize-shift"] {
+    background-color: white;
+    border: 1px solid #4a9da6;
+    color: #0f3c3c;
+}
+
+.shift-form button[data-action="visualize-shift"]:hover {
+    background-color: #e4f6f6;
+}
+
+.shift-form .form-feedback {
+    min-height: 1.25rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+    margin-bottom: var(--spacing-md);
+}
+
+.shift-form .form-feedback[hidden] {
+    display: none;
+}
+
+.shift-form .form-feedback[data-tone='error'] {
+    color: #d32f2f;
+}
+
+.shift-form .form-feedback[data-tone='success'] {
+    color: #2e7d32;
+}
+
+.shifts-main {
+    padding: var(--spacing-sm);
 }
 
 .visualize-shift {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    padding: 2rem;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-sm);
 }
 
 .visualize-shift__header {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: var(--spacing-md);
 }
 
 .visualize-shift__back {
@@ -47,13 +247,13 @@
 .visualize-shift-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 2rem;
+    gap: var(--spacing-xl);
 }
 
 .shift-summary {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: var(--spacing-lg);
 }
 
 .shift-summary__header h2 {
@@ -71,7 +271,7 @@
     background-color: #f7f9f9;
     border: 1px solid rgba(15, 60, 60, 0.08);
     border-radius: 8px;
-    padding: 1rem 1.25rem;
+    padding: var(--spacing-md) 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -86,7 +286,7 @@
 .shift-summary__details {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-    gap: 1rem;
+    gap: var(--spacing-md);
 }
 
 .shift-summary__details dt {
@@ -130,7 +330,7 @@
 .shift-visualization {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: var(--spacing-lg);
 }
 
 .shift-visualization__header h2 {
@@ -143,7 +343,7 @@
     border: 1px solid #e5e5e5;
     border-radius: 12px;
     background: linear-gradient(180deg, rgba(142, 229, 227, 0.12), rgba(177, 232, 232, 0.05));
-    padding: 1.5rem;
+    padding: var(--spacing-lg);
     min-height: 360px;
     display: flex;
     align-items: center;
@@ -191,6 +391,10 @@
 
 @media (max-width: 1024px) {
     .visualize-shift-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .shift-form-grid {
         grid-template-columns: 1fr;
     }
 
