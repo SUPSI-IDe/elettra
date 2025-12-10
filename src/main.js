@@ -1,8 +1,8 @@
-import './style.css';
-import { initializeLogin } from './auth';
-import { initializeNavigation } from './navigation';
+import "./style.css";
+import { initializeLogin } from "./api/session";
+import { initializeNavigation } from "./navigation";
 
-const loginButton = document.querySelector('.login');
+const loginButton = document.querySelector(".login");
 const root = document;
 
 initializeLogin(loginButton);

@@ -1,5 +1,6 @@
-import { authenticate, fetchCurrentUser } from "./api";
-import { getCurrentUserId, setCurrentUserId } from "./store";
+import { authenticate } from "./auth";
+import { fetchCurrentUser } from "./user";
+import { getCurrentUserId, setCurrentUserId } from "../store"; // Import from parent store
 
 const promptValue = (label) => prompt(label)?.trim() || null;
 
@@ -23,7 +24,19 @@ const persistTokens = ({ access_token = "", token_type = "" } = {}) => {
   return { access_token, token_type };
 };
 
-export const resolveCredentials = () => readPromptCredentials();
+const readEnvCredentials = () => {
+  const email = import.meta.env.VITE_USER || import.meta.env.VITE_TEST_EMAIL;
+  const password =
+    import.meta.env.VITE_PASSWORD || import.meta.env.VITE_TEST_PASSWORD;
+
+  if (email && password) {
+    return { email, password };
+  }
+  return null;
+};
+
+export const resolveCredentials = () =>
+  readEnvCredentials() || readPromptCredentials();
 
 export const resolveUserId = async () => {
   const cached = getCurrentUserId();
