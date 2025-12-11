@@ -1,5 +1,5 @@
 import "./custom-stops.css";
-import { deleteDepot, fetchDepots, updateDepot } from "../../../api";
+import { deleteDepot, fetchDepots } from "../../../api";
 import { resolveUserId } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
@@ -194,30 +194,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
     const id = ids[0];
     const current = allDepots.find((depot) => depot?.id === id) ?? {};
 
-    const name = prompt("Custom stop name", text(current?.name))?.trim();
-    if (!name) {
-      return;
-    }
-
-    const address = prompt("Address", text(current?.address))?.trim();
-    if (!address) {
-      return;
-    }
-
-    try {
-      await updateDepot(id, {
-        name,
-        address,
-        latitude: current?.latitude ?? 0,
-        longitude: current?.longitude ?? 0,
-        features: current?.features ?? {},
-      });
-      alert("Custom stop updated.");
-      await reload();
-    } catch (error) {
-      console.error("Failed to update custom stop", error);
-      alert(error?.message ?? "Unable to update custom stop.");
-    }
+    triggerPartialLoad("add-custom-stop", { depot: current });
   });
 
   addButton?.addEventListener("click", () => {
