@@ -172,35 +172,9 @@ const initializeModelControls = (section) => {
       }
       const id = selectedIds[0];
       const current = getModelsById()[id] ?? null;
-      const currentName = current?.name ?? current?.model ?? "";
-      const currentManufacturer = current?.manufacturer ?? "";
-      const currentDescription = current?.description ?? "";
 
-      const name = prompt("Model name", currentName)?.trim();
-      if (!name) {
-        return;
-      }
-      const manufacturer = prompt("Manufacturer", currentManufacturer)?.trim();
-      if (!manufacturer) {
-        return;
-      }
-      const description =
-        prompt("Description", currentDescription)?.trim() ?? "";
-
-      try {
-        const userId = await resolveUserId();
-        await updateBusModel(id, {
-          name,
-          manufacturer,
-          description,
-          specs: current?.specs ?? {},
-          userId,
-        });
-        writeFlash("Bus model updated.");
-        triggerPartialLoad("buses");
-      } catch (error) {
-        console.error("Failed to update bus model", error);
-        alert(error?.message ?? "Unable to update bus model.");
+      if (current) {
+        triggerPartialLoad("add-bus-model", { busModel: current });
       }
     }
   });
@@ -254,24 +228,9 @@ const initializeBusControls = (section) => {
       }
       const id = selectedIds[0];
       const current = getBusesById()[id] ?? null;
-      const currentName = current?.name ?? "";
-      const name = prompt("Bus name", currentName)?.trim();
-      if (!name) {
-        return;
-      }
-      try {
-        const userId = await resolveUserId();
-        await updateBus(id, {
-          name,
-          busModelId: current?.bus_model_id ?? "",
-          specs: current?.specs ?? {},
-          userId,
-        });
-        writeFlash("Bus updated.");
-        triggerPartialLoad("buses");
-      } catch (error) {
-        console.error("Failed to update bus", error);
-        alert(error?.message ?? "Unable to update bus.");
+
+      if (current) {
+        triggerPartialLoad("add-bus", { bus: current });
       }
     }
   });

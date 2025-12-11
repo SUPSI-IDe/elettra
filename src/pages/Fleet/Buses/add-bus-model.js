@@ -1,5 +1,5 @@
 import "./buses.css";
-import { createBusModel } from "../../../api";
+import { createBusModel, updateBusModel } from "../../../api";
 import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { writeFlash } from "../../../store";
@@ -13,15 +13,37 @@ const toBusModelPayload = (formData) => {
   return { name, manufacturer, description };
 };
 
-export const initializeAddBusModel = (root = document) => {
+export const initializeAddBusModel = (root = document, options = {}) => {
   const section = root.querySelector("section.add-bus-model");
   if (!section) {
     return;
   }
 
+  const header = section.querySelector("header h1");
   const form = section.querySelector('form[data-form="add-bus-model"]');
   if (!form) {
     return;
+  }
+
+  const isEditMode = !!options.busModel;
+  const currentModel = options.busModel || {};
+
+  if (isEditMode) {
+    if (header) {
+      header.textContent = "Edit Bus Model";
+    }
+
+    // Pre-fill form
+    const nameInput = form.querySelector("#name");
+    const manufacturerInput = form.querySelector("#manufacturer");
+    const descriptionInput = form.querySelector("#description");
+
+    if (nameInput)
+      nameInput.value = currentModel.name || currentModel.model || "";
+    if (manufacturerInput)
+      manufacturerInput.value = currentModel.manufacturer || "";
+    if (descriptionInput)
+      descriptionInput.value = currentModel.description || "";
   }
 
   const feedback = form.querySelector('[data-role="feedback"]');
@@ -47,25 +69,45 @@ export const initializeAddBusModel = (root = document) => {
     }
 
     toggleFormDisabled(form, true);
-    updateFeedback(feedback, "Saving…", "info");
+    updateFeedback(feedback, isEditMode ? "Updating…" : "Saving…", "info");
 
     try {
       const userId = await resolveUserId();
 
-      await createBusModel({
-        name,
-        manufacturer,
-        description,
-        specs: {},
-        userId,
-      });
-      writeFlash("Bus model added.");
+      if (isEditMode) {
+        await updateBusModel(currentModel.id, {
+          name,
+          manufacturer,
+          description,
+          specs: currentModel.specs || {},
+          userId,
+        });
+        writeFlash("Bus model updated.");
+      } else {
+        await createBusModel({
+          name,
+          manufacturer,
+          description,
+          specs: {},
+          userId,
+        });
+        writeFlash("Bus model added.");
+      }
+
       triggerPartialLoad("buses");
     } catch (error) {
-      console.error("Failed to create bus model", error);
+      console.error(
+        isEditMode ?
+          "Failed to update bus model"
+        : "Failed to create bus model",
+        error
+      );
       updateFeedback(
         feedback,
-        error?.message ?? "Unable to save bus model.",
+        error?.message ??
+          (isEditMode ?
+            "Unable to update bus model."
+          : "Unable to save bus model."),
         "error"
       );
     } finally {

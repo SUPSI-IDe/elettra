@@ -1,0 +1,42 @@
+<section class="add-bus">
+  <header>
+    <h1>Add Bus</h1>
+    <p class="intro">Add a new vehicle to your fleet.</p>
+  </header>
+  <main>
+    <form data-form="add-bus" novalidate>
+      <p
+        class="form-feedback"
+        data-role="feedback"
+        role="status"
+        aria-live="polite"
+        hidden
+      ></p>
+      <div class="form-group">
+        <label for="name">Bus Name</label>
+        <input type="text" id="name" name="name" required autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label for="bus-model">Bus Model</label>
+        <select id="bus-model" name="busModelId" required>
+          <option value="">Select a model</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="description"
+          >Description <span aria-hidden="true">(optional)</span></label
+        >
+        <textarea
+          id="description"
+          name="description"
+          rows="5"
+          autocomplete="off"
+        ></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" data-action="cancel">Cancel</button>
+        <button type="submit">Save</button>
+      </div>
+    </form>
+  </main>
+</section>
