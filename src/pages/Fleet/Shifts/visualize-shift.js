@@ -3,6 +3,7 @@ import {
   fetchShiftById,
   fetchStopsByTripId,
   fetchDepotById,
+  fetchBusById,
 } from "../../../api";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
@@ -291,9 +292,19 @@ const renderTimeline = async (container, trips = [], options = {}) => {
   const height = innerHeight + margin.top + margin.bottom;
   const innerWidth = width - margin.left - margin.right;
 
+  const startMinutes = parseTimeToMinutes(options.startTime) ?? 0;
+  let endMinutes = parseTimeToMinutes(options.endTime) ?? 24 * 60;
+  if (endMinutes < startMinutes) {
+    endMinutes += 24 * 60;
+  }
+  // Ensure at least 1 hour range to avoid zero-width axis
+  if (endMinutes <= startMinutes) {
+    endMinutes = startMinutes + 60;
+  }
+
   const xScale = d3
     .scaleLinear()
-    .domain([0, 24 * 60])
+    .domain([startMinutes, endMinutes])
     .range([0, innerWidth]);
   const yScale = d3
     .scalePoint()
@@ -325,7 +336,7 @@ const renderTimeline = async (container, trips = [], options = {}) => {
     .attr("y1", (stop) => yScale(stop))
     .attr("y2", (stop) => yScale(stop));
 
-  const tickMinutes = [0, 8 * 60, 16 * 60, 23 * 60];
+  const tickMinutes = xScale.ticks(5);
   const vertical = root
     .append("g")
     .attr("class", "timeline__grid timeline__grid--vertical");
@@ -354,13 +365,23 @@ const renderTimeline = async (container, trips = [], options = {}) => {
     .append("g")
     .attr("class", "timeline__axis timeline__axis--y");
   yAxis
-    .selectAll("text")
+    .selectAll("foreignObject")
     .data(stops)
-    .join("text")
-    .attr("x", -16)
-    .attr("y", (stop) => yScale(stop))
-    .attr("text-anchor", "end")
-    .attr("dominant-baseline", "middle")
+    .join("foreignObject")
+    .attr("x", -margin.left)
+    .attr("y", (stop) => yScale(stop) - rowHeight / 2)
+    .attr("width", margin.left - 16)
+    .attr("height", rowHeight)
+    .append("xhtml:div")
+    .style("height", "100%")
+    .style("display", "flex")
+    .style("align-items", "center")
+    .style("justify-content", "flex-end")
+    .style("text-align", "right")
+    .style("font-size", "0.85rem")
+    .style("line-height", "1.2")
+    .style("color", "#334")
+    .style("font-family", "inherit")
     .text((stop) => textContent(stop));
 
   const serieGroup = root.append("g").attr("class", "timeline__series");
@@ -592,11 +613,19 @@ export const initializeVisualizeShift = async (
   };
 
   const renderAll = async () => {
+    const { earliest, latest } = computeTimeBounds(state.trips);
+    const effectiveStartTime =
+      state.startTime || (earliest !== null ? formatMinutes(earliest) : "");
+    const effectiveEndTime =
+      state.endTime || (latest !== null ? formatMinutes(latest) : "");
+
     renderSummary();
     renderTripsTable();
     await renderTimeline(timelineContainer, state.trips, {
       startDepotName: state.startDepotName,
       endDepotName: state.endDepotName,
+      startTime: effectiveStartTime,
+      endTime: effectiveEndTime,
     });
   };
 
@@ -623,15 +652,22 @@ export const initializeVisualizeShift = async (
     try {
       const shift = await fetchShiftById(options.shiftId);
       state.name = state.name || text(shift?.name ?? "");
-      state.busName =
-        state.busName ||
-        text(
-          shift?.bus?.name ??
-            shift?.bus_name ??
-            shift?.busName ??
-            shift?.bus_id ??
-            ""
-        );
+
+      let resolvedBusName =
+        shift?.bus?.name ?? shift?.bus_name ?? shift?.busName;
+      if (!resolvedBusName) {
+        const busId = shift?.bus?.id ?? shift?.bus_id ?? shift?.busId;
+        if (busId) {
+          try {
+            const bus = await fetchBusById(busId);
+            resolvedBusName = bus?.name;
+          } catch (error) {
+            console.warn(`Failed to fetch bus ${busId}`, error);
+            resolvedBusName = busId;
+          }
+        }
+      }
+      state.busName = state.busName || text(resolvedBusName || "");
       state.startTime =
         state.startTime ||
         normalizeTime(
@@ -748,4 +784,13 @@ export const initializeVisualizeShift = async (
   }
 
   await renderAll();
+
+  let resizeTimeout;
+  const resizeObserver = new ResizeObserver(() => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      renderAll();
+    }, 100);
+  });
+  resizeObserver.observe(timelineContainer);
 };

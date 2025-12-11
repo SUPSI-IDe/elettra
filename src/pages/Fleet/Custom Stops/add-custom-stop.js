@@ -1,4 +1,6 @@
 import "./custom-stops.css";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 import { createDepot, updateDepot } from "../../../api";
 import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
@@ -96,6 +98,115 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   cancelButton?.addEventListener("click", () => {
     triggerPartialLoad("custom-stops");
   });
+
+  // Initialize map
+  const mapContainer = form.querySelector('[data-role="map"]');
+  const latInput = form.querySelector("#custom-stop-latitude");
+  const lonInput = form.querySelector("#custom-stop-longitude");
+  const addressInput = form.querySelector("#custom-stop-address");
+  const cityInput = form.querySelector("#custom-stop-city");
+
+  // Default center (Bern) or use existing coordinates in edit mode
+  const defaultLat = currentDepot.latitude ?? 46.9480;
+  const defaultLon = currentDepot.longitude ?? 7.4474;
+
+  const map = L.map(mapContainer, {
+    center: [defaultLat, defaultLon],
+    zoom: 13,
+  });
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // Reverse geocode using Nominatim
+  const reverseGeocode = async (lat, lon) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
+        { headers: { "Accept-Language": "it" } }
+      );
+      if (!response.ok) return null;
+      return await response.json();
+    } catch {
+      return null;
+    }
+  };
+
+  // Track manual edits so we don't overwrite user input
+  addressInput.addEventListener("input", () => {
+    addressInput.dataset.userEdited = "true";
+  });
+  cityInput.addEventListener("input", () => {
+    cityInput.dataset.userEdited = "true";
+  });
+
+  // Build a robust single-line address from Nominatim data
+  const buildAddressLine = (addr, displayName) => {
+    const street = [
+      addr.road,
+      addr.pedestrian,
+      addr.footway,
+      addr.path,
+      addr.cycleway,
+      addr.residential,
+      addr.square,
+      addr.place,
+    ].find(Boolean);
+    const number = addr.house_number;
+
+    if (street && number) return `${street} ${number}`;
+    if (street) return street;
+    if (number) {
+      const primary = (displayName || "").split(",")[0]?.trim();
+      return primary ? `${number}, ${primary}` : `${number}`;
+    }
+    const primary = (displayName || "").split(",")[0]?.trim();
+    return primary || "";
+  };
+
+  // Update form fields from map center
+  const updateFromMapCenter = async () => {
+    const center = map.getCenter();
+    const lat = center.lat.toFixed(6);
+    const lon = center.lng.toFixed(6);
+
+    latInput.value = lat;
+    lonInput.value = lon;
+
+    // Reverse geocode for address
+    const geo = await reverseGeocode(center.lat, center.lng);
+    if (geo) {
+      const addr = geo.address || {};
+
+      const addressLine = buildAddressLine(addr, geo.display_name);
+      if (!addressInput.dataset.userEdited && addressLine) {
+        addressInput.value = addressLine;
+      }
+
+      const city = addr.city || addr.town || addr.village || addr.municipality || addr.hamlet || addr.suburb;
+      if (!cityInput.dataset.userEdited && city) {
+        cityInput.value = city;
+      }
+    }
+  };
+
+  // Debounce helper
+  let debounceTimer;
+  const debounce = (fn, delay) => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(fn, delay);
+  };
+
+  map.on("moveend", () => {
+    debounce(updateFromMapCenter, 500);
+  });
+
+  // Initial update if adding new stop
+  if (!isEditMode) {
+    updateFromMapCenter();
+  }
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
