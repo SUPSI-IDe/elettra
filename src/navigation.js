@@ -62,7 +62,7 @@ const createPartialLoader = (render) => {
 };
 
 export const initializeNavigation = (root = document) => {
-  const container = root.querySelector("main article");
+  const container = root.querySelector("main article .layout-content");
   const nav = root.querySelector("nav");
 
   if (!container || !nav) {
