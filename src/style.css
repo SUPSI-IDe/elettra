@@ -1,243 +1,252 @@
 :root {
-    --spacing-xs: 0.25rem;
-    --spacing-sm: 0.5rem;
-    --spacing-md: 1rem;
-    --spacing-lg: 1.5rem;
-    --spacing-xl: 2rem;
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
 }
 
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'system-ui', sans-serif;
-    text-decoration: none;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "system-ui", sans-serif;
+  text-decoration: none;
 }
 
 .page-container {
-    padding: var(--spacing-xl);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-lg);
-    max-width: 1200px;
-    margin: 0 auto;
-    width: 100%;
+  padding: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .primary-color {
-    background-color: #8EE5E3
+  background-color: #8ee5e3;
 }
 
 .primary-dark {
-    background-color: #B1E8E8;
+  background-color: #b1e8e8;
 }
 
 .base-gray {
-    background-color: #EBEBEB;
+  background-color: #ebebeb;
 }
 
 .dark-gray {
-    background-color: #D9D9D9;
+  background-color: #d9d9d9;
 }
 
-html, body {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    max-height: 100vh;
-    max-width: 100vw;
-    font-family: 'Inter', sans-serif;
+html,
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  max-height: 100vh;
+  max-width: 100vw;
+  font-family: "Inter", sans-serif;
 }
 
 body {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    max-height: 100vh;
-    width: 100vw;
-    overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+  width: 100vw;
+  overflow: hidden;
 }
 
-.layout-header, .layout-footer {
-    padding: var(--spacing-sm);
-    display: flex;
-    align-items: center;
+.layout-header,
+.layout-footer {
+  padding: var(--spacing-sm);
+  display: flex;
+  align-items: center;
 }
 
 .layout-main {
-    max-height: 100%;
-    display: flex;
-    flex-direction: row;
-    flex: 1;
+  max-height: 100%;
+  display: flex;
+  flex-direction: row;
+  flex: 1;
 }
 
 .layout-article {
-    max-height: 100%;
-    overflow-y: scroll;
-    flex: 1;
+  max-height: 100%;
+  overflow-y: scroll;
+  flex: 1;
 }
 
 .logo {
-    flex: 1;
+  padding-left: var(--spacing-sm);
+  padding-top: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  padding-right: 50%;
+  border-bottom: 1px solid white;
 }
 
 nav {
-    padding: var(--spacing-sm);
-    display: flex;
-    flex-direction: column;
-    background-color: #f0f0f0;
-    width: calc(100% / 6)
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(to bottom, #00aaff, #b1e8e8);
+  width: calc(100% / 6);
+}
+
+details {
+  padding-top: var(--spacing-md);
+  padding-left: var(--spacing-sm);
+  color: white;
 }
 
 summary {
-    padding: var(--spacing-xs);
+  padding: var(--spacing-xs);
 }
 
 ul {
-    margin-bottom: 1rem
+  margin-bottom: 1rem;
 }
 
 li {
-    margin-left: .8rem;
-    padding: var(--spacing-xs);
-    list-style: none;
-    cursor: pointer;
+  margin-left: 0.8rem;
+  padding: var(--spacing-xs);
+  list-style: none;
+  cursor: pointer;
 }
 
-
 .impressum {
-    flex: 1;
+  flex: 1;
 }
 
 .table-controls {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    align-items: center;
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: center;
 }
 
 .table-controls input,
 .table-controls select {
-    flex: 1;
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 0.875rem;
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.875rem;
 }
 
 .table-controls .actions {
-    display: flex;
-    gap: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .table-controls button {
-    padding: 0.5rem 1rem;
-    border: 1px solid #ddd;
-    background-color: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    white-space: nowrap;
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  white-space: nowrap;
 }
 
 .table-controls button:hover {
-    background-color: #f5f5f5;
+  background-color: #f5f5f5;
 }
 
 table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-    flex: 1;
-    overflow-y: auto;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  flex: 1;
+  overflow-y: auto;
 }
 
 table thead {
-    background-color: #fafafa;
-    position: sticky;
-    top: 0;
+  background-color: #fafafa;
+  position: sticky;
+  top: 0;
 }
 
 table th {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-    font-weight: 600;
-    color: #666;
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  font-weight: 600;
+  color: #666;
 }
 
 table th.checkbox {
-    width: 2.5rem;
-    text-align: center;
+  width: 2.5rem;
+  text-align: center;
 }
 
 table th.actions {
-    width: 8rem;
-    text-align: center;
+  width: 8rem;
+  text-align: center;
 }
 
 table td {
-    padding: 0.75rem;
-    border-bottom: 1px solid #e5e5e5;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e5e5;
 }
 
 table td.actions {
-    text-align: center;
-    background-color: #fafafa;
+  text-align: center;
+  background-color: #fafafa;
 }
 
 table tbody tr:hover td.actions {
-    background-color: #fafafa;
+  background-color: #fafafa;
 }
 
 table td button {
-    padding: 0.35rem 0.75rem;
-    border: 1px solid #ddd;
-    background-color: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    white-space: nowrap;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 table td button:hover {
-    background-color: #f0f0f0;
-    border-color: #999;
+  background-color: #f0f0f0;
+  border-color: #999;
 }
 
 table tbody tr:hover {
-    background-color: #fafafa;
+  background-color: #fafafa;
 }
 
 table input[type="checkbox"] {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border-width: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 .flash-message {
-    margin: 1rem 2rem 0;
-    padding: 0.75rem 1rem;
-    background-color: #e4f6f6;
-    color: #0f3c3c;
-    border: 1px solid rgba(15, 60, 60, 0.12);
-    border-radius: 6px;
-    font-size: 0.875rem;
+  margin: 1rem 2rem 0;
+  padding: 0.75rem 1rem;
+  background-color: #e4f6f6;
+  color: #0f3c3c;
+  border: 1px solid rgba(15, 60, 60, 0.12);
+  border-radius: 6px;
+  font-size: 0.875rem;
 }
 
 .flash-message[hidden] {
-    display: none;
+  display: none;
 }
 
-
-@import './pages/Fleet/Shifts/shift-visualization.css';
+@import "./pages/Fleet/Shifts/shift-visualization.css";

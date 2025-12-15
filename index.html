@@ -1,45 +1,46 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script type="module" defer src="/src/main.js"></script>
     <title>Elettra</title>
-</head>
-<body>
+  </head>
+  <body>
     <header class="layout-header primary-color">
-        <span class="logo">Elettra</span>
-        <button class="language">Language</button>
-        <button class="login">Login</button>
+      <button class="language">Language</button>
+      <button class="login">Login</button>
     </header>
+
     <main class="layout-main">
-        <nav>
-            <details open>
-            <summary>Fleet</summary>
-                <ul>
-                    <li><a data-partial="buses">Buses</a></li>
-                    <li><a data-partial="custom-stops">Custom Stops</a></li>
-                    <li><a data-partial="shifts">Shifts</a></li>
-                </ul>
-            </details>
-            <details>
-                <summary>Simulation</summary>
-                <ul>
-                  <li><a data-partial="placeholder-first">Placeholder First</a></li>
-                  <li><a data-partial="dummy-second">Dummy Second</a></li>
-                  <li><a data-partial="fake-third">Fake Third</a></li>
-                </ul>
-            </details>
-        </nav>
-        <article class="layout-article">
-            <section class="buses">
-                
-            </section>
-        </article>
+      <nav>
+        <div class="logo">
+          <img src="/src/assets/logo.svg" alt="Elettra Logo" />
+        </div>
+        <details open>
+          <summary>Fleet</summary>
+          <ul>
+            <li><a data-partial="buses">Buses</a></li>
+            <li><a data-partial="custom-stops">Custom Stops</a></li>
+            <li><a data-partial="shifts">Shifts</a></li>
+          </ul>
+        </details>
+        <details>
+          <summary>Simulation</summary>
+          <ul>
+            <li><a data-partial="placeholder-first">Placeholder First</a></li>
+            <li><a data-partial="dummy-second">Dummy Second</a></li>
+            <li><a data-partial="fake-third">Fake Third</a></li>
+          </ul>
+        </details>
+      </nav>
+      <article class="layout-article">
+        <section class="buses"></section>
+      </article>
     </main>
     <footer class="layout-footer base-gray">
-        <span class="impressum">Elettra | Electric Shift Planner</span>
-        <a class="privacy-policy" href="/privacy-policy">Privacy Policy</a>
+      <span class="impressum">Elettra | Electric Shift Planner</span>
+      <a class="privacy-policy" href="/privacy-policy">Privacy Policy</a>
     </footer>
-</body>
+  </body>
 </html>
