@@ -1,13 +1,15 @@
-.buses-header {
-  padding: var(--spacing-sm);
+.page-header {
   display: flex;
   flex-direction: row;
+  justify-content: space-between;
   align-items: flex-end;
-  gap: var(--spacing-sm);
 }
 
-.buses-header h1 {
-  flex: 1;
+.header-action-btn {
+  padding: var(--spacing-xs);
+  padding-right: var(--spacing-lg);
+  padding-left: var(--spacing-lg);
+  border-radius: 8px;
 }
 
 .buses-grid {
@@ -18,19 +20,10 @@
   overflow-y: auto;
 }
 
-.bus-models,
-.buses-list {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.bus-models h2,
-.buses-list h2 {
-  margin-bottom: var(--spacing-md);
-  font-size: 1rem;
+h2 {
+  font-size: 1.2rem;
   font-weight: 600;
-  color: #333;
+  color: var(--dark-blue);
 }
 
 @media (max-width: 1024px) {
@@ -48,15 +41,7 @@
   max-width: 720px;
 }
 
-.add-bus-model header,
-.add-bus header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.add-bus-model header h1,
-.add-bus header h1 {
+h1 {
   font-size: 1.75rem;
   font-weight: 600;
   color: #1c1c1c;

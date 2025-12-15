@@ -1,12 +1,10 @@
 <section class="buses">
-  <header class="buses-header">
-    <h1 data-i18n="nav.buses">Buses</h1>
-    <p>Add a bus model and then a bus</p>
-    <button
-      type="button"
-      data-action="add-bus-model"
-      data-i18n="buses.edit_model"
-    >
+  <header class="page-header">
+    <div class="title-container">
+      <h1 data-i18n="nav.buses">Buses</h1>
+      <p>Add a bus model and then a bus</p>
+    </div>
+    <button class="header-action-btn green" data-action="add-bus-model">
       Add Bus Model
     </button>
   </header>
@@ -56,7 +54,7 @@
     </section>
 
     <section class="buses-list">
-      <h2 data-i18n="nav.buses">Buses</h2>
+      <h2 data-i18n="nav.buses">Bus Fleet</h2>
       <div class="table-controls">
         <label for="model-filter" class="sr-only">Filter by bus model</label>
         <select id="model-filter" aria-label="Filter buses by model">

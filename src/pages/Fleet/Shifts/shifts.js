@@ -38,7 +38,7 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="id" colspan="7">Loading…</td>
+            <td class="id" colspan="6">Loading…</td>
         </tr>
     `;
 };
@@ -51,7 +51,7 @@ const renderError = (tbody, message = "Unable to load shifts.") => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="id" colspan="7">${textContent(message)}</td>
+            <td class="id" colspan="6">${textContent(message)}</td>
         </tr>
     `;
 };
@@ -64,7 +64,7 @@ const renderEmpty = (tbody) => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="id" colspan="7">No shifts found.</td>
+            <td class="id" colspan="6">No shifts found.</td>
         </tr>
     `;
 };
@@ -162,7 +162,7 @@ const renderRows = (tbody, shifts = []) => {
       return `
                 <tr data-id="${rowId}" data-name="${rowName}" data-bus="${rowBus}">
                     <td class="checkbox"><input type="checkbox" aria-label="Select shift"></td>
-                    <td class="id">${textContent(shift?.id ?? "")}</td>
+
                     <td class="name">${textContent(shift?.name ?? "")}</td>
                     <td class="bus">${textContent(
                       shift?.bus_name ?? shift?.bus_id ?? ""

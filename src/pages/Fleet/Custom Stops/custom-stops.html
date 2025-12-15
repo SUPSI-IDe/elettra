@@ -1,7 +1,17 @@
 <section class="custom-stops">
-  <header class="custom-stops-header">
-    <h1 data-i18n="nav.custom_stops">Custom Stops</h1>
-    <button type="button">Add Custom Stop</button>
+  <header class="page-header">
+    <div class="title-container">
+      <h1 data-i18n="nav.custom_stops">Custom Stops</h1>
+      <p data-i18n="custom_stops.intro">Add depots and any custom stop</p>
+    </div>
+    <button
+      type="button"
+      class="header-action-btn green"
+      data-action="add-custom-stop"
+      data-i18n="custom_stops.add_custom_stop"
+    >
+      Add Custom Stop
+    </button>
   </header>
   <p
     class="flash-message"
@@ -42,7 +52,7 @@
             <th class="checkbox">
               <input type="checkbox" aria-label="Select all stops" />
             </th>
-            <th class="id">Id</th>
+
             <th class="name">Name</th>
             <th class="type">Type</th>
             <th class="address">Address</th>

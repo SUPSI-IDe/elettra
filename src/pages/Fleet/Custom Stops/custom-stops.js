@@ -24,7 +24,7 @@ const renderRows = (tbody, depots = []) => {
     tbody.innerHTML = `
             <tr>
                 <td class="checkbox"></td>
-                <td class="id" colspan="4">No custom stops found.</td>
+                <td class="id" colspan="3">No custom stops found.</td>
             </tr>
         `;
     return;
@@ -35,7 +35,7 @@ const renderRows = (tbody, depots = []) => {
       (depot = {}) => `
                 <tr data-id="${text(depot?.id)}">
                     <td class="checkbox"><input type="checkbox" aria-label="Select custom stop"></td>
-                    <td class="id">${text(depot?.id)}</td>
+
                     <td class="name">${text(depot?.name)}</td>
                     <td class="type">Depot</td>
                     <td class="address">${text(depot?.address)}</td>
@@ -55,7 +55,7 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="id" colspan="4">Loading…</td>
+            <td class="id" colspan="3">Loading…</td>
         </tr>
     `;
 };
@@ -68,7 +68,7 @@ const renderError = (tbody, message = "Unable to load custom stops.") => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="id" colspan="4">${text(message)}</td>
+            <td class="id" colspan="3">${text(message)}</td>
         </tr>
     `;
 };
@@ -108,7 +108,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
   const editButton = section.querySelector(
     '[data-action="edit-selected-stops"]'
   );
-  const addButton = section.querySelector(".custom-stops-header button");
+  const addButton = section.querySelector('[data-action="add-custom-stop"]');
 
   setFlashMessage(section, options.flashMessage ?? "");
 

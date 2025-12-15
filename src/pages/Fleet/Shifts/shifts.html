@@ -1,7 +1,15 @@
 <section class="shifts">
-  <header class="shifts-header">
-    <h1 data-i18n="nav.shifts">Shifts</h1>
-    <button type="button" data-action="add-shift" data-i18n="shifts.add_shift">
+  <header class="page-header">
+    <div class="title-container">
+      <h1 data-i18n="nav.shifts">Shifts</h1>
+      <p data-i18n="shifts.intro">Add and visualise shifts</p>
+    </div>
+    <button
+      type="button"
+      class="header-action-btn green"
+      data-action="add-shift"
+      data-i18n="shifts.add_shift"
+    >
       Add Shift
     </button>
   </header>
@@ -44,7 +52,7 @@
             <th class="checkbox">
               <input type="checkbox" aria-label="Select all shifts" />
             </th>
-            <th class="id" scope="col">Id</th>
+
             <th class="name" scope="col">Shift name</th>
             <th class="bus" scope="col">Bus name</th>
             <th class="start" scope="col">Start time</th>
