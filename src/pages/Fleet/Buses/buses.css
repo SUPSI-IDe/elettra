@@ -24,6 +24,7 @@ h2 {
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--dark-blue);
+  margin-bottom: var(--spacing-sm);
 }
 
 @media (max-width: 1024px) {
@@ -36,12 +37,20 @@ h2 {
 .add-bus {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-xl);
-  max-width: 720px;
+  gap: 0;
+  padding: 0;
+  width: 100%;
 }
 
-h1 {
+.add-bus-model .page-header,
+.add-bus .page-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-sm);
+}
+
+.add-bus-model h1,
+.add-bus h1 {
   font-size: 1.75rem;
   font-weight: 600;
   color: #1c1c1c;
@@ -58,6 +67,8 @@ h1 {
 .add-bus main {
   display: flex;
   flex-direction: column;
+  padding: var(--spacing-sm);
+  max-width: 720px;
 }
 
 .add-bus-model form,

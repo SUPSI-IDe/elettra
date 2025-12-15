@@ -1,17 +1,18 @@
 .add-custom-stop {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-xl);
+  gap: 0;
+  padding: 0;
+  width: 100%;
 }
 
-.add-custom-stop header {
-  display: flex;
+.add-custom-stop .page-header {
   flex-direction: column;
+  align-items: stretch;
   gap: var(--spacing-sm);
 }
 
-.add-custom-stop header h1 {
+.add-custom-stop h1 {
   font-size: 1.75rem;
   font-weight: 600;
   color: #1c1c1c;
@@ -26,6 +27,7 @@
 .add-custom-stop main {
   display: flex;
   flex-direction: column;
+  padding: var(--spacing-sm);
 }
 
 .custom-stops-main {

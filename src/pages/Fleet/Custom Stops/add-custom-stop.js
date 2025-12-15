@@ -94,6 +94,11 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
 
   const feedback = form.querySelector('[data-role="feedback"]');
   const cancelButton = form.querySelector('[data-action="cancel"]');
+  const closeButton = section.querySelector('[data-action="close"]');
+
+  closeButton?.addEventListener("click", () => {
+    triggerPartialLoad("custom-stops");
+  });
 
   cancelButton?.addEventListener("click", () => {
     triggerPartialLoad("custom-stops");

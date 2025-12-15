@@ -1,6 +1,7 @@
 import { authHeaders } from "./client";
 
 const GTFS_ROUTES_PATH = "/api/v1/gtfs/gtfs-routes/";
+const GTFS_DAYS_PATH = "/api/v1/gtfs/gtfs-days/";
 const GTFS_TRIPS_BY_ROUTE_PATH = "/api/v1/gtfs/gtfs-trips/by-route/";
 const GTFS_STOPS_BY_TRIP_PATH = "/api/v1/gtfs/gtfs-stops/by-trip/";
 
@@ -28,6 +29,18 @@ export const fetchRoutes = async ({
   if (!response.ok) {
     const message =
       payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load routes.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
+export const fetchServiceDays = async () => {
+  const headers = authHeaders();
+  const response = await fetch(GTFS_DAYS_PATH, { method: "GET", headers });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load service days.";
     throw new Error(message);
   }
   return payload;

@@ -5,6 +5,7 @@ import {
   fetchBusById,
   fetchDepots,
   fetchRoutes,
+  fetchServiceDays,
   fetchShiftById,
   fetchStopsByTripId,
   fetchTripsByRoute,
@@ -27,7 +28,19 @@ import {
   resolveRouteLabel,
   readShiftTripsFromStructure,
   getNextDay,
+  DAYS_OF_WEEK,
 } from "./shift-utils";
+import {
+  populateDayOptions,
+  renderBusOptions,
+  renderDepotOptions,
+  renderRouteOptions,
+  renderScheduledTrips,
+  renderShiftTrips,
+  renderTripsLoading,
+  updateEmptyState,
+  clearNode,
+} from "./shift-renderers";
 
 const readTripId = (node) => node?.dataset?.tripId?.trim() ?? "";
 
@@ -96,6 +109,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const feedback = form.querySelector('[data-role="feedback"]');
   const cancelButton = form.querySelector('[data-action="cancel"]');
   const visualizeButton = form.querySelector('[data-action="visualize-shift"]');
+  const closeButton = section.querySelector('[data-action="close"]');
+
+  closeButton?.addEventListener("click", () => {
+    triggerPartialLoad("shifts");
+  });
 
   const nameInput = form.querySelector("#shift-name");
   const busSelect = form.querySelector("#shift-bus");
@@ -118,7 +136,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   );
   const shiftTripsEmpty = form.querySelector('[data-role="shift-trips-empty"]');
 
-  populateDayOptions(daySelect);
+  // populateDayOptions(daySelect); // Removed, called in loadDays
 
   const title = section.querySelector("header h1");
   const submitButton = form.querySelector('button[type="submit"]');
@@ -534,7 +552,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
   const loadRoutes = async () => {
     try {
-      const payload = await fetchRoutes({ skip: 0, limit: 100 });
+      const payload = await fetchRoutes({ skip: 0, limit: 1000 });
       const routes =
         Array.isArray(payload) ? payload : (
           (payload?.items ?? payload?.results ?? [])
@@ -548,6 +566,20 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         error?.message ?? "Unable to load routes.",
         "error"
       );
+    }
+  };
+
+  const loadDays = async () => {
+    try {
+      const payload = await fetchServiceDays();
+      const days =
+        Array.isArray(payload) ? payload : (
+          (payload?.items ?? payload?.results ?? [])
+        );
+      populateDayOptions(daySelect, days);
+    } catch (error) {
+      console.warn("Failed to load days from API, falling back to defaults", error);
+      populateDayOptions(daySelect, DAYS_OF_WEEK);
     }
   };
 
@@ -598,7 +630,12 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
       currentTrips = allTrips
         .map((trip) => normalizeTrip(trip))
-        .filter((trip) => resolveTripId(trip));
+        .filter((trip) => resolveTripId(trip))
+        .sort((a, b) => {
+          const timeA = a.departure_time || "";
+          const timeB = b.departure_time || "";
+          return timeA.localeCompare(timeB);
+        });
 
       renderScheduledTrips({
         tbody: scheduledTripsBody,
@@ -789,10 +826,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       })
     : Promise.resolve(null);
 
-  const [, , , shift] = await Promise.all([
+  const [, , , , shift] = await Promise.all([
     loadBuses(),
     loadRoutes(),
     loadDepots(),
+    loadDays(),
     shiftPromise,
   ]);
 

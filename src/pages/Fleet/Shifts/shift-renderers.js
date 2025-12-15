@@ -4,7 +4,6 @@ import {
   normalizeTrip,
   resolveTripId,
   resolveRouteLabel,
-  DAYS_OF_WEEK,
 } from "./shift-utils";
 
 export const clearNode = (node) => {
@@ -195,16 +194,21 @@ export const renderDepotOptions = (select, depots = []) => {
   select.innerHTML = options;
 };
 
-export const populateDayOptions = (select) => {
+export const populateDayOptions = (select, days = []) => {
   if (!select) {
     return;
   }
 
   const options = [
     '<option value="">All days</option>',
-    ...DAYS_OF_WEEK.map(
-      (day) => `<option value="${day.value}">${textContent(day.label)}</option>`
-    ),
+    ...days.map((day) => {
+      const value = typeof day === "string" ? day : day.id || day.value;
+      const label =
+        typeof day === "string" ? day : day.name || day.label || day.id || "";
+      return `<option value="${textContent(value)}">${textContent(
+        label
+      )}</option>`;
+    }),
   ].join("");
 
   select.innerHTML = options;

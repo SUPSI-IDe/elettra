@@ -39,8 +39,8 @@ export const initializeVisualizeShift = async (
     return;
   }
 
-  const backButton = section.querySelector('[data-action="back"]');
-  backButton?.addEventListener("click", () => {
+  const closeButton = section.querySelector('[data-action="close"]');
+  closeButton?.addEventListener("click", () => {
     triggerPartialLoad("shifts");
   });
 

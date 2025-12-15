@@ -8,20 +8,18 @@
 .shift-form {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-xl);
-  max-width: 1400px;
-  margin: 0 auto;
+  gap: 0;
+  padding: 0;
   width: 100%;
 }
 
-.shift-form header {
-  display: flex;
+.shift-form .page-header {
   flex-direction: column;
   gap: var(--spacing-sm);
+  align-items: stretch;
 }
 
-.shift-form header h1 {
+.shift-form h1 {
   font-size: 1.75rem;
   font-weight: 600;
   color: #1c1c1c;
@@ -36,6 +34,9 @@
 .shift-form main {
   display: flex;
   flex-direction: column;
+  padding: var(--spacing-sm);
+  max-width: 1400px;
+  width: 100%;
 }
 
 .shift-form form {
