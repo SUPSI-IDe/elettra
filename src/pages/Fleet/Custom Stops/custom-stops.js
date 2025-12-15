@@ -1,3 +1,4 @@
+import { t } from "../../../i18n";
 import "./custom-stops.css";
 import { deleteDepot, fetchDepots } from "../../../api";
 import { resolveUserId } from "../../../api/session";
@@ -168,7 +169,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
     }
 
     const confirmDelete = confirm(
-      `Delete ${ids.length} custom stop${ids.length > 1 ? "s" : ""}?`
+      t("custom_stops.delete_confirm", { count: ids.length })
     );
     if (!confirmDelete) {
       return;
@@ -187,7 +188,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
   editButton?.addEventListener("click", async () => {
     const ids = getSelectedIdsFrom(table);
     if (ids.length !== 1) {
-      alert("Select a single custom stop to edit.");
+      alert(t("custom_stops.select_single"));
       return;
     }
 

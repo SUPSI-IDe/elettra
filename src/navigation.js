@@ -6,6 +6,7 @@ import { initializeBuses } from "./pages/Fleet/Buses/buses";
 import { initializeCustomStops } from "./pages/Fleet/Custom Stops/custom-stops";
 import { initializeShifts } from "./pages/Fleet/Shifts/shifts";
 import { initializeVisualizeShift } from "./pages/Fleet/Shifts/visualize-shift";
+import { applyTranslations, getCurrentLang } from "./i18n";
 
 const partials = import.meta.glob("./pages/**/*.html", {
   query: "?raw",
@@ -56,6 +57,7 @@ const createPartialLoader = (render) => {
 
     transition({ current: slug, pending: "" });
     render(html);
+    applyTranslations(getCurrentLang());
 
     return state;
   };

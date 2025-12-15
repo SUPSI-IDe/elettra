@@ -1,3 +1,4 @@
+import { t } from "../../../i18n";
 import "./buses.css";
 import {
   createBus,
@@ -38,7 +39,7 @@ const renderModelFilter = (select, models = []) => {
   }
 
   const options = [
-    '<option value="">All bus models</option>',
+    `<option value="">${t("buses.all_models")}</option>`,
     ...models
       .filter((model) => model?.id)
       .map((model) => {
@@ -93,7 +94,7 @@ const bindBusModelActions = (tbody) => {
         specs: {},
       });
       addOwnedBus({ name, bus_model_id: busModelId, user_id: userId });
-      writeFlash("Bus added.");
+      writeFlash(t("buses.added_bus") || "Bus added.");
       triggerPartialLoad("buses");
     } catch (error) {
       console.error("Failed to create bus", error);
@@ -141,22 +142,20 @@ const initializeModelControls = (section) => {
       section.querySelector(".bus-models table")
     );
     if (!selectedIds.length) {
-      alert("Select at least one bus model.");
+      alert(t("buses.select_min_model"));
       return;
     }
 
     if (action === "delete-selected-models") {
       const confirmDelete = confirm(
-        `Delete ${selectedIds.length} bus model${
-          selectedIds.length > 1 ? "s" : ""
-        }?`
+        t("buses.delete_confirm_models", { count: selectedIds.length })
       );
       if (!confirmDelete) {
         return;
       }
       try {
         await Promise.all(selectedIds.map((id) => deleteBusModel(id)));
-        writeFlash("Bus model(s) deleted.");
+        writeFlash(t("buses.deleted_models"));
         triggerPartialLoad("buses");
       } catch (error) {
         console.error("Failed to delete bus model(s)", error);
@@ -167,7 +166,7 @@ const initializeModelControls = (section) => {
 
     if (action === "edit-selected-model") {
       if (selectedIds.length !== 1) {
-        alert("Select a single bus model to edit.");
+        alert(t("buses.select_single_model"));
         return;
       }
       const id = selectedIds[0];
@@ -199,20 +198,20 @@ const initializeBusControls = (section) => {
       section.querySelector(".buses-list table")
     );
     if (!selectedIds.length) {
-      alert("Select at least one bus.");
+      alert(t("buses.select_min_bus"));
       return;
     }
 
     if (action === "delete-selected-buses") {
       const confirmDelete = confirm(
-        `Delete ${selectedIds.length} bus${selectedIds.length > 1 ? "es" : ""}?`
+        t("buses.delete_confirm_buses", { count: selectedIds.length })
       );
       if (!confirmDelete) {
         return;
       }
       try {
         await Promise.all(selectedIds.map((id) => deleteBus(id)));
-        writeFlash("Bus(es) deleted.");
+        writeFlash(t("buses.deleted_buses"));
         triggerPartialLoad("buses");
       } catch (error) {
         console.error("Failed to delete bus(es)", error);
@@ -223,7 +222,7 @@ const initializeBusControls = (section) => {
 
     if (action === "edit-selected-bus") {
       if (selectedIds.length !== 1) {
-        alert("Select a single bus to edit.");
+        alert(t("buses.select_single_bus"));
         return;
       }
       const id = selectedIds[0];

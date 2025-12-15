@@ -1,3 +1,4 @@
+import { t } from "../../../i18n";
 import "./shifts.css";
 import {
   createShift,
@@ -353,12 +354,12 @@ export const initializeShifts = async (root = document, options = {}) => {
   deleteButton?.addEventListener("click", async () => {
     const ids = getSelectedIdsFrom(table);
     if (!ids.length) {
-      alert("Select at least one shift.");
+      alert(t("shifts.select_min"));
       return;
     }
 
     const confirmDelete = confirm(
-      `Delete ${ids.length} shift${ids.length > 1 ? "s" : ""}?`
+      t("shifts.delete_confirm", { count: ids.length })
     );
     if (!confirmDelete) {
       return;
@@ -368,7 +369,7 @@ export const initializeShifts = async (root = document, options = {}) => {
 
     try {
       await Promise.all(ids.map((id) => deleteShift(id)));
-      alert("Shift(s) deleted.");
+      alert(t("shifts.deleted"));
       await loadShifts();
     } catch (error) {
       console.error("Failed to delete shifts", error);
@@ -413,7 +414,7 @@ export const initializeShifts = async (root = document, options = {}) => {
   editButton?.addEventListener("click", () => {
     const ids = getSelectedIdsFrom(table);
     if (ids.length !== 1) {
-      alert("Select a single shift to edit.");
+      alert(t("shifts.select_single"));
       return;
     }
 

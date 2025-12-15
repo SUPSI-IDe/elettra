@@ -250,3 +250,13 @@ table input[type="checkbox"] {
 }
 
 @import "./pages/Fleet/Shifts/shift-visualization.css";
+
+.language-select {
+  margin-left: var(--spacing-sm);
+  padding: var(--spacing-xs);
+  border-radius: 4px;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  color: white;
+}
