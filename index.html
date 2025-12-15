@@ -7,69 +7,67 @@
     <title>Elettra</title>
   </head>
   <body>
+    <nav>
+      <div class="logo">
+        <img src="/src/assets/logo.svg" alt="Elettra Logo" />
+      </div>
+      <details open>
+        <summary data-i18n="nav.fleet">Fleet</summary>
+        <ul>
+          <li><a data-partial="buses" data-i18n="nav.buses">Buses</a></li>
+          <li>
+            <a data-partial="custom-stops" data-i18n="nav.custom_stops"
+              >Custom Stops</a
+            >
+          </li>
+          <li><a data-partial="shifts" data-i18n="nav.shifts">Shifts</a></li>
+        </ul>
+      </details>
+      <details>
+        <summary data-i18n="nav.simulation">Simulation</summary>
+        <ul>
+          <li>
+            <a
+              data-partial="placeholder-first"
+              data-i18n="nav.placeholder_first"
+              >Placeholder First</a
+            >
+          </li>
+          <li>
+            <a data-partial="dummy-second" data-i18n="nav.dummy_second"
+              >Dummy Second</a
+            >
+          </li>
+          <li>
+            <a data-partial="fake-third" data-i18n="nav.fake_third"
+              >Fake Third</a
+            >
+          </li>
+        </ul>
+      </details>
+    </nav>
     <main class="layout-main">
-      <nav>
-        <div class="logo">
-          <img src="/src/assets/logo.svg" alt="Elettra Logo" />
-        </div>
-        <details open>
-          <summary data-i18n="nav.fleet">Fleet</summary>
-          <ul>
-            <li><a data-partial="buses" data-i18n="nav.buses">Buses</a></li>
-            <li>
-              <a data-partial="custom-stops" data-i18n="nav.custom_stops"
-                >Custom Stops</a
-              >
-            </li>
-            <li><a data-partial="shifts" data-i18n="nav.shifts">Shifts</a></li>
-          </ul>
-        </details>
-        <details>
-          <summary data-i18n="nav.simulation">Simulation</summary>
-          <ul>
-            <li>
-              <a
-                data-partial="placeholder-first"
-                data-i18n="nav.placeholder_first"
-                >Placeholder First</a
-              >
-            </li>
-            <li>
-              <a data-partial="dummy-second" data-i18n="nav.dummy_second"
-                >Dummy Second</a
-              >
-            </li>
-            <li>
-              <a data-partial="fake-third" data-i18n="nav.fake_third"
-                >Fake Third</a
-              >
-            </li>
-          </ul>
-        </details>
-      </nav>
-      <article class="layout-article">
-        <header class="layout-header primary-color">
-          <button class="login" data-i18n="header.login">Login</button>
-          <select class="language-select">
-            <option value="en">English</option>
-            <option value="de">Deutsch</option>
-            <option value="fr">Français</option>
-            <option value="it">Italiano</option>
-          </select>
-        </header>
-        <div class="layout-content"></div>
-      </article>
+      <header class="layout-header blue-gray">
+        <button class="login" data-i18n="header.login">Login</button>
+        <select class="language-select">
+          <option value="en">EN</option>
+          <option value="de">DE</option>
+          <option value="fr">FR</option>
+          <option value="it">IT</option>
+        </select>
+      </header>
+      <article class="layout-article"></article>
+      <footer class="layout-footer blue-gray">
+        <span class="impressum" data-i18n="footer.impressum">
+          Elettra | Electric Shift Planner
+        </span>
+        <a
+          class="privacy-policy"
+          href="/privacy-policy"
+          data-i18n="footer.privacy_policy"
+          >Privacy Policy</a
+        >
+      </footer>
     </main>
-    <footer class="layout-footer base-gray">
-      <span class="impressum" data-i18n="footer.impressum"
-        >Elettra | Electric Shift Planner</span
-      >
-      <a
-        class="privacy-policy"
-        href="/privacy-policy"
-        data-i18n="footer.privacy_policy"
-        >Privacy Policy</a
-      >
-    </footer>
   </body>
 </html>

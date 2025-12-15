@@ -40,6 +40,18 @@
   background-color: #d9d9d9;
 }
 
+.blue-gray {
+  background-color: #edf4f9;
+}
+
+.green {
+  background-color: #abe828;
+}
+
+.blue {
+  background-color: #6fbeec;
+}
+
 html,
 body {
   margin: 0;
@@ -52,7 +64,7 @@ body {
 
 body {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100vh;
   max-height: 100vh;
   width: 100vw;
@@ -66,10 +78,14 @@ body {
   align-items: center;
 }
 
+.layout-header {
+  justify-content: flex-end;
+}
+
 .layout-main {
   max-height: 100%;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   flex: 1;
 }
 
@@ -87,11 +103,23 @@ body {
   border-bottom: 1px solid white;
 }
 
+.language-select {
+  margin-left: var(--spacing-sm);
+  padding: var(--spacing-xs);
+  border-radius: 4px;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+}
+
 nav {
   display: flex;
   flex-direction: column;
   background: linear-gradient(to bottom, #00aaff, #b1e8e8);
   width: calc(100% / 6);
+  min-width: 200px;
+  height: 100%;
+  overflow-y: auto;
 }
 
 details {
@@ -109,7 +137,7 @@ ul {
 }
 
 li {
-  margin-left: 0.8rem;
+  margin-left: var(--spacing-md);
   padding: var(--spacing-xs);
   list-style: none;
   cursor: pointer;
@@ -250,13 +278,3 @@ table input[type="checkbox"] {
 }
 
 @import "./pages/Fleet/Shifts/shift-visualization.css";
-
-.language-select {
-  margin-left: var(--spacing-sm);
-  padding: var(--spacing-xs);
-  border-radius: 4px;
-  border: none;
-  background-color: transparent;
-  cursor: pointer;
-  color: white;
-}
