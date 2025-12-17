@@ -1,3 +1,4 @@
+import "./shift-visualization.css";
 import "./shifts.css";
 import {
   fetchShiftById,

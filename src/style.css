@@ -361,5 +361,3 @@ table input[type="checkbox"] {
   gap: var(--spacing-md);
   width: 100%;
 }
-
-@import "./pages/Fleet/Shifts/shift-visualization.css";
