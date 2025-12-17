@@ -1,6 +1,6 @@
-import { authHeaders } from "./client";
+import { authHeaders, API_ROOT } from "./client";
 
-const CURRENT_USER_PATH = "/auth/me";
+const CURRENT_USER_PATH = `${API_ROOT}/auth/me`;
 
 export const fetchCurrentUser = async () => {
   const headers = authHeaders();

@@ -1,6 +1,6 @@
-import { authHeaders } from "./client";
+import { authHeaders, API_ROOT } from "./client";
 
-const SHIFTS_PATH = "/api/v1/user/shifts/";
+const SHIFTS_PATH = `${API_ROOT}/api/v1/user/shifts/`;
 
 export const fetchShifts = async ({
   skip = 0,

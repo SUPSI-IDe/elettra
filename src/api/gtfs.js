@@ -1,9 +1,9 @@
-import { authHeaders } from "./client";
+import { authHeaders, API_ROOT } from "./client";
 
-const GTFS_ROUTES_PATH = "/api/v1/gtfs/gtfs-routes/";
-const GTFS_DAYS_PATH = "/api/v1/gtfs/gtfs-days/";
-const GTFS_TRIPS_BY_ROUTE_PATH = "/api/v1/gtfs/gtfs-trips/by-route/";
-const GTFS_STOPS_BY_TRIP_PATH = "/api/v1/gtfs/gtfs-stops/by-trip/";
+const GTFS_ROUTES_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-routes/`;
+const GTFS_DAYS_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-days/`;
+const GTFS_TRIPS_BY_ROUTE_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-trips/by-route/`;
+const GTFS_STOPS_BY_TRIP_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-stops/by-trip/`;
 
 export const fetchRoutes = async ({
   skip = 0,

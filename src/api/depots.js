@@ -1,6 +1,6 @@
-import { authHeaders } from "./client";
+import { authHeaders, API_ROOT } from "./client";
 
-const DEPOTS_PATH = "/api/v1/user/depots/";
+const DEPOTS_PATH = `${API_ROOT}/api/v1/user/depots/`;
 
 export const fetchDepots = async ({ skip = 0, limit = 100 } = {}) => {
   const headers = authHeaders();

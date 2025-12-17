@@ -1,6 +1,6 @@
-import { authHeaders } from "./client";
+import { authHeaders, API_ROOT } from "./client";
 
-const BUS_MODELS_PATH = "/api/v1/user/bus-models/";
+const BUS_MODELS_PATH = `${API_ROOT}/api/v1/user/bus-models/`;
 
 export const fetchBusModels = async ({ skip = 0, limit = 100 } = {}) => {
   const headers = authHeaders();
