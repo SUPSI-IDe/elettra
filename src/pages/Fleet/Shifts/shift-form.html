@@ -1,9 +1,14 @@
 <section class="shift-form">
-<header class="page-header">
+  <header class="page-header">
     <div class="header-with-close">
       <h1>Add Shift</h1>
-      <button type="button" data-action="close" class="close-button" aria-label="Close">
-        <img src="/src/assets/xmark.svg" alt="" aria-hidden="true" />
+      <button
+        type="button"
+        data-action="close"
+        class="close-button"
+        aria-label="Close"
+      >
+        <img src="assets/xmark.svg" alt="" aria-hidden="true" />
       </button>
     </div>
     <p class="intro">Add and visualise your shifts</p>
@@ -72,13 +77,17 @@
             <div class="start-controls">
               <div class="control-row">
                 <div class="form-group">
-                  <label for="shift-bus">Bus name <span aria-hidden="true">*</span></label>
+                  <label for="shift-bus"
+                    >Bus name <span aria-hidden="true">*</span></label
+                  >
                   <select id="shift-bus" name="busId" required>
                     <option value="">Select a bus</option>
                   </select>
                 </div>
                 <div class="form-group">
-                  <label for="shift-name">Shift name <span aria-hidden="true">*</span></label>
+                  <label for="shift-name"
+                    >Shift name <span aria-hidden="true">*</span></label
+                  >
                   <input
                     type="text"
                     id="shift-name"
@@ -92,7 +101,9 @@
                 <h3 class="controls-group-title">Start from depot</h3>
                 <div class="controls-group-fields">
                   <div class="form-group">
-                    <label for="shift-start-time" class="sr-only">Start time</label>
+                    <label for="shift-start-time" class="sr-only"
+                      >Start time</label
+                    >
                     <input
                       type="time"
                       id="shift-start-time"
@@ -103,7 +114,9 @@
                     />
                   </div>
                   <div class="form-group">
-                    <label for="shift-start-depot" class="sr-only">Start depot</label>
+                    <label for="shift-start-depot" class="sr-only"
+                      >Start depot</label
+                    >
                     <select
                       id="shift-start-depot"
                       name="startDepot"
@@ -153,7 +166,9 @@
                   />
                 </div>
                 <div class="form-group">
-                  <label for="shift-end-depot" class="sr-only">Return depot</label>
+                  <label for="shift-end-depot" class="sr-only"
+                    >Return depot</label
+                  >
                   <select
                     id="shift-end-depot"
                     name="endDepot"
