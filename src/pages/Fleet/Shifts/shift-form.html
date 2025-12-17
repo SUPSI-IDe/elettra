@@ -68,45 +68,52 @@
 
         <section class="shift-details" aria-labelledby="shift-details-heading">
           <header class="section-header">
-            <h2 id="shift-details-heading">Shift details</h2>
+            <h2 id="shift-details-heading">Shift</h2>
             <div class="start-controls">
-              <div class="form-group">
-                <label for="shift-name">Shift name</label>
-                <input
-                  type="text"
-                  id="shift-name"
-                  name="name"
-                  required
-                  autocomplete="off"
-                />
+              <div class="control-row">
+                <div class="form-group">
+                  <label for="shift-bus">Bus name <span aria-hidden="true">*</span></label>
+                  <select id="shift-bus" name="busId" required>
+                    <option value="">Select a bus</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="shift-name">Shift name <span aria-hidden="true">*</span></label>
+                  <input
+                    type="text"
+                    id="shift-name"
+                    name="name"
+                    required
+                    autocomplete="off"
+                  />
+                </div>
               </div>
-              <div class="form-group">
-                <label for="shift-bus">Bus</label>
-                <select id="shift-bus" name="busId" required>
-                  <option value="">Select a bus</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="shift-start-time">Start time</label>
-                <input
-                  type="time"
-                  id="shift-start-time"
-                  name="startTime"
-                  data-field="start-time"
-                  step="60"
-                  required
-                />
-              </div>
-              <div class="form-group">
-                <label for="shift-start-depot">Start depot</label>
-                <select
-                  id="shift-start-depot"
-                  name="startDepot"
-                  data-field="start-depot"
-                  required
-                >
-                  <option value="">Select a depot</option>
-                </select>
+              <div class="controls-group-box">
+                <h3 class="controls-group-title">Start from depot</h3>
+                <div class="controls-group-fields">
+                  <div class="form-group">
+                    <label for="shift-start-time" class="sr-only">Start time</label>
+                    <input
+                      type="time"
+                      id="shift-start-time"
+                      name="startTime"
+                      data-field="start-time"
+                      step="60"
+                      required
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label for="shift-start-depot" class="sr-only">Start depot</label>
+                    <select
+                      id="shift-start-depot"
+                      name="startDepot"
+                      data-field="start-depot"
+                      required
+                    >
+                      <option value="">Depot name</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
           </header>
@@ -131,27 +138,32 @@
             </p>
           </div>
           <div class="end-controls">
-            <div class="form-group">
-              <label for="shift-end-time">End time</label>
-              <input
-                type="time"
-                id="shift-end-time"
-                name="endTime"
-                data-field="end-time"
-                step="60"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label for="shift-end-depot">Return to depot</label>
-              <select
-                id="shift-end-depot"
-                name="endDepot"
-                data-field="end-depot"
-                required
-              >
-                <option value="">Select a depot</option>
-              </select>
+            <div class="controls-group-box">
+              <h3 class="controls-group-title">Return to depot</h3>
+              <div class="controls-group-fields">
+                <div class="form-group">
+                  <label for="shift-end-time" class="sr-only">End time</label>
+                  <input
+                    type="time"
+                    id="shift-end-time"
+                    name="endTime"
+                    data-field="end-time"
+                    step="60"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="shift-end-depot" class="sr-only">Return depot</label>
+                  <select
+                    id="shift-end-depot"
+                    name="endDepot"
+                    data-field="end-depot"
+                    required
+                  >
+                    <option value="">Depot name</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </section>

@@ -188,7 +188,9 @@ li {
   cursor: pointer;
   font-size: 0.875rem;
   white-space: nowrap;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .table-controls button:hover {
@@ -338,6 +340,8 @@ table input[type="checkbox"] {
   color: inherit;
   opacity: 0.7;
   transition: opacity 0.2s;
+  width: 40px;
+  height: 40px;
 }
 
 .close-button:hover {

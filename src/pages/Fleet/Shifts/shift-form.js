@@ -24,6 +24,7 @@ import {
   firstAvailable,
   normalizeTime,
   resolveTripId,
+  resolveTripPk,
   normalizeTrip,
   resolveRouteLabel,
   readShiftTripsFromStructure,
@@ -48,7 +49,8 @@ const buildShiftPayload = ({ form, selectedTrips }) => {
   const formData = new FormData(form);
   const name = formData.get("name")?.toString().trim();
   const busId = formData.get("busId")?.toString().trim();
-  const tripIds = selectedTrips.map((trip) => resolveTripId(trip) ?? "");
+  // Use the id field (UUID) for shift API, not trip_id (GTFS identifier)
+  const tripIds = selectedTrips.map((trip) => trip?.id ?? "");
 
   return { name, busId, tripIds };
 };
@@ -248,6 +250,16 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
   };
 
+  const getLatestEndTime = () => {
+    if (!Array.isArray(selectedTrips) || selectedTrips.length === 0) {
+      return null;
+    }
+    return selectedTrips
+      .map((t) => t.arrival_time || t.departure_time || "")
+      .filter(Boolean)
+      .sort((a, b) => b.localeCompare(a))[0];
+  };
+
   const addTrip = (trip) => {
     const normalized = normalizeTrip(trip);
     const id = resolveTripId(normalized);
@@ -282,6 +294,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       trips: currentTrips,
       routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
       selectedTripIds,
+      lastTripEndTime: getLatestEndTime(),
     });
   };
 
@@ -301,6 +314,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       trips: currentTrips,
       routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
       selectedTripIds,
+      lastTripEndTime: getLatestEndTime(),
     });
   };
 
@@ -466,6 +480,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       trips: currentTrips,
       routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
       selectedTripIds,
+      lastTripEndTime: getLatestEndTime(),
     });
 
     if (
@@ -642,6 +657,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         trips: currentTrips,
         routeLabel: routesById[routeId] ?? "",
         selectedTripIds,
+        lastTripEndTime: getLatestEndTime(),
       });
       syncSelectedTripsWithCurrent();
       updateEmptyState(
@@ -674,7 +690,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
 
     const trip = currentTrips.find((item = {}) => {
-      const tripId = text(item?.id ?? item?.trip_id ?? "");
+      const tripId = resolveTripId(item);
       return tripId === id;
     });
 

@@ -61,9 +61,57 @@
   color: #1c1c1c;
 }
 
+.shift-form .shift-details h2 {
+  color: #0f3c3c;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.shift-form .shift-details .section-header {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .shift-form .filters,
 .shift-form .start-controls,
 .shift-form .end-controls {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.shift-form .start-controls,
+.shift-form .end-controls {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.shift-form .control-row {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.shift-form .controls-group-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background-color: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+}
+
+.shift-form .controls-group-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f3c3c;
+  margin: 0;
+}
+
+.shift-form .controls-group-fields {
   display: flex;
   gap: var(--spacing-md);
   flex-wrap: wrap;

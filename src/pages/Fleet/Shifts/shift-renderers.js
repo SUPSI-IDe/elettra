@@ -79,6 +79,7 @@ export const renderScheduledTrips = ({
   trips = [],
   routeLabel = "",
   selectedTripIds = new Set(),
+  lastTripEndTime = null,
 }) => {
   if (!tbody) {
     return;
@@ -102,7 +103,17 @@ export const renderScheduledTrips = ({
       const end = text(
         normalized?.end_stop_name ?? normalized?.endStopName ?? ""
       );
-      const disabled = selectedTripIds.has(id) ? "disabled" : "";
+
+      let isDisabled = selectedTripIds.has(id);
+      if (!isDisabled && lastTripEndTime) {
+        const departure =
+          normalized?.departure_time ?? normalized?.departureTime ?? "";
+        if (departure && departure < lastTripEndTime) {
+          isDisabled = true;
+        }
+      }
+
+      const disabled = isDisabled ? "disabled" : "";
       const currentRouteLabel =
         routeLabel || resolveRouteLabel(normalized) || "—";
 

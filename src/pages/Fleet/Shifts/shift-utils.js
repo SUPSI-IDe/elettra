@@ -87,6 +87,16 @@ export const resolveRouteId = (trip = {}) =>
 export const resolveTripId = (trip = {}) =>
   firstAvailable(trip?.trip_id, trip?.tripId, trip?.id);
 
+// Resolves the database primary key (UUID) for a trip, used for shift API calls
+export const resolveTripPk = (trip = {}) =>
+  firstAvailable(
+    trip?.pk,
+    trip?.trip_pk,
+    trip?.tripPk,
+    trip?.trip?.pk,
+    trip?.trip?.trip_pk
+  );
+
 export const normalizeTrip = (trip = {}) => {
   const stopTimes =
     Array.isArray(trip?.stop_times) && trip.stop_times.length > 0
@@ -122,7 +132,9 @@ export const normalizeTrip = (trip = {}) => {
     trip?.trip?.endStop ??
     {};
 
-  const id = resolveTripId(trip);
+  // Preserve the original UUID id, use trip_id for GTFS identifier
+  const originalId = firstAvailable(trip?.id, trip?.trip?.id);
+  const tripId = firstAvailable(trip?.trip_id, trip?.tripId, trip?.id);
   const routeId = resolveRouteId(trip);
 
   const startName = firstAvailable(
@@ -182,8 +194,8 @@ export const normalizeTrip = (trip = {}) => {
 
   return {
     ...trip,
-    id,
-    trip_id: id,
+    id: originalId || tripId,
+    trip_id: tripId,
     route_id: routeId,
     route_label: routeLabel,
     start_stop_name: startName,
