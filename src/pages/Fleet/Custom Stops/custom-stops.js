@@ -91,8 +91,10 @@ const setFlashMessage = (section, message) => {
 export const initializeCustomStops = async (root = document, options = {}) => {
   const section = root.querySelector("section.custom-stops");
   if (!section) {
-    return;
+    return null;
   }
+
+  const cleanupHandlers = [];
 
   const table = section.querySelector("table");
   const tbody = table?.querySelector("tbody");
@@ -113,7 +115,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
   setFlashMessage(section, options.flashMessage ?? "");
 
   if (!table || !tbody) {
-    return;
+    return null;
   }
 
   let allDepots = [];
@@ -159,12 +161,17 @@ export const initializeCustomStops = async (root = document, options = {}) => {
     }
   };
 
-  searchInput?.addEventListener("input", applyFilter);
+  if (searchInput) {
+    searchInput.addEventListener("input", applyFilter);
+    cleanupHandlers.push(() => {
+      searchInput.removeEventListener("input", applyFilter);
+    });
+  }
 
-  deleteButton?.addEventListener("click", async () => {
+  const handleDeleteClick = async () => {
     const ids = getSelectedIdsFrom(table);
     if (!ids.length) {
-      alert("Select at least one custom stop.");
+      console.error("Select at least one custom stop.");
       return;
     }
 
@@ -177,18 +184,23 @@ export const initializeCustomStops = async (root = document, options = {}) => {
 
     try {
       await Promise.all(ids.map((id) => deleteDepot(id)));
-      alert("Custom stop(s) deleted.");
+      console.log("Custom stop(s) deleted.");
       await reload();
     } catch (error) {
       console.error("Failed to delete custom stop(s)", error);
-      alert(error?.message ?? "Unable to delete custom stop(s).");
     }
-  });
+  };
+  if (deleteButton) {
+    deleteButton.addEventListener("click", handleDeleteClick);
+    cleanupHandlers.push(() => {
+      deleteButton.removeEventListener("click", handleDeleteClick);
+    });
+  }
 
-  editButton?.addEventListener("click", async () => {
+  const handleEditClick = async () => {
     const ids = getSelectedIdsFrom(table);
     if (ids.length !== 1) {
-      alert(t("custom_stops.select_single"));
+      console.error(t("custom_stops.select_single"));
       return;
     }
 
@@ -196,12 +208,28 @@ export const initializeCustomStops = async (root = document, options = {}) => {
     const current = allDepots.find((depot) => depot?.id === id) ?? {};
 
     triggerPartialLoad("add-custom-stop", { depot: current });
-  });
+  };
+  if (editButton) {
+    editButton.addEventListener("click", handleEditClick);
+    cleanupHandlers.push(() => {
+      editButton.removeEventListener("click", handleEditClick);
+    });
+  }
 
-  addButton?.addEventListener("click", () => {
+  const handleAddClick = () => {
     triggerPartialLoad("add-custom-stop");
-  });
+  };
+  if (addButton) {
+    addButton.addEventListener("click", handleAddClick);
+    cleanupHandlers.push(() => {
+      addButton.removeEventListener("click", handleAddClick);
+    });
+  }
 
   bindSelectAll(headerCheckbox, table);
   await reload();
+
+  return () => {
+    cleanupHandlers.forEach((handler) => handler());
+  };
 };

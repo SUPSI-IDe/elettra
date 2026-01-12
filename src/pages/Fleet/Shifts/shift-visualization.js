@@ -110,7 +110,7 @@ function drawAxes(svg, xScale, yScale, width, height) {
             .tickFormat('')
         )
         .selectAll('.tick line')
-        .attr('stroke', '#e0e0e0')
+        .attr('stroke', 'var(--border-light)')
         .attr('stroke-dasharray', '2,2');
         
     // Vertical grid lines for time
@@ -122,7 +122,7 @@ function drawAxes(svg, xScale, yScale, width, height) {
             .tickFormat('')
         )
         .selectAll('.tick line')
-        .attr('stroke', '#e0e0e0')
+        .attr('stroke', 'var(--border-light)')
         .attr('stroke-dasharray', '2,2');
 }
 
@@ -138,7 +138,7 @@ function drawLines(svg, data, xScale, yScale) {
         .attr('class', 'trip-line')
         .attr('d', d => line(d.stops))
         .attr('fill', 'none')
-        .attr('stroke', '#007bff') // Example color
+        .attr('stroke', 'var(--chart-blue)') // Example color
         .attr('stroke-width', 2);
 }
 
@@ -153,7 +153,7 @@ function drawStops(svg, data, xScale, yScale) {
         .attr('cx', d => xScale(parseTime(d.time)))
         .attr('cy', d => yScale(d.name))
         .attr('r', 3)
-        .attr('fill', '#007bff');
+        .attr('fill', 'var(--chart-blue)');
 }
 
 function parseTime(timeStr) {

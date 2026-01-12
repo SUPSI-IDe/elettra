@@ -40,14 +40,16 @@ const renderModelOptions = (select, models = [], selectedId = "") => {
 export const initializeAddBus = async (root = document, options = {}) => {
   const section = root.querySelector("section.add-bus");
   if (!section) {
-    return;
+    return null;
   }
+
+  const cleanupHandlers = [];
 
   const header = section.querySelector("header h1");
   const intro = section.querySelector("header .intro");
   const form = section.querySelector('form[data-form="add-bus"]');
   if (!form) {
-    return;
+    return null;
   }
 
   const isEditMode = !!options.bus;
@@ -89,15 +91,27 @@ export const initializeAddBus = async (root = document, options = {}) => {
   const cancelButton = form.querySelector('[data-action="cancel"]');
   const closeButton = section.querySelector('[data-action="close"]');
 
-  closeButton?.addEventListener("click", () => {
+  const handleCloseClick = () => {
     triggerPartialLoad("buses");
-  });
+  };
+  if (closeButton) {
+    closeButton.addEventListener("click", handleCloseClick);
+    cleanupHandlers.push(() => {
+      closeButton.removeEventListener("click", handleCloseClick);
+    });
+  }
 
-  cancelButton?.addEventListener("click", () => {
+  const handleCancelClick = () => {
     triggerPartialLoad("buses");
-  });
+  };
+  if (cancelButton) {
+    cancelButton.addEventListener("click", handleCancelClick);
+    cleanupHandlers.push(() => {
+      cancelButton.removeEventListener("click", handleCancelClick);
+    });
+  }
 
-  form.addEventListener("submit", async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     const formData = new FormData(form);
@@ -153,5 +167,14 @@ export const initializeAddBus = async (root = document, options = {}) => {
     } finally {
       toggleFormDisabled(form, false);
     }
+  };
+
+  form.addEventListener("submit", handleSubmit);
+  cleanupHandlers.push(() => {
+    form.removeEventListener("submit", handleSubmit);
   });
+
+  return () => {
+    cleanupHandlers.forEach((handler) => handler());
+  };
 };

@@ -65,10 +65,9 @@ const handleLogin = async () => {
     await authenticate(credentials.email, credentials.password).then(
       persistTokens
     );
-    alert("Logged in successfully.");
+    console.log("Logged in successfully.");
   } catch (error) {
     console.error("Login failed", error);
-    alert(error?.message ?? "Login failed.");
   }
 };
 

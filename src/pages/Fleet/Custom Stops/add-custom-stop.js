@@ -50,12 +50,14 @@ const toDepotPayload = (formData) => {
 export const initializeAddCustomStop = (root = document, options = {}) => {
   const section = root.querySelector("section.add-custom-stop");
   if (!section) {
-    return;
+    return null;
   }
+
+  const cleanupHandlers = [];
 
   const form = section.querySelector('form[data-form="add-custom-stop"]');
   if (!form) {
-    return;
+    return null;
   }
 
   const isEditMode = !!options.depot;
@@ -96,13 +98,25 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   const cancelButton = form.querySelector('[data-action="cancel"]');
   const closeButton = section.querySelector('[data-action="close"]');
 
-  closeButton?.addEventListener("click", () => {
+  const handleCloseClick = () => {
     triggerPartialLoad("custom-stops");
-  });
+  };
+  if (closeButton) {
+    closeButton.addEventListener("click", handleCloseClick);
+    cleanupHandlers.push(() => {
+      closeButton.removeEventListener("click", handleCloseClick);
+    });
+  }
 
-  cancelButton?.addEventListener("click", () => {
+  const handleCancelClick = () => {
     triggerPartialLoad("custom-stops");
-  });
+  };
+  if (cancelButton) {
+    cancelButton.addEventListener("click", handleCancelClick);
+    cleanupHandlers.push(() => {
+      cancelButton.removeEventListener("click", handleCancelClick);
+    });
+  }
 
   // Initialize map
   const mapContainer = form.querySelector('[data-role="map"]');
@@ -140,11 +154,20 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   };
 
   // Track manual edits so we don't overwrite user input
-  addressInput.addEventListener("input", () => {
+  const handleAddressInput = () => {
     addressInput.dataset.userEdited = "true";
+  };
+  addressInput.addEventListener("input", handleAddressInput);
+  cleanupHandlers.push(() => {
+    addressInput.removeEventListener("input", handleAddressInput);
   });
-  cityInput.addEventListener("input", () => {
+
+  const handleCityInput = () => {
     cityInput.dataset.userEdited = "true";
+  };
+  cityInput.addEventListener("input", handleCityInput);
+  cleanupHandlers.push(() => {
+    cityInput.removeEventListener("input", handleCityInput);
   });
 
   // Build a robust single-line address from Nominatim data
@@ -204,8 +227,13 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     debounceTimer = setTimeout(fn, delay);
   };
 
-  map.on("moveend", () => {
+  const handleMoveEnd = () => {
     debounce(updateFromMapCenter, 500);
+  };
+  map.on("moveend", handleMoveEnd);
+  cleanupHandlers.push(() => {
+    clearTimeout(debounceTimer);
+    map.off("moveend", handleMoveEnd);
   });
 
   // Initial update if adding new stop
@@ -213,7 +241,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     updateFromMapCenter();
   }
 
-  form.addEventListener("submit", async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     const formData = new FormData(form);
@@ -275,5 +303,19 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     } finally {
       toggleFormDisabled(form, false);
     }
+  };
+
+  form.addEventListener("submit", handleSubmit);
+  cleanupHandlers.push(() => {
+    form.removeEventListener("submit", handleSubmit);
   });
+
+  // Clean up map on navigation
+  cleanupHandlers.push(() => {
+    map.remove();
+  });
+
+  return () => {
+    cleanupHandlers.forEach((handler) => handler());
+  };
 };

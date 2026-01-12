@@ -26,7 +26,7 @@ const renderInto =
     container.innerHTML = html;
   };
 
-const createPartialLoader = (render) => {
+const createPartialLoader = (render, onBeforeLoad) => {
   let state = { current: "", pending: "" };
 
   const transition = (next) => {
@@ -38,6 +38,9 @@ const createPartialLoader = (render) => {
     if (!slug || slug === state.current || slug === state.pending) {
       return state;
     }
+
+    // Call cleanup before loading new partial
+    onBeforeLoad?.();
 
     transition({ pending: slug });
     const loader = getLoader(slug);
@@ -71,41 +74,58 @@ export const initializeNavigation = (root = document) => {
     return;
   }
 
-  const loadPartial = createPartialLoader(renderInto(container));
+  let currentCleanup = null;
 
-  const initializePartial = (slug, target, options = {}) => {
+  const runCleanup = () => {
+    if (typeof currentCleanup === "function") {
+      try {
+        currentCleanup();
+      } catch (error) {
+        console.error("Cleanup error:", error);
+      }
+    }
+    currentCleanup = null;
+  };
+
+  const loadPartial = createPartialLoader(renderInto(container), runCleanup);
+
+  const initializePartial = async (slug, target, options = {}) => {
     if (!slug || !target) {
       return;
     }
 
+    let cleanup = null;
+
     switch (slug) {
       case "buses":
-        initializeBuses(target, options);
+        cleanup = await initializeBuses(target, options);
         break;
       case "add-bus-model":
-        initializeAddBusModel(target, options);
+        cleanup = initializeAddBusModel(target, options);
         break;
       case "shifts":
-        initializeShifts(target, options);
+        cleanup = await initializeShifts(target, options);
         break;
       case "shift-form":
-        initializeShiftForm(target, options);
+        cleanup = await initializeShiftForm(target, options);
         break;
       case "add-custom-stop":
-        initializeAddCustomStop(target, options);
+        cleanup = initializeAddCustomStop(target, options);
         break;
       case "add-bus":
-        initializeAddBus(target, options);
+        cleanup = await initializeAddBus(target, options);
         break;
       case "custom-stops":
-        initializeCustomStops(target, options);
+        cleanup = await initializeCustomStops(target, options);
         break;
       case "visualize-shift":
-        initializeVisualizeShift(target, options);
+        cleanup = await initializeVisualizeShift(target, options);
         break;
       default:
         break;
     }
+
+    currentCleanup = cleanup;
   };
 
   const loadAndInitialize = (slug, options = {}) =>

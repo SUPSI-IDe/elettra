@@ -272,8 +272,10 @@ const readTripIds = (shift = {}) => {
 export const initializeShifts = async (root = document, options = {}) => {
   const section = root.querySelector("section.shifts");
   if (!section) {
-    return;
+    return null;
   }
+
+  const cleanupHandlers = [];
 
   const table = section.querySelector("table");
   const tbody = table?.querySelector('tbody[data-role="shifts-body"]');
@@ -295,7 +297,7 @@ export const initializeShifts = async (root = document, options = {}) => {
   setFlashMessage(section, options.flashMessage ?? "");
 
   if (!table || !tbody) {
-    return;
+    return null;
   }
 
   let allShifts = [];
@@ -345,16 +347,27 @@ export const initializeShifts = async (root = document, options = {}) => {
     }
   };
 
-  searchInput?.addEventListener("input", applyFilter);
+  if (searchInput) {
+    searchInput.addEventListener("input", applyFilter);
+    cleanupHandlers.push(() => {
+      searchInput.removeEventListener("input", applyFilter);
+    });
+  }
 
-  addButton?.addEventListener("click", () => {
+  const handleAddClick = () => {
     triggerPartialLoad("shift-form");
-  });
+  };
+  if (addButton) {
+    addButton.addEventListener("click", handleAddClick);
+    cleanupHandlers.push(() => {
+      addButton.removeEventListener("click", handleAddClick);
+    });
+  }
 
-  deleteButton?.addEventListener("click", async () => {
+  const handleDeleteClick = async () => {
     const ids = getSelectedIdsFrom(table);
     if (!ids.length) {
-      alert(t("shifts.select_min"));
+      console.error(t("shifts.select_min"));
       return;
     }
 
@@ -369,20 +382,25 @@ export const initializeShifts = async (root = document, options = {}) => {
 
     try {
       await Promise.all(ids.map((id) => deleteShift(id)));
-      alert(t("shifts.deleted"));
+      console.log(t("shifts.deleted"));
       await loadShifts();
     } catch (error) {
       console.error("Failed to delete shifts", error);
-      alert(error?.message ?? "Unable to delete shifts.");
     } finally {
       deleteButton.disabled = false;
     }
-  });
+  };
+  if (deleteButton) {
+    deleteButton.addEventListener("click", handleDeleteClick);
+    cleanupHandlers.push(() => {
+      deleteButton.removeEventListener("click", handleDeleteClick);
+    });
+  }
 
-  duplicateButton?.addEventListener("click", async () => {
+  const handleDuplicateClick = async () => {
     const ids = getSelectedIdsFrom(table);
     if (!ids.length) {
-      alert("Select at least one shift to duplicate.");
+      console.error("Select at least one shift to duplicate.");
       return;
     }
 
@@ -401,29 +419,40 @@ export const initializeShifts = async (root = document, options = {}) => {
           tripIds,
         });
       }
-      alert("Shift(s) duplicated.");
+      console.log("Shift(s) duplicated.");
       await loadShifts();
     } catch (error) {
       console.error("Failed to duplicate shift(s)", error);
-      alert(error?.message ?? "Unable to duplicate shift(s).");
     } finally {
       duplicateButton.disabled = false;
     }
-  });
+  };
+  if (duplicateButton) {
+    duplicateButton.addEventListener("click", handleDuplicateClick);
+    cleanupHandlers.push(() => {
+      duplicateButton.removeEventListener("click", handleDuplicateClick);
+    });
+  }
 
-  editButton?.addEventListener("click", () => {
+  const handleEditClick = () => {
     const ids = getSelectedIdsFrom(table);
     if (ids.length !== 1) {
-      alert(t("shifts.select_single"));
+      console.error(t("shifts.select_single"));
       return;
     }
 
     const id = ids[0];
 
     triggerPartialLoad("shift-form", { mode: "edit", shiftId: id });
-  });
+  };
+  if (editButton) {
+    editButton.addEventListener("click", handleEditClick);
+    cleanupHandlers.push(() => {
+      editButton.removeEventListener("click", handleEditClick);
+    });
+  }
 
-  table?.addEventListener("click", (event) => {
+  const handleTableClick = (event) => {
     const button = event.target?.closest?.(
       'button[data-action="visualize-shift"]'
     );
@@ -438,8 +467,18 @@ export const initializeShifts = async (root = document, options = {}) => {
     }
 
     triggerPartialLoad("visualize-shift", { shiftId: id });
-  });
+  };
+  if (table) {
+    table.addEventListener("click", handleTableClick);
+    cleanupHandlers.push(() => {
+      table.removeEventListener("click", handleTableClick);
+    });
+  }
 
   bindSelectAll(headerCheckbox, table);
   await loadShifts();
+
+  return () => {
+    cleanupHandlers.forEach((handler) => handler());
+  };
 };

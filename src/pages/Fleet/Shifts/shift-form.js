@@ -95,12 +95,14 @@ const hydrateShift = async (shift) => {
 export const initializeShiftForm = async (root = document, options = {}) => {
   const section = root.querySelector("section.shift-form");
   if (!section) {
-    return;
+    return null;
   }
+
+  const cleanupHandlers = [];
 
   const form = section.querySelector('form[data-form="shift-form"]');
   if (!form) {
-    return;
+    return null;
   }
 
   const mode = options.mode === "edit" ? "edit" : "create";
@@ -113,9 +115,15 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const visualizeButton = form.querySelector('[data-action="visualize-shift"]');
   const closeButton = section.querySelector('[data-action="close"]');
 
-  closeButton?.addEventListener("click", () => {
+  const handleCloseClick = () => {
     triggerPartialLoad("shifts");
-  });
+  };
+  if (closeButton) {
+    closeButton.addEventListener("click", handleCloseClick);
+    cleanupHandlers.push(() => {
+      closeButton.removeEventListener("click", handleCloseClick);
+    });
+  }
 
   const nameInput = form.querySelector("#shift-name");
   const busSelect = form.querySelector("#shift-bus");
@@ -802,22 +810,58 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     triggerPartialLoad("visualize-shift", payload);
   };
 
-  scheduledTripsBody?.addEventListener("click", handleScheduledTripsClick);
-  shiftTripsBody?.addEventListener("click", handleShiftTripsClick);
+  if (scheduledTripsBody) {
+    scheduledTripsBody.addEventListener("click", handleScheduledTripsClick);
+    cleanupHandlers.push(() => {
+      scheduledTripsBody.removeEventListener("click", handleScheduledTripsClick);
+    });
+  }
+  if (shiftTripsBody) {
+    shiftTripsBody.addEventListener("click", handleShiftTripsClick);
+    cleanupHandlers.push(() => {
+      shiftTripsBody.removeEventListener("click", handleShiftTripsClick);
+    });
+  }
 
-  lineSelect?.addEventListener("change", () => {
+  const handleLineChange = () => {
     loadTrips({ includeNextDay: isEditMode });
-  });
-  daySelect?.addEventListener("change", () => {
+  };
+  if (lineSelect) {
+    lineSelect.addEventListener("change", handleLineChange);
+    cleanupHandlers.push(() => {
+      lineSelect.removeEventListener("change", handleLineChange);
+    });
+  }
+  const handleDayChange = () => {
     loadTrips({ includeNextDay: isEditMode });
-  });
+  };
+  if (daySelect) {
+    daySelect.addEventListener("change", handleDayChange);
+    cleanupHandlers.push(() => {
+      daySelect.removeEventListener("change", handleDayChange);
+    });
+  }
 
-  cancelButton?.addEventListener("click", () => {
+  const handleCancelClick = () => {
     triggerPartialLoad("shifts");
-  });
+  };
+  if (cancelButton) {
+    cancelButton.addEventListener("click", handleCancelClick);
+    cleanupHandlers.push(() => {
+      cancelButton.removeEventListener("click", handleCancelClick);
+    });
+  }
 
-  visualizeButton?.addEventListener("click", handleVisualize);
+  if (visualizeButton) {
+    visualizeButton.addEventListener("click", handleVisualize);
+    cleanupHandlers.push(() => {
+      visualizeButton.removeEventListener("click", handleVisualize);
+    });
+  }
   form.addEventListener("submit", handleSubmit);
+  cleanupHandlers.push(() => {
+    form.removeEventListener("submit", handleSubmit);
+  });
 
   updateEmptyState(shiftTripsEmpty, false, "No trips added to this shift yet.");
   updateEmptyState(
@@ -894,4 +938,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       }
     }
   }
+
+  return () => {
+    cleanupHandlers.forEach((handler) => handler());
+  };
 };

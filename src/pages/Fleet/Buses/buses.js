@@ -62,7 +62,7 @@ const getSelectedIdsFrom = (container) =>
     .map((input) => input.closest("tr")?.dataset?.id)
     .filter(Boolean);
 
-const bindBusModelActions = (tbody) => {
+const bindBusModelActions = (tbody, cleanupHandlers) => {
   if (!tbody || tbody.dataset.busActionsBound === "true") {
     return;
   }
@@ -75,7 +75,7 @@ const bindBusModelActions = (tbody) => {
 
     const busModelId = button.dataset.busModelId?.trim();
     if (!busModelId) {
-      alert("Missing bus model reference.");
+      console.error("Missing bus model reference.");
       return;
     }
 
@@ -98,7 +98,6 @@ const bindBusModelActions = (tbody) => {
       triggerPartialLoad("buses");
     } catch (error) {
       console.error("Failed to create bus", error);
-      alert(error?.message ?? "Unable to create bus.");
       button.disabled = false;
       button.textContent = previousLabel;
     }
@@ -106,6 +105,11 @@ const bindBusModelActions = (tbody) => {
 
   tbody.addEventListener("click", handleBusModelsClick);
   tbody.dataset.busActionsBound = "true";
+
+  cleanupHandlers.push(() => {
+    tbody.removeEventListener("click", handleBusModelsClick);
+    delete tbody.dataset.busActionsBound;
+  });
 };
 
 const setFlashMessage = (section, message) => {
@@ -123,7 +127,7 @@ const setFlashMessage = (section, message) => {
   }
 };
 
-const initializeModelControls = (section) => {
+const initializeModelControls = (section, cleanupHandlers) => {
   const controls = section.querySelector(
     ".bus-models .table-controls .actions"
   );
@@ -131,8 +135,7 @@ const initializeModelControls = (section) => {
     return;
   }
 
-  controls.dataset.bound = "true";
-  controls.addEventListener("click", async (event) => {
+  const handleControlsClick = async (event) => {
     const actionButton = event.target.closest("button[data-action]");
     if (!actionButton) {
       return;
@@ -142,7 +145,7 @@ const initializeModelControls = (section) => {
       section.querySelector(".bus-models table")
     );
     if (!selectedIds.length) {
-      alert(t("buses.select_min_model"));
+      console.error(t("buses.select_min_model"));
       return;
     }
 
@@ -159,14 +162,13 @@ const initializeModelControls = (section) => {
         triggerPartialLoad("buses");
       } catch (error) {
         console.error("Failed to delete bus model(s)", error);
-        alert(error?.message ?? "Unable to delete bus model(s).");
       }
       return;
     }
 
     if (action === "edit-selected-model") {
       if (selectedIds.length !== 1) {
-        alert(t("buses.select_single_model"));
+        console.error(t("buses.select_single_model"));
         return;
       }
       const id = selectedIds[0];
@@ -176,10 +178,18 @@ const initializeModelControls = (section) => {
         triggerPartialLoad("add-bus-model", { busModel: current });
       }
     }
+  };
+
+  controls.dataset.bound = "true";
+  controls.addEventListener("click", handleControlsClick);
+
+  cleanupHandlers.push(() => {
+    controls.removeEventListener("click", handleControlsClick);
+    delete controls.dataset.bound;
   });
 };
 
-const initializeBusControls = (section) => {
+const initializeBusControls = (section, cleanupHandlers) => {
   const controls = section.querySelector(
     ".buses-list .table-controls .actions"
   );
@@ -187,8 +197,7 @@ const initializeBusControls = (section) => {
     return;
   }
 
-  controls.dataset.bound = "true";
-  controls.addEventListener("click", async (event) => {
+  const handleControlsClick = async (event) => {
     const actionButton = event.target.closest("button[data-action]");
     if (!actionButton) {
       return;
@@ -198,7 +207,7 @@ const initializeBusControls = (section) => {
       section.querySelector(".buses-list table")
     );
     if (!selectedIds.length) {
-      alert(t("buses.select_min_bus"));
+      console.error(t("buses.select_min_bus"));
       return;
     }
 
@@ -215,14 +224,13 @@ const initializeBusControls = (section) => {
         triggerPartialLoad("buses");
       } catch (error) {
         console.error("Failed to delete bus(es)", error);
-        alert(error?.message ?? "Unable to delete bus(es).");
       }
       return;
     }
 
     if (action === "edit-selected-bus") {
       if (selectedIds.length !== 1) {
-        alert(t("buses.select_single_bus"));
+        console.error(t("buses.select_single_bus"));
         return;
       }
       const id = selectedIds[0];
@@ -232,14 +240,24 @@ const initializeBusControls = (section) => {
         triggerPartialLoad("add-bus", { bus: current });
       }
     }
+  };
+
+  controls.dataset.bound = "true";
+  controls.addEventListener("click", handleControlsClick);
+
+  cleanupHandlers.push(() => {
+    controls.removeEventListener("click", handleControlsClick);
+    delete controls.dataset.bound;
   });
 };
 
 export const initializeBuses = async (root = document, options = {}) => {
   const section = root.querySelector("section.buses");
   if (!section) {
-    return;
+    return null;
   }
+
+  const cleanupHandlers = [];
 
   const modelsTable = section.querySelector(".bus-models table");
   const busesTable = section.querySelector(".buses-list table");
@@ -247,7 +265,7 @@ export const initializeBuses = async (root = document, options = {}) => {
   const busesTbody = busesTable?.querySelector("tbody");
   const modelFilter = section.querySelector("#model-filter");
 
-  bindBusModelActions(modelsTbody);
+  bindBusModelActions(modelsTbody, cleanupHandlers);
 
   const modelsHeaderCheckbox = modelsTable?.querySelector(
     'thead .checkbox input[type="checkbox"]'
@@ -260,9 +278,15 @@ export const initializeBuses = async (root = document, options = {}) => {
   setFlashMessage(section, message);
 
   const addModelButton = section.querySelector('[data-action="add-bus-model"]');
-  addModelButton?.addEventListener("click", () => {
+  const handleAddModelClick = () => {
     triggerPartialLoad("add-bus-model");
-  });
+  };
+  addModelButton?.addEventListener("click", handleAddModelClick);
+  if (addModelButton) {
+    cleanupHandlers.push(() => {
+      addModelButton.removeEventListener("click", handleAddModelClick);
+    });
+  }
 
   renderLoadingRow(modelsTbody);
   renderBusesLoadingRow(busesTbody);
@@ -310,14 +334,18 @@ export const initializeBuses = async (root = document, options = {}) => {
     bindSelectAll(modelsHeaderCheckbox, modelsTable);
     bindSelectAll(busesHeaderCheckbox, busesTable);
 
-    initializeModelControls(section);
-    initializeBusControls(section);
+    initializeModelControls(section, cleanupHandlers);
+    initializeBusControls(section, cleanupHandlers);
 
     if (modelFilter) {
       modelFilter.value = "";
-      modelFilter.onchange = (event) => {
+      const handleFilterChange = (event) => {
         applyBusFilter(event.target.value ?? "");
       };
+      modelFilter.addEventListener("change", handleFilterChange);
+      cleanupHandlers.push(() => {
+        modelFilter.removeEventListener("change", handleFilterChange);
+      });
     }
 
     applyBusFilter("");
@@ -326,4 +354,8 @@ export const initializeBuses = async (root = document, options = {}) => {
     renderErrorRow(modelsTbody, error?.message ?? "Unable to load bus models.");
     renderBusesErrorRow(busesTbody, error?.message ?? "Unable to load buses.");
   }
+
+  return () => {
+    cleanupHandlers.forEach((handler) => handler());
+  };
 };

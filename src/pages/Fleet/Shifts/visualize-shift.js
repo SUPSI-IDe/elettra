@@ -37,13 +37,21 @@ export const initializeVisualizeShift = async (
 ) => {
   const section = root.querySelector("section.visualize-shift");
   if (!section) {
-    return;
+    return null;
   }
 
+  const cleanupHandlers = [];
+
   const closeButton = section.querySelector('[data-action="close"]');
-  closeButton?.addEventListener("click", () => {
+  const handleCloseClick = () => {
     triggerPartialLoad("shifts");
-  });
+  };
+  if (closeButton) {
+    closeButton.addEventListener("click", handleCloseClick);
+    cleanupHandlers.push(() => {
+      closeButton.removeEventListener("click", handleCloseClick);
+    });
+  }
 
   const state = {
     name: text(options.name).trim(),
@@ -188,7 +196,12 @@ export const initializeVisualizeShift = async (
     renderAll();
   };
 
-  tripsBody?.addEventListener("click", handleTripsTableClick);
+  if (tripsBody) {
+    tripsBody.addEventListener("click", handleTripsTableClick);
+    cleanupHandlers.push(() => {
+      tripsBody.removeEventListener("click", handleTripsTableClick);
+    });
+  }
 
   if (!state.trips.length && options.shiftId) {
     ensurePlaceholder(timelineContainer, "Loading shift timeline…");
@@ -336,4 +349,13 @@ export const initializeVisualizeShift = async (
     }, 100);
   });
   resizeObserver.observe(timelineContainer);
+
+  cleanupHandlers.push(() => {
+    clearTimeout(resizeTimeout);
+    resizeObserver.disconnect();
+  });
+
+  return () => {
+    cleanupHandlers.forEach((handler) => handler());
+  };
 };

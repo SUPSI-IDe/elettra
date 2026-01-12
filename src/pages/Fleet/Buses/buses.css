@@ -1,5 +1,5 @@
-.page-header {
-  display: flex;
+/* Buses list page - header with action button */
+.buses .page-header {
   flex-direction: row;
   justify-content: space-between;
   align-items: flex-end;
@@ -33,122 +33,15 @@ h2 {
   }
 }
 
-.add-bus-model,
-.add-bus {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 0;
-  width: 100%;
-}
-
-.add-bus-model .page-header,
-.add-bus .page-header {
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--spacing-sm);
-}
-
-.add-bus-model h1,
-.add-bus h1 {
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: #1c1c1c;
-}
-
-.add-bus-model .intro,
-.add-bus .intro {
-  font-size: 0.95rem;
-  color: #4f4f4f;
-  max-width: 48ch;
-}
-
+/* Page-specific overrides for bus forms */
 .add-bus-model main,
 .add-bus main {
-  display: flex;
-  flex-direction: column;
-  padding: var(--spacing-sm);
   max-width: 720px;
 }
 
 .add-bus-model form,
 .add-bus form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
   max-width: clamp(22rem, 60vw, 32rem);
-}
-
-.add-bus-model .form-group,
-.add-bus .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.add-bus-model label,
-.add-bus label {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #272727;
-}
-
-.add-bus-model input,
-.add-bus-model textarea,
-.add-bus input,
-.add-bus textarea {
-  padding: 0.65rem 0.75rem;
-  border: 1px solid #d3d3d3;
-  border-radius: 6px;
-  font-size: 0.95rem;
-  line-height: 1.45;
-  background-color: #ffffff;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.add-bus-model input:focus,
-.add-bus-model textarea:focus,
-.add-bus input:focus,
-.add-bus textarea:focus {
-  border-color: #4a9da6;
-  outline: 2px solid transparent;
-  box-shadow: 0 0 0 3px rgba(142, 229, 227, 0.35);
-}
-
-.add-bus-model textarea,
-.add-bus textarea {
-  min-height: 7.5rem;
-  resize: vertical;
-}
-
-.add-bus-model .form-actions,
-.add-bus .form-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.add-bus-model .form-feedback,
-.add-bus .form-feedback {
-  min-height: 1.25rem;
-  font-size: 0.85rem;
-  letter-spacing: 0.01em;
-}
-
-.add-bus-model .form-feedback[hidden],
-.add-bus .form-feedback[hidden] {
-  display: none;
-}
-
-.add-bus-model .form-feedback[data-tone="error"],
-.add-bus .form-feedback[data-tone="error"] {
-  color: inherit;
-}
-
-.add-bus-model .form-feedback[data-tone="success"],
-.add-bus .form-feedback[data-tone="success"] {
-  color: inherit;
 }
 
 .bus-models table,
