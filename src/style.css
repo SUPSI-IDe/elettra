@@ -322,9 +322,11 @@ table input[type="checkbox"] {
 .page-header {
   padding: var(--spacing-sm);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  justify-content: space-between;
   align-items: flex-start;
   background-color: var(--blue-gray);
+  gap: var(--spacing-md);
 }
 
 .page-header h1 {
