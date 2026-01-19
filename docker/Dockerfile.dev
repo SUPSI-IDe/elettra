@@ -1,0 +1,18 @@
+# Dockerfile.dev - Development environment for Elettra
+# Vite 7.x requires Node.js 20.19+ or 22.12+
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Install dependencies first (better layer caching)
+COPY package*.json ./
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose Vite dev server port
+EXPOSE 5173
+
+# Start development server with host binding for Docker
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
