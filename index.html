@@ -48,14 +48,83 @@
     </nav>
     <main class="layout-main">
       <header class="layout-header blue-gray">
-        <button class="login" data-i18n="header.login">Login</button>
-        <select class="language-select">
-          <option value="en">EN</option>
-          <option value="de">DE</option>
-          <option value="fr">FR</option>
-          <option value="it">IT</option>
-        </select>
+        <!-- Spacer to push content to right -->
+        <div class="header-spacer"></div>
+        
+        <!-- User Section (right side) -->
+        <div class="user-section">
+          <button class="login" data-action="login" data-i18n="header.login">Login</button>
+          <div class="user-menu" hidden>
+            <div class="user-info">
+              <svg class="user-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <div class="user-details">
+                <span class="user-name" data-role="user-name"></span>
+                <span class="user-separator">|</span>
+                <span class="user-company" data-role="user-company"></span>
+              </div>
+            </div>
+            <button class="user-menu-toggle" aria-expanded="false" aria-haspopup="true" aria-label="User menu">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M3 5L8 10L13 5" stroke="currentColor" stroke-width="1.5" fill="none"/>
+              </svg>
+            </button>
+            <div class="user-menu-dropdown" hidden>
+              <div class="dropdown-user-info">
+                <span class="dropdown-email" data-role="user-email"></span>
+              </div>
+              <hr />
+              <button data-action="change-password" data-i18n="header.change_password">Change Password</button>
+              <hr />
+              <button data-action="logout" data-i18n="header.logout">Logout</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Language Selector (right side) -->
+        <div class="language-section">
+          <svg class="language-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <select class="language-select" aria-label="Select language">
+            <option value="en">EN</option>
+            <option value="de">DE</option>
+            <option value="fr">FR</option>
+            <option value="it">IT</option>
+          </select>
+        </div>
       </header>
+      
+      <!-- Change Password Modal -->
+      <dialog class="password-modal" data-modal="change-password">
+        <form method="dialog" class="password-form">
+          <h2 data-i18n="password.title">Change Password</h2>
+          <p class="form-feedback" data-role="password-feedback" role="status" aria-live="polite" hidden></p>
+          
+          <div class="form-group">
+            <label for="current-password" data-i18n="password.current">Current Password</label>
+            <input type="password" id="current-password" name="currentPassword" required autocomplete="current-password" />
+          </div>
+          
+          <div class="form-group">
+            <label for="new-password" data-i18n="password.new">New Password</label>
+            <input type="password" id="new-password" name="newPassword" required autocomplete="new-password" minlength="8" />
+          </div>
+          
+          <div class="form-group">
+            <label for="confirm-password" data-i18n="password.confirm">Confirm New Password</label>
+            <input type="password" id="confirm-password" name="confirmPassword" required autocomplete="new-password" />
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" data-action="cancel-password" data-i18n="common.cancel">Cancel</button>
+            <button type="submit" data-i18n="password.update">Update Password</button>
+          </div>
+        </form>
+      </dialog>
       <article class="layout-article"></article>
       <footer class="layout-footer blue-gray">
         <span class="impressum" data-i18n="footer.impressum">

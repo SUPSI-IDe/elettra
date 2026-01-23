@@ -6,6 +6,9 @@ import {
   resolveRouteLabel,
 } from "./shift-utils";
 
+// Helper to get the consistent trip ID for use in data attributes
+const getTripIdForDataAttr = (trip) => resolveTripId(trip);
+
 export const clearNode = (node) => {
   if (!node) {
     return;
@@ -53,13 +56,17 @@ export const renderShiftTrips = (tbody, trips = []) => {
 
   const rows = trips
     .map((trip = {}) => {
-      const time = text(trip?.departure_time ?? trip?.departureTime ?? "");
+      // Use consistent ID resolution (same as resolveTripId used when adding trips)
+      const tripId = getTripIdForDataAttr(trip);
+      const departureTime = text(trip?.departure_time ?? trip?.departureTime ?? "");
+      const arrivalTime = text(trip?.arrival_time ?? trip?.arrivalTime ?? "");
       const start = text(trip?.start_stop_name ?? trip?.startStopName ?? "");
       const end = text(trip?.end_stop_name ?? trip?.endStopName ?? "");
 
       return `
-                <tr data-trip-id="${text(trip?.id ?? trip?.trip_id ?? "")}">
-                    <td class="time">${textContent(time || "—")}</td>
+                <tr data-trip-id="${tripId}">
+                    <td class="start-time">${textContent(departureTime || "—")}</td>
+                    <td class="end-time">${textContent(arrivalTime || "—")}</td>
                     <td class="route">${textContent(
                       start && end ? `${start} – ${end}` : start || end || "—"
                     )}</td>
@@ -80,6 +87,9 @@ export const renderScheduledTrips = ({
   routeLabel = "",
   selectedTripIds = new Set(),
   lastTripEndTime = null,
+  lastTripEndStop = null,
+  shiftStartTime = null,
+  shiftEndTime = null,
 }) => {
   if (!tbody) {
     return;
@@ -90,42 +100,85 @@ export const renderScheduledTrips = ({
     return;
   }
 
-  const rows = trips
+  // Determine the earliest allowed departure time:
+  // - If there are already selected trips, use lastTripEndTime (bus must finish previous trip first)
+  // - Otherwise, use shiftStartTime (bus must leave the depot first)
+  const earliestAllowedTime = lastTripEndTime || shiftStartTime || null;
+
+  // Normalize stop name for consistent comparison (trim whitespace)
+  const normalizeStopName = (name) => String(name ?? "").trim();
+  const normalizedLastTripEndStop = lastTripEndStop ? normalizeStopName(lastTripEndStop) : null;
+  
+  // Only apply location filter if there are selected trips (bus is somewhere)
+  const hasSelectedTrips = selectedTripIds.size > 0;
+
+  // Filter trips to show only valid options
+  const validTrips = trips.filter((trip = {}) => {
+    const normalized = normalizeTrip(trip);
+    const id = resolveTripId(normalized);
+    const startStop = normalizeStopName(
+      normalized?.start_stop_name ?? normalized?.startStopName ?? ""
+    );
+
+    // Hide already selected trips
+    if (selectedTripIds.has(id)) {
+      return false;
+    }
+
+    // Hide trips that start from a different location than where the bus is
+    // Only apply this filter if there are selected trips (bus is at a known location)
+    if (hasSelectedTrips && normalizedLastTripEndStop && startStop && startStop !== normalizedLastTripEndStop) {
+      return false;
+    }
+
+    // Hide trips that depart too early (before shift start or before previous trip ends)
+    if (earliestAllowedTime) {
+      const departure =
+        normalized?.departure_time ?? normalized?.departureTime ?? "";
+      if (departure && departure < earliestAllowedTime) {
+        return false;
+      }
+    }
+
+    // Hide trips that arrive too late (after shift end time / depot arrival)
+    if (shiftEndTime) {
+      const arrival =
+        normalized?.arrival_time ?? normalized?.arrivalTime ??
+        normalized?.departure_time ?? normalized?.departureTime ?? "";
+      if (arrival && arrival > shiftEndTime) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const rows = validTrips
     .map((trip = {}) => {
       const normalized = normalizeTrip(trip);
       const id = resolveTripId(normalized);
-      const time = text(
+      const departureTime = text(
         normalized?.departure_time ?? normalized?.departureTime ?? ""
       );
-      const start = text(
+      const arrivalTime = text(
+        normalized?.arrival_time ?? normalized?.arrivalTime ?? ""
+      );
+      const startStop = text(
         normalized?.start_stop_name ?? normalized?.startStopName ?? ""
       );
-      const end = text(
+      const endStop = text(
         normalized?.end_stop_name ?? normalized?.endStopName ?? ""
       );
 
-      let isDisabled = selectedTripIds.has(id);
-      if (!isDisabled && lastTripEndTime) {
-        const departure =
-          normalized?.departure_time ?? normalized?.departureTime ?? "";
-        if (departure && departure < lastTripEndTime) {
-          isDisabled = true;
-        }
-      }
-
-      const disabled = isDisabled ? "disabled" : "";
-      const currentRouteLabel =
-        routeLabel || resolveRouteLabel(normalized) || "—";
-
       return `
                 <tr data-trip-id="${id}">
-                    <td class="time">${textContent(time || "—")}</td>
-                    <td class="line">${textContent(currentRouteLabel)}</td>
+                    <td class="time">${textContent(departureTime || "—")}</td>
+                    <td class="end-time">${textContent(arrivalTime || "—")}</td>
                     <td class="route">${textContent(
-                      start && end ? `${start} – ${end}` : start || end || "—"
+                      startStop && endStop ? `${startStop} – ${endStop}` : startStop || endStop || "—"
                     )}</td>
                     <td class="actions">
-                        <button type="button" data-action="add-trip" ${disabled}>Add</button>
+                        <button type="button" data-action="add-trip">Add</button>
                     </td>
                 </tr>
             `;

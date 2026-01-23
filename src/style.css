@@ -108,6 +108,11 @@ body {
 
 .layout-header {
   justify-content: flex-end;
+  gap: var(--spacing-md);
+}
+
+.header-spacer {
+  flex: 1;
 }
 
 .layout-main {
@@ -132,13 +137,286 @@ body {
   border-bottom: 1px solid white;
 }
 
+/* ==========================================================================
+   Language Selector Section
+   ========================================================================== */
+
+.language-section {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.language-icon {
+  color: var(--dark-gray);
+  flex-shrink: 0;
+}
+
 .language-select {
-  margin-left: var(--spacing-sm);
-  padding: var(--spacing-xs);
+  padding: 0.25rem 0.35rem;
   border-radius: 4px;
-  border: none;
-  background-color: transparent;
+  border: 1px solid var(--border-medium);
+  background-color: #ffffff;
+  font-size: 0.8rem;
+  color: var(--text-main);
   cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.language-select:hover {
+  border-color: var(--dark-gray);
+}
+
+.language-select:focus {
+  outline: none;
+  border-color: var(--brand-teal-light);
+  box-shadow: 0 0 0 2px rgba(142, 229, 227, 0.3);
+}
+
+/* ==========================================================================
+   User Section - Login button and User Menu
+   ========================================================================== */
+
+.user-section {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+/* Login button */
+.layout-header .login {
+  padding: 0.5rem 1rem;
+  background-color: var(--brand-teal);
+  color: #ffffff;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.layout-header .login:hover {
+  background-color: var(--brand-teal-dark);
+}
+
+.layout-header .login[hidden] {
+  display: none;
+}
+
+/* User Menu */
+.user-menu {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.user-menu[hidden] {
+  display: none;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background-color: #ffffff;
+  border: 1px solid var(--border-medium);
+  border-radius: 6px 0 0 6px;
+  border-right: none;
+}
+
+.user-icon {
+  color: var(--brand-teal);
+  flex-shrink: 0;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-main);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-separator {
+  color: var(--border-medium);
+  font-size: 0.85rem;
+}
+
+.user-separator[hidden] {
+  display: none;
+}
+
+.user-company {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-company[hidden] {
+  display: none;
+}
+
+.user-menu-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.4rem;
+  background-color: #ffffff;
+  border: 1px solid var(--border-medium);
+  border-radius: 0 6px 6px 0;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.user-menu-toggle:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--dark-gray);
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 180px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  padding: 0.25rem 0;
+}
+
+.user-menu-dropdown[hidden] {
+  display: none;
+}
+
+.user-menu-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 1rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.user-menu-dropdown button:hover {
+  background-color: var(--bg-hover);
+}
+
+.user-menu-dropdown hr {
+  margin: 0.25rem 0;
+  border: none;
+  border-top: 1px solid var(--border-light);
+}
+
+.dropdown-user-info {
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-subtle);
+}
+
+.dropdown-email {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   Password Change Modal
+   ========================================================================== */
+
+.password-modal {
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  max-width: 400px;
+  width: 90vw;
+}
+
+.password-modal::backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+}
+
+.password-form h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.password-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.password-form label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-label);
+}
+
+.password-form input {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.password-form input:focus {
+  border-color: var(--brand-teal-light);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(142, 229, 227, 0.35);
+}
+
+.password-form .form-actions {
+  margin-top: var(--spacing-sm);
+}
+
+.password-form .form-feedback {
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.password-form .form-feedback[data-tone="error"] {
+  background-color: #fdecea;
+  color: var(--error-color);
+}
+
+.password-form .form-feedback[data-tone="success"] {
+  background-color: #e8f5e9;
+  color: var(--success-color);
+}
+
+.password-form .form-feedback[data-tone="info"] {
+  background-color: var(--blue-gray);
+  color: var(--dark-blue);
 }
 
 nav {
@@ -340,11 +618,19 @@ table input[type="checkbox"] {
 }
 
 .section-header button {
-  padding: var(--spacing-xs);
-  padding-left: var(--spacing-lg);
-  padding-right: var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-lg);
   border-radius: 8px;
   border: none;
+  background-color: var(--brand-teal);
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.section-header button:hover {
+  background-color: var(--brand-teal-dark);
 }
 
 .close-button {
@@ -466,6 +752,47 @@ table input[type="checkbox"] {
 .form-actions {
   display: flex;
   gap: 0.75rem;
+  margin-top: var(--spacing-md);
+}
+
+.form-actions button {
+  padding: 0.65rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Cancel button - secondary style */
+.form-actions button[data-action="cancel"],
+.form-actions button[type="button"] {
+  background-color: var(--base-gray);
+  color: var(--text-main);
+  border: 1px solid var(--border-medium);
+}
+
+.form-actions button[data-action="cancel"]:hover,
+.form-actions button[type="button"]:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--dark-gray);
+}
+
+/* Save/Submit button - primary style */
+.form-actions button[type="submit"] {
+  background-color: var(--brand-teal);
+  color: #ffffff;
+  border: 1px solid var(--brand-teal);
+}
+
+.form-actions button[type="submit"]:hover {
+  background-color: var(--brand-teal-dark);
+  border-color: var(--brand-teal-dark);
+}
+
+.form-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .form-feedback {

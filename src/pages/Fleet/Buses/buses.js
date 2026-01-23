@@ -9,7 +9,7 @@ import {
   updateBus,
   updateBusModel,
 } from "../../../api";
-import { resolveUserId } from "../../../api/session";
+import { resolveUserId, isAuthenticated } from "../../../api/session";
 import {
   addOwnedBus,
   cacheCollections,
@@ -290,6 +290,16 @@ export const initializeBuses = async (root = document, options = {}) => {
 
   renderLoadingRow(modelsTbody);
   renderBusesLoadingRow(busesTbody);
+
+  // Check if user is authenticated before making API calls
+  if (!isAuthenticated()) {
+    const authMessage = t("buses.login_required") || "Please login to view your fleet data.";
+    renderErrorRow(modelsTbody, authMessage);
+    renderBusesErrorRow(busesTbody, authMessage);
+    return () => {
+      cleanupHandlers.forEach((handler) => handler());
+    };
+  }
 
   try {
     const [modelsPayload, busesPayload, userId] = await Promise.all([

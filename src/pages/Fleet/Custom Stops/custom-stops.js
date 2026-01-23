@@ -1,7 +1,7 @@
 import { t } from "../../../i18n";
 import "./custom-stops.css";
 import { deleteDepot, fetchDepots } from "../../../api";
-import { resolveUserId } from "../../../api/session";
+import { resolveUserId, isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
 
@@ -137,6 +137,13 @@ export const initializeCustomStops = async (root = document, options = {}) => {
 
   const reload = async () => {
     renderLoading(tbody);
+
+    // Check if user is authenticated before making API calls
+    if (!isAuthenticated()) {
+      const authMessage = t("custom_stops.login_required") || "Please login to view your custom stops.";
+      renderError(tbody, authMessage);
+      return;
+    }
 
     try {
       const [payload, userId] = await Promise.all([

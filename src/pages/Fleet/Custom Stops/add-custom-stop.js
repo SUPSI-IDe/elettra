@@ -5,6 +5,7 @@ import { createDepot, updateDepot } from "../../../api";
 import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { toggleFormDisabled, updateFeedback } from "../../../ui-helpers";
+import { getUserCompanyLocation } from "../../../config/company-locations";
 
 const parseCoordinate = (value) => {
   if (typeof value !== "string") {
@@ -125,9 +126,11 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   const addressInput = form.querySelector("#custom-stop-address");
   const cityInput = form.querySelector("#custom-stop-city");
 
-  // Default center (Bern) or use existing coordinates in edit mode
-  const defaultLat = currentDepot.latitude ?? 46.9480;
-  const defaultLon = currentDepot.longitude ?? 7.4474;
+  // Default center based on user's company or fallback to Bern
+  // In edit mode, use existing coordinates
+  const companyLocation = getUserCompanyLocation();
+  const defaultLat = currentDepot.latitude ?? companyLocation.lat;
+  const defaultLon = currentDepot.longitude ?? companyLocation.lon;
 
   const map = L.map(mapContainer, {
     center: [defaultLat, defaultLon],
@@ -153,23 +156,6 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     }
   };
 
-  // Track manual edits so we don't overwrite user input
-  const handleAddressInput = () => {
-    addressInput.dataset.userEdited = "true";
-  };
-  addressInput.addEventListener("input", handleAddressInput);
-  cleanupHandlers.push(() => {
-    addressInput.removeEventListener("input", handleAddressInput);
-  });
-
-  const handleCityInput = () => {
-    cityInput.dataset.userEdited = "true";
-  };
-  cityInput.addEventListener("input", handleCityInput);
-  cleanupHandlers.push(() => {
-    cityInput.removeEventListener("input", handleCityInput);
-  });
-
   // Build a robust single-line address from Nominatim data
   const buildAddressLine = (addr, displayName) => {
     const street = [
@@ -194,7 +180,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     return primary || "";
   };
 
-  // Update form fields from map center
+  // Update form fields from map center (fields are readonly, always update)
   const updateFromMapCenter = async () => {
     const center = map.getCenter();
     const lat = center.lat.toFixed(6);
@@ -203,18 +189,18 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     latInput.value = lat;
     lonInput.value = lon;
 
-    // Reverse geocode for address
+    // Reverse geocode for address and city
     const geo = await reverseGeocode(center.lat, center.lng);
     if (geo) {
       const addr = geo.address || {};
 
       const addressLine = buildAddressLine(addr, geo.display_name);
-      if (!addressInput.dataset.userEdited && addressLine) {
+      if (addressLine) {
         addressInput.value = addressLine;
       }
 
       const city = addr.city || addr.town || addr.village || addr.municipality || addr.hamlet || addr.suburb;
-      if (!cityInput.dataset.userEdited && city) {
+      if (city) {
         cityInput.value = city;
       }
     }

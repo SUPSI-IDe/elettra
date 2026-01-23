@@ -8,6 +8,7 @@ import {
   fetchBuses,
   fetchStopsByTripId,
 } from "../../../api";
+import { isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
@@ -317,6 +318,13 @@ export const initializeShifts = async (root = document, options = {}) => {
 
   const loadShifts = async () => {
     renderLoading(tbody);
+
+    // Check if user is authenticated before making API calls
+    if (!isAuthenticated()) {
+      const authMessage = t("shifts.login_required") || "Please login to view your shifts.";
+      renderError(tbody, authMessage);
+      return;
+    }
 
     try {
       const [shiftsPayload, busesPayload] = await Promise.all([

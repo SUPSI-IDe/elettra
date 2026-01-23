@@ -6,6 +6,7 @@ import { initializeBuses } from "./pages/Fleet/Buses/buses";
 import { initializeCustomStops } from "./pages/Fleet/Custom Stops/custom-stops";
 import { initializeShifts } from "./pages/Fleet/Shifts/shifts";
 import { initializeVisualizeShift } from "./pages/Fleet/Shifts/visualize-shift";
+import { initializeLogin } from "./pages/Auth/login";
 import { applyTranslations, getCurrentLang } from "./i18n";
 
 const partials = import.meta.glob("./pages/**/*.html", {
@@ -97,6 +98,9 @@ export const initializeNavigation = (root = document) => {
     let cleanup = null;
 
     switch (slug) {
+      case "login":
+        cleanup = initializeLogin(target, options);
+        break;
       case "buses":
         cleanup = await initializeBuses(target, options);
         break;

@@ -1,17 +1,21 @@
 import "./shifts.css";
+import "./shift-visualization.css";
 import {
   createShift,
   fetchBuses,
   fetchBusById,
   fetchDepots,
   fetchRoutes,
+  fetchRoutesByAgency,
   fetchServiceDays,
   fetchShiftById,
   fetchStopsByTripId,
   fetchTripsByRoute,
   updateShift,
 } from "../../../api";
-import { resolveUserId } from "../../../api/session";
+import { resolveUserId, resolveAgencyId } from "../../../api/session";
+import { showTripPreview, hideTripPreview } from "./trip-preview";
+import { renderTimeline } from "./shift-timeline";
 import { triggerPartialLoad } from "../../../events";
 import { getOwnedBuses, setOwnedBuses } from "../../../store";
 import {
@@ -145,6 +149,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     'tbody[data-role="shift-trips-body"]'
   );
   const shiftTripsEmpty = form.querySelector('[data-role="shift-trips-empty"]');
+  const timelineContainer = section.querySelector('[data-role="shift-timeline"]');
 
   // populateDayOptions(daySelect); // Removed, called in loadDays
 
@@ -219,6 +224,26 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateEmptyState(shiftTripsEmpty, selectedTrips.length > 0);
   };
 
+  // Update the shift timeline visualization
+  const updateTimeline = () => {
+    if (!timelineContainer) {
+      return;
+    }
+    
+    // Get depot names from the select elements
+    const startDepotSelect = form.querySelector('[data-field="start-depot"]');
+    const endDepotSelect = form.querySelector('[data-field="end-depot"]');
+    const startDepotName = startDepotSelect?.selectedOptions?.[0]?.textContent || "";
+    const endDepotName = endDepotSelect?.selectedOptions?.[0]?.textContent || "";
+    
+    renderTimeline(timelineContainer, selectedTrips, {
+      startDepotName: startDepotName !== "Depot name" ? startDepotName : "",
+      endDepotName: endDepotName !== "Depot name" ? endDepotName : "",
+      startTime: getShiftStartTime() || "",
+      endTime: getShiftEndTime() || "",
+    });
+  };
+
   const syncSelectedTripsWithCurrent = () => {
     if (!Array.isArray(selectedTrips) || selectedTrips.length === 0) {
       return;
@@ -254,7 +279,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     if (changed) {
       updateShiftTrips();
-      ensureTimesFromSelected({ force: false });
+      // Don't automatically update times - let user set them manually
     }
   };
 
@@ -268,6 +293,34 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       .sort((a, b) => b.localeCompare(a))[0];
   };
 
+  const getShiftStartTime = () => {
+    if (!(startTimeInput instanceof HTMLInputElement)) {
+      return null;
+    }
+    const value = startTimeInput.value?.trim() ?? "";
+    return value || null;
+  };
+
+  const getShiftEndTime = () => {
+    if (!(endTimeInput instanceof HTMLInputElement)) {
+      return null;
+    }
+    const value = endTimeInput.value?.trim() ?? "";
+    return value || null;
+  };
+
+  // Get the end stop name of the last selected trip (where the bus currently is)
+  // Returns normalized (trimmed) string for consistent comparison
+  const getLastTripEndStop = () => {
+    if (!Array.isArray(selectedTrips) || selectedTrips.length === 0) {
+      return null;
+    }
+    const lastTrip = selectedTrips[selectedTrips.length - 1];
+    const stopName = lastTrip?.end_stop_name ?? lastTrip?.endStopName ?? "";
+    const normalized = String(stopName).trim();
+    return normalized || null;
+  };
+
   const addTrip = (trip) => {
     const normalized = normalizeTrip(trip);
     const id = resolveTripId(normalized);
@@ -275,8 +328,44 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return;
     }
 
-    // Validate: new trip must not start before the latest existing trip ends
     const newDeparture = normalized.departure_time;
+    const newArrival = normalized.arrival_time || normalized.departure_time;
+    const newStartStop = normalized.start_stop_name || normalized.startStopName || "";
+    const shiftStart = getShiftStartTime();
+    const shiftEnd = getShiftEndTime();
+
+    // Validate: new trip must not start before the shift start time (depot departure)
+    if (shiftStart && newDeparture && newDeparture < shiftStart) {
+      updateFeedback(
+        feedback,
+        `Trip departs at ${newDeparture} but the shift starts at ${shiftStart}. The bus cannot be at a stop before leaving the depot.`,
+        "error"
+      );
+      return;
+    }
+
+    // Validate: new trip must not arrive after the shift end time (depot arrival)
+    if (shiftEnd && newArrival && newArrival > shiftEnd) {
+      updateFeedback(
+        feedback,
+        `Trip arrives at ${newArrival} but the shift ends at ${shiftEnd}. The bus must return to the depot by the shift end time.`,
+        "error"
+      );
+      return;
+    }
+
+    // Validate: new trip must start from where the last trip ended (location continuity)
+    const lastEndStop = getLastTripEndStop();
+    if (lastEndStop && newStartStop && lastEndStop !== newStartStop) {
+      updateFeedback(
+        feedback,
+        `Trip starts at "${newStartStop}" but the bus is at "${lastEndStop}". The next trip must start from where the previous trip ended.`,
+        "error"
+      );
+      return;
+    }
+
+    // Validate: new trip must not start before the latest existing trip ends
     if (selectedTrips.length > 0 && newDeparture) {
       const latestArrival = selectedTrips
         .map((t) => t.arrival_time || t.departure_time || "")
@@ -296,34 +385,61 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     selectedTripIds.add(id);
     selectedTrips = [...selectedTrips, normalized];
     updateShiftTrips();
-    ensureTimesFromSelected();
+    // Don't automatically update times - let user set them manually
     renderScheduledTrips({
       tbody: scheduledTripsBody,
       trips: currentTrips,
       routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
       selectedTripIds,
       lastTripEndTime: getLatestEndTime(),
+      lastTripEndStop: getLastTripEndStop(),
+      shiftStartTime: getShiftStartTime(),
+      shiftEndTime: getShiftEndTime(),
     });
+    updateTimeline();
   };
 
   const removeTrip = (id) => {
     if (!selectedTripIds.has(id)) {
       return;
     }
+    
+    // Find the trip being removed before filtering it out
+    const removedTrip = selectedTrips.find((trip = {}) => resolveTripId(trip) === id);
+    
     selectedTripIds.delete(id);
+    
     selectedTrips = selectedTrips.filter((trip = {}) => {
       const tripId = resolveTripId(trip);
       return tripId && tripId !== id;
     });
+    
+    // In edit mode, ensure the removed trip is in currentTrips so it appears in scheduled trips
+    if (removedTrip && !currentTrips.some((t) => resolveTripId(t) === id)) {
+      currentTrips = [...currentTrips, removedTrip].sort((a, b) => {
+        const timeA = a.departure_time || "";
+        const timeB = b.departure_time || "";
+        return timeA.localeCompare(timeB);
+      });
+    }
+    
     updateShiftTrips();
-    ensureTimesFromSelected({ force: true });
+    // Don't automatically update times - let user set them manually
+    
+    // Create a fresh copy of the Set to ensure the filter sees updated state
+    const updatedSelectedTripIds = new Set(selectedTripIds);
+    
     renderScheduledTrips({
       tbody: scheduledTripsBody,
       trips: currentTrips,
       routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
-      selectedTripIds,
+      selectedTripIds: updatedSelectedTripIds,
       lastTripEndTime: getLatestEndTime(),
+      lastTripEndStop: getLastTripEndStop(),
+      shiftStartTime: getShiftStartTime(),
+      shiftEndTime: getShiftEndTime(),
     });
+    updateTimeline();
   };
 
   const prefillSelectValue = (select, value, fallbackLabel) => {
@@ -489,7 +605,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
       selectedTripIds,
       lastTripEndTime: getLatestEndTime(),
+      lastTripEndStop: getLastTripEndStop(),
+      shiftStartTime: getShiftStartTime(),
+      shiftEndTime: getShiftEndTime(),
     });
+    updateTimeline();
 
     if (
       lineSelect instanceof HTMLSelectElement &&
@@ -575,7 +695,19 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
   const loadRoutes = async () => {
     try {
-      const payload = await fetchRoutes({ skip: 0, limit: 1000 });
+      // Get the user's agency ID to filter routes
+      const agencyId = await resolveAgencyId().catch(() => "");
+      
+      let payload;
+      if (agencyId) {
+        // Fetch only routes belonging to the user's agency/company
+        payload = await fetchRoutesByAgency(agencyId, { skip: 0, limit: 1000 });
+      } else {
+        // Fallback to all routes if no agency is set (shouldn't happen in production)
+        console.warn("No agency ID found - showing all routes. This may include routes from other companies.");
+        payload = await fetchRoutes({ skip: 0, limit: 1000 });
+      }
+      
       const routes =
         Array.isArray(payload) ? payload : (
           (payload?.items ?? payload?.results ?? [])
@@ -666,6 +798,9 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         routeLabel: routesById[routeId] ?? "",
         selectedTripIds,
         lastTripEndTime: getLatestEndTime(),
+        lastTripEndStop: getLastTripEndStop(),
+        shiftStartTime: getShiftStartTime(),
+        shiftEndTime: getShiftEndTime(),
       });
       syncSelectedTripsWithCurrent();
       updateEmptyState(
@@ -815,6 +950,58 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     cleanupHandlers.push(() => {
       scheduledTripsBody.removeEventListener("click", handleScheduledTripsClick);
     });
+    
+    // Hover handlers for trip preview - use mouseover/mouseout for better delegation
+    let currentHoveredRow = null;
+    
+    const handleTripMouseOver = (event) => {
+      const row = event.target.closest("tr[data-trip-id]");
+      if (!row || row === currentHoveredRow) return;
+      
+      currentHoveredRow = row;
+      const tripId = row.dataset.tripId;
+      const routeId = lineSelect?.value ?? "";
+      
+      // Find the full trip object to get all available IDs
+      const trip = currentTrips.find((t) => resolveTripId(t) === tripId);
+      
+      if (tripId && trip) {
+        showTripPreview(trip, routeId, row);
+      }
+    };
+    
+    const handleTripMouseOut = (event) => {
+      const row = event.target.closest("tr[data-trip-id]");
+      if (!row) return;
+      
+      // Check if we're moving to another element within the same row
+      const relatedTarget = event.relatedTarget;
+      if (relatedTarget && row.contains(relatedTarget)) {
+        return;
+      }
+      
+      // Check if we're moving to the preview panel
+      if (relatedTarget?.closest?.(".trip-preview-panel")) {
+        return;
+      }
+      
+      // Check if we're moving to another row in the table
+      const newRow = relatedTarget?.closest?.("tr[data-trip-id]");
+      if (newRow && scheduledTripsBody.contains(newRow)) {
+        // Will be handled by the next mouseover
+        return;
+      }
+      
+      currentHoveredRow = null;
+      hideTripPreview();
+    };
+    
+    scheduledTripsBody.addEventListener("mouseover", handleTripMouseOver);
+    scheduledTripsBody.addEventListener("mouseout", handleTripMouseOut);
+    cleanupHandlers.push(() => {
+      scheduledTripsBody.removeEventListener("mouseover", handleTripMouseOver);
+      scheduledTripsBody.removeEventListener("mouseout", handleTripMouseOut);
+    });
   }
   if (shiftTripsBody) {
     shiftTripsBody.addEventListener("click", handleShiftTripsClick);
@@ -839,6 +1026,52 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     daySelect.addEventListener("change", handleDayChange);
     cleanupHandlers.push(() => {
       daySelect.removeEventListener("change", handleDayChange);
+    });
+  }
+
+  // Re-render scheduled trips when start/end time changes to update which trips are available
+  const handleShiftTimeChange = () => {
+    if (currentTrips.length > 0) {
+      renderScheduledTrips({
+        tbody: scheduledTripsBody,
+        trips: currentTrips,
+        routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
+        selectedTripIds,
+        lastTripEndTime: getLatestEndTime(),
+        lastTripEndStop: getLastTripEndStop(),
+        shiftStartTime: getShiftStartTime(),
+        shiftEndTime: getShiftEndTime(),
+      });
+    }
+    updateTimeline();
+  };
+  if (startTimeInput) {
+    startTimeInput.addEventListener("change", handleShiftTimeChange);
+    cleanupHandlers.push(() => {
+      startTimeInput.removeEventListener("change", handleShiftTimeChange);
+    });
+  }
+  if (endTimeInput) {
+    endTimeInput.addEventListener("change", handleShiftTimeChange);
+    cleanupHandlers.push(() => {
+      endTimeInput.removeEventListener("change", handleShiftTimeChange);
+    });
+  }
+  
+  // Update timeline when depot selection changes
+  const handleDepotChange = () => {
+    updateTimeline();
+  };
+  if (startDepotSelect) {
+    startDepotSelect.addEventListener("change", handleDepotChange);
+    cleanupHandlers.push(() => {
+      startDepotSelect.removeEventListener("change", handleDepotChange);
+    });
+  }
+  if (endDepotSelect) {
+    endDepotSelect.addEventListener("change", handleDepotChange);
+    cleanupHandlers.push(() => {
+      endDepotSelect.removeEventListener("change", handleDepotChange);
     });
   }
 

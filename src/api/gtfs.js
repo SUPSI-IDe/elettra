@@ -1,6 +1,7 @@
 import { authHeaders, API_ROOT } from "./client";
 
 const GTFS_ROUTES_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-routes/`;
+const GTFS_ROUTES_BY_AGENCY_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-routes/by-agency/`;
 const GTFS_DAYS_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-days/`;
 const GTFS_TRIPS_BY_ROUTE_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-trips/by-route/`;
 const GTFS_STOPS_BY_TRIP_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-stops/by-trip/`;
@@ -29,6 +30,27 @@ export const fetchRoutes = async ({
   if (!response.ok) {
     const message =
       payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load routes.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
+export const fetchRoutesByAgency = async (agencyId, { skip = 0, limit = 100 } = {}) => {
+  if (!agencyId) {
+    throw new Error("Missing agencyId");
+  }
+  const headers = authHeaders();
+  const params = new URLSearchParams();
+  params.set("skip", String(skip));
+  params.set("limit", String(limit));
+  const query = params.toString();
+  const url = `${GTFS_ROUTES_BY_AGENCY_PATH}${encodeURIComponent(agencyId)}${query ? `?${query}` : ""}`;
+
+  const response = await fetch(url, { method: "GET", headers });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load routes for agency.";
     throw new Error(message);
   }
   return payload;
@@ -96,6 +118,81 @@ export const fetchStopsByTripId = async (tripId) => {
       payload?.detail?.[0]?.msg ??
       payload?.detail ??
       "Unable to load stops for trip.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
+const GTFS_ELEVATION_PATH = `${API_ROOT}/api/v1/gtfs/elevation-profile/by-trip/`;
+const GTFS_VARIANTS_PATH = `${API_ROOT}/api/v1/gtfs/variants/`;
+
+export const fetchElevationByTripId = async (tripId) => {
+  if (!tripId) {
+    throw new Error("Missing tripId");
+  }
+  const headers = authHeaders();
+  const response = await fetch(
+    `${GTFS_ELEVATION_PATH}${encodeURIComponent(tripId)}`,
+    {
+      method: "GET",
+      headers,
+    }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load elevation profile.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
+export const fetchVariantsByRoute = async (routeId) => {
+  if (!routeId) {
+    throw new Error("Missing routeId");
+  }
+  const headers = authHeaders();
+  const response = await fetch(
+    `${GTFS_VARIANTS_PATH}by-route/${encodeURIComponent(routeId)}`,
+    {
+      method: "GET",
+      headers,
+    }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load route variants.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
+export const fetchVariant = async (routeId, variantNum) => {
+  if (!routeId) {
+    throw new Error("Missing routeId");
+  }
+  if (variantNum === undefined || variantNum === null) {
+    throw new Error("Missing variantNum");
+  }
+  const headers = authHeaders();
+  const response = await fetch(
+    `${GTFS_VARIANTS_PATH}${encodeURIComponent(routeId)}/${encodeURIComponent(variantNum)}`,
+    {
+      method: "GET",
+      headers,
+    }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load route variant.";
     throw new Error(message);
   }
   return payload;

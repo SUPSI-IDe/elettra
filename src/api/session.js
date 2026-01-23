@@ -1,42 +1,35 @@
-import { authenticate } from "./auth";
-import { fetchCurrentUser } from "./user";
-import { getCurrentUserId, setCurrentUserId } from "../store"; // Import from parent store
+import { fetchCurrentUser, changePassword, fetchAgencyById } from "./user";
+import { getCurrentUserId, setCurrentUserId, getCurrentAgencyId, setCurrentAgencyId } from "../store";
+import { triggerPartialLoad } from "../events";
+import { readAccessToken } from "./client";
 
-const promptValue = (label) => prompt(label)?.trim() || null;
+const getUserInfo = () => ({
+  email: localStorage.getItem("user_email") || "",
+  name: localStorage.getItem("user_name") || "",
+  company: localStorage.getItem("user_company") || "",
+});
 
-const readPromptCredentials = () => {
-  const email = promptValue("Enter your email");
-  if (!email) {
-    return null;
-  }
-
-  const password = promptValue("Enter your password");
-  if (!password) {
-    return null;
-  }
-
-  return { email, password };
+const persistUserInfo = ({ email = "", name = "", company = "" } = {}) => {
+  if (email) localStorage.setItem("user_email", email);
+  if (name) localStorage.setItem("user_name", name);
+  if (company) localStorage.setItem("user_company", company);
 };
 
-const persistTokens = ({ access_token = "", token_type = "" } = {}) => {
-  localStorage.setItem("access_token", access_token);
-  localStorage.setItem("token_type", token_type);
-  return { access_token, token_type };
+const clearUserData = () => {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("token_type");
+  localStorage.removeItem("cache.currentUser.id");
+  localStorage.removeItem("cache.currentUser.agencyId");
+  localStorage.removeItem("user_email");
+  localStorage.removeItem("user_name");
+  localStorage.removeItem("user_company");
+  localStorage.removeItem("remember_email");
 };
 
-const readEnvCredentials = () => {
-  const email = import.meta.env.VITE_USER || import.meta.env.VITE_TEST_EMAIL;
-  const password =
-    import.meta.env.VITE_PASSWORD || import.meta.env.VITE_TEST_PASSWORD;
-
-  if (email && password) {
-    return { email, password };
-  }
-  return null;
+export const isAuthenticated = () => {
+  const token = readAccessToken();
+  return Boolean(token && token.length > 0);
 };
-
-export const resolveCredentials = () =>
-  readEnvCredentials() || readPromptCredentials();
 
 export const resolveUserId = async () => {
   const cached = getCurrentUserId();
@@ -55,22 +48,302 @@ export const resolveUserId = async () => {
   return id;
 };
 
-const handleLogin = async () => {
-  const credentials = resolveCredentials();
-  if (!credentials) {
-    return;
+export const resolveAgencyId = async () => {
+  const cached = getCurrentAgencyId();
+  if (cached) {
+    return cached;
   }
 
-  try {
-    await authenticate(credentials.email, credentials.password).then(
-      persistTokens
-    );
-    console.log("Logged in successfully.");
-  } catch (error) {
-    console.error("Login failed", error);
+  const user = await fetchCurrentUser();
+  const agencyId = user?.company_id ?? user?.agency_id ?? "";
+
+  if (!agencyId) {
+    // User may not have an agency assigned - this is not an error
+    return "";
+  }
+
+  setCurrentAgencyId(agencyId);
+  return agencyId;
+};
+
+// UI State Management
+const updateUIState = (elements, loggedIn, userInfo = {}) => {
+  const { loginButton, userMenu, userNameSpan, userCompanySpan, userSeparator, userEmailSpan, dropdownEmailSpan } = elements;
+
+  if (loginButton) {
+    loginButton.hidden = loggedIn;
+  }
+
+  if (userMenu) {
+    userMenu.hidden = !loggedIn;
+  }
+
+  if (userNameSpan) {
+    userNameSpan.textContent = userInfo.name || userInfo.email || "";
+  }
+
+  // Show separator only if both name and company exist
+  const hasCompany = Boolean(userInfo.company);
+  
+  if (userSeparator) {
+    userSeparator.hidden = !hasCompany;
+  }
+
+  if (userCompanySpan) {
+    userCompanySpan.textContent = userInfo.company || "";
+    userCompanySpan.hidden = !hasCompany;
+  }
+
+  if (userEmailSpan) {
+    userEmailSpan.textContent = userInfo.email || "";
+  }
+
+  if (dropdownEmailSpan) {
+    dropdownEmailSpan.textContent = userInfo.email || "";
   }
 };
 
-export const initializeLogin = (loginButton) => {
-  loginButton?.addEventListener("click", handleLogin);
+// Fetch and update user info from API
+const loadUserInfo = async (elements, email) => {
+  try {
+    const user = await fetchCurrentUser();
+    
+    // Extract basic user info
+    let userInfo = {
+      email: user?.email || email,
+      name: user?.full_name || user?.name || user?.username || email?.split("@")[0] || "",
+      company: "",
+    };
+
+    // If user has a company_id, fetch the company details
+    const companyId = user?.company_id || user?.agency_id;
+    if (companyId) {
+      // Store the agency ID for filtering routes
+      setCurrentAgencyId(companyId);
+      
+      try {
+        const agency = await fetchAgencyById(companyId);
+        if (agency) {
+          userInfo.company = agency?.name || agency?.agency_name || "";
+        }
+      } catch (agencyError) {
+        console.warn("Could not fetch agency details:", agencyError);
+      }
+    }
+
+    persistUserInfo(userInfo);
+    updateUIState(elements, true, userInfo);
+    
+    if (user?.id) {
+      setCurrentUserId(user.id);
+    }
+  } catch (error) {
+    console.warn("Could not fetch user details:", error);
+    // Fall back to just email
+    const userInfo = { email, name: email?.split("@")[0] || "", company: "" };
+    persistUserInfo(userInfo);
+    updateUIState(elements, true, userInfo);
+  }
+};
+
+// Navigate to Login Page
+const navigateToLogin = () => {
+  triggerPartialLoad("login");
+};
+
+// Logout Handler
+const handleLogout = (elements) => {
+  clearUserData();
+  setCurrentUserId("");
+  setCurrentAgencyId("");
+  updateUIState(elements, false, {});
+  console.log("Logged out successfully.");
+  
+  // Close user menu if open
+  const dropdown = elements.userMenu?.querySelector(".user-menu-dropdown");
+  const toggle = elements.userMenu?.querySelector(".user-menu-toggle");
+  if (dropdown) {
+    dropdown.hidden = true;
+  }
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", "false");
+  }
+  
+  // Redirect to login page
+  triggerPartialLoad("login");
+};
+
+// Password Change Handler
+const handlePasswordChange = async (modal, feedback) => {
+  const form = modal.querySelector("form");
+  const currentPassword = form.querySelector("#current-password").value;
+  const newPassword = form.querySelector("#new-password").value;
+  const confirmPassword = form.querySelector("#confirm-password").value;
+
+  // Validate passwords match
+  if (newPassword !== confirmPassword) {
+    showFeedback(feedback, "New passwords do not match.", "error");
+    return false;
+  }
+
+  // Validate password length
+  if (newPassword.length < 8) {
+    showFeedback(feedback, "Password must be at least 8 characters.", "error");
+    return false;
+  }
+
+  try {
+    showFeedback(feedback, "Updating password...", "info");
+    await changePassword(currentPassword, newPassword);
+    showFeedback(feedback, "Password updated successfully!", "success");
+    
+    // Close modal after short delay
+    setTimeout(() => {
+      modal.close();
+      form.reset();
+      feedback.hidden = true;
+    }, 1500);
+    
+    return true;
+  } catch (error) {
+    console.error("Password change failed", error);
+    showFeedback(feedback, error.message || "Failed to change password.", "error");
+    return false;
+  }
+};
+
+// Feedback Helper
+const showFeedback = (element, message, tone) => {
+  if (!element) return;
+  element.textContent = message;
+  element.dataset.tone = tone;
+  element.hidden = false;
+};
+
+// Initialize User Menu
+const initializeUserMenu = (elements) => {
+  const { userMenu } = elements;
+  if (!userMenu) return;
+
+  const toggle = userMenu.querySelector(".user-menu-toggle");
+  const dropdown = userMenu.querySelector(".user-menu-dropdown");
+
+  if (!toggle || !dropdown) return;
+
+  // Toggle dropdown on click
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isExpanded = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", !isExpanded);
+    dropdown.hidden = isExpanded;
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!userMenu.contains(e.target)) {
+      toggle.setAttribute("aria-expanded", "false");
+      dropdown.hidden = true;
+    }
+  });
+
+  // Handle dropdown actions
+  dropdown.addEventListener("click", (e) => {
+    const button = e.target.closest("button[data-action]");
+    if (!button) return;
+
+    const action = button.dataset.action;
+    
+    if (action === "logout") {
+      handleLogout(elements);
+    } else if (action === "change-password") {
+      const modal = document.querySelector('[data-modal="change-password"]');
+      if (modal) {
+        modal.showModal();
+      }
+      dropdown.hidden = true;
+      toggle.setAttribute("aria-expanded", "false");
+    }
+  });
+};
+
+// Initialize Password Modal
+const initializePasswordModal = () => {
+  const modal = document.querySelector('[data-modal="change-password"]');
+  if (!modal) return;
+
+  const form = modal.querySelector("form");
+  const feedback = modal.querySelector('[data-role="password-feedback"]');
+  const cancelBtn = modal.querySelector('[data-action="cancel-password"]');
+
+  // Handle form submit
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await handlePasswordChange(modal, feedback);
+  });
+
+  // Handle cancel
+  cancelBtn?.addEventListener("click", () => {
+    modal.close();
+    form.reset();
+    if (feedback) {
+      feedback.hidden = true;
+    }
+  });
+
+  // Reset form when modal closes
+  modal.addEventListener("close", () => {
+    form.reset();
+    if (feedback) {
+      feedback.hidden = true;
+    }
+  });
+
+  // Close on backdrop click
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      modal.close();
+    }
+  });
+};
+
+// Main Initialization - renamed to avoid conflict with login page
+export const initializeSession = (loginButton) => {
+  const userSection = document.querySelector(".user-section");
+  const userMenu = userSection?.querySelector(".user-menu");
+  const userNameSpan = userMenu?.querySelector('[data-role="user-name"]');
+  const userSeparator = userMenu?.querySelector('.user-separator');
+  const userCompanySpan = userMenu?.querySelector('[data-role="user-company"]');
+  const userEmailSpan = userMenu?.querySelector('[data-role="user-email"]');
+  const dropdownEmailSpan = userMenu?.querySelector('.dropdown-email');
+
+  const elements = {
+    loginButton,
+    userMenu,
+    userNameSpan,
+    userSeparator,
+    userCompanySpan,
+    userEmailSpan,
+    dropdownEmailSpan,
+  };
+
+  // Set initial UI state
+  const authenticated = isAuthenticated();
+  const userInfo = getUserInfo();
+  updateUIState(elements, authenticated, userInfo);
+
+  // If authenticated but missing user info, try to fetch it
+  if (authenticated && (!userInfo.name || !userInfo.company)) {
+    loadUserInfo(elements, userInfo.email);
+  }
+
+  // Login button click handler - navigate to login page
+  loginButton?.addEventListener("click", () => {
+    navigateToLogin();
+  });
+
+  // Initialize user menu
+  initializeUserMenu(elements);
+
+  // Initialize password modal
+  initializePasswordModal();
 };

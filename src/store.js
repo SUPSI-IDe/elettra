@@ -1,4 +1,5 @@
 const CURRENT_USER_KEY = 'cache.currentUser.id';
+const CURRENT_AGENCY_KEY = 'cache.currentUser.agencyId';
 const OWNED_BUSES_KEY = 'cache.buses.owned';
 const BUSES_LIST_KEY = 'cache.buses.list';
 const BUSES_BY_ID_KEY = 'cache.buses.byId';
@@ -54,6 +55,27 @@ export const getCurrentUserId = () => {
     currentUserId = typeof stored === 'string' ? stored : '';
     currentUserResolved = true;
     return currentUserId;
+};
+
+let currentAgencyId = '';
+let currentAgencyResolved = false;
+
+export const setCurrentAgencyId = (id = '') => {
+    currentAgencyId = typeof id === 'string' ? id : String(id ?? '');
+    currentAgencyResolved = true;
+    safeSetItem(CURRENT_AGENCY_KEY, currentAgencyId);
+    return currentAgencyId;
+};
+
+export const getCurrentAgencyId = () => {
+    if (currentAgencyResolved) {
+        return currentAgencyId;
+    }
+
+    const stored = localStorage.getItem(CURRENT_AGENCY_KEY) ?? '';
+    currentAgencyId = typeof stored === 'string' ? stored : '';
+    currentAgencyResolved = true;
+    return currentAgencyId;
 };
 
 let ownedBuses = [];

@@ -26,10 +26,9 @@ RUN npm run build
 # Stage 2: Serve with nginx
 FROM nginx:alpine
 
-# Install envsubst for environment variable substitution
-RUN apk add --no-cache gettext
-
 # Copy custom nginx configuration template
+# Note: $$ in template escapes to $ after envsubst (for nginx variables)
+# ${VAR} gets substituted with environment variable values
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 
 # Copy built assets from builder stage

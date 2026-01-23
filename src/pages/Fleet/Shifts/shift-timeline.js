@@ -38,6 +38,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     return;
   }
 
+  // Only collect start and end stops (simplified view)
   const stopsSet = new Map();
   const addStop = (label) => {
     const normalized = text(label).trim();
@@ -47,17 +48,27 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     stopsSet.set(normalized, stopsSet.size);
   };
 
+  // Add start depot
   addStop(options.startDepotName);
+  
+  // Only add start and end stops for each trip (not intermediate stops)
   trips.forEach((trip = {}) => {
     const stopTimes = trip.stop_times || [];
     if (stopTimes.length > 0) {
-      stopTimes.forEach((st) => addStop(st.stop_name || st.stop?.name));
+      // First stop (start)
+      const firstStop = stopTimes[0];
+      addStop(firstStop?.stop_name || firstStop?.stop?.name);
+      // Last stop (end)
+      const lastStop = stopTimes[stopTimes.length - 1];
+      addStop(lastStop?.stop_name || lastStop?.stop?.name);
     } else {
-      // Fallback for trips without stop_times (shouldn't happen with correct fetching but safety first)
+      // Fallback for trips without stop_times
       addStop(trip?.start_stop_name);
       addStop(trip?.end_stop_name);
     }
   });
+  
+  // Add end depot
   addStop(options.endDepotName);
 
   const stops = Array.from(stopsSet.keys());
@@ -187,6 +198,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .y((point) => yScale(point.stop))
     .curve(d3.curveMonotoneX);
 
+  // Draw lines connecting only start and end stops for each trip
   serieGroup
     .selectAll("path")
     .data(trips)
@@ -194,25 +206,29 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .attr("class", "timeline__trip-line")
     .attr("d", (trip) => {
       const stopTimes = trip.stop_times || [];
+      let departure, arrival, startStop, endStop;
+      
       if (stopTimes.length > 0) {
-        const points = stopTimes.map((st) => ({
-          time: parseTimeToMinutes(st.departure_time || st.arrival_time) ?? 0,
-          stop: st.stop_name || st.stop?.name || "",
-        }));
-        return line(points);
+        const firstStop = stopTimes[0];
+        const lastStop = stopTimes[stopTimes.length - 1];
+        departure = parseTimeToMinutes(firstStop?.departure_time || firstStop?.arrival_time) ?? 0;
+        arrival = parseTimeToMinutes(lastStop?.arrival_time || lastStop?.departure_time) ?? departure + 10;
+        startStop = firstStop?.stop_name || firstStop?.stop?.name || "";
+        endStop = lastStop?.stop_name || lastStop?.stop?.name || "";
       } else {
-        // Fallback
-        const departure = parseTimeToMinutes(trip?.departure_time) ?? 0;
-        const arrival =
-          parseTimeToMinutes(trip?.arrival_time) ??
-          Math.min(departure + 10, 24 * 60);
-        return line([
-          { time: departure, stop: trip?.start_stop_name ?? "" },
-          { time: arrival, stop: trip?.end_stop_name ?? "" },
-        ]);
+        departure = parseTimeToMinutes(trip?.departure_time) ?? 0;
+        arrival = parseTimeToMinutes(trip?.arrival_time) ?? Math.min(departure + 10, 24 * 60);
+        startStop = trip?.start_stop_name ?? "";
+        endStop = trip?.end_stop_name ?? "";
       }
+      
+      return line([
+        { time: departure, stop: startStop },
+        { time: arrival, stop: endStop },
+      ]);
     });
 
+  // Draw points only for start and end of each trip
   const points = root.append("g").attr("class", "timeline__points");
   points
     .selectAll("g")
@@ -221,51 +237,37 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .each(function drawPoints(trip) {
       const group = d3.select(this);
       const stopTimes = trip.stop_times || [];
-
+      let departure, arrival, startStop, endStop;
+      
       if (stopTimes.length > 0) {
-        stopTimes.forEach((st, index) => {
-          const time =
-            parseTimeToMinutes(st.departure_time || st.arrival_time) ?? 0;
-          const stop = st.stop_name || st.stop?.name || "";
-          const isStart = index === 0;
-          const isEnd = index === stopTimes.length - 1;
-          const className =
-            isStart
-              ? "timeline__point timeline__point--start"
-              : isEnd
-              ? "timeline__point timeline__point--end"
-              : "timeline__point";
-
-          group
-            .append("circle")
-            .attr("class", className)
-            .attr("cx", xScale(time))
-            .attr("cy", yScale(stop))
-            .attr("r", 4);
-        });
+        const firstStop = stopTimes[0];
+        const lastStop = stopTimes[stopTimes.length - 1];
+        departure = parseTimeToMinutes(firstStop?.departure_time || firstStop?.arrival_time) ?? 0;
+        arrival = parseTimeToMinutes(lastStop?.arrival_time || lastStop?.departure_time) ?? departure + 10;
+        startStop = firstStop?.stop_name || firstStop?.stop?.name || "";
+        endStop = lastStop?.stop_name || lastStop?.stop?.name || "";
       } else {
-        // Fallback
-        const departure = parseTimeToMinutes(trip?.departure_time) ?? 0;
-        const arrival =
-          parseTimeToMinutes(trip?.arrival_time) ??
-          Math.min(departure + 10, 24 * 60);
-        const startStop = trip?.start_stop_name ?? "";
-        const endStop = trip?.end_stop_name ?? "";
-
-        group
-          .append("circle")
-          .attr("class", "timeline__point timeline__point--start")
-          .attr("cx", xScale(departure))
-          .attr("cy", yScale(startStop))
-          .attr("r", 4);
-
-        group
-          .append("circle")
-          .attr("class", "timeline__point timeline__point--end")
-          .attr("cx", xScale(arrival))
-          .attr("cy", yScale(endStop))
-          .attr("r", 4);
+        departure = parseTimeToMinutes(trip?.departure_time) ?? 0;
+        arrival = parseTimeToMinutes(trip?.arrival_time) ?? Math.min(departure + 10, 24 * 60);
+        startStop = trip?.start_stop_name ?? "";
+        endStop = trip?.end_stop_name ?? "";
       }
+
+      // Start point
+      group
+        .append("circle")
+        .attr("class", "timeline__point timeline__point--start")
+        .attr("cx", xScale(departure))
+        .attr("cy", yScale(startStop))
+        .attr("r", 5);
+
+      // End point
+      group
+        .append("circle")
+        .attr("class", "timeline__point timeline__point--end")
+        .attr("cx", xScale(arrival))
+        .attr("cy", yScale(endStop))
+        .attr("r", 5);
     });
 
   container.append(svg.node());

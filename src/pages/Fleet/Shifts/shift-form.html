@@ -55,8 +55,8 @@
               </caption>
               <thead>
                 <tr>
-                  <th scope="col" class="time">Time</th>
-                  <th scope="col" class="line">Line</th>
+                  <th scope="col" class="time">Start</th>
+                  <th scope="col" class="end-time">End</th>
                   <th scope="col" class="route">From–To</th>
                   <th scope="col" class="actions">
                     <span class="sr-only">Actions</span>
@@ -137,7 +137,8 @@
               </caption>
               <thead>
                 <tr>
-                  <th scope="col" class="time">Time</th>
+                  <th scope="col" class="start-time">Start</th>
+                  <th scope="col" class="end-time">End</th>
                   <th scope="col" class="route">From–To</th>
                   <th scope="col" class="actions">
                     <span class="sr-only">Actions</span>
@@ -180,6 +181,21 @@
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+        
+        <!-- Shift Timeline Visualization -->
+        <section class="shift-timeline-section" aria-labelledby="shift-timeline-heading">
+          <header class="shift-timeline-header">
+            <h2 id="shift-timeline-heading">Shift Timeline</h2>
+          </header>
+          <div 
+            class="timeline shift-form-timeline" 
+            data-role="shift-timeline" 
+            role="img" 
+            aria-label="Shift timeline chart"
+          >
+            <p class="timeline__placeholder">Add trips to visualize the shift timeline.</p>
           </div>
         </section>
       </div>
