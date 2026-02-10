@@ -1,9 +1,13 @@
 import "./buses.css";
-import { createBusModel, updateBusModel } from "../../../api";
+import { createBusModel, updateBusModel, createBus } from "../../../api";
 import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
-import { writeFlash } from "../../../store";
+import { writeFlash, addOwnedBus } from "../../../store";
 import { toggleFormDisabled, updateFeedback } from "../../../ui-helpers";
+
+const generateBusNameFromModel = (modelName = "Bus") => {
+  return `${modelName.trim().replace(/\s+/g, "_")}_01`;
+};
 
 const toBusModelPayload = (formData) => {
   const name = formData.get("name")?.toString().trim();
@@ -103,14 +107,41 @@ export const initializeAddBusModel = (root = document, options = {}) => {
         });
         writeFlash("Bus model updated.");
       } else {
-        await createBusModel({
+        // Create bus model first
+        const createdModel = await createBusModel({
           name,
           manufacturer,
           description,
           specs: {},
           userId,
         });
-        writeFlash("Bus model added.");
+
+        // Auto-create a bus linked to the new model
+        const busName = generateBusNameFromModel(name, manufacturer);
+        const busModelId = createdModel?.id;
+
+        if (busModelId) {
+          try {
+            const createdBus = await createBus({
+              name: busName,
+              busModelId,
+              description: `Auto-created bus for model: ${name}`,
+              specs: {},
+              userId,
+            });
+            addOwnedBus({
+              ...createdBus,
+              name: busName,
+              bus_model_id: busModelId,
+              user_id: userId,
+            });
+          } catch (busError) {
+            console.warn("Failed to auto-create bus for model", busError);
+            // Don't fail the whole operation if bus creation fails
+          }
+        }
+
+        writeFlash("Bus model added (with associated bus).");
       }
 
       triggerPartialLoad("buses");
