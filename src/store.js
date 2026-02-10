@@ -260,4 +260,45 @@ export const nextBusName = () => {
     return candidate;
 };
 
+/**
+ * Clear all cached data (both localStorage and in-memory state).
+ * This should be called on logout and before loading a new user's data on login.
+ */
+export const clearDataCache = () => {
+    // Clear localStorage cache
+    safeRemoveItem(localStorage, OWNED_BUSES_KEY);
+    safeRemoveItem(localStorage, BUSES_LIST_KEY);
+    safeRemoveItem(localStorage, BUSES_BY_ID_KEY);
+    safeRemoveItem(localStorage, BUS_MODELS_LIST_KEY);
+    safeRemoveItem(localStorage, BUS_MODELS_BY_ID_KEY);
+    safeRemoveItem(localStorage, BUSES_BY_MODEL_ID_KEY);
+    safeRemoveItem(localStorage, CURRENT_USER_KEY);
+    safeRemoveItem(localStorage, CURRENT_AGENCY_KEY);
+
+    // Clear agency centroid cache
+    try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key?.startsWith('cache.agencyCentroid.')) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach((key) => safeRemoveItem(localStorage, key));
+    } catch {
+        // Ignore
+    }
+
+    // Reset in-memory state
+    currentUserId = '';
+    currentUserResolved = false;
+    currentAgencyId = '';
+    currentAgencyResolved = false;
+    ownedBuses = [];
+    ownedBusesResolved = false;
+    modelsById = null;
+    busesById = null;
+    busesByModelId = null;
+};
+
 

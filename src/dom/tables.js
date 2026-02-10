@@ -9,7 +9,6 @@ export const renderLoadingRow = (tbody) => {
         <tr>
             <td class="checkbox"></td>
             <td class="model" colspan="3">Loading…</td>
-            <td class="actions"></td>
         </tr>
     `;
 };
@@ -26,7 +25,6 @@ export const renderErrorRow = (
         <tr>
             <td class="checkbox"></td>
             <td class="model" colspan="3">${textContent(message)}</td>
-            <td class="actions"></td>
         </tr>
     `;
 };
@@ -41,7 +39,6 @@ export const renderModels = (tbody, models = []) => {
             <tr>
                 <td class="checkbox"></td>
                 <td class="model" colspan="3">No bus models found.</td>
-                <td class="actions"></td>
             </tr>
         `;
     return;
@@ -56,9 +53,6 @@ export const renderModels = (tbody, models = []) => {
                     <td class="model">${model}</td>
                     <td class="manufacturer">${manufacturer}</td>
                     <td class="description">${description}</td>
-                    <td class="actions"><button type="button" data-action="add-bus" data-bus-model-id="${String(
-                      raw?.id ?? ""
-                    )}">Add to fleet</button></td>
                 </tr>
             `;
     })
