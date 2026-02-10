@@ -68,7 +68,7 @@ This installs:
 ### 2. Start Development Server
 
 ```bash
-npm run dev
+npm run dev -- --host 0.0.0.0
 ```
 
 The development server provides:
@@ -80,7 +80,7 @@ The development server provides:
 
 Open your browser and navigate to:
 ```
-http://localhost:9010/elettra/
+http://<your-host-ip>:9010/elettra/
 ```
 
 ---
