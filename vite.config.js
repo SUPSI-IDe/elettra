@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const API_ROOT = "http://isaac-elettra.dacd.supsi.ch:8002";
+const API_ROOT = process.env.VITE_API_PROXY_TARGET || "http://isaac-elettra.dacd.supsi.ch:8002";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -23,6 +23,7 @@ export default defineConfig({
         secure: false,
       },
     },
+    allowedHosts: ["isaac-elettra.dacd.supsi.ch"],
   },
 
   resolve: {

@@ -14,6 +14,9 @@ services:
       - /app/node_modules
     environment:
       - VITE_API_ROOT=${VITE_API_ROOT:-}
+      - VITE_API_PROXY_TARGET=${VITE_API_PROXY_TARGET:-http://host.docker.internal:8002}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     profiles:
       - dev
     stdin_open: true
