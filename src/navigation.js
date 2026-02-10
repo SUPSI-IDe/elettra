@@ -1,5 +1,4 @@
 import { initializeAddBusModel } from "./pages/Fleet/Buses/add-bus-model";
-import { initializeAddBus } from "./pages/Fleet/Buses/add-bus";
 import { initializeShiftForm } from "./pages/Fleet/Shifts/shift-form";
 import { initializeAddCustomStop } from "./pages/Fleet/Custom Stops/add-custom-stop";
 import { initializeBuses } from "./pages/Fleet/Buses/buses";
@@ -7,7 +6,10 @@ import { initializeCustomStops } from "./pages/Fleet/Custom Stops/custom-stops";
 import { initializeShifts } from "./pages/Fleet/Shifts/shifts";
 import { initializeVisualizeShift } from "./pages/Fleet/Shifts/visualize-shift";
 import { initializeLogin } from "./pages/Auth/login";
+import { initializeLanding } from "./pages/Auth/landing";
+import { initializeRegister } from "./pages/Auth/register";
 import { applyTranslations, getCurrentLang } from "./i18n";
+import { isAuthenticated } from "./api/session";
 
 const partials = import.meta.glob("./pages/**/*.html", {
   query: "?raw",
@@ -98,8 +100,14 @@ export const initializeNavigation = (root = document) => {
     let cleanup = null;
 
     switch (slug) {
+      case "landing":
+        cleanup = initializeLanding(target, options);
+        break;
       case "login":
         cleanup = initializeLogin(target, options);
+        break;
+      case "register":
+        cleanup = initializeRegister(target, options);
         break;
       case "buses":
         cleanup = await initializeBuses(target, options);
@@ -115,9 +123,6 @@ export const initializeNavigation = (root = document) => {
         break;
       case "add-custom-stop":
         cleanup = initializeAddCustomStop(target, options);
-        break;
-      case "add-bus":
-        cleanup = await initializeAddBus(target, options);
         break;
       case "custom-stops":
         cleanup = await initializeCustomStops(target, options);
@@ -135,6 +140,12 @@ export const initializeNavigation = (root = document) => {
   const loadAndInitialize = (slug, options = {}) =>
     loadPartial(slug).then(() => initializePartial(slug, container, options));
 
+  // Update nav visibility based on authentication
+  const updateNavVisibility = () => {
+    const authenticated = isAuthenticated();
+    nav.hidden = !authenticated;
+  };
+
   nav.addEventListener("click", (event) => {
     const link = event.target.closest("a[data-partial]");
     if (!link) {
@@ -146,8 +157,16 @@ export const initializeNavigation = (root = document) => {
     loadAndInitialize(slug);
   });
 
-  const initialSlug = slugFrom(nav.querySelector("a[data-partial]"));
-  loadAndInitialize(initialSlug);
+  // Determine initial page based on authentication
+  const authenticated = isAuthenticated();
+  updateNavVisibility();
+
+  if (authenticated) {
+    const initialSlug = slugFrom(nav.querySelector("a[data-partial]"));
+    loadAndInitialize(initialSlug);
+  } else {
+    loadAndInitialize("landing");
+  }
 
   document.addEventListener("partial:request", (event) => {
     const detail = event.detail ?? {};
@@ -155,6 +174,9 @@ export const initializeNavigation = (root = document) => {
     if (!slug) {
       return;
     }
+
+    // Update nav visibility when navigating (in case auth status changed)
+    updateNavVisibility();
 
     loadAndInitialize(slug, options);
   });

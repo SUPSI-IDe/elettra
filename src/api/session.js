@@ -1,5 +1,5 @@
 import { fetchCurrentUser, changePassword, fetchAgencyById } from "./user";
-import { getCurrentUserId, setCurrentUserId, getCurrentAgencyId, setCurrentAgencyId } from "../store";
+import { getCurrentUserId, setCurrentUserId, getCurrentAgencyId, setCurrentAgencyId, clearDataCache } from "../store";
 import { triggerPartialLoad } from "../events";
 import { readAccessToken } from "./client";
 
@@ -7,12 +7,25 @@ const getUserInfo = () => ({
   email: localStorage.getItem("user_email") || "",
   name: localStorage.getItem("user_name") || "",
   company: localStorage.getItem("user_company") || "",
+  agencyId: localStorage.getItem("user_agency_id") || "",
+  gtfsAgencyId: localStorage.getItem("user_gtfs_agency_id") || "",
+  agencyName: localStorage.getItem("user_agency_name") || "",
 });
 
-const persistUserInfo = ({ email = "", name = "", company = "" } = {}) => {
+const persistUserInfo = ({
+  email = "",
+  name = "",
+  company = "",
+  agencyId = "",
+  gtfsAgencyId = "",
+  agencyName = "",
+} = {}) => {
   if (email) localStorage.setItem("user_email", email);
   if (name) localStorage.setItem("user_name", name);
   if (company) localStorage.setItem("user_company", company);
+  if (agencyId) localStorage.setItem("user_agency_id", agencyId);
+  if (gtfsAgencyId) localStorage.setItem("user_gtfs_agency_id", gtfsAgencyId);
+  if (agencyName) localStorage.setItem("user_agency_name", agencyName);
 };
 
 const clearUserData = () => {
@@ -23,6 +36,9 @@ const clearUserData = () => {
   localStorage.removeItem("user_email");
   localStorage.removeItem("user_name");
   localStorage.removeItem("user_company");
+  localStorage.removeItem("user_agency_id");
+  localStorage.removeItem("user_gtfs_agency_id");
+  localStorage.removeItem("user_agency_name");
   localStorage.removeItem("remember_email");
 };
 
@@ -113,6 +129,9 @@ const loadUserInfo = async (elements, email) => {
       email: user?.email || email,
       name: user?.full_name || user?.name || user?.username || email?.split("@")[0] || "",
       company: "",
+      agencyId: "",
+      gtfsAgencyId: "",
+      agencyName: "",
     };
 
     // If user has a company_id, fetch the company details
@@ -120,11 +139,16 @@ const loadUserInfo = async (elements, email) => {
     if (companyId) {
       // Store the agency ID for filtering routes
       setCurrentAgencyId(companyId);
+      userInfo.agencyId = String(companyId);
       
       try {
         const agency = await fetchAgencyById(companyId);
         if (agency) {
-          userInfo.company = agency?.name || agency?.agency_name || "";
+          const agencyName = agency?.agency_name || agency?.name || "";
+          userInfo.company = agency?.name || agencyName || "";
+          userInfo.agencyName = agencyName || userInfo.company || "";
+          userInfo.gtfsAgencyId = String(agency?.gtfs_agency_id || "").trim();
+          userInfo.agencyId = String(agency?.id || companyId || "").trim();
         }
       } catch (agencyError) {
         console.warn("Could not fetch agency details:", agencyError);
@@ -153,9 +177,10 @@ const navigateToLogin = () => {
 
 // Logout Handler
 const handleLogout = (elements) => {
+  // Clear all cached data (buses, bus models, etc.) to prevent data leakage between users
+  clearDataCache();
+  
   clearUserData();
-  setCurrentUserId("");
-  setCurrentAgencyId("");
   updateUIState(elements, false, {});
   console.log("Logged out successfully.");
   
@@ -169,8 +194,8 @@ const handleLogout = (elements) => {
     toggle.setAttribute("aria-expanded", "false");
   }
   
-  // Redirect to login page
-  triggerPartialLoad("login");
+  // Redirect to landing page
+  triggerPartialLoad("landing");
 };
 
 // Password Change Handler
