@@ -3,91 +3,32 @@ import { fetchElevationByTripId, fetchStopsByTripId } from "../../../api";
 // Cache to avoid refetching the same trip data
 const previewCache = new Map();
 
-const createPreviewPanel = () => {
-  const panel = document.createElement("div");
-  panel.className = "trip-preview-panel";
-  panel.innerHTML = `
-    <div class="trip-preview-panel__content">
-      <div class="trip-preview-panel__map" data-role="map">
-        <div class="trip-preview-panel__loading">Loading map...</div>
-      </div>
-      <div class="trip-preview-panel__elevation" data-role="elevation">
-        <div class="trip-preview-panel__loading">Loading elevation...</div>
-      </div>
-    </div>
-  `;
-  panel.style.display = "none";
-  document.body.appendChild(panel);
-  return panel;
-};
-
-let previewPanel = null;
+let currentPreviewRow = null;
 let currentTripId = null;
 let hideTimeout = null;
-let showTimeout = null;
 let mapInstance = null;
 let polylineLayer = null;
 let markersLayer = null;
-let isHoveringPanel = false;
-let currentAnchorElement = null;
+let isHoveringPreview = false;
 
-const getOrCreatePanel = () => {
-  if (!previewPanel) {
-    previewPanel = createPreviewPanel();
-    
-    // Keep panel visible when hovering over it
-    previewPanel.addEventListener("mouseenter", () => {
-      isHoveringPanel = true;
-      clearTimeout(hideTimeout);
-    });
-    
-    previewPanel.addEventListener("mouseleave", () => {
-      isHoveringPanel = false;
-      scheduleHide();
-    });
-  }
-  return previewPanel;
-};
-
-const showPanel = (anchorElement) => {
-  const panel = getOrCreatePanel();
-  clearTimeout(hideTimeout);
-  currentAnchorElement = anchorElement;
-  
-  // Position the panel next to the anchor element
-  const rect = anchorElement.getBoundingClientRect();
-  const panelWidth = 400;
-  const panelHeight = 350;
-  
-  // Try to position to the right, fall back to left if not enough space
-  let left = rect.right + 10;
-  if (left + panelWidth > window.innerWidth - 20) {
-    left = rect.left - panelWidth - 10;
-  }
-  
-  // Vertical positioning - center with the row, but keep in viewport
-  let top = rect.top + (rect.height / 2) - (panelHeight / 2);
-  top = Math.max(10, Math.min(top, window.innerHeight - panelHeight - 10));
-  
-  panel.style.left = `${left}px`;
-  panel.style.top = `${top}px`;
-  panel.style.display = "block";
-};
-
-const scheduleHide = () => {
-  clearTimeout(hideTimeout);
-  hideTimeout = setTimeout(() => {
-    if (!isHoveringPanel && previewPanel) {
-      previewPanel.style.display = "none";
-      currentTripId = null;
-      currentAnchorElement = null;
-    }
-  }, 300);
-};
-
-const hidePanel = () => {
-  isHoveringPanel = false;
-  scheduleHide();
+// Create the preview row content that will be inserted below the trip row
+const createPreviewContent = () => {
+  const content = document.createElement("td");
+  content.colSpan = 100; // Span all columns
+  content.className = "trip-preview-cell";
+  content.innerHTML = `
+    <div class="trip-preview-inline">
+      <div class="trip-preview-inline__content">
+        <div class="trip-preview-inline__map" data-role="map">
+          <div class="trip-preview-inline__loading">Loading map...</div>
+        </div>
+        <div class="trip-preview-inline__elevation" data-role="elevation">
+          <div class="trip-preview-inline__loading">Loading elevation...</div>
+        </div>
+      </div>
+    </div>
+  `;
+  return content;
 };
 
 // Map uses coordinates from elevation profile (which has detailed lat/lng for the route)
@@ -101,7 +42,7 @@ const renderMap = async (container, elevationData, stops) => {
     : [];
   
   if (coordinates.length === 0) {
-    container.innerHTML = '<div class="trip-preview-panel__empty">No route data available</div>';
+    container.innerHTML = '<div class="trip-preview-inline__empty">No route data available</div>';
     return;
   }
   
@@ -114,7 +55,7 @@ const renderMap = async (container, elevationData, stops) => {
       console.log("[TripPreview] Leaflet loaded successfully");
     } catch (e) {
       console.error("[TripPreview] Failed to load Leaflet:", e);
-      container.innerHTML = '<div class="trip-preview-panel__empty">Failed to load map library</div>';
+      container.innerHTML = '<div class="trip-preview-inline__empty">Failed to load map library</div>';
       return;
     }
   }
@@ -133,7 +74,7 @@ const renderMap = async (container, elevationData, stops) => {
   container.innerHTML = '<div class="trip-preview-map-container"></div>';
   const mapDiv = container.querySelector(".trip-preview-map-container");
   mapDiv.style.width = "100%";
-  mapDiv.style.height = "200px";
+  mapDiv.style.height = "180px";
   
   try {
     // Create new map instance
@@ -179,14 +120,14 @@ const renderMap = async (container, elevationData, stops) => {
     setTimeout(() => {
       if (mapInstance && polylineLayer) {
         mapInstance.invalidateSize();
-        mapInstance.fitBounds(polylineLayer.getBounds(), { padding: [10, 10] });
+        mapInstance.fitBounds(polylineLayer.getBounds(), { padding: [20, 20] });
       }
     }, 100);
     
     console.log("[TripPreview] Map rendered successfully");
   } catch (e) {
     console.error("[TripPreview] Error rendering map:", e);
-    container.innerHTML = '<div class="trip-preview-panel__empty">Failed to render map</div>';
+    container.innerHTML = '<div class="trip-preview-inline__empty">Failed to render map</div>';
   }
 };
 
@@ -195,17 +136,17 @@ const renderElevation = (container, elevationData) => {
   const records = elevationData?.records || elevationData;
   
   if (!records || !Array.isArray(records) || records.length === 0) {
-    container.innerHTML = '<div class="trip-preview-panel__empty">No elevation data available</div>';
+    container.innerHTML = '<div class="trip-preview-inline__empty">No elevation data available</div>';
     return;
   }
   
-  // Create SVG elevation chart (similar to TripShiftPlanner)
-  const W = 380;
-  const H = 110;
-  const padLeft = 35;
-  const padRight = 10;
-  const padTop = 10;
-  const padBottom = 25;
+  // Create SVG elevation chart
+  const W = 400;
+  const H = 120;
+  const padLeft = 40;
+  const padRight = 15;
+  const padTop = 15;
+  const padBottom = 28;
   const innerWidth = W - padLeft - padRight;
   const innerHeight = H - padTop - padBottom;
   
@@ -228,6 +169,9 @@ const renderElevation = (container, elevationData) => {
     `${i === 0 ? 'M' : 'L'}${scaleX(p.distance).toFixed(1)},${scaleY(p.elevation).toFixed(1)}`
   ).join(' ');
   
+  // Create area fill path
+  const areaD = pathD + ` L${scaleX(maxX).toFixed(1)},${H - padBottom} L${padLeft},${H - padBottom} Z`;
+  
   // X-axis ticks
   const numXTicks = 4;
   const xTicks = [];
@@ -239,27 +183,35 @@ const renderElevation = (container, elevationData) => {
   for (let i = 0; i <= numYTicks; i++) yTicks.push(minAlt + ((maxAlt - minAlt) / numYTicks) * i);
   
   container.innerHTML = `
-    <svg width="${W}" height="${H}" class="elevation-chart">
+    <svg viewBox="0 0 ${W} ${H}" class="elevation-chart-inline" preserveAspectRatio="xMidYMid meet">
+      <!-- Grid lines -->
+      ${yTicks.map(y => `
+        <line x1="${padLeft}" y1="${scaleY(y)}" x2="${W - padRight}" y2="${scaleY(y)}" stroke="#e5e7eb" stroke-dasharray="2,2" />
+      `).join('')}
+      
       <!-- Axes -->
-      <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${H - padBottom}" stroke="#e5e7eb" />
-      <line x1="${padLeft}" y1="${H - padBottom}" x2="${W - padRight}" y2="${H - padBottom}" stroke="#e5e7eb" />
+      <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${H - padBottom}" stroke="#d1d5db" />
+      <line x1="${padLeft}" y1="${H - padBottom}" x2="${W - padRight}" y2="${H - padBottom}" stroke="#d1d5db" />
+      
+      <!-- Area fill -->
+      <path d="${areaD}" fill="rgba(5, 150, 105, 0.1)" />
+      
+      <!-- Elevation line -->
+      <path d="${pathD}" stroke="#059669" stroke-width="2" fill="none" />
       
       <!-- X-axis ticks and labels -->
       ${xTicks.map(x => `
         <line x1="${scaleX(x)}" y1="${H - padBottom}" x2="${scaleX(x)}" y2="${H - padBottom + 4}" stroke="#9ca3af" />
-        <text x="${scaleX(x)}" y="${H - padBottom + 14}" text-anchor="middle" font-size="9" fill="#6b7280">${(x / 1000).toFixed(1)}</text>
+        <text x="${scaleX(x)}" y="${H - padBottom + 16}" text-anchor="middle" font-size="10" fill="#6b7280">${(x / 1000).toFixed(1)}</text>
       `).join('')}
-      <text x="${W - padRight}" y="${H - 6}" text-anchor="end" font-size="9" fill="#6b7280">km</text>
+      <text x="${W - padRight}" y="${H - 8}" text-anchor="end" font-size="10" fill="#9ca3af">km</text>
       
       <!-- Y-axis ticks and labels -->
       ${yTicks.map(y => `
         <line x1="${padLeft - 4}" y1="${scaleY(y)}" x2="${padLeft}" y2="${scaleY(y)}" stroke="#9ca3af" />
-        <text x="${padLeft - 6}" y="${scaleY(y) + 3}" text-anchor="end" font-size="9" fill="#6b7280">${Math.round(y)}</text>
+        <text x="${padLeft - 8}" y="${scaleY(y) + 3}" text-anchor="end" font-size="10" fill="#6b7280">${Math.round(y)}</text>
       `).join('')}
-      <text x="10" y="${padTop + innerHeight / 2}" text-anchor="middle" font-size="9" fill="#6b7280" transform="rotate(-90 10 ${padTop + innerHeight / 2})">m</text>
-      
-      <!-- Elevation line -->
-      <path d="${pathD}" stroke="#059669" stroke-width="2" fill="none" />
+      <text x="12" y="${padTop + innerHeight / 2}" text-anchor="middle" font-size="10" fill="#9ca3af" transform="rotate(-90 12 ${padTop + innerHeight / 2})">m</text>
     </svg>
   `;
 };
@@ -296,17 +248,16 @@ const getTripDbId = (trip) => {
   return trip?.id || trip?.trip?.id || trip?.pk || trip?.trip_pk || null;
 };
 
-const loadTripPreview = async (trip, routeId) => {
-  const panel = getOrCreatePanel();
-  const mapContainer = panel.querySelector('[data-role="map"]');
-  const elevationContainer = panel.querySelector('[data-role="elevation"]');
+const loadTripPreview = async (trip, routeId, previewRow) => {
+  const mapContainer = previewRow.querySelector('[data-role="map"]');
+  const elevationContainer = previewRow.querySelector('[data-role="elevation"]');
   
   const tripDbId = getTripDbId(trip);
   
   if (!tripDbId) {
     console.warn("[TripPreview] No trip database ID found", trip);
-    mapContainer.innerHTML = '<div class="trip-preview-panel__empty">No trip ID available</div>';
-    elevationContainer.innerHTML = '<div class="trip-preview-panel__empty">No trip ID available</div>';
+    mapContainer.innerHTML = '<div class="trip-preview-inline__empty">No trip ID available</div>';
+    elevationContainer.innerHTML = '<div class="trip-preview-inline__empty">No trip ID available</div>';
     return;
   }
   
@@ -321,8 +272,8 @@ const loadTripPreview = async (trip, routeId) => {
   }
   
   // Show loading state
-  mapContainer.innerHTML = '<div class="trip-preview-panel__loading">Loading map...</div>';
-  elevationContainer.innerHTML = '<div class="trip-preview-panel__loading">Loading elevation...</div>';
+  mapContainer.innerHTML = '<div class="trip-preview-inline__loading">Loading map...</div>';
+  elevationContainer.innerHTML = '<div class="trip-preview-inline__loading">Loading elevation...</div>';
   
   try {
     let stops = [];
@@ -351,18 +302,45 @@ const loadTripPreview = async (trip, routeId) => {
     previewCache.set(tripDbId, { stops, elevation });
     
     // Only render if this trip is still the current one
-    if (currentTripId === tripDbId) {
+    if (currentTripId === tripDbId && currentPreviewRow) {
       // Map uses elevation profile coordinates (more detailed than stops)
       await renderMap(mapContainer, elevation, stops);
       renderElevation(elevationContainer, elevation);
     }
   } catch (error) {
     console.error("[TripPreview] Failed to load trip preview:", error);
-    if (currentTripId === tripDbId) {
-      mapContainer.innerHTML = '<div class="trip-preview-panel__empty">Failed to load map</div>';
-      elevationContainer.innerHTML = '<div class="trip-preview-panel__empty">Failed to load elevation</div>';
+    if (currentTripId === tripDbId && currentPreviewRow) {
+      mapContainer.innerHTML = '<div class="trip-preview-inline__empty">Failed to load map</div>';
+      elevationContainer.innerHTML = '<div class="trip-preview-inline__empty">Failed to load elevation</div>';
     }
   }
+};
+
+const removePreviewRow = () => {
+  if (currentPreviewRow) {
+    // Clean up map instance before removing
+    if (mapInstance) {
+      try {
+        mapInstance.remove();
+      } catch (e) {
+        // Ignore errors when removing
+      }
+      mapInstance = null;
+    }
+    
+    currentPreviewRow.remove();
+    currentPreviewRow = null;
+  }
+  currentTripId = null;
+};
+
+const scheduleHide = () => {
+  clearTimeout(hideTimeout);
+  hideTimeout = setTimeout(() => {
+    if (!isHoveringPreview) {
+      removePreviewRow();
+    }
+  }, 300);
 };
 
 export const showTripPreview = (trip, routeId, anchorElement) => {
@@ -371,33 +349,57 @@ export const showTripPreview = (trip, routeId, anchorElement) => {
     return;
   }
   
-  // Debug: log all available ID fields
+  const tripDbId = getTripDbId(trip);
+  
+  // If same trip is already shown, don't recreate
+  if (currentTripId === tripDbId && currentPreviewRow) {
+    clearTimeout(hideTimeout);
+    return;
+  }
+  
+  // Remove any existing preview row
+  removePreviewRow();
+  
+  clearTimeout(hideTimeout);
+  currentTripId = tripDbId;
+  
+  // Create new preview row
+  const previewRow = document.createElement("tr");
+  previewRow.className = "trip-preview-row";
+  previewRow.appendChild(createPreviewContent());
+  
+  // Insert after the anchor row
+  anchorElement.insertAdjacentElement("afterend", previewRow);
+  currentPreviewRow = previewRow;
+  
+  // Add hover handlers to the preview row
+  previewRow.addEventListener("mouseenter", () => {
+    isHoveringPreview = true;
+    clearTimeout(hideTimeout);
+  });
+  
+  previewRow.addEventListener("mouseleave", () => {
+    isHoveringPreview = false;
+    scheduleHide();
+  });
+  
+  // Load the preview data
+  loadTripPreview(trip, routeId, previewRow);
+  
+  // Debug logging
   console.log("[TripPreview] Trip object:", {
     id: trip.id,
     trip_id: trip.trip_id,
     pk: trip.pk,
     tripId: trip.tripId,
     trip_pk: trip.trip_pk,
-    fullTrip: trip
   });
-  
-  const tripDbId = getTripDbId(trip);
   console.log(`[TripPreview] Using trip DB ID for API calls: ${tripDbId}`);
-  
-  // If the ID looks like a GTFS trip_id (contains dots/special chars), warn
-  if (tripDbId && (tripDbId.includes('.') || tripDbId.includes('-') && tripDbId.length > 40)) {
-    console.warn("[TripPreview] Warning: tripDbId might be GTFS trip_id instead of database UUID:", tripDbId);
-  }
-  
-  currentTripId = tripDbId;
-  clearTimeout(hideTimeout);
-  clearTimeout(showTimeout);
-  showPanel(anchorElement);
-  loadTripPreview(trip, routeId);
 };
 
 export const hideTripPreview = () => {
-  hidePanel();
+  isHoveringPreview = false;
+  scheduleHide();
 };
 
 export const clearPreviewCache = () => {

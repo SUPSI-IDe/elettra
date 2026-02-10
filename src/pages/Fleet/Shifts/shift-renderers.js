@@ -1,4 +1,4 @@
-import { textContent } from "../../../ui-helpers";
+import { resolveModelFields, textContent } from "../../../ui-helpers";
 import {
   text,
   normalizeTrip,
@@ -218,21 +218,25 @@ export const renderRouteOptions = (select, routes = []) => {
   return map;
 };
 
-export const renderBusOptions = (select, buses = []) => {
+export const renderBusOptions = (select, buses = [], modelsById = {}) => {
   if (!select) {
     return;
   }
 
   const options = [
-    '<option value="">Select a bus</option>',
+    '<option value="">Select a bus model</option>',
     ...buses
       .filter((bus) => bus && bus.id)
-      .map(
-        (bus) =>
-          `<option value="${text(bus.id)}">${textContent(
-            bus?.name ?? bus?.label ?? `Bus ${bus.id}`
-          )}</option>`
-      ),
+    .map((bus) => {
+      const model = modelsById?.[text(bus?.bus_model_id ?? "")];
+      const resolved = resolveModelFields(model);
+      const label =
+        resolved.model ||
+        bus?.name ||
+        bus?.label ||
+        `Bus ${bus.id}`;
+      return `<option value="${text(bus.id)}">${textContent(label)}</option>`;
+    }),
   ].join("");
 
   select.innerHTML = options;

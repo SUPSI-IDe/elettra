@@ -8,7 +8,8 @@ import {
   fetchBuses,
   fetchStopsByTripId,
 } from "../../../api";
-import { isAuthenticated } from "../../../api/session";
+import { isAuthenticated, resolveUserId } from "../../../api/session";
+import { getCurrentUserId } from "../../../store";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
@@ -327,9 +328,10 @@ export const initializeShifts = async (root = document, options = {}) => {
     }
 
     try {
-      const [shiftsPayload, busesPayload] = await Promise.all([
+      const [shiftsPayload, busesPayload, userId] = await Promise.all([
         fetchShifts({ skip: 0, limit: 100 }),
         fetchBuses({ skip: 0, limit: 1000 }),
+        resolveUserId().catch(() => null),
       ]);
 
       const shifts =
@@ -342,9 +344,22 @@ export const initializeShifts = async (root = document, options = {}) => {
           (busesPayload?.items ?? busesPayload?.results ?? [])
         );
 
-      const busMap = new Map(buses.map((b) => [b.id, b.name]));
+      const currentUserId = userId ?? getCurrentUserId() ?? "";
+      
+      // Filter buses by user_id to ensure data isolation between users
+      const userBuses =
+        currentUserId && Array.isArray(buses) ?
+          buses.filter((bus) => bus?.user_id === currentUserId)
+        : (buses ?? []);
 
-      allShifts = (Array.isArray(shifts) ? shifts : []).map((shift) => ({
+      // Note: The /api/v1/user/shifts/ endpoint is already user-scoped by the backend
+      // (filters by authenticated user via JWT token), so no client-side filtering is needed.
+      // The API response does not include user_id field.
+      const userShifts = Array.isArray(shifts) ? shifts : [];
+
+      const busMap = new Map(userBuses.map((b) => [b.id, b.name]));
+
+      allShifts = (Array.isArray(userShifts) ? userShifts : []).map((shift) => ({
         ...shift,
         bus_name: busMap.get(shift.bus_id) ?? shift.bus_name,
       }));

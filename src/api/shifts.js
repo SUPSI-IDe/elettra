@@ -49,10 +49,32 @@ export const fetchShiftById = async (shiftId) => {
   return payload;
 };
 
+/**
+ * Fetch detailed shift info including route and day of week information
+ * Endpoint: GET /api/v1/user/shifts/{shift_id}/info
+ */
+export const fetchShiftInfo = async (shiftId) => {
+  if (!shiftId) {
+    throw new Error("Missing shiftId");
+  }
+  const headers = authHeaders();
+  const response = await fetch(`${SHIFTS_PATH}${encodeURIComponent(shiftId)}/info`, {
+    method: "GET",
+    headers,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load shift info.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
 const toTripIds = (tripIds) =>
   Array.isArray(tripIds) ? tripIds.filter(Boolean).map(String) : [];
 
-export const createShift = async ({ name, busId, tripIds } = {}) => {
+export const createShift = async ({ name, busId, tripIds, startTime, endTime, startDepotId, endDepotId } = {}) => {
   if (!name) {
     throw new Error("Missing name");
   }
@@ -75,6 +97,20 @@ export const createShift = async ({ name, busId, tripIds } = {}) => {
     trip_ids: trips,
   };
 
+  // Include optional depot and time fields if provided
+  if (startTime) {
+    body.start_time = startTime;
+  }
+  if (endTime) {
+    body.end_time = endTime;
+  }
+  if (startDepotId) {
+    body.start_depot_id = startDepotId;
+  }
+  if (endDepotId) {
+    body.end_depot_id = endDepotId;
+  }
+
   const response = await fetch(SHIFTS_PATH, {
     method: "POST",
     headers,
@@ -89,7 +125,7 @@ export const createShift = async ({ name, busId, tripIds } = {}) => {
   return payload;
 };
 
-export const updateShift = async (shiftId, { name, busId, tripIds } = {}) => {
+export const updateShift = async (shiftId, { name, busId, tripIds, startTime, endTime, startDepotId, endDepotId } = {}) => {
   if (!shiftId) {
     throw new Error("Missing shiftId");
   }
@@ -114,6 +150,20 @@ export const updateShift = async (shiftId, { name, busId, tripIds } = {}) => {
     bus_id: busId,
     trip_ids: trips,
   };
+
+  // Include optional depot and time fields if provided
+  if (startTime) {
+    body.start_time = startTime;
+  }
+  if (endTime) {
+    body.end_time = endTime;
+  }
+  if (startDepotId) {
+    body.start_depot_id = startDepotId;
+  }
+  if (endDepotId) {
+    body.end_depot_id = endDepotId;
+  }
 
   const response = await fetch(`${SHIFTS_PATH}${encodeURIComponent(shiftId)}`, {
     method: "PUT",

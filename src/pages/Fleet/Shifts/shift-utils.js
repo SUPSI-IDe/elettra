@@ -192,12 +192,25 @@ export const normalizeTrip = (trip = {}) => {
 
   const routeLabel = resolveRouteLabel(trip);
 
+  // Preserve day_of_week from the trip data
+  const dayOfWeek = firstAvailable(
+    trip?.day_of_week,
+    trip?.dayOfWeek,
+    trip?.service_day,
+    trip?.serviceDay,
+    trip?.trip?.day_of_week,
+    trip?.trip?.dayOfWeek,
+    trip?.trip?.service_day,
+    trip?.trip?.serviceDay
+  );
+
   return {
     ...trip,
     id: originalId || tripId,
     trip_id: tripId,
     route_id: routeId,
     route_label: routeLabel,
+    day_of_week: dayOfWeek || trip?.day_of_week,
     start_stop_name: startName,
     end_stop_name: endName,
     departure_time: departureTime,
@@ -214,7 +227,10 @@ export const readShiftTripsFromStructure = (shift = {}) => {
   return structure
     .map((item = {}) => {
       const trip = item?.trip ?? {};
-      const combined = { ...item, ...trip, trip };
+      // Preserve the database UUID from item.trip_id as the 'id' field
+      // This is critical for API calls (elevation, stops, etc.)
+      const dbUuid = item?.trip_id;
+      const combined = { ...item, ...trip, trip, id: dbUuid };
       const normalized = normalizeTrip(combined);
       return normalized.trip_id ? normalized : null;
     })

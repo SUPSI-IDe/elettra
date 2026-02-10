@@ -134,15 +134,7 @@ export const initializeVisualizeShift = async (
           `${textContent(startName)} – ${textContent(endName)}`
         : startName || endName || "—";
 
-      const actionsCell = document.createElement("td");
-      actionsCell.className = "actions";
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.action = "remove-trip";
-      button.textContent = "Remove";
-      actionsCell.append(button);
-
-      row.append(timeCell, routeCell, actionsCell);
+      row.append(timeCell, routeCell);
       fragment.append(row);
     });
     tripsBody.append(fragment);
@@ -177,31 +169,10 @@ export const initializeVisualizeShift = async (
       endDepotName: state.endDepotName,
       startTime: effectiveStartTime,
       endTime: effectiveEndTime,
+      showAllStops: true,
     });
   };
 
-  const handleTripsTableClick = (event) => {
-    const button = event.target?.closest?.('button[data-action="remove-trip"]');
-    if (!button) {
-      return;
-    }
-    const row = button.closest("tr");
-    const tripId = row?.dataset?.tripId;
-    if (!tripId) {
-      return;
-    }
-    state.trips = state.trips.filter(
-      (trip = {}) => resolveTripId(trip) && resolveTripId(trip) !== tripId
-    );
-    renderAll();
-  };
-
-  if (tripsBody) {
-    tripsBody.addEventListener("click", handleTripsTableClick);
-    cleanupHandlers.push(() => {
-      tripsBody.removeEventListener("click", handleTripsTableClick);
-    });
-  }
 
   if (!state.trips.length && options.shiftId) {
     ensurePlaceholder(timelineContainer, "Loading shift timeline…");

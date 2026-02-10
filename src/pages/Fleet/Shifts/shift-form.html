@@ -74,14 +74,22 @@
         <section class="shift-details" aria-labelledby="shift-details-heading">
           <header class="section-header">
             <h2 id="shift-details-heading">Shift</h2>
+            <div class="shift-info" data-role="shift-info" hidden>
+              <span class="shift-info-item" data-role="shift-line-display">
+                <strong>Line:</strong> <span data-value="line"></span>
+              </span>
+              <span class="shift-info-item" data-role="shift-day-display">
+                <strong>Day:</strong> <span data-value="day"></span>
+              </span>
+            </div>
             <div class="start-controls">
               <div class="control-row">
                 <div class="form-group">
                   <label for="shift-bus"
-                    >Bus name <span aria-hidden="true">*</span></label
+                    >Bus model <span aria-hidden="true">*</span></label
                   >
                   <select id="shift-bus" name="busId" required>
-                    <option value="">Select a bus</option>
+                    <option value="">Select a bus model</option>
                   </select>
                 </div>
                 <div class="form-group">
