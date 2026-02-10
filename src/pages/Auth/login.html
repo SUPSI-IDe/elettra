@@ -1,6 +1,12 @@
 <section class="login-page">
   <div class="login-container">
     <div class="login-header">
+      <button class="back-btn" data-action="back-to-landing" aria-label="Back to landing page">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5"/>
+          <path d="M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
       <h1 data-i18n="login.title">Welcome to Elettra</h1>
       <p class="login-subtitle" data-i18n="login.subtitle">Electric Shift Planner</p>
     </div>
@@ -72,6 +78,10 @@
     </form>
     
     <div class="login-footer">
+      <p class="login-register-link">
+        <span data-i18n="login.no_account">Don't have an account?</span>
+        <a href="#" data-action="go-to-register" data-i18n="login.create_account">Create one</a>
+      </p>
       <p class="login-help" data-i18n="login.help">Need help? Contact your administrator.</p>
     </div>
   </div>

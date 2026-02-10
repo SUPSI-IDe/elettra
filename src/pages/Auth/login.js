@@ -1,8 +1,7 @@
 import { authenticate } from "../../api/auth";
 import { triggerPartialLoad } from "../../events";
-import { setCurrentUserId, setCurrentAgencyId } from "../../store";
+import { setCurrentUserId, setCurrentAgencyId, clearDataCache } from "../../store";
 import { fetchCurrentUser, fetchAgencyById } from "../../api/user";
-import "./login.css";
 
 // Token persistence
 const persistTokens = ({ access_token = "", token_type = "" } = {}) => {
@@ -16,10 +15,20 @@ const persistTokens = ({ access_token = "", token_type = "" } = {}) => {
 };
 
 // User info persistence
-const persistUserInfo = ({ email = "", name = "", company = "" } = {}) => {
+const persistUserInfo = ({
+  email = "",
+  name = "",
+  company = "",
+  agencyId = "",
+  gtfsAgencyId = "",
+  agencyName = "",
+} = {}) => {
   if (email) localStorage.setItem("user_email", email);
   if (name) localStorage.setItem("user_name", name);
   if (company) localStorage.setItem("user_company", company);
+  if (agencyId) localStorage.setItem("user_agency_id", agencyId);
+  if (gtfsAgencyId) localStorage.setItem("user_gtfs_agency_id", gtfsAgencyId);
+  if (agencyName) localStorage.setItem("user_agency_name", agencyName);
 };
 
 // Show feedback message
@@ -64,6 +73,9 @@ const loadUserDetails = async (email) => {
       email: user?.email || email,
       name: user?.full_name || user?.name || user?.username || email?.split("@")[0] || "",
       company: "",
+      agencyId: "",
+      gtfsAgencyId: "",
+      agencyName: "",
     };
 
     // Store user ID
@@ -75,11 +87,16 @@ const loadUserDetails = async (email) => {
     const companyId = user?.company_id || user?.agency_id;
     if (companyId) {
       setCurrentAgencyId(companyId);
+      userInfo.agencyId = String(companyId);
       
       try {
         const agency = await fetchAgencyById(companyId);
         if (agency) {
-          userInfo.company = agency?.name || agency?.agency_name || "";
+          const agencyName = agency?.agency_name || agency?.name || "";
+          userInfo.company = agency?.name || agencyName || "";
+          userInfo.agencyName = agencyName || userInfo.company || "";
+          userInfo.gtfsAgencyId = String(agency?.gtfs_agency_id || "").trim();
+          userInfo.agencyId = String(agency?.id || companyId || "").trim();
         }
       } catch (agencyError) {
         console.warn("Could not fetch agency details:", agencyError);
@@ -123,6 +140,9 @@ const handleLogin = async (form, feedback) => {
       localStorage.removeItem("remember_email");
     }
 
+    // Clear any cached data from previous user to prevent data leakage
+    clearDataCache();
+
     showFeedback(feedback, "Login successful! Redirecting...", "success");
 
     // Load user details
@@ -153,6 +173,7 @@ const updateHeaderUI = () => {
   const userCompanySpan = userMenu?.querySelector('[data-role="user-company"]');
   const userSeparator = userMenu?.querySelector('.user-separator');
   const dropdownEmailSpan = userMenu?.querySelector('.dropdown-email');
+  const nav = document.querySelector('nav');
 
   const userInfo = {
     email: localStorage.getItem("user_email") || "",
@@ -166,6 +187,11 @@ const updateHeaderUI = () => {
 
   if (userMenu) {
     userMenu.hidden = false;
+  }
+
+  // Show nav after login
+  if (nav) {
+    nav.hidden = false;
   }
 
   if (userNameSpan) {
@@ -227,6 +253,8 @@ const prefillRememberedEmail = (form) => {
 export const initializeLogin = (container, options = {}) => {
   const form = container.querySelector('[data-form="login"]');
   const feedback = container.querySelector('[data-role="login-feedback"]');
+  const backBtn = container.querySelector('[data-action="back-to-landing"]');
+  const registerLink = container.querySelector('[data-action="go-to-register"]');
 
   if (!form) {
     console.warn("Login form not found");
@@ -245,7 +273,27 @@ export const initializeLogin = (container, options = {}) => {
     await handleLogin(form, feedback);
   };
 
+  // Navigate back to landing
+  const handleBack = (event) => {
+    event.preventDefault();
+    triggerPartialLoad("landing");
+  };
+
+  // Navigate to register
+  const handleRegisterClick = (event) => {
+    event.preventDefault();
+    triggerPartialLoad("register");
+  };
+
   form.addEventListener("submit", handleSubmit);
+
+  if (backBtn) {
+    backBtn.addEventListener("click", handleBack);
+  }
+
+  if (registerLink) {
+    registerLink.addEventListener("click", handleRegisterClick);
+  }
 
   // Focus email input on load
   const emailInput = form.querySelector('#login-email');
@@ -260,5 +308,11 @@ export const initializeLogin = (container, options = {}) => {
   // Cleanup function
   return () => {
     form.removeEventListener("submit", handleSubmit);
+    if (backBtn) {
+      backBtn.removeEventListener("click", handleBack);
+    }
+    if (registerLink) {
+      registerLink.removeEventListener("click", handleRegisterClick);
+    }
   };
 };
