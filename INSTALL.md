@@ -48,7 +48,7 @@ npm install
 npm run dev
 ```
 
-The application will be available at `http://localhost:5173/elettra/`
+The application will be available at `http://localhost:9010/elettra/`
 
 ---
 
@@ -80,7 +80,7 @@ The development server provides:
 
 Open your browser and navigate to:
 ```
-http://localhost:5173/elettra/
+http://localhost:9010/elettra/
 ```
 
 ---
@@ -208,13 +208,13 @@ docker compose --profile dev up
 # Or build and run manually
 docker build -f Dockerfile.dev -t elettra-dev ..
 docker run -it --rm \
-  -p 5173:5173 \
+  -p 9010:9010 \
   -v $(pwd)/..:/app \
   -v /app/node_modules \
   elettra-dev
 ```
 
-Access the application at `http://localhost:5173/elettra/`
+Access the application at `http://localhost:9010/elettra/`
 
 ### Production with Docker
 
@@ -331,8 +331,8 @@ node --version
 #### Port Already in Use
 
 ```bash
-# Find process using port 5173
-lsof -i :5173
+# Find process using port 9010
+lsof -i :9010
 
 # Kill the process
 kill -9 <PID>

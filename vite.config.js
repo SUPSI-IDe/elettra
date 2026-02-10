@@ -9,6 +9,8 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   base: "/elettra/",
   server: {
+    host: true,
+    port: 9010,
     proxy: {
       "/auth": {
         target: API_ROOT,
