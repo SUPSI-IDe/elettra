@@ -209,20 +209,16 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
 
   const xAxis = root
     .append("g")
-    .attr("class", "timeline__axis timeline__axis--x");
+    .attr("class", "timeline__axis timeline__axis--x")
+    .attr("transform", `translate(0,${innerHeight})`);
   xAxis
     .selectAll("text")
     .data(tickMinutes)
     .join("text")
     .attr("x", (minute) => xScale(minute))
-    .attr("y", innerHeight + 24)
-    .attr(
-      "transform",
-      (minute) =>
-        `translate(${xScale(minute)},${innerHeight + 24}) rotate(-90)`
-    )
-    .attr("text-anchor", "end")
-    .attr("dominant-baseline", "middle")
+    .attr("y", 24)
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "hanging")
     .text((minute) => formatMinutes(minute));
 
   const yAxis = root
