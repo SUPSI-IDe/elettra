@@ -5,7 +5,7 @@ import { createDepot, updateDepot } from "../../../api";
 import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { toggleFormDisabled, updateFeedback } from "../../../ui-helpers";
-import { getUserCompanyLocation } from "../../../config/company-locations";
+import { getUserAgencyCentroidSync, getUserAgencyCentroid, DEFAULT_LOCATION } from "../../../config/company-locations";
 
 const parseCoordinate = (value) => {
   if (typeof value !== "string") {
@@ -126,11 +126,10 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   const addressInput = form.querySelector("#custom-stop-address");
   const cityInput = form.querySelector("#custom-stop-city");
 
-  // Default center based on user's company or fallback to Bern
-  // In edit mode, use existing coordinates
-  const companyLocation = getUserCompanyLocation();
-  const defaultLat = currentDepot.latitude ?? companyLocation.lat;
-  const defaultLon = currentDepot.longitude ?? companyLocation.lon;
+  // Initial center: use existing depot coords in edit mode, else use cached centroid or default
+  const initialLocation = getUserAgencyCentroidSync();
+  const defaultLat = currentDepot.latitude ?? initialLocation.lat;
+  const defaultLon = currentDepot.longitude ?? initialLocation.lon;
 
   const map = L.map(mapContainer, {
     center: [defaultLat, defaultLon],
@@ -213,6 +212,15 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     debounceTimer = setTimeout(fn, delay);
   };
 
+  // Track if user interacted with map - don't override their position
+  let userInteracted = false;
+  map.on("dragstart", () => {
+    userInteracted = true;
+  });
+  cleanupHandlers.push(() => {
+    map.off("dragstart");
+  });
+
   const handleMoveEnd = () => {
     debounce(updateFromMapCenter, 500);
   };
@@ -225,6 +233,29 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   // Initial update if adding new stop
   if (!isEditMode) {
     updateFromMapCenter();
+  }
+
+  // For new stops: asynchronously calculate centroid from GTFS data and recenter
+  // Only if we don't have depot coordinates and user hasn't interacted
+  if (!isEditMode && currentDepot.latitude == null && currentDepot.longitude == null) {
+    getUserAgencyCentroid()
+      .then((centroid) => {
+        if (!centroid || userInteracted) return;
+        
+        // Check if centroid is different from current position (not default)
+        const current = map.getCenter();
+        const isSame =
+          Math.abs(current.lat - centroid.lat) < 0.001 &&
+          Math.abs(current.lng - centroid.lon) < 0.001;
+        
+        if (!isSame) {
+          map.setView([centroid.lat, centroid.lon], 13);
+          updateFromMapCenter();
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not calculate agency centroid:", err);
+      });
   }
 
   const handleSubmit = async (event) => {
