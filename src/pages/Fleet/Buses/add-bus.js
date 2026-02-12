@@ -8,6 +8,8 @@ import {
   updateFeedback,
   resolveModelFields,
   textContent,
+  escapeAttr,
+  normalizeApiList,
 } from "../../../ui-helpers";
 
 const toBusPayload = (formData) => {
@@ -29,7 +31,7 @@ const renderModelOptions = (select, models = [], selectedId = "") => {
         const suffix = manufacturer ? ` — ${manufacturer}` : "";
         const isSelected =
           String(model.id) === String(selectedId) ? "selected" : "";
-        return `<option value="${String(model.id)}" ${isSelected}>${textContent(
+        return `<option value="${escapeAttr(model.id)}" ${isSelected}>${textContent(
           `${name}${suffix}`
         )}</option>`;
       }),
@@ -62,10 +64,7 @@ export const initializeAddBus = async (root = document, options = {}) => {
   if (models.length === 0) {
     try {
       const payload = await fetchBusModels({ skip: 0, limit: 100 });
-      models =
-        Array.isArray(payload) ? payload : (
-          (payload?.items ?? payload?.results ?? [])
-        );
+      models = normalizeApiList(payload);
     } catch (e) {
       console.warn("Failed to load models for dropdown", e);
     }

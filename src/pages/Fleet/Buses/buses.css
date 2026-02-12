@@ -14,7 +14,7 @@
 
 .buses-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm);
   overflow-y: auto;
@@ -25,12 +25,6 @@ h2 {
   font-weight: 600;
   color: var(--dark-blue);
   margin-bottom: var(--spacing-sm);
-}
-
-@media (max-width: 1024px) {
-  .buses-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Page-specific overrides for bus forms */

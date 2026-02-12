@@ -4,13 +4,32 @@ import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { writeFlash } from "../../../store";
 import { toggleFormDisabled, updateFeedback } from "../../../ui-helpers";
+import { closeSidePanel } from "../../../dom/side-panel";
 
 const toBusModelPayload = (formData) => {
   const name = formData.get("name")?.toString().trim();
   const manufacturer = formData.get("manufacturer")?.toString().trim();
   const description = formData.get("description")?.toString().trim() ?? "";
+  const cost = formData.get("cost")?.toString().trim();
+  const size = formData.get("size")?.toString().trim();
+  const passengers = formData.get("passengers")?.toString().trim();
+  const lifetime = formData.get("lifetime")?.toString().trim();
+  const battery_cost = formData.get("battery_cost")?.toString().trim();
+  const battery_lifetime = formData.get("battery_lifetime")?.toString().trim();
+  const maintenance_cost = formData.get("maintenance_cost")?.toString().trim();
 
-  return { name, manufacturer, description };
+  return {
+    name,
+    manufacturer,
+    description,
+    cost,
+    size,
+    passengers,
+    lifetime,
+    battery_cost,
+    battery_lifetime,
+    maintenance_cost,
+  };
 };
 
 export const initializeAddBusModel = (root = document, options = {}) => {
@@ -39,6 +58,13 @@ export const initializeAddBusModel = (root = document, options = {}) => {
     const nameInput = form.querySelector("#name");
     const manufacturerInput = form.querySelector("#manufacturer");
     const descriptionInput = form.querySelector("#description");
+    const costInput = form.querySelector("#cost");
+    const sizeInput = form.querySelector("#size");
+    const passengersInput = form.querySelector("#passengers");
+    const lifetimeInput = form.querySelector("#lifetime");
+    const batteryCostInput = form.querySelector("#battery_cost");
+    const batteryLifetimeInput = form.querySelector("#battery_lifetime");
+    const maintenanceCostInput = form.querySelector("#maintenance_cost");
 
     if (nameInput)
       nameInput.value = currentModel.name || currentModel.model || "";
@@ -46,6 +72,17 @@ export const initializeAddBusModel = (root = document, options = {}) => {
       manufacturerInput.value = currentModel.manufacturer || "";
     if (descriptionInput)
       descriptionInput.value = currentModel.description || "";
+    if (costInput) costInput.value = currentModel.specs?.cost ?? "";
+    if (sizeInput) sizeInput.value = currentModel.specs?.size ?? "";
+    if (passengersInput)
+      passengersInput.value = currentModel.specs?.passengers ?? "";
+    if (lifetimeInput) lifetimeInput.value = currentModel.specs?.lifetime ?? "";
+    if (batteryCostInput)
+      batteryCostInput.value = currentModel.specs?.battery_cost ?? "";
+    if (batteryLifetimeInput)
+      batteryLifetimeInput.value = currentModel.specs?.battery_lifetime ?? "";
+    if (maintenanceCostInput)
+      maintenanceCostInput.value = currentModel.specs?.maintenance_cost ?? "";
   }
 
   const feedback = form.querySelector('[data-role="feedback"]');
@@ -53,7 +90,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
   const closeButton = section.querySelector('[data-action="close"]');
 
   const handleCloseClick = () => {
-    triggerPartialLoad("buses");
+    closeSidePanel();
   };
   if (closeButton) {
     closeButton.addEventListener("click", handleCloseClick);
@@ -63,7 +100,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
   }
 
   const handleCancelClick = () => {
-    triggerPartialLoad("buses");
+    closeSidePanel();
   };
   if (cancelButton) {
     cancelButton.addEventListener("click", handleCancelClick);
@@ -76,19 +113,41 @@ export const initializeAddBusModel = (root = document, options = {}) => {
     event.preventDefault();
 
     const formData = new FormData(form);
-    const { name, manufacturer, description } = toBusModelPayload(formData);
+    const {
+      name,
+      manufacturer,
+      description,
+      cost,
+      size,
+      passengers,
+      lifetime,
+      battery_cost,
+      battery_lifetime,
+      maintenance_cost,
+    } = toBusModelPayload(formData);
 
     if (!name || !manufacturer) {
       updateFeedback(
         feedback,
         "Model name and manufacturer are required.",
-        "error"
+        "error",
       );
       return;
     }
 
     toggleFormDisabled(form, true);
     updateFeedback(feedback, isEditMode ? "Updating…" : "Saving…", "info");
+
+    const specs = {
+      ...(currentModel.specs || {}),
+      cost,
+      size,
+      passengers,
+      lifetime,
+      battery_cost,
+      battery_lifetime,
+      maintenance_cost,
+    };
 
     try {
       const userId = await resolveUserId();
@@ -98,7 +157,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
           name,
           manufacturer,
           description,
-          specs: currentModel.specs || {},
+          specs,
           userId,
         });
         writeFlash("Bus model updated.");
@@ -107,19 +166,20 @@ export const initializeAddBusModel = (root = document, options = {}) => {
           name,
           manufacturer,
           description,
-          specs: {},
+          specs,
           userId,
         });
         writeFlash("Bus model added.");
       }
 
-      triggerPartialLoad("buses");
+      closeSidePanel();
+      triggerPartialLoad("buses"); // Refresh the table
     } catch (error) {
       console.error(
         isEditMode ?
           "Failed to update bus model"
         : "Failed to create bus model",
-        error
+        error,
       );
       updateFeedback(
         feedback,
@@ -127,7 +187,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
           (isEditMode ?
             "Unable to update bus model."
           : "Unable to save bus model."),
-        "error"
+        "error",
       );
     } finally {
       toggleFormDisabled(form, false);
