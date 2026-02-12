@@ -1,0 +1,108 @@
+<section class="simulation-archive">
+  <header class="page-header">
+    <div class="title-container">
+      <h1 data-i18n="simulation.archive.title">Simulation archive</h1>
+      <p data-i18n="simulation.archive.intro">
+        Add the data about your new electric fleet (buses, charging stations,
+        custom stops and shifts) and launch a simulation
+      </p>
+    </div>
+    <button
+      class="header-action-btn green"
+      id="make-simulation-btn"
+      data-i18n="simulation.archive.make_simulation"
+    >
+      Make a simulation
+    </button>
+  </header>
+
+  <main class="simulation-archive-main">
+    <div class="table-controls">
+      <div class="search-wrapper">
+        <input
+          type="search"
+          id="simulation-search"
+          placeholder="Search custom stop"
+          data-i18n-placeholder="simulation.archive.search_placeholder"
+        />
+        <!-- search icon probably handled by CSS or standard input type search style -->
+      </div>
+
+      <div class="actions">
+        <button
+          class="action-btn blue"
+          id="compare-simulations-btn"
+          disabled
+          data-i18n="simulation.archive.compare"
+        >
+          Compare simulations
+        </button>
+
+        <button
+          class="action-btn"
+          id="delete-simulations-btn"
+          disabled
+          data-i18n="simulation.archive.delete"
+        >
+          Delete
+        </button>
+        <button
+          class="action-btn blue"
+          id="edit-simulation-btn"
+          disabled
+          data-i18n="simulation.archive.edit"
+        >
+          Edit
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table id="simulations-table">
+        <thead>
+          <tr>
+            <th class="checkbox">
+              <input
+                type="checkbox"
+                id="select-all-simulations"
+                aria-label="Select all simulations"
+              />
+            </th>
+            <th
+              data-sort="date"
+              data-i18n="simulation.archive.table.creation_date"
+            >
+              Creation date ▾
+            </th>
+            <th data-sort="name" data-i18n="simulation.archive.table.name">
+              Name ▾
+            </th>
+            <th data-sort="shift" data-i18n="simulation.archive.table.shift">
+              Shift ▾
+            </th>
+            <th data-sort="day" data-i18n="simulation.archive.table.day">
+              Day ▾
+            </th>
+            <th data-sort="status" data-i18n="simulation.archive.table.status">
+              Status ▾
+            </th>
+            <th
+              data-sort="investment"
+              class="text-right"
+              data-i18n="simulation.archive.table.initial_investment"
+            >
+              Initial investment (CHF) ▾
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows will be injected by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination" id="simulation-pagination">
+      <!-- Pagination controls will be injected by JS -->
+    </div>
+  </main>
+</section>

@@ -1,0 +1,228 @@
+.make-simulation-page {
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.make-simulation-page .page-header {
+  padding: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.make-simulation-page main {
+  padding: var(--spacing-sm);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.make-simulation-page .header-with-close {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.make-simulation-page h1 {
+  font-size: 1.5rem;
+  color: var(--dark-blue, #003366);
+  font-weight: 700;
+  margin: 0;
+}
+
+.make-simulation-page .close-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-sm);
+}
+
+.make-simulation-page .close-button img {
+  width: 24px;
+  height: 24px;
+}
+
+.make-simulation-page .intro {
+  display: none; /* Hide intro text based on mockup if needed, keeping it creates whitespace */
+}
+
+.make-simulation-page form {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* Form Inputs */
+.make-simulation-page .form-group {
+  margin-bottom: var(--spacing-sm);
+  max-width: 600px;
+}
+
+.make-simulation-page label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-main, #000);
+  font-size: 0.9rem;
+}
+
+.make-simulation-page input[type="text"],
+.make-simulation-page select {
+  width: 100%;
+  padding: 0.65rem 0.75rem; /* Match standard input padding */
+  border: 1px solid var(--border-medium, #ccc);
+  border-radius: 6px; /* Match standard radius */
+  font-size: 1rem;
+  line-height: 1.45;
+  background-color: white;
+}
+
+.make-simulation-page input[type="text"]:focus,
+.make-simulation-page select:focus {
+  outline: none;
+  border-color: var(--brand-teal-light, #0056b3);
+}
+
+/* Sections */
+.make-simulation-page .form-section {
+  margin-top: var(--spacing-md);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Search Bar */
+.make-simulation-page .table-controls.simple {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--spacing-md);
+}
+
+.make-simulation-page .search-container {
+  position: relative;
+  width: 300px;
+}
+
+.make-simulation-page .search-container input {
+  width: 100%;
+  padding: 0.6rem 1rem 0.6rem 2.5rem; /* Turn left padding for icon */
+  border: 1px solid var(--border-medium, #ccc);
+  border-radius: 4px; /* Standard rect shape */
+  font-size: 0.95rem;
+}
+
+.make-simulation-page .search-container .search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  opacity: 0.6;
+}
+
+/* Table */
+.make-simulation-page .table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--border-light, #eee);
+  border-radius: 4px;
+}
+
+.make-simulation-page table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.make-simulation-page thead th {
+  background-color: white;
+  position: sticky;
+  top: 0;
+  text-align: left;
+  padding: var(--spacing-md);
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border-medium, #ddd);
+  cursor: pointer; /* Suggests sorting */
+}
+
+.make-simulation-page tbody td {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-light, #eee);
+  color: var(--text-main, #333);
+}
+
+.make-simulation-page tbody tr:hover {
+  background-color: var(--bg-hover, #f9f9f9);
+  cursor: pointer;
+}
+
+.make-simulation-page tbody tr.selected {
+  background-color: #cceeff; /* Light blue selection */
+}
+
+.check-column {
+  width: 40px;
+  text-align: center;
+}
+
+/* Footer & Buttons */
+.make-simulation-page .form-footer {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  gap: var(--spacing-md);
+}
+
+.make-simulation-page .required-legend {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+  text-align: center;
+}
+
+.make-simulation-page .form-actions {
+  display: contents;
+}
+
+.make-simulation-page button {
+  padding: 0.65rem 1.25rem; /* Match standard button padding */
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.make-simulation-page .secondary-btn {
+  background: white;
+  border: 1px solid #88d600; /* Lime green border option */
+  color: #333;
+  grid-column: 1;
+}
+
+.make-simulation-page .secondary-btn:hover {
+  background-color: var(--bg-hover, #f0f0f0);
+}
+
+.make-simulation-page .primary-btn {
+  background: #b2d834; /* Lime green */
+  border: none;
+  color: black;
+  grid-column: 3;
+}
+
+.make-simulation-page .primary-btn:hover {
+  background: #a3c930;
+}
+
+.make-simulation-page .primary-btn:disabled {
+  background: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}

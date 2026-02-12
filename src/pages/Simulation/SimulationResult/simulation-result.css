@@ -1,0 +1,235 @@
+.simulation-result-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  background-color: #fff;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.header-with-close {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  width: 100%;
+  background-color: var(--blue-gray);
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.header-with-close h1 {
+  color: var(--dark-blue);
+  font-size: 1.5rem;
+  margin: 0;
+  padding-top: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+}
+
+.simulation-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg) var(--spacing-sm) 0;
+}
+
+.simulation-details {
+  font-size: 1.1rem;
+  color: var(--dark-blue);
+}
+
+.sim-name {
+  font-weight: 700;
+  color: var(--timeline-blue); /* Closest match to previous #2f6fd4 */
+}
+
+.separator {
+  margin: 0 0.5rem;
+  color: var(--border-medium);
+}
+
+.sim-meta {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.simulation-content {
+  display: flex;
+  gap: var(--spacing-xl);
+  flex: 1;
+  padding: 0 var(--spacing-sm);
+}
+
+/* Sidebar */
+.custom-variables-sidebar {
+  width: 350px;
+  flex-shrink: 0;
+  padding-right: var(--spacing-lg);
+  border-right: 1px solid var(--border-light);
+}
+
+.custom-variables-sidebar h3 {
+  margin-top: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-main);
+}
+
+.section-divider {
+  border: 0;
+  border-top: 1px solid var(--border-light);
+  margin-bottom: var(--spacing-lg);
+}
+
+.variable-control {
+  margin-bottom: var(--spacing-lg);
+}
+
+.variable-control label {
+  display: block;
+  margin-bottom: var(--spacing-sm);
+  font-size: 0.9rem;
+  color: var(--text-label);
+  font-weight: 600;
+}
+
+.variable-control input[type="number"],
+.variable-control select {
+  width: 80px;
+  padding: 0.4rem;
+  border: 1px solid var(--border-medium);
+  border-radius: 4px;
+  margin-right: var(--spacing-md);
+  color: var(--text-main);
+  background-color: white;
+}
+
+.variable-control select {
+  width: 100%;
+}
+
+.slider-group {
+  display: flex;
+  align-items: center;
+}
+
+.slider-group input[type="range"] {
+  flex: 1;
+  cursor: pointer;
+}
+
+/* Charts Area */
+.charts-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs-nav {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.tab-btn {
+  background: var(--blue-gray);
+  border: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  color: var(--dark-blue);
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.tab-btn:hover {
+  background: var(--border-light);
+}
+
+.tab-btn.active {
+  background: var(--action-blue);
+  color: white;
+}
+
+.tab-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.tab-content.hidden {
+  display: none;
+}
+
+.chart-section h4 {
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  font-size: 1rem;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.chart-container {
+  background: #fff;
+  /* Placeholder height for charts */
+  height: 300px;
+  width: 100%;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: flex-end; /* Align right to match screenshot */
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-sm);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.color-box {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+}
+
+.chart-divider {
+  border: 0;
+  border-top: 1px solid var(--border-light);
+  margin: var(--spacing-md) 0;
+}
+
+/* Footer */
+.form-footer-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-md) var(--spacing-sm) var(--spacing-xl);
+  border-top: 1px solid var(--border-light);
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* Reusing global button classes where possible, or overriding if needed */
+.primary-btn.green {
+  /* Inherits from global .primary-btn, just ensuring specific overrides if needed */
+  background-color: #abe828; /* Explicitly matching global primary-btn color for safety if class isn't exactly matched in global */
+  color: #1a1a1a;
+  border: 1px solid #abe828;
+}
+
+.primary-btn.green:hover {
+  background-color: #9ccf23;
+}

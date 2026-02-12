@@ -1,0 +1,124 @@
+<section class="form-page make-simulation-page">
+  <header class="page-header">
+    <div class="header-with-close">
+      <h1 data-i18n="simulation.make.title">Make a simulation</h1>
+      <button
+        class="close-button"
+        id="close-make-simulation"
+        aria-label="Close"
+      >
+        <img src="assets/xmark.svg" alt="Close" />
+      </button>
+    </div>
+    <p class="intro">Configure your simulation parameters</p>
+  </header>
+  <main>
+    <form id="make-simulation-form">
+      <div class="form-group">
+        <label for="simulation-name" data-i18n="simulation.make.name"
+          >Name *</label
+        >
+        <input type="text" id="simulation-name" required />
+      </div>
+
+      <div class="form-group">
+        <label for="simulation-bus-model" data-i18n="simulation.make.bus_model"
+          >Bus model *</label
+        >
+        <select id="simulation-bus-model" required>
+          <option value="" disabled selected>Select bus model</option>
+          <!-- Options injected by JS -->
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="simulation-day" data-i18n="simulation.make.day"
+          >Day *</label
+        >
+        <select id="simulation-day" required>
+          <option value="" disabled selected>Select day</option>
+          <option value="Monday">Monday</option>
+          <option value="Tuesday">Tuesday</option>
+          <option value="Wednesday">Wednesday</option>
+          <option value="Thursday">Thursday</option>
+          <option value="Friday">Friday</option>
+          <option value="Saturday">Saturday</option>
+          <option value="Sunday">Sunday</option>
+        </select>
+      </div>
+
+      <div class="form-section">
+        <div class="section-label-row">
+          <label data-i18n="simulation.make.shift">Shift *</label>
+        </div>
+
+        <div class="table-controls simple">
+          <div class="search-container">
+            <img
+              src="assets/icons/search.svg"
+              class="search-icon"
+              alt="Search"
+            />
+            <input
+              type="text"
+              id="shift-search"
+              placeholder="Search"
+              data-i18n-placeholder="simulation.make.search"
+            />
+          </div>
+        </div>
+
+        <div class="table-wrapper shift-table-wrapper">
+          <table id="shift-selection-table">
+            <thead>
+              <tr>
+                <th class="checkbox"></th>
+                <th
+                  data-sort="name"
+                  data-i18n="simulation.make.table.shift_name"
+                >
+                  Shift name ▾
+                </th>
+                <th data-sort="lines" data-i18n="simulation.make.table.lines">
+                  Lines ▾
+                </th>
+                <th data-sort="start" data-i18n="simulation.make.table.start">
+                  Starting time ▾
+                </th>
+                <th data-sort="end" data-i18n="simulation.make.table.end">
+                  Ending time ▾
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rows injected by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="form-footer">
+        <span class="required-legend">* Required information</span>
+        <div class="form-actions">
+          <button
+            type="button"
+            class="secondary-btn"
+            id="cancel-make-simulation"
+            data-i18n="common.cancel"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="primary-btn"
+            id="submit-make-simulation"
+            disabled
+            data-i18n="common.next"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </form>
+  </main>
+</section>
