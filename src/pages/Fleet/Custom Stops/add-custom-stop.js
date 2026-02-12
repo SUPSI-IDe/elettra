@@ -27,15 +27,29 @@ const toDepotPayload = (formData) => {
   const latitude = parseCoordinate(formData.get("latitude"));
   const longitude = parseCoordinate(formData.get("longitude"));
 
+  const hasCharging = formData.get("has_charging") === "yes";
+  const chargingCost = formData.get("charging_cost")?.toString().trim();
+  const chargingPower = formData.get("charging_power")?.toString().trim();
+  const connectionCost = formData.get("connection_cost")?.toString().trim();
+  const chargerLifetime = formData.get("charger_lifetime")?.toString().trim();
+  const chargingEfficiency = formData
+    .get("charging_efficiency")
+    ?.toString()
+    .trim();
+
   const features = {};
-  if (type) {
-    features.type = type;
-  }
-  if (city) {
-    features.city = city;
-  }
-  if (notes) {
-    features.notes = notes;
+  if (type) features.type = type;
+  if (city) features.city = city;
+  if (notes) features.notes = notes;
+
+  if (hasCharging) {
+    features.charging_station = {
+      cost: chargingCost,
+      power: chargingPower,
+      connection_cost: connectionCost,
+      lifetime: chargerLifetime,
+      efficiency: chargingEfficiency,
+    };
   }
 
   return {
@@ -62,6 +76,86 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
 
   const isEditMode = !!options.depot;
   const currentDepot = options.depot || {};
+
+  const step1 = form.querySelector('.step-content[data-step="1"]');
+  const step2 = form.querySelector('.step-content[data-step="2"]');
+  const nextButton = form.querySelector('[data-action="next"]');
+  const prevButton = form.querySelector('[data-action="prev"]');
+  const feedback = form.querySelector('[data-role="feedback"]');
+
+  // Charging station logic
+  const hasChargingSelect = form.querySelector("#has-charging-station");
+  const chargingFields = form.querySelector("#charging-station-fields");
+
+  const toggleChargingFields = () => {
+    if (!hasChargingSelect || !chargingFields) return;
+    const isEnabled = hasChargingSelect.value === "yes";
+    chargingFields.disabled = !isEnabled;
+
+    // Toggle required attributes for validation and explicitly toggle disabled
+    const inputs = chargingFields.querySelectorAll("input");
+    inputs.forEach((input) => {
+      input.disabled = !isEnabled;
+      if (isEnabled) {
+        input.setAttribute("required", "");
+      } else {
+        input.removeAttribute("required");
+      }
+    });
+  };
+
+  if (hasChargingSelect) {
+    hasChargingSelect.addEventListener("change", toggleChargingFields);
+    cleanupHandlers.push(() => {
+      hasChargingSelect.removeEventListener("change", toggleChargingFields);
+    });
+    // Initial state
+    toggleChargingFields();
+  }
+
+  // Navigation Logic
+  const showStep = (stepNumber) => {
+    if (stepNumber === 1) {
+      step1.hidden = false;
+      step2.hidden = true;
+      // Refresh map size when becoming visible
+      setTimeout(() => map.invalidateSize(), 100);
+    } else {
+      step1.hidden = true;
+      step2.hidden = false;
+    }
+  };
+
+  const handleNext = () => {
+    // Validate Step 1
+    const nameInput = form.querySelector("#custom-stop-name");
+    const addressInput = form.querySelector("#custom-stop-address");
+
+    if (!nameInput.value.trim() || !addressInput.value.trim()) {
+      updateFeedback(feedback, "Name and address are required.", "error");
+      return;
+    }
+    updateFeedback(feedback, "", "info", true); // Clear feedback
+    showStep(2);
+  };
+
+  const handlePrev = () => {
+    showStep(1);
+  };
+
+  if (nextButton) {
+    nextButton.addEventListener("click", handleNext);
+    cleanupHandlers.push(() =>
+      nextButton.removeEventListener("click", handleNext),
+    );
+  }
+
+  if (prevButton) {
+    prevButton.addEventListener("click", handlePrev);
+    cleanupHandlers.push(() =>
+      prevButton.removeEventListener("click", handlePrev),
+    );
+  }
 
   if (isEditMode) {
     const header = section.querySelector("header h1");
@@ -92,9 +186,28 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     if (notesInput && currentDepot.features?.notes) {
       notesInput.value = currentDepot.features.notes;
     }
+
+    // Pre-fill charging station
+    if (currentDepot.features?.charging_station) {
+      if (hasChargingSelect) hasChargingSelect.value = "yes";
+      toggleChargingFields();
+
+      const cs = currentDepot.features.charging_station;
+      const inputs = {
+        "charging-cost": cs.cost,
+        "charging-power": cs.power,
+        "connection-cost": cs.connection_cost,
+        "charger-lifetime": cs.lifetime,
+        "charging-efficiency": cs.efficiency,
+      };
+
+      Object.entries(inputs).forEach(([id, value]) => {
+        const input = form.querySelector(`#${id}`);
+        if (input && value !== undefined) input.value = value;
+      });
+    }
   }
 
-  const feedback = form.querySelector('[data-role="feedback"]');
   const cancelButton = form.querySelector('[data-action="cancel"]');
   const closeButton = section.querySelector('[data-action="close"]');
 
@@ -126,7 +239,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   const cityInput = form.querySelector("#custom-stop-city");
 
   // Default center (Bern) or use existing coordinates in edit mode
-  const defaultLat = currentDepot.latitude ?? 46.9480;
+  const defaultLat = currentDepot.latitude ?? 46.948;
   const defaultLon = currentDepot.longitude ?? 7.4474;
 
   const map = L.map(mapContainer, {
@@ -135,7 +248,8 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   });
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19,
   }).addTo(map);
 
@@ -144,7 +258,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
-        { headers: { "Accept-Language": "it" } }
+        { headers: { "Accept-Language": "it" } },
       );
       if (!response.ok) return null;
       return await response.json();
@@ -213,7 +327,13 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
         addressInput.value = addressLine;
       }
 
-      const city = addr.city || addr.town || addr.village || addr.municipality || addr.hamlet || addr.suburb;
+      const city =
+        addr.city ||
+        addr.town ||
+        addr.village ||
+        addr.municipality ||
+        addr.hamlet ||
+        addr.suburb;
       if (!cityInput.dataset.userEdited && city) {
         cityInput.value = city;
       }
@@ -250,6 +370,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
 
     if (!name || !address) {
       updateFeedback(feedback, "Name and address are required.", "error");
+      showStep(1); // Go back to step 1 if missing info
       return;
     }
 
@@ -290,7 +411,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
         isEditMode ?
           "Failed to update custom stop"
         : "Failed to create custom stop",
-        error
+        error,
       );
       updateFeedback(
         feedback,
@@ -298,7 +419,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
           (isEditMode ?
             "Unable to update custom stop."
           : "Unable to create custom stop."),
-        "error"
+        "error",
       );
     } finally {
       toggleFormDisabled(form, false);

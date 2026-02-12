@@ -11,9 +11,23 @@
 }
 
 .add-custom-stop form {
+  display: flex;
+  flex-direction: column;
+  max-width: 1000px;
+}
+
+.add-custom-stop .step-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  max-width: 900px;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+@media (max-width: 768px) {
+  .add-custom-stop .step-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
 }
 
 .add-custom-stop .form-fields {
@@ -90,4 +104,11 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+}
+
+.add-custom-stop #charging-station-fields {
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-width: 0;
 }

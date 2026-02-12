@@ -17,97 +17,187 @@
   </header>
   <main>
     <form data-form="add-custom-stop" novalidate>
-      <div class="form-fields">
-        <p
-          class="form-feedback"
-          data-role="feedback"
-          role="status"
-          aria-live="polite"
-          hidden
-        ></p>
-        <div class="form-group">
-          <label for="custom-stop-name">Name</label>
-          <input
-            type="text"
-            id="custom-stop-name"
-            name="name"
-            required
-            autocomplete="off"
-          />
-        </div>
-        <div class="form-group">
-          <label for="custom-stop-type">Type</label>
-          <select id="custom-stop-type" name="type">
-            <option value="">Select a type</option>
-            <option value="depot">Depot</option>
-            <option value="charging">Charging</option>
-            <option value="hub">Hub</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="custom-stop-address">Address</label>
-          <textarea
-            id="custom-stop-address"
-            name="address"
-            rows="3"
-            required
-            autocomplete="street-address"
-          ></textarea>
-        </div>
-        <div class="form-group">
-          <label for="custom-stop-city">City</label>
-          <input
-            type="text"
-            id="custom-stop-city"
-            name="city"
-            autocomplete="address-level2"
-          />
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="custom-stop-latitude"
-              >Latitude <span aria-hidden="true">(optional)</span></label
-            >
-            <input
-              type="number"
-              id="custom-stop-latitude"
-              name="latitude"
-              step="any"
-              inputmode="decimal"
-            />
+      <p
+        class="form-feedback"
+        data-role="feedback"
+        role="status"
+        aria-live="polite"
+        hidden
+      ></p>
+
+      <!-- STEP 1: Location & Identity -->
+      <div class="step-content" data-step="1">
+        <div class="step-grid">
+          <div class="form-fields">
+            <div class="form-group">
+              <label for="custom-stop-name">Name *</label>
+              <input
+                type="text"
+                id="custom-stop-name"
+                name="name"
+                required
+                autocomplete="off"
+              />
+            </div>
+            <div class="form-group">
+              <label for="custom-stop-address">Address *</label>
+              <textarea
+                id="custom-stop-address"
+                name="address"
+                rows="3"
+                required
+                autocomplete="street-address"
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label for="custom-stop-city">City</label>
+              <input
+                type="text"
+                id="custom-stop-city"
+                name="city"
+                autocomplete="address-level2"
+              />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="custom-stop-latitude"
+                  >Latitude <span aria-hidden="true">(optional)</span></label
+                >
+                <input
+                  type="number"
+                  id="custom-stop-latitude"
+                  name="latitude"
+                  step="any"
+                  inputmode="decimal"
+                />
+              </div>
+              <div class="form-group">
+                <label for="custom-stop-longitude"
+                  >Longitude <span aria-hidden="true">(optional)</span></label
+                >
+                <input
+                  type="number"
+                  id="custom-stop-longitude"
+                  name="longitude"
+                  step="any"
+                  inputmode="decimal"
+                />
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="custom-stop-longitude"
-              >Longitude <span aria-hidden="true">(optional)</span></label
-            >
-            <input
-              type="number"
-              id="custom-stop-longitude"
-              name="longitude"
-              step="any"
-              inputmode="decimal"
-            />
+          <div class="map-picker-container">
+            <label>Pick location on map</label>
+            <p class="map-hint">
+              Drag the map to position the crosshair on your stop location
+            </p>
+            <div class="map-wrapper">
+              <div id="custom-stop-map" data-role="map"></div>
+              <div class="map-crosshair" aria-hidden="true"></div>
+            </div>
           </div>
-        </div>
-        <div class="form-group">
-          <label for="custom-stop-notes"
-            >Notes <span aria-hidden="true">(optional)</span></label
-          >
-          <textarea id="custom-stop-notes" name="notes" rows="3"></textarea>
         </div>
         <div class="form-actions">
-          <button type="button" data-action="cancel">Cancel</button>
-          <button type="submit">Save Custom Stop</button>
+          <button type="button" data-action="cancel" class="secondary-btn">
+            Cancel
+          </button>
+          <button type="button" data-action="next" class="primary-btn">
+            Next
+          </button>
         </div>
       </div>
-      <div class="map-picker-container">
-        <label>Pick location on map</label>
-        <p class="map-hint">
-          Drag the map to position the crosshair on your stop location
-        </p>
-        <div class="map-wrapper">
-          <div id="custom-stop-map" data-role="map"></div>
-          <div class="map-crosshair" aria-hidden="true"></div>
+
+      <!-- STEP 2: Configuration & Details -->
+      <div class="step-content" data-step="2" hidden>
+        <div class="form-row form-row--wide">
+          <div class="form-column">
+            <div class="form-group">
+              <label for="custom-stop-type">Type of stop *</label>
+              <select id="custom-stop-type" name="type" required>
+                <option value="depot">Depot</option>
+                <option value="charging">Charging</option>
+                <option value="hub">Hub</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="custom-stop-notes">Description</label>
+              <textarea id="custom-stop-notes" name="notes" rows="6"></textarea>
+            </div>
+          </div>
+          <div class="form-column">
+            <div class="form-group">
+              <label for="has-charging-station"
+                >The stop includes a charging station *</label
+              >
+              <select id="has-charging-station" name="has_charging">
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </div>
+
+            <fieldset id="charging-station-fields">
+              <div class="form-group">
+                <label for="charging-cost">Cost (CHF) *</label>
+                <input
+                  type="number"
+                  id="charging-cost"
+                  name="charging_cost"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div class="form-group">
+                <label for="charging-power"
+                  >Maximum charging power (kW) *</label
+                >
+                <input
+                  type="number"
+                  id="charging-power"
+                  name="charging_power"
+                  min="0"
+                  step="1"
+                />
+              </div>
+              <div class="form-group">
+                <label for="connection-cost">Connection cost (CHF/kW) *</label>
+                <input
+                  type="number"
+                  id="connection-cost"
+                  name="connection_cost"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div class="form-group">
+                <label for="charger-lifetime">Charger lifetime (years) *</label>
+                <input
+                  type="number"
+                  id="charger-lifetime"
+                  name="charger_lifetime"
+                  min="0"
+                  step="1"
+                />
+              </div>
+              <div class="form-group">
+                <label for="charging-efficiency"
+                  >Charging efficiency (%) *</label
+                >
+                <input
+                  type="number"
+                  id="charging-efficiency"
+                  name="charging_efficiency"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                />
+              </div>
+            </fieldset>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" data-action="prev" class="secondary-btn">
+            Previous
+          </button>
+          <button type="submit" class="primary-btn">Save</button>
         </div>
       </div>
     </form>

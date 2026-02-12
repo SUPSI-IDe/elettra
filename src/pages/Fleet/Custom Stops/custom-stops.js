@@ -2,18 +2,16 @@ import { t } from "../../../i18n";
 import "./custom-stops.css";
 import { deleteDepot, fetchDepots } from "../../../api";
 import { resolveUserId } from "../../../api/session";
-import { bindSelectAll } from "../../../dom/tables";
+import {
+  bindSelectAll,
+  renderStatusRow,
+  getSelectedIds,
+  setFlashMessage,
+} from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
+import { text, escapeHtml, escapeAttr, normalizeApiList } from "../../../ui-helpers";
 
-const text = (value) =>
-  value === null || value === undefined ? "" : String(value);
-
-const getSelectedIdsFrom = (container) =>
-  Array.from(
-    container?.querySelectorAll('tbody input[type="checkbox"]:checked') ?? []
-  )
-    .map((input) => input.closest("tr")?.dataset?.id)
-    .filter(Boolean);
+const STOPS_COLSPAN = 3;
 
 const renderRows = (tbody, depots = []) => {
   if (!tbody) {
@@ -21,71 +19,25 @@ const renderRows = (tbody, depots = []) => {
   }
 
   if (!Array.isArray(depots) || depots.length === 0) {
-    tbody.innerHTML = `
-            <tr>
-                <td class="checkbox"></td>
-                <td class="id" colspan="3">No custom stops found.</td>
-            </tr>
-        `;
+    renderStatusRow(tbody, "No custom stops found.", STOPS_COLSPAN);
     return;
   }
 
   const rows = depots
     .map(
       (depot = {}) => `
-                <tr data-id="${text(depot?.id)}">
+                <tr data-id="${escapeAttr(depot?.id)}">
                     <td class="checkbox"><input type="checkbox" aria-label="Select custom stop"></td>
 
-                    <td class="name">${text(depot?.name)}</td>
+                    <td class="name">${escapeHtml(depot?.name)}</td>
                     <td class="type">Depot</td>
-                    <td class="address">${text(depot?.address)}</td>
+                    <td class="address">${escapeHtml(depot?.address)}</td>
                 </tr>
             `
     )
     .join("");
 
   tbody.innerHTML = rows;
-};
-
-const renderLoading = (tbody) => {
-  if (!tbody) {
-    return;
-  }
-
-  tbody.innerHTML = `
-        <tr>
-            <td class="checkbox"></td>
-            <td class="id" colspan="3">Loading…</td>
-        </tr>
-    `;
-};
-
-const renderError = (tbody, message = "Unable to load custom stops.") => {
-  if (!tbody) {
-    return;
-  }
-
-  tbody.innerHTML = `
-        <tr>
-            <td class="checkbox"></td>
-            <td class="id" colspan="3">${text(message)}</td>
-        </tr>
-    `;
-};
-
-const setFlashMessage = (section, message) => {
-  const flashElement = section.querySelector('[data-role="flash"]');
-  if (!flashElement) {
-    return;
-  }
-
-  if (message) {
-    flashElement.textContent = message;
-    flashElement.hidden = false;
-  } else {
-    flashElement.textContent = "";
-    flashElement.hidden = true;
-  }
 };
 
 export const initializeCustomStops = async (root = document, options = {}) => {
@@ -136,7 +88,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
   };
 
   const reload = async () => {
-    renderLoading(tbody);
+    renderStatusRow(tbody, "Loading…", STOPS_COLSPAN);
 
     try {
       const [payload, userId] = await Promise.all([
@@ -144,10 +96,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
         resolveUserId().catch(() => null),
       ]);
 
-      const depots =
-        Array.isArray(payload) ? payload : (
-          (payload?.items ?? payload?.results ?? [])
-        );
+      const depots = normalizeApiList(payload);
 
       allDepots =
         userId && userId.length ?
@@ -157,7 +106,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
       applyFilter();
     } catch (error) {
       console.error("Failed to load custom stops", error);
-      renderError(tbody, error?.message ?? "Unable to load custom stops.");
+      renderStatusRow(tbody, error?.message ?? "Unable to load custom stops.", STOPS_COLSPAN);
     }
   };
 
@@ -169,7 +118,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
   }
 
   const handleDeleteClick = async () => {
-    const ids = getSelectedIdsFrom(table);
+    const ids = getSelectedIds(table);
     if (!ids.length) {
       console.error("Select at least one custom stop.");
       return;
@@ -198,7 +147,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
   }
 
   const handleEditClick = async () => {
-    const ids = getSelectedIdsFrom(table);
+    const ids = getSelectedIds(table);
     if (ids.length !== 1) {
       console.error(t("custom_stops.select_single"));
       return;
