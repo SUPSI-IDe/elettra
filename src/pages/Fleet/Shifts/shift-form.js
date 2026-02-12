@@ -1,11 +1,8 @@
 import "./shifts.css";
 import {
   createShift,
-  fetchBuses,
-  fetchBusById,
   fetchDepots,
   fetchRoutes,
-  fetchServiceDays,
   fetchShiftById,
   fetchStopsByTripId,
   fetchTripsByRoute,
@@ -13,11 +10,11 @@ import {
 } from "../../../api";
 import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
-import { getOwnedBuses, setOwnedBuses } from "../../../store";
 import {
   textContent,
   toggleFormDisabled,
   updateFeedback,
+  normalizeApiList,
 } from "../../../ui-helpers";
 import {
   text,
@@ -33,10 +30,10 @@ import {
 } from "./shift-utils";
 import {
   populateDayOptions,
-  renderBusOptions,
   renderDepotOptions,
   renderRouteOptions,
   renderScheduledTrips,
+  renderCustomStops,
   renderShiftTrips,
   renderTripsLoading,
   updateEmptyState,
@@ -48,15 +45,11 @@ const readTripId = (node) => node?.dataset?.tripId?.trim() ?? "";
 const buildShiftPayload = ({ form, selectedTrips }) => {
   const formData = new FormData(form);
   const name = formData.get("name")?.toString().trim();
-  const busId = formData.get("busId")?.toString().trim();
   // Use the id field (UUID) for shift API, not trip_id (GTFS identifier)
   const tripIds = selectedTrips.map((trip) => trip?.id ?? "");
 
-  return { name, busId, tripIds };
+  return { name, tripIds };
 };
-
-
-
 
 const hydrateShift = async (shift) => {
   if (
@@ -86,7 +79,7 @@ const hydrateShift = async (shift) => {
         console.error(`Failed to load stops for trip ${item.trip_id}`, error);
         return item;
       }
-    })
+    }),
   );
 
   return { ...shift, structure };
@@ -126,25 +119,62 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   }
 
   const nameInput = form.querySelector("#shift-name");
-  const busSelect = form.querySelector("#shift-bus");
   const startTimeInput = form.querySelector("#shift-start-time");
   const endTimeInput = form.querySelector("#shift-end-time");
+
+  const tabsNav = section.querySelector(".tabs-nav");
+  if (tabsNav) {
+    tabsNav.addEventListener("click", (e) => {
+      const button = e.target.closest(".tab-button");
+      if (!button) return;
+
+      const targetId = button.getAttribute("aria-controls");
+      const targetPanel = section.querySelector(`#${targetId}`);
+      if (!targetPanel) return;
+
+      // Update buttons
+      tabsNav.querySelectorAll(".tab-button").forEach((btn) => {
+        btn.classList.toggle("active", btn === button);
+        btn.setAttribute("aria-selected", btn === button);
+      });
+
+      // Update panels
+      section.querySelectorAll(".tabs-content > section").forEach((panel) => {
+        panel.hidden = panel.id !== targetId;
+        panel.classList.toggle("active", panel.id === targetId);
+      });
+    });
+  }
 
   const lineSelect = form.querySelector('[data-filter="line"]');
   const daySelect = form.querySelector('[data-filter="day"]');
   const startDepotSelect = form.querySelector('[data-field="start-depot"]');
   const endDepotSelect = form.querySelector('[data-field="end-depot"]');
   const scheduledTripsBody = form.querySelector(
-    'tbody[data-role="scheduled-trips-body"]'
+    'tbody[data-role="scheduled-trips-body"]',
   );
   const scheduledTripsEmpty = form.querySelector(
-    '[data-role="scheduled-trips-empty"]'
+    '[data-role="scheduled-trips-empty"]',
   );
 
   const shiftTripsBody = form.querySelector(
-    'tbody[data-role="shift-trips-body"]'
+    'tbody[data-role="shift-trips-body"]',
   );
   const shiftTripsEmpty = form.querySelector('[data-role="shift-trips-empty"]');
+
+  const customStopsBody = form.querySelector(
+    'tbody[data-role="custom-stops-body"]',
+  );
+  const customStopsEmpty = form.querySelector(
+    '[data-role="custom-stops-empty"]',
+  );
+  const addStopDialog = section.querySelector("#dialog-add-stop-time");
+  const addStopForm = addStopDialog?.querySelector("form");
+  const stopNameDisplay = addStopDialog?.querySelector(".stop-name-display");
+  const timeInputs = {
+    arrival: addStopDialog?.querySelector("#stop-arrival-time"),
+    departure: addStopDialog?.querySelector("#stop-departure-time"),
+  };
 
   // populateDayOptions(daySelect); // Removed, called in loadDays
 
@@ -169,6 +199,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
   let routesById = {};
   let currentTrips = [];
+  let currentCustomStops = [];
   const selectedTripIds = new Set();
   let selectedTrips = [];
 
@@ -181,11 +212,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     if (startTimeInput instanceof HTMLInputElement) {
       if (force || !startTimeInput.value) {
         const departureTimes = readTimes(
-          (trip) => trip?.departure_time ?? trip?.departureTime ?? ""
+          (trip) => trip?.departure_time ?? trip?.departureTime ?? "",
         );
         if (departureTimes.length > 0) {
           const earliest = [...departureTimes].sort((a, b) =>
-            a.localeCompare(b)
+            a.localeCompare(b),
           )[0];
           startTimeInput.value = earliest;
         }
@@ -202,7 +233,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
             trip?.endTime ??
             trip?.departure_time ??
             trip?.departureTime ??
-            ""
+            "",
         );
         if (arrivalTimes.length > 0) {
           const latest = [...arrivalTimes]
@@ -232,7 +263,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         return trip;
       }
       const current = currentTrips.find(
-        (candidate = {}) => resolveTripId(candidate) === id
+        (candidate = {}) => resolveTripId(candidate) === id,
       );
       if (!current) {
         const normalized = normalizeTrip(trip);
@@ -287,7 +318,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         updateFeedback(
           feedback,
           `Trip starts at ${newDeparture} but the latest trip ends at ${latestArrival}. Trips cannot overlap.`,
-          "error"
+          "error",
         );
         return;
       }
@@ -352,18 +383,6 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       nameInput.value = name;
     }
 
-    const busId = firstAvailable(
-      shift?.bus_id,
-      shift?.busId,
-      shift?.bus?.id,
-      shift?.bus?.bus_id
-    );
-    prefillSelectValue(
-      busSelect,
-      busId,
-      shift?.bus?.name ?? shift?.bus_name ?? shift?.busName ?? ""
-    );
-
     const startTime = normalizeTime(
       firstAvailable(
         shift?.start_time,
@@ -372,8 +391,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         shift?.start?.scheduled_time,
         shift?.start?.scheduledTime,
         shift?.start?.planned_time,
-        shift?.start?.plannedTime
-      )
+        shift?.start?.plannedTime,
+      ),
     );
     if (startTimeInput instanceof HTMLInputElement && startTime) {
       startTimeInput.value = startTime;
@@ -387,8 +406,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         shift?.end?.scheduled_time,
         shift?.end?.scheduledTime,
         shift?.end?.planned_time,
-        shift?.end?.plannedTime
-      )
+        shift?.end?.plannedTime,
+      ),
     );
     if (endTimeInput instanceof HTMLInputElement && endTime) {
       endTimeInput.value = endTime;
@@ -399,12 +418,12 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       shift?.startDepotId,
       shift?.start_depot?.id,
       shift?.start_depot,
-      shift?.startDepot
+      shift?.startDepot,
     );
     prefillSelectValue(
       startDepotSelect,
       startDepotId,
-      shift?.start_depot?.name ?? shift?.startDepotName ?? ""
+      shift?.start_depot?.name ?? shift?.startDepotName ?? "",
     );
 
     const endDepotId = firstAvailable(
@@ -412,12 +431,12 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       shift?.endDepotId,
       shift?.end_depot?.id,
       shift?.end_depot,
-      shift?.endDepot
+      shift?.endDepot,
     );
     prefillSelectValue(
       endDepotSelect,
       endDepotId,
-      shift?.end_depot?.name ?? shift?.endDepotName ?? ""
+      shift?.end_depot?.name ?? shift?.endDepotName ?? "",
     );
 
     const trips = readShiftTripsFromStructure(shift);
@@ -440,7 +459,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         firstTrip?.routeId,
         firstTrip?.route?.id,
         firstTrip?.trip?.route_id,
-        firstTrip?.trip?.routeId
+        firstTrip?.trip?.routeId,
       );
       if (routeId) {
         prefillSelectValue(
@@ -453,8 +472,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
             firstAvailable(
               firstTrip?.route_name,
               firstTrip?.routeName,
-              firstTrip?.route?.name
-            )
+              firstTrip?.route?.name,
+            ),
         );
       }
     }
@@ -468,7 +487,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         shift?.serviceDay,
         shift?.day,
         firstTrip?.day_of_week,
-        firstTrip?.dayOfWeek
+        firstTrip?.dayOfWeek,
       );
       if (rawDay) {
         const normalized = rawDay.toLowerCase();
@@ -502,73 +521,57 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
   };
 
-  const loadBuses = async () => {
-    const cached = getOwnedBuses();
-    if (Array.isArray(cached) && cached.length > 0) {
-      renderBusOptions(busSelect, cached);
-      return;
-    }
-
-    try {
-      const [payload, userId] = await Promise.all([
-        fetchBuses({ skip: 0, limit: 100 }),
-        resolveUserId().catch(() => null),
-      ]);
-
-      const buses =
-        Array.isArray(payload) ? payload : (
-          (payload?.items ?? payload?.results ?? [])
-        );
-
-      const filtered =
-        userId && Array.isArray(buses) ?
-          buses.filter((bus) => bus?.user_id === userId)
-        : (buses ?? []);
-
-      setOwnedBuses(filtered);
-      renderBusOptions(busSelect, filtered);
-    } catch (error) {
-      console.error("Failed to load buses", error);
-      renderBusOptions(busSelect, []);
-      updateFeedback(
-        feedback,
-        error?.message ?? "Unable to load buses.",
-        "error"
-      );
-    }
-  };
-
   const loadDepots = async () => {
-    if (!startDepotSelect && !endDepotSelect) {
-      return;
-    }
-
     try {
       const [payload, userId] = await Promise.all([
         fetchDepots({ skip: 0, limit: 100 }),
         resolveUserId().catch(() => null),
       ]);
 
-      const depots =
-        Array.isArray(payload) ? payload : (
-          (payload?.items ?? payload?.results ?? [])
-        );
+      const depots = normalizeApiList(payload);
 
       const filtered =
         userId && Array.isArray(depots) ?
           depots.filter((depot) => depot?.user_id === userId)
         : (depots ?? []);
 
-      renderDepotOptions(startDepotSelect, filtered);
-      renderDepotOptions(endDepotSelect, filtered);
+      if (startDepotSelect && endDepotSelect) {
+        renderDepotOptions(startDepotSelect, filtered);
+        renderDepotOptions(endDepotSelect, filtered);
+      }
+
+      currentCustomStops = filtered;
+
+      if (customStopsBody) {
+        renderCustomStops({
+          tbody: customStopsBody,
+          stops: currentCustomStops,
+        });
+        updateEmptyState(
+          customStopsEmpty,
+          currentCustomStops.length > 0,
+          "No custom stops available.",
+        );
+      }
     } catch (error) {
       console.error("Failed to load depots", error);
-      renderDepotOptions(startDepotSelect, []);
-      renderDepotOptions(endDepotSelect, []);
+      if (startDepotSelect && endDepotSelect) {
+        renderDepotOptions(startDepotSelect, []);
+        renderDepotOptions(endDepotSelect, []);
+      }
+      currentCustomStops = [];
+      if (customStopsBody) {
+        clearNode(customStopsBody);
+        updateEmptyState(
+          customStopsEmpty,
+          false,
+          error?.message ?? "Unable to load custom stops.",
+        );
+      }
       updateFeedback(
         feedback,
         error?.message ?? "Unable to load depots.",
-        "error"
+        "error",
       );
     }
   };
@@ -576,10 +579,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const loadRoutes = async () => {
     try {
       const payload = await fetchRoutes({ skip: 0, limit: 1000 });
-      const routes =
-        Array.isArray(payload) ? payload : (
-          (payload?.items ?? payload?.results ?? [])
-        );
+      const routes = normalizeApiList(payload);
       routesById = renderRouteOptions(lineSelect, routes);
     } catch (error) {
       console.error("Failed to load routes", error);
@@ -587,23 +587,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       updateFeedback(
         feedback,
         error?.message ?? "Unable to load routes.",
-        "error"
+        "error",
       );
     }
   };
 
   const loadDays = async () => {
-    try {
-      const payload = await fetchServiceDays();
-      const days =
-        Array.isArray(payload) ? payload : (
-          (payload?.items ?? payload?.results ?? [])
-        );
-      populateDayOptions(daySelect, days);
-    } catch (error) {
-      console.warn("Failed to load days from API, falling back to defaults", error);
-      populateDayOptions(daySelect, DAYS_OF_WEEK);
-    }
+    // API endpoint for days does not exist, using static list
+    populateDayOptions(daySelect, DAYS_OF_WEEK);
   };
 
   const loadTrips = async ({ includeNextDay = false } = {}) => {
@@ -620,7 +611,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       updateEmptyState(
         scheduledTripsEmpty,
         false,
-        "Select a line and day to view trips."
+        "Select a line and day to view trips.",
       );
       return;
     }
@@ -639,17 +630,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
       const results = await Promise.all(
         daysToFetch.map((d) =>
-          fetchTripsByRoute({ routeId, dayOfWeek: d }).catch(() => [])
-        )
+          fetchTripsByRoute({ routeId, dayOfWeek: d }).catch(() => []),
+        ),
       );
 
-      const allTrips = results.flatMap((payload) => {
-        const trips =
-          Array.isArray(payload) ? payload : (
-            (payload?.items ?? payload?.results ?? [])
-          );
-        return Array.isArray(trips) ? trips : [];
-      });
+      const allTrips = results.flatMap((payload) => normalizeApiList(payload));
 
       currentTrips = allTrips
         .map((trip) => normalizeTrip(trip))
@@ -671,7 +656,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       updateEmptyState(
         scheduledTripsEmpty,
         currentTrips.length > 0,
-        "No trips match the current filters."
+        "No trips match the current filters.",
       );
     } catch (error) {
       console.error("Failed to load trips", error);
@@ -680,7 +665,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       updateEmptyState(
         scheduledTripsEmpty,
         false,
-        error?.message ?? "Unable to load trips."
+        error?.message ?? "Unable to load trips.",
       );
     }
   };
@@ -722,18 +707,86 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     removeTrip(id);
   };
 
+  const handleCustomStopsClick = (event) => {
+    const button = event.target?.closest?.('button[data-action="add-stop"]');
+    if (!button || !addStopDialog) {
+      return;
+    }
+
+    const row = button.closest("tr");
+    const id = row?.dataset?.stopId;
+    if (!id) return;
+
+    const stop = currentCustomStops.find((s) => s.id === id);
+    if (!stop) return;
+
+    if (stopNameDisplay) {
+      stopNameDisplay.textContent = stop.name;
+    }
+    addStopDialog.dataset.stopId = id;
+
+    // Reset times
+    if (timeInputs.arrival) timeInputs.arrival.value = "";
+    if (timeInputs.departure) timeInputs.departure.value = "";
+
+    addStopDialog.showModal();
+  };
+
+  if (addStopForm) {
+    addStopForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const stopId = addStopDialog.dataset.stopId;
+      const stop = currentCustomStops.find((s) => s.id === stopId);
+
+      if (!stop) {
+        addStopDialog.close();
+        return;
+      }
+
+      const arrivalTime = timeInputs.arrival?.value;
+      const departureTime = timeInputs.departure?.value;
+
+      const tripLike = {
+        id: stop.id, // Using stop ID as trip ID for now, as per assumptions
+        start_stop_name: stop.name,
+        end_stop_name: stop.name,
+        departure_time: departureTime,
+        arrival_time: arrivalTime,
+        // Add other necessary properties to make it look like a trip
+      };
+
+      addTrip(tripLike);
+      addStopDialog.close();
+    });
+
+    addStopForm.addEventListener("click", (e) => {
+      const action = e.target?.dataset?.action;
+      if (action === "close-dialog" || action === "cancel-dialog") {
+        addStopDialog.close();
+      }
+    });
+  }
+
+  if (customStopsBody) {
+    customStopsBody.addEventListener("click", handleCustomStopsClick);
+    cleanupHandlers.push(() => {
+      customStopsBody.removeEventListener("click", handleCustomStopsClick);
+    });
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     updateFeedback(feedback, "");
 
-    const { name, busId, tripIds } = buildShiftPayload({
+    const { name, tripIds } = buildShiftPayload({
       form,
       selectedTrips,
     });
 
-    if (!name || !busId) {
-      updateFeedback(feedback, "Shift name and bus are required.", "error");
+    if (!name) {
+      updateFeedback(feedback, "Shift name is required.", "error");
       return;
     }
 
@@ -747,7 +800,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     try {
       if (isEditMode) {
-        await updateShift(shiftId, { name, busId, tripIds });
+        await updateShift(shiftId, { name, tripIds });
         updateFeedback(feedback, "Shift updated.", "success");
         triggerPartialLoad("shifts", {
           flashMessage: "Shift updated.",
@@ -755,19 +808,19 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         return;
       }
 
-      await createShift({ name, busId, tripIds });
+      await createShift({ name, tripIds });
       updateFeedback(feedback, "Shift created.", "success");
       triggerPartialLoad("shifts", { flashMessage: "Shift created." });
     } catch (error) {
       console.error(
         isEditMode ? "Failed to update shift" : "Failed to create shift",
-        error
+        error,
       );
       updateFeedback(
         feedback,
         error?.message ??
           (isEditMode ? "Unable to update shift." : "Unable to save shift."),
-        "error"
+        "error",
       );
     } finally {
       toggleFormDisabled(form, false);
@@ -781,11 +834,6 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       mode,
       shiftId,
       name: nameInput instanceof HTMLInputElement ? nameInput.value : "",
-      busId: busSelect instanceof HTMLSelectElement ? busSelect.value : "",
-      busName:
-        busSelect instanceof HTMLSelectElement ?
-          (busSelect.selectedOptions?.[0]?.text ?? "")
-        : "",
       startTime:
         startTimeInput instanceof HTMLInputElement ? startTimeInput.value : "",
       startDepotId:
@@ -813,7 +861,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   if (scheduledTripsBody) {
     scheduledTripsBody.addEventListener("click", handleScheduledTripsClick);
     cleanupHandlers.push(() => {
-      scheduledTripsBody.removeEventListener("click", handleScheduledTripsClick);
+      scheduledTripsBody.removeEventListener(
+        "click",
+        handleScheduledTripsClick,
+      );
     });
   }
   if (shiftTripsBody) {
@@ -867,7 +918,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   updateEmptyState(
     scheduledTripsEmpty,
     false,
-    "Select a line and day to view trips."
+    "Select a line and day to view trips.",
   );
 
   if (!isEditMode && nameInput instanceof HTMLInputElement) {
@@ -886,8 +937,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       })
     : Promise.resolve(null);
 
-  const [, , , , shift] = await Promise.all([
-    loadBuses(),
+  const [, , , shift] = await Promise.all([
     loadRoutes(),
     loadDepots(),
     loadDays(),
@@ -896,31 +946,6 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
   if (isEditMode) {
     if (shift) {
-      const busId = firstAvailable(
-        shift?.bus_id,
-        shift?.busId,
-        shift?.bus?.id,
-        shift?.bus?.bus_id
-      );
-
-      // If the bus is not in the loaded list, try to fetch it to get the name
-      if (busId && busSelect instanceof HTMLSelectElement) {
-        const exists = Array.from(busSelect.options).some(
-          (opt) => opt.value === String(busId)
-        );
-        if (!exists) {
-          try {
-            const bus = await fetchBusById(busId);
-            if (bus) {
-              // Patch the shift object so prefill uses the correct name
-              shift.bus = { ...(shift.bus || {}), ...bus };
-            }
-          } catch (error) {
-            console.error("Failed to fetch missing bus details", error);
-          }
-        }
-      }
-
       const hydratedShift = await hydrateShift(shift);
       applyShiftPrefill(hydratedShift);
       updateFeedback(feedback, "Shift ready to edit.", "info");

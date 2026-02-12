@@ -1,5 +1,5 @@
-export const text = (value) =>
-  value === null || value === undefined ? "" : String(value);
+// Re-export from the canonical location so existing imports keep working.
+export { text } from "../../../ui-helpers";
 
 export const firstAvailable = (...values) => {
   for (const value of values) {

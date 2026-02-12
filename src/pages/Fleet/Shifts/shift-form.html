@@ -23,80 +23,176 @@
         hidden
       ></p>
       <div class="shift-form-grid">
-        <section
-          class="scheduled-trips"
-          aria-labelledby="scheduled-trips-heading"
-        >
-          <header class="section-header">
-            <h2 id="scheduled-trips-heading">Scheduled trips</h2>
-            <div class="filters">
+        <div class="tabs-container">
+          <div
+            class="tabs-nav"
+            role="tablist"
+            aria-label="Shift content sections"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="panel-scheduled-trips"
+              id="tab-scheduled-trips"
+              class="tab-button active"
+            >
+              Scheduled trips
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel-custom-stops"
+              id="tab-custom-stops"
+              class="tab-button"
+            >
+              Custom stops
+            </button>
+          </div>
+          <div class="tabs-content">
+            <section
+              id="panel-scheduled-trips"
+              role="tabpanel"
+              aria-labelledby="tab-scheduled-trips"
+              class="scheduled-trips active"
+            >
+              <header class="section-header">
+                <h2 id="scheduled-trips-heading">Scheduled trips</h2>
+                <div class="filters">
+                  <div class="form-group">
+                    <label for="scheduled-trips-line">Line</label>
+                    <select
+                      id="scheduled-trips-line"
+                      name="line"
+                      data-filter="line"
+                    >
+                      <option value="">All lines</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="scheduled-trips-day">Day</label>
+                    <select
+                      id="scheduled-trips-day"
+                      name="day"
+                      data-filter="day"
+                    >
+                      <option value="">All days</option>
+                    </select>
+                  </div>
+                </div>
+              </header>
+              <div class="table-wrapper">
+                <table>
+                  <caption class="sr-only">
+                    Scheduled trips available to add to the shift
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" class="time">Time</th>
+                      <th scope="col" class="line">Line</th>
+                      <th scope="col" class="route">From–To</th>
+                      <th scope="col" class="actions">
+                        <span class="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody data-role="scheduled-trips-body"></tbody>
+                </table>
+                <p class="table-empty" data-role="scheduled-trips-empty" hidden>
+                  No trips match the current filters.
+                </p>
+              </div>
+            </section>
+            <section
+              id="panel-custom-stops"
+              role="tabpanel"
+              aria-labelledby="tab-custom-stops"
+              class="custom-stops"
+              hidden
+            >
+              <div class="table-wrapper">
+                <table>
+                  <caption class="sr-only">
+                    Custom stops available to add to the shift
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" class="name">Name</th>
+                      <th scope="col" class="type">Type</th>
+                      <th scope="col" class="address">Address</th>
+                      <th scope="col" class="actions">
+                        <span class="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody data-role="custom-stops-body"></tbody>
+                </table>
+                <p class="table-empty" data-role="custom-stops-empty" hidden>
+                  No custom stops found.
+                </p>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- Dialog for adding time to custom stop -->
+        <dialog id="dialog-add-stop-time" class="dialog-time-selection">
+          <form method="dialog" data-form="add-stop-time">
+            <header>
+              <h2>Add stop participation</h2>
+              <button
+                type="button"
+                data-action="close-dialog"
+                aria-label="Close"
+              >
+                <img src="assets/xmark.svg" alt="" aria-hidden="true" />
+              </button>
+            </header>
+            <div class="dialog-content">
+              <p class="stop-name-display"></p>
               <div class="form-group">
-                <label for="scheduled-trips-line">Line</label>
-                <select
-                  id="scheduled-trips-line"
-                  name="line"
-                  data-filter="line"
-                >
-                  <option value="">All lines</option>
-                </select>
+                <label for="stop-arrival-time">Arrival time</label>
+                <input
+                  type="time"
+                  id="stop-arrival-time"
+                  name="arrivalTime"
+                  required
+                />
               </div>
               <div class="form-group">
-                <label for="scheduled-trips-day">Day</label>
-                <select id="scheduled-trips-day" name="day" data-filter="day">
-                  <option value="">All days</option>
-                </select>
+                <label for="stop-departure-time">Departure time</label>
+                <input
+                  type="time"
+                  id="stop-departure-time"
+                  name="departureTime"
+                  required
+                />
               </div>
             </div>
-          </header>
-          <div class="table-wrapper">
-            <table>
-              <caption class="sr-only">
-                Scheduled trips available to add to the shift
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col" class="time">Time</th>
-                  <th scope="col" class="line">Line</th>
-                  <th scope="col" class="route">From–To</th>
-                  <th scope="col" class="actions">
-                    <span class="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody data-role="scheduled-trips-body"></tbody>
-            </table>
-            <p class="table-empty" data-role="scheduled-trips-empty" hidden>
-              No trips match the current filters.
-            </p>
-          </div>
-        </section>
+            <footer>
+              <button type="button" data-action="cancel-dialog">Cancel</button>
+              <button type="submit">Confirm</button>
+            </footer>
+          </form>
+        </dialog>
 
         <section class="shift-details" aria-labelledby="shift-details-heading">
           <header class="section-header">
             <h2 id="shift-details-heading">Shift</h2>
+            <div class="form-group full-width">
+              <label for="shift-name"
+                >Shift name <span aria-hidden="true">*</span></label
+              >
+              <input
+                type="text"
+                id="shift-name"
+                name="name"
+                required
+                autocomplete="off"
+              />
+            </div>
             <div class="start-controls">
-              <div class="control-row">
-                <div class="form-group">
-                  <label for="shift-bus"
-                    >Bus name <span aria-hidden="true">*</span></label
-                  >
-                  <select id="shift-bus" name="busId" required>
-                    <option value="">Select a bus</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="shift-name"
-                    >Shift name <span aria-hidden="true">*</span></label
-                  >
-                  <input
-                    type="text"
-                    id="shift-name"
-                    name="name"
-                    required
-                    autocomplete="off"
-                  />
-                </div>
-              </div>
               <div class="controls-group-box">
                 <h3 class="controls-group-title">Start from depot</h3>
                 <div class="controls-group-fields">

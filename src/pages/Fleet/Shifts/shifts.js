@@ -8,87 +8,32 @@ import {
   fetchBuses,
   fetchStopsByTripId,
 } from "../../../api";
-import { bindSelectAll } from "../../../dom/tables";
+import {
+  bindSelectAll,
+  renderStatusRow,
+  getSelectedIds,
+  setFlashMessage,
+} from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
-import { textContent } from "../../../ui-helpers";
+import { text, textContent, escapeAttr, normalizeApiList } from "../../../ui-helpers";
+import { parseTimeToMinutes, formatMinutes } from "./shift-utils";
 
-const text = (value) =>
-  value === null || value === undefined ? "" : String(value);
+const SHIFT_COLSPAN = 6;
 
-const setFlashMessage = (section, message) => {
-  const flashElement = section.querySelector('[data-role="flash"]');
-  if (!flashElement) {
-    return;
-  }
+const renderLoading = (tbody) =>
+  renderStatusRow(tbody, "Loading…", SHIFT_COLSPAN);
 
-  if (message) {
-    flashElement.textContent = message;
-    flashElement.hidden = false;
-  } else {
-    flashElement.textContent = "";
-    flashElement.hidden = true;
-  }
-};
+const renderError = (tbody, message = "Unable to load shifts.") =>
+  renderStatusRow(tbody, message, SHIFT_COLSPAN);
 
-const renderLoading = (tbody) => {
-  if (!tbody) {
-    return;
-  }
-
-  tbody.innerHTML = `
-        <tr>
-            <td class="checkbox"></td>
-            <td class="id" colspan="6">Loading…</td>
-        </tr>
-    `;
-};
-
-const renderError = (tbody, message = "Unable to load shifts.") => {
-  if (!tbody) {
-    return;
-  }
-
-  tbody.innerHTML = `
-        <tr>
-            <td class="checkbox"></td>
-            <td class="id" colspan="6">${textContent(message)}</td>
-        </tr>
-    `;
-};
-
-const renderEmpty = (tbody) => {
-  if (!tbody) {
-    return;
-  }
-
-  tbody.innerHTML = `
-        <tr>
-            <td class="checkbox"></td>
-            <td class="id" colspan="6">No shifts found.</td>
-        </tr>
-    `;
-};
-
-const parseTime = (time) => {
-  const match = /^\s*(\d{1,2}):(\d{2})/.exec(time ?? "");
-  if (!match) {
-    return null;
-  }
-  const hours = Number.parseInt(match[1], 10);
-  const minutes = Number.parseInt(match[2], 10);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-    return null;
-  }
-  return hours * 60 + minutes;
-};
+const renderEmpty = (tbody) =>
+  renderStatusRow(tbody, "No shifts found.", SHIFT_COLSPAN);
 
 const formatTime = (minutes) => {
   if (minutes === null || minutes === undefined || Number.isNaN(minutes)) {
     return "—";
   }
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return formatMinutes(minutes) || "—";
 };
 
 const renderRows = (tbody, shifts = []) => {
@@ -139,7 +84,7 @@ const renderRows = (tbody, shifts = []) => {
           ];
         });
 
-        const minutes = times.map(parseTime).filter((m) => m !== null);
+        const minutes = times.map(parseTimeToMinutes).filter((m) => m !== null);
 
         if (minutes.length > 0) {
           if (!startTime) {
@@ -160,7 +105,7 @@ const renderRows = (tbody, shifts = []) => {
         shift?.bus_name ?? shift?.bus_name ?? shift?.bus_id ?? ""
       );
       return `
-                <tr data-id="${rowId}" data-name="${rowName}" data-bus="${rowBus}">
+                <tr data-id="${escapeAttr(rowId)}" data-name="${escapeAttr(rowName)}" data-bus="${escapeAttr(rowBus)}">
                     <td class="checkbox"><input type="checkbox" aria-label="Select shift"></td>
 
                     <td class="name">${textContent(shift?.name ?? "")}</td>
@@ -181,7 +126,7 @@ const renderRows = (tbody, shifts = []) => {
   tbody.innerHTML = rows;
 
   shifts.forEach((shift) => {
-    const row = tbody.querySelector(`tr[data-id="${shift.id}"]`);
+    const row = tbody.querySelector(`tr[data-id="${CSS.escape(String(shift.id ?? ""))}"]`);
     updateShiftTimes(row, shift);
   });
 };
@@ -242,22 +187,15 @@ const updateShiftTimes = async (row, shift) => {
     }
 
     if (startTime) {
-      startCell.textContent = formatTime(parseTime(startTime));
+      startCell.textContent = formatTime(parseTimeToMinutes(startTime));
     }
     if (endTime) {
-      endCell.textContent = formatTime(parseTime(endTime));
+      endCell.textContent = formatTime(parseTimeToMinutes(endTime));
     }
   } catch (e) {
     console.warn("Failed to update shift times", e);
   }
 };
-
-const getSelectedIdsFrom = (table) =>
-  Array.from(
-    table?.querySelectorAll('tbody input[type="checkbox"]:checked') ?? []
-  )
-    .map((input) => input.closest("tr")?.dataset?.id)
-    .filter(Boolean);
 
 const readTripIds = (shift = {}) => {
   const structure = Array.isArray(shift?.structure) ? shift.structure : [];
@@ -324,19 +262,12 @@ export const initializeShifts = async (root = document, options = {}) => {
         fetchBuses({ skip: 0, limit: 1000 }),
       ]);
 
-      const shifts =
-        Array.isArray(shiftsPayload) ? shiftsPayload : (
-          (shiftsPayload?.items ?? shiftsPayload?.results ?? [])
-        );
-
-      const buses =
-        Array.isArray(busesPayload) ? busesPayload : (
-          (busesPayload?.items ?? busesPayload?.results ?? [])
-        );
+      const shifts = normalizeApiList(shiftsPayload);
+      const buses = normalizeApiList(busesPayload);
 
       const busMap = new Map(buses.map((b) => [b.id, b.name]));
 
-      allShifts = (Array.isArray(shifts) ? shifts : []).map((shift) => ({
+      allShifts = shifts.map((shift) => ({
         ...shift,
         bus_name: busMap.get(shift.bus_id) ?? shift.bus_name,
       }));
@@ -365,7 +296,7 @@ export const initializeShifts = async (root = document, options = {}) => {
   }
 
   const handleDeleteClick = async () => {
-    const ids = getSelectedIdsFrom(table);
+    const ids = getSelectedIds(table);
     if (!ids.length) {
       console.error(t("shifts.select_min"));
       return;
@@ -398,7 +329,7 @@ export const initializeShifts = async (root = document, options = {}) => {
   }
 
   const handleDuplicateClick = async () => {
-    const ids = getSelectedIdsFrom(table);
+    const ids = getSelectedIds(table);
     if (!ids.length) {
       console.error("Select at least one shift to duplicate.");
       return;
@@ -435,7 +366,7 @@ export const initializeShifts = async (root = document, options = {}) => {
   }
 
   const handleEditClick = () => {
-    const ids = getSelectedIdsFrom(table);
+    const ids = getSelectedIds(table);
     if (ids.length !== 1) {
       console.error(t("shifts.select_single"));
       return;

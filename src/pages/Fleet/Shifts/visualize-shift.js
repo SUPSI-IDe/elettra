@@ -4,7 +4,6 @@ import {
   fetchShiftById,
   fetchStopsByTripId,
   fetchDepotById,
-  fetchBusById,
 } from "../../../api";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
@@ -33,7 +32,7 @@ const ensurePlaceholder = (container, message) => {
 
 export const initializeVisualizeShift = async (
   root = document,
-  options = {}
+  options = {},
 ) => {
   const section = root.querySelector("section.visualize-shift");
   if (!section) {
@@ -55,7 +54,6 @@ export const initializeVisualizeShift = async (
 
   const state = {
     name: text(options.name).trim(),
-    busName: text(options.busName ?? options.busLabel ?? ""),
     startTime: normalizeTime(options.startTime),
     startDepotName: text(options.startDepotName ?? ""),
     endTime: normalizeTime(options.endTime),
@@ -73,9 +71,6 @@ export const initializeVisualizeShift = async (
     }
     const resolved = text(value).trim() || fallback;
     node.textContent = textContent(resolved);
-    if (field === "bus-name") {
-      node.hidden = !text(value).trim();
-    }
   };
 
   const tripsBody = section.querySelector('tbody[data-role="trips-body"]');
@@ -156,7 +151,6 @@ export const initializeVisualizeShift = async (
       state.endTime || (latest !== null ? formatMinutes(latest) : "");
 
     setFieldText("name", state.name || "Untitled shift");
-    setFieldText("bus-name", state.busName);
     setFieldText("start-time", startTime);
     setFieldText("start-depot", state.startDepotName || "—");
     setFieldText("end-time", endTime);
@@ -191,7 +185,7 @@ export const initializeVisualizeShift = async (
       return;
     }
     state.trips = state.trips.filter(
-      (trip = {}) => resolveTripId(trip) && resolveTripId(trip) !== tripId
+      (trip = {}) => resolveTripId(trip) && resolveTripId(trip) !== tripId,
     );
     renderAll();
   };
@@ -208,22 +202,6 @@ export const initializeVisualizeShift = async (
     try {
       const shift = await fetchShiftById(options.shiftId);
       state.name = state.name || text(shift?.name ?? "");
-
-      let resolvedBusName =
-        shift?.bus?.name ?? shift?.bus_name ?? shift?.busName;
-      if (!resolvedBusName) {
-        const busId = shift?.bus?.id ?? shift?.bus_id ?? shift?.busId;
-        if (busId) {
-          try {
-            const bus = await fetchBusById(busId);
-            resolvedBusName = bus?.name;
-          } catch (error) {
-            console.warn(`Failed to fetch bus ${busId}`, error);
-            resolvedBusName = busId;
-          }
-        }
-      }
-      state.busName = state.busName || text(resolvedBusName || "");
       state.startTime =
         state.startTime ||
         normalizeTime(
@@ -232,8 +210,8 @@ export const initializeVisualizeShift = async (
             shift?.startTime,
             shift?.start?.time,
             shift?.start?.scheduled_time,
-            shift?.start?.planned_time
-          )
+            shift?.start?.planned_time,
+          ),
         );
       state.startDepotName =
         state.startDepotName ||
@@ -242,7 +220,7 @@ export const initializeVisualizeShift = async (
             shift?.startDepotName ??
             shift?.start_depot ??
             shift?.startDepot ??
-            ""
+            "",
         );
       state.endTime =
         state.endTime ||
@@ -252,8 +230,8 @@ export const initializeVisualizeShift = async (
             shift?.endTime,
             shift?.end?.time,
             shift?.end?.scheduled_time,
-            shift?.end?.planned_time
-          )
+            shift?.end?.planned_time,
+          ),
         );
       state.endDepotName =
         state.endDepotName ||
@@ -262,7 +240,7 @@ export const initializeVisualizeShift = async (
             shift?.endDepotName ??
             shift?.end_depot ??
             shift?.endDepot ??
-            ""
+            "",
         );
 
       // Fetch missing start depot
@@ -314,7 +292,7 @@ export const initializeVisualizeShift = async (
             }
           }
           return item;
-        })
+        }),
       );
 
       state.trips = readShiftTripsFromStructure({
@@ -334,7 +312,7 @@ export const initializeVisualizeShift = async (
       console.error("Unable to load shift for visualization", error);
       ensurePlaceholder(
         timelineContainer,
-        error?.message ?? "Unable to load shift timeline."
+        error?.message ?? "Unable to load shift timeline.",
       );
     }
   }

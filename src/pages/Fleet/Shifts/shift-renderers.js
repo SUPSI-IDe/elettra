@@ -1,4 +1,4 @@
-import { textContent } from "../../../ui-helpers";
+import { textContent, escapeAttr } from "../../../ui-helpers";
 import {
   text,
   normalizeTrip,
@@ -58,10 +58,10 @@ export const renderShiftTrips = (tbody, trips = []) => {
       const end = text(trip?.end_stop_name ?? trip?.endStopName ?? "");
 
       return `
-                <tr data-trip-id="${text(trip?.id ?? trip?.trip_id ?? "")}">
+                <tr data-trip-id="${escapeAttr(trip?.id ?? trip?.trip_id ?? "")}">
                     <td class="time">${textContent(time || "—")}</td>
                     <td class="route">${textContent(
-                      start && end ? `${start} – ${end}` : start || end || "—"
+                      start && end ? `${start} – ${end}` : start || end || "—",
                     )}</td>
                     <td class="actions">
                         <button type="button" data-action="remove-trip">Remove</button>
@@ -95,13 +95,13 @@ export const renderScheduledTrips = ({
       const normalized = normalizeTrip(trip);
       const id = resolveTripId(normalized);
       const time = text(
-        normalized?.departure_time ?? normalized?.departureTime ?? ""
+        normalized?.departure_time ?? normalized?.departureTime ?? "",
       );
       const start = text(
-        normalized?.start_stop_name ?? normalized?.startStopName ?? ""
+        normalized?.start_stop_name ?? normalized?.startStopName ?? "",
       );
       const end = text(
-        normalized?.end_stop_name ?? normalized?.endStopName ?? ""
+        normalized?.end_stop_name ?? normalized?.endStopName ?? "",
       );
 
       let isDisabled = selectedTripIds.has(id);
@@ -118,11 +118,11 @@ export const renderScheduledTrips = ({
         routeLabel || resolveRouteLabel(normalized) || "—";
 
       return `
-                <tr data-trip-id="${id}">
+                <tr data-trip-id="${escapeAttr(id)}">
                     <td class="time">${textContent(time || "—")}</td>
                     <td class="line">${textContent(currentRouteLabel)}</td>
                     <td class="route">${textContent(
-                      start && end ? `${start} – ${end}` : start || end || "—"
+                      start && end ? `${start} – ${end}` : start || end || "—",
                     )}</td>
                     <td class="actions">
                         <button type="button" data-action="add-trip" ${disabled}>Add</button>
@@ -156,33 +156,13 @@ export const renderRouteOptions = (select, routes = []) => {
         }
         seenLabels.add(label);
         map[id] = label;
-        return `<option value="${id}">${textContent(label)}</option>`;
+        return `<option value="${escapeAttr(id)}">${textContent(label)}</option>`;
       })
       .filter(Boolean),
   ].join("");
 
   select.innerHTML = options;
   return map;
-};
-
-export const renderBusOptions = (select, buses = []) => {
-  if (!select) {
-    return;
-  }
-
-  const options = [
-    '<option value="">Select a bus</option>',
-    ...buses
-      .filter((bus) => bus && bus.id)
-      .map(
-        (bus) =>
-          `<option value="${text(bus.id)}">${textContent(
-            bus?.name ?? bus?.label ?? `Bus ${bus.id}`
-          )}</option>`
-      ),
-  ].join("");
-
-  select.innerHTML = options;
 };
 
 export const renderDepotOptions = (select, depots = []) => {
@@ -196,9 +176,9 @@ export const renderDepotOptions = (select, depots = []) => {
       .filter((depot) => depot && depot.id)
       .map(
         (depot) =>
-          `<option value="${text(depot.id)}">${textContent(
-            depot?.name ?? depot?.label ?? `Depot ${depot.id}`
-          )}</option>`
+          `<option value="${escapeAttr(depot.id)}">${textContent(
+            depot?.name ?? depot?.label ?? `Depot ${depot.id}`,
+          )}</option>`,
       ),
   ].join("");
 
@@ -216,11 +196,46 @@ export const populateDayOptions = (select, days = []) => {
       const value = typeof day === "string" ? day : day.id || day.value;
       const label =
         typeof day === "string" ? day : day.name || day.label || day.id || "";
-      return `<option value="${textContent(value)}">${textContent(
-        label
+      return `<option value="${escapeAttr(value)}">${textContent(
+        label,
       )}</option>`;
     }),
   ].join("");
 
   select.innerHTML = options;
+};
+
+export const renderCustomStops = ({ tbody, stops = [] }) => {
+  if (!tbody) {
+    return;
+  }
+
+  if (!Array.isArray(stops) || stops.length === 0) {
+    clearNode(tbody);
+    return;
+  }
+
+  const rows = stops
+    .map((stop = {}) => {
+      const id = text(stop.id);
+      const name = text(stop.name || "—");
+      // Assuming 'type' isn't explicitly in the depot object, we can omit or check features.
+      // For now, let's assume all are "Depot" or "Stop".
+      const type = "Custom Stop";
+      const address = text(stop.address || "—");
+
+      return `
+        <tr data-stop-id="${escapeAttr(id)}">
+          <td class="name">${textContent(name)}</td>
+          <td class="type">${textContent(type)}</td>
+          <td class="address">${textContent(address)}</td>
+          <td class="actions">
+            <button type="button" data-action="add-stop" class="button button--secondary">Add stop</button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  tbody.innerHTML = rows;
 };
