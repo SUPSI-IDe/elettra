@@ -1,0 +1,4737 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Elettra Backend",
+    "description": "# Elettra - Swiss Public Bus Electrification Tool\n\nComprehensive backend API for public transport electrification planning and simulation.\n\n## Core Features\n\n### Authentication & User Management\n- JWT-based authentication system\n- User registration, login, and profile management\n- Role-based access control (admin, analyst, user)\n- Agency-level user management\n\n### GTFS Data Management\n- Agencies: Transit agency management\n- Routes: GTFS route definitions and variants\n- Trips: Trip planning with auxiliary trips (depot, transfer, service)\n- Stops: Stop management and stop times\n- Calendar: Service calendar management\n- Variants: Route variant analysis\n\n### Fleet Management\n- Bus Models: Electric bus specifications and configurations\n- Buses: Fleet management with depot assignments\n- Depots: Depot locations and capacity management\n- Shifts: Shift planning and scheduling\n\n### Simulation & Analysis\n- Simulation Runs: Electrification simulation execution\n- Results Analysis: Simulation outcome analysis\n- Weather Integration: PVGIS TMY weather data\n- Elevation Profiles: SwissTopo elevation data integration\n\n### External Services Integration\n- OSRM Routing: Driving distance calculations\n- SwissTopo: Elevation profile generation\n- PVGIS: Weather data for solar calculations\n- MinIO: File storage for elevation profiles\n\n## Technical Features\n- Async PostgreSQL database operations\n- Comprehensive health monitoring\n- CORS support for frontend integration\n- Detailed API documentation with Swagger UI\n- Error handling and validation",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/auth/check-email/{email}": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Check Email Availability",
+        "description": "Check if an email is available for registration",
+        "operationId": "check_email_availability_auth_check_email__email__get",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Email" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register",
+        "description": "Register a new user",
+        "operationId": "register_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserRegister" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UsersRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login",
+        "description": "Authenticate user and return access token",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserLogin" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Token" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Read Users Me",
+        "description": "Get current user information",
+        "operationId": "read_users_me_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UsersRead" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      },
+      "put": {
+        "tags": ["Authentication"],
+        "summary": "Update User Profile",
+        "description": "Update current user profile information",
+        "operationId": "update_user_profile_auth_me_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserUpdate" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserProfileRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      },
+      "delete": {
+        "tags": ["Authentication"],
+        "summary": "Delete Current User",
+        "description": "Delete the current user account.\n\nNote: This will fail with 409 if the user has related records due to FK constraints.",
+        "operationId": "delete_current_user_auth_me_delete",
+        "responses": { "204": { "description": "Successful Response" } },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/auth/me/password": {
+      "put": {
+        "tags": ["Authentication"],
+        "summary": "Update User Password",
+        "description": "Update current user password",
+        "operationId": "update_user_password_auth_me_password_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserPasswordUpdate" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Logout",
+        "description": "Logout user (client should remove token from storage)",
+        "operationId": "logout_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LogoutResponse" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/api/v1/agency/users/": {
+      "get": {
+        "tags": ["Agency"],
+        "summary": "Read Users",
+        "operationId": "read_users_api_v1_agency_users__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0, "title": "Skip" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100, "title": "Limit" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/UsersRead" },
+                  "title": "Response Read Users Api V1 Agency Users  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Agency"],
+        "summary": "Create User",
+        "operationId": "create_user_api_v1_agency_users__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UsersCreate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UsersRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agency/users/{user_id}": {
+      "get": {
+        "tags": ["Agency"],
+        "summary": "Read User",
+        "operationId": "read_user_api_v1_agency_users__user_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "User Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UsersRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Agency"],
+        "summary": "Update User",
+        "operationId": "update_user_api_v1_agency_users__user_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "User Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UsersUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UsersRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agency/agencies/": {
+      "get": {
+        "tags": ["Agency"],
+        "summary": "Read Agencies",
+        "description": "List all agencies - public endpoint for registration",
+        "operationId": "read_agencies_api_v1_agency_agencies__get",
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0, "title": "Skip" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100, "title": "Limit" }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "Search" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/GtfsAgenciesRead" },
+                  "title": "Response Read Agencies Api V1 Agency Agencies  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Agency"],
+        "summary": "Create Agency",
+        "operationId": "create_agency_api_v1_agency_agencies__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/GtfsAgenciesCreate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GtfsAgenciesRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agency/agencies/{agency_id}": {
+      "get": {
+        "tags": ["Agency"],
+        "summary": "Read Agency",
+        "operationId": "read_agency_api_v1_agency_agencies__agency_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "agency_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agency Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GtfsAgenciesRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/bus-models/": {
+      "get": {
+        "tags": ["User"],
+        "summary": "Read Bus Models",
+        "operationId": "read_bus_models_api_v1_user_bus_models__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0, "title": "Skip" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100, "title": "Limit" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/BusesModelsRead" },
+                  "title": "Response Read Bus Models Api V1 User Bus Models  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["User"],
+        "summary": "Create Bus Model",
+        "operationId": "create_bus_model_api_v1_user_bus_models__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BusesModelsCreate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusesModelsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/bus-models/{model_id}": {
+      "get": {
+        "tags": ["User"],
+        "summary": "Read Bus Model",
+        "operationId": "read_bus_model_api_v1_user_bus_models__model_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusesModelsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["User"],
+        "summary": "Update Bus Model",
+        "operationId": "update_bus_model_api_v1_user_bus_models__model_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BusesModelsUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusesModelsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["User"],
+        "summary": "Delete Bus Model",
+        "operationId": "delete_bus_model_api_v1_user_bus_models__model_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/buses/": {
+      "get": {
+        "tags": ["User"],
+        "summary": "Read Buses",
+        "operationId": "read_buses_api_v1_user_buses__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0, "title": "Skip" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100, "title": "Limit" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/BusesRead" },
+                  "title": "Response Read Buses Api V1 User Buses  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["User"],
+        "summary": "Create Bus",
+        "operationId": "create_bus_api_v1_user_buses__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BusesCreate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusesRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/buses/{bus_id}": {
+      "get": {
+        "tags": ["User"],
+        "summary": "Read Bus",
+        "operationId": "read_bus_api_v1_user_buses__bus_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "bus_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Bus Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusesRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["User"],
+        "summary": "Update Bus",
+        "operationId": "update_bus_api_v1_user_buses__bus_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "bus_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Bus Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BusesUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusesRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["User"],
+        "summary": "Delete Bus",
+        "operationId": "delete_bus_api_v1_user_buses__bus_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "bus_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Bus Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/depots/": {
+      "post": {
+        "tags": ["User"],
+        "summary": "Create Depot",
+        "operationId": "create_depot_api_v1_user_depots__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DepotCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepotReadWithLocation"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["User"],
+        "summary": "Read Depots",
+        "operationId": "read_depots_api_v1_user_depots__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0, "title": "Skip" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100, "title": "Limit" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DepotReadWithLocation"
+                  },
+                  "title": "Response Read Depots Api V1 User Depots  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/depots/{depot_id}": {
+      "get": {
+        "tags": ["User"],
+        "summary": "Read Depot",
+        "operationId": "read_depot_api_v1_user_depots__depot_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "depot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Depot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepotReadWithLocation"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["User"],
+        "summary": "Update Depot",
+        "operationId": "update_depot_api_v1_user_depots__depot_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "depot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Depot Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DepotUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepotReadWithLocation"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["User"],
+        "summary": "Delete Depot",
+        "operationId": "delete_depot_api_v1_user_depots__depot_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "depot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Depot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/shifts/": {
+      "post": {
+        "tags": ["User"],
+        "summary": "Create Shift",
+        "operationId": "create_shift_api_v1_user_shifts__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ShiftCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftReadWithStructure"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["User"],
+        "summary": "List Shifts",
+        "operationId": "list_shifts_api_v1_user_shifts__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0, "title": "Skip" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100, "title": "Limit" }
+          },
+          {
+            "name": "bus_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "format": "uuid" },
+                { "type": "null" }
+              ],
+              "title": "Bus Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "format": "uuid" },
+                { "type": "null" }
+              ],
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ShiftReadWithStructure"
+                  },
+                  "title": "Response List Shifts Api V1 User Shifts  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/shifts/{shift_id}": {
+      "get": {
+        "tags": ["User"],
+        "summary": "Read Shift",
+        "operationId": "read_shift_api_v1_user_shifts__shift_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "shift_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Shift Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftReadWithStructure"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["User"],
+        "summary": "Update Shift",
+        "operationId": "update_shift_api_v1_user_shifts__shift_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "shift_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Shift Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ShiftUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftReadWithStructure"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["User"],
+        "summary": "Delete Shift",
+        "operationId": "delete_shift_api_v1_user_shifts__shift_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "shift_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Shift Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/shifts/{shift_id}/info": {
+      "get": {
+        "tags": ["User"],
+        "summary": "Shift Info",
+        "description": "Get detailed information about a shift including:\n- Route info (id, name)\n- Days of the week (from trip service/calendar)\n- All trips with their details",
+        "operationId": "shift_info_api_v1_user_shifts__shift_id__info_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "shift_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Shift Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ShiftInfoResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-routes/": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Routes",
+        "operationId": "read_routes_api_v1_gtfs_gtfs_routes__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0, "title": "Skip" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100, "title": "Limit" }
+          },
+          {
+            "name": "gtfs_year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "integer" }, { "type": "null" }],
+              "title": "Gtfs Year"
+            }
+          },
+          {
+            "name": "gtfs_file_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "format": "date" },
+                { "type": "null" }
+              ],
+              "title": "Gtfs File Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/GtfsRoutesRead" },
+                  "title": "Response Read Routes Api V1 Gtfs Gtfs Routes  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["GTFS"],
+        "summary": "Create Route",
+        "operationId": "create_route_api_v1_gtfs_gtfs_routes__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/GtfsRoutesCreate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GtfsRoutesRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-routes/{route_id}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Route",
+        "operationId": "read_route_api_v1_gtfs_gtfs_routes__route_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "route_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Route Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GtfsRoutesRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-routes/by-agency/{agency_id}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Routes By Agency",
+        "operationId": "read_routes_by_agency_api_v1_gtfs_gtfs_routes_by_agency__agency_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "agency_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agency Id"
+            }
+          },
+          {
+            "name": "gtfs_year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "integer" }, { "type": "null" }],
+              "title": "Gtfs Year"
+            }
+          },
+          {
+            "name": "gtfs_file_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "format": "date" },
+                { "type": "null" }
+              ],
+              "title": "Gtfs File Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/GtfsRoutesRead" },
+                  "title": "Response Read Routes By Agency Api V1 Gtfs Gtfs Routes By Agency  Agency Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-routes/by-agency/{agency_id}/with-variant-1": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Routes By Agency With Variant 1",
+        "description": "Get all routes for an agency with variant number 1 data included",
+        "operationId": "read_routes_by_agency_with_variant_1_api_v1_gtfs_gtfs_routes_by_agency__agency_id__with_variant_1_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "agency_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agency Id"
+            }
+          },
+          {
+            "name": "gtfs_year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "integer" }, { "type": "null" }],
+              "title": "Gtfs Year"
+            }
+          },
+          {
+            "name": "gtfs_file_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "format": "date" },
+                { "type": "null" }
+              ],
+              "title": "Gtfs File Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GtfsRoutesReadWithVariant"
+                  },
+                  "title": "Response Read Routes By Agency With Variant 1 Api V1 Gtfs Gtfs Routes By Agency  Agency Id  With Variant 1 Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-routes/by-agency/{agency_id}/with-largest-variant": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Routes By Agency With Largest Variant",
+        "description": "Get all routes for an agency with the largest variant data included (based on elevation_data.csv file size)",
+        "operationId": "read_routes_by_agency_with_largest_variant_api_v1_gtfs_gtfs_routes_by_agency__agency_id__with_largest_variant_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "agency_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agency Id"
+            }
+          },
+          {
+            "name": "gtfs_year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "integer" }, { "type": "null" }],
+              "title": "Gtfs Year"
+            }
+          },
+          {
+            "name": "gtfs_file_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "format": "date" },
+                { "type": "null" }
+              ],
+              "title": "Gtfs File Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GtfsRoutesReadWithVariant"
+                  },
+                  "title": "Response Read Routes By Agency With Largest Variant Api V1 Gtfs Gtfs Routes By Agency  Agency Id  With Largest Variant Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-routes/by-stop/{stop_id}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Routes By Stop",
+        "description": "Get all unique GTFS routes for a given stop ID, optionally filtered by agency",
+        "operationId": "read_routes_by_stop_api_v1_gtfs_gtfs_routes_by_stop__stop_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "stop_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Stop Id" }
+          },
+          {
+            "name": "agency_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "format": "uuid" },
+                { "type": "null" }
+              ],
+              "title": "Agency Id"
+            }
+          },
+          {
+            "name": "gtfs_year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "integer" }, { "type": "null" }],
+              "title": "Gtfs Year"
+            }
+          },
+          {
+            "name": "gtfs_file_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "format": "date" },
+                { "type": "null" }
+              ],
+              "title": "Gtfs File Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/GtfsRoutesRead" },
+                  "title": "Response Read Routes By Stop Api V1 Gtfs Gtfs Routes By Stop  Stop Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-trips/by-route/{route_id}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Trips By Route",
+        "operationId": "read_trips_by_route_api_v1_gtfs_gtfs_trips_by_route__route_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "route_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Route Id"
+            }
+          },
+          {
+            "name": "day_of_week",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Day Of Week"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TripStatus",
+              "default": "gtfs"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/GtfsTripsRead" },
+                  "title": "Response Read Trips By Route Api V1 Gtfs Gtfs Trips By Route  Route Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-trips/": {
+      "post": {
+        "tags": ["GTFS"],
+        "summary": "Create Trip",
+        "operationId": "create_trip_api_v1_gtfs_gtfs_trips__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/GtfsTripsCreate" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GtfsTripsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/api/v1/gtfs/gtfs-trips/{trip_pk}": {
+      "put": {
+        "tags": ["GTFS"],
+        "summary": "Update Trip",
+        "operationId": "update_trip_api_v1_gtfs_gtfs_trips__trip_pk__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "trip_pk",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Trip Pk" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/GtfsTripsUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GtfsTripsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["GTFS"],
+        "summary": "Delete Trip",
+        "operationId": "delete_trip_api_v1_gtfs_gtfs_trips__trip_pk__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "trip_pk",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Trip Pk" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/variants/by-route/{route_id}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Variants By Route",
+        "description": "Get all variants for a given route ID with elevation data included",
+        "operationId": "read_variants_by_route_api_v1_gtfs_variants_by_route__route_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "route_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Route Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VariantsReadWithRoute"
+                  },
+                  "title": "Response Read Variants By Route Api V1 Gtfs Variants By Route  Route Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/variants/{route_id}/{variant_num}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Variant By Route And Number",
+        "description": "Get a specific variant by route ID and variant number, including the GTFS route ID and elevation file path",
+        "operationId": "read_variant_by_route_and_number_api_v1_gtfs_variants__route_id___variant_num__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "route_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Route Id"
+            }
+          },
+          {
+            "name": "variant_num",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer", "title": "Variant Num" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariantsReadWithRoute"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-calendar/by-trip/{trip_id}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Calendar By Trip",
+        "operationId": "read_calendar_by_trip_api_v1_gtfs_gtfs_calendar_by_trip__trip_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Trip Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/GtfsCalendarRead" },
+                  "title": "Response Read Calendar By Trip Api V1 Gtfs Gtfs Calendar By Trip  Trip Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-stops/by-trip/{trip_id}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Stops By Trip",
+        "description": "Get all GTFS stops for a given trip ID",
+        "operationId": "read_stops_by_trip_api_v1_gtfs_gtfs_stops_by_trip__trip_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Trip Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GtfsStopsReadWithTimes"
+                  },
+                  "title": "Response Read Stops By Trip Api V1 Gtfs Gtfs Stops By Trip  Trip Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-stops/": {
+      "post": {
+        "tags": ["GTFS"],
+        "summary": "Create Gtfs Stop",
+        "operationId": "create_gtfs_stop_api_v1_gtfs_gtfs_stops__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/GtfsStopsCreate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GtfsStopsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Gtfs Stops",
+        "operationId": "read_gtfs_stops_api_v1_gtfs_gtfs_stops__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0, "title": "Skip" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100, "title": "Limit" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/GtfsStopsRead" },
+                  "title": "Response Read Gtfs Stops Api V1 Gtfs Gtfs Stops  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-stops/{stop_pk}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Gtfs Stop",
+        "operationId": "read_gtfs_stop_api_v1_gtfs_gtfs_stops__stop_pk__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "stop_pk",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Stop Pk" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GtfsStopsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["GTFS"],
+        "summary": "Update Gtfs Stop",
+        "operationId": "update_gtfs_stop_api_v1_gtfs_gtfs_stops__stop_pk__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "stop_pk",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Stop Pk" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/GtfsStopsUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GtfsStopsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["GTFS"],
+        "summary": "Delete Gtfs Stop",
+        "operationId": "delete_gtfs_stop_api_v1_gtfs_gtfs_stops__stop_pk__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "stop_pk",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Stop Pk" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/gtfs-trips/by-stop/{stop_id}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Read Trips By Stop",
+        "description": "Get all GTFS trips for a given stop ID",
+        "operationId": "read_trips_by_stop_api_v1_gtfs_gtfs_trips_by_stop__stop_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "stop_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Stop Id" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TripStatus",
+              "default": "gtfs"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/GtfsTripsRead" },
+                  "title": "Response Read Trips By Stop Api V1 Gtfs Gtfs Trips By Stop  Stop Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/osrm/driving-distance": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Get Driving Distance To Stop",
+        "description": "Return OSRM driving distance and duration between a coordinate and a GTFS stop.\n\n- stop_uuid: UUID primary key of `gtfs_stops.id`\n- lat, lon: input coordinates in the selected `coord_sys`\n- direction: \"to_stop\" (lat,lon -> stop) or \"from_stop\" (stop -> lat,lon)\n- coord_sys: one of {\"wgs84\", \"lv95\", \"lv03\"}\n- include_geometry: if True, returns full route geometry as lat/lon coordinates",
+        "operationId": "get_driving_distance_to_stop_api_v1_gtfs_osrm_driving_distance_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "stop_uuid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Stop Uuid"
+            }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number", "title": "Lat" }
+          },
+          {
+            "name": "lon",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number", "title": "Lon" }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "to_stop",
+              "title": "Direction"
+            }
+          },
+          {
+            "name": "coord_sys",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "wgs84",
+              "title": "Coord Sys"
+            }
+          },
+          {
+            "name": "include_geometry",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "false",
+              "title": "Include Geometry"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/elevation-profile/by-trip/{trip_id}": {
+      "get": {
+        "tags": ["GTFS"],
+        "summary": "Get Elevation Profile By Trip",
+        "description": "Fetch elevation profile parquet by trip's shape_id from MinIO and return as JSON records",
+        "operationId": "get_elevation_profile_by_trip_api_v1_gtfs_elevation_profile_by_trip__trip_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Trip Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElevationProfileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gtfs/aux-trip": {
+      "post": {
+        "tags": ["GTFS"],
+        "summary": "Create Aux Trip",
+        "operationId": "create_aux_trip_api_v1_gtfs_aux_trip_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuxTripCreate" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GtfsTripsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/api/v1/simulation/simulation-runs/": {
+      "post": {
+        "tags": ["Simulation"],
+        "summary": "Create Simulation Run",
+        "operationId": "create_simulation_run_api_v1_simulation_simulation_runs__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SimulationRunsCreate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SimulationRunsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Simulation"],
+        "summary": "Read Simulation Runs",
+        "operationId": "read_simulation_runs_api_v1_simulation_simulation_runs__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0, "title": "Skip" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100, "title": "Limit" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SimulationRunsRead"
+                  },
+                  "title": "Response Read Simulation Runs Api V1 Simulation Simulation Runs  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulation/simulation-runs/{run_id}": {
+      "get": {
+        "tags": ["Simulation"],
+        "summary": "Read Simulation Run",
+        "operationId": "read_simulation_run_api_v1_simulation_simulation_runs__run_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Run Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SimulationRunsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Simulation"],
+        "summary": "Update Simulation Run",
+        "operationId": "update_simulation_run_api_v1_simulation_simulation_runs__run_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Run Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SimulationRunsUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SimulationRunsRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulation/simulation-runs/{run_id}/results": {
+      "get": {
+        "tags": ["Simulation"],
+        "summary": "Get Simulation Run Results",
+        "description": "Get simulation run output results, either complete or filtered by specific keys.\n\nArgs:\n    run_id: UUID of the simulation run\n    keys: Optional comma-separated list of JSON keys to extract from output_results\n          Example: ?keys=energy_consumption,battery_usage,costs\n          If not provided, returns all output_results\n\nReturns:\n    SimulationRunResults with either complete or filtered output_results",
+        "operationId": "get_simulation_run_results_api_v1_simulation_simulation_runs__run_id__results_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Run Id" }
+          },
+          {
+            "name": "keys",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "title": "Keys" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationRunResults"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulation/pvgis-tmy/": {
+      "get": {
+        "tags": ["Simulation"],
+        "summary": "Generate Pvgis Tmy",
+        "description": "Generate TMY (Typical Meteorological Year) dataset from PVGIS using latitude and longitude.\nFirst checks if data exists in database, otherwise downloads from PVGIS and stores it.\nThe coerce_year is configured via config files (pvgis_coerce_year setting).",
+        "operationId": "generate_pvgis_tmy_api_v1_simulation_pvgis_tmy__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "latitude",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number", "title": "Latitude" }
+          },
+          {
+            "name": "longitude",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number", "title": "Longitude" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PvgisTmyResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulation/trip-statistics/": {
+      "post": {
+        "tags": ["Simulation"],
+        "summary": "Compute Trip Statistics",
+        "description": "Compute combined trip statistics for one or multiple trips as a single sequence.\nConcatenates GTFS schedules and elevation profiles (offsetting cumulative distance)\nand returns a single statistics object.",
+        "operationId": "compute_trip_statistics_api_v1_simulation_trip_statistics__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TripStatisticsRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CombinedTripStatisticsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/": {
+      "get": {
+        "tags": ["Root"],
+        "summary": "Root",
+        "description": "Root endpoint - API status",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health Check",
+        "description": "Health check endpoint for monitoring and load balancers.\n\nReturns the overall health status of the application and its dependencies.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthCheckResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuxTripCreate": {
+        "properties": {
+          "departure_stop_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Departure Stop Id"
+          },
+          "arrival_stop_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Arrival Stop Id"
+          },
+          "departure_time": { "type": "string", "title": "Departure Time" },
+          "arrival_time": { "type": "string", "title": "Arrival Time" },
+          "route_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Route Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TripStatus",
+            "default": "depot"
+          },
+          "calendar_service_key": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Calendar Service Key"
+          },
+          "day_of_week": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Day Of Week"
+          }
+        },
+        "type": "object",
+        "required": [
+          "departure_stop_id",
+          "arrival_stop_id",
+          "departure_time",
+          "arrival_time",
+          "route_id"
+        ],
+        "title": "AuxTripCreate"
+      },
+      "BusesCreate": {
+        "properties": {
+          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "name": { "type": "string", "title": "Name" },
+          "specs": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Specs"
+          },
+          "bus_model_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Bus Model Id"
+          }
+        },
+        "type": "object",
+        "required": ["user_id", "name", "specs"],
+        "title": "BusesCreate"
+      },
+      "BusesModelsCreate": {
+        "properties": {
+          "name": { "type": "string", "title": "Name" },
+          "specs": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Specs"
+          },
+          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "manufacturer": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Manufacturer"
+          },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": ["name", "specs", "user_id"],
+        "title": "BusesModelsCreate"
+      },
+      "BusesModelsRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "specs": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Specs"
+          },
+          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "manufacturer": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Manufacturer"
+          },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "specs",
+          "user_id",
+          "manufacturer",
+          "description"
+        ],
+        "title": "BusesModelsRead"
+      },
+      "BusesModelsUpdate": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name"
+          },
+          "specs": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Specs"
+          },
+          "user_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "User Id"
+          },
+          "manufacturer": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Manufacturer"
+          },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "title": "BusesModelsUpdate"
+      },
+      "BusesRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "name": { "type": "string", "title": "Name" },
+          "specs": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Specs"
+          },
+          "bus_model_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Bus Model Id"
+          }
+        },
+        "type": "object",
+        "required": ["id", "user_id", "name", "specs", "bus_model_id"],
+        "title": "BusesRead"
+      },
+      "BusesUpdate": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          },
+          "user_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "User Id"
+          },
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name"
+          },
+          "specs": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Specs"
+          },
+          "bus_model_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Bus Model Id"
+          }
+        },
+        "type": "object",
+        "title": "BusesUpdate"
+      },
+      "CombinedTripStatisticsResponse": {
+        "properties": {
+          "trip_ids": {
+            "items": { "type": "string", "format": "uuid" },
+            "type": "array",
+            "title": "Trip Ids"
+          },
+          "statistics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Statistics"
+          },
+          "error": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": ["trip_ids", "statistics"],
+        "title": "CombinedTripStatisticsResponse",
+        "description": "Single combined statistics for one or multiple trips"
+      },
+      "DepotCreateRequest": {
+        "properties": {
+          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "name": { "type": "string", "title": "Name" },
+          "address": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Address"
+          },
+          "features": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Features"
+          },
+          "latitude": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Longitude"
+          }
+        },
+        "type": "object",
+        "required": ["user_id", "name"],
+        "title": "DepotCreateRequest"
+      },
+      "DepotReadWithLocation": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "name": { "type": "string", "title": "Name" },
+          "address": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Address"
+          },
+          "features": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Features"
+          },
+          "stop_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Stop Id"
+          },
+          "latitude": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Longitude"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "name",
+          "address",
+          "features",
+          "stop_id",
+          "latitude",
+          "longitude"
+        ],
+        "title": "DepotReadWithLocation"
+      },
+      "DepotUpdateRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name"
+          },
+          "address": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Address"
+          },
+          "features": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Features"
+          },
+          "latitude": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Longitude"
+          }
+        },
+        "type": "object",
+        "title": "DepotUpdateRequest"
+      },
+      "ElevationProfileResponse": {
+        "properties": {
+          "shape_id": { "type": "string", "title": "Shape Id" },
+          "records": {
+            "items": { "additionalProperties": true, "type": "object" },
+            "type": "array",
+            "title": "Records"
+          }
+        },
+        "type": "object",
+        "required": ["shape_id", "records"],
+        "title": "ElevationProfileResponse"
+      },
+      "GtfsAgenciesCreate": {
+        "properties": {
+          "gtfs_agency_id": { "type": "string", "title": "Gtfs Agency Id" },
+          "agency_name": { "type": "string", "title": "Agency Name" },
+          "agency_url": { "type": "string", "title": "Agency Url" },
+          "agency_timezone": { "type": "string", "title": "Agency Timezone" },
+          "agency_lang": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Agency Lang"
+          },
+          "agency_phone": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Agency Phone"
+          },
+          "agency_fare_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Agency Fare Url"
+          },
+          "agency_email": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Agency Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "gtfs_agency_id",
+          "agency_name",
+          "agency_url",
+          "agency_timezone"
+        ],
+        "title": "GtfsAgenciesCreate"
+      },
+      "GtfsAgenciesRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "gtfs_agency_id": { "type": "string", "title": "Gtfs Agency Id" },
+          "agency_name": { "type": "string", "title": "Agency Name" },
+          "agency_url": { "type": "string", "title": "Agency Url" },
+          "agency_timezone": { "type": "string", "title": "Agency Timezone" },
+          "agency_lang": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Agency Lang"
+          },
+          "agency_phone": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Agency Phone"
+          },
+          "agency_fare_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Agency Fare Url"
+          },
+          "agency_email": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Agency Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "gtfs_agency_id",
+          "agency_name",
+          "agency_url",
+          "agency_timezone",
+          "agency_lang",
+          "agency_phone",
+          "agency_fare_url",
+          "agency_email"
+        ],
+        "title": "GtfsAgenciesRead"
+      },
+      "GtfsCalendarRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "service_id": { "type": "string", "title": "Service Id" },
+          "monday": { "type": "integer", "title": "Monday" },
+          "tuesday": { "type": "integer", "title": "Tuesday" },
+          "wednesday": { "type": "integer", "title": "Wednesday" },
+          "thursday": { "type": "integer", "title": "Thursday" },
+          "friday": { "type": "integer", "title": "Friday" },
+          "saturday": { "type": "integer", "title": "Saturday" },
+          "sunday": { "type": "integer", "title": "Sunday" },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "title": "End Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "service_id",
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday",
+          "sunday",
+          "start_date",
+          "end_date"
+        ],
+        "title": "GtfsCalendarRead"
+      },
+      "GtfsRoutesCreate": {
+        "properties": {
+          "route_id": { "type": "string", "title": "Route Id" },
+          "agency_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Agency Id"
+          },
+          "gtfs_file_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Gtfs File Date"
+          },
+          "gtfs_year": { "type": "integer", "title": "Gtfs Year" },
+          "route_short_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Short Name"
+          },
+          "route_long_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Long Name"
+          },
+          "route_desc": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Desc"
+          },
+          "route_type": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Route Type"
+          },
+          "route_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Url"
+          },
+          "route_color": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Color"
+          },
+          "route_text_color": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Text Color"
+          },
+          "route_sort_order": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Route Sort Order"
+          },
+          "continuous_pickup": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Continuous Pickup"
+          },
+          "continuous_drop_off": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Continuous Drop Off"
+          }
+        },
+        "type": "object",
+        "required": ["route_id", "agency_id", "gtfs_file_date", "gtfs_year"],
+        "title": "GtfsRoutesCreate"
+      },
+      "GtfsRoutesRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "route_id": { "type": "string", "title": "Route Id" },
+          "agency_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Agency Id"
+          },
+          "gtfs_file_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Gtfs File Date"
+          },
+          "gtfs_year": { "type": "integer", "title": "Gtfs Year" },
+          "route_short_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Short Name"
+          },
+          "route_long_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Long Name"
+          },
+          "route_desc": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Desc"
+          },
+          "route_type": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Route Type"
+          },
+          "route_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Url"
+          },
+          "route_color": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Color"
+          },
+          "route_text_color": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Text Color"
+          },
+          "route_sort_order": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Route Sort Order"
+          },
+          "continuous_pickup": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Continuous Pickup"
+          },
+          "continuous_drop_off": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Continuous Drop Off"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "route_id",
+          "agency_id",
+          "gtfs_file_date",
+          "gtfs_year",
+          "route_short_name",
+          "route_long_name",
+          "route_desc",
+          "route_type",
+          "route_url",
+          "route_color",
+          "route_text_color",
+          "route_sort_order",
+          "continuous_pickup",
+          "continuous_drop_off"
+        ],
+        "title": "GtfsRoutesRead"
+      },
+      "GtfsRoutesReadWithVariant": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "route_id": { "type": "string", "title": "Route Id" },
+          "agency_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Agency Id"
+          },
+          "route_short_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Short Name"
+          },
+          "route_long_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Long Name"
+          },
+          "route_desc": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Desc"
+          },
+          "route_type": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Route Type"
+          },
+          "route_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Url"
+          },
+          "route_color": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Color"
+          },
+          "route_text_color": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Route Text Color"
+          },
+          "route_sort_order": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Route Sort Order"
+          },
+          "continuous_pickup": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Continuous Pickup"
+          },
+          "continuous_drop_off": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Continuous Drop Off"
+          },
+          "variant_elevation_file_path": {
+            "type": "string",
+            "title": "Variant Elevation File Path"
+          },
+          "variant_elevation_data_fields": {
+            "items": { "type": "string" },
+            "type": "array",
+            "title": "Variant Elevation Data Fields"
+          },
+          "variant_elevation_data": {
+            "items": { "items": {}, "type": "array" },
+            "type": "array",
+            "title": "Variant Elevation Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "route_id",
+          "agency_id",
+          "route_short_name",
+          "route_long_name",
+          "route_desc",
+          "route_type",
+          "route_url",
+          "route_color",
+          "route_text_color",
+          "route_sort_order",
+          "continuous_pickup",
+          "continuous_drop_off",
+          "variant_elevation_file_path",
+          "variant_elevation_data_fields",
+          "variant_elevation_data"
+        ],
+        "title": "GtfsRoutesReadWithVariant"
+      },
+      "GtfsStopsCreate": {
+        "properties": {
+          "stop_id": { "type": "string", "title": "Stop Id" },
+          "stop_code": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Code"
+          },
+          "stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Name"
+          },
+          "stop_desc": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Desc"
+          },
+          "stop_lat": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Stop Lat"
+          },
+          "stop_lon": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Stop Lon"
+          },
+          "zone_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Zone Id"
+          },
+          "stop_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Url"
+          },
+          "location_type": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Location Type"
+          },
+          "parent_station": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Parent Station"
+          },
+          "stop_timezone": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Timezone"
+          },
+          "wheelchair_boarding": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Wheelchair Boarding"
+          },
+          "platform_code": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Platform Code"
+          },
+          "level_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Level Id"
+          }
+        },
+        "type": "object",
+        "required": ["stop_id"],
+        "title": "GtfsStopsCreate"
+      },
+      "GtfsStopsRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "stop_id": { "type": "string", "title": "Stop Id" },
+          "stop_code": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Code"
+          },
+          "stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Name"
+          },
+          "stop_desc": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Desc"
+          },
+          "stop_lat": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Stop Lat"
+          },
+          "stop_lon": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Stop Lon"
+          },
+          "zone_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Zone Id"
+          },
+          "stop_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Url"
+          },
+          "location_type": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Location Type"
+          },
+          "parent_station": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Parent Station"
+          },
+          "stop_timezone": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Timezone"
+          },
+          "wheelchair_boarding": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Wheelchair Boarding"
+          },
+          "platform_code": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Platform Code"
+          },
+          "level_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Level Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "stop_id",
+          "stop_code",
+          "stop_name",
+          "stop_desc",
+          "stop_lat",
+          "stop_lon",
+          "zone_id",
+          "stop_url",
+          "location_type",
+          "parent_station",
+          "stop_timezone",
+          "wheelchair_boarding",
+          "platform_code",
+          "level_id"
+        ],
+        "title": "GtfsStopsRead"
+      },
+      "GtfsStopsReadWithTimes": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "stop_id": { "type": "string", "title": "Stop Id" },
+          "stop_code": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Code"
+          },
+          "stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Name"
+          },
+          "stop_desc": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Desc"
+          },
+          "stop_lat": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Stop Lat"
+          },
+          "stop_lon": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Stop Lon"
+          },
+          "zone_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Zone Id"
+          },
+          "stop_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Url"
+          },
+          "location_type": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Location Type"
+          },
+          "parent_station": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Parent Station"
+          },
+          "stop_timezone": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Timezone"
+          },
+          "wheelchair_boarding": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Wheelchair Boarding"
+          },
+          "platform_code": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Platform Code"
+          },
+          "level_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Level Id"
+          },
+          "arrival_time": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Arrival Time"
+          },
+          "departure_time": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Departure Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "stop_id",
+          "stop_code",
+          "stop_name",
+          "stop_desc",
+          "stop_lat",
+          "stop_lon",
+          "zone_id",
+          "stop_url",
+          "location_type",
+          "parent_station",
+          "stop_timezone",
+          "wheelchair_boarding",
+          "platform_code",
+          "level_id",
+          "arrival_time",
+          "departure_time"
+        ],
+        "title": "GtfsStopsReadWithTimes"
+      },
+      "GtfsStopsUpdate": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          },
+          "stop_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Id"
+          },
+          "stop_code": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Code"
+          },
+          "stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Name"
+          },
+          "stop_desc": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Desc"
+          },
+          "stop_lat": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Stop Lat"
+          },
+          "stop_lon": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Stop Lon"
+          },
+          "zone_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Zone Id"
+          },
+          "stop_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Url"
+          },
+          "location_type": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Location Type"
+          },
+          "parent_station": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Parent Station"
+          },
+          "stop_timezone": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Stop Timezone"
+          },
+          "wheelchair_boarding": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Wheelchair Boarding"
+          },
+          "platform_code": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Platform Code"
+          },
+          "level_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Level Id"
+          }
+        },
+        "type": "object",
+        "title": "GtfsStopsUpdate"
+      },
+      "GtfsTripsCreate": {
+        "properties": {
+          "route_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Route Id"
+          },
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "gtfs_service_id": { "type": "string", "title": "Gtfs Service Id" },
+          "trip_id": { "type": "string", "title": "Trip Id" },
+          "status": { "type": "string", "title": "Status" },
+          "trip_headsign": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Trip Headsign"
+          },
+          "trip_short_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Trip Short Name"
+          },
+          "direction_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Direction Id"
+          },
+          "block_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Block Id"
+          },
+          "shape_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Shape Id"
+          },
+          "wheelchair_accessible": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Wheelchair Accessible"
+          },
+          "bikes_allowed": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Bikes Allowed"
+          },
+          "start_stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Start Stop Name"
+          },
+          "end_stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "End Stop Name"
+          },
+          "departure_time": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Departure Time"
+          },
+          "arrival_time": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Arrival Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "route_id",
+          "service_id",
+          "gtfs_service_id",
+          "trip_id",
+          "status"
+        ],
+        "title": "GtfsTripsCreate"
+      },
+      "GtfsTripsRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "route_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Route Id"
+          },
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "gtfs_service_id": { "type": "string", "title": "Gtfs Service Id" },
+          "trip_id": { "type": "string", "title": "Trip Id" },
+          "status": { "type": "string", "title": "Status" },
+          "trip_headsign": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Trip Headsign"
+          },
+          "trip_short_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Trip Short Name"
+          },
+          "direction_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Direction Id"
+          },
+          "block_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Block Id"
+          },
+          "shape_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Shape Id"
+          },
+          "wheelchair_accessible": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Wheelchair Accessible"
+          },
+          "bikes_allowed": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Bikes Allowed"
+          },
+          "start_stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Start Stop Name"
+          },
+          "end_stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "End Stop Name"
+          },
+          "departure_time": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Departure Time"
+          },
+          "arrival_time": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Arrival Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "route_id",
+          "service_id",
+          "gtfs_service_id",
+          "trip_id",
+          "status",
+          "trip_headsign",
+          "trip_short_name",
+          "direction_id",
+          "block_id",
+          "shape_id",
+          "wheelchair_accessible",
+          "bikes_allowed",
+          "start_stop_name",
+          "end_stop_name",
+          "departure_time",
+          "arrival_time"
+        ],
+        "title": "GtfsTripsRead"
+      },
+      "GtfsTripsUpdate": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          },
+          "route_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Route Id"
+          },
+          "service_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Service Id"
+          },
+          "gtfs_service_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Gtfs Service Id"
+          },
+          "trip_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Trip Id"
+          },
+          "status": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Status"
+          },
+          "trip_headsign": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Trip Headsign"
+          },
+          "trip_short_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Trip Short Name"
+          },
+          "direction_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Direction Id"
+          },
+          "block_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Block Id"
+          },
+          "shape_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Shape Id"
+          },
+          "wheelchair_accessible": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Wheelchair Accessible"
+          },
+          "bikes_allowed": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Bikes Allowed"
+          },
+          "start_stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Start Stop Name"
+          },
+          "end_stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "End Stop Name"
+          },
+          "departure_time": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Departure Time"
+          },
+          "arrival_time": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Arrival Time"
+          }
+        },
+        "type": "object",
+        "title": "GtfsTripsUpdate"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthCheckResponse": {
+        "properties": {
+          "status": { "type": "string", "title": "Status" },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "version": { "type": "string", "title": "Version" },
+          "services": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ServiceStatus"
+            },
+            "type": "object",
+            "title": "Services"
+          },
+          "uptime_seconds": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Uptime Seconds"
+          }
+        },
+        "type": "object",
+        "required": ["status", "timestamp", "version", "services"],
+        "title": "HealthCheckResponse",
+        "description": "Overall health check response"
+      },
+      "LogoutResponse": {
+        "properties": { "message": { "type": "string", "title": "Message" } },
+        "type": "object",
+        "required": ["message"],
+        "title": "LogoutResponse"
+      },
+      "PvgisTmyResponse": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "latitude": { "type": "number", "title": "Latitude" },
+          "longitude": { "type": "number", "title": "Longitude" },
+          "coerce_year": { "type": "integer", "title": "Coerce Year" },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "metadata",
+          "latitude",
+          "longitude",
+          "coerce_year",
+          "generated_at"
+        ],
+        "title": "PvgisTmyResponse"
+      },
+      "RoleEnum": {
+        "type": "string",
+        "enum": ["admin", "analyst", "viewer"],
+        "title": "RoleEnum"
+      },
+      "RouteInfoBrief": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "name": { "type": "string", "title": "Name" }
+        },
+        "type": "object",
+        "required": ["id", "name"],
+        "title": "RouteInfoBrief",
+        "description": "Brief route information for shift info response"
+      },
+      "ServiceStatus": {
+        "properties": {
+          "status": { "type": "string", "title": "Status" },
+          "message": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Message"
+          },
+          "response_time_ms": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "Response Time Ms"
+          },
+          "last_checked": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Checked"
+          }
+        },
+        "type": "object",
+        "required": ["status", "last_checked"],
+        "title": "ServiceStatus",
+        "description": "Status of an individual service"
+      },
+      "ShiftCreateRequest": {
+        "properties": {
+          "name": { "type": "string", "title": "Name" },
+          "bus_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Bus Id"
+          },
+          "trip_ids": {
+            "items": { "type": "string", "format": "uuid" },
+            "type": "array",
+            "title": "Trip Ids"
+          }
+        },
+        "type": "object",
+        "required": ["name", "trip_ids"],
+        "title": "ShiftCreateRequest"
+      },
+      "ShiftInfoResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "bus_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Bus Id"
+          },
+          "route": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/RouteInfoBrief" },
+              { "type": "null" }
+            ]
+          },
+          "days_of_week": {
+            "items": { "type": "string" },
+            "type": "array",
+            "title": "Days Of Week"
+          },
+          "trips": {
+            "items": { "$ref": "#/components/schemas/TripInfoBrief" },
+            "type": "array",
+            "title": "Trips"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "bus_id", "route", "days_of_week", "trips"],
+        "title": "ShiftInfoResponse",
+        "description": "Detailed shift information including route, day of week, and trips"
+      },
+      "ShiftReadWithStructure": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "bus_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Bus Id"
+          },
+          "structure": {
+            "items": { "$ref": "#/components/schemas/ShiftStructureItem" },
+            "type": "array",
+            "title": "Structure"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "bus_id", "structure"],
+        "title": "ShiftReadWithStructure"
+      },
+      "ShiftStructureItem": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "trip_id": { "type": "string", "format": "uuid", "title": "Trip Id" },
+          "shift_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Shift Id"
+          },
+          "sequence_number": { "type": "integer", "title": "Sequence Number" }
+        },
+        "type": "object",
+        "required": ["id", "trip_id", "shift_id", "sequence_number"],
+        "title": "ShiftStructureItem"
+      },
+      "ShiftUpdateRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name"
+          },
+          "bus_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Bus Id"
+          },
+          "trip_ids": {
+            "anyOf": [
+              {
+                "items": { "type": "string", "format": "uuid" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "title": "Trip Ids"
+          }
+        },
+        "type": "object",
+        "title": "ShiftUpdateRequest"
+      },
+      "SimulationRunResults": {
+        "properties": {
+          "run_id": { "type": "string", "format": "uuid", "title": "Run Id" },
+          "status": { "type": "string", "title": "Status" },
+          "output_results": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Output Results"
+          },
+          "completed_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Completed At"
+          },
+          "requested_keys": {
+            "anyOf": [
+              { "items": { "type": "string" }, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Requested Keys"
+          }
+        },
+        "type": "object",
+        "required": ["run_id", "status", "output_results", "completed_at"],
+        "title": "SimulationRunResults",
+        "description": "Schema for returning simulation run output results, either complete or filtered"
+      },
+      "SimulationRunsCreate": {
+        "properties": {
+          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "input_params": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Input Params"
+          },
+          "status": { "type": "string", "title": "Status" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Variant Id"
+          },
+          "optimal_battery_kwh": {
+            "anyOf": [
+              { "type": "number" },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              { "type": "null" }
+            ],
+            "title": "Optimal Battery Kwh"
+          },
+          "output_results": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Output Results"
+          },
+          "completed_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "input_params",
+          "status",
+          "created_at",
+          "variant_id"
+        ],
+        "title": "SimulationRunsCreate"
+      },
+      "SimulationRunsRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "input_params": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Input Params"
+          },
+          "status": { "type": "string", "title": "Status" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Variant Id"
+          },
+          "optimal_battery_kwh": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              { "type": "null" }
+            ],
+            "title": "Optimal Battery Kwh"
+          },
+          "output_results": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Output Results"
+          },
+          "completed_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "input_params",
+          "status",
+          "created_at",
+          "variant_id",
+          "optimal_battery_kwh",
+          "output_results",
+          "completed_at"
+        ],
+        "title": "SimulationRunsRead"
+      },
+      "SimulationRunsUpdate": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          },
+          "user_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "User Id"
+          },
+          "input_params": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Input Params"
+          },
+          "status": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Status"
+          },
+          "created_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Created At"
+          },
+          "variant_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Variant Id"
+          },
+          "optimal_battery_kwh": {
+            "anyOf": [
+              { "type": "number" },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              { "type": "null" }
+            ],
+            "title": "Optimal Battery Kwh"
+          },
+          "output_results": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "items": {}, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Output Results"
+          },
+          "completed_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "title": "SimulationRunsUpdate"
+      },
+      "Token": {
+        "properties": {
+          "access_token": { "type": "string", "title": "Access Token" },
+          "token_type": { "type": "string", "title": "Token Type" }
+        },
+        "type": "object",
+        "required": ["access_token", "token_type"],
+        "title": "Token"
+      },
+      "TripInfoBrief": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "trip_id": { "type": "string", "title": "Trip Id" },
+          "trip_headsign": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Trip Headsign"
+          },
+          "departure_time": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Departure Time"
+          },
+          "arrival_time": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Arrival Time"
+          },
+          "start_stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Start Stop Name"
+          },
+          "end_stop_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "End Stop Name"
+          },
+          "sequence_number": { "type": "integer", "title": "Sequence Number" }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trip_id",
+          "trip_headsign",
+          "departure_time",
+          "arrival_time",
+          "start_stop_name",
+          "end_stop_name",
+          "sequence_number"
+        ],
+        "title": "TripInfoBrief",
+        "description": "Brief trip information for shift info response"
+      },
+      "TripStatisticsRequest": {
+        "properties": {
+          "trip_ids": {
+            "items": { "type": "string", "format": "uuid" },
+            "type": "array",
+            "title": "Trip Ids"
+          }
+        },
+        "type": "object",
+        "required": ["trip_ids"],
+        "title": "TripStatisticsRequest"
+      },
+      "TripStatus": {
+        "type": "string",
+        "enum": ["gtfs", "depot", "school", "service", "other", "transfer"],
+        "title": "TripStatus",
+        "description": "Trip status enumeration matching the database enum values"
+      },
+      "UserLogin": {
+        "properties": {
+          "email": { "type": "string", "title": "Email" },
+          "password": { "type": "string", "title": "Password" }
+        },
+        "type": "object",
+        "required": ["email", "password"],
+        "title": "UserLogin"
+      },
+      "UserPasswordUpdate": {
+        "properties": {
+          "current_password": { "type": "string", "title": "Current Password" },
+          "new_password": {
+            "type": "string",
+            "minLength": 1,
+            "title": "New Password",
+            "description": "Password must meet security requirements"
+          }
+        },
+        "type": "object",
+        "required": ["current_password", "new_password"],
+        "title": "UserPasswordUpdate",
+        "description": "Schema for updating user password"
+      },
+      "UserProfileRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "company_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Id"
+          },
+          "email": { "type": "string", "title": "Email" },
+          "full_name": { "type": "string", "title": "Full Name" },
+          "role": { "type": "string", "title": "Role" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "company_id",
+          "email",
+          "full_name",
+          "role",
+          "created_at"
+        ],
+        "title": "UserProfileRead",
+        "description": "Schema for reading user profile (without password hash)"
+      },
+      "UserRegister": {
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Id"
+          },
+          "email": { "type": "string", "format": "email", "title": "Email" },
+          "full_name": { "type": "string", "title": "Full Name" },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Password",
+            "description": "Password must meet security requirements"
+          }
+        },
+        "type": "object",
+        "required": ["company_id", "email", "full_name", "password"],
+        "title": "UserRegister"
+      },
+      "UserUpdate": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              { "type": "string", "format": "email" },
+              { "type": "null" }
+            ],
+            "title": "Email"
+          },
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "role": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/RoleEnum" },
+              { "type": "null" }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "UserUpdate",
+        "description": "Schema for updating user profile information"
+      },
+      "UsersCreate": {
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Id"
+          },
+          "email": { "type": "string", "title": "Email" },
+          "full_name": { "type": "string", "title": "Full Name" },
+          "password_hash": { "type": "string", "title": "Password Hash" },
+          "role": { "type": "string", "title": "Role" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "company_id",
+          "email",
+          "full_name",
+          "password_hash",
+          "role",
+          "created_at"
+        ],
+        "title": "UsersCreate"
+      },
+      "UsersRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "company_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Id"
+          },
+          "email": { "type": "string", "title": "Email" },
+          "full_name": { "type": "string", "title": "Full Name" },
+          "password_hash": { "type": "string", "title": "Password Hash" },
+          "role": { "type": "string", "title": "Role" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "company_id",
+          "email",
+          "full_name",
+          "password_hash",
+          "role",
+          "created_at"
+        ],
+        "title": "UsersRead"
+      },
+      "UsersUpdate": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Id"
+          },
+          "company_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Company Id"
+          },
+          "email": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Email"
+          },
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "password_hash": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Password Hash"
+          },
+          "role": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Role"
+          },
+          "created_at": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "title": "UsersUpdate"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      },
+      "VariantsReadWithRoute": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "route_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Route Id"
+          },
+          "variant_num": { "type": "integer", "title": "Variant Num" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "gtfs_route_id": { "type": "string", "title": "Gtfs Route Id" },
+          "elevation_file_path": {
+            "type": "string",
+            "title": "Elevation File Path"
+          },
+          "elevation_data_fields": {
+            "items": { "type": "string" },
+            "type": "array",
+            "title": "Elevation Data Fields"
+          },
+          "elevation_data": {
+            "items": { "items": {}, "type": "array" },
+            "type": "array",
+            "title": "Elevation Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "route_id",
+          "variant_num",
+          "created_at",
+          "gtfs_route_id",
+          "elevation_file_path",
+          "elevation_data_fields",
+          "elevation_data"
+        ],
+        "title": "VariantsReadWithRoute"
+      }
+    },
+    "securitySchemes": { "HTTPBearer": { "type": "http", "scheme": "bearer" } }
+  }
+}

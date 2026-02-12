@@ -1,35 +1,54 @@
-import { resolveModelFields, textContent } from "../ui-helpers";
+import { resolveModelFields, textContent, escapeAttr } from "../ui-helpers";
 
-export const renderLoadingRow = (tbody) => {
-  if (!tbody) {
-    return;
-  }
+/* ── Shared table helpers ────────────────────────────────────── */
 
+/**
+ * Render a single-message status row (loading / error / empty).
+ * @param {HTMLTableSectionElement} tbody
+ * @param {string} message  – plain text (will be HTML-escaped)
+ * @param {number} [colspan=3] – how many columns the message should span
+ */
+export const renderStatusRow = (tbody, message, colspan = 3) => {
+  if (!tbody) return;
   tbody.innerHTML = `
-        <tr>
-            <td class="checkbox"></td>
-            <td class="model" colspan="3">Loading…</td>
-            <td class="actions"></td>
-        </tr>
-    `;
+    <tr>
+      <td class="checkbox"></td>
+      <td colspan="${colspan}">${textContent(message)}</td>
+    </tr>`;
 };
 
-export const renderErrorRow = (
-  tbody,
-  message = "Unable to load bus models."
-) => {
-  if (!tbody) {
-    return;
-  }
+/**
+ * Collect the `data-id` values of every checked row inside a table / container.
+ */
+export const getSelectedIds = (container) =>
+  Array.from(
+    container?.querySelectorAll('tbody input[type="checkbox"]:checked') ?? [],
+  )
+    .map((input) => input.closest("tr")?.dataset?.id)
+    .filter(Boolean);
 
-  tbody.innerHTML = `
-        <tr>
-            <td class="checkbox"></td>
-            <td class="model" colspan="3">${textContent(message)}</td>
-            <td class="actions"></td>
-        </tr>
-    `;
+/**
+ * Show or clear a `[data-role="flash"]` banner inside a section.
+ */
+export const setFlashMessage = (section, message) => {
+  const el = section?.querySelector('[data-role="flash"]');
+  if (!el) return;
+  if (message) {
+    el.textContent = message;
+    el.hidden = false;
+  } else {
+    el.textContent = "";
+    el.hidden = true;
+  }
 };
+
+/* ── Legacy wrappers (bus-models page) ───────────────────────── */
+
+export const renderLoadingRow = (tbody) =>
+  renderStatusRow(tbody, "Loading…");
+
+export const renderErrorRow = (tbody, message = "Unable to load bus models.") =>
+  renderStatusRow(tbody, message);
 
 export const renderModels = (tbody, models = []) => {
   if (!tbody) {
@@ -51,14 +70,13 @@ export const renderModels = (tbody, models = []) => {
     .map((raw) => {
       const { model, manufacturer, description } = resolveModelFields(raw);
       return `
-                <tr data-id="${String(raw?.id ?? "")}">
+                <tr data-id="${escapeAttr(raw?.id ?? "")}">
                     <td class="checkbox"><input type="checkbox" aria-label="Select bus model"></td>
-                    <td class="model">${model}</td>
-                    <td class="manufacturer">${manufacturer}</td>
-                    <td class="description">${description}</td>
-                    <td class="actions"><button type="button" data-action="add-bus" data-bus-model-id="${String(
-                      raw?.id ?? ""
-                    )}">Add to fleet</button></td>
+                    <td class="model">${textContent(model)}</td>
+                    <td class="manufacturer">${textContent(manufacturer)}</td>
+                    <td class="cost">${textContent(raw?.specs?.cost ?? "-")}</td>
+                    <td class="size">${textContent(raw?.specs?.size ?? "-")}</td>
+                    <td class="passengers">${textContent(raw?.specs?.passengers ?? "-")}</td>
                 </tr>
             `;
     })
@@ -90,7 +108,7 @@ export const renderBusesList = (tbody, buses = [], modelsById = {}) => {
         bus?.description ?? bus?.specs?.description ?? modelDescription ?? "";
 
       return `
-                <tr data-id="${String(bus?.id ?? "")}">
+                <tr data-id="${escapeAttr(bus?.id ?? "")}">
                     <td class="checkbox"><input type="checkbox" aria-label="Select bus"></td>
                     <td class="name">${textContent(bus?.name ?? "")}</td>
                     <td class="model">${textContent(modelName)}</td>
@@ -103,34 +121,11 @@ export const renderBusesList = (tbody, buses = [], modelsById = {}) => {
   tbody.innerHTML = rows;
 };
 
-export const renderBusesLoadingRow = (tbody) => {
-  if (!tbody) {
-    return;
-  }
+export const renderBusesLoadingRow = (tbody) =>
+  renderStatusRow(tbody, "Loading…");
 
-  tbody.innerHTML = `
-        <tr>
-            <td class="checkbox"></td>
-            <td class="name" colspan="3">Loading…</td>
-        </tr>
-    `;
-};
-
-export const renderBusesErrorRow = (
-  tbody,
-  message = "Unable to load buses."
-) => {
-  if (!tbody) {
-    return;
-  }
-
-  tbody.innerHTML = `
-        <tr>
-            <td class="checkbox"></td>
-            <td class="name" colspan="3">${textContent(message)}</td>
-        </tr>
-    `;
-};
+export const renderBusesErrorRow = (tbody, message = "Unable to load buses.") =>
+  renderStatusRow(tbody, message);
 
 export const updateActionButtons = (table) => {
   if (!table) {
@@ -138,7 +133,7 @@ export const updateActionButtons = (table) => {
   }
 
   const checkboxes = Array.from(
-    table.querySelectorAll('tbody input[type="checkbox"]')
+    table.querySelectorAll('tbody input[type="checkbox"]'),
   );
   const hasSelection = checkboxes.some((input) => input.checked);
 
@@ -152,7 +147,7 @@ export const updateActionButtons = (table) => {
 
   // Find action buttons within the same section's .table-controls
   const buttons = parentSection.querySelectorAll(
-    ".table-controls button[data-action]"
+    ".table-controls button[data-action]",
   );
 
   buttons.forEach((button) => {

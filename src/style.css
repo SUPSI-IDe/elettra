@@ -484,6 +484,70 @@ table input[type="checkbox"] {
   color: var(--error-color);
 }
 
-.form-feedback[data-tone="success"] {
-  color: var(--success-color);
+/* Side Panel */
+.side-panel-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.side-panel-backdrop[hidden] {
+  display: none;
+}
+
+.side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 500px;
+  max-width: 90vw;
+  height: 100vh;
+  background-color: #ffffff;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  z-index: 1001;
+  overflow-y: auto;
+  transform: translateX(0);
+  transition: transform 0.3s ease;
+  padding: 0;
+}
+
+.side-panel[hidden] {
+  display: none;
+  transform: translateX(100%);
+}
+/* Button Styles */
+.primary-btn {
+  background-color: #abe828;
+  color: #1a1a1a;
+  padding: 0.65rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #abe828;
+  transition: background-color 0.2s ease;
+}
+
+.primary-btn:hover {
+  background-color: #9ccf23;
+}
+
+.secondary-btn {
+  background-color: transparent;
+  color: #1a1a1a;
+  padding: 0.65rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #abe828;
+  transition: background-color 0.2s ease;
+}
+
+.secondary-btn:hover {
+  background-color: rgba(171, 232, 40, 0.1);
 }

@@ -5,7 +5,11 @@ import { initializeAddCustomStop } from "./pages/Fleet/Custom Stops/add-custom-s
 import { initializeBuses } from "./pages/Fleet/Buses/buses";
 import { initializeCustomStops } from "./pages/Fleet/Custom Stops/custom-stops";
 import { initializeShifts } from "./pages/Fleet/Shifts/shifts";
+
 import { initializeVisualizeShift } from "./pages/Fleet/Shifts/visualize-shift";
+import { initializeSimulationArchive } from "./pages/Simulation/SimulationArchive/simulation-archive";
+import { initializeMakeSimulation } from "./pages/Simulation/MakeSimulation/make-simulation";
+import { initializeSimulationResult } from "./pages/Simulation/SimulationResult/simulation-result";
 import { applyTranslations, getCurrentLang } from "./i18n";
 
 const partials = import.meta.glob("./pages/**/*.html", {
@@ -120,6 +124,15 @@ export const initializeNavigation = (root = document) => {
         break;
       case "visualize-shift":
         cleanup = await initializeVisualizeShift(target, options);
+        break;
+      case "simulation-archive":
+        cleanup = initializeSimulationArchive(target, options);
+        break;
+      case "make-simulation":
+        cleanup = initializeMakeSimulation(target, options);
+        break;
+      case "simulation-result":
+        cleanup = initializeSimulationResult(target, options);
         break;
       default:
         break;

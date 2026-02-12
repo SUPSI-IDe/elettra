@@ -52,12 +52,9 @@ export const fetchShiftById = async (shiftId) => {
 const toTripIds = (tripIds) =>
   Array.isArray(tripIds) ? tripIds.filter(Boolean).map(String) : [];
 
-export const createShift = async ({ name, busId, tripIds } = {}) => {
+export const createShift = async ({ name, tripIds } = {}) => {
   if (!name) {
     throw new Error("Missing name");
-  }
-  if (!busId) {
-    throw new Error("Missing busId");
   }
   const trips = toTripIds(tripIds);
   if (!trips.length) {
@@ -71,7 +68,6 @@ export const createShift = async ({ name, busId, tripIds } = {}) => {
 
   const body = {
     name,
-    bus_id: busId,
     trip_ids: trips,
   };
 
@@ -89,15 +85,12 @@ export const createShift = async ({ name, busId, tripIds } = {}) => {
   return payload;
 };
 
-export const updateShift = async (shiftId, { name, busId, tripIds } = {}) => {
+export const updateShift = async (shiftId, { name, tripIds } = {}) => {
   if (!shiftId) {
     throw new Error("Missing shiftId");
   }
   if (!name) {
     throw new Error("Missing name");
-  }
-  if (!busId) {
-    throw new Error("Missing busId");
   }
   const trips = toTripIds(tripIds);
   if (!trips.length) {
@@ -111,7 +104,6 @@ export const updateShift = async (shiftId, { name, busId, tripIds } = {}) => {
 
   const body = {
     name,
-    bus_id: busId,
     trip_ids: trips,
   };
 
@@ -145,4 +137,27 @@ export const deleteShift = async (shiftId) => {
     throw new Error(message);
   }
   return true;
+};
+
+export const fetchShiftInfo = async (shiftId) => {
+  if (!shiftId) {
+    throw new Error("Missing shiftId");
+  }
+  const headers = authHeaders();
+  const response = await fetch(
+    `${SHIFTS_PATH}${encodeURIComponent(shiftId)}/info`,
+    {
+      method: "GET",
+      headers,
+    },
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load shift info.";
+    throw new Error(message);
+  }
+  return payload;
 };
