@@ -1,0 +1,159 @@
+<div class="simulation-result-page">
+  <div class="header-with-close">
+    <h1 data-i18n="simulation.result.title">Simulation</h1>
+    <button
+      class="close-button"
+      id="close-simulation-result"
+      aria-label="Close"
+    >
+      <img src="assets/xmark.svg" alt="Close" />
+    </button>
+  </div>
+
+  <div class="simulation-info-header">
+    <div class="simulation-details">
+      <span class="sim-name" id="result-sim-name">&lt;Simulation name&gt;</span>
+      <span class="separator">|</span>
+      <span class="sim-meta" id="result-sim-meta"
+        >&lt;Shift name&gt;, &lt;Bus model&gt;, &lt;Lines&gt;, &lt;Day&gt;</span
+      >
+    </div>
+    <button class="secondary-btn small" id="see-all-data-btn">
+      See all data
+    </button>
+  </div>
+
+  <div class="simulation-content">
+    <!-- Left Column: Custom Variables -->
+    <div class="custom-variables-sidebar">
+      <h3 data-i18n="simulation.result.custom_variables">Custom variables</h3>
+      <hr class="section-divider" />
+
+      <div class="variable-control">
+        <label for="var-diesel-cost">Diesel cost (CHF/liter)</label>
+        <div class="slider-group">
+          <input type="number" id="var-diesel-cost" value="1.30" step="0.01" />
+          <input
+            type="range"
+            id="slider-diesel-cost"
+            min="0.5"
+            max="3.0"
+            step="0.01"
+            value="1.30"
+          />
+        </div>
+      </div>
+
+      <div class="variable-control">
+        <label for="var-diesel-curr">Diesel liters per km</label>
+        <div class="slider-group">
+          <input type="number" id="var-diesel-curr" value="2" step="0.1" />
+          <input
+            type="range"
+            id="slider-diesel-curr"
+            min="0.5"
+            max="5.0"
+            step="0.1"
+            value="2"
+          />
+        </div>
+      </div>
+
+      <div class="variable-control">
+        <label for="var-passenger">Average passenger on board (%)</label>
+        <div class="slider-group">
+          <input
+            type="number"
+            id="var-passenger"
+            value="60"
+            step="1"
+            max="100"
+          />
+          <input
+            type="range"
+            id="slider-passenger"
+            min="0"
+            max="100"
+            step="1"
+            value="60"
+          />
+        </div>
+      </div>
+
+      <div class="variable-control">
+        <label for="var-energy-cost">Energy tariff (CHF/KWh)</label>
+        <div class="slider-group">
+          <input type="number" id="var-energy-cost" value="0.02" step="0.001" />
+          <input
+            type="range"
+            id="slider-energy-cost"
+            min="0.01"
+            max="0.5"
+            step="0.001"
+            value="0.02"
+          />
+        </div>
+      </div>
+
+      <div class="variable-control">
+        <label for="var-recharge-depot">Recharging only at the depot</label>
+        <select id="var-recharge-depot">
+          <option value="yes" selected>yes</option>
+          <option value="no">no</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Right Column: Charts -->
+    <div class="charts-area">
+      <div class="tabs-nav">
+        <button class="tab-btn active" data-tab="costs">Costs</button>
+        <button class="tab-btn" data-tab="efficiency">Efficiency</button>
+        <button class="tab-btn" data-tab="emissions">Emissions</button>
+      </div>
+
+      <div class="tab-content" id="tab-costs">
+        <div class="chart-section">
+          <h4>Average annual costs</h4>
+          <div class="chart-container" id="chart-annual-costs">
+            <!-- D3 Chart will be rendered here -->
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item">
+              <span class="color-box diesel-base"></span>Equivalent diesel bus
+            </div>
+            <div class="legend-item">
+              <span class="color-box electric-base"></span>Electric bus
+            </div>
+          </div>
+        </div>
+
+        <hr class="chart-divider" />
+
+        <div class="chart-section">
+          <h4>Break point analysis</h4>
+          <div class="chart-container" id="chart-break-point">
+            <!-- D3 Chart will be rendered here -->
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content hidden" id="tab-efficiency">
+        <p>Efficiency charts placeholder</p>
+      </div>
+
+      <div class="tab-content hidden" id="tab-emissions">
+        <p>Emissions charts placeholder</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-footer-actions">
+    <button class="secondary-btn" id="cancel-simulation-result">Cancel</button>
+    <button class="primary-btn green" id="update-simulation-result">
+      Update
+    </button>
+    <div class="spacer"></div>
+    <button class="primary-btn green" id="save-simulation-result">Save</button>
+  </div>
+</div>
