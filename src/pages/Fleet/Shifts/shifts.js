@@ -6,13 +6,14 @@ import {
   fetchShiftById,
   fetchShifts,
   fetchBuses,
+  fetchBusModels,
   fetchStopsByTripId,
 } from "../../../api";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
-import { textContent } from "../../../ui-helpers";
+import { textContent, resolveModelFields } from "../../../ui-helpers";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -158,16 +159,14 @@ const renderRows = (tbody, shifts = []) => {
 
       const rowId = text(shift?.id);
       const rowName = text(shift?.name);
-      const rowBus = text(
-        shift?.bus_name ?? shift?.bus_name ?? shift?.bus_id ?? ""
-      );
+      const rowBus = text(shift?.bus_id ?? shift?.busId ?? shift?.bus?.id ?? "");
       return `
                 <tr data-id="${rowId}" data-name="${rowName}" data-bus="${rowBus}">
                     <td class="checkbox"><input type="checkbox" aria-label="Select shift"></td>
 
                     <td class="name">${textContent(shift?.name ?? "")}</td>
                     <td class="bus">${textContent(
-                      shift?.bus_name ?? shift?.bus_id ?? ""
+                      shift?.bus_model_name ?? "—"
                     )}</td>
                     <td class="start">${textContent(startTime)}</td>
                     <td class="end">${textContent(endTime)}</td>
@@ -328,9 +327,10 @@ export const initializeShifts = async (root = document, options = {}) => {
     }
 
     try {
-      const [shiftsPayload, busesPayload, userId] = await Promise.all([
+      const [shiftsPayload, busesPayload, modelsPayload, userId] = await Promise.all([
         fetchShifts({ skip: 0, limit: 100 }),
         fetchBuses({ skip: 0, limit: 1000 }),
+        fetchBusModels({ skip: 0, limit: 1000 }),
         resolveUserId().catch(() => null),
       ]);
 
@@ -344,25 +344,59 @@ export const initializeShifts = async (root = document, options = {}) => {
           (busesPayload?.items ?? busesPayload?.results ?? [])
         );
 
+      const models =
+        Array.isArray(modelsPayload) ? modelsPayload : (
+          (modelsPayload?.items ?? modelsPayload?.results ?? [])
+        );
+
       const currentUserId = userId ?? getCurrentUserId() ?? "";
-      
+
       // Filter buses by user_id to ensure data isolation between users
       const userBuses =
         currentUserId && Array.isArray(buses) ?
           buses.filter((bus) => bus?.user_id === currentUserId)
         : (buses ?? []);
 
+      const userModels =
+        currentUserId && Array.isArray(models) ?
+          models.filter((model) => model?.user_id === currentUserId)
+        : (models ?? []);
+
+      const modelsById = (userModels ?? []).reduce((acc, model) => {
+        if (model?.id) {
+          acc[text(model.id)] = model;
+        }
+        return acc;
+      }, {});
+
       // Note: The /api/v1/user/shifts/ endpoint is already user-scoped by the backend
       // (filters by authenticated user via JWT token), so no client-side filtering is needed.
       // The API response does not include user_id field.
       const userShifts = Array.isArray(shifts) ? shifts : [];
 
-      const busMap = new Map(userBuses.map((b) => [b.id, b.name]));
+      const busMap = new Map(
+        userBuses.map((bus) => {
+          const modelId = text(bus?.bus_model_id ?? "");
+          const resolved = resolveModelFields(modelsById[modelId]);
+          const modelLabel = resolved.model || "";
+          return [text(bus.id), modelLabel];
+        })
+      );
 
-      allShifts = (Array.isArray(userShifts) ? userShifts : []).map((shift) => ({
-        ...shift,
-        bus_name: busMap.get(shift.bus_id) ?? shift.bus_name,
-      }));
+      allShifts = (Array.isArray(userShifts) ? userShifts : []).map((shift) => {
+        const busId = text(
+          shift?.bus?.id ?? shift?.bus_id ?? shift?.busId ?? ""
+        );
+        const modelId = text(
+          shift?.bus?.bus_model_id ?? shift?.bus_model_id ?? shift?.busModelId ?? ""
+        );
+        const modelFromShift = resolveModelFields(modelsById[modelId]).model;
+        const modelLabel = busMap.get(busId) || modelFromShift || "";
+        return {
+          ...shift,
+          bus_model_name: modelLabel || shift?.bus_model_name,
+        };
+      });
       applyFilter();
     } catch (error) {
       console.error("Failed to load shifts", error);

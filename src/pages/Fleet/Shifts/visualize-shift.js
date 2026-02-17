@@ -5,9 +5,10 @@ import {
   fetchStopsByTripId,
   fetchDepotById,
   fetchBusById,
+  fetchBusModels,
 } from "../../../api";
 import { triggerPartialLoad } from "../../../events";
-import { textContent } from "../../../ui-helpers";
+import { textContent, resolveModelFields } from "../../../ui-helpers";
 import {
   text,
   firstAvailable,
@@ -55,7 +56,9 @@ export const initializeVisualizeShift = async (
 
   const state = {
     name: text(options.name).trim(),
-    busName: text(options.busName ?? options.busLabel ?? ""),
+    busModelName: text(
+      options.busModelName ?? options.busName ?? options.busLabel ?? ""
+    ),
     startTime: normalizeTime(options.startTime),
     startDepotName: text(options.startDepotName ?? ""),
     endTime: normalizeTime(options.endTime),
@@ -74,7 +77,10 @@ export const initializeVisualizeShift = async (
     const resolved = text(value).trim() || fallback;
     node.textContent = textContent(resolved);
     if (field === "bus-name") {
-      node.hidden = !text(value).trim();
+      const container = node.closest(".shift-summary__bus");
+      if (container) {
+        container.hidden = !text(value).trim();
+      }
     }
   };
 
@@ -148,7 +154,7 @@ export const initializeVisualizeShift = async (
       state.endTime || (latest !== null ? formatMinutes(latest) : "");
 
     setFieldText("name", state.name || "Untitled shift");
-    setFieldText("bus-name", state.busName);
+    setFieldText("bus-name", state.busModelName);
     setFieldText("start-time", startTime);
     setFieldText("start-depot", state.startDepotName || "—");
     setFieldText("end-time", endTime);
@@ -182,19 +188,46 @@ export const initializeVisualizeShift = async (
 
       let resolvedBusName =
         shift?.bus?.name ?? shift?.bus_name ?? shift?.busName;
-      if (!resolvedBusName) {
+      let resolvedBusModelName =
+        shift?.bus?.model ?? shift?.bus_model_name ?? shift?.busModelName;
+      let resolvedBusModelId =
+        shift?.bus?.bus_model_id ?? shift?.bus_model_id ?? shift?.busModelId;
+      if (!resolvedBusModelName) {
         const busId = shift?.bus?.id ?? shift?.bus_id ?? shift?.busId;
         if (busId) {
           try {
             const bus = await fetchBusById(busId);
-            resolvedBusName = bus?.name;
+            resolvedBusName = resolvedBusName || bus?.name;
+            resolvedBusModelId =
+              resolvedBusModelId ??
+              bus?.bus_model_id ??
+              bus?.busModelId ??
+              bus?.model_id ??
+              bus?.modelId;
           } catch (error) {
             console.warn(`Failed to fetch bus ${busId}`, error);
-            resolvedBusName = busId;
+            resolvedBusName = resolvedBusName || busId;
           }
         }
       }
-      state.busName = state.busName || text(resolvedBusName || "");
+      if (!resolvedBusModelName && resolvedBusModelId) {
+        try {
+          const modelsPayload = await fetchBusModels({ skip: 0, limit: 1000 });
+          const models =
+            Array.isArray(modelsPayload) ? modelsPayload : (
+              (modelsPayload?.items ?? modelsPayload?.results ?? [])
+            );
+          const model = (models ?? []).find(
+            (item) => String(item?.id) === String(resolvedBusModelId)
+          );
+          const resolved = resolveModelFields(model);
+          resolvedBusModelName = resolved.model || resolvedBusName;
+        } catch (error) {
+          console.warn("Failed to fetch bus model", error);
+        }
+      }
+      state.busModelName = state.busModelName || text(resolvedBusModelName || resolvedBusName || "");
+
       state.startTime =
         state.startTime ||
         normalizeTime(

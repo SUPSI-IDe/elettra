@@ -672,10 +672,17 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       shift?.bus?.id,
       shift?.bus?.bus_id
     );
+    const modelsById = getModelsById();
+    const modelId = firstAvailable(
+      shift?.bus?.bus_model_id,
+      shift?.bus_model_id,
+      shift?.busModelId
+    );
+    const modelLabel = modelId ? textContent(modelsById?.[text(modelId)]?.name ?? "") : "";
     prefillSelectValue(
       busSelect,
       busId,
-      shift?.bus?.name ?? shift?.bus_name ?? shift?.busName ?? ""
+      modelLabel
     );
 
     const startTime = normalizeTime(
@@ -1192,7 +1199,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     });
 
     if (!name || !busId) {
-      updateFeedback(feedback, "Shift name and bus are required.", "error");
+      updateFeedback(feedback, "Shift name and bus model are required.", "error");
       return;
     }
 
@@ -1360,7 +1367,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       shiftId,
       name: nameInput instanceof HTMLInputElement ? nameInput.value : "",
       busId: busSelect instanceof HTMLSelectElement ? busSelect.value : "",
-      busName:
+      busModelName:
         busSelect instanceof HTMLSelectElement ?
           (busSelect.selectedOptions?.[0]?.text ?? "")
         : "",

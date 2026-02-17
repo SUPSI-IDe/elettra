@@ -22,6 +22,27 @@ services:
     stdin_open: true
     tty: true
 
+  # Local development service (host backend on this machine)
+  elettra-local:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: elettra-local
+    ports:
+      - "9010:9010"
+    volumes:
+      - ..:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_ROOT=${VITE_API_ROOT:-}
+      - VITE_API_PROXY_TARGET=${VITE_API_PROXY_TARGET:-http://isaac-elettra.dacd.supsi.ch:8002}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - local
+    stdin_open: true
+    tty: true
+
   # Production service with nginx
   elettra:
     build:

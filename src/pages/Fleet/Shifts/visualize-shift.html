@@ -15,7 +15,10 @@
       <section class="shift-summary" aria-labelledby="shift-summary-heading">
         <header class="shift-summary__header">
           <h2 id="shift-summary-heading" data-field="name">Shift name</h2>
-          <p class="shift-summary__bus" data-field="bus-name" hidden></p>
+          <p class="shift-summary__bus" hidden>
+            <span class="shift-summary__bus-label">Bus model:</span>
+            <span data-field="bus-name"></span>
+          </p>
         </header>
         <section
           class="shift-summary__block"
