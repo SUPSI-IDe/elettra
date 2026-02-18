@@ -44,8 +44,7 @@ export const setFlashMessage = (section, message) => {
 
 /* ── Legacy wrappers (bus-models page) ───────────────────────── */
 
-export const renderLoadingRow = (tbody) =>
-  renderStatusRow(tbody, "Loading…");
+export const renderLoadingRow = (tbody) => renderStatusRow(tbody, "Loading…");
 
 export const renderErrorRow = (tbody, message = "Unable to load bus models.") =>
   renderStatusRow(tbody, message);

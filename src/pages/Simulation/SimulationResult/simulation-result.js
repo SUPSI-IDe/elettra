@@ -1,9 +1,17 @@
 import "./simulation-result.css";
-// import * as d3 from "d3"; // Assuming d3 is available via npm
 import { createSimulationRun, getSimulationRun } from "../../../api/simulation";
 import { fetchShiftInfo } from "../../../api/shifts";
 import { fetchVariantsByRoute } from "../../../api/gtfs";
 import { getCurrentUserId } from "../../../store";
+import { computePlaceholderResults } from "./placeholder-data";
+import {
+  renderAnnualCostsChart,
+  renderBreakPointChart,
+  renderEfficiencyBarChart,
+  renderEfficiencyLineChart,
+  renderEmissionsBarChart,
+  renderEmissionsLineChart,
+} from "./simulation-charts";
 
 export const initializeSimulationResult = (root, options = {}) => {
   const { name, shift, busModel, day } = options;
@@ -197,11 +205,71 @@ export const initializeSimulationResult = (root, options = {}) => {
   syncInputs("var-passenger", "slider-passenger");
   syncInputs("var-energy-cost", "slider-energy-cost");
 
-  // D3 Chart Placeholder (Implementation later or basic now)
-  // For now, let's just ensure layout is correct.
-  // We can add a simple rect to show it's working if needed.
+  // --- Chart rendering ---
+  const readCustomVariables = () => ({
+    dieselPrice:
+      parseFloat(root.querySelector("#var-diesel-cost").value) || 1.3,
+    dieselConsumption:
+      parseFloat(root.querySelector("#var-diesel-curr").value) || 2,
+    passengers: parseInt(root.querySelector("#var-passenger").value, 10) || 60,
+    electricityPrice:
+      parseFloat(root.querySelector("#var-energy-cost").value) || 0.02,
+    chargingStrategy:
+      root.querySelector("#var-recharge-depot").value === "yes" ?
+        "depot_only"
+      : "opportunity",
+  });
+
+  const renderAllCharts = () => {
+    const vars = readCustomVariables();
+    const results = computePlaceholderResults(vars);
+
+    renderAnnualCostsChart(
+      root.querySelector("#chart-annual-costs"),
+      results.annualCosts,
+    );
+    renderBreakPointChart(
+      root.querySelector("#chart-break-point"),
+      results.breakPointData,
+    );
+    renderEfficiencyBarChart(
+      root.querySelector("#chart-efficiency-bar"),
+      results.efficiencyCostPerKm,
+    );
+    renderEfficiencyLineChart(
+      root.querySelector("#chart-efficiency-line"),
+      results.efficiencyLineData,
+    );
+    renderEmissionsBarChart(
+      root.querySelector("#chart-emissions-bar"),
+      results.emissionsSaved,
+    );
+    renderEmissionsLineChart(
+      root.querySelector("#chart-emissions-line"),
+      results.emissionsSavedLine,
+    );
+  };
+
+  // Initial render
+  renderAllCharts();
+
+  // Re-render charts when sliders / inputs change
+  const debouncedRender = (() => {
+    let timer;
+    return () => {
+      clearTimeout(timer);
+      timer = setTimeout(renderAllCharts, 300);
+    };
+  })();
+
+  const variableInputs = root.querySelectorAll(
+    ".custom-variables-sidebar input, .custom-variables-sidebar select",
+  );
+  variableInputs.forEach((el) => el.addEventListener("input", debouncedRender));
 
   return () => {
-    // cleanup
+    variableInputs.forEach((el) =>
+      el.removeEventListener("input", debouncedRender),
+    );
   };
 };

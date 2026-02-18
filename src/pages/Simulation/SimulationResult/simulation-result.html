@@ -120,10 +120,14 @@
           </div>
           <div class="chart-legend">
             <div class="legend-item">
-              <span class="color-box diesel-base"></span>Equivalent diesel bus
+              <span class="color-box consumption-maintenance"></span>Consumption
+              and maintenance
             </div>
             <div class="legend-item">
-              <span class="color-box electric-base"></span>Electric bus
+              <span class="color-box chargers"></span>Chargers
+            </div>
+            <div class="legend-item">
+              <span class="color-box other-costs"></span>Other costs
             </div>
           </div>
         </div>
@@ -139,11 +143,44 @@
       </div>
 
       <div class="tab-content hidden" id="tab-efficiency">
-        <p>Efficiency charts placeholder</p>
+        <div class="chart-section">
+          <h4>CHF/Km</h4>
+          <div class="chart-container" id="chart-efficiency-bar"></div>
+        </div>
+
+        <hr class="chart-divider" />
+
+        <div class="chart-section">
+          <h4>Efficiency comparison</h4>
+          <div class="chart-container" id="chart-efficiency-line"></div>
+        </div>
       </div>
 
       <div class="tab-content hidden" id="tab-emissions">
-        <p>Emissions charts placeholder</p>
+        <div class="chart-section">
+          <h4>Emissions saved</h4>
+          <div class="emissions-saved-layout">
+            <div class="chart-legend emissions-legend-vertical">
+              <div class="legend-item">
+                <span class="color-box emission-co2"></span>carbon dioxide (CO2)
+              </div>
+              <div class="legend-item">
+                <span class="color-box emission-no"></span>nitric oxide (NO)
+              </div>
+              <div class="legend-item">
+                <span class="color-box emission-pm10"></span>PM10
+              </div>
+            </div>
+            <div class="chart-container" id="chart-emissions-bar"></div>
+          </div>
+        </div>
+
+        <hr class="chart-divider" />
+
+        <div class="chart-section">
+          <h4>Emissions saved</h4>
+          <div class="chart-container" id="chart-emissions-line"></div>
+        </div>
       </div>
     </div>
   </div>

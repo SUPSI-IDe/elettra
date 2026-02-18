@@ -177,9 +177,37 @@
 
 .chart-container {
   background: #fff;
-  /* Placeholder height for charts */
   height: 300px;
   width: 100%;
+  position: relative;
+}
+
+.chart-tooltip {
+  position: absolute;
+  display: none;
+  background: rgba(30, 30, 30, 0.92);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.chart-container svg {
+  display: block;
+}
+
+.chart-container .axis path,
+.chart-container .axis line {
+  stroke: #ddd;
+}
+
+.chart-container .axis text {
+  font-family: inherit;
 }
 
 .chart-legend {
@@ -201,6 +229,53 @@
   width: 12px;
   height: 12px;
   display: inline-block;
+  border-radius: 2px;
+}
+
+.color-box.consumption-maintenance {
+  background-color: #e8782a;
+}
+
+.color-box.chargers {
+  background-color: #f5c542;
+}
+
+.color-box.other-costs {
+  background-color: #4caf50;
+}
+
+.color-box.diesel-base {
+  background-color: #9e9e9e;
+}
+
+.color-box.electric-base {
+  background-color: #4caf50;
+}
+
+.color-box.emission-co2 {
+  background-color: #e8782a;
+}
+
+.color-box.emission-no {
+  background-color: #f5c542;
+}
+
+.color-box.emission-pm10 {
+  background-color: #9e9e7a;
+}
+
+/* Emissions saved layout: legend on left, chart on right */
+.emissions-saved-layout {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: flex-start;
+}
+
+.emissions-legend-vertical {
+  flex-direction: column;
+  justify-content: flex-start;
+  min-width: 160px;
+  padding-top: var(--spacing-md);
 }
 
 .chart-divider {
