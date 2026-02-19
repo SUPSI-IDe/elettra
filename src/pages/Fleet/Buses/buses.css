@@ -30,3 +30,9 @@
   flex: 0 0 auto;
   height: auto;
 }
+
+.bus-models th.size,
+.bus-models td.size {
+  text-align: center;
+  width: 5rem;
+}

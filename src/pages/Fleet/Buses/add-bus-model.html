@@ -39,6 +39,17 @@
         />
       </div>
       <div class="form-group">
+        <label for="size" data-i18n="buses.model_size">Size</label>
+        <select id="size" name="size" required>
+          <option value="" disabled selected data-i18n="buses.model_size_select">
+            Select size
+          </option>
+          <option value="9m" data-i18n="buses.model_size_9m">9 meters</option>
+          <option value="13m" data-i18n="buses.model_size_13m">13 meters</option>
+          <option value="18m" data-i18n="buses.model_size_18m">18 meters</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label for="description"
           >Description <span aria-hidden="true">(optional)</span></label
         >

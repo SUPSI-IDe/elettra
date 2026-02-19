@@ -9,12 +9,31 @@ const generateBusNameFromModel = (modelName = "Bus") => {
   return `${modelName.trim().replace(/\s+/g, "_")}_01`;
 };
 
+const parseSpecs = (specs) => {
+  if (!specs) {
+    return {};
+  }
+  if (typeof specs === "string") {
+    try {
+      const parsed = JSON.parse(specs);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (error) {
+      return {};
+    }
+  }
+  if (typeof specs === "object") {
+    return specs;
+  }
+  return {};
+};
+
 const toBusModelPayload = (formData) => {
   const name = formData.get("name")?.toString().trim();
   const manufacturer = formData.get("manufacturer")?.toString().trim();
   const description = formData.get("description")?.toString().trim() ?? "";
+  const size = formData.get("size")?.toString().trim();
 
-  return { name, manufacturer, description };
+  return { name, manufacturer, description, size };
 };
 
 export const initializeAddBusModel = (root = document, options = {}) => {
@@ -43,6 +62,8 @@ export const initializeAddBusModel = (root = document, options = {}) => {
     const nameInput = form.querySelector("#name");
     const manufacturerInput = form.querySelector("#manufacturer");
     const descriptionInput = form.querySelector("#description");
+    const sizeSelect = form.querySelector("#size");
+    const specs = parseSpecs(currentModel.specs);
 
     if (nameInput)
       nameInput.value = currentModel.name || currentModel.model || "";
@@ -50,6 +71,9 @@ export const initializeAddBusModel = (root = document, options = {}) => {
       manufacturerInput.value = currentModel.manufacturer || "";
     if (descriptionInput)
       descriptionInput.value = currentModel.description || "";
+    if (sizeSelect && specs?.size) {
+      sizeSelect.value = specs.size;
+    }
   }
 
   const feedback = form.querySelector('[data-role="feedback"]');
@@ -80,7 +104,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
     event.preventDefault();
 
     const formData = new FormData(form);
-    const { name, manufacturer, description } = toBusModelPayload(formData);
+    const { name, manufacturer, description, size } = toBusModelPayload(formData);
 
     if (!name || !manufacturer) {
       updateFeedback(
@@ -91,18 +115,25 @@ export const initializeAddBusModel = (root = document, options = {}) => {
       return;
     }
 
+    if (!size) {
+      updateFeedback(feedback, "Size is required.", "error");
+      return;
+    }
+
     toggleFormDisabled(form, true);
-    updateFeedback(feedback, isEditMode ? "Updating…" : "Saving…", "info");
+    updateFeedback(feedback, isEditMode ? "Updating…" : "Saving…" , "info");
 
     try {
       const userId = await resolveUserId();
+      const baseSpecs = parseSpecs(currentModel.specs);
+      const specs = { ...baseSpecs, size };
 
       if (isEditMode) {
         await updateBusModel(currentModel.id, {
           name,
           manufacturer,
           description,
-          specs: currentModel.specs || {},
+          specs,
           userId,
         });
         writeFlash("Bus model updated.");
@@ -112,7 +143,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
           name,
           manufacturer,
           description,
-          specs: {},
+          specs,
           userId,
         });
 

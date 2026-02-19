@@ -1,5 +1,23 @@
 import { resolveModelFields, textContent } from "../ui-helpers";
 
+const parseSpecs = (specs) => {
+  if (!specs) {
+    return {};
+  }
+  if (typeof specs === "string") {
+    try {
+      const parsed = JSON.parse(specs);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (error) {
+      return {};
+    }
+  }
+  if (typeof specs === "object") {
+    return specs;
+  }
+  return {};
+};
+
 export const renderLoadingRow = (tbody) => {
   if (!tbody) {
     return;
@@ -8,7 +26,7 @@ export const renderLoadingRow = (tbody) => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="model" colspan="3">Loading…</td>
+            <td class="model" colspan="4">Loading…</td>
         </tr>
     `;
 };
@@ -24,7 +42,7 @@ export const renderErrorRow = (
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="model" colspan="3">${textContent(message)}</td>
+            <td class="model" colspan="4">${textContent(message)}</td>
         </tr>
     `;
 };
@@ -38,7 +56,7 @@ export const renderModels = (tbody, models = []) => {
     tbody.innerHTML = `
             <tr>
                 <td class="checkbox"></td>
-                <td class="model" colspan="3">No bus models found.</td>
+                <td class="model" colspan="4">No bus models found.</td>
             </tr>
         `;
     return;
@@ -47,11 +65,15 @@ export const renderModels = (tbody, models = []) => {
   const rows = models
     .map((raw) => {
       const { model, manufacturer, description } = resolveModelFields(raw);
+      const specs = parseSpecs(raw?.specs);
+      const size = specs?.size ?? "";
+
       return `
                 <tr data-id="${String(raw?.id ?? "")}">
                     <td class="checkbox"><input type="checkbox" aria-label="Select bus model"></td>
                     <td class="model">${model}</td>
                     <td class="manufacturer">${manufacturer}</td>
+                    <td class="size">${textContent(size)}</td>
                     <td class="description">${description}</td>
                 </tr>
             `;

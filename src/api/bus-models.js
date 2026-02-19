@@ -65,11 +65,14 @@ export const createBusModel = async ({
     "Content-Type": "application/json",
   };
 
+  const normalizedSpecs =
+    specs && typeof specs === "object" ? specs : {};
+
   const body = {
     name,
     manufacturer,
     description,
-    specs: typeof specs === "object" && specs !== null ? specs : {},
+    specs: normalizedSpecs,
   };
 
   if (userId) {
@@ -111,11 +114,14 @@ export const updateBusModel = async (
     "Content-Type": "application/json",
   };
 
+  const normalizedSpecs =
+    specs && typeof specs === "object" ? specs : {};
+
   const body = {
     name,
     manufacturer,
     description,
-    specs: typeof specs === "object" && specs !== null ? specs : {},
+    specs: normalizedSpecs,
   };
 
   if (userId) {
