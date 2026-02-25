@@ -117,7 +117,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .style("white-space", "nowrap");
 
   const width = Math.max(container.clientWidth || 0, 720);
-  const rowHeight = 56;
+  const rowHeight = 36;
   const margin = { top: 32, right: 32, bottom: 48, left: 168 };
   const innerHeight = Math.max((stops.length - 1) * rowHeight, rowHeight);
   const height = innerHeight + margin.top + margin.bottom;

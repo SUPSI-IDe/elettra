@@ -1,4 +1,3 @@
-
 import * as d3 from 'd3';
 
 /**
@@ -18,7 +17,7 @@ export function renderShiftVisualization(containerSelector, data) {
     // Dimensions and margins
     const margin = { top: 40, right: 40, bottom: 40, left: 100 };
     const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
-    const height = 600 - margin.top - margin.bottom; // Fixed height for now, could be dynamic
+    const height = 216 - margin.top - margin.bottom;
 
     const svg = container.append('svg')
         .attr('width', width + margin.left + margin.right)

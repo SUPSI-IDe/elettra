@@ -12,6 +12,26 @@
   align-items: start;
 }
 
+/* Edit mode layout: place Shift Timeline directly under page title */
+.shift-form form[data-mode="edit"] .shift-form-grid {
+  grid-template-areas:
+    "timeline timeline"
+    "scheduled details";
+}
+
+.shift-form form[data-mode="edit"] .scheduled-trips {
+  grid-area: scheduled;
+}
+
+.shift-form form[data-mode="edit"] .shift-details {
+  grid-area: details;
+}
+
+.shift-form form[data-mode="edit"] .shift-timeline-section {
+  grid-area: timeline;
+  margin-top: 0;
+}
+
 /* Page-specific overrides */
 .shift-form main {
   max-width: 1400px;
@@ -332,7 +352,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
-  min-height: 620px;
+  min-height: 420px;
 }
 
 .shift-visualization__header h2 {
@@ -350,7 +370,7 @@
     rgba(177, 232, 232, 0.05)
   );
   padding: var(--spacing-lg);
-  min-height: 640px;
+  min-height: 250px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -424,8 +444,15 @@
     grid-template-columns: 1fr;
   }
 
+  .shift-form form[data-mode="edit"] .shift-form-grid {
+    grid-template-areas:
+      "timeline"
+      "scheduled"
+      "details";
+  }
+
   .timeline {
-    min-height: 320px;
+    min-height: 260px;
   }
 }
 
@@ -569,8 +596,8 @@
 }
 
 .shift-form-timeline {
-  min-height: 300px;
-  max-height: 450px;
+  min-height: 216px; /* +20% */
+  max-height: 348px; /* +20% */
   overflow: hidden;
 }
 

@@ -52,6 +52,25 @@ import {
 
 const readTripId = (node) => node?.dataset?.tripId?.trim() ?? "";
 
+const isDepotTrip = (trip = {}) => {
+  if (
+    trip?.status === "depot" ||
+    trip?.trip?.status === "depot" ||
+    trip?.trip_type === "auxiliary" ||
+    trip?.trip?.trip_type === "auxiliary"
+  ) {
+    return true;
+  }
+
+  const start = (trip?.start_stop_name || trip?.startStopName || "").trim();
+  const end = (trip?.end_stop_name || trip?.endStopName || "").trim();
+  if (start && end && start === end) {
+    return true;
+  }
+
+  return false;
+};
+
 // Module-level variable to store loaded depots for use in handleSubmit
 let loadedDepots = [];
 
@@ -392,15 +411,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return;
     }
     
-    // Get depot names from the select elements
-    const startDepotSelect = form.querySelector('[data-field="start-depot"]');
-    const endDepotSelect = form.querySelector('[data-field="end-depot"]');
-    const startDepotName = startDepotSelect?.selectedOptions?.[0]?.textContent || "";
-    const endDepotName = endDepotSelect?.selectedOptions?.[0]?.textContent || "";
+    const startDepotSel = form.querySelector('[data-field="start-depot"]');
+    const endDepotSel = form.querySelector('[data-field="end-depot"]');
+    const startDepotName = startDepotSel?.value ? (startDepotSel.selectedOptions?.[0]?.textContent || "") : "";
+    const endDepotName = endDepotSel?.value ? (endDepotSel.selectedOptions?.[0]?.textContent || "") : "";
     
     renderTimeline(timelineContainer, selectedTrips, {
-      startDepotName: startDepotName !== "Depot name" ? startDepotName : "",
-      endDepotName: endDepotName !== "Depot name" ? endDepotName : "",
+      startDepotName,
+      endDepotName,
       startTime: getShiftStartTime() || "",
       endTime: getShiftEndTime() || "",
     });
@@ -714,41 +732,34 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     if (endTimeInput instanceof HTMLInputElement && endTime) {
       endTimeInput.value = endTime;
     }
-    
-    console.debug("[SHIFT DEBUG] applyShiftPrefill times:", {
-      startTime,
-      endTime,
-      "startTimeInput.value": startTimeInput?.value,
-      "endTimeInput.value": endTimeInput?.value,
-    });
 
-    const startDepotId = firstAvailable(
-      shift?.start_depot_id,
-      shift?.startDepotId,
-      shift?.start_depot?.id,
-      shift?.start_depot,
-      shift?.startDepot
-    );
-    prefillSelectValue(
-      startDepotSelect,
-      startDepotId,
-      shift?.start_depot?.name ?? shift?.startDepotName ?? ""
-    );
+    const allTrips = readShiftTripsFromStructure(shift);
+    const depotTrips = allTrips.filter((trip) => isDepotTrip(trip));
+    const trips = allTrips.filter((trip) => !isDepotTrip(trip));
 
-    const endDepotId = firstAvailable(
-      shift?.end_depot_id,
-      shift?.endDepotId,
-      shift?.end_depot?.id,
-      shift?.end_depot,
-      shift?.endDepot
-    );
-    prefillSelectValue(
-      endDepotSelect,
-      endDepotId,
-      shift?.end_depot?.name ?? shift?.endDepotName ?? ""
-    );
+    // The API does NOT return depot info as top-level shift fields.
+    // Depot association lives only in the structure as auxiliary trips.
+    // Extract depot names from the first/last depot trips and match
+    // against the loaded depot options.
+    const depotNameFromTrip = (trip) =>
+      (trip?.start_stop_name || trip?.startStopName ||
+       trip?.end_stop_name || trip?.endStopName ||
+       trip?.trip?.start_stop_name || trip?.trip?.end_stop_name || "").trim();
 
-    const trips = readShiftTripsFromStructure(shift);
+    const selectDepotByName = (select, name) => {
+      if (!(select instanceof HTMLSelectElement) || !name) return;
+      const match = Array.from(select.options).find(
+        (opt) => opt.value && opt.textContent.trim().toLowerCase() === name.toLowerCase()
+      );
+      if (match) select.value = match.value;
+    };
+
+    if (depotTrips.length > 0) {
+      const startDepotName = depotNameFromTrip(depotTrips[0]);
+      const endDepotName = depotNameFromTrip(depotTrips[depotTrips.length - 1]);
+      selectDepotByName(startDepotSelect, startDepotName);
+      selectDepotByName(endDepotSelect, endDepotName);
+    }
     selectedTrips = trips;
     selectedTripIds.clear();
     trips.forEach((trip = {}) => {
@@ -1378,7 +1389,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
           startDepotSelect.value
         : "",
       startDepotName:
-        startDepotSelect instanceof HTMLSelectElement ?
+        startDepotSelect instanceof HTMLSelectElement && startDepotSelect.value ?
           (startDepotSelect.selectedOptions?.[0]?.text ?? "")
         : "",
       endTime:
@@ -1386,7 +1397,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       endDepotId:
         endDepotSelect instanceof HTMLSelectElement ? endDepotSelect.value : "",
       endDepotName:
-        endDepotSelect instanceof HTMLSelectElement ?
+        endDepotSelect instanceof HTMLSelectElement && endDepotSelect.value ?
           (endDepotSelect.selectedOptions?.[0]?.text ?? "")
         : "",
       trips: selectedTrips,
@@ -1631,34 +1642,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         console.warn("Could not fetch shift info:", error.message);
       }
 
-      // DEBUG: Log what the API returns to understand the data structure
-      console.debug("[SHIFT DEBUG] Raw shift from fetchShiftById:", JSON.stringify(shift, null, 2));
-      console.debug("[SHIFT DEBUG] Raw shiftInfo from fetchShiftInfo:", JSON.stringify(shiftInfo, null, 2));
-      console.debug("[SHIFT DEBUG] Checking time fields in shift:", {
-        start_time: shift?.start_time,
-        startTime: shift?.startTime,
-        end_time: shift?.end_time,
-        endTime: shift?.endTime,
-        "start?.time": shift?.start?.time,
-        "end?.time": shift?.end?.time,
-      });
-      console.debug("[SHIFT DEBUG] Checking time fields in shiftInfo:", {
-        start_time: shiftInfo?.start_time,
-        startTime: shiftInfo?.startTime,
-        end_time: shiftInfo?.end_time,
-        endTime: shiftInfo?.endTime,
-      });
-
-      // Hydrate the shift with stop times and the info from the endpoint
       const hydratedShift = await hydrateShift(shift, shiftInfo);
-      
-      console.debug("[SHIFT DEBUG] Hydrated shift times:", {
-        start_time: hydratedShift?.start_time,
-        end_time: hydratedShift?.end_time,
-      });
-      
       applyShiftPrefill(hydratedShift);
-      updateFeedback(feedback, "Shift ready to edit.", "info");
+
+      updateTimeline();
+
       toggleFormDisabled(form, false);
       if (nameInput instanceof HTMLInputElement) {
         nameInput.focus();

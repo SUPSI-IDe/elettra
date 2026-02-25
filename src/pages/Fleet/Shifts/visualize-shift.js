@@ -21,6 +21,23 @@ import {
 } from "./shift-utils";
 import { renderTimeline } from "./shift-timeline";
 
+const isDepotTrip = (trip = {}) => {
+  if (
+    trip?.status === "depot" ||
+    trip?.trip?.status === "depot" ||
+    trip?.trip_type === "auxiliary" ||
+    trip?.trip?.trip_type === "auxiliary"
+  ) {
+    return true;
+  }
+  const start = (trip?.start_stop_name || trip?.startStopName || "").trim();
+  const end = (trip?.end_stop_name || trip?.endStopName || "").trim();
+  if (start && end && start === end) {
+    return true;
+  }
+  return false;
+};
+
 const ensurePlaceholder = (container, message) => {
   if (!container) {
     return;
@@ -65,7 +82,7 @@ export const initializeVisualizeShift = async (
     endDepotName: text(options.endDepotName ?? ""),
     trips:
       Array.isArray(options.trips) ?
-        options.trips.map((trip) => normalizeTrip(trip)).filter(Boolean)
+        options.trips.map((trip) => normalizeTrip(trip)).filter(Boolean).filter((trip) => !isDepotTrip(trip))
       : [],
   };
 
@@ -324,7 +341,7 @@ export const initializeVisualizeShift = async (
       state.trips = readShiftTripsFromStructure({
         ...shift,
         structure: enrichedStructure,
-      });
+      }).filter((trip) => !isDepotTrip(trip));
 
       // Fallback: try to get depot names from the first/last trip stops if still missing
       if (!state.startDepotName && state.trips.length > 0) {
