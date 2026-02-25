@@ -599,8 +599,14 @@
   min-height: 216px; /* +20% */
   max-height: 348px; /* +20% */
   overflow: hidden;
+  /* Override the base `.timeline` centering to avoid vertical wasted space. */
+  align-items: stretch;
+  justify-content: stretch;
+  padding: var(--spacing-md);
 }
 
 .shift-form-timeline .timeline__chart {
+  width: 100%;
+  height: 100%;
   max-width: 100%;
 }

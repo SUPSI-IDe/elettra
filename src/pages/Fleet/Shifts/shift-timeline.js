@@ -119,7 +119,30 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
   const width = Math.max(container.clientWidth || 0, 720);
   const rowHeight = 36;
   const margin = { top: 32, right: 32, bottom: 48, left: 168 };
-  const innerHeight = Math.max((stops.length - 1) * rowHeight, rowHeight);
+  let innerHeight = Math.max((stops.length - 1) * rowHeight, rowHeight);
+
+  // In the shift form, the container has a fixed height. If there are only a few
+  // stops, the computed innerHeight can be much smaller than the available space,
+  // which creates big vertical "wasted space". Expand the Y spacing to fill.
+  if (container.classList?.contains("shift-form-timeline")) {
+    try {
+      const styles = window.getComputedStyle(container);
+      const paddingTop = Number.parseFloat(styles.paddingTop) || 0;
+      const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
+      const available =
+        (container.clientHeight || 0) -
+        paddingTop -
+        paddingBottom -
+        margin.top -
+        margin.bottom;
+      if (available > innerHeight) {
+        innerHeight = available;
+      }
+    } catch (e) {
+      // ignore (non-browser env / computedStyle failure)
+    }
+  }
+
   const height = innerHeight + margin.top + margin.bottom;
   const innerWidth = width - margin.left - margin.right;
 
@@ -161,7 +184,8 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .attr("viewBox", `0 0 ${width} ${height}`)
     .attr("role", "presentation")
     .attr("aria-hidden", "true")
-    .attr("preserveAspectRatio", "xMidYMid meet");
+    // Avoid centering/letterboxing inside taller containers (shift form timeline).
+    .attr("preserveAspectRatio", "xMinYMin meet");
 
   const root = svg
     .append("g")
