@@ -7,6 +7,7 @@ import {
   fetchBusModelsByManufacturer,
 } from "../../../api";
 import { getBusModelDefaultsForLength } from "../../../config/bus-model-defaults";
+import { AUXILIARY_CONSUMPTION_KW_DEFAULTS } from "../../../config/auxiliary-consumption-defaults";
 import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { writeFlash, addOwnedBus } from "../../../store";
@@ -38,10 +39,14 @@ const SPEC_FIELDS = [
   "cost",
   "bus_length",
   "max_passengers",
-  "bus_lifetime",
-  "single_pack_battery_cost",
+  "empty_weight_kg",
+  "max_battery_packs",
+  "min_battery_packs",
+  "battery_pack_size_kwh",
+  "max_charging_power_kw",
+  "battery_pack_weight_kg",
   "battery_pack_lifetime",
-  "buses_maintenance",
+  "bus_lifetime",
 ];
 
 const toBusModelPayload = (formData) => {
@@ -520,14 +525,15 @@ export const initializeAddBusModel = (root = document, options = {}) => {
     const requiredSpecs = [
       { key: "cost", label: "Cost (CHF)" },
       { key: "bus_length", label: "Bus length (m)" },
-      { key: "max_passengers", label: "Maximum number of passengers" },
-      { key: "bus_lifetime", label: "Bus lifetime (years)" },
-      {
-        key: "single_pack_battery_cost",
-        label: "Single pack battery cost (CHF)",
-      },
+      { key: "max_passengers", label: "Max passengers" },
+      { key: "empty_weight_kg", label: "Empty weight (kg)" },
+      { key: "max_battery_packs", label: "Max battery packs" },
+      { key: "min_battery_packs", label: "Min battery packs" },
+      { key: "battery_pack_size_kwh", label: "Battery pack size (kWh)" },
+      { key: "max_charging_power_kw", label: "Max charging power (kW)" },
+      { key: "battery_pack_weight_kg", label: "Battery pack weight (kg)" },
       { key: "battery_pack_lifetime", label: "Battery pack lifetime (years)" },
-      { key: "buses_maintenance", label: "Buses maintenance (CHF/Km)" },
+      { key: "bus_lifetime", label: "Bus lifetime (years)" },
     ];
 
     for (const { key, label } of requiredSpecs) {
@@ -542,11 +548,11 @@ export const initializeAddBusModel = (root = document, options = {}) => {
 
     try {
       const userId = await resolveUserId();
-      const baseSpecs = parseSpecs(currentModel.specs);
-      const mergedSpecs = { ...baseSpecs, ...specs };
+      const mergedSpecs = { ...specs };
       if (model) {
         mergedSpecs.model_type = model;
       }
+      mergedSpecs.auxiliary_consumption_kw = AUXILIARY_CONSUMPTION_KW_DEFAULTS;
 
       if (isEditMode) {
         await updateBusModel(currentModel.id, {
