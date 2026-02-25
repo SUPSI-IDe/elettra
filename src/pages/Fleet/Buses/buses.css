@@ -20,10 +20,30 @@
 /* Page-specific overrides for bus model forms */
 .add-bus-model main {
   max-width: 720px;
+  overflow-y: auto;
+}
+
+.add-bus-model h1 {
+  color: var(--brand-teal);
 }
 
 .add-bus-model form {
   max-width: clamp(22rem, 60vw, 32rem);
+}
+
+.add-bus-model .required-mark {
+  color: var(--brand-teal);
+}
+
+.add-bus-model .required-note {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.add-bus-model .form-group input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .bus-models table {

@@ -1,7 +1,7 @@
 <section class="form-page add-bus-model">
   <header class="page-header">
     <div class="header-with-close">
-      <h1>Add Bus Model</h1>
+      <h1>Add bus model</h1>
       <button
         type="button"
         data-action="close"
@@ -11,9 +11,6 @@
         <img src="assets/xmark.svg" alt="" aria-hidden="true" />
       </button>
     </div>
-    <p class="intro">
-      Capture the essentials so the team can reuse this model across the fleet.
-    </p>
   </header>
   <main>
     <form data-form="add-bus-model" novalidate>
@@ -25,41 +22,133 @@
         hidden
       ></p>
       <div class="form-group">
-        <label for="name">Model name</label>
+        <label for="name">Name <span class="required-mark" aria-hidden="true">*</span></label>
         <input type="text" id="name" name="name" required autocomplete="off" />
       </div>
       <div class="form-group">
         <label for="manufacturer">Manufacturer</label>
-        <input
-          type="text"
-          id="manufacturer"
-          name="manufacturer"
-          required
-          autocomplete="organization"
-        />
+        <div class="autocomplete-wrapper">
+          <input
+            type="text"
+            id="manufacturer"
+            name="manufacturer"
+            autocomplete="off"
+            placeholder="Select a manufacturer…"
+          />
+          <input type="hidden" name="manufacturer_id" id="manufacturer-id" />
+          <div class="autocomplete-dropdown" data-role="manufacturer-dropdown" hidden>
+            <ul class="autocomplete-list" data-role="manufacturer-list"></ul>
+          </div>
+        </div>
       </div>
       <div class="form-group">
-        <label for="size" data-i18n="buses.model_size">Size</label>
-        <select id="size" name="size" required>
-          <option value="" disabled selected data-i18n="buses.model_size_select">
-            Select size
-          </option>
-          <option value="9m" data-i18n="buses.model_size_9m">9 meters</option>
-          <option value="13m" data-i18n="buses.model_size_13m">13 meters</option>
-          <option value="18m" data-i18n="buses.model_size_18m">18 meters</option>
+        <label for="model" class="model-label">Model</label>
+        <div class="autocomplete-wrapper">
+          <input
+            type="text"
+            id="model"
+            name="model"
+            autocomplete="off"
+            placeholder="Select a model…"
+            disabled
+          />
+          <input type="hidden" name="model_id" id="model-id" />
+          <div class="autocomplete-dropdown" data-role="model-dropdown" hidden>
+            <ul class="autocomplete-list" data-role="model-list"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="bus_length">Bus length (m) <span class="required-mark" aria-hidden="true">*</span></label>
+        <select id="bus_length" name="bus_length" required>
+          <option value="" disabled selected>Select a length…</option>
+          <option value="9">9</option>
+          <option value="12">12</option>
+          <option value="18">18</option>
         </select>
       </div>
       <div class="form-group">
-        <label for="description"
-          >Description <span aria-hidden="true">(optional)</span></label
-        >
+        <label for="cost">Cost (CHF) <span class="required-mark" aria-hidden="true">*</span></label>
+        <input
+          type="number"
+          id="cost"
+          name="cost"
+          required
+          min="0"
+          step="any"
+          autocomplete="off"
+        />
+      </div>
+      <div class="form-group">
+        <label for="max_passengers">Maximum number of passengers <span class="required-mark" aria-hidden="true">*</span></label>
+        <input
+          type="number"
+          id="max_passengers"
+          name="max_passengers"
+          required
+          min="0"
+          step="1"
+          autocomplete="off"
+        />
+      </div>
+      <div class="form-group">
+        <label for="bus_lifetime">Bus lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>
+        <input
+          type="number"
+          id="bus_lifetime"
+          name="bus_lifetime"
+          required
+          min="0"
+          step="1"
+          autocomplete="off"
+        />
+      </div>
+      <div class="form-group">
+        <label for="single_pack_battery_cost">Single pack battery cost (CHF) <span class="required-mark" aria-hidden="true">*</span></label>
+        <input
+          type="number"
+          id="single_pack_battery_cost"
+          name="single_pack_battery_cost"
+          required
+          min="0"
+          step="any"
+          autocomplete="off"
+        />
+      </div>
+      <div class="form-group">
+        <label for="battery_pack_lifetime">Battery pack lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>
+        <input
+          type="number"
+          id="battery_pack_lifetime"
+          name="battery_pack_lifetime"
+          required
+          min="0"
+          step="1"
+          autocomplete="off"
+        />
+      </div>
+      <div class="form-group">
+        <label for="buses_maintenance">Buses maintenance (CHF/Km) <span class="required-mark" aria-hidden="true">*</span></label>
+        <input
+          type="number"
+          id="buses_maintenance"
+          name="buses_maintenance"
+          required
+          min="0"
+          step="any"
+          autocomplete="off"
+        />
+      </div>
+      <div class="form-group">
+        <label for="description">Description</label>
         <textarea
           id="description"
           name="description"
-          rows="5"
+          rows="4"
           autocomplete="off"
         ></textarea>
       </div>
+      <p class="required-note">* Required information</p>
       <div class="form-actions">
         <button type="button" data-action="cancel">Cancel</button>
         <button type="submit">Save</button>

@@ -49,6 +49,7 @@ export const fetchBusModelById = async (modelId) => {
 export const createBusModel = async ({
   name,
   manufacturer,
+  model = "",
   description = "",
   specs = {},
   userId,
@@ -75,6 +76,10 @@ export const createBusModel = async ({
     specs: normalizedSpecs,
   };
 
+  if (model) {
+    body.model = model;
+  }
+
   if (userId) {
     body.user_id = userId;
   }
@@ -97,7 +102,7 @@ export const createBusModel = async ({
 
 export const updateBusModel = async (
   modelId,
-  { name, manufacturer, description = "", specs = {}, userId } = {}
+  { name, manufacturer, model = "", description = "", specs = {}, userId } = {}
 ) => {
   if (!modelId) {
     throw new Error("Missing modelId");
@@ -124,6 +129,10 @@ export const updateBusModel = async (
     specs: normalizedSpecs,
   };
 
+  if (model) {
+    body.model = model;
+  }
+
   if (userId) {
     body.user_id = userId;
   }
@@ -142,6 +151,40 @@ export const updateBusModel = async (
       payload?.detail?.[0]?.msg ??
       payload?.detail ??
       "Unable to update bus model.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
+const BUS_MANUFACTURERS_PATH = `${API_ROOT}/api/v1/user/bus-manufacturers/`;
+
+export const fetchBusManufacturers = async () => {
+  const headers = authHeaders();
+  const response = await fetch(BUS_MANUFACTURERS_PATH, { method: "GET", headers });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load bus manufacturers.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
+export const fetchBusModelsByManufacturer = async (manufacturerId) => {
+  if (!manufacturerId) {
+    throw new Error("Missing manufacturerId");
+  }
+  const headers = authHeaders();
+  const response = await fetch(
+    `${BUS_MANUFACTURERS_PATH}${encodeURIComponent(manufacturerId)}/models`,
+    { method: "GET", headers }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load models for manufacturer.";
     throw new Error(message);
   }
   return payload;
