@@ -41,6 +41,21 @@
   margin: 0;
 }
 
+.add-bus-model .manufacturer-row {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.add-bus-model .manufacturer-row .autocomplete-wrapper {
+  flex: 1 1 14rem;
+}
+
+.add-bus-model .manufacturer-row .custom-manufacturer {
+  flex: 1 1 14rem;
+}
+
 .add-bus-model .form-group input:disabled {
   opacity: 0.4;
   cursor: not-allowed;

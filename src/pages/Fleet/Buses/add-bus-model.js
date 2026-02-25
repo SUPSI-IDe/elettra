@@ -6,6 +6,7 @@ import {
   fetchBusManufacturers,
   fetchBusModelsByManufacturer,
 } from "../../../api";
+import { getBusModelDefaultsForLength } from "../../../config/bus-model-defaults";
 import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { writeFlash, addOwnedBus } from "../../../store";
@@ -42,12 +43,6 @@ const SPEC_FIELDS = [
   "battery_pack_lifetime",
   "buses_maintenance",
 ];
-
-const LENGTH_DEFAULTS = {
-  9:  { cost: 450000, max_passengers: 55,  bus_lifetime: 12, battery_pack_lifetime: 8, buses_maintenance: 0.3  },
-  12: { cost: 600000, max_passengers: 85,  bus_lifetime: 12, battery_pack_lifetime: 8, buses_maintenance: 0.35 },
-  18: { cost: 800000, max_passengers: 145, bus_lifetime: 12, battery_pack_lifetime: 8, buses_maintenance: 0.40 },
-};
 
 const toBusModelPayload = (formData) => {
   const name = formData.get("name")?.toString().trim();
@@ -242,6 +237,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
   /* ── Manufacturer autocomplete elements ── */
   const manufacturerInput = form.querySelector("#manufacturer");
   const manufacturerIdInput = form.querySelector("#manufacturer-id");
+  const customManufacturerInput = form.querySelector("#custom_manufacturer");
   const manufacturerDropdown = form.querySelector(
     '[data-role="manufacturer-dropdown"]'
   );
@@ -257,6 +253,18 @@ export const initializeAddBusModel = (root = document, options = {}) => {
 
   let isOtherManufacturer = false;
   let selectedManufacturerId = null;
+
+  const hideCustomManufacturer = () => {
+    if (!customManufacturerInput) return;
+    customManufacturerInput.hidden = true;
+    customManufacturerInput.value = "";
+  };
+
+  const showCustomManufacturer = (value = "") => {
+    if (!customManufacturerInput) return;
+    customManufacturerInput.hidden = false;
+    customManufacturerInput.value = value;
+  };
 
   const resetModel = () => {
     if (modelInput) modelInput.value = "";
@@ -327,6 +335,12 @@ export const initializeAddBusModel = (root = document, options = {}) => {
         const itemName = (item.name || "").toLowerCase();
         isOtherManufacturer = itemName.includes("other");
 
+        if (isOtherManufacturer) {
+          showCustomManufacturer();
+        } else {
+          hideCustomManufacturer();
+        }
+
         if (modelInput) {
           modelInput.value = "";
           modelInput.disabled = false;
@@ -341,6 +355,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
 
     // When user types in manufacturer, reset model (selection invalidated)
     const handleManufacturerInput = () => {
+      hideCustomManufacturer();
       if (modelInput) {
         modelInput.value = "";
         modelInput.disabled = true;
@@ -361,7 +376,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
   const busLengthSelect = form.querySelector("#bus_length");
   if (busLengthSelect) {
     const handleLengthChange = () => {
-      const defaults = LENGTH_DEFAULTS[busLengthSelect.value];
+      const defaults = getBusModelDefaultsForLength(busLengthSelect.value);
       if (!defaults) return;
       for (const [field, value] of Object.entries(defaults)) {
         const el = form.querySelector(`#${field}`);
@@ -392,6 +407,48 @@ export const initializeAddBusModel = (root = document, options = {}) => {
         manufacturerIdInput.value =
           currentModel.manufacturer_id || currentModel.manufacturer || "";
       }
+    }
+
+    // If the stored manufacturer is custom (not in the manufacturers list),
+    // show it in the custom box while selecting "Other manufacturer".
+    if (manufacturerInput && customManufacturerInput) {
+      const storedManufacturer = (currentModel.manufacturer || "").trim();
+      (async () => {
+        try {
+          const manufacturers = normalizeList(await fetchBusManufacturers());
+          const names = new Set(
+            manufacturers
+              .map((m) => (m?.name || "").toString().trim().toLowerCase())
+              .filter(Boolean)
+          );
+          const otherItem = manufacturers.find((m) =>
+            (m?.name || "").toString().toLowerCase().includes("other")
+          );
+
+          if (!storedManufacturer) {
+            hideCustomManufacturer();
+            return;
+          }
+
+          const isInList = names.has(storedManufacturer.toLowerCase());
+          if (isInList) {
+            hideCustomManufacturer();
+            return;
+          }
+
+          // Custom manufacturer: switch UI to "Other" and show stored value.
+          isOtherManufacturer = true;
+          selectedManufacturerId = otherItem?.id ?? null;
+          if (manufacturerIdInput) {
+            manufacturerIdInput.value = otherItem?.id ?? "";
+          }
+          manufacturerInput.value = otherItem?.name || "Other manufacturer";
+          showCustomManufacturer(storedManufacturer);
+        } catch (err) {
+          // If detection fails, fall back to showing stored manufacturer in the main input.
+          hideCustomManufacturer();
+        }
+      })();
     }
     const modelValue = specs.model_type || "";
     if (modelInput && modelValue) {
@@ -447,6 +504,19 @@ export const initializeAddBusModel = (root = document, options = {}) => {
       return;
     }
 
+    const customManufacturer = customManufacturerInput?.value?.toString().trim();
+    const manufacturerToSend =
+      isOtherManufacturer && customManufacturer ? customManufacturer : manufacturer;
+
+    if (isOtherManufacturer && !customManufacturer) {
+      updateFeedback(
+        feedback,
+        "Please enter a custom manufacturer name.",
+        "error"
+      );
+      return;
+    }
+
     const requiredSpecs = [
       { key: "cost", label: "Cost (CHF)" },
       { key: "bus_length", label: "Bus length (m)" },
@@ -481,7 +551,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
       if (isEditMode) {
         await updateBusModel(currentModel.id, {
           name,
-          manufacturer,
+          manufacturer: manufacturerToSend,
           model,
           description,
           specs: mergedSpecs,
@@ -491,7 +561,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
       } else {
         const createdModel = await createBusModel({
           name,
-          manufacturer,
+          manufacturer: manufacturerToSend,
           model,
           description,
           specs: mergedSpecs,
