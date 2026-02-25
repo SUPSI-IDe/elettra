@@ -2,7 +2,7 @@
   <header class="page-header">
     <div class="title-container">
       <h1 data-i18n="nav.buses">Bus Models</h1>
-      <p>Manage your fleet's bus models. A bus is automatically created for each model.</p>
+      <p>Manage your fleet's bus models.</p>
     </div>
     <button class="header-action-btn green" data-action="add-bus-model">
       Add Bus Model
@@ -42,10 +42,31 @@
             <th class="checkbox">
               <input type="checkbox" aria-label="Select all bus models" />
             </th>
-            <th class="model">Model</th>
-            <th class="manufacturer">Manufacturer</th>
-            <th class="size" data-i18n="buses.model_size">Size</th>
-            <th class="description">Description</th>
+            <th class="name" data-i18n="buses.model_name">Name</th>
+            <th class="manufacturer" data-i18n="buses.model_manufacturer">
+              Manufacturer
+            </th>
+            <th class="model" data-i18n="buses.model_type">Type</th>
+            <th class="size" data-i18n="buses.model_size">Size [m]</th>
+            <th class="cost" data-i18n="buses.model_cost">Cost [kCHF]</th>
+            <th class="lifetime" data-i18n="buses.model_lifetime">
+              Lifetime [y]
+            </th>
+            <th class="max-passengers" data-i18n="buses.model_max_passengers">
+              Max passengers
+            </th>
+            <th
+              class="battery-pack-size"
+              data-i18n="buses.model_battery_pack_size"
+            >
+              Battery pack size [kWh]
+            </th>
+            <th
+              class="max-charging"
+              data-i18n="buses.model_max_charging"
+            >
+              Maximum charging [kW]
+            </th>
           </tr>
         </thead>
         <tbody></tbody>

@@ -37,7 +37,7 @@ const parseSpecs = (specs) => {
 
 const SPEC_FIELDS = [
   "cost",
-  "bus_length",
+  "bus_length_m",
   "max_passengers",
   "empty_weight_kg",
   "max_battery_packs",
@@ -378,7 +378,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
   }
 
   /* ── Bus-length change → pre-fill defaults ── */
-  const busLengthSelect = form.querySelector("#bus_length");
+  const busLengthSelect = form.querySelector("#bus_length_m");
   if (busLengthSelect) {
     const handleLengthChange = () => {
       const defaults = getBusModelDefaultsForLength(busLengthSelect.value);
@@ -524,7 +524,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
 
     const requiredSpecs = [
       { key: "cost", label: "Cost (CHF)" },
-      { key: "bus_length", label: "Bus length (m)" },
+      { key: "bus_length_m", label: "Bus length (m)" },
       { key: "max_passengers", label: "Max passengers" },
       { key: "empty_weight_kg", label: "Empty weight (kg)" },
       { key: "max_battery_packs", label: "Max battery packs" },

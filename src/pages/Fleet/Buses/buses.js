@@ -160,9 +160,17 @@ export const initializeBuses = async (root = document, options = {}) => {
         models.filter((model) => model?.user_id === currentUserId)
       : (models ?? []);
 
-    cacheCollections({ models: userModels, buses: [], owned: [] });
+    const sortedModels = Array.isArray(userModels) ?
+      [...userModels].sort((a, b) => {
+        const left = String(a?.name ?? "").toLocaleLowerCase();
+        const right = String(b?.name ?? "").toLocaleLowerCase();
+        return left.localeCompare(right);
+      })
+    : [];
 
-    renderModels(modelsTbody, userModels);
+    cacheCollections({ models: sortedModels, buses: [], owned: [] });
+
+    renderModels(modelsTbody, sortedModels);
 
     bindSelectAll(modelsHeaderCheckbox, modelsTable);
 

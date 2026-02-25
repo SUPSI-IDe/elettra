@@ -1,5 +1,16 @@
 import { resolveModelFields, textContent } from "../ui-helpers";
 
+const formatCostKchf = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return textContent(value);
+  }
+  return textContent((numeric / 1000).toString());
+};
+
 const parseSpecs = (specs) => {
   if (!specs) {
     return {};
@@ -26,7 +37,7 @@ export const renderLoadingRow = (tbody) => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="model" colspan="4">Loading…</td>
+            <td class="model" colspan="9">Loading…</td>
         </tr>
     `;
 };
@@ -42,7 +53,7 @@ export const renderErrorRow = (
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="model" colspan="4">${textContent(message)}</td>
+            <td class="model" colspan="9">${textContent(message)}</td>
         </tr>
     `;
 };
@@ -56,7 +67,7 @@ export const renderModels = (tbody, models = []) => {
     tbody.innerHTML = `
             <tr>
                 <td class="checkbox"></td>
-                <td class="model" colspan="4">No bus models found.</td>
+                <td class="model" colspan="9">No bus models found.</td>
             </tr>
         `;
     return;
@@ -64,17 +75,29 @@ export const renderModels = (tbody, models = []) => {
 
   const rows = models
     .map((raw) => {
-      const { model, manufacturer, description } = resolveModelFields(raw);
+      const { manufacturer } = resolveModelFields(raw);
       const specs = parseSpecs(raw?.specs);
-      const size = specs?.size ?? "";
+      const name = textContent(raw?.name ?? "");
+      const modelType = textContent(specs?.model_type ?? "");
+      const size = textContent(specs?.bus_length_m ?? "");
+      const cost = formatCostKchf(specs?.cost ?? "");
+      const lifetime = textContent(specs?.bus_lifetime ?? "");
+      const maxPassengers = textContent(specs?.max_passengers ?? "");
+      const batteryPackSize = textContent(specs?.battery_pack_size_kwh ?? "");
+      const maxCharging = textContent(specs?.max_charging_power_kw ?? "");
 
       return `
                 <tr data-id="${String(raw?.id ?? "")}">
                     <td class="checkbox"><input type="checkbox" aria-label="Select bus model"></td>
-                    <td class="model">${model}</td>
+                    <td class="name">${name}</td>
                     <td class="manufacturer">${manufacturer}</td>
-                    <td class="size">${textContent(size)}</td>
-                    <td class="description">${description}</td>
+                    <td class="model">${modelType}</td>
+                    <td class="size">${size}</td>
+                    <td class="cost">${cost}</td>
+                    <td class="lifetime">${lifetime}</td>
+                    <td class="max-passengers">${maxPassengers}</td>
+                    <td class="battery-pack-size">${batteryPackSize}</td>
+                    <td class="max-charging">${maxCharging}</td>
                 </tr>
             `;
     })

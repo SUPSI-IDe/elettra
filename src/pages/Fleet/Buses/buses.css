@@ -64,10 +64,17 @@
 .bus-models table {
   flex: 0 0 auto;
   height: auto;
+  width: 100%;
+  table-layout: fixed;
 }
 
-.bus-models th.size,
-.bus-models td.size {
+.bus-models th,
+.bus-models td {
   text-align: center;
-  width: 5rem;
+  width: calc((100% - 2.5rem) / 9);
+}
+
+.bus-models th.checkbox,
+.bus-models td.checkbox {
+  width: 2.5rem;
 }
