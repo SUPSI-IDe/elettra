@@ -1,0 +1,86 @@
+.add-simulation h1 {
+  color: var(--brand-teal);
+}
+
+.add-simulation main {
+  max-width: 720px;
+  overflow-y: auto;
+}
+
+.add-simulation form {
+  max-width: clamp(22rem, 60vw, 40rem);
+}
+
+.add-simulation .required-mark {
+  color: var(--brand-teal);
+}
+
+.add-simulation .required-note {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.add-simulation .shift-selection {
+  border: none;
+  padding: 0;
+}
+
+.add-simulation .shift-search {
+  margin-bottom: var(--spacing-sm);
+}
+
+.add-simulation .shift-search input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.add-simulation .shift-table-wrapper {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+}
+
+.add-simulation .shift-table {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.add-simulation .shift-table th {
+  position: sticky;
+  top: 0;
+  background-color: var(--bg-subtle);
+  z-index: 1;
+  font-size: 0.8rem;
+}
+
+.add-simulation .shift-table th.checkbox,
+.add-simulation .shift-table td.checkbox {
+  width: 2.5rem;
+  text-align: center;
+}
+
+.add-simulation .shift-table tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+.add-simulation .shift-table tbody tr:has(input:checked) {
+  background-color: var(--brand-teal-bg);
+}
+
+.add-simulation .custom-variables-section {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+}
+
+.add-simulation .custom-variables-section legend {
+  color: var(--brand-teal);
+  font-weight: 600;
+  padding: 0 0.4rem;
+}

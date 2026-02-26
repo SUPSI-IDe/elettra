@@ -26,3 +26,6 @@ dist-ssr
 # Exclude WARP.md
 WARP.md
 .env
+
+# Local configuration files
+.nvmrc

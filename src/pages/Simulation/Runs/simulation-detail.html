@@ -1,0 +1,114 @@
+<section class="simulation-detail form-page">
+  <header class="page-header">
+    <div class="header-with-close">
+      <div class="title-container">
+        <h1 data-i18n="nav.simulation_runs">Simulation</h1>
+        <p class="breadcrumb" data-role="breadcrumb">
+          <span data-role="sim-name"></span>
+        </p>
+      </div>
+      <button
+        type="button"
+        class="close-button"
+        data-action="back"
+        aria-label="Back"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <p
+      class="form-feedback"
+      data-role="feedback"
+      role="status"
+      aria-live="polite"
+      hidden
+    ></p>
+
+    <form novalidate data-role="detail-form">
+      <fieldset class="custom-variables-section">
+        <legend data-i18n="simulation.custom_variables">Custom variables</legend>
+
+        <div class="form-group">
+          <label for="var-external-temp" data-i18n="simulation.var_external_temp">
+            External temperature (°C)
+          </label>
+          <input
+            type="number"
+            id="var-external-temp"
+            name="external_temp_celsius"
+            step="0.5"
+            value="15"
+          />
+        </div>
+
+        <div class="form-group">
+          <label
+            for="var-occupancy"
+            data-i18n="simulation.var_occupancy"
+          >
+            Average passenger on board (%)
+          </label>
+          <input
+            type="number"
+            id="var-occupancy"
+            name="occupancy_percent"
+            step="1"
+            min="0"
+            max="100"
+            value="50"
+          />
+        </div>
+
+        <div class="form-group">
+          <label
+            for="var-heating-type"
+            data-i18n="simulation.var_heating_type"
+          >
+            Auxiliary heating type
+          </label>
+          <select id="var-heating-type" name="auxiliary_heating_type">
+            <option value="default">Default</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label
+            for="var-battery-packs"
+            data-i18n="simulation.var_battery_packs"
+          >
+            Number of battery packs (optional)
+          </label>
+          <input
+            type="number"
+            id="var-battery-packs"
+            name="num_battery_packs"
+            step="1"
+            min="1"
+            placeholder="Auto"
+          />
+        </div>
+      </fieldset>
+
+      <div class="form-actions">
+        <button
+          type="button"
+          data-action="cancel"
+          data-i18n="common.cancel"
+        >
+          Cancel
+        </button>
+        <button type="submit" data-i18n="simulation.run">Run simulation</button>
+      </div>
+    </form>
+
+    <div class="simulation-results" data-role="results" hidden>
+      <h2 data-i18n="simulation.results_title">Results</h2>
+      <div class="results-content" data-role="results-content"></div>
+    </div>
+  </main>
+</section>

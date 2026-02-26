@@ -1,0 +1,77 @@
+<section class="simulation-runs">
+  <header class="page-header">
+    <div class="title-container">
+      <h1 data-i18n="nav.simulation_runs">Simulation</h1>
+    </div>
+    <button
+      type="button"
+      class="header-action-btn green"
+      data-action="add-simulation"
+      data-i18n="simulation.make_simulation"
+    >
+      Make a simulation
+    </button>
+  </header>
+  <p
+    class="flash-message"
+    data-role="flash"
+    role="status"
+    aria-live="polite"
+    hidden
+  ></p>
+  <main class="simulation-runs-main">
+    <div class="table-controls">
+      <label class="sr-only" for="simulation-filter">Filter simulations</label>
+      <input
+        id="simulation-filter"
+        type="search"
+        placeholder="Search simulations"
+        data-i18n-placeholder="simulation.search_placeholder"
+      />
+      <button
+        type="button"
+        data-action="duplicate-simulation"
+        data-i18n="simulation.duplicate"
+      >
+        Duplicate
+      </button>
+      <button
+        type="button"
+        data-action="delete-selected-simulations"
+        data-i18n="common.delete"
+      >
+        Delete
+      </button>
+    </div>
+    <div class="simulation-runs-table">
+      <table>
+        <caption class="sr-only">
+          Simulation runs
+        </caption>
+        <thead>
+          <tr>
+            <th class="checkbox">
+              <input
+                type="checkbox"
+                aria-label="Select all simulation runs"
+              />
+            </th>
+            <th class="actions" scope="col" data-i18n="simulation.col_date">
+              Created
+            </th>
+            <th class="day" scope="col" data-i18n="simulation.field_bus_model">
+              Bus model
+            </th>
+            <th class="name" scope="col" data-i18n="simulation.shift_col_name">
+              Shift name
+            </th>
+            <th class="status" scope="col" data-i18n="simulation.col_status">
+              Status
+            </th>
+          </tr>
+        </thead>
+        <tbody data-role="simulation-runs-body"></tbody>
+      </table>
+    </div>
+  </main>
+</section>

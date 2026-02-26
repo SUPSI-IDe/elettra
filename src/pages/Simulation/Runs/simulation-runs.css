@@ -1,0 +1,84 @@
+.simulation-runs .page-header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.simulation-runs-main {
+  padding: var(--spacing-sm);
+  overflow-y: auto;
+}
+
+.simulation-runs-table {
+  overflow-x: auto;
+}
+
+.simulation-runs-table table {
+  width: 67%;
+  margin: 0;
+  table-layout: fixed;
+}
+
+.simulation-runs-table th,
+.simulation-runs-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.simulation-runs-table th.checkbox,
+.simulation-runs-table td.checkbox {
+  width: 2.5rem;
+  text-align: center;
+}
+
+.simulation-runs-table th.name,
+.simulation-runs-table td.name {
+  width: 30%;
+}
+
+.simulation-runs-table th.day,
+.simulation-runs-table td.day {
+  width: 25%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simulation-runs-table th.status,
+.simulation-runs-table td.status {
+  width: 15%;
+}
+
+.simulation-runs-table th.actions,
+.simulation-runs-table td.actions {
+  width: 25%;
+}
+
+.simulation-runs-table .status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.simulation-runs-table .status-badge.pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.simulation-runs-table .status-badge.running {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+.simulation-runs-table .status-badge.completed {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.simulation-runs-table .status-badge.failed {
+  background-color: #f8d7da;
+  color: #721c24;
+}

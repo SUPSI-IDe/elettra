@@ -1,0 +1,128 @@
+<section class="add-simulation form-page">
+  <header class="page-header">
+    <div class="header-with-close">
+      <div class="title-container">
+        <h1 data-i18n="simulation.make_simulation">Make a simulation</h1>
+      </div>
+      <button
+        type="button"
+        class="close-button"
+        data-action="cancel"
+        aria-label="Close"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <form novalidate>
+      <p
+        class="form-feedback"
+        data-role="feedback"
+        role="status"
+        aria-live="polite"
+        hidden
+      ></p>
+
+      <div class="form-group shift-selection">
+        <label>
+          <span data-i18n="simulation.field_shifts">Shift</span>
+          <span class="required-mark">*</span>
+        </label>
+        <div class="shift-search">
+          <input
+            type="search"
+            id="sim-shift-filter"
+            placeholder="Search"
+            data-i18n-placeholder="simulation.search_shifts"
+          />
+        </div>
+        <div class="shift-table-wrapper">
+          <table class="shift-table">
+            <thead>
+              <tr>
+                <th class="checkbox">
+                  
+                </th>
+                <th data-i18n="simulation.shift_col_name">Shift name</th>
+                <th data-i18n="simulation.shift_col_bus_model">Bus model</th>
+                <th data-i18n="simulation.shift_col_day">Day</th>
+                <th data-i18n="simulation.shift_col_lines">Lines</th>
+                <th data-i18n="simulation.shift_col_start">Starting time</th>
+                <th data-i18n="simulation.shift_col_end">Ending time</th>
+              </tr>
+            </thead>
+            <tbody data-role="shift-selection-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <fieldset class="custom-variables-section">
+        <legend data-i18n="simulation.custom_variables">Custom variables</legend>
+
+        <div class="form-group">
+          <label
+            for="var-occupancy"
+            data-i18n="simulation.var_occupancy"
+          >
+            Average passenger on board (%)
+          </label>
+          <input
+            type="number"
+            id="var-occupancy"
+            name="occupancy_percent"
+            step="1"
+            min="0"
+            max="100"
+            value="50"
+          />
+        </div>
+
+        <div class="form-group">
+          <label
+            for="var-heating-type"
+            data-i18n="simulation.var_heating_type"
+          >
+            Auxiliary heating type
+          </label>
+          <select id="var-heating-type" name="auxiliary_heating_type">
+            <option value="hp">HP</option>
+            <option value="diesel">Diesel</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label
+            for="var-battery-packs"
+            data-i18n="simulation.var_battery_packs"
+          >
+            Number of battery packs (optional)
+          </label>
+          <input
+            type="number"
+            id="var-battery-packs"
+            name="num_battery_packs"
+            step="1"
+            min="1"
+            placeholder="Auto"
+          />
+        </div>
+      </fieldset>
+
+      <p class="required-note">
+        <span class="required-mark">*</span>
+        <span data-i18n="simulation.required_info">Required information</span>
+      </p>
+
+      <div class="form-actions">
+        <button type="button" data-action="cancel" data-i18n="common.cancel">
+          Cancel
+        </button>
+        <button type="submit" data-i18n="simulation.run">Run simulation</button>
+      </div>
+    </form>
+  </main>
+</section>

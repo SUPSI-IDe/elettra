@@ -43,6 +43,27 @@ services:
     stdin_open: true
     tty: true
 
+  # Local development via VPN (backend reachable at VPN IP)
+  elettra-local-vpn:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: elettra-local-vpn
+    ports:
+      - "9010:9010"
+    volumes:
+      - ..:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_ROOT=${VITE_API_ROOT:-}
+      - VITE_API_PROXY_TARGET=${VITE_API_PROXY_TARGET:-http://10.9.0.5:8002}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - local-vpn
+    stdin_open: true
+    tty: true
+
   # Production service with nginx
   elettra:
     build:

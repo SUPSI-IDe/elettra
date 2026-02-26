@@ -6,3 +6,4 @@ export * from "./bus-models";
 export * from "./depots";
 export * from "./shifts";
 export * from "./gtfs";
+export * from "./simulation";

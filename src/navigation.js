@@ -5,6 +5,9 @@ import { initializeBuses } from "./pages/Fleet/Buses/buses";
 import { initializeCustomStops } from "./pages/Fleet/Custom Stops/custom-stops";
 import { initializeShifts } from "./pages/Fleet/Shifts/shifts";
 import { initializeVisualizeShift } from "./pages/Fleet/Shifts/visualize-shift";
+import { initializeSimulationRuns } from "./pages/Simulation/Runs/simulation-runs";
+import { initializeAddSimulation } from "./pages/Simulation/Runs/add-simulation";
+import { initializeSimulationDetail } from "./pages/Simulation/Runs/simulation-detail";
 import { initializeLogin } from "./pages/Auth/login";
 import { initializeLanding } from "./pages/Auth/landing";
 import { initializeRegister } from "./pages/Auth/register";
@@ -129,6 +132,15 @@ export const initializeNavigation = (root = document) => {
         break;
       case "visualize-shift":
         cleanup = await initializeVisualizeShift(target, options);
+        break;
+      case "simulation-runs":
+        cleanup = await initializeSimulationRuns(target, options);
+        break;
+      case "add-simulation":
+        cleanup = await initializeAddSimulation(target, options);
+        break;
+      case "simulation-detail":
+        cleanup = await initializeSimulationDetail(target, options);
         break;
       default:
         break;
