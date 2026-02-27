@@ -1,12 +1,13 @@
 <section class="form-page add-custom-stop">
   <header class="page-header">
     <div class="header-with-close">
-      <h1 data-i18n="nav.custom_stops">Add Custom Stop</h1>
+      <h1 data-i18n="custom_stops.add_custom_stop">Add Custom Stop</h1>
       <button
         type="button"
         data-action="close"
         class="close-button"
         aria-label="Close"
+        data-i18n-aria-label="common.close"
       >
         <img src="assets/xmark.svg" alt="" aria-hidden="true" />
       </button>
@@ -23,7 +24,7 @@
           hidden
         ></p>
         <div class="form-group">
-          <label for="custom-stop-name">Name</label>
+          <label for="custom-stop-name" data-i18n="custom_stops.field_name">Name</label>
           <input
             type="text"
             id="custom-stop-name"
@@ -33,16 +34,16 @@
           />
         </div>
         <div class="form-group">
-          <label for="custom-stop-type">Type</label>
+          <label for="custom-stop-type" data-i18n="custom_stops.field_type">Type</label>
           <select id="custom-stop-type" name="type">
-            <option value="">Select a type</option>
-            <option value="depot">Depot</option>
-            <option value="charging">Charging</option>
-            <option value="hub">Hub</option>
+            <option value="" data-i18n="custom_stops.placeholder_type">Select a type</option>
+            <option value="depot" data-i18n="custom_stops.type_depot">Depot</option>
+            <option value="charging" data-i18n="custom_stops.type_charging">Charging</option>
+            <option value="hub" data-i18n="custom_stops.type_hub">Hub</option>
           </select>
         </div>
         <div class="form-group">
-          <label for="custom-stop-city">City</label>
+          <label for="custom-stop-city" data-i18n="custom_stops.field_city">City</label>
           <input
             type="text"
             id="custom-stop-city"
@@ -52,7 +53,7 @@
           />
         </div>
         <div class="form-group">
-          <label for="custom-stop-address">Address</label>
+          <label for="custom-stop-address" data-i18n="custom_stops.field_address">Address</label>
           <textarea
             id="custom-stop-address"
             name="address"
@@ -64,7 +65,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="custom-stop-latitude">Latitude</label>
+            <label for="custom-stop-latitude" data-i18n="custom_stops.field_latitude">Latitude</label>
             <input
               type="number"
               id="custom-stop-latitude"
@@ -75,7 +76,7 @@
             />
           </div>
           <div class="form-group">
-            <label for="custom-stop-longitude">Longitude</label>
+            <label for="custom-stop-longitude" data-i18n="custom_stops.field_longitude">Longitude</label>
             <input
               type="number"
               id="custom-stop-longitude"
@@ -88,18 +89,18 @@
         </div>
         <div class="form-group">
           <label for="custom-stop-notes"
-            >Notes <span aria-hidden="true">(optional)</span></label
+            ><span data-i18n="custom_stops.field_notes">Notes</span> <span aria-hidden="true" data-i18n="common.optional">(optional)</span></label
           >
           <textarea id="custom-stop-notes" name="notes" rows="3"></textarea>
         </div>
         <div class="form-actions">
-          <button type="button" data-action="cancel">Cancel</button>
-          <button type="submit">Save Custom Stop</button>
+          <button type="button" data-action="cancel" data-i18n="common.cancel">Cancel</button>
+          <button type="submit" data-i18n="custom_stops.save">Save Custom Stop</button>
         </div>
       </div>
       <div class="map-picker-container">
-        <label>Pick location on map</label>
-        <p class="map-hint">
+        <label data-i18n="custom_stops.pick_location">Pick location on map</label>
+        <p class="map-hint" data-i18n="custom_stops.map_hint">
           Drag the map to position the crosshair on your stop location
         </p>
         <div class="map-wrapper">

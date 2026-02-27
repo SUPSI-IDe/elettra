@@ -1,12 +1,13 @@
 <section class="form-page add-bus-model">
   <header class="page-header">
     <div class="header-with-close">
-      <h1>Add bus model</h1>
+      <h1 data-i18n="buses.add_model">Add bus model</h1>
       <button
         type="button"
         data-action="close"
         class="close-button"
         aria-label="Close"
+        data-i18n-aria-label="common.close"
       >
         <img src="assets/xmark.svg" alt="" aria-hidden="true" />
       </button>
@@ -22,11 +23,11 @@
         hidden
       ></p>
       <div class="form-group">
-        <label for="name">Name <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="name" data-i18n="buses.model_name">Name <span class="required-mark" aria-hidden="true">*</span></label>
         <input type="text" id="name" name="name" required autocomplete="off" />
       </div>
       <div class="form-group">
-        <label for="manufacturer">Manufacturer</label>
+        <label for="manufacturer" data-i18n="buses.model_manufacturer">Manufacturer</label>
         <div class="manufacturer-row">
           <div class="autocomplete-wrapper">
             <input
@@ -35,6 +36,7 @@
               name="manufacturer"
               autocomplete="off"
               placeholder="Select a manufacturer…"
+              data-i18n-placeholder="buses.placeholder_manufacturer"
             />
             <input type="hidden" name="manufacturer_id" id="manufacturer-id" />
             <div class="autocomplete-dropdown" data-role="manufacturer-dropdown" hidden>
@@ -48,13 +50,15 @@
             class="custom-manufacturer"
             autocomplete="off"
             placeholder="Custom manufacturer…"
+            data-i18n-placeholder="buses.placeholder_custom_manufacturer"
             aria-label="Custom manufacturer"
+            data-i18n-aria-label="buses.placeholder_custom_manufacturer"
             hidden
           />
         </div>
       </div>
       <div class="form-group">
-        <label for="model" class="model-label">Model</label>
+        <label for="model" class="model-label" data-i18n="buses.model_type">Model</label>
         <div class="autocomplete-wrapper">
           <input
             type="text"
@@ -62,6 +66,7 @@
             name="model"
             autocomplete="off"
             placeholder="Select a model…"
+            data-i18n-placeholder="buses.placeholder_model"
             disabled
           />
           <input type="hidden" name="model_id" id="model-id" />
@@ -71,16 +76,16 @@
         </div>
       </div>
       <div class="form-group">
-        <label for="bus_length_m">Bus length (m) <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="bus_length_m" data-i18n="buses.field_bus_length">Bus length (m) <span class="required-mark" aria-hidden="true">*</span></label>
         <select id="bus_length_m" name="bus_length_m" required>
-          <option value="" disabled selected>Select a length…</option>
+          <option value="" disabled selected data-i18n="buses.placeholder_length">Select a length…</option>
           <option value="9">9</option>
           <option value="12">12</option>
           <option value="18">18</option>
         </select>
       </div>
       <div class="form-group">
-        <label for="cost">Cost (CHF) <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="cost" data-i18n="buses.field_cost">Cost (CHF) <span class="required-mark" aria-hidden="true">*</span></label>
         <input
           type="number"
           id="cost"
@@ -92,7 +97,7 @@
         />
       </div>
       <div class="form-group">
-        <label for="max_passengers">Max passengers <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="max_passengers" data-i18n="buses.field_max_passengers">Max passengers <span class="required-mark" aria-hidden="true">*</span></label>
         <input
           type="number"
           id="max_passengers"
@@ -104,7 +109,7 @@
         />
       </div>
       <div class="form-group">
-        <label for="empty_weight_kg">Empty weight (kg) <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="empty_weight_kg" data-i18n="buses.field_empty_weight">Empty weight (kg) <span class="required-mark" aria-hidden="true">*</span></label>
         <input
           type="number"
           id="empty_weight_kg"
@@ -116,7 +121,7 @@
         />
       </div>
       <div class="form-group">
-        <label for="max_battery_packs">Max battery packs <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="max_battery_packs" data-i18n="buses.field_max_battery_packs">Max battery packs <span class="required-mark" aria-hidden="true">*</span></label>
         <input
           type="number"
           id="max_battery_packs"
@@ -128,7 +133,7 @@
         />
       </div>
       <div class="form-group">
-        <label for="min_battery_packs">Min battery packs <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="min_battery_packs" data-i18n="buses.field_min_battery_packs">Min battery packs <span class="required-mark" aria-hidden="true">*</span></label>
         <input
           type="number"
           id="min_battery_packs"
@@ -140,7 +145,7 @@
         />
       </div>
       <div class="form-group">
-        <label for="battery_pack_size_kwh">Battery pack size (kWh) <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="battery_pack_size_kwh" data-i18n="buses.field_battery_pack_size">Battery pack size (kWh) <span class="required-mark" aria-hidden="true">*</span></label>
         <input
           type="number"
           id="battery_pack_size_kwh"
@@ -152,7 +157,7 @@
         />
       </div>
       <div class="form-group">
-        <label for="max_charging_power_kw">Max charging power (kW) <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="max_charging_power_kw" data-i18n="buses.field_max_charging_power">Max charging power (kW) <span class="required-mark" aria-hidden="true">*</span></label>
         <input
           type="number"
           id="max_charging_power_kw"
@@ -164,7 +169,7 @@
         />
       </div>
       <div class="form-group">
-        <label for="battery_pack_weight_kg">Battery pack weight (kg) <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="battery_pack_weight_kg" data-i18n="buses.field_battery_pack_weight">Battery pack weight (kg) <span class="required-mark" aria-hidden="true">*</span></label>
         <input
           type="number"
           id="battery_pack_weight_kg"
@@ -176,7 +181,7 @@
         />
       </div>
       <div class="form-group">
-        <label for="battery_pack_lifetime">Battery pack lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="battery_pack_lifetime" data-i18n="buses.field_battery_pack_lifetime">Battery pack lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>
         <input
           type="number"
           id="battery_pack_lifetime"
@@ -188,7 +193,7 @@
         />
       </div>
       <div class="form-group">
-        <label for="bus_lifetime">Bus lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>
+        <label for="bus_lifetime" data-i18n="buses.field_bus_lifetime">Bus lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>
         <input
           type="number"
           id="bus_lifetime"
@@ -200,7 +205,7 @@
         />
       </div>
       <div class="form-group">
-        <label for="description">Description</label>
+        <label for="description" data-i18n="buses.field_description">Description</label>
         <textarea
           id="description"
           name="description"
@@ -208,10 +213,10 @@
           autocomplete="off"
         ></textarea>
       </div>
-      <p class="required-note">* Required information</p>
+      <p class="required-note" data-i18n="common.required_info">* Required information</p>
       <div class="form-actions">
-        <button type="button" data-action="cancel">Cancel</button>
-        <button type="submit">Save</button>
+        <button type="button" data-action="cancel" data-i18n="common.cancel">Cancel</button>
+        <button type="submit" data-i18n="common.save">Save</button>
       </div>
     </form>
   </main>

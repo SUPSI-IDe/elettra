@@ -3,7 +3,7 @@
     <div class="title-container">
       <h1 data-i18n="nav.buses">Bus Models</h1>
     </div>
-    <button class="header-action-btn green" data-action="add-bus-model">
+    <button class="header-action-btn green" data-action="add-bus-model" data-i18n="buses.add_model">
       Add Bus Model
     </button>
   </header>
@@ -17,7 +17,11 @@
   <main class="buses-content">
     <section class="bus-models">
       <div class="table-controls">
-        <input type="text" placeholder="Search models" />
+        <input
+          type="text"
+          placeholder="Search models"
+          data-i18n-placeholder="buses.search_placeholder"
+        />
         <div class="actions">
           <button
             type="button"
@@ -39,7 +43,11 @@
         <thead>
           <tr>
             <th class="checkbox">
-              <input type="checkbox" aria-label="Select all bus models" />
+              <input
+                type="checkbox"
+                aria-label="Select all bus models"
+                data-i18n-aria-label="buses.select_all_models"
+              />
             </th>
             <th class="name" data-i18n="buses.model_name">Name</th>
             <th class="manufacturer" data-i18n="buses.model_manufacturer">

@@ -15,7 +15,8 @@ export function renderShiftVisualization(containerSelector, data) {
     }
 
     // Dimensions and margins
-    const margin = { top: 40, right: 40, bottom: 40, left: 100 };
+    // Extra top/bottom space for vertical X tick labels (prevents overlap on resize).
+    const margin = { top: 72, right: 40, bottom: 84, left: 100 };
     const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
     const height = 216 - margin.top - margin.bottom;
 
@@ -79,15 +80,30 @@ function createScales(data, width, height) {
 
 function drawAxes(svg, xScale, yScale, width, height) {
     // X Axis (Time) - Top
-    svg.append('g')
+    const xTop = svg.append('g')
         .attr('class', 'axis axis--x')
         .call(d3.axisTop(xScale).ticks(10).tickFormat(d3.timeFormat('%H:%M')));
 
+    xTop
+        .selectAll('.tick text')
+        .attr('transform', 'rotate(-90)')
+        .attr('text-anchor', 'start')
+        .attr('dx', '0.8em')
+        .attr('dy', '-0.4em');
+
     // X Axis (Time) - Bottom
-    svg.append('g')
+    const xBottom = svg.append('g')
         .attr('class', 'axis axis--x')
         .attr('transform', `translate(0,${height})`)
         .call(d3.axisBottom(xScale).ticks(10).tickFormat(d3.timeFormat('%H:%M')));
+
+    // Rotate bottom tick labels vertically to avoid overlap on resize.
+    xBottom
+        .selectAll('.tick text')
+        .attr('transform', 'rotate(-90)')
+        .attr('text-anchor', 'end')
+        .attr('dx', '-0.8em')
+        .attr('dy', '-0.4em');
 
     // Y Axis (Stops) - Left
     svg.append('g')

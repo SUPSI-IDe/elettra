@@ -21,8 +21,13 @@
   ></p>
   <main class="shifts-main">
     <div class="table-controls">
-      <label class="sr-only" for="shifts-filter">Filter shifts</label>
-      <input id="shifts-filter" type="search" placeholder="Search shifts" />
+      <label class="sr-only" for="shifts-filter" data-i18n="shifts.filter_label">Filter shifts</label>
+      <input
+        id="shifts-filter"
+        type="search"
+        placeholder="Search shifts"
+        data-i18n-placeholder="shifts.search_placeholder"
+      />
       <button
         type="button"
         data-action="delete-selected-shifts"
@@ -30,7 +35,11 @@
       >
         Delete
       </button>
-      <button type="button" data-action="duplicate-selected-shifts">
+      <button
+        type="button"
+        data-action="duplicate-selected-shifts"
+        data-i18n="shifts.duplicate"
+      >
         Duplicate
       </button>
       <button
@@ -43,22 +52,26 @@
     </div>
     <div class="shifts-table">
       <table>
-        <caption class="sr-only">
+        <caption class="sr-only" data-i18n="shifts.caption">
           Current shifts
         </caption>
         <thead>
           <tr>
             <th class="checkbox">
-              <input type="checkbox" aria-label="Select all shifts" />
+              <input
+                type="checkbox"
+                aria-label="Select all shifts"
+                data-i18n-aria-label="shifts.select_all"
+              />
             </th>
 
-            <th class="name" scope="col">Shift name</th>
-            <th class="bus" scope="col">Bus model</th>
-            <th class="start" scope="col">Start time</th>
-            <th class="end" scope="col">End time</th>
-            <th class="route" scope="col">Route</th>
+            <th class="name" scope="col" data-i18n="shifts.col_name">Shift name</th>
+            <th class="bus" scope="col" data-i18n="shifts.col_bus_model">Bus model</th>
+            <th class="start" scope="col" data-i18n="shifts.col_start_time">Start time</th>
+            <th class="end" scope="col" data-i18n="shifts.col_end_time">End time</th>
+            <th class="route" scope="col" data-i18n="shifts.col_route">Route</th>
             <th class="actions" scope="col">
-              <span class="sr-only">Actions</span>
+              <span class="sr-only" data-i18n="common.actions">Actions</span>
             </th>
           </tr>
         </thead>

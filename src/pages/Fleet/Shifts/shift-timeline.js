@@ -118,7 +118,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
 
   const width = Math.max(container.clientWidth || 0, 720);
   const rowHeight = 36;
-  const margin = { top: 32, right: 32, bottom: 48, left: 168 };
+  const margin = { top: 32, right: 32, bottom: 72, left: 168 };
   let innerHeight = Math.max((stops.length - 1) * rowHeight, rowHeight);
 
   // In the shift form, the container has a fixed height. If there are only a few
@@ -240,9 +240,10 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .data(tickMinutes)
     .join("text")
     .attr("x", (minute) => xScale(minute))
-    .attr("y", 24)
-    .attr("text-anchor", "middle")
-    .attr("dominant-baseline", "hanging")
+    .attr("y", 12)
+    .attr("text-anchor", "end")
+    .attr("dominant-baseline", "middle")
+    .attr("transform", (minute) => `rotate(-90,${xScale(minute)},12)`)
     .text((minute) => formatMinutes(minute));
 
   const yAxis = root

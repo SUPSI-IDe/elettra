@@ -21,7 +21,7 @@
   ></p>
   <main class="simulation-runs-main">
     <div class="table-controls">
-      <label class="sr-only" for="simulation-filter">Filter simulations</label>
+      <label class="sr-only" for="simulation-filter" data-i18n="simulation.filter_label">Filter simulations</label>
       <input
         id="simulation-filter"
         type="search"
@@ -45,7 +45,7 @@
     </div>
     <div class="simulation-runs-table">
       <table>
-        <caption class="sr-only">
+        <caption class="sr-only" data-i18n="simulation.caption">
           Simulation runs
         </caption>
         <thead>
@@ -54,9 +54,10 @@
               <input
                 type="checkbox"
                 aria-label="Select all simulation runs"
+                data-i18n-aria-label="simulation.select_all"
               />
             </th>
-            <th class="actions" scope="col" data-i18n="simulation.col_date">
+            <th class="actions" scope="col" data-i18n="simulation.col_created">
               Created
             </th>
             <th class="day" scope="col" data-i18n="simulation.field_bus_model">

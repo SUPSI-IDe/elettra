@@ -1,11 +1,12 @@
 <section class="visualize-shift" aria-labelledby="visualize-shift-heading">
   <header class="visualize-shift__header header-with-close">
-    <h1 id="visualize-shift-heading">Visualize shift</h1>
+    <h1 id="visualize-shift-heading" data-i18n="shifts.visualize_title">Visualize shift</h1>
     <button
       type="button"
       data-action="close"
       class="close-button"
       aria-label="Close"
+      data-i18n-aria-label="common.close"
     >
       <img src="assets/xmark.svg" alt="" aria-hidden="true" />
     </button>
@@ -14,9 +15,9 @@
     <div class="visualize-shift-grid">
       <section class="shift-summary" aria-labelledby="shift-summary-heading">
         <header class="shift-summary__header">
-          <h2 id="shift-summary-heading" data-field="name">Shift name</h2>
+          <h2 id="shift-summary-heading" data-field="name" data-i18n="shifts.field_shift_name">Shift name</h2>
           <p class="shift-summary__bus" hidden>
-            <span class="shift-summary__bus-label">Bus model:</span>
+            <span class="shift-summary__bus-label" data-i18n="shifts.bus_model_label">Bus model:</span>
             <span data-field="bus-name"></span>
           </p>
         </header>
@@ -24,36 +25,36 @@
           class="shift-summary__block"
           aria-labelledby="shift-start-heading"
         >
-          <h3 id="shift-start-heading">Start</h3>
+          <h3 id="shift-start-heading" data-i18n="shifts.start_heading">Start</h3>
           <dl class="shift-summary__details">
             <div>
-              <dt>Time</dt>
+              <dt data-i18n="shifts.label_time">Time</dt>
               <dd data-field="start-time">00:00</dd>
             </div>
             <div>
-              <dt>Depot</dt>
-              <dd data-field="start-depot">Depot name</dd>
+              <dt data-i18n="shifts.label_depot">Depot</dt>
+              <dd data-field="start-depot" data-i18n="shifts.default_depot_name">Depot name</dd>
             </div>
           </dl>
         </section>
         <div class="shift-summary__table">
           <table>
-            <caption class="sr-only">
+            <caption class="sr-only" data-i18n="shifts.trips_caption">
               Trips included in this shift
             </caption>
             <thead>
               <tr>
-                <th scope="col" class="time">Time</th>
-                <th scope="col" class="route">From–To</th>
+                <th scope="col" class="time" data-i18n="shifts.col_time">Time</th>
+                <th scope="col" class="route" data-i18n="shifts.col_from_to">From–To</th>
               </tr>
             </thead>
             <tbody data-role="trips-body">
               <tr>
-                <td colspan="3" class="empty">No trips available.</td>
+                <td colspan="3" class="empty" data-i18n="shifts.no_trips_available">No trips available.</td>
               </tr>
             </tbody>
           </table>
-          <p class="shift-summary__empty" data-role="trips-empty" hidden>
+          <p class="shift-summary__empty" data-role="trips-empty" data-i18n="shifts.no_trips_yet" hidden>
             No trips in this shift yet.
           </p>
         </div>
@@ -61,15 +62,15 @@
           class="shift-summary__block"
           aria-labelledby="shift-end-heading"
         >
-          <h3 id="shift-end-heading">Return</h3>
+          <h3 id="shift-end-heading" data-i18n="shifts.return_heading">Return</h3>
           <dl class="shift-summary__details">
             <div>
-              <dt>Time</dt>
+              <dt data-i18n="shifts.label_time">Time</dt>
               <dd data-field="end-time">00:00</dd>
             </div>
             <div>
-              <dt>Depot</dt>
-              <dd data-field="end-depot">Depot name</dd>
+              <dt data-i18n="shifts.label_depot">Depot</dt>
+              <dd data-field="end-depot" data-i18n="shifts.default_depot_name">Depot name</dd>
             </div>
           </dl>
         </section>
@@ -79,7 +80,7 @@
         aria-labelledby="shift-visualization-heading"
       >
         <header class="shift-visualization__header">
-          <h2 id="shift-visualization-heading">Timeline</h2>
+          <h2 id="shift-visualization-heading" data-i18n="shifts.timeline_heading">Timeline</h2>
         </header>
         <div
           class="timeline"
@@ -87,7 +88,7 @@
           role="img"
           aria-label="Shift timeline chart"
         >
-          <p class="timeline__placeholder">
+          <p class="timeline__placeholder" data-i18n="shifts.timeline_render_placeholder">
             Timeline will render when data is available.
           </p>
         </div>

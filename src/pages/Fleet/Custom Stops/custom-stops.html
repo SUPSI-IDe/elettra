@@ -21,13 +21,14 @@
   ></p>
   <main class="custom-stops-main">
     <div class="table-controls">
-      <label for="custom-stops-filter" class="sr-only"
+      <label for="custom-stops-filter" class="sr-only" data-i18n="custom_stops.filter_label"
         >Filter custom stops</label
       >
       <input
         id="custom-stops-filter"
         type="search"
         placeholder="Search stops"
+        data-i18n-placeholder="custom_stops.search_placeholder"
       />
       <button
         type="button"
@@ -49,12 +50,16 @@
         <thead>
           <tr>
             <th class="checkbox">
-              <input type="checkbox" aria-label="Select all stops" />
+              <input
+                type="checkbox"
+                aria-label="Select all stops"
+                data-i18n-aria-label="custom_stops.select_all"
+              />
             </th>
 
-            <th class="name">Name</th>
-            <th class="type">Type</th>
-            <th class="address">Address</th>
+            <th class="name" data-i18n="custom_stops.col_name">Name</th>
+            <th class="type" data-i18n="custom_stops.col_type">Type</th>
+            <th class="address" data-i18n="custom_stops.col_address">Address</th>
           </tr>
         </thead>
         <tbody></tbody>
