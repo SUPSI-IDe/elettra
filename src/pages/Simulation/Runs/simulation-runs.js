@@ -1,14 +1,12 @@
 import { t } from "../../../i18n";
 import "./simulation-runs.css";
 import { fetchBusModels } from "../../../api";
-import { fetchPredictionRun } from "../../../api/simulation";
+import { fetchPredictionRuns } from "../../../api/simulation";
 import { fetchShiftById } from "../../../api/shifts";
 import { isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
 import { resolveModelFields, textContent } from "../../../ui-helpers";
-
-const STORAGE_KEY = "simulation.predictionRunIds";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -18,35 +16,8 @@ const UUID_RE =
 
 const looksLikeUuid = (value) => UUID_RE.test(text(value).trim());
 
-const readStoredRunIds = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
-
-export const saveRunIds = (ids = []) => {
-  try {
-    const existing = readStoredRunIds();
-    const merged = [...new Set([...existing, ...ids])];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-  } catch {
-    // non-fatal
-  }
-};
-
-const removeRunIds = (idsToRemove = []) => {
-  try {
-    const existing = readStoredRunIds();
-    const filtered = existing.filter((id) => !idsToRemove.includes(id));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-  } catch {
-    // non-fatal
-  }
-};
+/** @deprecated Runs are now persisted server-side; kept for backward compat with callers. */
+export const saveRunIds = () => {};
 
 const setFlashMessage = (section, message) => {
   const flashElement = section.querySelector('[data-role="flash"]');
@@ -349,13 +320,6 @@ export const initializeSimulationRuns = async (
       return;
     }
 
-    const storedIds = readStoredRunIds();
-    if (!storedIds.length) {
-      allRuns = [];
-      applyFilter();
-      return;
-    }
-
     try {
       if (!Object.keys(busModelsById).length) {
         const modelsPayload = await fetchBusModels({ skip: 0, limit: 1000 });
@@ -368,21 +332,14 @@ export const initializeSimulationRuns = async (
         );
       }
 
-      const results = await Promise.allSettled(
-        storedIds.map((id) => fetchPredictionRun(id))
-      );
-
-      allRuns = results
-        .filter((r) => r.status === "fulfilled" && r.value)
-        .map((r) => r.value);
+      const runsPayload = await fetchPredictionRuns();
+      allRuns = Array.isArray(runsPayload)
+        ? runsPayload
+        : (runsPayload?.items ?? runsPayload?.results ?? []);
 
       hydrateRunModelNamesFromId(allRuns);
       await enrichShiftNames(allRuns);
       hydrateRunModelNamesFromId(allRuns);
-
-      const validIds = allRuns.map((r) => text(r.id));
-      const staleIds = storedIds.filter((id) => !validIds.includes(id));
-      if (staleIds.length) removeRunIds(staleIds);
 
       applyFilter();
     } catch (error) {
@@ -457,8 +414,8 @@ export const initializeSimulationRuns = async (
     );
     if (!confirmDelete) return;
 
-    removeRunIds(ids);
-    await loadRuns();
+    allRuns = allRuns.filter((r) => !ids.includes(text(r?.id)));
+    applyFilter();
   };
   if (deleteButton) {
     deleteButton.addEventListener("click", handleDeleteClick);

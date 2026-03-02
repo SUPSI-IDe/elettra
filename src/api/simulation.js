@@ -53,6 +53,23 @@ export const createPredictionRuns = async ({
   return payload;
 };
 
+export const fetchPredictionRuns = async () => {
+  const headers = authHeaders();
+  const response = await fetch(`${SIMULATION_PATH}/prediction-runs/`, {
+    method: "GET",
+    headers,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load prediction runs.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
 export const fetchPredictionRun = async (runId) => {
   if (!runId) throw new Error("Missing runId");
   const headers = authHeaders();
