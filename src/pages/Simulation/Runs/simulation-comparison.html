@@ -1,0 +1,131 @@
+<section class="simulation-comparison-page">
+  <header class="page-header">
+    <div class="header-with-close">
+      <div class="title-container">
+        <h1 data-i18n="simulation.compare_page_title">Simulation comparison</h1>
+      </div>
+      <button
+        type="button"
+        class="close-button"
+        data-action="back"
+        aria-label="Close"
+        data-i18n-aria-label="common.close"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="comparison-main">
+    <div class="comparison-header-labels">
+      <div class="comparison-label sim-a-label" data-role="label-sim-a"></div>
+      <div class="comparison-label sim-b-label" data-role="label-sim-b"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="results-tabs" role="tablist">
+      <button class="results-tab active" role="tab" aria-selected="true" data-tab="costs" data-i18n="simulation.tab_costs">
+        Costs
+      </button>
+      <button class="results-tab" role="tab" aria-selected="false" data-tab="efficiency" data-i18n="simulation.tab_efficiency">
+        Efficiency
+      </button>
+      <button class="results-tab" role="tab" aria-selected="false" data-tab="emissions" data-i18n="simulation.tab_emissions">
+        Emissions
+      </button>
+    </div>
+
+    <!-- Tab panels -->
+    <div class="results-tab-panels">
+      <!-- Costs -->
+      <div class="tab-panel active" data-panel="costs" role="tabpanel">
+        <div class="comparison-row">
+          <div class="chart-section">
+            <h3 data-role="costs-bar-title-a"></h3>
+            <div class="chart-container" data-role="costs-bar-chart-a"></div>
+            <div class="chart-legend" data-role="costs-legend-a"></div>
+          </div>
+          <div class="chart-section">
+            <h3 data-role="costs-bar-title-b"></h3>
+            <div class="chart-container" data-role="costs-bar-chart-b"></div>
+            <div class="chart-legend" data-role="costs-legend-b"></div>
+          </div>
+        </div>
+        <div class="comparison-row">
+          <div class="chart-section">
+            <h3 data-role="costs-line-title-a"></h3>
+            <div class="chart-container" data-role="costs-line-chart-a"></div>
+          </div>
+          <div class="chart-section">
+            <h3 data-role="costs-line-title-b"></h3>
+            <div class="chart-container" data-role="costs-line-chart-b"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Efficiency -->
+      <div class="tab-panel" data-panel="efficiency" role="tabpanel" hidden>
+        <div class="comparison-row">
+          <div class="chart-section">
+            <h3 data-role="soc-title-a"></h3>
+            <div class="chart-container" data-role="efficiency-soc-chart-a"></div>
+          </div>
+          <div class="chart-section">
+            <h3 data-role="soc-title-b"></h3>
+            <div class="chart-container" data-role="efficiency-soc-chart-b"></div>
+          </div>
+        </div>
+        <div class="comparison-row">
+          <div class="chart-section">
+            <h3 data-role="energy-title-a"></h3>
+            <div class="chart-container" data-role="efficiency-energy-chart-a"></div>
+          </div>
+          <div class="chart-section">
+            <h3 data-role="energy-title-b"></h3>
+            <div class="chart-container" data-role="efficiency-energy-chart-b"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Emissions -->
+      <div class="tab-panel" data-panel="emissions" role="tabpanel" hidden>
+        <div class="comparison-row">
+          <div class="chart-section">
+            <h3 data-role="co2-bar-title-a"></h3>
+            <div class="chart-container" data-role="emissions-bar-chart-a"></div>
+            <div class="chart-legend" data-role="emissions-legend-a"></div>
+          </div>
+          <div class="chart-section">
+            <h3 data-role="co2-bar-title-b"></h3>
+            <div class="chart-container" data-role="emissions-bar-chart-b"></div>
+            <div class="chart-legend" data-role="emissions-legend-b"></div>
+          </div>
+        </div>
+        <div class="comparison-row">
+          <div class="chart-section">
+            <h3 data-role="co2-cum-title-a"></h3>
+            <div class="chart-container" data-role="emissions-line-chart-a"></div>
+          </div>
+          <div class="chart-section">
+            <h3 data-role="co2-cum-title-b"></h3>
+            <div class="chart-container" data-role="emissions-line-chart-b"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="results-actions">
+      <button
+        type="button"
+        class="btn-close-results"
+        data-action="back"
+        data-i18n="common.close"
+      >
+        Close
+      </button>
+    </div>
+  </main>
+</section>

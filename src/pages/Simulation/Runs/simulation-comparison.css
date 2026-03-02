@@ -1,0 +1,174 @@
+.simulation-comparison-page h1 {
+  color: var(--dark-blue);
+}
+
+.comparison-main {
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Header labels for Sim A / Sim B */
+
+.comparison-header-labels {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.comparison-label {
+  flex: 1;
+  padding: 0.5rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.sim-a-label {
+  background: rgba(111, 190, 236, 0.15);
+  color: #1a6fa0;
+  border: 1px solid rgba(111, 190, 236, 0.4);
+}
+
+.sim-b-label {
+  background: rgba(171, 232, 40, 0.15);
+  color: #4a7a0a;
+  border: 1px solid rgba(171, 232, 40, 0.4);
+}
+
+/* Reuse tab styles from results page */
+
+.simulation-comparison-page .results-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border-light);
+  margin-bottom: var(--spacing-lg);
+}
+
+.simulation-comparison-page .results-tab {
+  padding: 0.65rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.simulation-comparison-page .results-tab:hover {
+  color: var(--text-main);
+}
+
+.simulation-comparison-page .results-tab.active {
+  color: var(--dark-blue);
+  border-bottom-color: var(--dark-blue);
+  font-weight: 600;
+}
+
+/* Tab panels */
+
+.simulation-comparison-page .results-tab-panels {
+  min-height: 300px;
+}
+
+.simulation-comparison-page .tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.simulation-comparison-page .tab-panel[hidden] {
+  display: none;
+}
+
+/* Side-by-side chart row */
+
+.comparison-row {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.comparison-row .chart-section {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: var(--spacing-md);
+  background: #fff;
+}
+
+.comparison-row .chart-section h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: var(--spacing-sm);
+}
+
+.comparison-row .chart-container {
+  width: 100%;
+  min-height: 160px;
+}
+
+.comparison-row .chart-container svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.comparison-row .chart-legend {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: center;
+  margin-top: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.comparison-row .chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.comparison-row .chart-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* Close button */
+
+.simulation-comparison-page .results-actions {
+  margin-top: var(--spacing-xl);
+  display: flex;
+  justify-content: center;
+}
+
+.simulation-comparison-page .btn-close-results {
+  background-color: var(--brand-teal);
+  color: #fff;
+  padding: 0.6rem 2rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.simulation-comparison-page .btn-close-results:hover {
+  background-color: var(--brand-teal-dark);
+}
+
+@media (max-width: 900px) {
+  .comparison-row {
+    flex-direction: column;
+  }
+  .comparison-header-labels {
+    flex-direction: column;
+  }
+}

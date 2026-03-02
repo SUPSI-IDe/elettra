@@ -1,0 +1,146 @@
+<section class="simulation-results-page">
+  <header class="page-header">
+    <div class="header-with-close">
+      <div class="title-container">
+        <h1 data-i18n="simulation.results_page_title">Simulation results</h1>
+      </div>
+      <button
+        type="button"
+        class="close-button"
+        data-action="back"
+        aria-label="Close"
+        data-i18n-aria-label="common.close"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="results-main">
+    <div class="results-toolbar">
+      <button
+        type="button"
+        class="sim-data-btn"
+        data-action="toggle-sim-data"
+        data-i18n="simulation.results_sim_data"
+      >
+        Simulation data
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="results-tabs" role="tablist">
+      <button class="results-tab active" role="tab" aria-selected="true" data-tab="costs" data-i18n="simulation.tab_costs">
+        Costs
+      </button>
+      <button class="results-tab" role="tab" aria-selected="false" data-tab="efficiency" data-i18n="simulation.tab_efficiency">
+        Efficiency
+      </button>
+      <button class="results-tab" role="tab" aria-selected="false" data-tab="emissions" data-i18n="simulation.tab_emissions">
+        Emissions
+      </button>
+    </div>
+
+    <!-- Tab panels -->
+    <div class="results-tab-panels">
+      <div class="tab-panel active" data-panel="costs" role="tabpanel">
+        <div class="chart-section">
+          <h2 data-i18n="simulation.results_tco_title">Total Cost of Ownership</h2>
+          <div class="chart-container" data-role="costs-bar-chart"></div>
+          <div class="chart-legend" data-role="costs-legend"></div>
+        </div>
+        <div class="chart-section">
+          <h2 data-i18n="simulation.results_costs_yearly">Yearly cost breakdown</h2>
+          <div class="chart-container" data-role="costs-line-chart"></div>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="efficiency" role="tabpanel" hidden>
+        <div class="chart-section">
+          <h2 data-i18n="simulation.results_soc_title">State of Charge over shift</h2>
+          <div class="chart-container" data-role="efficiency-soc-chart"></div>
+        </div>
+        <div class="chart-section">
+          <h2 data-i18n="simulation.results_energy_title">Energy consumption per km</h2>
+          <div class="chart-container" data-role="efficiency-energy-chart"></div>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="emissions" role="tabpanel" hidden>
+        <div class="chart-section">
+          <h2 data-i18n="simulation.results_co2_title">CO₂ emissions comparison</h2>
+          <div class="chart-container" data-role="emissions-bar-chart"></div>
+          <div class="chart-legend" data-role="emissions-legend"></div>
+        </div>
+        <div class="chart-section">
+          <h2 data-i18n="simulation.results_co2_yearly">Cumulative CO₂ savings over time</h2>
+          <div class="chart-container" data-role="emissions-line-chart"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="results-actions">
+      <button
+        type="button"
+        class="btn-close-results"
+        data-action="back"
+        data-i18n="common.close"
+      >
+        Close
+      </button>
+    </div>
+
+    <!-- Simulation data overlay -->
+    <div class="sim-data-overlay" data-role="sim-data-overlay" hidden>
+      <div class="sim-data-panel">
+        <div class="sim-data-header">
+          <div>
+            <h2 data-i18n="simulation.results_sim_data">Simulation data</h2>
+            <p class="sim-data-subtitle" data-role="sim-data-subtitle"></p>
+          </div>
+          <button
+            type="button"
+            class="close-button"
+            data-action="close-sim-data"
+            aria-label="Close"
+            data-i18n-aria-label="common.close"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="sim-data-columns">
+          <div class="sim-data-col">
+            <h3 data-i18n="simulation.results_general_info">General information</h3>
+            <div class="sim-data-fields" data-role="general-info"></div>
+          </div>
+          <div class="sim-data-col">
+            <h3 data-i18n="simulation.results_bus_info">Bus information</h3>
+            <div class="sim-data-fields" data-role="bus-info"></div>
+          </div>
+          <div class="sim-data-col">
+            <h3 data-i18n="simulation.results_charging_info">Charging station information</h3>
+            <div class="sim-data-fields" data-role="charging-info"></div>
+          </div>
+        </div>
+
+        <div class="sim-data-actions">
+          <button
+            type="button"
+            class="btn-close-results"
+            data-action="close-sim-data"
+            data-i18n="common.close"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</section>
