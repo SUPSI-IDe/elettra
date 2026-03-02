@@ -8,6 +8,8 @@ import { initializeVisualizeShift } from "./pages/Fleet/Shifts/visualize-shift";
 import { initializeSimulationRuns } from "./pages/Simulation/Runs/simulation-runs";
 import { initializeAddSimulation } from "./pages/Simulation/Runs/add-simulation";
 import { initializeSimulationDetail } from "./pages/Simulation/Runs/simulation-detail";
+import { initializeSimulationResults } from "./pages/Simulation/Runs/simulation-results";
+import { initializeSimulationComparison } from "./pages/Simulation/Runs/simulation-comparison";
 import { initializeLogin } from "./pages/Auth/login";
 import { initializeLanding } from "./pages/Auth/landing";
 import { initializeRegister } from "./pages/Auth/register";
@@ -141,6 +143,12 @@ export const initializeNavigation = (root = document) => {
         break;
       case "simulation-detail":
         cleanup = await initializeSimulationDetail(target, options);
+        break;
+      case "simulation-results":
+        cleanup = initializeSimulationResults(target, options);
+        break;
+      case "simulation-comparison":
+        cleanup = initializeSimulationComparison(target, options);
         break;
       default:
         break;

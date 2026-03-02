@@ -20,6 +20,33 @@
     hidden
   ></p>
   <main class="simulation-runs-main">
+    <div class="compare-section" data-role="compare-section">
+      <h2 data-i18n="simulation.compare_title">Compare simulations</h2>
+      <div class="compare-controls">
+        <div class="compare-select-group">
+          <label for="compare-sim-a" data-i18n="simulation.compare_simulation_a">Simulation A</label>
+          <select id="compare-sim-a" data-role="compare-sim-a">
+            <option value="" disabled selected data-i18n="simulation.compare_select_placeholder">Select a simulation…</option>
+          </select>
+        </div>
+        <span class="compare-vs">vs</span>
+        <div class="compare-select-group">
+          <label for="compare-sim-b" data-i18n="simulation.compare_simulation_b">Simulation B</label>
+          <select id="compare-sim-b" data-role="compare-sim-b">
+            <option value="" disabled selected data-i18n="simulation.compare_select_placeholder">Select a simulation…</option>
+          </select>
+        </div>
+        <button
+          type="button"
+          class="compare-btn"
+          data-action="compare-simulations"
+          data-i18n="simulation.compare_btn"
+        >
+          Compare
+        </button>
+      </div>
+    </div>
+
     <div class="table-controls">
       <label class="sr-only" for="simulation-filter" data-i18n="simulation.filter_label">Filter simulations</label>
       <input
@@ -68,6 +95,9 @@
             </th>
             <th class="status" scope="col" data-i18n="simulation.col_status">
               Status
+            </th>
+            <th class="results" scope="col" data-i18n="simulation.col_results">
+              Results
             </th>
           </tr>
         </thead>

@@ -14,7 +14,7 @@
 }
 
 .simulation-runs-table table {
-  width: 67%;
+  width: 80%;
   margin: 0;
   table-layout: fixed;
 }
@@ -81,4 +81,105 @@
 .simulation-runs-table .status-badge.failed {
   background-color: #f8d7da;
   color: #721c24;
+}
+
+.simulation-runs-table th.results,
+.simulation-runs-table td.results {
+  width: 10%;
+  text-align: center;
+}
+
+.simulation-runs-table .results-link {
+  color: #0062cc;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.simulation-runs-table .results-link:hover {
+  color: #004499;
+}
+
+.simulation-runs-table .results-link.disabled {
+  color: var(--text-secondary, #999);
+  text-decoration: none;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Compare section */
+
+.compare-section {
+  width: 100%;
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.compare-section h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--dark-blue);
+  margin-bottom: var(--spacing-md);
+}
+
+.compare-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.compare-select-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+
+.compare-select-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.compare-select-group select {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-medium, #ccc);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #fff;
+  color: var(--text-main);
+}
+
+.compare-vs {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding-bottom: 0.45rem;
+}
+
+.compare-btn {
+  background-color: var(--brand-teal);
+  color: #fff;
+  padding: 0.5rem 1.4rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  white-space: nowrap;
+}
+
+.compare-btn:hover {
+  background-color: var(--brand-teal-dark);
+}
+
+.compare-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

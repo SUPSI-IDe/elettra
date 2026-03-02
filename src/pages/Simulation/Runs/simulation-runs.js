@@ -66,7 +66,7 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
     <tr>
       <td class="checkbox"></td>
-      <td colspan="4">Loading…</td>
+      <td colspan="5">Loading…</td>
     </tr>`;
 };
 
@@ -75,7 +75,7 @@ const renderError = (tbody, message = "Unable to load simulation runs.") => {
   tbody.innerHTML = `
     <tr>
       <td class="checkbox"></td>
-      <td colspan="4">${textContent(message)}</td>
+      <td colspan="5">${textContent(message)}</td>
     </tr>`;
 };
 
@@ -84,7 +84,7 @@ const renderEmpty = (tbody) => {
   tbody.innerHTML = `
     <tr>
       <td class="checkbox"></td>
-      <td colspan="4" data-i18n="simulation.no_runs">No simulation runs found.</td>
+      <td colspan="5" data-i18n="simulation.no_runs">No simulation runs found.</td>
     </tr>`;
 };
 
@@ -180,6 +180,8 @@ const renderRows = (tbody, runs = []) => {
       const busModelName = text(resolveBusModelName(run)).trim();
       const busModelLabel = busModelName || busModelId || "—";
 
+      const resultsLink = `<a class="results-link" href="#" data-action="view-results" data-run-id="${rowId}">${t("simulation.col_results") || "Results"}</a>`;
+
       return `
         <tr data-id="${rowId}">
           <td class="checkbox">
@@ -193,6 +195,7 @@ const renderRows = (tbody, runs = []) => {
           <td class="status">
             <span class="status-badge ${status}">${textContent(status)}</span>
           </td>
+          <td class="results">${resultsLink}</td>
         </tr>`;
     })
     .join("");
@@ -464,8 +467,143 @@ export const initializeSimulationRuns = async (
     );
   }
 
+  const handleResultsClick = (event) => {
+    const link = event.target.closest('[data-action="view-results"]');
+    if (!link) return;
+    event.preventDefault();
+    const runId = link.dataset.runId;
+    if (!runId) return;
+    const run = allRuns.find((r) => text(r?.id) === runId);
+    const modelId = text(resolveBusModelId(run)).trim();
+    const busModel = busModelsById?.[modelId] ?? {};
+    const specs = (() => {
+      const raw = busModel?.specs;
+      if (!raw) return {};
+      if (typeof raw === "string") {
+        try { return JSON.parse(raw); } catch { return {}; }
+      }
+      return typeof raw === "object" ? raw : {};
+    })();
+    triggerPartialLoad("simulation-results", {
+      runId,
+      shiftName: resolveShiftName(run),
+      busModelName: resolveBusModelName(run),
+      busModelId: modelId,
+      status: text(run?.status ?? ""),
+      createdAt: formatDate(resolveCreatedAt(run)),
+      shiftId: text(run?.shift_id ?? ""),
+      occupancyPercent: run?.occupancy_percent ?? run?.occupancyPercent,
+      externalTemp: run?.external_temp_celsius ?? run?.externalTempCelsius,
+      heatingType: run?.auxiliary_heating_type ?? run?.auxiliaryHeatingType,
+      numBatteryPacks: run?.num_battery_packs ?? run?.numBatteryPacks,
+      busModelData: {
+        manufacturer: busModel?.manufacturer ?? busModel?.manufacturer_name ?? "",
+        cost: specs?.cost ?? "",
+        bus_length_m: specs?.bus_length_m ?? "",
+        max_passengers: specs?.max_passengers ?? "",
+        bus_lifetime: specs?.bus_lifetime ?? "",
+        battery_pack_size_kwh: specs?.battery_pack_size_kwh ?? "",
+        max_charging_power_kw: specs?.max_charging_power_kw ?? "",
+        empty_weight_kg: specs?.empty_weight_kg ?? "",
+        min_battery_packs: specs?.min_battery_packs ?? "",
+        max_battery_packs: specs?.max_battery_packs ?? "",
+        battery_pack_lifetime: specs?.battery_pack_lifetime ?? "",
+      },
+    });
+  };
+  if (table) {
+    table.addEventListener("click", handleResultsClick);
+    cleanupHandlers.push(() =>
+      table.removeEventListener("click", handleResultsClick)
+    );
+  }
+
+  const compareSelectA = section.querySelector('[data-role="compare-sim-a"]');
+  const compareSelectB = section.querySelector('[data-role="compare-sim-b"]');
+  const compareBtn = section.querySelector('[data-action="compare-simulations"]');
+
+  const populateCompareSelects = () => {
+    const placeholder = t("simulation.compare_select_placeholder") || "Select a simulation…";
+    [compareSelectA, compareSelectB].forEach((sel) => {
+      if (!sel) return;
+      sel.innerHTML = `<option value="" disabled selected>${textContent(placeholder)}</option>`;
+      allRuns.forEach((run) => {
+        const id = text(run?.id);
+        const shift = resolveShiftName(run) || id.slice(0, 8);
+        const bus = resolveBusModelName(run) || "—";
+        const created = formatDate(resolveCreatedAt(run));
+        const label = `${shift} — ${bus} — ${created}`;
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = label;
+        sel.appendChild(opt);
+      });
+    });
+  };
+
+  const origLoadRuns = loadRuns;
+  const loadRunsAndPopulate = async () => {
+    await origLoadRuns();
+    populateCompareSelects();
+  };
+
+  const handleCompareClick = () => {
+    const idA = compareSelectA?.value;
+    const idB = compareSelectB?.value;
+    if (!idA || !idB) return;
+    if (idA === idB) {
+      setFlashMessage(section, t("simulation.compare_same_error") || "Please select two different simulations.");
+      return;
+    }
+    const runA = allRuns.find((r) => text(r?.id) === idA);
+    const runB = allRuns.find((r) => text(r?.id) === idB);
+    if (!runA || !runB) return;
+
+    const buildOptions = (run) => {
+      const modelId = text(resolveBusModelId(run)).trim();
+      const busModel = busModelsById?.[modelId] ?? {};
+      const specs = (() => {
+        const raw = busModel?.specs;
+        if (!raw) return {};
+        if (typeof raw === "string") { try { return JSON.parse(raw); } catch { return {}; } }
+        return typeof raw === "object" ? raw : {};
+      })();
+      return {
+        runId: text(run?.id),
+        shiftName: resolveShiftName(run),
+        busModelName: resolveBusModelName(run),
+        busModelId: modelId,
+        status: text(run?.status ?? ""),
+        createdAt: formatDate(resolveCreatedAt(run)),
+        occupancyPercent: run?.occupancy_percent ?? run?.occupancyPercent,
+        externalTemp: run?.external_temp_celsius ?? run?.externalTempCelsius,
+        heatingType: run?.auxiliary_heating_type ?? run?.auxiliaryHeatingType,
+        numBatteryPacks: run?.num_battery_packs ?? run?.numBatteryPacks,
+        busModelData: {
+          manufacturer: busModel?.manufacturer ?? busModel?.manufacturer_name ?? "",
+          cost: specs?.cost ?? "",
+          bus_length_m: specs?.bus_length_m ?? "",
+          max_passengers: specs?.max_passengers ?? "",
+          bus_lifetime: specs?.bus_lifetime ?? "",
+          battery_pack_size_kwh: specs?.battery_pack_size_kwh ?? "",
+          battery_pack_lifetime: specs?.battery_pack_lifetime ?? "",
+        },
+      };
+    };
+
+    triggerPartialLoad("simulation-comparison", {
+      simA: buildOptions(runA),
+      simB: buildOptions(runB),
+    });
+  };
+
+  if (compareBtn) {
+    compareBtn.addEventListener("click", handleCompareClick);
+    cleanupHandlers.push(() => compareBtn.removeEventListener("click", handleCompareClick));
+  }
+
   bindSelectAll(headerCheckbox, table);
-  await loadRuns();
+  await loadRunsAndPopulate();
 
   return () => {
     cleanupHandlers.forEach((handler) => handler());
