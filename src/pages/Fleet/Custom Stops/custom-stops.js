@@ -10,6 +10,7 @@ import {
 } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
 import { text, escapeHtml, escapeAttr, normalizeApiList } from "../../../ui-helpers";
+import { createTablePagination } from "../../../dom/pagination";
 
 const STOPS_COLSPAN = 3;
 
@@ -70,6 +71,17 @@ export const initializeCustomStops = async (root = document, options = {}) => {
     return null;
   }
 
+  const mainEl = section.querySelector(".custom-stops-main");
+  const pagination = createTablePagination(mainEl, {
+    tableWrapper: ".table-wrapper",
+    table: "table",
+    paginationContainer: '[data-role="pagination"]',
+    renderRows: (visibleDepots) => renderRows(tbody, visibleDepots),
+    onPageRender: () => bindSelectAll(headerCheckbox, table),
+    defaultPerPage: 6,
+  });
+  cleanupHandlers.push(() => pagination.destroy());
+
   let allDepots = [];
 
   const applyFilter = () => {
@@ -83,8 +95,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
         )
       : allDepots;
 
-    renderRows(tbody, filtered);
-    bindSelectAll(headerCheckbox, table);
+    pagination.update(filtered);
   };
 
   const reload = async () => {
