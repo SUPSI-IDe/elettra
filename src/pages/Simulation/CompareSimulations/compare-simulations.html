@@ -58,37 +58,72 @@
     </div>
 
     <div class="tab-content active" id="tab-costs">
-      <div class="charts-row">
+      <div class="charts-row split">
         <div class="chart-container">
           <h3 class="chart-title">Average annual costs</h3>
-          <!-- Canvas for Chart.js -->
-          <canvas id="average-costs-chart"></canvas>
+          <div id="sim1-annual-costs-chart" class="chart-area"></div>
+        </div>
+        <div class="chart-container">
+          <h3 class="chart-title">Average annual costs</h3>
+          <div id="sim2-annual-costs-chart" class="chart-area"></div>
         </div>
       </div>
       <div class="charts-row split">
         <div class="chart-container">
           <h3 class="chart-title">Break point analysis</h3>
-          <!-- Canvas for Chart.js -->
-          <canvas id="bpa-chart-1"></canvas>
+          <div id="sim1-bpa-chart" class="chart-area"></div>
         </div>
         <div class="chart-container">
           <h3 class="chart-title">Break point analysis</h3>
-          <!-- Canvas for Chart.js -->
-          <canvas id="bpa-chart-2"></canvas>
+          <div id="sim2-bpa-chart" class="chart-area"></div>
         </div>
       </div>
     </div>
 
     <div class="tab-content" id="tab-efficiency">
-      <p style="padding: 2rem; text-align: center; color: #666">
-        Efficiency data placeholder
-      </p>
+      <div class="charts-row split">
+        <div class="chart-container">
+          <h3 class="chart-title">Cost per km</h3>
+          <div id="sim1-efficiency-bar-chart" class="chart-area"></div>
+        </div>
+        <div class="chart-container">
+          <h3 class="chart-title">Cost per km</h3>
+          <div id="sim2-efficiency-bar-chart" class="chart-area"></div>
+        </div>
+      </div>
+      <div class="charts-row split">
+        <div class="chart-container">
+          <h3 class="chart-title">Efficiency over time</h3>
+          <div id="sim1-efficiency-line-chart" class="chart-area"></div>
+        </div>
+        <div class="chart-container">
+          <h3 class="chart-title">Efficiency over time</h3>
+          <div id="sim2-efficiency-line-chart" class="chart-area"></div>
+        </div>
+      </div>
     </div>
 
     <div class="tab-content" id="tab-emissions">
-      <p style="padding: 2rem; text-align: center; color: #666">
-        Emissions data placeholder
-      </p>
+      <div class="charts-row split">
+        <div class="chart-container">
+          <h3 class="chart-title">Emissions saved</h3>
+          <div id="sim1-emissions-bar-chart" class="chart-area"></div>
+        </div>
+        <div class="chart-container">
+          <h3 class="chart-title">Emissions saved</h3>
+          <div id="sim2-emissions-bar-chart" class="chart-area"></div>
+        </div>
+      </div>
+      <div class="charts-row split">
+        <div class="chart-container">
+          <h3 class="chart-title">Cumulative emissions saved</h3>
+          <div id="sim1-emissions-line-chart" class="chart-area"></div>
+        </div>
+        <div class="chart-container">
+          <h3 class="chart-title">Cumulative emissions saved</h3>
+          <div id="sim2-emissions-line-chart" class="chart-area"></div>
+        </div>
+      </div>
     </div>
   </main>
 
