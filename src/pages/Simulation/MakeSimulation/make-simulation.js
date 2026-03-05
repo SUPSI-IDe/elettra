@@ -1,7 +1,7 @@
 import { fetchShifts, fetchShiftInfo } from "../../../api/shifts";
 import { fetchBusModels } from "../../../api/bus-models";
-import { initializeSimulationArchive } from "../SimulationArchive/simulation-archive";
 import { escapeHtml, escapeAttr } from "../../../ui-helpers";
+import { createTablePagination } from "../../../dom/pagination";
 import "./make-simulation.css";
 
 export const initializeMakeSimulation = async (root) => {
@@ -14,6 +14,7 @@ export const initializeMakeSimulation = async (root) => {
   const shiftSearch = root.querySelector("#shift-search");
 
   let shifts = [];
+  let filteredShifts = [];
   let selectedShiftId = null;
 
   // Validation
@@ -23,42 +24,25 @@ export const initializeMakeSimulation = async (root) => {
     const day = root.querySelector("#simulation-day").value;
     const shift = selectedShiftId;
 
-    // Check if shift is selected and other fields have values
     const isValid = name && model && day && shift;
     nextBtn.disabled = !isValid;
   };
 
-  // Render Table
-  const renderShifts = (filterText = "") => {
+  // Render visible page of shifts
+  const renderShiftRows = (visibleShifts) => {
     shiftTableBody.innerHTML = "";
-    const lowerFilter = filterText.toLowerCase();
-
-    const filteredShifts = shifts.filter((s) => {
-      // Assuming API returns 'name', maybe 'trip_ids' or similar for lines?
-      // Check the structure of fetched object in debugger or assume common fields.
-      // Based on typical shift objects: { id, name, ... }
-      // Lines might need to be derived or are part of the object.
-      // For now, safe check on name.
-      const nameMatch = s.name?.toLowerCase().includes(lowerFilter);
-      return nameMatch;
-    });
 
     if (filteredShifts.length === 0) {
       shiftTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No shifts found</td></tr>`;
       return;
     }
 
-    filteredShifts.forEach((shift) => {
+    visibleShifts.forEach((shift) => {
       const row = document.createElement("tr");
       if (shift.id === selectedShiftId) {
         row.classList.add("selected");
       }
 
-      // Format time if available, or placeholder
-      // API might return proper objects or we need to extract info.
-      // Shift object from API typically has: id, name, trip_ids.
-      // Start/End might need calculation from trips or are provided.
-      // Let's assume placeholders if not present, or basic values.
       const startTime = shift.start_time || "--:--";
       const endTime = shift.end_time || "--:--";
       const tripCount = shift.structure ? shift.structure.length : 0;
@@ -77,31 +61,18 @@ export const initializeMakeSimulation = async (root) => {
         <td>${escapeHtml(endTime)}</td>
       `;
 
-      // Row click UX
-      const selectHandler = (e) => {
-        // Prevent event bubbling if clicking input directly to avoid double toggle
-        if (e.target.tagName === "INPUT" && e.type === "click") return;
-
-        if (selectedShiftId === shift.id) {
-          // Optional: allow deselect?
-          // selectedShiftId = null;
-        } else {
-          selectedShiftId = shift.id;
-        }
-        renderShifts(shiftSearch.value);
-        checkValidity();
-      };
-
       row.addEventListener("click", (e) => {
         if (e.target.tagName !== "INPUT") {
-          selectHandler(e);
+          selectedShiftId = shift.id;
+          pagination.render();
+          checkValidity();
         }
       });
 
       const input = row.querySelector("input");
       input.addEventListener("change", () => {
         selectedShiftId = shift.id;
-        renderShifts(shiftSearch.value);
+        pagination.render();
         checkValidity();
       });
 
@@ -109,9 +80,27 @@ export const initializeMakeSimulation = async (root) => {
     });
   };
 
+  const formSection = root.querySelector(".form-section");
+  const pagination = createTablePagination(formSection, {
+    tableWrapper: ".shift-table-wrapper",
+    table: "#shift-selection-table",
+    paginationContainer: "#shift-pagination",
+    renderRows: renderShiftRows,
+    onPageRender: checkValidity,
+    defaultPerPage: 6,
+  });
+
+  const applyFilter = (filterText = "") => {
+    const lowerFilter = filterText.toLowerCase();
+    filteredShifts = shifts.filter((s) =>
+      s.name?.toLowerCase().includes(lowerFilter),
+    );
+    pagination.update(filteredShifts);
+  };
+
   // Search
   shiftSearch.addEventListener("input", (e) => {
-    renderShifts(e.target.value);
+    applyFilter(e.target.value);
   });
 
   // Listeners for inputs to trigger validation
@@ -183,18 +172,15 @@ export const initializeMakeSimulation = async (root) => {
 
     // Process Shifts
     shifts = Array.isArray(fetchedShifts) ? fetchedShifts : [];
-    renderShifts(); // Initial render with basic info
+    applyFilter();
 
-    // Fetch detailed info for times (in background/parallel)
+    // Fetch detailed info for times in background
     if (shifts.length > 0) {
-      // Show loading state or just update progressively?
-      // Let's update in place to keep UI responsive.
       Promise.all(
         shifts.map(async (shift) => {
           try {
             const info = await fetchShiftInfo(shift.id);
             if (info && info.trips && info.trips.length > 0) {
-              // Sort by sequence just in case
               const sortedTrips = info.trips.sort(
                 (a, b) => a.sequence_number - b.sequence_number,
               );
@@ -206,7 +192,7 @@ export const initializeMakeSimulation = async (root) => {
           }
         }),
       ).then(() => {
-        renderShifts(shiftSearch.value); // Re-render with times
+        applyFilter(shiftSearch.value);
       });
     }
   } catch (err) {
@@ -214,5 +200,7 @@ export const initializeMakeSimulation = async (root) => {
     shiftTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: red;">Error loading data</td></tr>`;
   }
 
-  return () => {};
+  return () => {
+    pagination.destroy();
+  };
 };
