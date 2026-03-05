@@ -204,14 +204,14 @@ export const testSimulation = async () => {
   console.log("\n🎮 === SIMULATION ENDPOINTS ===\n");
   const results = [];
 
-  // List simulation runs
+  // List prediction runs
   results.push(
     await testEndpoint(
       "Simulation",
-      "GET /api/v1/simulation/simulation-runs/",
+      "GET /api/v1/simulation/prediction-runs/",
       async () => {
         const response = await fetch(
-          `${API_ROOT}/api/v1/simulation/simulation-runs/`,
+          `${API_ROOT}/api/v1/simulation/prediction-runs/`,
           {
             method: "GET",
             headers: {
@@ -425,15 +425,40 @@ export const testVariantsByRoute = async (routeId) => {
 };
 
 /**
- * Test fetching a specific simulation run by ID
+ * Test fetching a specific prediction run by ID
  */
-export const testSimulationRunById = async (runId) => {
+export const testPredictionRunById = async (runId) => {
   return testEndpoint(
     "Simulation",
-    `GET /api/v1/simulation/simulation-runs/${runId}`,
+    `GET /api/v1/simulation/prediction-runs/${runId}`,
     async () => {
       const response = await fetch(
-        `${API_ROOT}/api/v1/simulation/simulation-runs/${runId}`,
+        `${API_ROOT}/api/v1/simulation/prediction-runs/${runId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(),
+          },
+        },
+      );
+      if (!response.ok)
+        throw new Error(`${response.status} ${response.statusText}`);
+      return response.json();
+    },
+  );
+};
+
+/**
+ * Test fetching a specific optimization run by ID
+ */
+export const testOptimizationRunById = async (runId) => {
+  return testEndpoint(
+    "Simulation",
+    `GET /api/v1/simulation/optimization-runs/${runId}`,
+    async () => {
+      const response = await fetch(
+        `${API_ROOT}/api/v1/simulation/optimization-runs/${runId}`,
         {
           method: "GET",
           headers: {
@@ -467,7 +492,8 @@ if (typeof window !== "undefined") {
     testTripsByRoute,
     testStopsByTrip,
     testVariantsByRoute,
-    testSimulationRunById,
+    testPredictionRunById,
+    testOptimizationRunById,
   };
   console.log(
     "🧪 API Tester loaded! Use window.apiTester.runAllTests() to test all endpoints.",
