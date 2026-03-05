@@ -16,6 +16,7 @@ import {
   getSelectedIds,
   setFlashMessage,
 } from "../../../dom/tables";
+import { createTablePagination } from "../../../dom/pagination";
 import { openSidePanel, getSidePanelRoot } from "../../../dom/side-panel";
 import { triggerPartialLoad } from "../../../events";
 import { resolveModelFields, textContent, escapeAttr, normalizeApiList } from "../../../ui-helpers";
@@ -146,6 +147,16 @@ export const initializeBuses = async (root = document, options = {}) => {
     });
   }
 
+  const modelsSection = section.querySelector(".bus-models");
+  const pagination = createTablePagination(modelsSection, {
+    tableWrapper: ".table-wrapper",
+    table: "table",
+    paginationContainer: '[data-role="pagination"]',
+    renderRows: (visibleModels) => renderModels(modelsTbody, visibleModels),
+    onPageRender: () => bindSelectAll(modelsHeaderCheckbox, modelsTable),
+    defaultPerPage: 6,
+  });
+
   renderLoadingRow(modelsTbody);
 
   try {
@@ -157,7 +168,7 @@ export const initializeBuses = async (root = document, options = {}) => {
 
     cacheCollections({ models });
 
-    renderModels(modelsTbody, models);
+    pagination.update(models);
 
     bindSelectAll(modelsHeaderCheckbox, modelsTable);
 
@@ -168,6 +179,7 @@ export const initializeBuses = async (root = document, options = {}) => {
   }
 
   return () => {
+    pagination.destroy();
     cleanupHandlers.forEach((handler) => handler());
   };
 };
