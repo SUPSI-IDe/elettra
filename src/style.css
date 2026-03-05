@@ -122,6 +122,8 @@ body {
   overflow-y: scroll;
   flex: 1;
   scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
 }
 
 .logo {

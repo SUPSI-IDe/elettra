@@ -10,6 +10,7 @@ import { initializeVisualizeShift } from "./pages/Fleet/Shifts/visualize-shift";
 import { initializeSimulationArchive } from "./pages/Simulation/SimulationArchive/simulation-archive";
 import { initializeMakeSimulation } from "./pages/Simulation/MakeSimulation/make-simulation";
 import { initializeSimulationResult } from "./pages/Simulation/SimulationResult/simulation-result";
+import { initializeCompareSimulations } from "./pages/Simulation/CompareSimulations/compare-simulations";
 import { applyTranslations, getCurrentLang } from "./i18n";
 
 const partials = import.meta.glob("./pages/**/*.html", {
@@ -133,6 +134,9 @@ export const initializeNavigation = (root = document) => {
         break;
       case "simulation-result":
         cleanup = initializeSimulationResult(target, options);
+        break;
+      case "compare-simulations":
+        cleanup = await initializeCompareSimulations(target, options);
         break;
       default:
         break;
