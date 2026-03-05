@@ -16,6 +16,7 @@ import {
 } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
 import { text, textContent, escapeAttr, normalizeApiList } from "../../../ui-helpers";
+import { createTablePagination } from "../../../dom/pagination";
 import { parseTimeToMinutes, formatMinutes } from "./shift-utils";
 
 const SHIFT_COLSPAN = 6;
@@ -238,6 +239,19 @@ export const initializeShifts = async (root = document, options = {}) => {
     return null;
   }
 
+  const mainEl = section.querySelector(".shifts-main");
+  const pagination = createTablePagination(mainEl, {
+    tableWrapper: ".table-wrapper",
+    table: "table",
+    paginationContainer: '[data-role="pagination"]',
+    renderRows: (visibleShifts) => {
+      renderRows(tbody, visibleShifts);
+    },
+    onPageRender: () => bindSelectAll(headerCheckbox, table),
+    defaultPerPage: 6,
+  });
+  cleanupHandlers.push(() => pagination.destroy());
+
   let allShifts = [];
 
   const applyFilter = () => {
@@ -249,8 +263,7 @@ export const initializeShifts = async (root = document, options = {}) => {
         )
       : allShifts;
 
-    renderRows(tbody, filtered);
-    bindSelectAll(headerCheckbox, table);
+    pagination.update(filtered);
   };
 
   const loadShifts = async () => {
