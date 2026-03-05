@@ -6,6 +6,7 @@ import {
   getOptimizationRun,
 } from "../../../api/simulation";
 import { fetchBusModelById } from "../../../api/bus-models";
+import { fetchShiftInfo } from "../../../api/shifts";
 import { getCurrentUserId } from "../../../store";
 import { computePlaceholderResults } from "./placeholder-data";
 import {
@@ -23,7 +24,7 @@ export const initializeSimulationResult = (root, options = {}) => {
   // Header Logic
   if (name) root.querySelector("#result-sim-name").textContent = name;
   if (shift || busModel || day) {
-    const meta = [shift, busModel, "Lines 1,2", day].filter(Boolean).join(", ");
+    const meta = [shift, busModel, day].filter(Boolean).join(", ");
     root.querySelector("#result-sim-meta").textContent = meta;
   }
 
@@ -64,53 +65,64 @@ export const initializeSimulationResult = (root, options = {}) => {
   };
 
   seeAllDataBtn.addEventListener("click", async () => {
-    // Populate general info from options
-    const subtitle = [shift, "Lines 1,2", day].filter(Boolean).join(", ");
+    const { busModelId, shiftId } = options;
+
+    // Fetch shift info and bus model in parallel
+    const [shiftInfo, busModelData] = await Promise.all([
+      shiftId ? fetchShiftInfo(shiftId).catch((err) => {
+        console.warn("Failed to fetch shift info:", err);
+        return null;
+      }) : Promise.resolve(null),
+      busModelId ? fetchBusModelById(busModelId).catch((err) => {
+        console.warn("Failed to fetch bus model details:", err);
+        return null;
+      }) : Promise.resolve(null),
+    ]);
+
+    // Extract lines from shift info
+    const lines = shiftInfo?.route?.name || "--";
+    const daysOfWeek = shiftInfo?.days_of_week?.join(", ") || "--";
+
+    // Populate subtitle
+    const subtitle = [shift, lines, day].filter(Boolean).join(", ");
     root.querySelector("#sim-data-subtitle").textContent = subtitle || "--";
 
+    // General info
     const now = new Date().toLocaleString("de-CH");
     root.querySelector("#sd-creation-date").textContent = now;
     root.querySelector("#sd-update-date").textContent = now;
-    root.querySelector("#sd-day").textContent = day || "--";
-    root.querySelector("#sd-lines").textContent = "1, 2, 3";
+    root.querySelector("#sd-day").textContent = day || daysOfWeek;
+    root.querySelector("#sd-lines").textContent = lines;
     root.querySelector("#sd-shift-name").textContent = shift || "--";
 
-    // Fetch bus model details if available
-    const { busModelId } = options;
-    if (busModelId) {
-      try {
-        const busModelData = await fetchBusModelById(busModelId);
-        const specs = busModelData.specs || {};
+    // Bus info — field names match what add-bus-model.js saves to specs
+    if (busModelData) {
+      const specs = busModelData.specs || {};
 
-        root.querySelector("#sd-bus-name").textContent =
-          busModelData.name || "--";
-        root.querySelector("#sd-manufacturer").textContent =
-          busModelData.manufacturer || "--";
-        root.querySelector("#sd-bus-cost").textContent =
-          specs.cost != null ?
-            Number(specs.cost).toLocaleString("de-CH")
-          : "--";
-        root.querySelector("#sd-bus-length").textContent =
-          specs.bus_length_m ?? specs.length ?? "--";
-        root.querySelector("#sd-max-passengers").textContent =
-          specs.max_passengers ?? specs.capacity ?? "--";
-        root.querySelector("#sd-bus-lifetime").textContent =
-          specs.bus_lifetime_years ?? specs.lifetime ?? "--";
-        root.querySelector("#sd-battery-cost").textContent =
-          specs.battery_pack_cost != null ?
-            Number(specs.battery_pack_cost).toLocaleString("de-CH")
-          : "--";
-        root.querySelector("#sd-battery-lifetime").textContent =
-          specs.battery_pack_lifetime_years ?? "--";
-      } catch (err) {
-        console.warn("Failed to fetch bus model details:", err);
-      }
+      root.querySelector("#sd-bus-name").textContent =
+        busModelData.name || "--";
+      root.querySelector("#sd-manufacturer").textContent =
+        busModelData.manufacturer || "--";
+      root.querySelector("#sd-bus-cost").textContent =
+        specs.cost != null ? Number(specs.cost).toLocaleString("de-CH") : "--";
+      root.querySelector("#sd-bus-length").textContent =
+        specs.size ?? "--";
+      root.querySelector("#sd-max-passengers").textContent =
+        specs.passengers ?? "--";
+      root.querySelector("#sd-bus-lifetime").textContent =
+        specs.lifetime ?? "--";
+      root.querySelector("#sd-battery-cost").textContent =
+        specs.battery_cost != null ?
+          Number(specs.battery_cost).toLocaleString("de-CH")
+        : "--";
+      root.querySelector("#sd-battery-lifetime").textContent =
+        specs.battery_lifetime ?? "--";
     } else {
       root.querySelector("#sd-bus-name").textContent = busModel || "--";
     }
 
-    // Charging station info (placeholder for now — no API available for individual CS data)
-    // These fields can be populated later when charging station data is available
+    // Charging station info — no dedicated API for CS data yet
+    // Fields remain at default "--" until a charging station API is available
 
     openSimDataModal();
   });

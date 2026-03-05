@@ -197,126 +197,130 @@
   <!-- See All Data Modal Overlay -->
   <div class="sim-data-overlay hidden" id="sim-data-overlay">
     <div class="sim-data-modal">
-      <div class="sim-data-header">
+      <div class="header-with-close sim-data-header-custom">
         <div class="sim-data-header-left">
           <h2>Simulation data</h2>
           <span class="sim-data-subtitle" id="sim-data-subtitle"
             >&lt;Shift name&gt;, &lt;Lines&gt;, &lt;Day&gt;</span
           >
         </div>
-        <button class="sim-data-close" id="close-sim-data" aria-label="Close">
+        <button class="close-button" id="close-sim-data" aria-label="Close">
           <img src="assets/xmark.svg" alt="Close" />
         </button>
       </div>
 
-      <div class="sim-data-columns">
-        <!-- General Information -->
-        <div class="sim-data-column">
-          <h3>General information</h3>
-          <hr />
-          <div class="sim-data-field">
-            <span class="sim-data-label">Creation date</span>
-            <span class="sim-data-value" id="sd-creation-date">--</span>
+      <div class="sim-data-content-section">
+        <div class="sim-data-columns">
+          <!-- General Information -->
+          <div class="sim-data-column">
+            <h3>General information</h3>
+            <hr />
+            <div class="sim-data-field">
+              <span class="sim-data-label">Creation date</span>
+              <span class="sim-data-value" id="sd-creation-date">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Update date</span>
+              <span class="sim-data-value" id="sd-update-date">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Day</span>
+              <span class="sim-data-value" id="sd-day">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Lines</span>
+              <span class="sim-data-value" id="sd-lines">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Shift name</span>
+              <span class="sim-data-value sim-data-link" id="sd-shift-name"
+                >--</span
+              >
+            </div>
           </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Update date</span>
-            <span class="sim-data-value" id="sd-update-date">--</span>
+
+          <!-- Bus Information -->
+          <div class="sim-data-column">
+            <h3>Bus information</h3>
+            <hr />
+            <div class="sim-data-field">
+              <span class="sim-data-label">Bus name</span>
+              <span class="sim-data-value sim-data-link" id="sd-bus-name"
+                >--</span
+              >
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Manufacturer</span>
+              <span class="sim-data-value" id="sd-manufacturer">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Cost (CHF)</span>
+              <span class="sim-data-value" id="sd-bus-cost">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Bus length (m)</span>
+              <span class="sim-data-value" id="sd-bus-length">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Maximum number of passengers</span>
+              <span class="sim-data-value" id="sd-max-passengers">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Bus lifetime (years)</span>
+              <span class="sim-data-value" id="sd-bus-lifetime">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Single pack battery cost (CHF)</span>
+              <span class="sim-data-value" id="sd-battery-cost">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Battery pack lifetime (years)</span>
+              <span class="sim-data-value" id="sd-battery-lifetime">--</span>
+            </div>
           </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Day</span>
-            <span class="sim-data-value" id="sd-day">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Lines</span>
-            <span class="sim-data-value" id="sd-lines">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Shift name</span>
-            <span class="sim-data-value sim-data-link" id="sd-shift-name"
-              >--</span
-            >
+
+          <!-- Charging Station Information -->
+          <div class="sim-data-column">
+            <h3>Charging station information</h3>
+            <hr />
+            <div class="sim-data-field">
+              <span class="sim-data-label">Location</span>
+              <span class="sim-data-value sim-data-link" id="sd-cs-location"
+                >--</span
+              >
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Address</span>
+              <span class="sim-data-value" id="sd-cs-address">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Cost (CHF)</span>
+              <span class="sim-data-value" id="sd-cs-cost">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Maximum charging power (kW)</span>
+              <span class="sim-data-value" id="sd-cs-power">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Connection cost (CHF/kW)</span>
+              <span class="sim-data-value" id="sd-cs-connection-cost">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Charger lifetime (years)</span>
+              <span class="sim-data-value" id="sd-cs-lifetime">--</span>
+            </div>
+            <div class="sim-data-field">
+              <span class="sim-data-label">Charging efficiency (%)</span>
+              <span class="sim-data-value" id="sd-cs-efficiency">--</span>
+            </div>
           </div>
         </div>
 
-        <!-- Bus Information -->
-        <div class="sim-data-column">
-          <h3>Bus information</h3>
-          <hr />
-          <div class="sim-data-field">
-            <span class="sim-data-label">Bus name</span>
-            <span class="sim-data-value sim-data-link" id="sd-bus-name"
-              >--</span
-            >
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Manufacturer</span>
-            <span class="sim-data-value" id="sd-manufacturer">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Cost (CHF)</span>
-            <span class="sim-data-value" id="sd-bus-cost">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Bus length (m)</span>
-            <span class="sim-data-value" id="sd-bus-length">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Maximum number of passengers</span>
-            <span class="sim-data-value" id="sd-max-passengers">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Bus lifetime (years)</span>
-            <span class="sim-data-value" id="sd-bus-lifetime">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Single pack battery cost (CHF)</span>
-            <span class="sim-data-value" id="sd-battery-cost">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Battery pack lifetime (years)</span>
-            <span class="sim-data-value" id="sd-battery-lifetime">--</span>
-          </div>
+        <div class="sim-data-footer">
+          <button class="primary-btn green" id="close-sim-data-btn">
+            Close
+          </button>
         </div>
-
-        <!-- Charging Station Information -->
-        <div class="sim-data-column">
-          <h3>Charging station information</h3>
-          <hr />
-          <div class="sim-data-field">
-            <span class="sim-data-label">Location</span>
-            <span class="sim-data-value sim-data-link" id="sd-cs-location"
-              >--</span
-            >
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Address</span>
-            <span class="sim-data-value" id="sd-cs-address">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Cost (CHF)</span>
-            <span class="sim-data-value" id="sd-cs-cost">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Maximum charging power (kW)</span>
-            <span class="sim-data-value" id="sd-cs-power">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Connection cost (CHF/kW)</span>
-            <span class="sim-data-value" id="sd-cs-connection-cost">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Charger lifetime (years)</span>
-            <span class="sim-data-value" id="sd-cs-lifetime">--</span>
-          </div>
-          <div class="sim-data-field">
-            <span class="sim-data-label">Charging efficiency (%)</span>
-            <span class="sim-data-value" id="sd-cs-efficiency">--</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="sim-data-footer">
-        <button class="primary-btn green" id="close-sim-data-btn">Close</button>
       </div>
     </div>
   </div>

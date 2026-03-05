@@ -6,6 +6,7 @@
   background-color: #fff;
   padding: 0;
   box-sizing: border-box;
+  position: relative;
 }
 
 .header-with-close {
@@ -16,7 +17,6 @@
   width: 100%;
   background-color: var(--blue-gray);
   padding: var(--spacing-sm);
-  border-bottom: 1px solid var(--border-light);
 }
 
 .header-with-close h1 {
@@ -317,11 +317,17 @@
   position: fixed;
   inset: 0;
   z-index: 2000;
-  background-color: rgba(5, 20, 40, 0.92);
+  background-color: rgba(
+    0,
+    0,
+    0,
+    0.5
+  ); /* site-wide standard backdrop opaque color */
   display: flex;
   align-items: center;
   justify-content: center;
   animation: simDataFadeIn 0.2s ease;
+  padding: var(--spacing-xl);
 }
 
 .sim-data-overlay.hidden {
@@ -338,54 +344,46 @@
 }
 
 .sim-data-modal {
-  background-color: #0e1e33;
-  border-radius: 12px;
+  background-color: #ffffff;
+  border-radius: 8px; /* standard panel radius */
   width: 90vw;
   max-width: 1100px;
-  max-height: 85vh;
-  overflow-y: auto;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  overflow: hidden; /* Clip header/footer rounded corners */
 }
 
-/* Header */
-.sim-data-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 2rem 2.5rem 1rem;
+/* Header Section */
+.sim-data-header-custom {
+  /* Inherits from .header-with-close, but overrides internal padding */
+  padding: 1.5rem 2.5rem;
+  background-color: var(--blue-gray);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .sim-data-header-left h2 {
-  color: #6fbeec;
+  color: var(--dark-blue);
   font-size: 1.5rem;
   font-weight: 700;
-  margin-bottom: 0.25rem;
+  margin: 0 0 0.25rem 0;
 }
 
 .sim-data-subtitle {
-  color: #8ea8c4;
-  font-size: 0.9rem;
+  color: var(--dark-blue);
+  font-size: 0.95rem;
+  opacity: 0.8;
 }
 
-.sim-data-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-}
-
-.sim-data-close:hover {
-  opacity: 1;
-}
-
-.sim-data-close img {
-  width: 22px;
-  height: 22px;
-  filter: brightness(0) invert(1);
+/* Content Section */
+.sim-data-content-section {
+  flex: 1;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding-top: 2rem;
+  overflow-y: auto;
 }
 
 /* Three-column layout */
@@ -394,58 +392,56 @@
   grid-template-columns: 1fr 1fr 1fr;
   gap: 2rem;
   padding: 0 2.5rem 1.5rem;
+  flex: 1;
 }
 
 .sim-data-column h3 {
-  color: #c0d4e8;
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  text-transform: none;
+  color: var(--text-main, #000);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
 }
 
 .sim-data-column hr {
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  margin-bottom: 1rem;
+  border-top: 1px solid var(--border-medium, #ccc);
+  margin-bottom: 1.5rem;
 }
 
 /* Field rows */
 .sim-data-field {
-  margin-bottom: 1.1rem;
+  margin-bottom: 1.25rem;
 }
 
 .sim-data-label {
   display: block;
-  color: #8ea8c4;
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-bottom: 0.15rem;
+  color: var(--text-main, #000);
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
 }
 
 .sim-data-value {
   display: block;
-  color: #e8eef4;
-  font-size: 0.95rem;
+  color: #000;
+  font-size: 0.9rem;
   font-weight: 400;
 }
 
 .sim-data-link {
-  color: #6fbeec;
+  color: #000;
   text-decoration: underline;
-  text-decoration-color: rgba(111, 190, 236, 0.4);
+  text-decoration-color: #000;
   cursor: pointer;
-}
-
-.sim-data-link:hover {
-  text-decoration-color: #6fbeec;
 }
 
 /* Footer */
 .sim-data-footer {
   display: flex;
   justify-content: flex-end;
-  padding: 1rem 2.5rem 1.5rem;
+  padding: 1.5rem 2.5rem;
+  background: #ffffff;
+  border-top: 1px solid var(--border-light);
 }
 
 /* Responsive */
@@ -455,12 +451,10 @@
     gap: 1.5rem;
   }
 
-  .sim-data-modal {
-    width: 95vw;
-    max-height: 90vh;
+  .sim-data-header-custom {
+    padding: 1.5rem;
   }
 
-  .sim-data-header,
   .sim-data-columns,
   .sim-data-footer {
     padding-left: 1.5rem;
