@@ -308,3 +308,162 @@
 .primary-btn.green:hover {
   background-color: #9ccf23;
 }
+
+/* ======================================================================
+   See All Data – Modal Overlay
+   ====================================================================== */
+
+.sim-data-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background-color: rgba(5, 20, 40, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: simDataFadeIn 0.2s ease;
+}
+
+.sim-data-overlay.hidden {
+  display: none;
+}
+
+@keyframes simDataFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.sim-data-modal {
+  background-color: #0e1e33;
+  border-radius: 12px;
+  width: 90vw;
+  max-width: 1100px;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Header */
+.sim-data-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 2rem 2.5rem 1rem;
+}
+
+.sim-data-header-left h2 {
+  color: #6fbeec;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.sim-data-subtitle {
+  color: #8ea8c4;
+  font-size: 0.9rem;
+}
+
+.sim-data-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.sim-data-close:hover {
+  opacity: 1;
+}
+
+.sim-data-close img {
+  width: 22px;
+  height: 22px;
+  filter: brightness(0) invert(1);
+}
+
+/* Three-column layout */
+.sim-data-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2rem;
+  padding: 0 2.5rem 1.5rem;
+}
+
+.sim-data-column h3 {
+  color: #c0d4e8;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-transform: none;
+}
+
+.sim-data-column hr {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  margin-bottom: 1rem;
+}
+
+/* Field rows */
+.sim-data-field {
+  margin-bottom: 1.1rem;
+}
+
+.sim-data-label {
+  display: block;
+  color: #8ea8c4;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.sim-data-value {
+  display: block;
+  color: #e8eef4;
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+
+.sim-data-link {
+  color: #6fbeec;
+  text-decoration: underline;
+  text-decoration-color: rgba(111, 190, 236, 0.4);
+  cursor: pointer;
+}
+
+.sim-data-link:hover {
+  text-decoration-color: #6fbeec;
+}
+
+/* Footer */
+.sim-data-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem 2.5rem 1.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sim-data-columns {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .sim-data-modal {
+    width: 95vw;
+    max-height: 90vh;
+  }
+
+  .sim-data-header,
+  .sim-data-columns,
+  .sim-data-footer {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}

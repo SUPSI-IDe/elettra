@@ -1,7 +1,11 @@
 import "./simulation-result.css";
-import { createSimulationRun, getSimulationRun } from "../../../api/simulation";
-import { fetchShiftInfo } from "../../../api/shifts";
-import { fetchVariantsByRoute } from "../../../api/gtfs";
+import {
+  createPredictionRun,
+  getPredictionRun,
+  createOptimizationRun,
+  getOptimizationRun,
+} from "../../../api/simulation";
+import { fetchBusModelById } from "../../../api/bus-models";
 import { getCurrentUserId } from "../../../store";
 import { computePlaceholderResults } from "./placeholder-data";
 import {
@@ -30,7 +34,6 @@ export const initializeSimulationResult = (root, options = {}) => {
   const updateBtn = root.querySelector("#update-simulation-result");
 
   const goBack = () => {
-    // Navigate back to Archive or Make Simulation? Archive seems safer as 'Cancel'
     document.dispatchEvent(
       new CustomEvent("partial:request", {
         detail: { slug: "simulation-archive" },
@@ -44,6 +47,80 @@ export const initializeSimulationResult = (root, options = {}) => {
   saveBtn.addEventListener("click", () => {
     alert("Simulation saved!");
     goBack();
+  });
+
+  // --- See All Data Modal ---
+  const seeAllDataBtn = root.querySelector("#see-all-data-btn");
+  const simDataOverlay = root.querySelector("#sim-data-overlay");
+  const closeSimDataBtn = root.querySelector("#close-sim-data");
+  const closeSimDataFooterBtn = root.querySelector("#close-sim-data-btn");
+
+  const openSimDataModal = () => {
+    simDataOverlay.classList.remove("hidden");
+  };
+
+  const closeSimDataModal = () => {
+    simDataOverlay.classList.add("hidden");
+  };
+
+  seeAllDataBtn.addEventListener("click", async () => {
+    // Populate general info from options
+    const subtitle = [shift, "Lines 1,2", day].filter(Boolean).join(", ");
+    root.querySelector("#sim-data-subtitle").textContent = subtitle || "--";
+
+    const now = new Date().toLocaleString("de-CH");
+    root.querySelector("#sd-creation-date").textContent = now;
+    root.querySelector("#sd-update-date").textContent = now;
+    root.querySelector("#sd-day").textContent = day || "--";
+    root.querySelector("#sd-lines").textContent = "1, 2, 3";
+    root.querySelector("#sd-shift-name").textContent = shift || "--";
+
+    // Fetch bus model details if available
+    const { busModelId } = options;
+    if (busModelId) {
+      try {
+        const busModelData = await fetchBusModelById(busModelId);
+        const specs = busModelData.specs || {};
+
+        root.querySelector("#sd-bus-name").textContent =
+          busModelData.name || "--";
+        root.querySelector("#sd-manufacturer").textContent =
+          busModelData.manufacturer || "--";
+        root.querySelector("#sd-bus-cost").textContent =
+          specs.cost != null ?
+            Number(specs.cost).toLocaleString("de-CH")
+          : "--";
+        root.querySelector("#sd-bus-length").textContent =
+          specs.bus_length_m ?? specs.length ?? "--";
+        root.querySelector("#sd-max-passengers").textContent =
+          specs.max_passengers ?? specs.capacity ?? "--";
+        root.querySelector("#sd-bus-lifetime").textContent =
+          specs.bus_lifetime_years ?? specs.lifetime ?? "--";
+        root.querySelector("#sd-battery-cost").textContent =
+          specs.battery_pack_cost != null ?
+            Number(specs.battery_pack_cost).toLocaleString("de-CH")
+          : "--";
+        root.querySelector("#sd-battery-lifetime").textContent =
+          specs.battery_pack_lifetime_years ?? "--";
+      } catch (err) {
+        console.warn("Failed to fetch bus model details:", err);
+      }
+    } else {
+      root.querySelector("#sd-bus-name").textContent = busModel || "--";
+    }
+
+    // Charging station info (placeholder for now — no API available for individual CS data)
+    // These fields can be populated later when charging station data is available
+
+    openSimDataModal();
+  });
+
+  closeSimDataBtn.addEventListener("click", closeSimDataModal);
+  closeSimDataFooterBtn.addEventListener("click", closeSimDataModal);
+
+  // Close on overlay background click
+  simDataOverlay.addEventListener("click", (e) => {
+    if (e.target === simDataOverlay) closeSimDataModal();
   });
 
   // ... existing code ...
@@ -62,110 +139,80 @@ export const initializeSimulationResult = (root, options = {}) => {
     updateBtn.disabled = true;
 
     try {
-      // Fetch variant info if missing
-      let variantId = "1"; // Default or placeholder
       const { shiftId, busModelId } = options;
 
-      if (shiftId) {
-        try {
-          const shiftInfo = await fetchShiftInfo(shiftId);
-          if (shiftInfo?.route?.id) {
-            const variants = await fetchVariantsByRoute(shiftInfo.route.id);
-            if (variants && variants.length > 0) {
-              variantId = variants[0].id; // Use the first variant
-            }
-          } else {
-            console.warn("Shift info missing route id", shiftInfo);
-          }
-        } catch (err) {
-          console.error("Failed to fetch variant info", err);
-          // Verify if we can proceed without valid variantId? No, API requires UUID.
-          // If fetching fails, we likely can't submit a valid simulation.
-          throw new Error("Failed to resolve route variant from shift.");
-        }
+      if (!shiftId) {
+        throw new Error("No shift selected. Cannot run simulation.");
       }
 
-      // Construct Payload
-      const payload = {
-        // name: root.querySelector("#result-sim-name").textContent, // Backend doesn't support top-level name
-        user_id: getCurrentUserId(),
-        status: "pending",
-        created_at: new Date().toISOString(),
-        variant_id: variantId,
-        input_params: {
-          name: root.querySelector("#result-sim-name").textContent,
-          shift_name: shift, // From options
-          day: day, // From options
-          diesel_price: dieselCost,
-          diesel_consumption: dieselCurr,
-          passengers: passenger,
-          electricity_price: energyCost,
-          charging_strategy: rechargeDepot ? "depot_only" : "opportunity",
-        },
+      // --- Step 1: Create Prediction Run ---
+      const predictionPayload = {
+        shift_ids: [shiftId],
+        bus_model_id: busModelId,
+        model_name: "greybox_qrf_production_crps_optimized_3",
+        external_temp_celsius: 15.0,
+        occupancy_percent: passenger,
+        auxiliary_heating_type: "default",
+        quantiles: [0.05, 0.5, 0.95],
       };
 
-      // NOTE: Without the original Shift ID and Bus Model ID stored in the DOM or closure, we can't fully create a valid run if those are required.
-      // However, let's assume we post what we have and see, or better, log it.
-      // For now, I will use the payload structure as best guessed and alert if it fails.
+      console.log("Creating prediction run:", predictionPayload);
+      const predictionResult = await createPredictionRun(predictionPayload);
+      console.log("Prediction run created:", predictionResult);
 
-      console.log("Sending simulation update:", payload);
-      const result = await createSimulationRun(payload);
-      console.log("Simulation Result:", result);
+      const predictionRunIds = predictionResult.prediction_run_ids;
+      if (!predictionRunIds || predictionRunIds.length === 0) {
+        throw new Error("No prediction run IDs returned from API.");
+      }
 
-      // Poll for completion
-      const pollInterval = 2000; // 2 seconds
-      const maxAttempts = 30; // 60 seconds timeout
-      let attempts = 0;
+      // --- Step 2: Poll Prediction Run(s) for completion ---
+      updateBtn.textContent = "Running prediction...";
+      await pollRunsUntilComplete(predictionRunIds, getPredictionRun);
+      console.log("All prediction runs completed.");
 
-      const poll = async () => {
-        try {
-          const run = await getSimulationRun(result.id);
-          console.log("Polling simulation:", run.status);
-
-          if (run.status === "completed") {
-            // Update UI with results (reload page or update specific elements)
-            const event = new CustomEvent("partial:request", {
-              detail: {
-                slug: "simulation-result",
-                // Pass the updated run details if needed, or re-fetch?
-                // For now, let's re-initialize or notify
-                // We might need to handle the 'result' structure to update charts
-                name: run.input_params?.name, // Persist metadata
-                shift: run.input_params?.shift_name,
-                day: run.input_params?.day,
-              },
-            });
-            // document.dispatchEvent(event);
-            // Alert for now as requested
-            alert("Simulation updated successfully! Results are ready.");
-            updateBtn.textContent = originalText;
-            updateBtn.disabled = false;
-            return;
-          } else if (run.status === "failed") {
-            throw new Error("Simulation run failed.");
-          } else {
-            attempts++;
-            if (attempts >= maxAttempts) {
-              throw new Error("Simulation timed out.");
-            }
-            setTimeout(poll, pollInterval);
-          }
-        } catch (err) {
-          console.error("Polling failed:", err);
-          alert(`Update failed: ${err.message}`);
-          updateBtn.textContent = originalText;
-          updateBtn.disabled = false;
-        }
+      // --- Step 3: Create Optimization Run ---
+      const optimizationPayload = {
+        mode: rechargeDepot ? "battery_only" : "charging_only",
+        shift_ids: [shiftId],
+        prediction_run_ids: predictionRunIds,
+        charging_stations: [],
+        min_soc: 0.4,
+        max_soc: 0.9,
+        state_of_health: 1.0,
+        quantile_consumption: "mean",
       };
 
-      poll();
+      if (busModelId) {
+        optimizationPayload.bus_model_id = busModelId;
+      }
+
+      console.log("Creating optimization run:", optimizationPayload);
+      const optimizationResult =
+        await createOptimizationRun(optimizationPayload);
+      console.log("Optimization run created:", optimizationResult);
+
+      const optimizationRunId = optimizationResult.optimization_run_id;
+
+      // --- Step 4: Poll Optimization Run for completion ---
+      updateBtn.textContent = "Running optimization...";
+      await pollRunsUntilComplete([optimizationRunId], getOptimizationRun);
+      console.log("Optimization run completed.");
+
+      // --- Step 5: Fetch results ---
+      const optimizationRun = await getOptimizationRun(optimizationRunId);
+      console.log("Optimization results:", optimizationRun);
+
+      // For now, continue with placeholder charts
+      // TODO: Map real API results to chart data
+      alert("Simulation completed successfully! Results are ready.");
+      updateBtn.textContent = originalText;
+      updateBtn.disabled = false;
     } catch (error) {
       console.error("Simulation update failed:", error);
       alert(`Update failed: ${error.message}`);
       updateBtn.textContent = originalText;
       updateBtn.disabled = false;
     }
-    // Finally block removed because polling is async and handles button state reset
   });
 
   // Tab Logic
@@ -192,7 +239,6 @@ export const initializeSimulationResult = (root, options = {}) => {
     if (input && slider) {
       input.addEventListener("input", () => {
         slider.value = input.value;
-        // debounce chart update?
       });
       slider.addEventListener("input", () => {
         input.value = slider.value;
@@ -272,4 +318,45 @@ export const initializeSimulationResult = (root, options = {}) => {
       el.removeEventListener("input", debouncedRender),
     );
   };
+};
+
+// ==================== HELPERS ====================
+
+/**
+ * Poll a list of run IDs until all reach "completed" or "failed" status.
+ * @param {string[]} runIds - Array of run UUIDs to poll
+ * @param {Function} fetchFn - Async function to fetch a run by ID (e.g. getPredictionRun)
+ * @param {number} intervalMs - Polling interval in ms (default 2000)
+ * @param {number} maxAttempts - Max polling attempts (default 60)
+ */
+const pollRunsUntilComplete = async (
+  runIds,
+  fetchFn,
+  intervalMs = 2000,
+  maxAttempts = 60,
+) => {
+  const completedIds = new Set();
+  let attempts = 0;
+
+  while (completedIds.size < runIds.length && attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    attempts++;
+
+    for (const runId of runIds) {
+      if (completedIds.has(runId)) continue;
+
+      const run = await fetchFn(runId);
+      console.log(`Polling run ${runId}: status=${run.status}`);
+
+      if (run.status === "completed") {
+        completedIds.add(runId);
+      } else if (run.status === "failed") {
+        throw new Error(`Run ${runId} failed.`);
+      }
+    }
+  }
+
+  if (completedIds.size < runIds.length) {
+    throw new Error("Simulation timed out waiting for runs to complete.");
+  }
 };

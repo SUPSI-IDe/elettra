@@ -1,8 +1,5 @@
 import "./simulation-archive.css";
-import {
-  fetchSimulationRuns,
-  deleteSimulationRun,
-} from "../../../api/simulation";
+import { listPredictionRuns } from "../../../api/simulation";
 import { escapeHtml, escapeAttr } from "../../../ui-helpers";
 
 export const initializeSimulationArchive = async (root) => {
@@ -112,16 +109,13 @@ export const initializeSimulationArchive = async (root) => {
       const creationDate =
         sim.created_at ? new Date(sim.created_at).toLocaleString() : "--";
 
-      const inputParams = sim.input_params || {};
-      const outputResults = sim.output_results || {};
-
-      const name = inputParams.name || "Unnamed Simulation";
-      const shiftName = inputParams.shift_name || "--";
-      const day = inputParams.day || "--";
-      const status = sim.status || "Completed"; // Default to Completed for legacy/unknown
-      const investment =
-        outputResults.initial_investment !== undefined ?
-          outputResults.initial_investment
+      const modelName = sim.model_name || "--";
+      const shiftId = sim.shift_id || "--";
+      const status = sim.status || "unknown";
+      const summary = sim.summary || {};
+      const totalConsumption =
+        summary.total_consumption_kwh !== undefined ?
+          `${Number(summary.total_consumption_kwh).toFixed(1)} kWh`
         : "--";
 
       const statusClass = `status-${status.toLowerCase()}`;
@@ -132,11 +126,10 @@ export const initializeSimulationArchive = async (root) => {
           <input type="checkbox" class="sim-checkbox" data-id="${escapeAttr(sim.id)}" ${isSelected ? "checked" : ""} />
         </td>
         <td>${escapeHtml(creationDate)}</td>
-        <td>${escapeHtml(name)}</td>
-        <td>${escapeHtml(shiftName)}</td>
-        <td>${escapeHtml(day)}</td>
+        <td>${escapeHtml(modelName)}</td>
+        <td>${escapeHtml(String(shiftId).substring(0, 8))}...</td>
         <td><span class="status-badge ${escapeAttr(statusClass)}">${escapeHtml(statusLabel)}</span></td>
-        <td>${escapeHtml(investment)}</td>
+        <td>${escapeHtml(totalConsumption)}</td>
       `;
 
       // Row simple selection via checkbox, but we also handle row click if desired?
@@ -197,7 +190,7 @@ export const initializeSimulationArchive = async (root) => {
 
   const fetchAndRender = async () => {
     try {
-      const data = await fetchSimulationRuns();
+      const data = await listPredictionRuns();
       // Adjust based on actual API response structure (array vs paginated object)
       simulations = Array.isArray(data) ? data : data.results || [];
       // Reset current page when fetching new data
@@ -234,28 +227,9 @@ export const initializeSimulationArchive = async (root) => {
 
     if (!confirmed) return;
 
-    try {
-      // Convert Set to Array and delete concurrently
-      const idsToDelete = Array.from(selectedIds);
-      console.log("Deleting IDs:", idsToDelete);
-      await Promise.all(idsToDelete.map((id) => deleteSimulationRun(id)));
-      console.log("Deletion successful");
-
-      // Clear selection
-      selectedIds.clear();
-
-      // Refresh table
-      await fetchAndRender();
-
-      // Update button states
-      updateButtonStates();
-
-      // Optional: Flash message or alert
-      // alert("Simulations deleted successfully.");
-    } catch (error) {
-      console.error("Error deleting simulations:", error);
-      alert("An error occurred while deleting simulations. Please try again.");
-    }
+    // Delete not available in the current API
+    alert("Delete is not currently available for prediction runs.");
+    return;
   });
 
   // Initial fetch

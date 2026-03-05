@@ -1,39 +1,9 @@
 import { authHeaders, API_ROOT } from "./client";
 
-export const fetchSimulationRuns = async (options = {}) => {
-  const url = new URL(
-    `${API_ROOT}/api/v1/simulation/simulation-runs/`,
-    window.location.origin,
-  );
+// ==================== PREDICTION RUNS ====================
 
-  // Append query params if needed (e.g. for searching/pagination)
-  Object.keys(options).forEach((key) =>
-    url.searchParams.append(key, options[key]),
-  );
-
-  try {
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(),
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error fetching simulation runs: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch simulation runs:", error);
-    throw error;
-  }
-};
-
-export const createSimulationRun = async (data) => {
-  const url = `${API_ROOT}/api/v1/simulation/simulation-runs/`;
+export const createPredictionRun = async (data) => {
+  const url = `${API_ROOT}/api/v1/simulation/prediction-runs/`;
 
   try {
     const response = await fetch(url, {
@@ -48,99 +18,26 @@ export const createSimulationRun = async (data) => {
     if (!response.ok) {
       const errorBody = await response.text();
       throw new Error(
-        `Error creating simulation run: ${response.statusText} - ${errorBody}`,
+        `Error creating prediction run: ${response.statusText} - ${errorBody}`,
       );
     }
 
     return await response.json();
   } catch (error) {
-    console.error("Failed to create simulation run:", error);
+    console.error("Failed to create prediction run:", error);
     throw error;
   }
 };
 
-export const getSimulationRun = async (runId) => {
-  const url = `${API_ROOT}/api/v1/simulation/simulation-runs/${runId}`;
-
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(),
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error fetching simulation run: ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Failed to get simulation run:", error);
-    throw error;
-  }
-};
-
-export const updateSimulationRun = async (runId, data) => {
-  const url = `${API_ROOT}/api/v1/simulation/simulation-runs/${runId}`;
-
-  try {
-    const response = await fetch(url, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(),
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `Error updating simulation run: ${response.statusText} - ${errorBody}`,
-      );
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Failed to update simulation run:", error);
-    throw error;
-  }
-};
-
-export const deleteSimulationRun = async (runId) => {
-  const url = `${API_ROOT}/api/v1/simulation/simulation-runs/${runId}`;
-  console.log("deleteSimulationRun URL:", url);
-
-  try {
-    const response = await fetch(url, {
-      method: "DELETE",
-      headers: {
-        ...authHeaders(),
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error deleting simulation run: ${response.statusText}`);
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Failed to delete simulation run:", error);
-    throw error;
-  }
-};
-
-export const getSimulationRunResults = async (runId, keys = null) => {
+export const listPredictionRuns = async (options = {}) => {
   const url = new URL(
-    `${API_ROOT}/api/v1/simulation/simulation-runs/${runId}/results`,
+    `${API_ROOT}/api/v1/simulation/prediction-runs/`,
     window.location.origin,
   );
 
-  if (keys) {
-    url.searchParams.append("keys", keys);
-  }
+  Object.keys(options).forEach((key) =>
+    url.searchParams.append(key, options[key]),
+  );
 
   try {
     const response = await fetch(url.toString(), {
@@ -152,17 +49,119 @@ export const getSimulationRunResults = async (runId, keys = null) => {
     });
 
     if (!response.ok) {
+      throw new Error(`Error fetching prediction runs: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to fetch prediction runs:", error);
+    throw error;
+  }
+};
+
+export const getPredictionRun = async (runId) => {
+  const url = `${API_ROOT}/api/v1/simulation/prediction-runs/${runId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error fetching prediction run: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to get prediction run:", error);
+    throw error;
+  }
+};
+
+export const getPredictionRunPredictions = async (runId) => {
+  const url = `${API_ROOT}/api/v1/simulation/prediction-runs/${runId}/predictions`;
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+    });
+
+    if (!response.ok) {
       throw new Error(
-        `Error fetching simulation run results: ${response.statusText}`,
+        `Error fetching prediction run predictions: ${response.statusText}`,
       );
     }
 
     return await response.json();
   } catch (error) {
-    console.error("Failed to get simulation run results:", error);
+    console.error("Failed to get prediction run predictions:", error);
     throw error;
   }
 };
+
+// ==================== OPTIMIZATION RUNS ====================
+
+export const createOptimizationRun = async (data) => {
+  const url = `${API_ROOT}/api/v1/simulation/optimization-runs/`;
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(
+        `Error creating optimization run: ${response.statusText} - ${errorBody}`,
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to create optimization run:", error);
+    throw error;
+  }
+};
+
+export const getOptimizationRun = async (runId) => {
+  const url = `${API_ROOT}/api/v1/simulation/optimization-runs/${runId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Error fetching optimization run: ${response.statusText}`,
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to get optimization run:", error);
+    throw error;
+  }
+};
+
+// ==================== PVGIS & TRIP STATISTICS ====================
 
 export const generatePvgisTmy = async (latitude, longitude) => {
   const url = new URL(
