@@ -22,7 +22,7 @@
         <input
           type="search"
           id="simulation-search"
-          placeholder="Search custom stop"
+          placeholder="Search simulation"
           data-i18n-placeholder="simulation.archive.search_placeholder"
         />
         <!-- search icon probably handled by CSS or standard input type search style -->
@@ -39,12 +39,20 @@
         </button>
 
         <button
-          class="action-btn"
+          class="action-btn red"
           id="delete-simulations-btn"
           disabled
           data-i18n="simulation.archive.delete"
         >
           Delete
+        </button>
+        <button
+          class="action-btn blue"
+          id="duplicate-simulation-btn"
+          disabled
+          data-i18n="simulation.archive.duplicate"
+        >
+          Duplicate
         </button>
         <button
           class="action-btn blue"
@@ -83,9 +91,7 @@
             <th data-sort="day" data-i18n="simulation.archive.table.day">
               Day ▾
             </th>
-            <th data-sort="status" data-i18n="simulation.archive.table.status">
-              Status ▾
-            </th>
+
             <th
               data-sort="investment"
               class="text-right"
