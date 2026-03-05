@@ -1,0 +1,100 @@
+<section class="form-page compare-simulations-page">
+  <header class="page-header">
+    <div class="header-with-close">
+      <h1 data-i18n="simulation.compare.title">Compare simulations</h1>
+      <button
+        class="close-button"
+        id="close-compare-simulations"
+        aria-label="Close"
+      >
+        <img src="assets/xmark.svg" alt="Close" />
+      </button>
+    </div>
+    <p class="shift-details" id="compare-shift-details">
+      <!-- Injected by JS: <Shift name>, <Day> -->
+    </p>
+  </header>
+
+  <main>
+    <div class="compare-columns-header">
+      <div class="compare-col sim-1-col">
+        <div class="sim-header-info">
+          <h2 id="sim1-name" class="sim-name">&lt;Simulation name&gt;</h2>
+          <span class="sim-separator">|</span>
+          <span id="sim1-details" class="sim-details"
+            >&lt;Bus model&gt;, &lt;Lines&gt;</span
+          >
+        </div>
+        <button
+          class="btn-primary-blue"
+          id="sim1-see-all-data"
+          data-i18n="simulation.compare.see_all_data"
+        >
+          See all data
+        </button>
+      </div>
+      <div class="compare-col sim-2-col">
+        <div class="sim-header-info">
+          <h2 id="sim2-name" class="sim-name">&lt;Simulation name&gt;</h2>
+          <span class="sim-separator">|</span>
+          <span id="sim2-details" class="sim-details"
+            >&lt;Bus model&gt;, &lt;Lines&gt;</span
+          >
+        </div>
+        <button
+          class="btn-primary-blue"
+          id="sim2-see-all-data"
+          data-i18n="simulation.compare.see_all_data"
+        >
+          See all data
+        </button>
+      </div>
+    </div>
+
+    <div class="compare-tabs">
+      <button class="tab-btn active" data-tab="costs">Costs</button>
+      <button class="tab-btn" data-tab="efficiency">Efficiency</button>
+      <button class="tab-btn" data-tab="emissions">Emissions</button>
+    </div>
+
+    <div class="tab-content active" id="tab-costs">
+      <div class="charts-row">
+        <div class="chart-container">
+          <h3 class="chart-title">Average annual costs</h3>
+          <!-- Canvas for Chart.js -->
+          <canvas id="average-costs-chart"></canvas>
+        </div>
+      </div>
+      <div class="charts-row split">
+        <div class="chart-container">
+          <h3 class="chart-title">Break point analysis</h3>
+          <!-- Canvas for Chart.js -->
+          <canvas id="bpa-chart-1"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3 class="chart-title">Break point analysis</h3>
+          <!-- Canvas for Chart.js -->
+          <canvas id="bpa-chart-2"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-efficiency">
+      <p style="padding: 2rem; text-align: center; color: #666">
+        Efficiency data placeholder
+      </p>
+    </div>
+
+    <div class="tab-content" id="tab-emissions">
+      <p style="padding: 2rem; text-align: center; color: #666">
+        Emissions data placeholder
+      </p>
+    </div>
+  </main>
+
+  <footer class="compare-footer">
+    <button class="primary-btn" id="bottom-close-btn" data-i18n="common.close">
+      Close
+    </button>
+  </footer>
+</section>
