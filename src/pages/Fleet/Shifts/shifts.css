@@ -206,32 +206,14 @@
   overflow-y: auto;
 }
 
+.form-page:has(.visualize-shift) .page-header {
+  padding: 0;
+}
+
 .visualize-shift {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
-  padding: var(--spacing-sm);
-}
-
-.visualize-shift__header {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.visualize-shift__back {
-  border: none;
-  background: none;
-  color: var(--brand-teal);
-  font-size: 0.95rem;
-  cursor: pointer;
-  text-decoration: underline;
-  padding: 0.25rem 0.5rem;
-}
-
-.visualize-shift__back:hover,
-.visualize-shift__back:focus {
-  text-decoration: none;
 }
 
 .visualize-shift-grid {

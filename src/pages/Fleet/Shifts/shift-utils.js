@@ -1,5 +1,6 @@
 // Re-export from the canonical location so existing imports keep working.
-export { text } from "../../../ui-helpers";
+import { text } from "../../../ui-helpers";
+export { text };
 
 export const firstAvailable = (...values) => {
   for (const value of values) {
@@ -50,7 +51,7 @@ export const resolveStopNameFromTimes = (times = [], position = "first") => {
     entry?.name,
     entry?.stop?.name,
     entry?.stop?.stop_name,
-    entry?.stop?.label
+    entry?.stop?.label,
   );
 };
 
@@ -69,7 +70,7 @@ export const resolveRouteLabel = (trip = {}, fallbackLabel = "") =>
     trip?.route?.short_name,
     trip?.route?.long_name,
     trip?.trip_headsign,
-    fallbackLabel
+    fallbackLabel,
   );
 
 export const resolveRouteId = (trip = {}) =>
@@ -81,7 +82,7 @@ export const resolveRouteId = (trip = {}) =>
     trip?.trip?.route_id,
     trip?.trip?.routeId,
     trip?.trip?.route?.id,
-    trip?.trip?.route?.route_id
+    trip?.trip?.route?.route_id,
   );
 
 export const resolveTripId = (trip = {}) =>
@@ -94,23 +95,22 @@ export const resolveTripPk = (trip = {}) =>
     trip?.trip_pk,
     trip?.tripPk,
     trip?.trip?.pk,
-    trip?.trip?.trip_pk
+    trip?.trip?.trip_pk,
   );
 
 export const normalizeTrip = (trip = {}) => {
   const stopTimes =
-    Array.isArray(trip?.stop_times) && trip.stop_times.length > 0
-      ? trip.stop_times
-      : Array.isArray(trip?.trip?.stop_times) && trip.trip.stop_times.length > 0
-      ? trip.trip.stop_times
-      : [];
+    Array.isArray(trip?.stop_times) && trip.stop_times.length > 0 ?
+      trip.stop_times
+    : Array.isArray(trip?.trip?.stop_times) && trip.trip.stop_times.length > 0 ?
+      trip.trip.stop_times
+    : [];
 
   const stops =
-    Array.isArray(trip?.stops) && trip.stops.length > 0
-      ? trip.stops
-      : Array.isArray(trip?.trip?.stops) && trip.trip.stops.length > 0
-      ? trip.trip.stops
-      : [];
+    Array.isArray(trip?.stops) && trip.stops.length > 0 ? trip.stops
+    : Array.isArray(trip?.trip?.stops) && trip.trip.stops.length > 0 ?
+      trip.trip.stops
+    : [];
 
   const startStop =
     trip?.start_stop ??
@@ -145,7 +145,7 @@ export const normalizeTrip = (trip = {}) => {
     startStop?.stop_name,
     startStop?.stop?.name,
     resolveStopNameFromTimes(stopTimes, "first"),
-    resolveStopNameFromTimes(stops, "first")
+    resolveStopNameFromTimes(stops, "first"),
   );
 
   const endName = firstAvailable(
@@ -156,7 +156,7 @@ export const normalizeTrip = (trip = {}) => {
     endStop?.stop_name,
     endStop?.stop?.name,
     resolveStopNameFromTimes(stopTimes, "last"),
-    resolveStopNameFromTimes(stops, "last")
+    resolveStopNameFromTimes(stops, "last"),
   );
 
   const departureTime = normalizeTime(
@@ -171,8 +171,8 @@ export const normalizeTrip = (trip = {}) => {
       trip?.trip?.start_time,
       trip?.trip?.startTime,
       stopTimes[0]?.departure_time,
-      stopTimes[0]?.departureTime
-    )
+      stopTimes[0]?.departureTime,
+    ),
   );
 
   const arrivalTime = normalizeTime(
@@ -186,8 +186,8 @@ export const normalizeTrip = (trip = {}) => {
       trip?.trip?.end_time,
       trip?.trip?.endTime,
       stopTimes[stopTimes.length - 1]?.arrival_time,
-      stopTimes[stopTimes.length - 1]?.arrivalTime
-    )
+      stopTimes[stopTimes.length - 1]?.arrivalTime,
+    ),
   );
 
   const routeLabel = resolveRouteLabel(trip);
@@ -202,6 +202,8 @@ export const normalizeTrip = (trip = {}) => {
     end_stop_name: endName,
     departure_time: departureTime,
     arrival_time: arrivalTime || departureTime,
+    stop_times: stopTimes,
+    stops: stops,
   };
 };
 

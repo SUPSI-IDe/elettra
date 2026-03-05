@@ -10,7 +10,7 @@ const ensureD3 = (() => {
           console.error("Unable to load d3", error);
           loader = null;
           throw error;
-        }
+        },
       );
     }
     return loader;
@@ -51,7 +51,9 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
   trips.forEach((trip = {}) => {
     const stopTimes = trip.stop_times || [];
     if (stopTimes.length > 0) {
-      stopTimes.forEach((st) => addStop(st.stop_name || st.stop?.name));
+      stopTimes.forEach((st) =>
+        addStop(st.stop_name || st.stop?.name || st.name),
+      );
     } else {
       // Fallback for trips without stop_times (shouldn't happen with correct fetching but safety first)
       addStop(trip?.start_stop_name);
@@ -65,7 +67,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
   if (!stops.length) {
     ensurePlaceholder(
       container,
-      "Insufficient stop information to render timeline."
+      "Insufficient stop information to render timeline.",
     );
     return;
   }
@@ -197,7 +199,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
       if (stopTimes.length > 0) {
         const points = stopTimes.map((st) => ({
           time: parseTimeToMinutes(st.departure_time || st.arrival_time) ?? 0,
-          stop: st.stop_name || st.stop?.name || "",
+          stop: st.stop_name || st.stop?.name || st.name || "",
         }));
         return line(points);
       } else {
@@ -226,15 +228,13 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
         stopTimes.forEach((st, index) => {
           const time =
             parseTimeToMinutes(st.departure_time || st.arrival_time) ?? 0;
-          const stop = st.stop_name || st.stop?.name || "";
+          const stop = st.stop_name || st.stop?.name || st.name || "";
           const isStart = index === 0;
           const isEnd = index === stopTimes.length - 1;
           const className =
-            isStart
-              ? "timeline__point timeline__point--start"
-              : isEnd
-              ? "timeline__point timeline__point--end"
-              : "timeline__point";
+            isStart ? "timeline__point timeline__point--start"
+            : isEnd ? "timeline__point timeline__point--end"
+            : "timeline__point";
 
           group
             .append("circle")
