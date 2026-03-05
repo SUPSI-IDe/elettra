@@ -25,47 +25,32 @@ export const initializeSimulationArchive = async (root) => {
 
   const updateButtonStates = () => {
     const selectedCount = selectedIds.size;
-    const selectedSimulations = simulations.filter((s) =>
-      selectedIds.has(s.id),
-    );
 
     editBtn.disabled = selectedCount !== 1;
     deleteBtn.disabled = selectedCount === 0;
-
-    let canCompare = false;
-
-    if (selectedCount === 2) {
-      const sim1 = selectedSimulations[0];
-      const sim2 = selectedSimulations[1];
-
-      const shift1 =
-        typeof sim1.shift === "object" ? sim1.shift.name : sim1.shift;
-      const shift2 =
-        typeof sim2.shift === "object" ? sim2.shift.name : sim2.shift;
-
-      if (shift1 && shift2 && shift1 === shift2) {
-        canCompare = true;
-      }
-    }
-
-    compareBtn.disabled = !canCompare;
-
-    // Attach click listener exactly when it is comparable and detach otherwise,
-    // or just overwrite the onclick
-    compareBtn.onclick = () => {
-      if (canCompare) {
-        document.dispatchEvent(
-          new CustomEvent("partial:request", {
-            detail: {
-              slug: "compare-simulations",
-              sim1: selectedSimulations[0],
-              sim2: selectedSimulations[1],
-            },
-          }),
-        );
-      }
-    };
+    compareBtn.disabled = selectedCount !== 2;
   };
+
+  compareBtn.addEventListener("click", () => {
+    const selectedSimulations = simulations.filter((s) =>
+      selectedIds.has(s.id),
+    );
+    console.log(
+      "[SimulationArchive] Compare button clicked with:",
+      selectedSimulations,
+    );
+    if (selectedSimulations.length === 2) {
+      document.dispatchEvent(
+        new CustomEvent("partial:request", {
+          detail: {
+            slug: "compare-simulations",
+            sim1: selectedSimulations[0],
+            sim2: selectedSimulations[1],
+          },
+        }),
+      );
+    }
+  });
 
   const renderVisibleRows = (visibleSimulations) => {
     tableBody.innerHTML = "";
