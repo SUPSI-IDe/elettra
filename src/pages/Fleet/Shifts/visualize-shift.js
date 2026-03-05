@@ -2,6 +2,7 @@ import "./shift-visualization.css";
 import "./shifts.css";
 import {
   fetchShiftById,
+  fetchShiftInfo,
   fetchStopsByTripId,
   fetchDepotById,
 } from "../../../api";
@@ -12,6 +13,7 @@ import {
   firstAvailable,
   normalizeTime,
   resolveTripId,
+  resolveTripPk,
   normalizeTrip,
   readShiftTripsFromStructure,
   formatMinutes,
@@ -34,7 +36,7 @@ export const initializeVisualizeShift = async (
   root = document,
   options = {},
 ) => {
-  const section = root.querySelector("section.visualize-shift");
+  const section = root.querySelector(".visualize-shift");
   if (!section) {
     return null;
   }
@@ -166,6 +168,7 @@ export const initializeVisualizeShift = async (
 
     renderSummary();
     renderTripsTable();
+    console.log("Timeline Trips:", state.trips);
     await renderTimeline(timelineContainer, state.trips, {
       startDepotName: state.startDepotName,
       endDepotName: state.endDepotName,
@@ -200,7 +203,15 @@ export const initializeVisualizeShift = async (
   if (!state.trips.length && options.shiftId) {
     ensurePlaceholder(timelineContainer, "Loading shift timeline…");
     try {
-      const shift = await fetchShiftById(options.shiftId);
+      // Fetch both endpoints in parallel — /info has rich trip data, base has metadata
+      const [shift, shiftInfo] = await Promise.all([
+        fetchShiftById(options.shiftId),
+        fetchShiftInfo(options.shiftId).catch((e) => {
+          console.warn("Failed to fetch shift info", e);
+          return null;
+        }),
+      ]);
+
       state.name = state.name || text(shift?.name ?? "");
       state.startTime =
         state.startTime ||
@@ -269,36 +280,82 @@ export const initializeVisualizeShift = async (
         }
       }
 
-      // Check if trips are missing details (e.g. stop_times)
-      const structure = Array.isArray(shift?.structure) ? shift.structure : [];
-      const enrichedStructure = await Promise.all(
-        structure.map(async (item) => {
-          const trip = item?.trip ?? {};
-          // If trip has no stop_times or stops, try to fetch it
-          if (
-            (!trip.stop_times || trip.stop_times.length === 0) &&
-            (!trip.stops || trip.stops.length === 0)
-          ) {
-            const tripId = item.trip_id || item.tripId || trip.id;
-            if (tripId) {
+      // Use /info trips if available — they come with departure_time, arrival_time, stop names
+      const infoTrips = Array.isArray(shiftInfo?.trips) ? shiftInfo.trips : [];
+
+      if (infoTrips.length > 0) {
+        const sorted = [...infoTrips].sort(
+          (a, b) => (a.sequence_number || 0) - (b.sequence_number || 0),
+        );
+
+        // Enrich info trips with stop_times from the GTFS stops endpoint
+        const enrichedTrips = await Promise.all(
+          sorted.map(async (trip) => {
+            const gtfsTripId = trip.trip_id || trip.tripId || trip.gtfs_trip_id;
+            const tripPk = resolveTripPk(trip) || trip.id;
+
+            if (
+              tripPk &&
+              (!trip.stop_times || trip.stop_times.length === 0) &&
+              (!trip.stops || trip.stops.length === 0)
+            ) {
               try {
-                const stops = await fetchStopsByTripId(tripId);
-                // The API returns stops with arrival_time/departure_time, which matches stop_times structure
-                return { ...item, trip: { ...trip, stop_times: stops } };
+                const stops = await fetchStopsByTripId(tripPk);
+                return {
+                  ...trip,
+                  stop_times: Array.isArray(stops) ? stops : [],
+                };
               } catch (e) {
-                console.warn(`Failed to fetch stops for trip ${tripId}`, e);
-                return item;
+                console.warn(
+                  `Failed to fetch stops for trip ${gtfsTripId || tripPk}`,
+                  e,
+                );
+                return trip;
               }
             }
-          }
-          return item;
-        }),
-      );
+            return trip;
+          }),
+        );
 
-      state.trips = readShiftTripsFromStructure({
-        ...shift,
-        structure: enrichedStructure,
-      });
+        state.trips = enrichedTrips
+          .map((trip) => normalizeTrip(trip))
+          .filter(Boolean);
+      } else {
+        // Fallback: use structure from the base endpoint
+        const structure =
+          Array.isArray(shift?.structure) ? shift.structure : [];
+        const enrichedStructure = await Promise.all(
+          structure.map(async (item) => {
+            const trip = item?.trip ?? {};
+            if (
+              (!trip.stop_times || trip.stop_times.length === 0) &&
+              (!trip.stops || trip.stops.length === 0)
+            ) {
+              const tripPk =
+                resolveTripPk(item) ||
+                resolveTripPk(trip) ||
+                trip.id ||
+                item.id;
+              if (tripPk && tripPk.includes("-")) {
+                // Basic UUID heuristic
+                try {
+                  const stops = await fetchStopsByTripId(tripPk);
+                  return { ...item, trip: { ...trip, stop_times: stops } };
+                } catch (e) {
+                  console.warn(`Failed to fetch stops for trip ${tripPk}`, e);
+                  return item;
+                }
+              }
+            }
+            return item;
+          }),
+        );
+
+        state.trips = readShiftTripsFromStructure({
+          ...shift,
+          structure: enrichedStructure,
+        });
+      }
 
       // Fallback: try to get depot names from the first/last trip stops if still missing
       if (!state.startDepotName && state.trips.length > 0) {
