@@ -1,8 +1,13 @@
 import { t } from "../../../i18n";
 import "./add-simulation.css";
-import { fetchBusModels, fetchShifts, fetchBuses } from "../../../api";
-import { fetchShiftInfo } from "../../../api/shifts";
-import { createPredictionRuns } from "../../../api/simulation";
+import {
+  fetchBusModels,
+  fetchShifts,
+  fetchBuses,
+  fetchStopsByTripId,
+} from "../../../api";
+import { createOptimizationRun } from "../../../api/simulation";
+import { fetchShiftById } from "../../../api/shifts";
 import { isAuthenticated } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { triggerPartialLoad } from "../../../events";
@@ -11,23 +16,6 @@ import { saveRunIds } from "./simulation-runs";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
-
-const parseTime = (time) => {
-  const match = /^\s*(\d{1,2}):(\d{2})/.exec(time ?? "");
-  if (!match) return null;
-  const hours = Number.parseInt(match[1], 10);
-  const minutes = Number.parseInt(match[2], 10);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-  return hours * 60 + minutes;
-};
-
-const formatTime = (minutes) => {
-  if (minutes === null || minutes === undefined || Number.isNaN(minutes))
-    return "—";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-};
 
 const setFeedback = (section, message, tone = "error") => {
   const el = section.querySelector('[data-role="feedback"]');
@@ -45,79 +33,253 @@ const setFeedback = (section, message, tone = "error") => {
 const renderShiftRows = (tbody, shifts = []) => {
   if (!tbody) return;
   if (!shifts.length) {
-    tbody.innerHTML = `<tr><td colspan="7">No shifts found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3">No shifts found.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = shifts
     .map((shift) => {
-      const structure = Array.isArray(shift?.structure) ? shift.structure : [];
-      const lines = structure
-        .map(
-          (item) =>
-            text(
-              item?.trip?.route_short_name ?? item?.route_short_name ?? ""
-            )
-        )
-        .filter(Boolean);
-      const linesLabel = lines.length ? [...new Set(lines)].join(", ") : "—";
-
-      let startTime = text(shift?.start_time).trim();
-      let endTime = text(shift?.end_time).trim();
-
-      if ((!startTime || !endTime) && structure.length > 0) {
-        const times = structure.flatMap((item) => {
-          const trip = item?.trip ?? {};
-          return [
-            trip.departure_time,
-            trip.arrival_time,
-            trip.start_time,
-            trip.end_time,
-          ];
-        });
-        const minutes = times.map(parseTime).filter((m) => m !== null);
-        if (minutes.length > 0) {
-          if (!startTime) startTime = formatTime(Math.min(...minutes));
-          if (!endTime) endTime = formatTime(Math.max(...minutes));
-        }
-      }
-
       const busModelName = text(shift._resolved_bus_model ?? "—");
-      const dayLabel = text(shift._resolved_day ?? "—");
-
       return `
         <tr data-id="${text(shift?.id)}">
           <td class="checkbox">
-            <input type="radio" name="selected-shift" aria-label="Select shift" />
+            <input type="checkbox" aria-label="Select shift" />
           </td>
           <td>${textContent(shift?.name ?? "")}</td>
           <td>${textContent(busModelName)}</td>
-          <td>${textContent(dayLabel)}</td>
-          <td>${textContent(linesLabel)}</td>
-          <td>${textContent(startTime || "—")}</td>
-          <td>${textContent(endTime || "—")}</td>
         </tr>`;
     })
     .join("");
 };
 
-const firstAvailable = (...values) =>
-  values.find(
-    (v) => v !== null && v !== undefined && String(v).trim().length > 0
-  ) ?? "";
+// ── Stop extraction ─────────────────────────────────────────────────
 
-const resolveDayOfWeek = (shift) => {
-  const raw = firstAvailable(
-    shift?.day_of_week,
-    shift?.dayOfWeek,
-    shift?.service_day,
-    shift?.serviceDay,
-    shift?.day
-  );
-  if (!raw) return "";
-  const s = String(raw);
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+const shiftCache = new Map();
+const tripStopsCache = new Map();
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUUID = (v) => UUID_RE.test(v);
+
+/**
+ * Fetch GTFS stops for a trip, returning them sorted by stop_sequence.
+ * Results are cached per trip_id.
+ */
+const fetchTripStops = async (tripId) => {
+  if (tripStopsCache.has(tripId)) return tripStopsCache.get(tripId);
+  try {
+    const raw = await fetchStopsByTripId(tripId);
+    const stops = Array.isArray(raw) ? raw : [];
+    stops.sort((a, b) => (a?.stop_sequence ?? 0) - (b?.stop_sequence ?? 0));
+    tripStopsCache.set(tripId, stops);
+    return stops;
+  } catch {
+    tripStopsCache.set(tripId, []);
+    return [];
+  }
 };
+
+/**
+ * From a GTFS stop object, pick the database UUID.
+ * `id` is the DB primary key (UUID); `stop_id` is the GTFS string identifier.
+ */
+const resolveStopUUID = (stop) => {
+  const candidates = [stop?.id, stop?.stop_id];
+  return candidates.map((v) => text(v)).find(isUUID) ?? "";
+};
+
+/**
+ * Load unique end-stops for the given shift IDs.
+ *
+ * The shift object (from GET /shifts/{id}) has a `structure` array where each
+ * item represents a trip.  Regular trip items carry a `trip_id` (GTFS ID) that
+ * we can pass to the /gtfs-stops/by-trip/ endpoint.  Depot / auxiliary items
+ * are included using the shift-level start_depot_id / end_depot_id.
+ */
+const loadEndStopsForShifts = async (shiftIds) => {
+  const seen = new Map();
+
+  // 1. Fetch all shift details in parallel
+  const shiftPromises = shiftIds.map(async (id) => {
+    if (shiftCache.has(id)) return shiftCache.get(id);
+    try {
+      const s = await fetchShiftById(id);
+      shiftCache.set(id, s);
+      return s;
+    } catch {
+      return null;
+    }
+  });
+  const shifts = await Promise.all(shiftPromises);
+
+  // 2. Collect unique trip_ids we need to fetch stops for
+  const tripIdSet = new Set();
+  for (const shift of shifts) {
+    if (!shift) continue;
+    const structure = Array.isArray(shift.structure) ? shift.structure : [];
+    for (const item of structure) {
+      const isDepot =
+        item?.status === "depot" ||
+        item?.trip?.status === "depot" ||
+        item?.trip_type === "auxiliary" ||
+        item?.trip?.trip_type === "auxiliary";
+      if (isDepot) continue;
+
+      const tripId = text(
+        item?.trip_id ?? item?.trip?.trip_id ?? item?.id ?? ""
+      );
+      if (tripId) tripIdSet.add(tripId);
+    }
+  }
+
+  // 3. Fetch stops for all unique trips in parallel
+  const tripIds = [...tripIdSet];
+  await Promise.all(tripIds.map(fetchTripStops));
+
+  // 4. Extract end-stop (last by sequence) from each trip, deduplicate
+  for (const tripId of tripIds) {
+    const stops = tripStopsCache.get(tripId) ?? [];
+    if (!stops.length) continue;
+    const last = stops[stops.length - 1];
+    const id = resolveStopUUID(last);
+    const name = text(last?.stop_name ?? last?.name ?? id);
+    if (id && !seen.has(id)) {
+      seen.set(id, { stop_id: id, stop_name: name, isCustom: false });
+    }
+  }
+
+  // 5. Include depot / custom stops using the shift-level depot UUIDs
+  for (const shift of shifts) {
+    if (!shift) continue;
+
+    const depotPairs = [
+      {
+        id: text(shift?.start_depot_id ?? shift?.start_depot?.id ?? ""),
+        name: text(shift?.start_depot?.name ?? shift?.start_depot_name ?? ""),
+      },
+      {
+        id: text(shift?.end_depot_id ?? shift?.end_depot?.id ?? ""),
+        name: text(shift?.end_depot?.name ?? shift?.end_depot_name ?? ""),
+      },
+    ];
+
+    for (const depot of depotPairs) {
+      if (!depot.id || !isUUID(depot.id)) continue;
+      if (seen.has(depot.id)) continue;
+      seen.set(depot.id, {
+        stop_id: depot.id,
+        stop_name: depot.name || depot.id,
+        isCustom: true,
+      });
+    }
+  }
+
+  return [...seen.values()];
+};
+
+// ── Charging-stations table rendering ────────────────────────────────
+
+const COLUMN_DEFS = {
+  battery_only: [
+    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Plugs", min: 0, step: 1, defaultVal: 2 },
+    { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 150 },
+  ],
+  charging: [
+    { key: "slot_cost_chf", label: "simulation.cs_cost_per_plug", fallback: "CHF / plug", min: 0, step: 1000, defaultVal: 150000 },
+    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Plugs", min: 0, step: 1, defaultVal: 2 },
+    { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 150 },
+  ],
+  joint: [
+    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Plugs", min: 0, step: 1, defaultVal: 2 },
+    { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 150 },
+    { key: "slot_cost_chf", label: "simulation.cs_cost_per_plug", fallback: "CHF / plug", min: 0, step: 1000, defaultVal: 150000 },
+  ],
+};
+
+const renderStopsTable = (thead, tbody, stops, mode) => {
+  if (!thead || !tbody) return;
+  const cols = COLUMN_DEFS[mode] ?? COLUMN_DEFS.battery_only;
+
+  thead.innerHTML = `<tr>
+    <th class="checkbox"><input type="checkbox" data-role="select-all-stops" aria-label="Select all stops" /></th>
+    <th>${t("simulation.cs_stop_name") || "Stop"}</th>
+    ${cols.map((c) => `<th>${t(c.label) || c.fallback}</th>`).join("")}
+  </tr>`;
+
+  if (!stops.length) {
+    tbody.innerHTML = `<tr><td colspan="${2 + cols.length}">
+      ${t("simulation.no_stops_for_shifts") || "No stops found for the selected shifts."}
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = stops
+    .map(
+      (stop) => `<tr data-stop-id="${textContent(stop.stop_id)}">
+        <td class="checkbox"><input type="checkbox" ${stop.isCustom ? "checked" : ""} aria-label="Select stop" /></td>
+        <td class="stop-name" title="${textContent(stop.stop_id)}">${textContent(stop.stop_name || stop.stop_id)}</td>
+        ${cols
+          .map(
+            (c) =>
+              `<td><input type="number" data-field="${c.key}" min="${c.min}" step="${c.step}" value="${c.defaultVal}" /></td>`
+          )
+          .join("")}
+      </tr>`
+    )
+    .join("");
+
+  // Sync the select-all checkbox with the initial state
+  const selectAll = thead.querySelector('[data-role="select-all-stops"]');
+  if (selectAll) {
+    const allBoxes = tbody.querySelectorAll('input[type="checkbox"]');
+    const checkedCount = tbody.querySelectorAll('input[type="checkbox"]:checked').length;
+    selectAll.checked = allBoxes.length > 0 && checkedCount === allBoxes.length;
+    selectAll.indeterminate = checkedCount > 0 && checkedCount < allBoxes.length;
+  }
+};
+
+const collectChargingStations = (tbody, mode) => {
+  if (!tbody) return [];
+  const cols = COLUMN_DEFS[mode] ?? COLUMN_DEFS.battery_only;
+  const rows = tbody.querySelectorAll("tr[data-stop-id]");
+  const stations = [];
+
+  for (const row of rows) {
+    const cb = row.querySelector('input[type="checkbox"]');
+    if (!cb?.checked) continue;
+
+    const stopId = row.dataset.stopId;
+    if (!stopId || !isUUID(stopId)) continue;
+
+    const values = {};
+    for (const col of cols) {
+      const input = row.querySelector(`input[data-field="${col.key}"]`);
+      values[col.key] = input ? Number(input.value) : col.defaultVal;
+    }
+
+    const numSlots = values.num_slots ?? 2;
+    const powerPerSlot = values.max_power_per_slot_kw ?? 450;
+
+    const station = {
+      stop_id: stopId,
+      num_slots: numSlots,
+      max_power_per_slot_kw: powerPerSlot,
+      max_total_power_kw: numSlots * powerPerSlot,
+    };
+
+    if (values.slot_cost_chf != null) {
+      const costPerPlug = values.slot_cost_chf;
+      station.slot_costs_chf = Array.from(
+        { length: numSlots + 1 },
+        (_, i) => (i === 0 ? costPerPlug * 2 : costPerPlug)
+      );
+    }
+
+    stations.push(station);
+  }
+  return stations;
+};
+
+// ── Main initializer ─────────────────────────────────────────────────
 
 export const initializeAddSimulation = async (
   root = document,
@@ -132,9 +294,98 @@ export const initializeAddSimulation = async (
     'tbody[data-role="shift-selection-body"]'
   );
   const shiftFilter = section.querySelector("#sim-shift-filter");
+  const modeSelect = section.querySelector("#var-optimization-mode");
+
+  const csSection = section.querySelector(
+    '[data-role="charging-stations-section"]'
+  );
+  const batteryPacksGroup = section.querySelector(
+    '[data-role="battery-packs-group"]'
+  );
+  const stopsHint = section.querySelector('[data-role="stops-hint"]');
+  const stopsWrapper = section.querySelector(
+    '[data-role="stops-table-wrapper"]'
+  );
+  const stopsThead = section.querySelector('[data-role="stops-thead"]');
+  const stopsTbody = section.querySelector('[data-role="stops-tbody"]');
 
   let allShifts = [];
+  let currentStops = [];
 
+  const getSelectedShiftIds = () =>
+    Array.from(
+      shiftTbody?.querySelectorAll('input[type="checkbox"]:checked') ?? []
+    )
+      .map((input) => input.closest("tr")?.dataset?.id)
+      .filter(Boolean);
+
+  // ── Rebuild the charging-stations panel ───────────────────────────
+  let rebuildSeq = 0;
+
+  const rebuildStopsTable = async () => {
+    const mode = (modeSelect?.value ?? "").trim();
+
+    if (!mode) {
+      if (csSection) csSection.hidden = true;
+      currentStops = [];
+      return;
+    }
+
+    if (csSection) csSection.hidden = false;
+
+    const needsBatteryInput = mode === "charging";
+    if (batteryPacksGroup) {
+      if (needsBatteryInput) {
+        batteryPacksGroup.removeAttribute("hidden");
+      } else {
+        batteryPacksGroup.setAttribute("hidden", "");
+      }
+    }
+
+    const selectedIds = getSelectedShiftIds();
+
+    if (!selectedIds.length) {
+      currentStops = [];
+      if (stopsHint) {
+        stopsHint.textContent =
+          t("simulation.select_shifts_for_stops") ||
+          "Select shifts above to see available stops.";
+        stopsHint.hidden = false;
+      }
+      if (stopsWrapper) stopsWrapper.hidden = true;
+      return;
+    }
+
+    // Show loading feedback while fetching
+    const seq = ++rebuildSeq;
+    if (stopsHint) {
+      stopsHint.textContent =
+        t("common.loading") || "Loading…";
+      stopsHint.hidden = false;
+    }
+    if (stopsWrapper) stopsWrapper.hidden = true;
+
+    currentStops = await loadEndStopsForShifts(selectedIds);
+
+    // Guard against stale results if user changed selection while loading
+    if (seq !== rebuildSeq) return;
+
+    if (currentStops.length) {
+      if (stopsHint) stopsHint.hidden = true;
+      if (stopsWrapper) stopsWrapper.hidden = false;
+      renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
+    } else {
+      if (stopsHint) {
+        stopsHint.textContent =
+          t("simulation.no_stops_for_shifts") ||
+          "No stops found for the selected shifts.";
+        stopsHint.hidden = false;
+      }
+      if (stopsWrapper) stopsWrapper.hidden = true;
+    }
+  };
+
+  // ── Load initial data ────────────────────────────────────────────
   if (isAuthenticated()) {
     try {
       const [shiftsPayload, busesPayload, modelsPayload] = await Promise.all([
@@ -197,83 +448,59 @@ export const initializeAddSimulation = async (
             shift?.busModelId ??
             ""
         );
-        const resolvedModelId = directModelId || busToModelIdMap.get(busId) || "";
+        const resolvedModelId =
+          directModelId || busToModelIdMap.get(busId) || "";
         const modelFromBus = busModelMap.get(busId) || "";
-        const modelFromDirect = resolveModelFields(modelsById[resolvedModelId]).model;
+        const modelFromDirect = resolveModelFields(
+          modelsById[resolvedModelId]
+        ).model;
         const busModelName =
           modelFromBus || modelFromDirect || shift?.bus_model_name || "";
-
-        const dayLabel = resolveDayOfWeek(shift);
 
         return {
           ...shift,
           _resolved_bus_model: busModelName,
           _resolved_bus_model_id: resolvedModelId,
-          _resolved_day: dayLabel,
         };
       });
 
       renderShiftRows(shiftTbody, allShifts);
 
-      // Pre-select shift and pre-fill fields when duplicating
       if (options.prefill?.shiftId) {
         applyPrefill(options.prefill);
       }
-
-      // Asynchronously enrich shifts with day info from the /info endpoint
-      enrichShiftDays(allShifts, shiftTbody);
     } catch (error) {
       console.error("Failed to load form data", error);
       setFeedback(section, error?.message ?? "Failed to load form data.");
     }
   }
 
-  async function enrichShiftDays(shifts, tbody) {
-    const needsDay = shifts.filter((s) => !s._resolved_day);
-    if (!needsDay.length) return;
-
-    for (const shift of needsDay) {
-      try {
-        const info = await fetchShiftInfo(shift.id);
-        const daysOfWeek =
-          info?.days_of_week ?? info?.daysOfWeek ?? [];
-        const singleDay =
-          info?.day_of_week ?? info?.dayOfWeek ?? "";
-        const raw =
-          (Array.isArray(daysOfWeek) && daysOfWeek.length > 0
-            ? daysOfWeek[0]
-            : singleDay) || "";
-
-        if (raw) {
-          const label =
-            String(raw).charAt(0).toUpperCase() +
-            String(raw).slice(1).toLowerCase();
-          shift._resolved_day = label;
-
-          const row = tbody?.querySelector(`tr[data-id="${shift.id}"]`);
-          if (row) {
-            const dayCell = row.querySelectorAll("td")[3];
-            if (dayCell) dayCell.textContent = label;
-          }
-        }
-      } catch {
-        // Non-critical, leave as "—"
-      }
-    }
-  }
-
+  // ── Prefill ──────────────────────────────────────────────────────
   function applyPrefill(prefill = {}) {
-    const { shiftId, occupancyPercent, heatingType, numBatteryPacks } = prefill;
+    const {
+      shiftId,
+      optimizationMode,
+      externalTempCelsius,
+      occupancyPercent,
+      heatingType,
+    } = prefill;
 
     if (shiftId && shiftTbody) {
       const row = shiftTbody.querySelector(`tr[data-id="${shiftId}"]`);
       if (row) {
-        const radio = row.querySelector('input[type="radio"]');
-        if (radio) {
-          radio.checked = true;
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+          checkbox.checked = true;
           row.scrollIntoView({ block: "nearest" });
         }
       }
+    }
+
+    if (optimizationMode && modeSelect) modeSelect.value = optimizationMode;
+
+    if (externalTempCelsius != null) {
+      const tempInput = section.querySelector("#var-external-temp");
+      if (tempInput) tempInput.value = externalTempCelsius;
     }
 
     if (occupancyPercent != null) {
@@ -286,20 +513,17 @@ export const initializeAddSimulation = async (
       if (heatingSelect) heatingSelect.value = heatingType;
     }
 
-    if (numBatteryPacks != null && numBatteryPacks !== "") {
-      const batteryInput = section.querySelector("#var-battery-packs");
-      if (batteryInput) batteryInput.value = numBatteryPacks;
-    }
+    rebuildStopsTable();
   }
 
+  // ── Shift filter ─────────────────────────────────────────────────
   const applyShiftFilter = () => {
     const query = (shiftFilter?.value ?? "").toLowerCase().trim();
     const filtered = query
       ? allShifts.filter(
           (s) =>
             text(s?.name).toLowerCase().includes(query) ||
-            text(s?._resolved_bus_model).toLowerCase().includes(query) ||
-            text(s?._resolved_day).toLowerCase().includes(query)
+            text(s?._resolved_bus_model).toLowerCase().includes(query)
         )
       : allShifts;
     renderShiftRows(shiftTbody, filtered);
@@ -312,6 +536,61 @@ export const initializeAddSimulation = async (
     );
   }
 
+  // ── Shift checkbox & mode change → rebuild stops ─────────────────
+  const handleSelectionChange = () => {
+    rebuildStopsTable();
+  };
+
+  if (shiftTbody) {
+    shiftTbody.addEventListener("change", handleSelectionChange);
+    cleanupHandlers.push(() =>
+      shiftTbody.removeEventListener("change", handleSelectionChange)
+    );
+  }
+
+  if (modeSelect) {
+    modeSelect.addEventListener("change", handleSelectionChange);
+    cleanupHandlers.push(() =>
+      modeSelect.removeEventListener("change", handleSelectionChange)
+    );
+  }
+
+  // ── Select-all / individual stop checkbox sync ─────────────────────
+  const syncSelectAll = () => {
+    const selectAll = stopsThead?.querySelector('[data-role="select-all-stops"]');
+    if (!selectAll) return;
+    const boxes = stopsTbody?.querySelectorAll('input[type="checkbox"]') ?? [];
+    const total = boxes.length;
+    let checked = 0;
+    boxes.forEach((cb) => { if (cb.checked) checked++; });
+    selectAll.checked = total > 0 && checked === total;
+    selectAll.indeterminate = checked > 0 && checked < total;
+  };
+
+  const handleStopsTableChange = (e) => {
+    const target = e.target;
+    if (target.dataset.role === "select-all-stops") {
+      const boxes = stopsTbody?.querySelectorAll('input[type="checkbox"]') ?? [];
+      boxes.forEach((cb) => { cb.checked = target.checked; });
+    } else if (target.type === "checkbox") {
+      syncSelectAll();
+    }
+  };
+
+  if (stopsThead) {
+    stopsThead.addEventListener("change", handleStopsTableChange);
+    cleanupHandlers.push(() =>
+      stopsThead.removeEventListener("change", handleStopsTableChange)
+    );
+  }
+  if (stopsTbody) {
+    stopsTbody.addEventListener("change", handleStopsTableChange);
+    cleanupHandlers.push(() =>
+      stopsTbody.removeEventListener("change", handleStopsTableChange)
+    );
+  }
+
+  // ── Cancel ───────────────────────────────────────────────────────
   const handleCancel = () => {
     triggerPartialLoad("simulation-runs");
   };
@@ -323,24 +602,20 @@ export const initializeAddSimulation = async (
     );
   });
 
+  // ── Submit ───────────────────────────────────────────────────────
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFeedback(section, "");
 
-    const selectedShiftId = shiftTbody
-      ?.querySelector('input[type="radio"]:checked')
-      ?.closest("tr")
-      ?.dataset?.id;
+    const selectedShiftIds = getSelectedShiftIds();
 
-    if (!selectedShiftId) {
+    if (!selectedShiftIds.length) {
       setFeedback(
         section,
-        t("simulation.shift_required") || "Select one shift."
+        t("simulation.shift_required") || "Select at least one shift."
       );
       return;
     }
-
-    const selectedShiftIds = [selectedShiftId];
 
     const selectedShifts = allShifts.filter((s) =>
       selectedShiftIds.includes(text(s?.id))
@@ -378,35 +653,63 @@ export const initializeAddSimulation = async (
     }
 
     const formData = new FormData(form);
-    const occupancy = Number(formData.get("occupancy_percent") ?? 50);
-    const heatingType =
-      text(formData.get("auxiliary_heating_type") ?? "hp").trim() || "hp";
-    const batteryPacksRaw = text(formData.get("num_battery_packs") ?? "").trim();
-    const numBatteryPacks = batteryPacksRaw ? Number(batteryPacksRaw) : undefined;
-    const confirmMessage =
-      t("simulation.run_confirm") || "Launch this simulation?";
-    if (!confirm(confirmMessage)) {
+    const optimizationMode = text(
+      formData.get("optimization_mode") ?? ""
+    ).trim();
+
+    if (!optimizationMode) {
+      setFeedback(
+        section,
+        t("simulation.mode_required") || "Select an optimization mode."
+      );
       return;
     }
+
+    const externalTemp = Number(formData.get("external_temp_celsius") ?? 15);
+    const occupancy = Number(formData.get("occupancy_percent") ?? 50);
+    const heatingType =
+      text(formData.get("auxiliary_heating_type") ?? "default").trim() ||
+      "default";
+
+    const chargingStations = collectChargingStations(
+      stopsTbody,
+      optimizationMode
+    );
+
+    const predictionParams = {
+      model_name: "greybox_qrf_production_crps_optimized_3",
+      external_temp_celsius: externalTemp,
+      occupancy_percent: occupancy,
+      auxiliary_heating_type: heatingType,
+      quantiles: [0.05, 0.5, 0.95],
+      num_battery_packs: 12,
+    };
+
+    if (optimizationMode === "charging") {
+      const packs = Number(formData.get("num_battery_packs"));
+      if (packs > 0) predictionParams.num_battery_packs = packs;
+    }
+
+    const confirmMessage =
+      t("simulation.run_confirm") || "Launch this simulation?";
+    if (!confirm(confirmMessage)) return;
 
     const submitBtn = form?.querySelector('[type="submit"]');
     if (submitBtn) submitBtn.disabled = true;
 
     try {
-      const response = await createPredictionRuns({
+      const response = await createOptimizationRun({
+        mode: optimizationMode,
         shift_ids: selectedShiftIds,
         bus_model_id: selectedModelIds[0],
-        occupancy_percent: occupancy,
-        auxiliary_heating_type: heatingType,
-        num_battery_packs: numBatteryPacks,
+        prediction_params: predictionParams,
+        charging_stations: chargingStations,
+        min_soc: 0.4,
+        max_soc: 0.9,
       });
 
-      const runIds = Array.isArray(response?.prediction_run_ids)
-        ? response.prediction_run_ids
-        : [];
-      if (runIds.length) {
-        saveRunIds(runIds);
-      }
+      const runId = response?.id ?? response?.optimization_run_id ?? "";
+      if (runId) saveRunIds([runId]);
 
       triggerPartialLoad("simulation-runs", {
         flashMessage:

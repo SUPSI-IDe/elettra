@@ -50,10 +50,6 @@
                 </th>
                 <th data-i18n="simulation.shift_col_name">Shift name</th>
                 <th data-i18n="simulation.shift_col_bus_model">Bus model</th>
-                <th data-i18n="simulation.shift_col_day">Day</th>
-                <th data-i18n="simulation.shift_col_lines">Lines</th>
-                <th data-i18n="simulation.shift_col_start">Starting time</th>
-                <th data-i18n="simulation.shift_col_end">Ending time</th>
               </tr>
             </thead>
             <tbody data-role="shift-selection-body"></tbody>
@@ -62,7 +58,20 @@
       </div>
 
       <fieldset class="custom-variables-section">
-        <legend data-i18n="simulation.custom_variables">Custom variables</legend>
+        <legend data-i18n="simulation.custom_variables">Main variables</legend>
+
+        <div class="form-group">
+          <label for="var-external-temp" data-i18n="simulation.var_external_temp">
+            External temperature (°C)
+          </label>
+          <input
+            type="number"
+            id="var-external-temp"
+            name="external_temp_celsius"
+            step="0.5"
+            value="-5"
+          />
+        </div>
 
         <div class="form-group">
           <label
@@ -75,7 +84,7 @@
             type="number"
             id="var-occupancy"
             name="occupancy_percent"
-            step="1"
+            step="10"
             min="0"
             max="100"
             value="50"
@@ -95,22 +104,50 @@
           </select>
         </div>
 
-        <div class="form-group">
-          <label
-            for="var-battery-packs"
-            data-i18n="simulation.var_battery_packs"
-          >
-            Number of battery packs (optional)
+      </fieldset>
+
+      <div class="form-group">
+        <label
+          for="var-optimization-mode"
+          data-i18n="simulation.var_optimization_mode"
+        >
+          Optimization mode
+        </label>
+        <select id="var-optimization-mode" name="optimization_mode">
+          <option value="" selected disabled data-i18n="simulation.select_optimization_mode">
+            Select a mode…
+          </option>
+          <option value="battery_only" data-i18n="simulation.mode_battery_only">Battery only</option>
+          <option value="charging" data-i18n="simulation.mode_charging">Charging</option>
+          <option value="joint" data-i18n="simulation.mode_joint">Joint</option>
+        </select>
+      </div>
+
+      <fieldset class="charging-stations-section" data-role="charging-stations-section" hidden>
+        <legend data-i18n="simulation.charging_stations">Charging stations</legend>
+
+        <div class="form-group" data-role="battery-packs-group" hidden>
+          <label for="var-num-battery-packs" data-i18n="simulation.var_num_battery_packs">
+            Number of battery packs
           </label>
           <input
             type="number"
-            id="var-battery-packs"
+            id="var-num-battery-packs"
             name="num_battery_packs"
-            step="1"
             min="1"
-            placeholder="Auto"
-            data-i18n-placeholder="simulation.auto_placeholder"
+            step="1"
+            value="6"
           />
+        </div>
+
+        <p class="stops-hint" data-role="stops-hint" hidden data-i18n="simulation.select_shifts_for_stops">
+          Select shifts above to see available stops.
+        </p>
+        <div class="stops-table-wrapper" data-role="stops-table-wrapper" hidden>
+          <table class="stops-table">
+            <thead data-role="stops-thead"></thead>
+            <tbody data-role="stops-tbody"></tbody>
+          </table>
         </div>
       </fieldset>
 

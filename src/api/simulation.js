@@ -108,19 +108,9 @@ export const fetchPredictionRunPredictions = async (runId) => {
 
 // ── Optimization Runs ────────────────────────────────────────────────
 
-export const createOptimizationRun = async ({
-  mode = "charging_only",
-  shift_ids,
-  bus_model_id,
-  prediction_run_ids,
-  prediction_params,
-  charging_stations,
-  min_soc = 0.4,
-  max_soc = 0.9,
-  state_of_health = 1.0,
-  quantile_consumption = "mean",
-  ...rest
-} = {}) => {
+export const createOptimizationRun = async (params = {}) => {
+  const { shift_ids, charging_stations, ...rest } = params;
+
   if (!Array.isArray(shift_ids) || !shift_ids.length) {
     throw new Error("At least one shift is required.");
   }
@@ -130,16 +120,26 @@ export const createOptimizationRun = async ({
     "Content-Type": "application/json",
   };
 
-  const body = { mode, shift_ids, min_soc, max_soc, state_of_health, quantile_consumption };
-  if (bus_model_id) body.bus_model_id = bus_model_id;
-  if (Array.isArray(prediction_run_ids) && prediction_run_ids.length) {
-    body.prediction_run_ids = prediction_run_ids;
-  }
-  if (prediction_params) body.prediction_params = prediction_params;
+  const body = { shift_ids, ...rest };
+
   if (Array.isArray(charging_stations) && charging_stations.length) {
-    body.charging_stations = charging_stations;
+    body.charging_stations = charging_stations.map((cs) => {
+      const clean = { ...cs };
+      if (clean.slot_costs_chf == null) delete clean.slot_costs_chf;
+      return clean;
+    });
   }
-  Object.assign(body, rest);
+
+  const OMIT_IF_NULL = [
+    "optimality_tol",
+    "feasibility_tol",
+    "mip_abs_gap",
+    "mip_rel_gap",
+  ];
+
+  for (const key of OMIT_IF_NULL) {
+    if (body[key] == null) delete body[key];
+  }
 
   const response = await fetch(`${SIMULATION_PATH}/optimization-runs/`, {
     method: "POST",
@@ -152,6 +152,23 @@ export const createOptimizationRun = async ({
       payload?.detail?.[0]?.msg ??
       payload?.detail ??
       "Unable to create optimization run.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
+export const fetchOptimizationRuns = async () => {
+  const headers = authHeaders();
+  const response = await fetch(`${SIMULATION_PATH}/optimization-runs/`, {
+    method: "GET",
+    headers,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load optimization runs.";
     throw new Error(typeof message === "string" ? message : JSON.stringify(message));
   }
   return payload;

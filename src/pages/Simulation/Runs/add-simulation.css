@@ -21,6 +21,10 @@
   margin: 0;
 }
 
+.add-simulation [hidden] {
+  display: none !important;
+}
+
 .add-simulation .shift-selection {
   border: none;
   padding: 0;
@@ -83,4 +87,78 @@
   color: var(--brand-teal);
   font-weight: 600;
   padding: 0 0.4rem;
+}
+
+.add-simulation .charging-stations-section {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+}
+
+.add-simulation .charging-stations-section legend {
+  color: var(--brand-teal);
+  font-weight: 600;
+  padding: 0 0.4rem;
+}
+
+.add-simulation .stops-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0.5rem 0;
+}
+
+.add-simulation .stops-table-wrapper {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  margin-top: var(--spacing-sm);
+}
+
+.add-simulation .stops-table {
+  width: 100%;
+  font-size: 0.8rem;
+  border-collapse: collapse;
+}
+
+.add-simulation .stops-table th {
+  position: sticky;
+  top: 0;
+  background-color: var(--bg-subtle);
+  z-index: 1;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.add-simulation .stops-table td {
+  padding: 0.35rem 0.5rem;
+  vertical-align: middle;
+}
+
+.add-simulation .stops-table tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+.add-simulation .stops-table input[type="number"] {
+  width: 5.5rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border-medium);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.add-simulation .stops-table th.checkbox,
+.add-simulation .stops-table td.checkbox {
+  width: 2.5rem;
+  text-align: center;
+}
+
+.add-simulation .stops-table td.stop-name {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

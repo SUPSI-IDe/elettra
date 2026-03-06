@@ -1,8 +1,8 @@
 import { t } from "../../../i18n";
 import "./simulation-detail.css";
 import {
-  createPredictionRuns,
-  fetchPredictionRun,
+  createOptimizationRun,
+  fetchOptimizationRun,
 } from "../../../api/simulation";
 import { isAuthenticated } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
@@ -135,34 +135,40 @@ export const initializeSimulationDetail = async (
     setFeedback(section, "Submitting simulation…", "info");
 
     try {
-      const result = await createPredictionRuns({
+      const result = await createOptimizationRun({
         shift_ids: shiftIds,
         bus_model_id: busModelId,
-        external_temp_celsius: externalTemp,
-        occupancy_percent: occupancy,
-        auxiliary_heating_type: heatingType,
-        num_battery_packs: numBatteryPacks,
+        prediction_params: {
+          model_name: "greybox_qrf_production_crps_optimized_3",
+          external_temp_celsius: externalTemp,
+          occupancy_percent: occupancy,
+          auxiliary_heating_type: heatingType,
+          num_battery_packs: numBatteryPacks,
+          quantiles: [0.05, 0.5, 0.95],
+        },
+        min_soc: 0.4,
+        max_soc: 0.9,
       });
 
-      const runIds = result?.prediction_run_ids ?? [];
-      if (!runIds.length) {
-        setFeedback(section, "Simulation submitted but no run IDs returned.", "info");
+      const runId = result?.id ?? result?.optimization_run_id ?? "";
+      if (!runId) {
+        setFeedback(section, "Simulation submitted but no run ID returned.", "info");
         return;
       }
 
-      saveRunIds(runIds);
+      saveRunIds([runId]);
 
       setFeedback(
         section,
-        `Simulation submitted (${runIds.length} prediction run(s)). Loading results…`,
+        t("simulation.submitted_loading") || "Simulation submitted. Loading results…",
         "success"
       );
 
       if (resultsSection) resultsSection.hidden = false;
 
-      await pollResults(runIds, resultsContent, section);
+      await pollResults([runId], resultsContent, section);
     } catch (error) {
-      console.error("Failed to create prediction runs", error);
+      console.error("Failed to create optimization run", error);
       setFeedback(section, error?.message ?? "Failed to run simulation.");
     } finally {
       if (submitBtn) submitBtn.disabled = false;
@@ -187,7 +193,7 @@ async function pollResults(runIds, container, section, maxAttempts = 20) {
   const poll = async () => {
     attempts++;
     try {
-      const runs = await Promise.all(runIds.map((id) => fetchPredictionRun(id)));
+      const runs = await Promise.all(runIds.map((id) => fetchOptimizationRun(id)));
       renderResults(container, runs);
 
       const allDone = runs.every(

@@ -1,7 +1,7 @@
 import { t } from "../../../i18n";
 import "./simulation-runs.css";
 import { fetchBusModels } from "../../../api";
-import { fetchPredictionRuns } from "../../../api/simulation";
+import { fetchOptimizationRuns } from "../../../api/simulation";
 import { fetchShiftById } from "../../../api/shifts";
 import { isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
@@ -204,8 +204,6 @@ export const initializeSimulationRuns = async (
   const duplicateButton = section.querySelector(
     '[data-action="duplicate-simulation"]'
   );
-  const addButton = section.querySelector('[data-action="add-simulation"]');
-
   setFlashMessage(section, options.flashMessage ?? "");
 
   if (!table || !tbody) return null;
@@ -332,7 +330,7 @@ export const initializeSimulationRuns = async (
         );
       }
 
-      const runsPayload = await fetchPredictionRuns();
+      const runsPayload = await fetchOptimizationRuns();
       allRuns = Array.isArray(runsPayload)
         ? runsPayload
         : (runsPayload?.items ?? runsPayload?.results ?? []);
@@ -358,16 +356,6 @@ export const initializeSimulationRuns = async (
     );
   }
 
-  const handleAddClick = () => {
-    triggerPartialLoad("add-simulation");
-  };
-  if (addButton) {
-    addButton.addEventListener("click", handleAddClick);
-    cleanupHandlers.push(() =>
-      addButton.removeEventListener("click", handleAddClick)
-    );
-  }
-
   const handleDuplicateClick = () => {
     const ids = getSelectedIdsFrom(table);
     if (ids.length !== 1) {
@@ -385,13 +373,15 @@ export const initializeSimulationRuns = async (
     triggerPartialLoad("add-simulation", {
       prefill: {
         shiftId: text(run?.shift_id ?? ""),
+        optimizationMode:
+          run?.mode ?? run?.optimization_mode ?? "battery_only",
+        externalTempCelsius:
+          run?.external_temp_celsius ?? run?.externalTempCelsius ?? -5,
         occupancyPercent: run?.occupancy_percent ?? run?.occupancyPercent ?? 50,
         heatingType:
           run?.auxiliary_heating_type ??
           run?.auxiliaryHeatingType ??
           "hp",
-        numBatteryPacks:
-          run?.num_battery_packs ?? run?.numBatteryPacks ?? "",
       },
     });
   };
