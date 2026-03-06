@@ -3,6 +3,9 @@ import { getCurrentUserId, setCurrentUserId, getCurrentAgencyId, setCurrentAgenc
 import { triggerPartialLoad } from "../events";
 import { readAccessToken } from "./client";
 
+let sessionElementsRef = null;
+let unauthorizedRedirectPending = false;
+
 const getUserInfo = () => ({
   email: localStorage.getItem("user_email") || "",
   name: localStorage.getItem("user_name") || "",
@@ -42,9 +45,25 @@ const clearUserData = () => {
   localStorage.removeItem("remember_email");
 };
 
+const isUnauthorizedError = (error) =>
+  error?.status === 401 ||
+  error?.status === 403 ||
+  error?.message === "Could not validate credentials";
+
 export const isAuthenticated = () => {
   const token = readAccessToken();
   return Boolean(token && token.length > 0);
+};
+
+export const clearSessionState = () => {
+  clearDataCache();
+  setCurrentUserId("");
+  setCurrentAgencyId("");
+  clearUserData();
+};
+
+export const markSessionActive = () => {
+  unauthorizedRedirectPending = false;
 };
 
 export const resolveUserId = async () => {
@@ -157,16 +176,25 @@ const loadUserInfo = async (elements, email) => {
 
     persistUserInfo(userInfo);
     updateUIState(elements, true, userInfo);
+    unauthorizedRedirectPending = false;
     
     if (user?.id) {
       setCurrentUserId(user.id);
     }
+
+    return true;
   } catch (error) {
     console.warn("Could not fetch user details:", error);
-    // Fall back to just email
+
+    if (isUnauthorizedError(error)) {
+      handleUnauthorizedSession();
+      return false;
+    }
+
     const userInfo = { email, name: email?.split("@")[0] || "", company: "" };
     persistUserInfo(userInfo);
     updateUIState(elements, true, userInfo);
+    return true;
   }
 };
 
@@ -175,12 +203,30 @@ const navigateToLogin = () => {
   triggerPartialLoad("login");
 };
 
+export const handleUnauthorizedSession = () => {
+  if (unauthorizedRedirectPending) {
+    return;
+  }
+
+  unauthorizedRedirectPending = true;
+  clearSessionState();
+
+  if (sessionElementsRef) {
+    updateUIState(sessionElementsRef, false, {});
+  }
+
+  const nav = document.querySelector("nav");
+  if (nav) {
+    nav.hidden = true;
+  }
+
+  triggerPartialLoad("login");
+};
+
 // Logout Handler
 const handleLogout = (elements) => {
-  // Clear all cached data (buses, bus models, etc.) to prevent data leakage between users
-  clearDataCache();
-  
-  clearUserData();
+  clearSessionState();
+  unauthorizedRedirectPending = false;
   updateUIState(elements, false, {});
   console.log("Logged out successfully.");
   
@@ -194,8 +240,8 @@ const handleLogout = (elements) => {
     toggle.setAttribute("aria-expanded", "false");
   }
   
-  // Redirect to landing page
-  triggerPartialLoad("landing");
+  // Redirect to login page
+  triggerPartialLoad("login");
 };
 
 // Password Change Handler
@@ -332,7 +378,7 @@ const initializePasswordModal = () => {
 };
 
 // Main Initialization - renamed to avoid conflict with login page
-export const initializeSession = (loginButton) => {
+export const initializeSession = async (loginButton) => {
   const userSection = document.querySelector(".user-section");
   const userMenu = userSection?.querySelector(".user-menu");
   const userNameSpan = userMenu?.querySelector('[data-role="user-name"]');
@@ -350,16 +396,12 @@ export const initializeSession = (loginButton) => {
     userEmailSpan,
     dropdownEmailSpan,
   };
+  sessionElementsRef = elements;
 
   // Set initial UI state
   const authenticated = isAuthenticated();
   const userInfo = getUserInfo();
   updateUIState(elements, authenticated, userInfo);
-
-  // If authenticated but missing user info, try to fetch it
-  if (authenticated && (!userInfo.name || !userInfo.company)) {
-    loadUserInfo(elements, userInfo.email);
-  }
 
   // Login button click handler - navigate to login page
   loginButton?.addEventListener("click", () => {
@@ -371,4 +413,14 @@ export const initializeSession = (loginButton) => {
 
   // Initialize password modal
   initializePasswordModal();
+
+  // Validate the persisted session before allowing access to protected pages.
+  if (authenticated) {
+    const sessionIsValid = await loadUserInfo(elements, userInfo.email);
+    if (!sessionIsValid) {
+      return false;
+    }
+  }
+
+  return authenticated;
 };

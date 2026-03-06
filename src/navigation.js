@@ -22,6 +22,8 @@ const partials = import.meta.glob("./pages/**/*.html", {
 });
 
 const slugFrom = (node) => node?.dataset.partial?.trim() || "";
+const PUBLIC_PARTIALS = new Set(["landing", "login", "register"]);
+const isProtectedPartial = (slug) => Boolean(slug) && !PUBLIC_PARTIALS.has(slug);
 
 const getLoader = (slug) => {
   const key = Object.keys(partials).find((k) => k.endsWith(`/${slug}.html`));
@@ -157,8 +159,14 @@ export const initializeNavigation = (root = document) => {
     currentCleanup = cleanup;
   };
 
-  const loadAndInitialize = (slug, options = {}) =>
-    loadPartial(slug).then(() => initializePartial(slug, container, options));
+  const loadAndInitialize = (slug, options = {}) => {
+    const resolvedSlug =
+      isProtectedPartial(slug) && !isAuthenticated() ? "login" : slug;
+
+    return loadPartial(resolvedSlug).then(() =>
+      initializePartial(resolvedSlug, container, options)
+    );
+  };
 
   // Update nav visibility based on authentication
   const updateNavVisibility = () => {
@@ -185,7 +193,7 @@ export const initializeNavigation = (root = document) => {
     const initialSlug = slugFrom(nav.querySelector("a[data-partial]"));
     loadAndInitialize(initialSlug);
   } else {
-    loadAndInitialize("landing");
+    loadAndInitialize("login");
   }
 
   document.addEventListener("partial:request", (event) => {

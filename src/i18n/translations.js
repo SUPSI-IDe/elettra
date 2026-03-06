@@ -16,7 +16,7 @@ export const translations = {
     "header.login": "Login",
     "header.logout": "Logout",
     "header.change_password": "Change Password",
-    "footer.impressum": "Elettra | Electric Shift Planner",
+    "footer.impressum": "Elettra | Electric Transport Transition Assessment",
     "footer.privacy_policy": "Privacy Policy",
 
     // Common
@@ -382,7 +382,7 @@ export const translations = {
 
     // Login
     "login.title": "Welcome to Elettra",
-    "login.subtitle": "Electric Shift Planner",
+    "login.subtitle": "Electric Transport Transition Assessment",
     "login.email": "Email",
     "login.password": "Password",
     "login.remember": "Remember me",
@@ -396,14 +396,14 @@ export const translations = {
 
     // Landing
     "landing.title": "Elettra",
-    "landing.tagline": "Electric Shift Planner",
+    "landing.tagline": "Electric Transport Transition Assessment",
     "landing.description": "Streamline your electric bus fleet management with intelligent shift planning, real-time monitoring, and optimized scheduling.",
     "landing.feature_fleet": "Fleet Management",
     "landing.feature_shifts": "Shift Planning",
     "landing.feature_simulation": "Route Simulation",
     "landing.login": "Sign In",
     "landing.register": "Create Account",
-    "landing.footer": "© 2026 Elettra - Electric Shift Planner",
+    "landing.footer": "© 2026 Elettra - Electric Transport Transition Assessment",
 
     // Register
     "register.title": "Create Account",

@@ -23,7 +23,9 @@ export const fetchCurrentUser = async () => {
       payload?.detail?.[0]?.msg ??
       payload?.detail ??
       "Unable to load current user.";
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   return payload;
@@ -55,7 +57,9 @@ export const changePassword = async (currentPassword, newPassword) => {
       payload?.detail?.[0]?.msg ??
       payload?.detail ??
       "Unable to change password.";
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   return payload;

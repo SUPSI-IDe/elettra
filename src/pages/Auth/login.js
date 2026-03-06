@@ -2,6 +2,7 @@ import { authenticate } from "../../api/auth";
 import { triggerPartialLoad } from "../../events";
 import { setCurrentUserId, setCurrentAgencyId, clearDataCache } from "../../store";
 import { fetchCurrentUser, fetchAgencyById } from "../../api/user";
+import { markSessionActive } from "../../api/session";
 
 // Token persistence
 const persistTokens = ({ access_token = "", token_type = "" } = {}) => {
@@ -147,6 +148,7 @@ const handleLogin = async (form, feedback) => {
 
     // Load user details
     await loadUserDetails(email);
+    markSessionActive();
 
     // Redirect to main page after short delay
     setTimeout(() => {

@@ -1,6 +1,6 @@
 # Elettra - Installation & Deployment Guide
 
-Elettra is a modern web-based Electric Shift Planner for bus fleet management. This guide covers installation, development, production builds, and Docker deployment.
+Elettra is a modern web-based Electric Transport Transition Assessment platform for bus fleet management. This guide covers installation, development, production builds, and Docker deployment.
 
 ---
 
