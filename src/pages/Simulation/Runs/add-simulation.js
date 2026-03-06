@@ -17,6 +17,28 @@ import { saveRunIds } from "./simulation-runs";
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
 
+const DEFAULT_USABLE_SOC_PERCENT = 50;
+const ALLOWED_USABLE_SOC_PERCENTS = new Set([
+  100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
+]);
+
+const resolveSocBounds = (usableSocPercent) => {
+  const parsedPercent = Number(usableSocPercent);
+  const percent = ALLOWED_USABLE_SOC_PERCENTS.has(parsedPercent)
+    ? parsedPercent
+    : DEFAULT_USABLE_SOC_PERCENT;
+
+  if (percent === 100) {
+    return { minSoc: 0.0, maxSoc: 1.0 };
+  }
+
+  const maxSoc = 0.9;
+  return {
+    minSoc: Number((maxSoc - percent / 100).toFixed(1)),
+    maxSoc,
+  };
+};
+
 const setFeedback = (section, message, tone = "error") => {
   const el = section.querySelector('[data-role="feedback"]');
   if (!el) return;
@@ -548,6 +570,7 @@ export const initializeAddSimulation = async (
       externalTempCelsius,
       occupancyPercent,
       heatingType,
+      usableSocPercent,
     } = prefill;
 
     if (shiftId && shiftTbody) {
@@ -576,6 +599,11 @@ export const initializeAddSimulation = async (
     if (heatingType) {
       const heatingSelect = section.querySelector("#var-heating-type");
       if (heatingSelect) heatingSelect.value = heatingType;
+    }
+
+    if (usableSocPercent != null) {
+      const usableSocInput = section.querySelector("#var-usable-soc-percent");
+      if (usableSocInput) usableSocInput.value = String(usableSocPercent);
     }
 
     rebuildStopsTable();
@@ -701,6 +729,10 @@ export const initializeAddSimulation = async (
     const heatingType =
       text(formData.get("auxiliary_heating_type") ?? "default").trim() ||
       "default";
+    const usableSocPercent = Number(
+      formData.get("usable_soc_percent") ?? DEFAULT_USABLE_SOC_PERCENT
+    );
+    const { minSoc, maxSoc } = resolveSocBounds(usableSocPercent);
 
     const chargingStations = collectChargingStations(
       stopsTbody,
@@ -736,8 +768,8 @@ export const initializeAddSimulation = async (
       bus_model_id: busModelId,
       prediction_params: predictionParams,
       charging_stations: chargingStations,
-      min_soc: 0.4,
-      max_soc: 0.9,
+      min_soc: minSoc,
+      max_soc: maxSoc,
       solver_name: "highs",
       max_solver_time_seconds: 300,
     };

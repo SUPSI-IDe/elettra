@@ -59,7 +59,7 @@
 
       <fieldset class="custom-variables-section">
         <legend data-i18n="simulation.custom_variables">Main variables</legend>
-        <div class="compact-row compact-row--3">
+        <div class="compact-row compact-row--2">
           <div class="form-group">
             <label for="var-external-temp" data-i18n="simulation.var_external_temp">
               External temperature (°C)
@@ -93,6 +93,23 @@
             <select id="var-heating-type" name="auxiliary_heating_type">
               <option value="hp">HP</option>
               <option value="diesel">Diesel</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="var-usable-soc-percent" data-i18n="simulation.var_usable_soc_percent">
+              Usable SOC (% of nominal)
+            </label>
+            <select id="var-usable-soc-percent" name="usable_soc_percent">
+              <option value="100">100%</option>
+              <option value="90">90%</option>
+              <option value="80">80%</option>
+              <option value="70">70%</option>
+              <option value="60">60%</option>
+              <option value="50" selected>50%</option>
+              <option value="40">40%</option>
+              <option value="30">30%</option>
+              <option value="20">20%</option>
+              <option value="10">10%</option>
             </select>
           </div>
         </div>
