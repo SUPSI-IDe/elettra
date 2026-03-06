@@ -183,15 +183,17 @@ const COLUMN_DEFS = {
     { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Plugs", min: 0, step: 1, defaultVal: 2 },
     { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 150 },
   ],
-  charging: [
+  charging_only: [
     { key: "slot_cost_chf", label: "simulation.cs_cost_per_plug", fallback: "CHF / plug", min: 0, step: 1000, defaultVal: 150000 },
-    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Plugs", min: 0, step: 1, defaultVal: 2 },
-    { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 150 },
+    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Max plugs", min: 1, step: 1, defaultVal: 2 },
+    { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 450 },
+    { key: "max_total_power_kw", label: "simulation.cs_max_total_power", fallback: "Max kW total", min: 0, step: 10, defaultVal: 450 },
   ],
   joint: [
-    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Plugs", min: 0, step: 1, defaultVal: 2 },
-    { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 150 },
     { key: "slot_cost_chf", label: "simulation.cs_cost_per_plug", fallback: "CHF / plug", min: 0, step: 1000, defaultVal: 150000 },
+    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Max plugs", min: 1, step: 1, defaultVal: 2 },
+    { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 450 },
+    { key: "max_total_power_kw", label: "simulation.cs_max_total_power", fallback: "Max kW total", min: 0, step: 10, defaultVal: 450 },
   ],
 };
 
@@ -256,22 +258,23 @@ const collectChargingStations = (tbody, mode) => {
       values[col.key] = input ? Number(input.value) : col.defaultVal;
     }
 
-    const numSlots = values.num_slots ?? 2;
-    const powerPerSlot = values.max_power_per_slot_kw ?? 450;
+    const station = { stop_id: stopId };
 
-    const station = {
-      stop_id: stopId,
-      num_slots: numSlots,
-      max_power_per_slot_kw: powerPerSlot,
-      max_total_power_kw: numSlots * powerPerSlot,
-    };
-
-    if (values.slot_cost_chf != null) {
-      const costPerPlug = values.slot_cost_chf;
+    if (mode === "battery_only") {
+      const numSlots = values.num_slots ?? 2;
+      const powerPerSlot = values.max_power_per_slot_kw ?? 150;
+      station.num_slots = numSlots;
+      station.max_total_power_kw = numSlots * powerPerSlot;
+      station.max_power_per_slot_kw = powerPerSlot;
+    } else {
+      const numSlots = values.num_slots ?? 2;
+      const costPerPlug = values.slot_cost_chf ?? 150000;
       station.slot_costs_chf = Array.from(
-        { length: numSlots + 1 },
+        { length: numSlots },
         (_, i) => (i === 0 ? costPerPlug * 2 : costPerPlug)
       );
+      station.max_total_power_kw = values.max_total_power_kw ?? 450;
+      station.max_power_per_slot_kw = values.max_power_per_slot_kw ?? 450;
     }
 
     stations.push(station);
@@ -295,12 +298,16 @@ export const initializeAddSimulation = async (
   );
   const shiftFilter = section.querySelector("#sim-shift-filter");
   const modeSelect = section.querySelector("#var-optimization-mode");
+  const busModelOverride = section.querySelector("#var-bus-model-override");
 
   const csSection = section.querySelector(
     '[data-role="charging-stations-section"]'
   );
   const batteryPacksGroup = section.querySelector(
     '[data-role="battery-packs-group"]'
+  );
+  const batteryCostGroup = section.querySelector(
+    '[data-role="battery-cost-group"]'
   );
   const stopsHint = section.querySelector('[data-role="stops-hint"]');
   const stopsWrapper = section.querySelector(
@@ -310,6 +317,7 @@ export const initializeAddSimulation = async (
   const stopsTbody = section.querySelector('[data-role="stops-tbody"]');
 
   let allShifts = [];
+  let allUserModels = [];
   let currentStops = [];
 
   const getSelectedShiftIds = () =>
@@ -318,6 +326,53 @@ export const initializeAddSimulation = async (
     )
       .map((input) => input.closest("tr")?.dataset?.id)
       .filter(Boolean);
+
+  const refreshBusModelOverride = () => {
+    if (!busModelOverride) return;
+    const selectedIds = getSelectedShiftIds();
+
+    let shiftModelId = "";
+    for (const shift of allShifts) {
+      if (!selectedIds.includes(text(shift?.id))) continue;
+      shiftModelId = text(shift?._resolved_bus_model_id ?? "");
+      if (shiftModelId) break;
+    }
+
+    const previousValue = busModelOverride.value;
+    busModelOverride.innerHTML = "";
+
+    if (!selectedIds.length) {
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      placeholder.textContent =
+        t("simulation.select_shift_first") || "Select a shift first…";
+      busModelOverride.appendChild(placeholder);
+      return;
+    }
+
+    for (const model of allUserModels) {
+      if (!model?.id) continue;
+      const modelId = text(model.id);
+      const resolved = resolveModelFields(model);
+      const label =
+        [resolved.manufacturer, resolved.model].filter(Boolean).join(" – ") ||
+        modelId;
+      const opt = document.createElement("option");
+      opt.value = modelId;
+      opt.textContent = label;
+      busModelOverride.appendChild(opt);
+    }
+
+    if (previousValue && [...busModelOverride.options].some((o) => o.value === previousValue)) {
+      busModelOverride.value = previousValue;
+    } else if (shiftModelId && [...busModelOverride.options].some((o) => o.value === shiftModelId)) {
+      busModelOverride.value = shiftModelId;
+    } else if (busModelOverride.options.length) {
+      busModelOverride.selectedIndex = 0;
+    }
+  };
 
   // ── Rebuild the charging-stations panel ───────────────────────────
   let rebuildSeq = 0;
@@ -333,12 +388,19 @@ export const initializeAddSimulation = async (
 
     if (csSection) csSection.hidden = false;
 
-    const needsBatteryInput = mode === "charging";
     if (batteryPacksGroup) {
-      if (needsBatteryInput) {
+      if (mode === "charging_only") {
         batteryPacksGroup.removeAttribute("hidden");
       } else {
         batteryPacksGroup.setAttribute("hidden", "");
+      }
+    }
+
+    if (batteryCostGroup) {
+      if (mode === "joint") {
+        batteryCostGroup.removeAttribute("hidden");
+      } else {
+        batteryCostGroup.setAttribute("hidden", "");
       }
     }
 
@@ -464,7 +526,10 @@ export const initializeAddSimulation = async (
         };
       });
 
+      allUserModels = userModels;
+
       renderShiftRows(shiftTbody, allShifts);
+      refreshBusModelOverride();
 
       if (options.prefill?.shiftId) {
         applyPrefill(options.prefill);
@@ -538,6 +603,7 @@ export const initializeAddSimulation = async (
 
   // ── Shift checkbox & mode change → rebuild stops ─────────────────
   const handleSelectionChange = () => {
+    refreshBusModelOverride();
     rebuildStopsTable();
   };
 
@@ -617,41 +683,6 @@ export const initializeAddSimulation = async (
       return;
     }
 
-    const selectedShifts = allShifts.filter((s) =>
-      selectedShiftIds.includes(text(s?.id))
-    );
-    const selectedModelIds = [
-      ...new Set(
-        selectedShifts
-          .map((shift) =>
-            text(
-              shift?._resolved_bus_model_id ??
-                shift?.bus?.bus_model_id ??
-                shift?.bus_model_id ??
-                shift?.busModelId ??
-                ""
-            )
-          )
-          .filter(Boolean)
-      ),
-    ];
-
-    if (!selectedModelIds.length) {
-      setFeedback(
-        section,
-        "Could not resolve bus model from selected shifts."
-      );
-      return;
-    }
-
-    if (selectedModelIds.length > 1) {
-      setFeedback(
-        section,
-        "Please select shifts that use the same bus model."
-      );
-      return;
-    }
-
     const formData = new FormData(form);
     const optimizationMode = text(
       formData.get("optimization_mode") ?? ""
@@ -682,12 +713,41 @@ export const initializeAddSimulation = async (
       occupancy_percent: occupancy,
       auxiliary_heating_type: heatingType,
       quantiles: [0.05, 0.5, 0.95],
-      num_battery_packs: 12,
     };
 
-    if (optimizationMode === "charging") {
+    if (optimizationMode === "charging_only") {
       const packs = Number(formData.get("num_battery_packs"));
       if (packs > 0) predictionParams.num_battery_packs = packs;
+    }
+
+    const busModelId = text(formData.get("bus_model_id") ?? "").trim();
+
+    if (!busModelId) {
+      setFeedback(
+        section,
+        t("simulation.bus_model_required") || "Select a bus model."
+      );
+      return;
+    }
+
+    const payload = {
+      mode: optimizationMode,
+      shift_ids: selectedShiftIds,
+      bus_model_id: busModelId,
+      prediction_params: predictionParams,
+      charging_stations: chargingStations,
+      min_soc: 0.4,
+      max_soc: 0.9,
+      solver_name: "highs",
+      max_solver_time_seconds: 300,
+    };
+
+    if (optimizationMode === "joint") {
+      const costPerKwh = Number(formData.get("battery_cost_per_kwh"));
+      if (costPerKwh > 0) payload.battery_cost_per_kwh = costPerKwh;
+      payload.battery_sizing_mode =
+        text(formData.get("battery_sizing_mode") ?? "per_bus").trim() ||
+        "per_bus";
     }
 
     const confirmMessage =
@@ -698,15 +758,7 @@ export const initializeAddSimulation = async (
     if (submitBtn) submitBtn.disabled = true;
 
     try {
-      const response = await createOptimizationRun({
-        mode: optimizationMode,
-        shift_ids: selectedShiftIds,
-        bus_model_id: selectedModelIds[0],
-        prediction_params: predictionParams,
-        charging_stations: chargingStations,
-        min_soc: 0.4,
-        max_soc: 0.9,
-      });
+      const response = await createOptimizationRun(payload);
 
       const runId = response?.id ?? response?.optimization_run_id ?? "";
       if (runId) saveRunIds([runId]);

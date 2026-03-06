@@ -8,7 +8,8 @@
 }
 
 .add-simulation form {
-  max-width: clamp(22rem, 60vw, 40rem);
+  max-width: clamp(22rem, 60vw, 42rem);
+  gap: var(--spacing-md);
 }
 
 .add-simulation .required-mark {
@@ -16,7 +17,7 @@
 }
 
 .add-simulation .required-note {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   margin: 0;
 }
@@ -25,33 +26,68 @@
   display: none !important;
 }
 
+/* ── Compact inputs & labels ─────────────────────────────────────── */
+
+.add-simulation label {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.add-simulation input,
+.add-simulation select {
+  padding: 0.4rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+.add-simulation .form-group {
+  gap: 0.2rem;
+}
+
+/* ── Compact row grids ───────────────────────────────────────────── */
+
+.add-simulation .compact-row {
+  display: grid;
+  gap: var(--spacing-sm, 0.5rem);
+  align-items: end;
+}
+
+.add-simulation .compact-row--2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.add-simulation .compact-row--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+/* ── Shift selection ─────────────────────────────────────────────── */
+
 .add-simulation .shift-selection {
   border: none;
   padding: 0;
 }
 
 .add-simulation .shift-search {
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs, 0.25rem);
 }
 
 .add-simulation .shift-search input {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.35rem 0.6rem;
   border: 1px solid var(--border-medium);
-  border-radius: 6px;
-  font-size: 0.875rem;
+  border-radius: 5px;
+  font-size: 0.82rem;
 }
 
 .add-simulation .shift-table-wrapper {
-  max-height: 280px;
+  max-height: 220px;
   overflow-y: auto;
   border: 1px solid var(--border-light);
-  border-radius: 6px;
+  border-radius: 5px;
 }
 
 .add-simulation .shift-table {
   width: 100%;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .add-simulation .shift-table th {
@@ -59,12 +95,17 @@
   top: 0;
   background-color: var(--bg-subtle);
   z-index: 1;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.add-simulation .shift-table td {
+  padding: 0.25rem 0.5rem;
 }
 
 .add-simulation .shift-table th.checkbox,
 .add-simulation .shift-table td.checkbox {
-  width: 2.5rem;
+  width: 2rem;
   text-align: center;
 }
 
@@ -76,49 +117,55 @@
   background-color: var(--brand-teal-bg);
 }
 
+/* ── Custom variables fieldset ───────────────────────────────────── */
+
 .add-simulation .custom-variables-section {
   border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: var(--spacing-md);
-  margin: var(--spacing-md) 0;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem 0.65rem;
+  margin: 0;
 }
 
 .add-simulation .custom-variables-section legend {
   color: var(--brand-teal);
   font-weight: 600;
-  padding: 0 0.4rem;
+  font-size: 0.85rem;
+  padding: 0 0.3rem;
 }
+
+/* ── Charging stations fieldset ──────────────────────────────────── */
 
 .add-simulation .charging-stations-section {
   border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: var(--spacing-md);
-  margin: var(--spacing-md) 0;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem 0.65rem;
+  margin: 0;
 }
 
 .add-simulation .charging-stations-section legend {
   color: var(--brand-teal);
   font-weight: 600;
-  padding: 0 0.4rem;
+  font-size: 0.85rem;
+  padding: 0 0.3rem;
 }
 
 .add-simulation .stops-hint {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
-  margin: 0.5rem 0;
+  margin: 0.25rem 0;
 }
 
 .add-simulation .stops-table-wrapper {
-  max-height: 320px;
+  max-height: 260px;
   overflow-y: auto;
   border: 1px solid var(--border-light);
-  border-radius: 6px;
-  margin-top: var(--spacing-sm);
+  border-radius: 5px;
+  margin-top: 0.25rem;
 }
 
 .add-simulation .stops-table {
   width: 100%;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   border-collapse: collapse;
 }
 
@@ -127,14 +174,14 @@
   top: 0;
   background-color: var(--bg-subtle);
   z-index: 1;
-  font-size: 0.75rem;
-  padding: 0.4rem 0.5rem;
+  font-size: 0.72rem;
+  padding: 0.3rem 0.4rem;
   text-align: left;
   white-space: nowrap;
 }
 
 .add-simulation .stops-table td {
-  padding: 0.35rem 0.5rem;
+  padding: 0.25rem 0.4rem;
   vertical-align: middle;
 }
 
@@ -143,22 +190,31 @@
 }
 
 .add-simulation .stops-table input[type="number"] {
-  width: 5.5rem;
-  padding: 0.25rem 0.4rem;
+  width: 5rem;
+  padding: 0.2rem 0.35rem;
   border: 1px solid var(--border-medium);
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
 .add-simulation .stops-table th.checkbox,
 .add-simulation .stops-table td.checkbox {
-  width: 2.5rem;
+  width: 2rem;
   text-align: center;
 }
 
 .add-simulation .stops-table td.stop-name {
-  max-width: 12rem;
+  max-width: 10rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── Responsive fallback for narrow viewports ────────────────────── */
+
+@media (max-width: 480px) {
+  .add-simulation .compact-row--2,
+  .add-simulation .compact-row--3 {
+    grid-template-columns: 1fr;
+  }
 }

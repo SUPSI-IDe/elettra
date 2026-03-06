@@ -174,6 +174,27 @@ export const fetchOptimizationRuns = async () => {
   return payload;
 };
 
+export const deleteOptimizationRun = async (runId) => {
+  if (!runId) throw new Error("Missing runId");
+  const headers = authHeaders();
+  const response = await fetch(
+    `${SIMULATION_PATH}/optimization-runs/${encodeURIComponent(runId)}`,
+    { method: "DELETE", headers }
+  );
+  if (response.status === 405) {
+    return { deleted: false, reason: "not_supported" };
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to delete optimization run.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return { deleted: true };
+};
+
 export const fetchOptimizationRun = async (runId) => {
   if (!runId) throw new Error("Missing runId");
   const headers = authHeaders();

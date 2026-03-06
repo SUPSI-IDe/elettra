@@ -43,6 +43,7 @@ const SPEC_FIELDS = [
   "max_battery_packs",
   "min_battery_packs",
   "battery_pack_size_kwh",
+  "battery_pack_cost_chf",
   "max_charging_power_kw",
   "battery_pack_weight_kg",
   "battery_pack_lifetime",
@@ -503,6 +504,13 @@ export const initializeAddBusModel = (root = document, options = {}) => {
     const formData = new FormData(form);
     const { name, manufacturer, model, description, specs } =
       toBusModelPayload(formData);
+    const currentSpecs = parseSpecs(currentModel.specs);
+    const resolvedModel =
+      model?.trim() ||
+      modelInput?.value?.toString().trim() ||
+      currentSpecs.model_type ||
+      currentModel.model ||
+      "";
 
     if (!name) {
       updateFeedback(feedback, "Name is required.", "error");
@@ -513,12 +521,22 @@ export const initializeAddBusModel = (root = document, options = {}) => {
     const manufacturerToSend =
       isOtherManufacturer && customManufacturer ? customManufacturer : manufacturer;
 
+    if (!manufacturerToSend) {
+      updateFeedback(feedback, "Manufacturer is required.", "error");
+      return;
+    }
+
     if (isOtherManufacturer && !customManufacturer) {
       updateFeedback(
         feedback,
         "Please enter a custom manufacturer name.",
         "error"
       );
+      return;
+    }
+
+    if (!resolvedModel) {
+      updateFeedback(feedback, "Model is required.", "error");
       return;
     }
 
@@ -530,6 +548,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
       { key: "max_battery_packs", label: "Max battery packs" },
       { key: "min_battery_packs", label: "Min battery packs" },
       { key: "battery_pack_size_kwh", label: "Battery pack size (kWh)" },
+      { key: "battery_pack_cost_chf", label: "Battery pack cost (CHF)" },
       { key: "max_charging_power_kw", label: "Max charging power (kW)" },
       { key: "battery_pack_weight_kg", label: "Battery pack weight (kg)" },
       { key: "battery_pack_lifetime", label: "Battery pack lifetime (years)" },
@@ -549,8 +568,8 @@ export const initializeAddBusModel = (root = document, options = {}) => {
     try {
       const userId = await resolveUserId();
       const mergedSpecs = { ...specs };
-      if (model) {
-        mergedSpecs.model_type = model;
+      if (resolvedModel) {
+        mergedSpecs.model_type = resolvedModel;
       }
       mergedSpecs.auxiliary_consumption_kw = AUXILIARY_CONSUMPTION_KW_DEFAULTS;
 
@@ -558,7 +577,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
         await updateBusModel(currentModel.id, {
           name,
           manufacturer: manufacturerToSend,
-          model,
+          model: resolvedModel,
           description,
           specs: mergedSpecs,
           userId,
@@ -568,7 +587,7 @@ export const initializeAddBusModel = (root = document, options = {}) => {
         const createdModel = await createBusModel({
           name,
           manufacturer: manufacturerToSend,
-          model,
+          model: resolvedModel,
           description,
           specs: mergedSpecs,
           userId,

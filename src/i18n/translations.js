@@ -162,6 +162,8 @@ export const translations = {
     "simulation.compare_select_placeholder": "Select a simulation…",
     "simulation.compare_btn": "Compare",
     "simulation.compare_same_error": "Please select two different simulations.",
+    "simulation.var_bus_model_override": "Bus model override",
+    "simulation.select_shift_first": "Select a shift first…",
 
     // Buses
     "buses.title": "Bus Models",
@@ -187,6 +189,8 @@ export const translations = {
     "buses.model_name": "Name",
     "buses.model_manufacturer": "Manufacturer",
     "buses.model_type": "Type",
+    "buses.model_model": "Model",
+    "buses.required_fields_note": "* Indicates required fields",
     "buses.model_cost": "Cost [kCHF]",
     "buses.model_lifetime": "Lifetime [y]",
     "buses.model_max_passengers": "Max passengers",
@@ -204,6 +208,7 @@ export const translations = {
     "buses.field_max_battery_packs": "Max battery packs",
     "buses.field_min_battery_packs": "Min battery packs",
     "buses.field_battery_pack_size": "Battery pack size (kWh)",
+    "buses.field_battery_pack_cost": "Battery pack cost (CHF)",
     "buses.field_max_charging_power": "Max charging power (kW)",
     "buses.field_battery_pack_weight": "Battery pack weight (kg)",
     "buses.field_battery_pack_lifetime": "Battery pack lifetime (years)",
@@ -588,6 +593,8 @@ export const translations = {
     "simulation.compare_select_placeholder": "Simulation auswählen…",
     "simulation.compare_btn": "Vergleichen",
     "simulation.compare_same_error": "Bitte wählen Sie zwei verschiedene Simulationen.",
+    "simulation.var_bus_model_override": "Busmodell überschreiben",
+    "simulation.select_shift_first": "Zuerst eine Schicht auswählen…",
 
     // Buses
     "buses.title": "Busmodelle",
@@ -613,6 +620,8 @@ export const translations = {
     "buses.model_name": "Name",
     "buses.model_manufacturer": "Hersteller",
     "buses.model_type": "Typ",
+    "buses.model_model": "Modell",
+    "buses.required_fields_note": "* Kennzeichnet Pflichtfelder",
     "buses.model_cost": "Kosten [kCHF]",
     "buses.model_lifetime": "Lebensdauer [J]",
     "buses.model_max_passengers": "Max. Passagiere",
@@ -630,6 +639,7 @@ export const translations = {
     "buses.field_max_battery_packs": "Max. Batteriepakete",
     "buses.field_min_battery_packs": "Min. Batteriepakete",
     "buses.field_battery_pack_size": "Batteriepack-Größe (kWh)",
+    "buses.field_battery_pack_cost": "Batteriepack-Kosten (CHF)",
     "buses.field_max_charging_power": "Max. Ladeleistung (kW)",
     "buses.field_battery_pack_weight": "Batteriepack-Gewicht (kg)",
     "buses.field_battery_pack_lifetime": "Batteriepack-Lebensdauer (Jahre)",
@@ -1014,6 +1024,8 @@ export const translations = {
     "simulation.compare_select_placeholder": "Sélectionner une simulation…",
     "simulation.compare_btn": "Comparer",
     "simulation.compare_same_error": "Veuillez sélectionner deux simulations différentes.",
+    "simulation.var_bus_model_override": "Remplacement du modèle de bus",
+    "simulation.select_shift_first": "Sélectionnez d'abord un quart…",
 
     // Buses
     "buses.title": "Modèles de bus",
@@ -1039,6 +1051,8 @@ export const translations = {
     "buses.model_name": "Nom",
     "buses.model_manufacturer": "Fabricant",
     "buses.model_type": "Type",
+    "buses.model_model": "Modèle",
+    "buses.required_fields_note": "* Indique les champs obligatoires",
     "buses.model_cost": "Coût [kCHF]",
     "buses.model_lifetime": "Durée de vie [ans]",
     "buses.model_max_passengers": "Passagers max",
@@ -1056,6 +1070,7 @@ export const translations = {
     "buses.field_max_battery_packs": "Packs batterie max",
     "buses.field_min_battery_packs": "Packs batterie min",
     "buses.field_battery_pack_size": "Taille du pack batterie (kWh)",
+    "buses.field_battery_pack_cost": "Coût du pack batterie (CHF)",
     "buses.field_max_charging_power": "Puissance de charge max (kW)",
     "buses.field_battery_pack_weight": "Poids du pack batterie (kg)",
     "buses.field_battery_pack_lifetime": "Durée de vie du pack batterie (ans)",
@@ -1440,6 +1455,8 @@ export const translations = {
     "simulation.compare_select_placeholder": "Seleziona una simulazione…",
     "simulation.compare_btn": "Confronta",
     "simulation.compare_same_error": "Selezionare due simulazioni diverse.",
+    "simulation.var_bus_model_override": "Sostituzione modello autobus",
+    "simulation.select_shift_first": "Seleziona prima un turno…",
 
     // Buses
     "buses.title": "Modelli di autobus",
@@ -1465,6 +1482,8 @@ export const translations = {
     "buses.model_name": "Nome",
     "buses.model_manufacturer": "Produttore",
     "buses.model_type": "Tipo",
+    "buses.model_model": "Modello",
+    "buses.required_fields_note": "* Indica i campi obbligatori",
     "buses.model_cost": "Costo [kCHF]",
     "buses.model_lifetime": "Vita utile [anni]",
     "buses.model_max_passengers": "Passeggeri max",
@@ -1482,6 +1501,7 @@ export const translations = {
     "buses.field_max_battery_packs": "Pacchi batteria max",
     "buses.field_min_battery_packs": "Pacchi batteria min",
     "buses.field_battery_pack_size": "Dimensione pacco batteria (kWh)",
+    "buses.field_battery_pack_cost": "Costo pacco batteria (CHF)",
     "buses.field_max_charging_power": "Potenza di ricarica max (kW)",
     "buses.field_battery_pack_weight": "Peso pacco batteria (kg)",
     "buses.field_battery_pack_lifetime": "Vita utile pacco batteria (anni)",

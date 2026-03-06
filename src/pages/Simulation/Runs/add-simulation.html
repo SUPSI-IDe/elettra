@@ -59,68 +59,69 @@
 
       <fieldset class="custom-variables-section">
         <legend data-i18n="simulation.custom_variables">Main variables</legend>
-
-        <div class="form-group">
-          <label for="var-external-temp" data-i18n="simulation.var_external_temp">
-            External temperature (°C)
-          </label>
-          <input
-            type="number"
-            id="var-external-temp"
-            name="external_temp_celsius"
-            step="0.5"
-            value="-5"
-          />
+        <div class="compact-row compact-row--3">
+          <div class="form-group">
+            <label for="var-external-temp" data-i18n="simulation.var_external_temp">
+              External temperature (°C)
+            </label>
+            <input
+              type="number"
+              id="var-external-temp"
+              name="external_temp_celsius"
+              step="0.5"
+              value="-5"
+            />
+          </div>
+          <div class="form-group">
+            <label for="var-occupancy" data-i18n="simulation.var_occupancy">
+              Avg. passengers (%)
+            </label>
+            <input
+              type="number"
+              id="var-occupancy"
+              name="occupancy_percent"
+              step="10"
+              min="0"
+              max="100"
+              value="50"
+            />
+          </div>
+          <div class="form-group">
+            <label for="var-heating-type" data-i18n="simulation.var_heating_type">
+              Heating type
+            </label>
+            <select id="var-heating-type" name="auxiliary_heating_type">
+              <option value="hp">HP</option>
+              <option value="diesel">Diesel</option>
+            </select>
+          </div>
         </div>
-
-        <div class="form-group">
-          <label
-            for="var-occupancy"
-            data-i18n="simulation.var_occupancy"
-          >
-            Average passenger on board (%)
-          </label>
-          <input
-            type="number"
-            id="var-occupancy"
-            name="occupancy_percent"
-            step="10"
-            min="0"
-            max="100"
-            value="50"
-          />
-        </div>
-
-        <div class="form-group">
-          <label
-            for="var-heating-type"
-            data-i18n="simulation.var_heating_type"
-          >
-            Auxiliary heating type
-          </label>
-          <select id="var-heating-type" name="auxiliary_heating_type">
-            <option value="hp">HP</option>
-            <option value="diesel">Diesel</option>
-          </select>
-        </div>
-
       </fieldset>
 
-      <div class="form-group">
-        <label
-          for="var-optimization-mode"
-          data-i18n="simulation.var_optimization_mode"
-        >
-          Optimization mode
-        </label>
-        <select id="var-optimization-mode" name="optimization_mode">
-          <option value="" selected disabled data-i18n="simulation.select_optimization_mode">
-            Select a mode…
-          </option>
-          <option value="battery_only" data-i18n="simulation.mode_battery_only">Battery only</option>
-          <option value="charging" data-i18n="simulation.mode_charging">Charging</option>
-          <option value="joint" data-i18n="simulation.mode_joint">Joint</option>
-        </select>
+      <div class="compact-row compact-row--2">
+        <div class="form-group">
+          <label for="var-bus-model-override" data-i18n="simulation.var_bus_model_override">
+            Bus model override
+          </label>
+          <select id="var-bus-model-override" name="bus_model_id">
+            <option value="" disabled selected data-i18n="simulation.select_shift_first">
+              Select a shift first…
+            </option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="var-optimization-mode" data-i18n="simulation.var_optimization_mode">
+            Optimization mode
+          </label>
+          <select id="var-optimization-mode" name="optimization_mode">
+            <option value="" selected disabled data-i18n="simulation.select_optimization_mode">
+              Select a mode…
+            </option>
+            <option value="battery_only" data-i18n="simulation.mode_battery_only">Battery only</option>
+            <option value="charging_only" data-i18n="simulation.mode_charging">Charging</option>
+            <option value="joint" data-i18n="simulation.mode_joint">Joint</option>
+          </select>
+        </div>
       </div>
 
       <fieldset class="charging-stations-section" data-role="charging-stations-section" hidden>
@@ -138,6 +139,31 @@
             step="1"
             value="6"
           />
+        </div>
+
+        <div data-role="battery-cost-group" hidden>
+          <div class="form-group">
+            <label for="var-battery-cost-per-kwh" data-i18n="simulation.var_battery_cost_per_kwh">
+              Battery cost (CHF / kWh)
+            </label>
+            <input
+              type="number"
+              id="var-battery-cost-per-kwh"
+              name="battery_cost_per_kwh"
+              min="0"
+              step="10"
+              value="300"
+            />
+          </div>
+          <div class="form-group">
+            <label for="var-battery-sizing-mode" data-i18n="simulation.var_battery_sizing_mode">
+              Battery sizing mode
+            </label>
+            <select id="var-battery-sizing-mode" name="battery_sizing_mode">
+              <option value="per_bus" data-i18n="simulation.sizing_per_bus">Per bus</option>
+              <option value="per_route" data-i18n="simulation.sizing_per_route">Per route</option>
+            </select>
+          </div>
         </div>
 
         <p class="stops-hint" data-role="stops-hint" hidden data-i18n="simulation.select_shifts_for_stops">

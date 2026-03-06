@@ -19,16 +19,17 @@
 
 /* Page-specific overrides for bus model forms */
 .add-bus-model main {
-  max-width: 720px;
+  max-width: 1120px;
+  padding: var(--spacing-lg);
   overflow-y: auto;
 }
 
 .add-bus-model h1 {
-  color: var(--brand-teal);
+  color: var(--dark-blue);
 }
 
 .add-bus-model form {
-  max-width: clamp(22rem, 60vw, 32rem);
+  max-width: none;
 }
 
 .add-bus-model .required-mark {
@@ -41,24 +42,159 @@
   margin: 0;
 }
 
+.add-bus-model .optional-note {
+  font-size: 0.8em;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.add-bus-model .bus-model-shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.add-bus-model .bus-model-intro-card {
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.add-bus-model .bus-model-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--action-blue);
+}
+
+.add-bus-model .bus-model-intro-copy h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--dark-blue);
+}
+
+.add-bus-model .bus-model-intro-copy p:last-child {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+}
+
+.add-bus-model .bus-model-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.add-bus-model .bus-model-panel {
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: var(--spacing-lg);
+  background: #ffffff;
+}
+
+.add-bus-model .bus-model-panel--wide {
+  grid-column: 1 / -1;
+}
+
+.add-bus-model .bus-model-panel-header {
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--action-blue);
+}
+
+.add-bus-model .bus-model-panel-header h3 {
+  margin: 0 0 0.2rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.add-bus-model .bus-model-panel-header p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.add-bus-model .bus-model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--spacing-md);
+}
+
+.add-bus-model .bus-model-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.add-bus-model .bus-model-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.add-bus-model .bus-model-field--full {
+  grid-column: 1 / -1;
+}
+
+.add-bus-model .form-group {
+  gap: 0.35rem;
+}
+
+.add-bus-model label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-label);
+}
+
+.add-bus-model input,
+.add-bus-model select,
+.add-bus-model textarea {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.add-bus-model textarea {
+  min-height: 7rem;
+}
+
 .add-bus-model .manufacturer-row {
   display: flex;
-  gap: var(--spacing-xs);
+  flex-direction: column;
+  gap: var(--spacing-sm);
   align-items: flex-start;
-  flex-wrap: wrap;
 }
 
 .add-bus-model .manufacturer-row .autocomplete-wrapper {
-  flex: 1 1 14rem;
+  min-width: 0;
+  width: 100%;
 }
 
 .add-bus-model .manufacturer-row .custom-manufacturer {
-  flex: 1 1 14rem;
+  min-width: 0;
+  width: 100%;
 }
 
 .add-bus-model .form-group input:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.add-bus-model .bus-model-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-light);
+}
+
+.add-bus-model .form-actions {
+  margin-top: 0;
 }
 
 .bus-models table {
@@ -77,4 +213,34 @@
 .bus-models th.checkbox,
 .bus-models td.checkbox {
   width: 2.5rem;
+}
+
+@media (max-width: 900px) {
+  .add-bus-model .bus-model-panels,
+  .add-bus-model .bus-model-grid--2,
+  .add-bus-model .bus-model-grid--3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .add-bus-model main {
+    padding: var(--spacing-md);
+  }
+
+  .add-bus-model .bus-model-intro-card,
+  .add-bus-model .bus-model-panel {
+    padding: var(--spacing-md);
+  }
+
+  .add-bus-model .manufacturer-row,
+  .add-bus-model .bus-model-form-footer {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .add-bus-model .form-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }

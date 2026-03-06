@@ -1,7 +1,7 @@
 import { t } from "../../../i18n";
 import "./simulation-runs.css";
 import { fetchBusModels } from "../../../api";
-import { fetchOptimizationRuns } from "../../../api/simulation";
+import { fetchOptimizationRuns, deleteOptimizationRun } from "../../../api/simulation";
 import { fetchShiftById } from "../../../api/shifts";
 import { isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
@@ -18,6 +18,22 @@ const looksLikeUuid = (value) => UUID_RE.test(text(value).trim());
 
 /** @deprecated Runs are now persisted server-side; kept for backward compat with callers. */
 export const saveRunIds = () => {};
+
+const DISMISSED_KEY = "elettra_dismissed_runs";
+
+const getDismissedIds = () => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]"));
+  } catch {
+    return new Set();
+  }
+};
+
+const addDismissedIds = (ids = []) => {
+  const current = getDismissedIds();
+  ids.forEach((id) => current.add(id));
+  localStorage.setItem(DISMISSED_KEY, JSON.stringify([...current]));
+};
 
 const setFlashMessage = (section, message) => {
   const flashElement = section.querySelector('[data-role="flash"]');
@@ -100,6 +116,13 @@ const resolveCreatedAt = (run = {}) => {
   return run?.created_at ?? run?.createdAt ?? "";
 };
 
+const resolveShiftId = (run = {}) => {
+  const direct = run?.shift_id ?? run?.shiftId ?? "";
+  if (direct) return text(direct);
+  const ids = run?.input_params?.shift_ids ?? run?.inputParams?.shift_ids ?? [];
+  return Array.isArray(ids) && ids.length ? text(ids[0]) : "";
+};
+
 const resolveShiftName = (run = {}) => {
   return (
     run?._resolved_shift_name ??
@@ -111,23 +134,19 @@ const resolveShiftName = (run = {}) => {
 };
 
 const resolveBusModelId = (run = {}) => {
-  return (
+  return text(
     run?._resolved_bus_model_id ??
     run?.bus_model_id ??
     run?.busModelId ??
-    run?.shift?.bus?.bus_model_id ??
-    run?.shift?.bus_model_id ??
-    run?.shift?.busModelId ??
     ""
   );
 };
 
 const resolveBusModelName = (run = {}) => {
-  return (
+  return text(
     run?._resolved_bus_model_name ??
     run?.bus_model_name ??
     run?.busModelName ??
-    run?.shift?.bus_model_name ??
     ""
   );
 };
@@ -145,7 +164,7 @@ const renderRows = (tbody, runs = []) => {
       const rowId = text(run?.id);
       const status = text(run?.status ?? "pending");
       const created = formatDate(resolveCreatedAt(run));
-      const shiftId = text(run?.shift_id ?? "");
+      const shiftId = resolveShiftId(run);
       const shiftName = resolveShiftName(run) || (shiftId ? `${shiftId.slice(0, 8)}…` : "—");
       const busModelId = text(resolveBusModelId(run)).trim();
       const busModelName = text(resolveBusModelName(run)).trim();
@@ -234,17 +253,10 @@ export const initializeSimulationRuns = async (
     const missing = runs
       .map((r) => ({
         run: r,
-        shiftId: text(r?.shift_id ?? ""),
+        shiftId: resolveShiftId(r),
         hasName: Boolean(resolveShiftName(r)),
-        hasBusModelId: Boolean(resolveBusModelId(r)),
-        hasBusModelName:
-          Boolean(resolveBusModelName(r)) &&
-          !looksLikeUuid(resolveBusModelName(r)),
       }))
-      .filter(
-        (x) =>
-          x.shiftId && (!x.hasName || !x.hasBusModelId || !x.hasBusModelName)
-      );
+      .filter((x) => x.shiftId && !x.hasName);
 
     if (!missing.length) return;
 
@@ -258,35 +270,14 @@ export const initializeSimulationRuns = async (
         if (res.status === "fulfilled") {
           const shift = res.value ?? {};
           const name = text(shift?.name ?? "").trim();
-          const busModelId = text(
-            shift?.bus?.bus_model_id ?? shift?.bus_model_id ?? shift?.busModelId ?? ""
-          ).trim();
-          const busModelName = text(
-            shift?.bus_model_name ??
-              shift?.busModelName ??
-              shift?.bus?.model ??
-              shift?.bus?.bus_model_name ??
-              ""
-          ).trim();
-          if (name || busModelId) {
-            shiftMetaCache.set(id, { name, busModelId, busModelName });
-          }
+          if (name) shiftMetaCache.set(id, { name });
         }
       });
     }
 
     missing.forEach(({ run, shiftId }) => {
       const meta = shiftMetaCache.get(shiftId);
-      if (!meta) return;
-      if (meta.name) run._resolved_shift_name = meta.name;
-      if (meta.busModelId) run._resolved_bus_model_id = meta.busModelId;
-      const resolvedModel = busModelsById?.[text(meta.busModelId)];
-      const label = text(resolveModelFields(resolvedModel).model).trim();
-      if (label) {
-        run._resolved_bus_model_name = label;
-      } else if (meta.busModelName && !looksLikeUuid(meta.busModelName)) {
-        run._resolved_bus_model_name = meta.busModelName;
-      }
+      if (meta?.name) run._resolved_shift_name = meta.name;
     });
   };
 
@@ -331,13 +322,15 @@ export const initializeSimulationRuns = async (
       }
 
       const runsPayload = await fetchOptimizationRuns();
-      allRuns = Array.isArray(runsPayload)
+      const rawRuns = Array.isArray(runsPayload)
         ? runsPayload
         : (runsPayload?.items ?? runsPayload?.results ?? []);
 
+      const dismissed = getDismissedIds();
+      allRuns = rawRuns.filter((r) => !dismissed.has(text(r?.id)));
+
       hydrateRunModelNamesFromId(allRuns);
       await enrichShiftNames(allRuns);
-      hydrateRunModelNamesFromId(allRuns);
 
       applyFilter();
     } catch (error) {
@@ -372,7 +365,7 @@ export const initializeSimulationRuns = async (
 
     triggerPartialLoad("add-simulation", {
       prefill: {
-        shiftId: text(run?.shift_id ?? ""),
+        shiftId: resolveShiftId(run),
         optimizationMode:
           run?.mode ?? run?.optimization_mode ?? "battery_only",
         externalTempCelsius:
@@ -395,17 +388,48 @@ export const initializeSimulationRuns = async (
   const handleDeleteClick = async () => {
     const ids = getSelectedIdsFrom(table);
     if (!ids.length) {
-      console.error("Select at least one simulation.");
+      setFlashMessage(
+        section,
+        t("simulation.select_to_delete") ||
+          "Select at least one simulation to delete."
+      );
       return;
     }
 
-    const confirmDelete = confirm(
-      `Remove ${ids.length} simulation(s) from list?`
-    );
-    if (!confirmDelete) return;
+    const msg = (t("simulation.delete_confirm") || "Delete {count} simulation(s)?")
+      .replace("{count}", ids.length);
+    if (!confirm(msg)) return;
+
+    let serverDeleted = 0;
+    let serverFailed = 0;
+    const notSupported = [];
+
+    for (const id of ids) {
+      try {
+        const result = await deleteOptimizationRun(id);
+        if (result.deleted) {
+          serverDeleted++;
+        } else {
+          notSupported.push(id);
+        }
+      } catch {
+        serverFailed++;
+        notSupported.push(id);
+      }
+    }
+
+    if (notSupported.length) {
+      addDismissedIds(notSupported);
+    }
 
     allRuns = allRuns.filter((r) => !ids.includes(text(r?.id)));
     applyFilter();
+    populateCompareSelects();
+
+    setFlashMessage(
+      section,
+      `${ids.length} simulation(s) removed.`
+    );
   };
   if (deleteButton) {
     deleteButton.addEventListener("click", handleDeleteClick);
@@ -438,7 +462,7 @@ export const initializeSimulationRuns = async (
       busModelId: modelId,
       status: text(run?.status ?? ""),
       createdAt: formatDate(resolveCreatedAt(run)),
-      shiftId: text(run?.shift_id ?? ""),
+      shiftId: resolveShiftId(run),
       occupancyPercent: run?.occupancy_percent ?? run?.occupancyPercent,
       externalTemp: run?.external_temp_celsius ?? run?.externalTempCelsius,
       heatingType: run?.auxiliary_heating_type ?? run?.auxiliaryHeatingType,
