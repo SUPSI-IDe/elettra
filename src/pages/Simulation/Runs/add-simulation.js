@@ -209,13 +209,11 @@ const COLUMN_DEFS = {
     { key: "slot_cost_chf", label: "simulation.cs_cost_per_plug", fallback: "CHF / plug", min: 0, step: 1000, defaultVal: 150000 },
     { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Max plugs", min: 1, step: 1, defaultVal: 2 },
     { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 450 },
-    { key: "max_total_power_kw", label: "simulation.cs_max_total_power", fallback: "Max kW total", min: 0, step: 10, defaultVal: 450 },
   ],
   joint: [
     { key: "slot_cost_chf", label: "simulation.cs_cost_per_plug", fallback: "CHF / plug", min: 0, step: 1000, defaultVal: 150000 },
     { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Max plugs", min: 1, step: 1, defaultVal: 2 },
     { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 450 },
-    { key: "max_total_power_kw", label: "simulation.cs_max_total_power", fallback: "Max kW total", min: 0, step: 10, defaultVal: 450 },
   ],
 };
 
@@ -291,12 +289,14 @@ const collectChargingStations = (tbody, mode) => {
     } else {
       const numSlots = values.num_slots ?? 2;
       const costPerPlug = values.slot_cost_chf ?? 150000;
+      const powerPerSlot = values.max_power_per_slot_kw ?? 450;
+      station.num_slots = numSlots;
       station.slot_costs_chf = Array.from(
         { length: numSlots },
         (_, i) => (i === 0 ? costPerPlug * 2 : costPerPlug)
       );
-      station.max_total_power_kw = values.max_total_power_kw ?? 450;
-      station.max_power_per_slot_kw = values.max_power_per_slot_kw ?? 450;
+      station.max_total_power_kw = numSlots * powerPerSlot;
+      station.max_power_per_slot_kw = powerPerSlot;
     }
 
     stations.push(station);
