@@ -6,13 +6,20 @@ import {
   fetchBuses,
   fetchStopsByTripId,
 } from "../../../api";
-import { createOptimizationRun } from "../../../api/simulation";
+import {
+  createOptimizationRun,
+  fetchOptimizationRun,
+} from "../../../api/simulation";
 import { fetchShiftById } from "../../../api/shifts";
 import { isAuthenticated } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveModelFields } from "../../../ui-helpers";
 import { saveRunIds } from "./simulation-runs";
+import {
+  DEFAULT_PREDICTION_MODEL_NAME,
+  DEFAULT_PREDICTION_QUANTILES,
+} from "../../../config/simulation-defaults";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -21,6 +28,15 @@ const DEFAULT_USABLE_SOC_PERCENT = 50;
 const ALLOWED_USABLE_SOC_PERCENTS = new Set([
   100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
 ]);
+const OPTIMIZATION_POLL_INTERVAL_MS = 3000;
+const OPTIMIZATION_MAX_POLL_ATTEMPTS = 200;
+const TERMINAL_OPTIMIZATION_STATUSES = new Set([
+  "completed",
+  "failed",
+  "done",
+  "error",
+]);
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const resolveSocBounds = (usableSocPercent) => {
   const parsedPercent = Number(usableSocPercent);
@@ -50,6 +66,24 @@ const setFeedback = (section, message, tone = "error") => {
     el.textContent = "";
     el.hidden = true;
   }
+};
+
+const waitForOptimizationCompletion = async (runId) => {
+  for (let attempt = 0; attempt < OPTIMIZATION_MAX_POLL_ATTEMPTS; attempt++) {
+    const run = await fetchOptimizationRun(runId);
+    const status = text(run?.status).trim().toLowerCase();
+
+    if (TERMINAL_OPTIMIZATION_STATUSES.has(status)) {
+      return run;
+    }
+
+    await wait(OPTIMIZATION_POLL_INTERVAL_MS);
+  }
+
+  throw new Error(
+    t("simulation.still_running") ||
+      "Simulation is still running. Refresh later to see results."
+  );
 };
 
 const renderShiftRows = (tbody, shifts = []) => {
@@ -322,6 +356,21 @@ export const initializeAddSimulation = async (
   const modeSelect = section.querySelector("#var-optimization-mode");
   const busModelOverride = section.querySelector("#var-bus-model-override");
 
+  const progressOverlay = section.querySelector(
+    '[data-role="simulation-progress"]'
+  );
+  const progressMessage = section.querySelector(
+    '[data-role="progress-message"]'
+  );
+
+  const showProgress = (message) => {
+    if (progressMessage) progressMessage.textContent = message;
+    if (progressOverlay) progressOverlay.hidden = false;
+  };
+  const hideProgress = () => {
+    if (progressOverlay) progressOverlay.hidden = true;
+  };
+
   const csSection = section.querySelector(
     '[data-role="charging-stations-section"]'
   );
@@ -411,11 +460,7 @@ export const initializeAddSimulation = async (
     if (csSection) csSection.hidden = false;
 
     if (batteryPacksGroup) {
-      if (mode === "charging_only") {
-        batteryPacksGroup.removeAttribute("hidden");
-      } else {
-        batteryPacksGroup.setAttribute("hidden", "");
-      }
+      batteryPacksGroup.setAttribute("hidden", "");
     }
 
     if (batteryCostGroup) {
@@ -740,17 +785,12 @@ export const initializeAddSimulation = async (
     );
 
     const predictionParams = {
-      model_name: "greybox_qrf_production_crps_optimized_3",
+      model_name: DEFAULT_PREDICTION_MODEL_NAME,
       external_temp_celsius: externalTemp,
       occupancy_percent: occupancy,
       auxiliary_heating_type: heatingType,
-      quantiles: [0.05, 0.5, 0.95],
+      quantiles: DEFAULT_PREDICTION_QUANTILES,
     };
-
-    if (optimizationMode === "charging_only") {
-      const packs = Number(formData.get("num_battery_packs"));
-      if (packs > 0) predictionParams.num_battery_packs = packs;
-    }
 
     const busModelId = text(formData.get("bus_model_id") ?? "").trim();
 
@@ -790,17 +830,47 @@ export const initializeAddSimulation = async (
     if (submitBtn) submitBtn.disabled = true;
 
     try {
+      showProgress(
+        t("simulation.creating_predictions") ||
+          "Creating prediction runs and waiting for completion…"
+      );
+
       const response = await createOptimizationRun(payload);
 
+      showProgress(
+        t("simulation.optimization_submitted") ||
+          "Optimization run submitted. Redirecting…"
+      );
+
       const runId = response?.id ?? response?.optimization_run_id ?? "";
-      if (runId) saveRunIds([runId]);
+      if (!runId) {
+        console.error("[elettra] optimization response has no run ID:", response);
+        hideProgress();
+        setFeedback(
+          section,
+          "Optimization run was submitted but no ID was returned. Check the backend logs."
+        );
+        return;
+      }
+
+      saveRunIds([runId]);
+
+      const completedRun = await waitForOptimizationCompletion(runId);
+      const finalStatus = text(completedRun?.status).trim().toLowerCase();
+
+      hideProgress();
 
       triggerPartialLoad("simulation-runs", {
         flashMessage:
-          t("simulation.completed") || "Simulation submitted successfully.",
+          finalStatus === "failed" || finalStatus === "error"
+            ? t("simulation.finished_with_failures", { failed: 1, total: 1 }) ||
+              "Simulation finished with failures."
+            : t("simulation.completed") ||
+              "Simulation completed successfully.",
       });
     } catch (error) {
       console.error("Failed to submit simulation", error);
+      hideProgress();
       setFeedback(section, error?.message ?? "Failed to submit simulation.");
     } finally {
       if (submitBtn) submitBtn.disabled = false;

@@ -209,6 +209,17 @@
         </button>
         <button type="submit" data-i18n="simulation.run">Run simulation</button>
       </div>
+
+      <div class="simulation-progress" data-role="simulation-progress" hidden>
+        <div class="simulation-progress__overlay">
+          <div class="simulation-progress__content">
+            <div class="simulation-progress__spinner"></div>
+            <p class="simulation-progress__message" data-role="progress-message">
+              Creating prediction runs…
+            </p>
+          </div>
+        </div>
+      </div>
     </form>
   </main>
 </section>

@@ -8,6 +8,10 @@ import { isAuthenticated } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
 import { saveRunIds } from "./simulation-runs";
+import {
+  DEFAULT_PREDICTION_MODEL_NAME,
+  DEFAULT_PREDICTION_QUANTILES,
+} from "../../../config/simulation-defaults";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -119,8 +123,6 @@ export const initializeSimulationDetail = async (
     const externalTemp = Number(formData.get("external_temp_celsius") ?? 15);
     const occupancy = Number(formData.get("occupancy_percent") ?? 50);
     const heatingType = (formData.get("auxiliary_heating_type") ?? "default").trim();
-    const batteryPacksRaw = (formData.get("num_battery_packs") ?? "").trim();
-    const numBatteryPacks = batteryPacksRaw ? Number(batteryPacksRaw) : undefined;
 
     if (!busModelId) {
       setFeedback(
@@ -139,12 +141,11 @@ export const initializeSimulationDetail = async (
         shift_ids: shiftIds,
         bus_model_id: busModelId,
         prediction_params: {
-          model_name: "greybox_qrf_production_crps_optimized_3",
+          model_name: DEFAULT_PREDICTION_MODEL_NAME,
           external_temp_celsius: externalTemp,
           occupancy_percent: occupancy,
           auxiliary_heating_type: heatingType,
-          num_battery_packs: numBatteryPacks,
-          quantiles: [0.05, 0.5, 0.95],
+          quantiles: DEFAULT_PREDICTION_QUANTILES,
         },
         min_soc: 0.4,
         max_soc: 0.9,

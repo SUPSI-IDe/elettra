@@ -90,7 +90,7 @@
 }
 
 .simulation-runs-table .results-link {
-  color: #0062cc;
+    color: #0062cc;
   text-decoration: underline;
   cursor: pointer;
   font-size: 0.85rem;
