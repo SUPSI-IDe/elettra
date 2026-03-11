@@ -8,11 +8,13 @@ import {
 } from "../config/simulation-defaults";
 
 const SIMULATION_PATH = `${API_ROOT}/api/v1/simulation`;
+const ECONOMIC_PATH = `${API_ROOT}/api/v1/economic`;
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
 
 const toFiniteNumber = (value) => {
+  if (value === "" || (typeof value === "string" && value.trim() === "")) return null;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
 };
@@ -48,14 +50,11 @@ const computeBatteryPackCases = (specs = {}) => {
   }
 
   const batteryPackCases = [];
-  for (let packs = minBatteryPacks; packs <= maxBatteryPacks; packs += 2) {
+  for (let packs = minBatteryPacks; packs <= maxBatteryPacks; packs += 1) {
     batteryPackCases.push(packs);
   }
-  if (batteryPackCases[batteryPackCases.length - 1] !== maxBatteryPacks) {
-    batteryPackCases.push(maxBatteryPacks);
-  }
 
-  return [...new Set(batteryPackCases)];
+  return batteryPackCases;
 };
 
 const buildContextualParameters = ({
@@ -309,6 +308,33 @@ export const fetchPredictionRunPredictions = async (runId) => {
       payload?.detail?.[0]?.msg ??
       payload?.detail ??
       "Unable to load predictions.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
+const NON_NUMERIC_ECONOMIC_KEYS = new Set(["shift_id", "recurrence"]);
+
+export const fetchEconomicComparison = async (params = {}) => {
+  const headers = authHeaders();
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === "") return;
+    if (!NON_NUMERIC_ECONOMIC_KEYS.has(key) && Number(value) <= 0) return;
+    query.set(key, String(value));
+  });
+
+  const response = await fetch(`${ECONOMIC_PATH}/comparison?${query.toString()}`, {
+    method: "GET",
+    headers,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load economic comparison.";
     throw new Error(typeof message === "string" ? message : JSON.stringify(message));
   }
   return payload;

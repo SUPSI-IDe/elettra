@@ -2,6 +2,11 @@ import * as d3 from "d3";
 import { t } from "../../../i18n";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
+import {
+  fetchEconomicComparison,
+  fetchOptimizationRun,
+  fetchPredictionRun,
+} from "../../../api/simulation";
 import "./simulation-results.css";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
@@ -66,52 +71,12 @@ const CHARGING_LABELS = {
   charging_efficiency_pct: "Charging efficiency (%)",
 };
 
-/* ── Fake chart data ──────────────────────────────────────────── */
+/* ── Chart data helpers ───────────────────────────────────────── */
 
-const COSTS_TCO = [
-  {
-    category: "equivalent_diesel_bus",
-    vehicle: 1_400_000,
-    energy: 1_200_000,
-    maintenance: 600_000,
-  },
-  {
-    category: "electric_bus",
-    vehicle: 1_600_000,
-    energy: 400_000,
-    maintenance: 400_000,
-  },
-];
 const COST_STACK_KEYS = ["vehicle", "energy", "maintenance"];
 const COST_COLORS = { vehicle: "#6fbeec", energy: "#f5a623", maintenance: "#abe828" };
+const COST_ANNUALIZATION_FACTOR = 52;
 
-const COSTS_YEARLY = Array.from({ length: 15 }, (_, i) => ({
-  year: i + 1,
-  diesel: 180_000 + i * 12_000,
-  electric: 140_000 + i * 4_000,
-}));
-
-const generateSOCData = () => {
-  const pts = [];
-  let soc = 95;
-  for (let h = 0; h <= 8; h += 0.25) {
-    if (h > 0) {
-      const charging = (h > 3 && h < 3.5) || (h > 6 && h < 6.5);
-      soc += charging ? 14 : -(3 + Math.random() * 2);
-      soc = Math.max(10, Math.min(100, soc));
-    }
-    pts.push({ hour: h, soc });
-  }
-  return pts;
-};
-const SOC_DATA = generateSOCData();
-
-const ENERGY_PER_KM = [
-  { segment: "urban", diesel: 0.42, electric: 1.25 },
-  { segment: "suburban", diesel: 0.35, electric: 0.95 },
-  { segment: "hilly", diesel: 0.52, electric: 1.50 },
-  { segment: "flat", diesel: 0.30, electric: 0.80 },
-];
 
 const CO2_ANNUAL = [
   { category: "equivalent_diesel_bus", value: 85, color: "#6fbeec" },
@@ -150,12 +115,21 @@ const costStackLabel = (key) =>
     maintenance: t("simulation.cost_stack_maintenance"),
   })[key] ?? key;
 
-const segmentLabel = (key) =>
+const costKpiLabel = (key) =>
   ({
-    urban: t("simulation.segment_urban"),
-    suburban: t("simulation.segment_suburban"),
-    hilly: t("simulation.segment_hilly"),
-    flat: t("simulation.segment_flat"),
+    electric_total: t("simulation.costs_kpi_electric_total") || "Electric annual cost",
+    diesel_total: t("simulation.costs_kpi_diesel_total") || "Diesel annual cost",
+    annual_saving: t("simulation.costs_kpi_annual_saving") || "Annual saving",
+    annual_km: t("simulation.costs_kpi_annual_km") || "Annual distance",
+  })[key] ?? key;
+
+const economicInputLabel = (key) =>
+  ({
+    shift_id: "shift",
+    bus_length_m: "bus length",
+    battery_capacity_kwh: "battery capacity",
+    charger_power_kw: "charger power",
+    annual_consumption_kwh: "annual consumption",
   })[key] ?? key;
 
 const renderFieldsInto = (container, dataObj, labelMap = {}) => {
@@ -189,28 +163,240 @@ const gridLines = (g, scale, innerW, ticks = 5) => {
 
 /* ── Costs tab charts ─────────────────────────────────────────── */
 
-const renderCostsBar = (el) => {
+const costsStateHtml = (message, tone = "default") =>
+  `<p class="costs-state-msg${tone === "error" ? " costs-state-msg--error" : ""}">${textContent(message)}</p>`;
+
+const classifyOpexCost = (item = {}) => {
+  const label = String(item?.name ?? "").toLowerCase();
+  if (/maint/.test(label)) return "maintenance";
+  if (/fuel|energy|electric/.test(label)) return "energy";
+  return "maintenance";
+};
+
+const sumOpexItemsByType = (items = [], type) =>
+  (Array.isArray(items) ? items : []).reduce((total, item) => {
+    if (classifyOpexCost(item) !== type) return total;
+    return total + (toFiniteNumber(item?.cost_chf_per_year) ?? 0);
+  }, 0);
+
+const buildCostStackRow = (summary = {}, category) => ({
+  category,
+  vehicle: toFiniteNumber(summary?.total_annualized_capex_chf_per_year) ?? 0,
+  energy: sumOpexItemsByType(summary?.opex_items, "energy"),
+  maintenance: sumOpexItemsByType(summary?.opex_items, "maintenance"),
+});
+
+const resolveTrendHorizon = (comparison, options = {}) => {
+  const lifetimes = [
+    ...(comparison?.electric?.capex_items ?? []),
+    ...(comparison?.diesel?.capex_items ?? []),
+  ]
+    .map((item) => toFiniteNumber(item?.lifetime_years))
+    .filter((value) => value != null);
+  const busLifetime = toFiniteNumber(options?.busModelData?.bus_lifetime);
+  return Math.max(10, Math.round(d3.max([...lifetimes, busLifetime].filter((value) => value != null)) ?? 15));
+};
+
+const buildCostsChartData = (comparison, options = {}) => {
+  if (!comparison) return null;
+
+  const horizonYears = resolveTrendHorizon(comparison, options);
+  const electricAnnual = toFiniteNumber(
+    comparison?.electric?.total_annual_cost_chf_per_year
+  ) ?? 0;
+  const dieselAnnual = toFiniteNumber(
+    comparison?.diesel?.total_annual_cost_chf_per_year
+  ) ?? 0;
+
+  return {
+    tco: [
+      buildCostStackRow(comparison?.diesel, "equivalent_diesel_bus"),
+      buildCostStackRow(comparison?.electric, "electric_bus"),
+    ],
+    yearly: Array.from({ length: horizonYears }, (_, index) => ({
+      year: index + 1,
+      diesel: dieselAnnual * (index + 1),
+      electric: electricAnnual * (index + 1),
+    })),
+  };
+};
+
+const renderCostsKpis = (el, comparison) => {
+  if (!el) return;
+  if (!comparison) {
+    el.innerHTML = "";
+    return;
+  }
+
+  const annualSaving = toFiniteNumber(comparison?.annual_saving_chf) ?? 0;
+  const annualKm = toFiniteNumber(comparison?.annual_km);
+  const kpis = [
+    {
+      label: costKpiLabel("electric_total"),
+      value: `CHF ${formatCHF(toFiniteNumber(comparison?.electric?.total_annual_cost_chf_per_year) ?? 0)}`,
+      tone: "",
+    },
+    {
+      label: costKpiLabel("diesel_total"),
+      value: `CHF ${formatCHF(toFiniteNumber(comparison?.diesel?.total_annual_cost_chf_per_year) ?? 0)}`,
+      tone: "",
+    },
+    {
+      label: costKpiLabel("annual_saving"),
+      value: `${annualSaving >= 0 ? "CHF" : "-CHF"} ${formatCHF(Math.abs(annualSaving))}`,
+      tone: annualSaving >= 0 ? "positive" : "negative",
+    },
+    {
+      label: costKpiLabel("annual_km"),
+      value: annualKm == null ? "—" : `${formatFixed(annualKm, 0)} km`,
+      tone: "",
+    },
+  ];
+
+  el.innerHTML = kpis
+    .map(
+      ({ label, value, tone }) => `
+        <div class="costs-kpi-card">
+          <span class="costs-kpi-label">${textContent(label)}</span>
+          <span class="costs-kpi-value${tone ? ` costs-kpi-value--${tone}` : ""}">${textContent(value)}</span>
+        </div>`
+    )
+    .join("");
+};
+
+const formatChfAxis = (value) => {
+  if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+  if (Math.abs(value) >= 1e3) return `${Math.round(value / 1e3)}k`;
+  return String(Math.round(value));
+};
+
+const formatChfLabel = (value) => {
+  if (Math.abs(value) >= 1e6) return `CHF ${(value / 1e6).toFixed(1)}M`;
+  if (Math.abs(value) >= 1e3) return `CHF ${formatCHF(value)}`;
+  return `CHF ${Math.round(value)}`;
+};
+
+const renderInvestmentTable = (el, state, options = {}) => {
+  if (!el) return;
+  if (state.status !== "done" || !state.optimizationRun) {
+    el.innerHTML = "";
+    return;
+  }
+
+  const batteryResults = state.optimizationRun?.results?.battery_results ?? {};
+  const entries = Object.values(batteryResults);
+  const busCostChf = toFiniteNumber(options?.busModelData?.cost);
+  const packCostChf = toFiniteNumber(options?.busModelData?.battery_pack_cost);
+  const packSizeKwh = toFiniteNumber(options?.busModelData?.battery_pack_size_kwh);
+
+  if (!entries.length && busCostChf == null && packCostChf == null) {
+    el.innerHTML = "";
+    return;
+  }
+
+  const optimizedPacks = entries.length
+    ? d3.max(entries.map((e) => toFiniteNumber(e?.optimized_packs)).filter((v) => v != null))
+    : null;
+  const totalBatteryChf = packCostChf != null && optimizedPacks != null
+    ? packCostChf * optimizedPacks
+    : null;
+  const grandTotalChf = busCostChf != null && totalBatteryChf != null
+    ? busCostChf + totalBatteryChf
+    : null;
+
+  const dash = "—";
+  const fmtChf = (v) => v != null ? `CHF ${formatCHF(v)}` : dash;
+
+  const rows = [
+    [
+      t("simulation.inv_bus_cost") || "Electric bus (body)",
+      fmtChf(busCostChf),
+    ],
+    [
+      t("simulation.inv_pack_cost") || "Battery pack (unit cost)",
+      packCostChf != null ? `CHF ${formatCHF(packCostChf)}` : dash,
+    ],
+    [
+      t("simulation.inv_pack_size") || "Battery pack size",
+      packSizeKwh != null ? `${packSizeKwh} kWh` : dash,
+    ],
+    [
+      t("simulation.inv_opt_packs") || "Optimized battery packs",
+      optimizedPacks != null ? String(optimizedPacks) : dash,
+    ],
+    [
+      t("simulation.inv_total_battery") || "Total battery investment",
+      fmtChf(totalBatteryChf),
+    ],
+  ];
+
+  const totalRow = grandTotalChf != null
+    ? `<tr class="investment-table__total">
+         <td>${textContent(t("simulation.inv_grand_total") || "Total investment")}</td>
+         <td>${textContent(fmtChf(grandTotalChf))}</td>
+       </tr>`
+    : "";
+
+  el.innerHTML = `
+    <table class="investment-table">
+      <tbody>
+        ${rows
+          .map(
+            ([label, value]) =>
+              `<tr><td>${textContent(label)}</td><td>${textContent(value)}</td></tr>`
+          )
+          .join("")}
+        ${totalRow}
+      </tbody>
+    </table>`;
+};
+
+const renderCostsBar = (el, data) => {
   if (!el) return;
   el.innerHTML = "";
+  if (!Array.isArray(data) || data.length === 0) {
+    el.innerHTML = costsStateHtml(
+      t("simulation.costs_empty") || "No economic comparison data available."
+    );
+    return;
+  }
   const margin = { top: 20, right: 30, bottom: 40, left: 80 };
   const W = 620, H = 300;
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
-  const stacked = d3.stack().keys(COST_STACK_KEYS)(COSTS_TCO);
+  const stacked = d3.stack().keys(COST_STACK_KEYS)(data);
+  const maxVal = d3.max(data, (row) =>
+    COST_STACK_KEYS.reduce((sum, key) => sum + (row[key] ?? 0), 0)
+  );
 
   const svg = svgBase(W, H, "TCO stacked bar chart");
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const x = d3.scaleBand().domain(COSTS_TCO.map((d) => d.category)).range([0, iW]).padding(0.35);
-  const y = d3.scaleLinear().domain([0, 3_600_000]).nice().range([iH, 0]);
+  const x = d3.scaleBand().domain(data.map((d) => d.category)).range([0, iW]).padding(0.35);
+  const y = d3.scaleLinear()
+    .domain([0, maxVal * 1.15])
+    .nice()
+    .range([iH, 0]);
 
   g.append("g")
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x).tickFormat((d) => busCategoryLabel(d)))
     .selectAll("text")
     .attr("font-size", "11px");
-  g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat((d) => `${(d / 1e6).toFixed(1)}M`)).selectAll("text").attr("font-size", "11px");
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxis))
+    .selectAll("text")
+    .attr("font-size", "11px");
+
+  g.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", -65)
+    .attr("x", -iH / 2)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "11px")
+    .attr("fill", "#666")
+    .text("CHF / year");
 
   stacked.forEach((layer) => {
     g.selectAll(`.bar-${layer.key}`)
@@ -223,7 +409,7 @@ const renderCostsBar = (el) => {
       .attr("fill", COST_COLORS[layer.key]);
   });
 
-  COSTS_TCO.forEach((d) => {
+  data.forEach((d) => {
     const total = COST_STACK_KEYS.reduce((s, k) => s + d[k], 0);
     g.append("text")
       .attr("x", x(d.category) + x.bandwidth() / 2)
@@ -232,7 +418,7 @@ const renderCostsBar = (el) => {
       .attr("font-size", "12px")
       .attr("font-weight", "600")
       .attr("fill", "#1c1c1c")
-      .text(`CHF ${(total / 1e6).toFixed(1)}M`);
+      .text(formatChfLabel(total));
   });
 
   el.appendChild(svg.node());
@@ -251,102 +437,1168 @@ const renderCostsLegend = (el) => {
     .join("");
 };
 
-const renderCostsLine = (el) => {
+const renderCostsLine = (el, data) => {
   if (!el) return;
   el.innerHTML = "";
+  if (!Array.isArray(data) || data.length === 0) {
+    el.innerHTML = costsStateHtml(
+      t("simulation.costs_empty") || "No economic comparison data available."
+    );
+    return;
+  }
   const margin = { top: 20, right: 30, bottom: 40, left: 70 };
   const W = 620, H = 260;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "Yearly cost comparison line chart");
+  const svg = svgBase(W, H, "Projected cumulative cost trend");
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const x = d3.scaleLinear().domain([1, 15]).range([0, iW]);
-  const y = d3.scaleLinear().domain([0, d3.max(COSTS_YEARLY, (d) => Math.max(d.diesel, d.electric)) * 1.1]).nice().range([iH, 0]);
+  const x = d3.scaleLinear().domain([1, data.length]).range([0, iW]);
+  const y = d3.scaleLinear().domain([0, d3.max(data, (d) => Math.max(d.diesel, d.electric)) * 1.1]).nice().range([iH, 0]);
 
-  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x).ticks(15).tickFormat((d) => `${d}`)).selectAll("text").attr("font-size", "10px");
+  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x).ticks(data.length).tickFormat((d) => `${d}`)).selectAll("text").attr("font-size", "10px");
   g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat((d) => `${(d / 1e3).toFixed(0)}k`)).selectAll("text").attr("font-size", "10px");
   gridLines(g, y, iW);
 
   const dieselLine = d3.line().x((d) => x(d.year)).y((d) => y(d.diesel)).curve(d3.curveMonotoneX);
   const elecLine = d3.line().x((d) => x(d.year)).y((d) => y(d.electric)).curve(d3.curveMonotoneX);
 
-  g.append("path").datum(COSTS_YEARLY).attr("d", dieselLine).attr("fill", "none").attr("stroke", "#6fbeec").attr("stroke-width", 2.5);
-  g.append("path").datum(COSTS_YEARLY).attr("d", elecLine).attr("fill", "none").attr("stroke", "#abe828").attr("stroke-width", 2.5);
+  g.append("path").datum(data).attr("d", dieselLine).attr("fill", "none").attr("stroke", "#6fbeec").attr("stroke-width", 2.5);
+  g.append("path").datum(data).attr("d", elecLine).attr("fill", "none").attr("stroke", "#abe828").attr("stroke-width", 2.5);
 
-  g.append("text").attr("x", iW + 4).attr("y", y(COSTS_YEARLY.at(-1).diesel)).attr("font-size", "10px").attr("fill", "#6fbeec").attr("dominant-baseline", "middle").text(fuelLabel("diesel"));
-  g.append("text").attr("x", iW + 4).attr("y", y(COSTS_YEARLY.at(-1).electric)).attr("font-size", "10px").attr("fill", "#abe828").attr("dominant-baseline", "middle").text(fuelLabel("electric"));
+  g.append("text").attr("x", iW + 4).attr("y", y(data.at(-1).diesel)).attr("font-size", "10px").attr("fill", "#6fbeec").attr("dominant-baseline", "middle").text(fuelLabel("diesel"));
+  g.append("text").attr("x", iW + 4).attr("y", y(data.at(-1).electric)).attr("font-size", "10px").attr("fill", "#abe828").attr("dominant-baseline", "middle").text(fuelLabel("electric"));
 
   el.appendChild(svg.node());
 };
 
-/* ── Efficiency tab charts ────────────────────────────────────── */
+const modeLabel = (key) =>
+  ({
+    battery_only: t("simulation.mode_battery_only"),
+    charging_only: t("simulation.mode_charging"),
+    joint: t("simulation.mode_joint"),
+  })[key] ?? key;
 
-const renderSOCChart = (el) => {
+/* ── Efficiency tab recap table ──────────────────────────────── */
+
+const formatPct = (val) => {
+  const n = Number(val);
+  return Number.isNaN(n) ? "—" : `${(n * 100).toFixed(0)}%`;
+};
+
+const formatFixed = (val, dec = 1) => {
+  const n = Number(val);
+  return Number.isNaN(n) ? "—" : n.toLocaleString("de-CH", { maximumFractionDigits: dec, minimumFractionDigits: dec });
+};
+
+const toFiniteNumber = (value) => {
+  if (value === "" || (typeof value === "string" && value.trim() === "")) return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const chartEmptyStateHtml = () =>
+  `<p class="efficiency-chart-empty">${textContent(
+    t("simulation.efficiency_chart_empty") || "No chart data available."
+  )}</p>`;
+
+const HEATING_LABELS = {
+  default: "Default",
+  hp: "Heat Pump",
+  electric: "Electric",
+  diesel: "Diesel",
+};
+
+const SOLVER_STATUS_CLASS = {
+  optimal: "efficiency-badge--ok",
+  feasible: "efficiency-badge--ok",
+  infeasible: "efficiency-badge--err",
+  error: "efficiency-badge--err",
+};
+
+const OPTIMIZATION_BATTERY_COLORS = {
+  base: "#cfd8e3",
+  optimized: "#abe828",
+};
+
+const buildOptimizationResultsHtml = (results, inputParams = {}) => {
+  if (!results || typeof results !== "object" || !Object.keys(results).length) return "";
+
+  const solverStatus = results.solver_status ?? "—";
+  const badgeCls = SOLVER_STATUS_CLASS[solverStatus] ?? "efficiency-badge--neutral";
+
+  const kpis = [
+    { label: t("simulation.opt_solver_status") || "Solver Status", value: `<span class="efficiency-badge ${badgeCls}">${textContent(solverStatus)}</span>`, raw: true },
+    { label: t("simulation.opt_objective_value") || "Objective Value", value: formatFixed(results.objective_value, 0) },
+    { label: t("simulation.opt_solve_time") || "Solve Time (s)", value: formatFixed(results.solve_time_seconds, 2) },
+  ];
+
+  const kpisHtml = kpis.map(({ label, value, raw }) => `
+    <div class="efficiency-param">
+      <span class="efficiency-param-label">${textContent(label)}</span>
+      <span class="efficiency-param-value">${raw ? value : textContent(value)}</span>
+    </div>`).join("");
+
+  const batteryResults = results.battery_results ?? {};
+  const batteryEntries = Object.values(batteryResults);
+
+  let batteryTableHtml = "";
+  if (batteryEntries.length) {
+    const rows = batteryEntries.map((b) => `
+      <tr>
+        <td>${textContent(b.shift_name ?? "—")}</td>
+        <td class="efficiency-td-num">${textContent(String(b.base_packs ?? "—"))}</td>
+        <td class="efficiency-td-num">${formatFixed(b.base_kwh, 0)}</td>
+        <td class="efficiency-td-num efficiency-td-highlight">${textContent(String(b.optimized_packs ?? "—"))}</td>
+        <td class="efficiency-td-num efficiency-td-highlight">${formatFixed(b.optimized_kwh, 0)}</td>
+        <td class="efficiency-td-num">${textContent(String(b.excess_packs ?? 0))}</td>
+      </tr>`).join("");
+
+    batteryTableHtml = `
+      <h4 class="efficiency-subsection-title">${textContent(t("simulation.opt_battery_results") || "Battery Sizing")}</h4>
+      <div class="efficiency-table-wrap">
+        <table class="efficiency-table">
+          <thead>
+            <tr>
+              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_shift") || "Shift")}</th>
+              <th>${textContent(t("simulation.opt_col_base_packs") || "Base Packs")}</th>
+              <th>${textContent(t("simulation.opt_col_base_kwh") || "Base (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_opt_packs") || "Opt. Packs")}</th>
+              <th>${textContent(t("simulation.opt_col_opt_kwh") || "Opt. (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_excess") || "Excess Packs")}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  const installedChargers = results.installed_chargers ?? {};
+  const inputChargingStations = Array.isArray(inputParams?.charging_stations)
+    ? inputParams.charging_stations
+    : [];
+  const inputStationsByStopId = new Map(
+    inputChargingStations
+      .filter((station) => station?.stop_id)
+      .map((station) => [String(station.stop_id), station])
+  );
+  const chargerEntries = Object.entries(installedChargers);
+  let chargersHtml = "";
+  if (chargerEntries.length) {
+    const rows = chargerEntries.map(([stopId, info]) => {
+      const slots = info?.num_slots ?? info?.slots ?? "—";
+      const matchingInputStation = inputStationsByStopId.get(String(stopId));
+      const directPowerPerPlug = [
+        info?.max_power_per_slot_kw,
+        info?.power_per_slot_kw,
+        matchingInputStation?.max_power_per_slot_kw,
+        matchingInputStation?.power_per_slot_kw,
+      ].find((value) => Number.isFinite(Number(value)));
+      const resolvedPower =
+        directPowerPerPlug ??
+        (() => {
+          const totalPower = [
+            info?.max_total_power_kw,
+            info?.total_power_kw,
+            info?.max_power_kw,
+            matchingInputStation?.max_total_power_kw,
+          ].find((value) => Number.isFinite(Number(value)));
+          const numericSlots = Number(slots);
+          if (Number.isFinite(Number(totalPower)) && Number.isFinite(numericSlots) && numericSlots > 0) {
+            return Number(totalPower) / numericSlots;
+          }
+          return "—";
+        })();
+      return `
+        <tr>
+          <td>${textContent(info?.stop_name ?? stopId.slice(0, 8) + "…")}</td>
+          <td class="efficiency-td-num">${textContent(String(slots))}</td>
+          <td class="efficiency-td-num">${formatFixed(resolvedPower, 0)}</td>
+        </tr>`;
+    }).join("");
+
+    chargersHtml = `
+      <h4 class="efficiency-subsection-title">${textContent(t("simulation.opt_installed_chargers") || "Installed Chargers")}</h4>
+      <div class="efficiency-table-wrap">
+        <table class="efficiency-table">
+          <thead>
+            <tr>
+              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_stop") || "Stop")}</th>
+              <th>${textContent(t("simulation.opt_col_slots") || "Slots")}</th>
+              <th>${textContent(t("simulation.cs_power_per_plug") || "kW / plug")}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  return `
+    <div class="efficiency-section">
+      <h3 class="efficiency-section-title">${textContent(t("simulation.opt_section_title") || "Optimization Results")}</h3>
+      <div class="efficiency-params-grid">${kpisHtml}</div>
+      ${batteryTableHtml}
+      ${chargersHtml}
+    </div>`;
+};
+
+const buildOptimizationBatteryChartData = (batteryResults = {}) =>
+  Object.values(batteryResults ?? {})
+    .map((result, index) => ({
+      shiftName:
+        result?.shift_name ??
+        `${t("simulation.opt_col_shift") || "Shift"} ${index + 1}`,
+      basePacks: toFiniteNumber(result?.base_packs),
+      optimizedPacks: toFiniteNumber(result?.optimized_packs),
+    }))
+    .filter((row) => row.basePacks != null || row.optimizedPacks != null);
+
+const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResults = {}) => {
+  const sorted = [...(predictionRuns ?? [])].sort((a, b) =>
+    Number(a?.contextual_parameters?.num_battery_packs ?? 0) - Number(b?.contextual_parameters?.num_battery_packs ?? 0)
+  );
+
+  const perBusArr = Array.isArray(perBusSummary) ? perBusSummary : [];
+  const optimizedPackSet = new Set(
+    Object.values(batteryResults ?? {})
+      .map((result) => toFiniteNumber(result?.optimized_packs))
+      .filter((value) => value != null)
+  );
+
+  const rows = sorted.map((run, idx) => {
+    const cp = run?.contextual_parameters ?? {};
+    const s = run?.summary ?? {};
+    const bus = perBusArr[idx] ?? {};
+
+    return {
+      numBatteryPacks: toFiniteNumber(cp.num_battery_packs),
+      batteryCapacityKwh: toFiniteNumber(cp.battery_capacity_kwh),
+      totalWeightKg: toFiniteNumber(cp.total_weight_kg),
+      totalDistanceKm: toFiniteNumber(s.total_distance_km),
+      totalConsumptionKwh: toFiniteNumber(s.total_consumption_kwh),
+      consumptionPerKmKwh: toFiniteNumber(s.consumption_per_km_kwh),
+      totalDrivetrainKwh: toFiniteNumber(s.total_drivetrain_kwh),
+      totalAuxiliaryKwh: toFiniteNumber(s.total_auxiliary_kwh),
+      minSocKwh: toFiniteNumber(bus.min_soc_kwh),
+      maxSocKwh: toFiniteNumber(bus.max_soc_kwh),
+      numChargingSessions: toFiniteNumber(bus.num_charging_sessions),
+      totalChargedKwh: toFiniteNumber(bus.total_charged_kwh),
+    };
+  });
+
+  if (!optimizedPackSet.size) {
+    const bestRow = rows.reduce((best, row) => {
+      if (row.consumptionPerKmKwh == null) return best;
+      if (!best || row.consumptionPerKmKwh < best.consumptionPerKmKwh) return row;
+      return best;
+    }, null);
+    if (bestRow?.numBatteryPacks != null) {
+      optimizedPackSet.add(bestRow.numBatteryPacks);
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    isOptimized:
+      row.numBatteryPacks != null && optimizedPackSet.has(row.numBatteryPacks),
+  }));
+};
+
+const buildUnifiedPredictionRows = (rows) =>
+  rows.map((row) => `
+      <tr>
+        <td class="efficiency-td-num">${textContent(String(row.numBatteryPacks ?? "—"))}</td>
+        <td class="efficiency-td-num">${formatFixed(row.batteryCapacityKwh, 0)}</td>
+        <td class="efficiency-td-num">${formatFixed(row.totalWeightKg, 0)}</td>
+        <td class="efficiency-td-num">${formatFixed(row.totalDistanceKm, 1)}</td>
+        <td class="efficiency-td-num">${formatFixed(row.totalConsumptionKwh, 1)}</td>
+        <td class="efficiency-td-num efficiency-td-highlight">${formatFixed(row.consumptionPerKmKwh, 3)}</td>
+        <td class="efficiency-td-num">${formatFixed(row.totalDrivetrainKwh, 1)}</td>
+        <td class="efficiency-td-num">${formatFixed(row.totalAuxiliaryKwh, 1)}</td>
+        <td class="efficiency-td-num">${formatFixed(row.minSocKwh, 1)}</td>
+        <td class="efficiency-td-num">${formatFixed(row.maxSocKwh, 1)}</td>
+        <td class="efficiency-td-num">${textContent(String(row.numChargingSessions ?? "—"))}</td>
+        <td class="efficiency-td-num">${formatFixed(row.totalChargedKwh, 1)}</td>
+      </tr>`)
+    .join("");
+
+const renderEfficiencyCurveChart = (el, rows) => {
   if (!el) return;
   el.innerHTML = "";
-  const margin = { top: 20, right: 30, bottom: 40, left: 50 };
-  const W = 620, H = 260;
-  const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "State of charge line chart");
-  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+  const data = rows.filter(
+    (row) => row.numBatteryPacks != null && row.consumptionPerKmKwh != null
+  );
+  if (!data.length) {
+    el.innerHTML = chartEmptyStateHtml();
+    return;
+  }
 
-  const x = d3.scaleLinear().domain([0, 8]).range([0, iW]);
-  const y = d3.scaleLinear().domain([0, 100]).nice().range([iH, 0]);
+  const margin = { top: 24, right: 20, bottom: 44, left: 64 };
+  const W = 620;
+  const H = 280;
+  const iW = W - margin.left - margin.right;
+  const iH = H - margin.top - margin.bottom;
 
-  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x).ticks(9).tickFormat((d) => `${d}h`)).selectAll("text").attr("font-size", "11px");
-  g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat((d) => `${d}%`)).selectAll("text").attr("font-size", "11px");
+  const minX = d3.min(data, (d) => d.numBatteryPacks);
+  const maxX = d3.max(data, (d) => d.numBatteryPacks);
+  const minY = d3.min(data, (d) => d.consumptionPerKmKwh);
+  const maxY = d3.max(data, (d) => d.consumptionPerKmKwh);
+  const yPadding = Math.max(((maxY ?? 0) - (minY ?? 0)) * 0.15, 0.02);
+
+  const svg = svgBase(W, H, "Energy efficiency by battery configuration");
+  const g = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3
+    .scaleLinear()
+    .domain(minX === maxX ? [minX - 1, maxX + 1] : [minX, maxX])
+    .range([0, iW]);
+  const y = d3
+    .scaleLinear()
+    .domain([Math.max(0, minY - yPadding), maxY + yPadding])
+    .nice()
+    .range([iH, 0]);
+
   gridLines(g, y, iW);
-
-  const area = d3.area().x((d) => x(d.hour)).y0(iH).y1((d) => y(d.soc)).curve(d3.curveCatmullRom);
-  const line = d3.line().x((d) => x(d.hour)).y((d) => y(d.soc)).curve(d3.curveCatmullRom);
-
-  g.append("path").datum(SOC_DATA).attr("d", area).attr("fill", "rgba(171,232,40,0.15)");
-  g.append("path").datum(SOC_DATA).attr("d", line).attr("fill", "none").attr("stroke", "#abe828").attr("stroke-width", 2.5);
-
-  g.selectAll(".dot").data(SOC_DATA.filter((_, i) => i % 4 === 0)).join("circle")
-    .attr("cx", (d) => x(d.hour)).attr("cy", (d) => y(d.soc)).attr("r", 3.5)
-    .attr("fill", "#abe828").attr("stroke", "#fff").attr("stroke-width", 1.5);
-
-  el.appendChild(svg.node());
-};
-
-const renderEnergyChart = (el) => {
-  if (!el) return;
-  el.innerHTML = "";
-  const margin = { top: 20, right: 30, bottom: 50, left: 60 };
-  const W = 620, H = 280;
-  const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
-
-  const svg = svgBase(W, H, "Energy consumption grouped bar chart");
-  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-
-  const x0 = d3.scaleBand().domain(ENERGY_PER_KM.map((d) => d.segment)).range([0, iW]).padding(0.25);
-  const x1 = d3.scaleBand().domain(["diesel", "electric"]).range([0, x0.bandwidth()]).padding(0.08);
-  const y = d3.scaleLinear().domain([0, 1.8]).nice().range([iH, 0]);
 
   g.append("g")
     .attr("transform", `translate(0,${iH})`)
-    .call(d3.axisBottom(x0).tickFormat((d) => segmentLabel(d)))
+    .call(
+      d3
+        .axisBottom(x)
+        .tickValues(data.map((d) => d.numBatteryPacks))
+        .tickFormat((d) => `${d}`)
+    )
     .selectAll("text")
-    .attr("font-size", "11px");
-  g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat((d) => `${d}`)).selectAll("text").attr("font-size", "11px");
+    .attr("font-size", "10px");
+
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(5).tickFormat((d) => d3.format(".3~f")(d)))
+    .selectAll("text")
+    .attr("font-size", "10px");
+
   g.append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("y", -48)
-    .attr("x", -iH / 2)
+    .attr("x", iW / 2)
+    .attr("y", iH + 38)
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("fill", "#666")
-    .text(t("simulation.axis_energy_units"));
+    .text("# Packs");
 
-  ENERGY_PER_KM.forEach((d) => {
-    g.append("rect").attr("x", x0(d.segment) + x1("diesel")).attr("y", y(d.diesel)).attr("width", x1.bandwidth()).attr("height", iH - y(d.diesel)).attr("rx", 3).attr("fill", "#6fbeec");
-    g.append("rect").attr("x", x0(d.segment) + x1("electric")).attr("y", y(d.electric)).attr("width", x1.bandwidth()).attr("height", iH - y(d.electric)).attr("rx", 3).attr("fill", "#abe828");
+  g.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -iH / 2)
+    .attr("y", -46)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("fill", "#666")
+    .text("kWh / km");
+
+  const line = d3
+    .line()
+    .x((d) => x(d.numBatteryPacks))
+    .y((d) => y(d.consumptionPerKmKwh))
+    .curve(d3.curveMonotoneX);
+
+  g.append("path")
+    .datum(data)
+    .attr("d", line)
+    .attr("fill", "none")
+    .attr("stroke", "#00639a")
+    .attr("stroke-width", 2.5);
+
+  g.selectAll(".efficiency-dot")
+    .data(data)
+    .join("circle")
+    .attr("cx", (d) => x(d.numBatteryPacks))
+    .attr("cy", (d) => y(d.consumptionPerKmKwh))
+    .attr("r", (d) => (d.isOptimized ? 5.5 : 4))
+    .attr("fill", (d) => (d.isOptimized ? "#abe828" : "#00639a"))
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 2)
+    .each(function addTooltip(d) {
+      d3.select(this)
+        .append("title")
+        .text(
+          [
+            `${d.numBatteryPacks} packs`,
+            `${formatFixed(d.consumptionPerKmKwh, 3)} kWh / km`,
+            `Capacity: ${formatFixed(d.batteryCapacityKwh, 0)} kWh`,
+            `Weight: ${formatFixed(d.totalWeightKg, 0)} kg`,
+            `Charg. sessions: ${formatFixed(d.numChargingSessions, 0)}`,
+          ].join("\n")
+        );
+    });
+
+  g.selectAll(".efficiency-opt-label")
+    .data(data.filter((d) => d.isOptimized))
+    .join("text")
+    .attr("x", (d) => x(d.numBatteryPacks))
+    .attr("y", (d) => y(d.consumptionPerKmKwh) - 12)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("font-weight", "600")
+    .attr("fill", "#587a00")
+    .text(t("simulation.chart_label_optimized") || "Optimized");
+
+  el.appendChild(svg.node());
+};
+
+const ENERGY_SPLIT_KEYS = ["totalDrivetrainKwh", "totalAuxiliaryKwh"];
+const ENERGY_SPLIT_COLORS = {
+  totalDrivetrainKwh: "#6fbeec",
+  totalAuxiliaryKwh: "#f5a623",
+};
+
+const renderEfficiencyEnergyLegend = (el) => {
+  if (!el) return;
+  el.innerHTML = `
+    <div class="chart-legend-item">
+      <span class="chart-legend-swatch" style="background:${ENERGY_SPLIT_COLORS.totalDrivetrainKwh}"></span>
+      ${textContent(t("simulation.efficiency_col_drivetrain") || "Drivetrain (kWh)")}
+    </div>
+    <div class="chart-legend-item">
+      <span class="chart-legend-swatch" style="background:${ENERGY_SPLIT_COLORS.totalAuxiliaryKwh}"></span>
+      ${textContent(t("simulation.efficiency_col_auxiliary") || "Auxiliary (kWh)")}
+    </div>`;
+};
+
+const renderEfficiencyEnergySplitChart = (el, rows) => {
+  if (!el) return;
+  el.innerHTML = "";
+
+  const data = rows
+    .filter((row) => row.numBatteryPacks != null)
+    .map((row) => ({
+      ...row,
+      totalDrivetrainKwh: row.totalDrivetrainKwh ?? 0,
+      totalAuxiliaryKwh: row.totalAuxiliaryKwh ?? 0,
+    }))
+    .filter((row) => row.totalDrivetrainKwh > 0 || row.totalAuxiliaryKwh > 0);
+
+  if (!data.length) {
+    el.innerHTML = chartEmptyStateHtml();
+    return;
+  }
+
+  const margin = { top: 24, right: 20, bottom: 44, left: 64 };
+  const W = 620;
+  const H = 280;
+  const iW = W - margin.left - margin.right;
+  const iH = H - margin.top - margin.bottom;
+
+  const svg = svgBase(W, H, "Energy consumption breakdown");
+  const g = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3
+    .scaleBand()
+    .domain(data.map((d) => String(d.numBatteryPacks)))
+    .range([0, iW])
+    .padding(0.3);
+  const y = d3
+    .scaleLinear()
+    .domain([
+      0,
+      d3.max(
+        data,
+        (d) => (d.totalDrivetrainKwh ?? 0) + (d.totalAuxiliaryKwh ?? 0)
+      ) * 1.15,
+    ])
+    .nice()
+    .range([iH, 0]);
+
+  gridLines(g, y, iW);
+
+  g.append("g")
+    .attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(5).tickFormat((d) => d3.format(".3~s")(d)))
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  g.append("text")
+    .attr("x", iW / 2)
+    .attr("y", iH + 38)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("fill", "#666")
+    .text("# Packs");
+
+  g.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -iH / 2)
+    .attr("y", -46)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("fill", "#666")
+    .text("kWh");
+
+  const stack = d3.stack().keys(ENERGY_SPLIT_KEYS)(data);
+
+  stack.forEach((layer) => {
+    g.selectAll(`.split-${layer.key}`)
+      .data(layer)
+      .join("rect")
+      .attr("x", (d) => x(String(d.data.numBatteryPacks)))
+      .attr("y", (d) => y(d[1]))
+      .attr("height", (d) => y(d[0]) - y(d[1]))
+      .attr("width", x.bandwidth())
+      .attr("rx", 4)
+      .attr("fill", ENERGY_SPLIT_COLORS[layer.key])
+      .each(function addTooltip(d) {
+        const segmentValue = d.data[layer.key];
+        d3.select(this)
+          .append("title")
+          .text(
+            [
+              `${d.data.numBatteryPacks} packs`,
+              `${layer.key === "totalDrivetrainKwh" ? "Drivetrain" : "Auxiliary"}: ${formatFixed(segmentValue, 1)} kWh`,
+              `Total: ${formatFixed(
+                d.data.totalDrivetrainKwh + d.data.totalAuxiliaryKwh,
+                1
+              )} kWh`,
+            ].join("\n")
+          );
+      });
+  });
+
+  g.selectAll(".efficiency-total-label")
+    .data(data)
+    .join("text")
+    .attr("x", (d) => x(String(d.numBatteryPacks)) + x.bandwidth() / 2)
+    .attr("y", (d) => y(d.totalDrivetrainKwh + d.totalAuxiliaryKwh) - 6)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("font-weight", "600")
+    .attr("fill", "#1c1c1c")
+    .text((d) => formatFixed(d.totalConsumptionKwh, 0));
+
+  el.appendChild(svg.node());
+};
+
+const renderEfficiencySocEnvelopeChart = (el, rows) => {
+  if (!el) return;
+  el.innerHTML = "";
+
+  const data = rows.filter(
+    (row) =>
+      row.numBatteryPacks != null &&
+      row.minSocKwh != null &&
+      row.maxSocKwh != null
+  );
+
+  if (!data.length) {
+    el.innerHTML = chartEmptyStateHtml();
+    return;
+  }
+
+  const margin = { top: 24, right: 20, bottom: 44, left: 64 };
+  const W = 620;
+  const H = 280;
+  const iW = W - margin.left - margin.right;
+  const iH = H - margin.top - margin.bottom;
+
+  const svg = svgBase(W, H, "State of charge operating window");
+  const g = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3
+    .scalePoint()
+    .domain(data.map((d) => String(d.numBatteryPacks)))
+    .range([0, iW])
+    .padding(0.5);
+  const y = d3
+    .scaleLinear()
+    .domain([0, d3.max(data, (d) => d.maxSocKwh) * 1.1])
+    .nice()
+    .range([iH, 0]);
+
+  gridLines(g, y, iW);
+
+  g.append("g")
+    .attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(5).tickFormat((d) => d3.format(".3~s")(d)))
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  g.append("text")
+    .attr("x", iW / 2)
+    .attr("y", iH + 38)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("fill", "#666")
+    .text("# Packs");
+
+  g.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -iH / 2)
+    .attr("y", -46)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("fill", "#666")
+    .text("kWh");
+
+  g.selectAll(".soc-range")
+    .data(data)
+    .join("line")
+    .attr("x1", (d) => x(String(d.numBatteryPacks)))
+    .attr("x2", (d) => x(String(d.numBatteryPacks)))
+    .attr("y1", (d) => y(d.minSocKwh))
+    .attr("y2", (d) => y(d.maxSocKwh))
+    .attr("stroke", "#6fbeec")
+    .attr("stroke-width", 8)
+    .attr("stroke-linecap", "round")
+    .attr("opacity", 0.45);
+
+  g.selectAll(".soc-min-dot")
+    .data(data)
+    .join("circle")
+    .attr("cx", (d) => x(String(d.numBatteryPacks)))
+    .attr("cy", (d) => y(d.minSocKwh))
+    .attr("r", 4)
+    .attr("fill", "#00639a");
+
+  g.selectAll(".soc-max-dot")
+    .data(data)
+    .join("circle")
+    .attr("cx", (d) => x(String(d.numBatteryPacks)))
+    .attr("cy", (d) => y(d.maxSocKwh))
+    .attr("r", 4)
+    .attr("fill", "#abe828");
+
+  g.selectAll(".soc-session-label")
+    .data(data.filter((d) => d.numChargingSessions != null))
+    .join("text")
+    .attr("x", (d) => x(String(d.numBatteryPacks)))
+    .attr("y", (d) => y(d.maxSocKwh) - 10)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "9px")
+    .attr("fill", "#666")
+    .text((d) => `${formatFixed(d.numChargingSessions, 0)}x`);
+
+  g.selectAll(".soc-tooltip-target")
+    .data(data)
+    .join("rect")
+    .attr("x", (d) => x(String(d.numBatteryPacks)) - 12)
+    .attr("y", (d) => y(d.maxSocKwh))
+    .attr("width", 24)
+    .attr("height", (d) => y(d.minSocKwh) - y(d.maxSocKwh))
+    .attr("fill", "transparent")
+    .each(function addTooltip(d) {
+      d3.select(this)
+        .append("title")
+        .text(
+          [
+            `${d.numBatteryPacks} packs`,
+            `Min SoC: ${formatFixed(d.minSocKwh, 1)} kWh`,
+            `Max SoC: ${formatFixed(d.maxSocKwh, 1)} kWh`,
+            `Sessions: ${formatFixed(d.numChargingSessions, 0)}`,
+            `Charged: ${formatFixed(d.totalChargedKwh, 1)} kWh`,
+          ].join("\n")
+        );
+    });
+
+  el.appendChild(svg.node());
+};
+
+const renderOptimizationBatteryLegend = (el) => {
+  if (!el) return;
+  el.innerHTML = `
+    <div class="chart-legend-item">
+      <span class="chart-legend-swatch" style="background:${OPTIMIZATION_BATTERY_COLORS.base}"></span>
+      ${textContent(t("simulation.opt_col_base_packs") || "Base Packs")}
+    </div>
+    <div class="chart-legend-item">
+      <span class="chart-legend-swatch" style="background:${OPTIMIZATION_BATTERY_COLORS.optimized}"></span>
+      ${textContent(t("simulation.opt_col_opt_packs") || "Opt. Packs")}
+    </div>`;
+};
+
+const renderOptimizationBatteryChart = (el, rows) => {
+  if (!el) return;
+  el.innerHTML = "";
+
+  const data = rows.filter(
+    (row) => row.basePacks != null || row.optimizedPacks != null
+  );
+  if (!data.length) {
+    el.innerHTML = chartEmptyStateHtml();
+    return;
+  }
+
+  const margin = { top: 24, right: 20, bottom: 64, left: 56 };
+  const W = 620;
+  const H = 300;
+  const iW = W - margin.left - margin.right;
+  const iH = H - margin.top - margin.bottom;
+
+  const svg = svgBase(W, H, "Battery sizing comparison");
+  const g = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x0 = d3
+    .scaleBand()
+    .domain(data.map((d) => d.shiftName))
+    .range([0, iW])
+    .padding(0.25);
+  const x1 = d3
+    .scaleBand()
+    .domain(["basePacks", "optimizedPacks"])
+    .range([0, x0.bandwidth()])
+    .padding(0.16);
+  const y = d3
+    .scaleLinear()
+    .domain([
+      0,
+      d3.max(data, (d) => Math.max(d.basePacks ?? 0, d.optimizedPacks ?? 0)) * 1.2,
+    ])
+    .nice()
+    .range([iH, 0]);
+
+  gridLines(g, y, iW);
+
+  g.append("g")
+    .attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(x0))
+    .selectAll("text")
+    .attr("font-size", "10px")
+    .attr("transform", "rotate(-18)")
+    .style("text-anchor", "end");
+
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(5).tickFormat((d) => `${d}`))
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  ["basePacks", "optimizedPacks"].forEach((key) => {
+    g.selectAll(`.battery-sizing-${key}`)
+      .data(data)
+      .join("rect")
+      .attr("x", (d) => x0(d.shiftName) + x1(key))
+      .attr("y", (d) => y(d[key] ?? 0))
+      .attr("width", x1.bandwidth())
+      .attr("height", (d) => iH - y(d[key] ?? 0))
+      .attr("rx", 4)
+      .attr(
+        "fill",
+        key === "basePacks"
+          ? OPTIMIZATION_BATTERY_COLORS.base
+          : OPTIMIZATION_BATTERY_COLORS.optimized
+      )
+      .each(function addTooltip(d) {
+        d3.select(this)
+          .append("title")
+          .text(
+            `${d.shiftName}\n${
+              key === "basePacks"
+                ? (t("simulation.opt_col_base_packs") || "Base Packs")
+                : (t("simulation.opt_col_opt_packs") || "Opt. Packs")
+            }: ${formatFixed(d[key], 0)}`
+          );
+      });
   });
 
   el.appendChild(svg.node());
+};
+
+const renderEfficiencyTable = (el, state) => {
+  if (!el) return;
+
+  if (state.status === "idle" || state.status === "loading") {
+    el.innerHTML = `<p class="efficiency-state-msg">${textContent(t("simulation.efficiency_loading") || "Loading efficiency data…")}</p>`;
+    return;
+  }
+
+  if (state.status === "error") {
+    el.innerHTML = `<p class="efficiency-state-msg efficiency-state-error">${textContent(state.error ?? "Failed to load efficiency data.")}</p>`;
+    return;
+  }
+
+  const { optimizationRun, predictionRuns } = state;
+  const ip = optimizationRun?.input_params ?? {};
+  const results = optimizationRun?.results ?? {};
+  const firstRun = predictionRuns?.[0] ?? {};
+  const perBusSummary = results.per_bus_summary ?? [];
+  const batteryResults = results.battery_results ?? {};
+
+  const conditions = [
+    { label: t("simulation.var_optimization_mode") || "Mode", value: modeLabel(ip.mode ?? "") },
+    { label: t("simulation.efficiency_min_soc") || "Min SoC", value: formatPct(ip.min_soc ?? 0.4) },
+    { label: t("simulation.efficiency_max_soc") || "Max SoC", value: formatPct(ip.max_soc ?? 0.9) },
+    { label: t("simulation.efficiency_soh") || "State of Health", value: formatPct(ip.state_of_health ?? 1.0) },
+    { label: t("simulation.var_external_temp") || "Temperature (°C)", value: firstRun.external_temp_celsius != null ? `${firstRun.external_temp_celsius} °C` : "—" },
+    { label: t("simulation.var_occupancy") || "Occupancy (%)", value: firstRun.occupancy_percent != null ? `${firstRun.occupancy_percent}%` : "—" },
+    { label: t("simulation.var_heating_type") || "Heating Type", value: textContent(HEATING_LABELS[firstRun.auxiliary_heating_type] ?? firstRun.auxiliary_heating_type ?? "—") },
+    { label: t("simulation.efficiency_quantile") || "Quantile", value: textContent(ip.quantile_consumption ?? "mean") },
+  ];
+
+  const conditionsHtml = conditions.map(({ label, value }) => `
+    <div class="efficiency-param">
+      <span class="efficiency-param-label">${textContent(label)}</span>
+      <span class="efficiency-param-value">${value}</span>
+    </div>`).join("");
+
+  const optimizationHtml = buildOptimizationResultsHtml(results, ip);
+  const optimizationBatteryChartData = buildOptimizationBatteryChartData(
+    batteryResults
+  );
+
+  const predictionData = buildUnifiedPredictionData(
+    predictionRuns,
+    perBusSummary,
+    batteryResults
+  );
+  const unifiedRows = buildUnifiedPredictionRows(predictionData);
+  const hasPerBus = perBusSummary.length > 0;
+
+  const tableBody = predictionData.length === 0
+    ? `<tr><td colspan="${hasPerBus ? 12 : 8}" class="efficiency-no-data">${textContent(t("simulation.efficiency_no_predictions") || "No prediction data available.")}</td></tr>`
+    : unifiedRows;
+
+  const perBusHeaders = hasPerBus ? `
+              <th>${textContent(t("simulation.opt_col_min_soc") || "Min SoC (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_max_soc") || "Max SoC (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_sessions") || "Chg. Sessions")}</th>
+              <th>${textContent(t("simulation.opt_col_charged") || "Charged (kWh)")}</th>` : "";
+
+  const chartCards = [];
+
+  if (predictionData.length > 0) {
+    chartCards.push(`
+        <div class="chart-section efficiency-chart-card">
+          <div class="efficiency-chart-copy">
+            <h4>${textContent(t("simulation.efficiency_curve_title") || "Energy efficiency by battery configuration")}</h4>
+            <p>${textContent(t("simulation.efficiency_curve_subtitle") || "Lower kWh / km indicates a more efficient setup.")}</p>
+          </div>
+          <div class="chart-container efficiency-chart-container" data-role="efficiency-curve-chart"></div>
+        </div>`);
+
+    chartCards.push(`
+        <div class="chart-section efficiency-chart-card">
+          <div class="efficiency-chart-copy">
+            <h4>${textContent(t("simulation.efficiency_energy_breakdown_title") || "Energy consumption breakdown")}</h4>
+            <p>${textContent(t("simulation.efficiency_energy_breakdown_subtitle") || "Compare drivetrain and auxiliary demand for each battery-pack scenario.")}</p>
+          </div>
+          <div class="chart-container efficiency-chart-container" data-role="efficiency-energy-chart"></div>
+          <div class="chart-legend efficiency-chart-legend" data-role="efficiency-energy-legend"></div>
+        </div>`);
+
+    chartCards.push(`
+        <div class="chart-section efficiency-chart-card">
+          <div class="efficiency-chart-copy">
+            <h4>${textContent(t("simulation.efficiency_soc_title") || "State of charge operating window")}</h4>
+            <p>${textContent(t("simulation.efficiency_soc_subtitle") || "Compare minimum and maximum state of charge reached for each battery-pack scenario.")}</p>
+          </div>
+          <div class="chart-container efficiency-chart-container" data-role="efficiency-soc-chart"></div>
+        </div>`);
+  }
+
+  if (optimizationBatteryChartData.length > 0) {
+    chartCards.push(`
+        <div class="chart-section efficiency-chart-card">
+          <div class="efficiency-chart-copy">
+            <h4>${textContent(t("simulation.opt_battery_chart_title") || "Battery sizing comparison")}</h4>
+            <p>${textContent(t("simulation.opt_battery_chart_subtitle") || "Compare the base and optimized battery-pack recommendation for each shift.")}</p>
+          </div>
+          <div class="chart-container efficiency-chart-container" data-role="optimization-battery-chart"></div>
+          <div class="chart-legend efficiency-chart-legend" data-role="optimization-battery-legend"></div>
+        </div>`);
+  }
+
+  const chartsHtml = chartCards.length > 0
+    ? `
+    <div class="efficiency-section">
+      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_graphical_analysis") || "Graphical analysis")}</h3>
+      <div class="efficiency-chart-grid">
+        ${chartCards.join("")}
+      </div>
+    </div>`
+    : "";
+
+  el.innerHTML = `
+    <div class="efficiency-section">
+      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
+      <div class="efficiency-params-grid">${conditionsHtml}</div>
+    </div>
+    ${chartsHtml}
+    ${optimizationHtml}
+    <div class="efficiency-section">
+      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</h3>
+      <div class="efficiency-table-wrap">
+        <table class="efficiency-table">
+          <thead>
+            <tr>
+              <th>${textContent(t("simulation.efficiency_col_packs") || "# Packs")}</th>
+              <th>${textContent(t("simulation.efficiency_col_capacity") || "Capacity (kWh)")}</th>
+              <th>${textContent(t("simulation.efficiency_col_weight") || "Weight (kg)")}</th>
+              <th>${textContent(t("simulation.efficiency_col_distance") || "Distance (km)")}</th>
+              <th>${textContent(t("simulation.efficiency_col_total_energy") || "Total Energy (kWh)")}</th>
+              <th>${textContent(t("simulation.efficiency_col_per_km") || "kWh / km")}</th>
+              <th>${textContent(t("simulation.efficiency_col_drivetrain") || "Drivetrain (kWh)")}</th>
+              <th>${textContent(t("simulation.efficiency_col_auxiliary") || "Auxiliary (kWh)")}</th>
+              ${perBusHeaders}
+            </tr>
+          </thead>
+          <tbody>${tableBody}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  renderEfficiencyCurveChart(
+    el.querySelector('[data-role="efficiency-curve-chart"]'),
+    predictionData
+  );
+  renderEfficiencyEnergySplitChart(
+    el.querySelector('[data-role="efficiency-energy-chart"]'),
+    predictionData
+  );
+  renderEfficiencyEnergyLegend(
+    el.querySelector('[data-role="efficiency-energy-legend"]')
+  );
+  renderEfficiencySocEnvelopeChart(
+    el.querySelector('[data-role="efficiency-soc-chart"]'),
+    predictionData
+  );
+  renderOptimizationBatteryChart(
+    el.querySelector('[data-role="optimization-battery-chart"]'),
+    optimizationBatteryChartData
+  );
+  renderOptimizationBatteryLegend(
+    el.querySelector('[data-role="optimization-battery-legend"]')
+  );
+};
+
+const firstFiniteValue = (...values) =>
+  values.map((value) => toFiniteNumber(value)).find((value) => value != null) ?? null;
+
+const resolveOptimizedPackCount = (batteryResults = {}) => {
+  const optimizedPacks = Object.values(batteryResults ?? {})
+    .map((result) => toFiniteNumber(result?.optimized_packs))
+    .filter((value) => value != null);
+
+  if (!optimizedPacks.length) return null;
+  return d3.max(optimizedPacks);
+};
+
+const selectCostPredictionRun = (predictionRuns = [], batteryResults = {}) => {
+  if (!Array.isArray(predictionRuns) || !predictionRuns.length) return null;
+
+  const targetPacks = resolveOptimizedPackCount(batteryResults);
+  if (targetPacks != null) {
+    const exactMatch = predictionRuns.find(
+      (run) =>
+        toFiniteNumber(run?.contextual_parameters?.num_battery_packs) === targetPacks
+    );
+    if (exactMatch) return exactMatch;
+  }
+
+  return [...predictionRuns].reduce((best, run) => {
+    const bestValue = toFiniteNumber(best?.summary?.consumption_per_km_kwh);
+    const candidateValue = toFiniteNumber(run?.summary?.consumption_per_km_kwh);
+    if (candidateValue == null) return best;
+    if (bestValue == null || candidateValue < bestValue) return run;
+    return best;
+  }, predictionRuns[0]);
+};
+
+const resolveChargerPowerKw = (optimizationRun, options = {}) => {
+  const installedChargers = Object.values(
+    optimizationRun?.results?.installed_chargers ?? {}
+  );
+  const inputStations = Array.isArray(optimizationRun?.input_params?.charging_stations)
+    ? optimizationRun.input_params.charging_stations
+    : [];
+
+  const perSlotCandidates = [
+    ...installedChargers.flatMap((charger) => [
+      charger?.max_power_per_slot_kw,
+      charger?.power_per_slot_kw,
+      (() => {
+        const totalPower = toFiniteNumber(
+          charger?.max_total_power_kw ?? charger?.total_power_kw ?? charger?.max_power_kw
+        );
+        const slots = toFiniteNumber(charger?.num_slots ?? charger?.slots);
+        return totalPower != null && slots != null && slots > 0
+          ? totalPower / slots
+          : null;
+      })(),
+    ]),
+    ...inputStations.flatMap((station) => [
+      station?.max_power_per_slot_kw,
+      station?.power_per_slot_kw,
+      (() => {
+        const totalPower = toFiniteNumber(
+          station?.max_total_power_kw ?? station?.total_power_kw ?? station?.max_power_kw
+        );
+        const slots = toFiniteNumber(station?.num_slots);
+        return totalPower != null && slots != null && slots > 0
+          ? totalPower / slots
+          : null;
+      })(),
+    ]),
+    options?.busModelData?.max_charging_power_kw,
+  ]
+    .map((value) => toFiniteNumber(value))
+    .filter((value) => value != null);
+
+  return perSlotCandidates.length ? d3.max(perSlotCandidates) : null;
+};
+
+const buildEconomicComparisonParams = (optimizationRun, predictionRuns, options = {}) => {
+  const inputParams = optimizationRun?.input_params ?? {};
+  const batteryResults = optimizationRun?.results?.battery_results ?? {};
+  const selectedPredictionRun = selectCostPredictionRun(predictionRuns, batteryResults);
+  const predictionSummary = selectedPredictionRun?.summary ?? {};
+  const predictionContext = selectedPredictionRun?.contextual_parameters ?? {};
+  const shiftId =
+    String(options.shiftId ?? inputParams?.shift_ids?.[0] ?? "").trim();
+  const busLengthM = firstFiniteValue(
+    options?.busModelData?.bus_length_m,
+    predictionContext?.bus_length_m
+  );
+  const batteryCapacityKwh = firstFiniteValue(
+    predictionContext?.battery_capacity_kwh,
+    (() => {
+      const packCount = resolveOptimizedPackCount(batteryResults);
+      const packSize = toFiniteNumber(options?.busModelData?.battery_pack_size_kwh);
+      return packCount != null && packSize != null ? packCount * packSize : null;
+    })()
+  );
+  const chargerPowerKw = resolveChargerPowerKw(optimizationRun, options);
+  const annualConsumptionKwh =
+    (toFiniteNumber(predictionSummary?.total_consumption_kwh) ?? 0) *
+    COST_ANNUALIZATION_FACTOR;
+
+  const invalidInputs = [
+    !shiftId ? "shift_id" : null,
+    busLengthM == null || busLengthM <= 0 ? "bus_length_m" : null,
+    batteryCapacityKwh == null || batteryCapacityKwh <= 0
+      ? "battery_capacity_kwh"
+      : null,
+    chargerPowerKw == null || chargerPowerKw <= 0 ? "charger_power_kw" : null,
+    annualConsumptionKwh <= 0 ? "annual_consumption_kwh" : null,
+  ].filter(Boolean);
+
+  if (invalidInputs.length) {
+    throw new Error(
+      `${t("simulation.costs_not_enough_data") ||
+        "Not enough optimization or prediction data to compute costs."} ${invalidInputs
+        .map((key) => economicInputLabel(key))
+        .join(", ")}.`
+    );
+  }
+
+  const batteryPackCost = toFiniteNumber(options?.busModelData?.battery_pack_cost);
+  const batteryPackSize = toFiniteNumber(options?.busModelData?.battery_pack_size_kwh);
+  const derivedBatteryCostPerKwh =
+    batteryPackCost != null && batteryPackCost > 0 &&
+    batteryPackSize != null && batteryPackSize > 0
+      ? batteryPackCost / batteryPackSize
+      : null;
+
+  const positiveOrNull = (v) => {
+    const n = toFiniteNumber(v);
+    return n != null && n > 0 ? n : null;
+  };
+
+  return {
+    shift_id: shiftId,
+    recurrence: "weekly_once",
+    bus_length_m: busLengthM,
+    battery_capacity_kwh: batteryCapacityKwh,
+    charger_power_kw: chargerPowerKw,
+    annual_consumption_kwh: Number(annualConsumptionKwh.toFixed(3)),
+    lifetime_bus: positiveOrNull(
+      firstFiniteValue(options?.busModelData?.bus_lifetime)
+    ),
+    lifetime_battery: positiveOrNull(
+      firstFiniteValue(options?.busModelData?.battery_pack_lifetime)
+    ),
+    battery_cost_per_kwh: positiveOrNull(
+      firstFiniteValue(inputParams?.battery_cost_per_kwh, derivedBatteryCostPerKwh)
+    ),
+  };
+};
+
+const loadCostComparison = async (optimizationRun, predictionRuns, options = {}) => {
+  const params = buildEconomicComparisonParams(
+    optimizationRun,
+    predictionRuns,
+    options
+  );
+  return fetchEconomicComparison(params);
+};
+
+const renderCostsSection = (sec, state, options = {}) => {
+  if (!sec) return;
+
+  const investEl = sec.querySelector('[data-role="costs-investment"]');
+  const kpiEl = sec.querySelector('[data-role="costs-kpis"]');
+  const barEl = sec.querySelector('[data-role="costs-bar-chart"]');
+  const legendEl = sec.querySelector('[data-role="costs-legend"]');
+  const lineEl = sec.querySelector('[data-role="costs-line-chart"]');
+
+  if (state.status === "idle" || state.status === "loading") {
+    renderInvestmentTable(investEl, state, options);
+    renderCostsKpis(kpiEl, null);
+    if (barEl) {
+      barEl.innerHTML = costsStateHtml(
+        t("simulation.costs_loading") || "Loading cost comparison…"
+      );
+    }
+    if (legendEl) legendEl.innerHTML = "";
+    if (lineEl) {
+      lineEl.innerHTML = costsStateHtml(
+        t("simulation.costs_loading") || "Loading cost comparison…"
+      );
+    }
+    return;
+  }
+
+  if (state.status === "error") {
+    renderInvestmentTable(investEl, state, options);
+    renderCostsKpis(kpiEl, null);
+    if (barEl) {
+      barEl.innerHTML = costsStateHtml(
+        state.error ||
+          t("simulation.costs_error") ||
+          "Unable to load cost comparison.",
+        "error"
+      );
+    }
+    if (legendEl) legendEl.innerHTML = "";
+    if (lineEl) {
+      lineEl.innerHTML = costsStateHtml(
+        state.error ||
+          t("simulation.costs_error") ||
+          "Unable to load cost comparison.",
+        "error"
+      );
+    }
+    return;
+  }
+
+  renderInvestmentTable(investEl, state, options);
+  const chartData = buildCostsChartData(state.comparison, options);
+  renderCostsKpis(kpiEl, state.comparison);
+  renderCostsBar(barEl, chartData?.tco ?? []);
+  renderCostsLegend(legendEl);
+  renderCostsLine(lineEl, chartData?.yearly ?? []);
 };
 
 /* ── Emissions tab charts ─────────────────────────────────────── */
@@ -444,23 +1696,6 @@ const renderCO2Cumulative = (el) => {
 
 /* ── Chart render registry (lazy per tab) ─────────────────────── */
 
-const TAB_RENDERERS = {
-  costs: (section) => {
-    renderCostsBar(section.querySelector('[data-role="costs-bar-chart"]'));
-    renderCostsLegend(section.querySelector('[data-role="costs-legend"]'));
-    renderCostsLine(section.querySelector('[data-role="costs-line-chart"]'));
-  },
-  efficiency: (section) => {
-    renderSOCChart(section.querySelector('[data-role="efficiency-soc-chart"]'));
-    renderEnergyChart(section.querySelector('[data-role="efficiency-energy-chart"]'));
-  },
-  emissions: (section) => {
-    renderCO2Bar(section.querySelector('[data-role="emissions-bar-chart"]'));
-    renderCO2Legend(section.querySelector('[data-role="emissions-legend"]'));
-    renderCO2Cumulative(section.querySelector('[data-role="emissions-line-chart"]'));
-  },
-};
-
 /* ── Init ──────────────────────────────────────────────────────── */
 
 export const initializeSimulationResults = (root = document, options = {}) => {
@@ -469,6 +1704,38 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const cleanupHandlers = [];
   const renderedTabs = new Set();
+
+  /* Async data — populated after loading the run */
+  const costState = { status: "idle", comparison: null, optimizationRun: null, error: null };
+  const efficiencyState = { status: "idle", optimizationRun: null, predictionRuns: [], error: null };
+
+  const refreshCostsTab = () => {
+    if (!renderedTabs.has("costs")) return;
+    renderCostsSection(
+      section.querySelector('[data-panel="costs"]'),
+      costState,
+      options
+    );
+  };
+
+  const refreshEfficiencyTab = () => {
+    if (!renderedTabs.has("efficiency")) return;
+    renderEfficiencyTable(section.querySelector('[data-role="efficiency-table"]'), efficiencyState);
+  };
+
+  const TAB_RENDERERS = {
+    costs: (sec) => {
+      renderCostsSection(sec.querySelector('[data-panel="costs"]') ?? sec, costState, options);
+    },
+    efficiency: (sec) => {
+      renderEfficiencyTable(sec.querySelector('[data-role="efficiency-table"]'), efficiencyState);
+    },
+    emissions: (sec) => {
+      renderCO2Bar(sec.querySelector('[data-role="emissions-bar-chart"]'));
+      renderCO2Legend(sec.querySelector('[data-role="emissions-legend"]'));
+      renderCO2Cumulative(sec.querySelector('[data-role="emissions-line-chart"]'));
+    },
+  };
 
   const simNameEl = section.querySelector('[data-role="sim-name"]');
   const busModelEl = section.querySelector('[data-role="sim-bus-model"]');
@@ -499,6 +1766,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     ...(bmd.bus_length_m != null && bmd.bus_length_m !== "" ? { bus_length_m: bmd.bus_length_m } : {}),
     ...(bmd.max_passengers != null && bmd.max_passengers !== "" ? { max_passengers: bmd.max_passengers } : {}),
     ...(bmd.bus_lifetime != null && bmd.bus_lifetime !== "" ? { bus_lifetime_years: bmd.bus_lifetime } : {}),
+    ...(bmd.battery_pack_cost != null && bmd.battery_pack_cost !== "" ? { single_pack_battery_cost_chf: formatCHF(bmd.battery_pack_cost) } : {}),
     ...(bmd.battery_pack_lifetime != null && bmd.battery_pack_lifetime !== "" ? { battery_pack_lifetime_years: bmd.battery_pack_lifetime } : {}),
   };
 
@@ -564,6 +1832,62 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     overlay.addEventListener("click", onBg);
     cleanupHandlers.push(() => overlay.removeEventListener("click", onBg));
   }
+
+  /* Async: fetch optimization run + prediction runs, then derive costs */
+  const loadResultData = async () => {
+    if (!options.runId) return;
+
+    costState.status = "loading";
+    costState.comparison = null;
+    costState.error = null;
+    efficiencyState.status = "loading";
+    efficiencyState.error = null;
+    refreshEfficiencyTab();
+    refreshCostsTab();
+
+    try {
+      const optimizationRun = await fetchOptimizationRun(options.runId);
+      const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
+        ? optimizationRun.prediction_run_ids
+        : [];
+      const predictionRuns = predRunIds.length
+        ? await Promise.all(predRunIds.map((id) => fetchPredictionRun(id)))
+        : [];
+
+      efficiencyState.status = "done";
+      efficiencyState.optimizationRun = optimizationRun;
+      efficiencyState.predictionRuns = predictionRuns;
+
+      costState.optimizationRun = optimizationRun;
+      try {
+        costState.comparison = await loadCostComparison(
+          optimizationRun,
+          predictionRuns,
+          options
+        );
+        costState.status = "done";
+      } catch (costErr) {
+        costState.status = "error";
+        costState.error =
+          costErr?.message ??
+          t("simulation.costs_error") ??
+          "Unable to load cost comparison.";
+      }
+    } catch (err) {
+      costState.status = "error";
+      costState.error =
+        err?.message ??
+        t("simulation.costs_error") ??
+        "Unable to load cost comparison.";
+      efficiencyState.status = "error";
+      efficiencyState.error = err?.message ?? "Failed to load efficiency data.";
+    }
+
+    refreshCostsTab();
+    refreshEfficiencyTab();
+  };
+
+  loadResultData();
 
   return () => cleanupHandlers.forEach((h) => h());
 };

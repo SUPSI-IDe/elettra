@@ -474,6 +474,7 @@ export const initializeSimulationRuns = async (
         max_passengers: specs?.max_passengers ?? "",
         bus_lifetime: specs?.bus_lifetime ?? "",
         battery_pack_size_kwh: specs?.battery_pack_size_kwh ?? "",
+        battery_pack_cost: specs?.battery_pack_cost_chf ?? "",
         max_charging_power_kw: specs?.max_charging_power_kw ?? "",
         empty_weight_kg: specs?.empty_weight_kg ?? "",
         min_battery_packs: specs?.min_battery_packs ?? "",
@@ -557,6 +558,7 @@ export const initializeSimulationRuns = async (
           max_passengers: specs?.max_passengers ?? "",
           bus_lifetime: specs?.bus_lifetime ?? "",
           battery_pack_size_kwh: specs?.battery_pack_size_kwh ?? "",
+          battery_pack_cost: specs?.battery_pack_cost_chf ?? "",
           battery_pack_lifetime: specs?.battery_pack_lifetime ?? "",
         },
       };

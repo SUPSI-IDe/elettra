@@ -26,6 +26,7 @@ import {
   toggleFormDisabled,
   updateFeedback,
 } from "../../../ui-helpers";
+import { t } from "../../../i18n";
 import {
   text,
   firstAvailable,
@@ -289,6 +290,25 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const cancelButton = form.querySelector('[data-action="cancel"]');
   const visualizeButton = form.querySelector('[data-action="visualize-shift"]');
   const closeButton = section.querySelector('[data-action="close"]');
+  const progressOverlay = section.querySelector('[data-role="shift-progress"]');
+  const progressMessage = section.querySelector(
+    '[data-role="shift-progress-message"]'
+  );
+
+  const showProgress = (message) => {
+    if (progressMessage) {
+      progressMessage.textContent = message;
+    }
+    if (progressOverlay) {
+      progressOverlay.hidden = false;
+    }
+  };
+
+  const hideProgress = () => {
+    if (progressOverlay) {
+      progressOverlay.hidden = true;
+    }
+  };
 
   const handleCloseClick = () => {
     triggerPartialLoad("shifts");
@@ -1223,6 +1243,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateFeedback(feedback, isEditMode ? "Updating…" : "Saving…", "info");
 
     try {
+      showProgress(
+        t("shifts.saving_shift") || (isEditMode ? "Saving shift..." : "Creating shift...")
+      );
+
       // Build the complete trip IDs array, including auxiliary depot trips
       let allTripIds = [...tripIds];
       
@@ -1252,7 +1276,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         } else {
           // Fetch actual stops for the first trip to get the first stop ID
           // Use the database UUID (id field), not the GTFS trip_id
-          updateFeedback(feedback, "Fetching stops for first trip...", "info");
+          updateFeedback(
+            feedback,
+            t("shifts.fetching_stops_first") || "Fetching stops for first trip...",
+            "info"
+          );
+          showProgress(
+            t("shifts.fetching_stops_first") || "Fetching stops for first trip..."
+          );
           const firstTripDbId = firstTrip?.id || resolveTripPk(firstTrip);
           console.debug("[SHIFT] First trip DB ID:", firstTripDbId, "from trip:", { id: firstTrip?.id, trip_id: firstTrip?.trip_id });
           const firstTripEdges = await fetchTripStopEdges(firstTripDbId);
@@ -1283,7 +1314,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
               }
             } catch (auxError) {
               console.error("[SHIFT] Failed to create depot → first stop auxiliary trip:", auxError);
-              updateFeedback(feedback, `Warning: Could not create depot departure trip: ${auxError.message}`, "error");
+              updateFeedback(
+                feedback,
+                t("shifts.depot_departure_warning", {
+                  message: auxError.message,
+                }) ||
+                  `Warning: Could not create depot departure trip: ${auxError.message}`,
+                "error"
+              );
               // Continue without the auxiliary trip - the shift will still be created
             }
           } else {
@@ -1300,7 +1338,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         } else {
           // Fetch actual stops for the last trip to get the last stop ID
           // Use the database UUID (id field), not the GTFS trip_id
-          updateFeedback(feedback, "Fetching stops for last trip...", "info");
+          updateFeedback(
+            feedback,
+            t("shifts.fetching_stops_last") || "Fetching stops for last trip...",
+            "info"
+          );
+          showProgress(
+            t("shifts.fetching_stops_last") || "Fetching stops for last trip..."
+          );
           const lastTripDbId = lastTrip?.id || resolveTripPk(lastTrip);
           console.debug("[SHIFT] Last trip DB ID:", lastTripDbId, "from trip:", { id: lastTrip?.id, trip_id: lastTrip?.trip_id });
           const lastTripEdges = await fetchTripStopEdges(lastTripDbId);
@@ -1331,7 +1376,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
               }
             } catch (auxError) {
               console.error("[SHIFT] Failed to create last stop → depot auxiliary trip:", auxError);
-              updateFeedback(feedback, `Warning: Could not create depot return trip: ${auxError.message}`, "error");
+              updateFeedback(
+                feedback,
+                t("shifts.depot_return_warning", {
+                  message: auxError.message,
+                }) ||
+                  `Warning: Could not create depot return trip: ${auxError.message}`,
+                "error"
+              );
               // Continue without the auxiliary trip - the shift will still be created
             }
           } else {
@@ -1340,32 +1392,49 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         }
       }
 
-      updateFeedback(feedback, isEditMode ? "Saving shift..." : "Creating shift...", "info");
+      updateFeedback(
+        feedback,
+        isEditMode
+          ? t("shifts.saving_shift") || "Saving shift..."
+          : t("shifts.creating_shift") || "Creating shift...",
+        "info"
+      );
+      showProgress(
+        isEditMode
+          ? t("shifts.saving_shift") || "Saving shift..."
+          : t("shifts.creating_shift") || "Creating shift..."
+      );
 
       if (isEditMode) {
         await updateShift(shiftId, { name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId });
-        updateFeedback(feedback, "Shift updated.", "success");
+        updateFeedback(feedback, t("shifts.shift_updated") || "Shift updated.", "success");
         triggerPartialLoad("shifts", {
-          flashMessage: "Shift updated.",
+          flashMessage: t("shifts.shift_updated") || "Shift updated.",
         });
         return;
       }
 
       await createShift({ name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId });
-      updateFeedback(feedback, "Shift created.", "success");
-      triggerPartialLoad("shifts", { flashMessage: "Shift created." });
+      updateFeedback(feedback, t("shifts.shift_created") || "Shift created.", "success");
+      triggerPartialLoad("shifts", {
+        flashMessage: t("shifts.shift_created") || "Shift created.",
+      });
     } catch (error) {
       console.error(
         isEditMode ? "Failed to update shift" : "Failed to create shift",
         error
       );
+      hideProgress();
       updateFeedback(
         feedback,
         error?.message ??
-          (isEditMode ? "Unable to update shift." : "Unable to save shift."),
+          (isEditMode
+            ? t("shifts.unable_to_update") || "Unable to update shift."
+            : t("shifts.unable_to_save") || "Unable to save shift."),
         "error"
       );
     } finally {
+      hideProgress();
       toggleFormDisabled(form, false);
     }
   };

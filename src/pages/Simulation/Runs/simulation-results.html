@@ -48,25 +48,26 @@
     <div class="results-tab-panels">
       <div class="tab-panel active" data-panel="costs" role="tabpanel">
         <div class="chart-section">
-          <h2 data-i18n="simulation.results_tco_title">Total Cost of Ownership</h2>
+          <h2 data-i18n="simulation.results_investment_title">Investment cost breakdown</h2>
+          <div data-role="costs-investment"></div>
+        </div>
+        <div class="chart-section">
+          <h2 data-i18n="simulation.results_tco_title">Annual cost comparison</h2>
+          <div class="costs-kpi-grid" data-role="costs-kpis"></div>
+          <p class="costs-assumption-note" data-i18n="simulation.costs_assumption_weekly_once">
+            Current economic comparison assumes `weekly_once` recurrence.
+          </p>
           <div class="chart-container" data-role="costs-bar-chart"></div>
           <div class="chart-legend" data-role="costs-legend"></div>
         </div>
         <div class="chart-section">
-          <h2 data-i18n="simulation.results_costs_yearly">Yearly cost breakdown</h2>
+          <h2 data-i18n="simulation.results_costs_trend">Projected cost trend</h2>
           <div class="chart-container" data-role="costs-line-chart"></div>
         </div>
       </div>
 
-      <div class="tab-panel" data-panel="efficiency" role="tabpanel" hidden>
-        <div class="chart-section">
-          <h2 data-i18n="simulation.results_soc_title">State of Charge over shift</h2>
-          <div class="chart-container" data-role="efficiency-soc-chart"></div>
-        </div>
-        <div class="chart-section">
-          <h2 data-i18n="simulation.results_energy_title">Energy consumption per km</h2>
-          <div class="chart-container" data-role="efficiency-energy-chart"></div>
-        </div>
+      <div class="tab-panel tab-panel--full" data-panel="efficiency" role="tabpanel" hidden>
+        <div class="efficiency-panel" data-role="efficiency-table"></div>
       </div>
 
       <div class="tab-panel" data-panel="emissions" role="tabpanel" hidden>
