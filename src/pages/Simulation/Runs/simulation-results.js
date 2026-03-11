@@ -8,6 +8,7 @@ import {
   fetchPredictionRun,
 } from "../../../api/simulation";
 import { fetchBusModelById } from "../../../api/bus-models";
+import { fetchShiftYearlyDistance } from "../../../api/shifts";
 import { getEquivalentDieselBusCapexForLength } from "../../../config/economic-defaults";
 import "./simulation-results.css";
 
@@ -255,6 +256,12 @@ const sumOpexItemsByType = (items = [], type) =>
     return total + (toFiniteNumber(item?.cost_chf_per_year) ?? 0);
   }, 0);
 
+const sumOpexItems = (items = []) =>
+  (Array.isArray(items) ? items : []).reduce(
+    (total, item) => total + (toFiniteNumber(item?.cost_chf_per_year) ?? 0),
+    0
+  );
+
 const resolveOptimizedPackCount = (batteryResults = {}) => {
   const optimizedPacks = Object.values(batteryResults ?? {})
     .map((result) => toFiniteNumber(result?.optimized_packs))
@@ -315,19 +322,15 @@ const buildCostsChartData = (comparison, options = {}) => {
   if (!comparison) return null;
 
   const horizonYears = Math.min(15, resolveTrendHorizon(comparison, options));
-  const electricAnnual = toFiniteNumber(
-    comparison?.electric?.total_annual_cost_chf_per_year
-  ) ?? 0;
-  const dieselAnnual = toFiniteNumber(
-    comparison?.diesel?.total_annual_cost_chf_per_year
-  ) ?? 0;
+  const electricAnnualOpex = sumOpexItems(comparison?.electric?.opex_items);
+  const dieselAnnualOpex = sumOpexItems(comparison?.diesel?.opex_items);
   const electricBusCapexChf =
     resolveElectricBusCapex(options?.optimizationRun, options)?.totalCapexChf ?? 0;
   const dieselBusCapexChf = resolveEquivalentDieselBusCapex(options) ?? 0;
   const yearly = Array.from({ length: horizonYears }, (_, index) => ({
     year: index + 1,
-    diesel: dieselBusCapexChf + dieselAnnual * (index + 1),
-    electric: electricBusCapexChf + electricAnnual * (index + 1),
+    diesel: dieselBusCapexChf + dieselAnnualOpex * (index + 1),
+    electric: electricBusCapexChf + electricAnnualOpex * (index + 1),
   }));
 
   if (electricBusCapexChf > 0 || dieselBusCapexChf > 0) {
@@ -354,8 +357,8 @@ const renderCostsKpis = (el, comparison) => {
     return;
   }
 
-  const annualSaving = toFiniteNumber(comparison?.annual_saving_chf) ?? 0;
-  const annualKm = toFiniteNumber(comparison?.annual_km);
+  const electricOpex = sumOpexItems(comparison?.electric?.opex_items);
+  const dieselOpex = sumOpexItems(comparison?.diesel?.opex_items);
   const kpis = [
     {
       label: costKpiLabel("electric_total"),
@@ -368,13 +371,13 @@ const renderCostsKpis = (el, comparison) => {
       tone: "",
     },
     {
-      label: costKpiLabel("annual_saving"),
-      value: `${annualSaving >= 0 ? "CHF" : "-CHF"} ${formatCHF(Math.abs(annualSaving))}`,
-      tone: annualSaving >= 0 ? "positive" : "negative",
+      label: t("simulation.costs_kpi_electric_opex") || "Electric yearly OPEX",
+      value: `CHF ${formatCHF(electricOpex)}`,
+      tone: "",
     },
     {
-      label: costKpiLabel("annual_km"),
-      value: annualKm == null ? "—" : `${formatFixed(annualKm, 0)} km`,
+      label: t("simulation.costs_kpi_diesel_opex") || "Diesel yearly OPEX",
+      value: `CHF ${formatCHF(dieselOpex)}`,
       tone: "",
     },
   ];
@@ -388,6 +391,111 @@ const renderCostsKpis = (el, comparison) => {
         </div>`
     )
     .join("");
+};
+
+const renderCostsAssumption = (el, annualization = null) => {
+  if (!el) return;
+  if (
+    annualization?.mode === "yearly_distance" &&
+    annualization?.yearlyDistanceKm != null
+  ) {
+    el.textContent =
+      `Annual cost comparison is scaled to ${formatFixed(annualization.yearlyDistanceKm, 0)} km/year ` +
+      `using the shift yearly-distance endpoint with recurrence=weekdays.`;
+    return;
+  }
+  el.textContent =
+    t("simulation.costs_assumption_weekly_once") ||
+    "Current economic comparison assumes `weekly_once` recurrence.";
+};
+
+const renderOpexInputsTable = (el, state) => {
+  if (!el) return;
+  if (state.status !== "done" || !state.costInputs) {
+    el.innerHTML = "";
+    return;
+  }
+
+  const rows = [
+    ["Shift ID", state.costInputs.shiftId],
+    ["Recurrence", state.costInputs.recurrence],
+    [
+      "Yearly distance (km)",
+      state.costInputs.yearlyDistanceKm == null
+        ? "—"
+        : formatFixed(state.costInputs.yearlyDistanceKm, 0),
+    ],
+    [
+      "Prediction distance per shift (km)",
+      state.costInputs.predictedShiftDistanceKm == null
+        ? "—"
+        : formatFixed(state.costInputs.predictedShiftDistanceKm, 3),
+    ],
+    [
+      "Prediction consumption per shift (kWh)",
+      state.costInputs.predictedShiftConsumptionKwh == null
+        ? "—"
+        : formatFixed(state.costInputs.predictedShiftConsumptionKwh, 3),
+    ],
+    [
+      "Annualization factor",
+      state.costInputs.annualizationFactor == null
+        ? "—"
+        : formatFixed(state.costInputs.annualizationFactor, 3),
+    ],
+    [
+      "Annual consumption (kWh)",
+      state.costInputs.annualConsumptionKwh == null
+        ? "—"
+        : formatFixed(state.costInputs.annualConsumptionKwh, 3),
+    ],
+    [
+      "Bus length (m)",
+      state.costInputs.busLengthM == null ? "—" : formatFixed(state.costInputs.busLengthM, 0),
+    ],
+    [
+      "Battery capacity (kWh)",
+      state.costInputs.batteryCapacityKwh == null
+        ? "—"
+        : formatFixed(state.costInputs.batteryCapacityKwh, 0),
+    ],
+    [
+      "Charger power (kW)",
+      state.costInputs.chargerPowerKw == null
+        ? "—"
+        : formatFixed(state.costInputs.chargerPowerKw, 0),
+    ],
+    [
+      "Battery cost per kWh (CHF)",
+      state.costInputs.batteryCostPerKwh == null
+        ? "—"
+        : formatFixed(state.costInputs.batteryCostPerKwh, 2),
+    ],
+    [
+      "Bus lifetime (years)",
+      state.costInputs.lifetimeBus == null
+        ? "—"
+        : formatFixed(state.costInputs.lifetimeBus, 0),
+    ],
+    [
+      "Battery lifetime (years)",
+      state.costInputs.lifetimeBattery == null
+        ? "—"
+        : formatFixed(state.costInputs.lifetimeBattery, 0),
+    ],
+  ];
+
+  el.innerHTML = `
+    <table class="costs-inputs-table">
+      <tbody>
+        ${rows
+          .map(
+            ([label, value]) =>
+              `<tr><td>${textContent(label)}</td><td>${textContent(String(value ?? "—"))}</td></tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>`;
 };
 
 const formatChfAxis = (value) => {
@@ -1539,6 +1647,26 @@ const renderEfficiencyTable = (el, state) => {
 const firstFiniteValue = (...values) =>
   values.map((value) => toFiniteNumber(value)).find((value) => value != null) ?? null;
 
+const extractYearlyDistanceKm = (payload) =>
+  firstFiniteValue(
+    payload,
+    payload?.yearly_distance_km,
+    payload?.yearlyDistanceKm,
+    payload?.yearly_distance,
+    payload?.yearlyDistance,
+    payload?.annual_distance_km,
+    payload?.annualDistanceKm,
+    payload?.distance_km,
+    payload?.distanceKm,
+    payload?.km,
+    payload?.value,
+    payload?.data?.yearly_distance_km,
+    payload?.data?.yearlyDistanceKm,
+    payload?.data?.yearly_distance,
+    payload?.data?.distance_km,
+    payload?.data?.km
+  );
+
 const selectCostPredictionRun = (predictionRuns = [], batteryResults = {}) => {
   if (!Array.isArray(predictionRuns) || !predictionRuns.length) return null;
 
@@ -1603,7 +1731,55 @@ const resolveChargerPowerKw = (optimizationRun, options = {}) => {
   return perSlotCandidates.length ? d3.max(perSlotCandidates) : null;
 };
 
-const buildEconomicComparisonParams = (optimizationRun, predictionRuns, options = {}) => {
+const DEFAULT_SHIFT_YEARLY_DISTANCE_RECURRENCE = "weekdays";
+
+const resolveCostAnnualization = async (shiftId, predictionSummary = {}) => {
+  const shiftDistanceKm = toFiniteNumber(predictionSummary?.total_distance_km);
+  const shiftConsumptionKwh = toFiniteNumber(predictionSummary?.total_consumption_kwh);
+
+  let yearlyDistanceKm = null;
+  if (shiftId) {
+    try {
+      yearlyDistanceKm = extractYearlyDistanceKm(
+        await fetchShiftYearlyDistance(shiftId, {
+          recurrence: DEFAULT_SHIFT_YEARLY_DISTANCE_RECURRENCE,
+        })
+      );
+    } catch (error) {
+      console.warn(
+        "[elettra] Unable to load shift yearly distance, falling back to weekly annualization:",
+        error
+      );
+    }
+  }
+
+  const canUseYearlyDistance =
+    yearlyDistanceKm != null &&
+    yearlyDistanceKm > 0 &&
+    shiftDistanceKm != null &&
+    shiftDistanceKm > 0;
+  const annualizationFactor = canUseYearlyDistance
+    ? yearlyDistanceKm / shiftDistanceKm
+    : COST_ANNUALIZATION_FACTOR;
+  const annualConsumptionKwh =
+    shiftConsumptionKwh != null && annualizationFactor > 0
+      ? shiftConsumptionKwh * annualizationFactor
+      : 0;
+
+  return {
+    mode: canUseYearlyDistance ? "yearly_distance" : "weekly_once",
+    recurrence: canUseYearlyDistance
+      ? DEFAULT_SHIFT_YEARLY_DISTANCE_RECURRENCE
+      : "weekly_once",
+    factor: annualizationFactor,
+    yearlyDistanceKm: canUseYearlyDistance ? yearlyDistanceKm : null,
+    predictedShiftDistanceKm: shiftDistanceKm,
+    predictedShiftConsumptionKwh: shiftConsumptionKwh,
+    annualConsumptionKwh: Number(annualConsumptionKwh.toFixed(3)),
+  };
+};
+
+const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, options = {}) => {
   const inputParams = optimizationRun?.input_params ?? {};
   const batteryResults = optimizationRun?.results?.battery_results ?? {};
   const selectedPredictionRun = selectCostPredictionRun(predictionRuns, batteryResults);
@@ -1624,9 +1800,8 @@ const buildEconomicComparisonParams = (optimizationRun, predictionRuns, options 
     })()
   );
   const chargerPowerKw = resolveChargerPowerKw(optimizationRun, options);
-  const annualConsumptionKwh =
-    (toFiniteNumber(predictionSummary?.total_consumption_kwh) ?? 0) *
-    COST_ANNUALIZATION_FACTOR;
+  const annualization = await resolveCostAnnualization(shiftId, predictionSummary);
+  const annualConsumptionKwh = annualization.annualConsumptionKwh;
 
   const invalidInputs = [
     !shiftId ? "shift_id" : null,
@@ -1660,32 +1835,58 @@ const buildEconomicComparisonParams = (optimizationRun, predictionRuns, options 
     return n != null && n > 0 ? n : null;
   };
 
+  const lifetimeBus = positiveOrNull(
+    firstFiniteValue(options?.busModelData?.bus_lifetime)
+  );
+  const lifetimeBattery = positiveOrNull(
+    firstFiniteValue(options?.busModelData?.battery_pack_lifetime)
+  );
+  const batteryCostPerKwh = positiveOrNull(
+    firstFiniteValue(inputParams?.battery_cost_per_kwh, derivedBatteryCostPerKwh)
+  );
+
   return {
-    shift_id: shiftId,
-    recurrence: "weekly_once",
-    bus_length_m: busLengthM,
-    battery_capacity_kwh: batteryCapacityKwh,
-    charger_power_kw: chargerPowerKw,
-    annual_consumption_kwh: Number(annualConsumptionKwh.toFixed(3)),
-    lifetime_bus: positiveOrNull(
-      firstFiniteValue(options?.busModelData?.bus_lifetime)
-    ),
-    lifetime_battery: positiveOrNull(
-      firstFiniteValue(options?.busModelData?.battery_pack_lifetime)
-    ),
-    battery_cost_per_kwh: positiveOrNull(
-      firstFiniteValue(inputParams?.battery_cost_per_kwh, derivedBatteryCostPerKwh)
-    ),
+    params: {
+      shift_id: shiftId,
+      recurrence: annualization.recurrence,
+      bus_length_m: busLengthM,
+      battery_capacity_kwh: batteryCapacityKwh,
+      charger_power_kw: chargerPowerKw,
+      annual_consumption_kwh: annualConsumptionKwh,
+      lifetime_bus: lifetimeBus,
+      lifetime_battery: lifetimeBattery,
+      battery_cost_per_kwh: batteryCostPerKwh,
+    },
+    annualization,
+    inputs: {
+      shiftId,
+      recurrence: annualization.recurrence,
+      yearlyDistanceKm: annualization.yearlyDistanceKm,
+      predictedShiftDistanceKm: annualization.predictedShiftDistanceKm,
+      predictedShiftConsumptionKwh: annualization.predictedShiftConsumptionKwh,
+      annualizationFactor: annualization.factor,
+      annualConsumptionKwh,
+      busLengthM,
+      batteryCapacityKwh,
+      chargerPowerKw,
+      batteryCostPerKwh,
+      lifetimeBus,
+      lifetimeBattery,
+    },
   };
 };
 
 const loadCostComparison = async (optimizationRun, predictionRuns, options = {}) => {
-  const params = buildEconomicComparisonParams(
+  const { params, annualization, inputs } = await buildEconomicComparisonParams(
     optimizationRun,
     predictionRuns,
     options
   );
-  return fetchEconomicComparison(params);
+  return {
+    comparison: await fetchEconomicComparison(params),
+    annualization,
+    inputs,
+  };
 };
 
 const renderCostsSection = (sec, state, options = {}) => {
@@ -1693,13 +1894,17 @@ const renderCostsSection = (sec, state, options = {}) => {
 
   const investEl = sec.querySelector('[data-role="costs-investment"]');
   const kpiEl = sec.querySelector('[data-role="costs-kpis"]');
+  const noteEl = sec.querySelector('[data-role="costs-assumption"]');
   const barEl = sec.querySelector('[data-role="costs-bar-chart"]');
   const legendEl = sec.querySelector('[data-role="costs-legend"]');
   const lineEl = sec.querySelector('[data-role="costs-line-chart"]');
+  const inputsEl = sec.querySelector('[data-role="costs-opex-inputs"]');
 
   if (state.status === "idle" || state.status === "loading") {
     renderInvestmentTable(investEl, state, options);
     renderCostsKpis(kpiEl, null);
+    renderCostsAssumption(noteEl, state.annualization);
+    renderOpexInputsTable(inputsEl, state);
     if (barEl) {
       barEl.innerHTML = costsStateHtml(
         t("simulation.costs_loading") || "Loading cost comparison…"
@@ -1717,6 +1922,8 @@ const renderCostsSection = (sec, state, options = {}) => {
   if (state.status === "error") {
     renderInvestmentTable(investEl, state, options);
     renderCostsKpis(kpiEl, null);
+    renderCostsAssumption(noteEl, state.annualization);
+    renderOpexInputsTable(inputsEl, state);
     if (barEl) {
       barEl.innerHTML = costsStateHtml(
         state.error ||
@@ -1743,6 +1950,8 @@ const renderCostsSection = (sec, state, options = {}) => {
     optimizationRun: state.optimizationRun,
   });
   renderCostsKpis(kpiEl, state.comparison);
+  renderCostsAssumption(noteEl, state.annualization);
+  renderOpexInputsTable(inputsEl, state);
   renderCostsBar(barEl, chartData?.tco ?? []);
   renderCostsLegend(legendEl);
   renderCostsLine(lineEl, chartData?.yearly ?? []);
@@ -1853,7 +2062,14 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const renderedTabs = new Set();
 
   /* Async data — populated after loading the run */
-  const costState = { status: "idle", comparison: null, optimizationRun: null, error: null };
+  const costState = {
+    status: "idle",
+    comparison: null,
+    optimizationRun: null,
+    annualization: null,
+    costInputs: null,
+    error: null,
+  };
   const efficiencyState = { status: "idle", optimizationRun: null, predictionRuns: [], error: null };
 
   const refreshCostsTab = () => {
@@ -1990,6 +2206,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
     costState.status = "loading";
     costState.comparison = null;
+    costState.annualization = null;
+    costState.costInputs = null;
     costState.error = null;
     efficiencyState.status = "loading";
     efficiencyState.error = null;
@@ -2020,14 +2238,22 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
       costState.optimizationRun = optimizationRun;
       try {
-        costState.comparison = await loadCostComparison(
+        const costPayload = await loadCostComparison(
           optimizationRun,
           predictionRuns,
           options
         );
+        costState.comparison = costPayload.comparison;
+        costState.annualization = costPayload.annualization;
+        costState.costInputs = costPayload.inputs;
+        console.info("[elettra] yearly operational costs:", {
+          electric_chf_per_year: sumOpexItems(costPayload.comparison?.electric?.opex_items),
+          diesel_chf_per_year: sumOpexItems(costPayload.comparison?.diesel?.opex_items),
+        });
         costState.status = "done";
       } catch (costErr) {
         costState.status = "error";
+        costState.costInputs = null;
         costState.error =
           costErr?.message ??
           t("simulation.costs_error") ??
@@ -2035,6 +2261,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       }
     } catch (err) {
       costState.status = "error";
+      costState.annualization = null;
+      costState.costInputs = null;
       costState.error =
         err?.message ??
         t("simulation.costs_error") ??

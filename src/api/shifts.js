@@ -71,6 +71,37 @@ export const fetchShiftInfo = async (shiftId) => {
   return payload;
 };
 
+export const fetchShiftYearlyDistance = async (
+  shiftId,
+  { recurrence = "weekdays" } = {}
+) => {
+  if (!shiftId) {
+    throw new Error("Missing shiftId");
+  }
+  const headers = authHeaders();
+  const params = new URLSearchParams();
+  if (recurrence) {
+    params.set("recurrence", recurrence);
+  }
+  const query = params.toString();
+  const response = await fetch(
+    `${SHIFTS_PATH}${encodeURIComponent(shiftId)}/yearly-distance${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers,
+    }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load shift yearly distance.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
 const toTripIds = (tripIds) =>
   Array.isArray(tripIds) ? tripIds.filter(Boolean).map(String) : [];
 

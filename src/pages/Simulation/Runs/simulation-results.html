@@ -54,7 +54,7 @@
         <div class="chart-section">
           <h2 data-i18n="simulation.results_tco_title">Annual cost comparison</h2>
           <div class="costs-kpi-grid" data-role="costs-kpis"></div>
-          <p class="costs-assumption-note" data-i18n="simulation.costs_assumption_weekly_once">
+          <p class="costs-assumption-note" data-role="costs-assumption" data-i18n="simulation.costs_assumption_weekly_once">
             Current economic comparison assumes `weekly_once` recurrence.
           </p>
           <div class="chart-container" data-role="costs-bar-chart"></div>
@@ -63,6 +63,10 @@
         <div class="chart-section">
           <h2 data-i18n="simulation.results_costs_trend">Projected cost trend</h2>
           <div class="chart-container" data-role="costs-line-chart"></div>
+        </div>
+        <div class="chart-section chart-section--full">
+          <h2 data-i18n="simulation.results_opex_inputs_title">OPEX calculation inputs</h2>
+          <div data-role="costs-opex-inputs"></div>
         </div>
       </div>
 
