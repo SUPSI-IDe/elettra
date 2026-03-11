@@ -7,6 +7,8 @@ import {
   fetchOptimizationRun,
   fetchPredictionRun,
 } from "../../../api/simulation";
+import { fetchBusModelById } from "../../../api/bus-models";
+import { getEquivalentDieselBusCapexForLength } from "../../../config/economic-defaults";
 import "./simulation-results.css";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
@@ -132,6 +134,80 @@ const economicInputLabel = (key) =>
     annual_consumption_kwh: "annual consumption",
   })[key] ?? key;
 
+const parseBusModelSpecs = (specs) => {
+  if (!specs) return {};
+  if (typeof specs === "string") {
+    try {
+      const parsed = JSON.parse(specs);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof specs === "object" ? specs : {};
+};
+
+const hasValue = (value) => value !== null && value !== undefined && value !== "";
+
+const mergeBusModelData = (current = {}, specs = {}, busModel = {}) => ({
+  ...current,
+  manufacturer: hasValue(current?.manufacturer)
+    ? current.manufacturer
+    : (busModel?.manufacturer ?? busModel?.manufacturer_name ?? ""),
+  cost: hasValue(current?.cost) ? current.cost : (specs?.cost ?? ""),
+  bus_length_m: hasValue(current?.bus_length_m)
+    ? current.bus_length_m
+    : (specs?.bus_length_m ?? ""),
+  max_passengers: hasValue(current?.max_passengers)
+    ? current.max_passengers
+    : (specs?.max_passengers ?? ""),
+  bus_lifetime: hasValue(current?.bus_lifetime)
+    ? current.bus_lifetime
+    : (specs?.bus_lifetime ?? ""),
+  battery_pack_size_kwh: hasValue(current?.battery_pack_size_kwh)
+    ? current.battery_pack_size_kwh
+    : (specs?.battery_pack_size_kwh ?? ""),
+  battery_pack_cost: hasValue(current?.battery_pack_cost)
+    ? current.battery_pack_cost
+    : (specs?.battery_pack_cost_chf ?? ""),
+  max_charging_power_kw: hasValue(current?.max_charging_power_kw)
+    ? current.max_charging_power_kw
+    : (specs?.max_charging_power_kw ?? ""),
+  empty_weight_kg: hasValue(current?.empty_weight_kg)
+    ? current.empty_weight_kg
+    : (specs?.empty_weight_kg ?? ""),
+  min_battery_packs: hasValue(current?.min_battery_packs)
+    ? current.min_battery_packs
+    : (specs?.min_battery_packs ?? ""),
+  max_battery_packs: hasValue(current?.max_battery_packs)
+    ? current.max_battery_packs
+    : (specs?.max_battery_packs ?? ""),
+  battery_pack_lifetime: hasValue(current?.battery_pack_lifetime)
+    ? current.battery_pack_lifetime
+    : (specs?.battery_pack_lifetime ?? ""),
+});
+
+const hydrateBusModelDataFromOptimization = async (optimizationRun, options = {}) => {
+  const current = options?.busModelData ?? {};
+  if (toFiniteNumber(current?.bus_length_m) != null) return current;
+
+  const modelId = String(
+    options?.busModelId ??
+    optimizationRun?.input_params?.bus_model_id ??
+    optimizationRun?.bus_model_id ??
+    ""
+  ).trim();
+  if (!modelId) return current;
+
+  const busModel = await fetchBusModelById(modelId);
+  const specs = parseBusModelSpecs(busModel?.specs);
+  const merged = mergeBusModelData(current, specs, busModel);
+
+  options.busModelId = modelId;
+  options.busModelData = merged;
+  return merged;
+};
+
 const renderFieldsInto = (container, dataObj, labelMap = {}) => {
   if (!container) return;
   container.innerHTML = Object.entries(dataObj)
@@ -179,6 +255,44 @@ const sumOpexItemsByType = (items = [], type) =>
     return total + (toFiniteNumber(item?.cost_chf_per_year) ?? 0);
   }, 0);
 
+const resolveOptimizedPackCount = (batteryResults = {}) => {
+  const optimizedPacks = Object.values(batteryResults ?? {})
+    .map((result) => toFiniteNumber(result?.optimized_packs))
+    .filter((value) => value != null);
+
+  if (!optimizedPacks.length) return null;
+  return d3.max(optimizedPacks);
+};
+
+const resolveElectricBusCapex = (optimizationRun, options = {}) => {
+  const busCostChf = toFiniteNumber(options?.busModelData?.cost);
+  const packCostChf = toFiniteNumber(options?.busModelData?.battery_pack_cost);
+  const packSizeKwh = toFiniteNumber(options?.busModelData?.battery_pack_size_kwh);
+  const optimizedPacks = resolveOptimizedPackCount(
+    optimizationRun?.results?.battery_results ?? {}
+  );
+  const totalBatteryChf =
+    packCostChf != null && optimizedPacks != null
+      ? packCostChf * optimizedPacks
+      : null;
+  const totalCapexChf =
+    busCostChf != null && totalBatteryChf != null
+      ? busCostChf + totalBatteryChf
+      : null;
+
+  return {
+    busCostChf,
+    packCostChf,
+    packSizeKwh,
+    optimizedPacks,
+    totalBatteryChf,
+    totalCapexChf,
+  };
+};
+
+const resolveEquivalentDieselBusCapex = (options = {}) =>
+  getEquivalentDieselBusCapexForLength(options?.busModelData?.bus_length_m);
+
 const buildCostStackRow = (summary = {}, category) => ({
   category,
   vehicle: toFiniteNumber(summary?.total_annualized_capex_chf_per_year) ?? 0,
@@ -200,24 +314,36 @@ const resolveTrendHorizon = (comparison, options = {}) => {
 const buildCostsChartData = (comparison, options = {}) => {
   if (!comparison) return null;
 
-  const horizonYears = resolveTrendHorizon(comparison, options);
+  const horizonYears = Math.min(15, resolveTrendHorizon(comparison, options));
   const electricAnnual = toFiniteNumber(
     comparison?.electric?.total_annual_cost_chf_per_year
   ) ?? 0;
   const dieselAnnual = toFiniteNumber(
     comparison?.diesel?.total_annual_cost_chf_per_year
   ) ?? 0;
+  const electricBusCapexChf =
+    resolveElectricBusCapex(options?.optimizationRun, options)?.totalCapexChf ?? 0;
+  const dieselBusCapexChf = resolveEquivalentDieselBusCapex(options) ?? 0;
+  const yearly = Array.from({ length: horizonYears }, (_, index) => ({
+    year: index + 1,
+    diesel: dieselBusCapexChf + dieselAnnual * (index + 1),
+    electric: electricBusCapexChf + electricAnnual * (index + 1),
+  }));
+
+  if (electricBusCapexChf > 0 || dieselBusCapexChf > 0) {
+    yearly.unshift({
+      year: 0,
+      diesel: dieselBusCapexChf,
+      electric: electricBusCapexChf,
+    });
+  }
 
   return {
     tco: [
       buildCostStackRow(comparison?.diesel, "equivalent_diesel_bus"),
       buildCostStackRow(comparison?.electric, "electric_bus"),
     ],
-    yearly: Array.from({ length: horizonYears }, (_, index) => ({
-      year: index + 1,
-      diesel: dieselAnnual * (index + 1),
-      electric: electricAnnual * (index + 1),
-    })),
+    yearly,
   };
 };
 
@@ -285,29 +411,40 @@ const renderInvestmentTable = (el, state, options = {}) => {
 
   const batteryResults = state.optimizationRun?.results?.battery_results ?? {};
   const entries = Object.values(batteryResults);
-  const busCostChf = toFiniteNumber(options?.busModelData?.cost);
-  const packCostChf = toFiniteNumber(options?.busModelData?.battery_pack_cost);
-  const packSizeKwh = toFiniteNumber(options?.busModelData?.battery_pack_size_kwh);
+  const busModelName = options?.busModelName || "";
+  const busLengthM = options?.busModelData?.bus_length_m;
+  const {
+    busCostChf,
+    packCostChf,
+    packSizeKwh,
+    optimizedPacks,
+    totalBatteryChf,
+    totalCapexChf,
+  } = resolveElectricBusCapex(state.optimizationRun, options);
+  const dieselBusCapexChf = resolveEquivalentDieselBusCapex(options);
 
-  if (!entries.length && busCostChf == null && packCostChf == null) {
+  if (
+    !entries.length &&
+    busCostChf == null &&
+    packCostChf == null &&
+    dieselBusCapexChf == null
+  ) {
     el.innerHTML = "";
     return;
   }
-
-  const optimizedPacks = entries.length
-    ? d3.max(entries.map((e) => toFiniteNumber(e?.optimized_packs)).filter((v) => v != null))
-    : null;
-  const totalBatteryChf = packCostChf != null && optimizedPacks != null
-    ? packCostChf * optimizedPacks
-    : null;
-  const grandTotalChf = busCostChf != null && totalBatteryChf != null
-    ? busCostChf + totalBatteryChf
-    : null;
 
   const dash = "—";
   const fmtChf = (v) => v != null ? `CHF ${formatCHF(v)}` : dash;
 
   const rows = [
+    [
+      t("simulation.inv_bus_model") || "Bus model",
+      busModelName ? busModelName : dash,
+    ],
+    [
+      t("simulation.inv_bus_length") || "Bus length",
+      busLengthM != null && busLengthM !== "" ? `${busLengthM} m` : dash,
+    ],
     [
       t("simulation.inv_bus_cost") || "Electric bus (body)",
       fmtChf(busCostChf),
@@ -328,12 +465,16 @@ const renderInvestmentTable = (el, state, options = {}) => {
       t("simulation.inv_total_battery") || "Total battery investment",
       fmtChf(totalBatteryChf),
     ],
+    [
+      t("simulation.inv_diesel_default") || "Equivalent diesel bus (default)",
+      fmtChf(dieselBusCapexChf),
+    ],
   ];
 
-  const totalRow = grandTotalChf != null
+  const totalRow = totalCapexChf != null
     ? `<tr class="investment-table__total">
          <td>${textContent(t("simulation.inv_grand_total") || "Total investment")}</td>
-         <td>${textContent(fmtChf(grandTotalChf))}</td>
+         <td>${textContent(fmtChf(totalCapexChf))}</td>
        </tr>`
     : "";
 
@@ -453,11 +594,23 @@ const renderCostsLine = (el, data) => {
   const svg = svgBase(W, H, "Projected cumulative cost trend");
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const x = d3.scaleLinear().domain([1, data.length]).range([0, iW]);
-  const y = d3.scaleLinear().domain([0, d3.max(data, (d) => Math.max(d.diesel, d.electric)) * 1.1]).nice().range([iH, 0]);
+  const x = d3.scaleLinear()
+    .domain(d3.extent(data, (d) => d.year))
+    .range([0, iW]);
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(data, (d) => Math.max(d.diesel, d.electric)) * 1.1])
+    .nice()
+    .range([iH, 0]);
 
-  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x).ticks(data.length).tickFormat((d) => `${d}`)).selectAll("text").attr("font-size", "10px");
-  g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat((d) => `${(d / 1e3).toFixed(0)}k`)).selectAll("text").attr("font-size", "10px");
+  g.append("g")
+    .attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(x).tickValues(data.map((d) => d.year)).tickFormat((d) => `${d}`))
+    .selectAll("text")
+    .attr("font-size", "10px");
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxis))
+    .selectAll("text")
+    .attr("font-size", "10px");
   gridLines(g, y, iW);
 
   const dieselLine = d3.line().x((d) => x(d.year)).y((d) => y(d.diesel)).curve(d3.curveMonotoneX);
@@ -1386,15 +1539,6 @@ const renderEfficiencyTable = (el, state) => {
 const firstFiniteValue = (...values) =>
   values.map((value) => toFiniteNumber(value)).find((value) => value != null) ?? null;
 
-const resolveOptimizedPackCount = (batteryResults = {}) => {
-  const optimizedPacks = Object.values(batteryResults ?? {})
-    .map((result) => toFiniteNumber(result?.optimized_packs))
-    .filter((value) => value != null);
-
-  if (!optimizedPacks.length) return null;
-  return d3.max(optimizedPacks);
-};
-
 const selectCostPredictionRun = (predictionRuns = [], batteryResults = {}) => {
   if (!Array.isArray(predictionRuns) || !predictionRuns.length) return null;
 
@@ -1594,7 +1738,10 @@ const renderCostsSection = (sec, state, options = {}) => {
   }
 
   renderInvestmentTable(investEl, state, options);
-  const chartData = buildCostsChartData(state.comparison, options);
+  const chartData = buildCostsChartData(state.comparison, {
+    ...options,
+    optimizationRun: state.optimizationRun,
+  });
   renderCostsKpis(kpiEl, state.comparison);
   renderCostsBar(barEl, chartData?.tco ?? []);
   renderCostsLegend(legendEl);
@@ -1757,17 +1904,21 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     ...(options.heatingType ? { heating_type: options.heatingType } : {}),
     ...(options.numBatteryPacks != null ? { battery_packs: options.numBatteryPacks } : {}),
   };
-  const bmd = options.busModelData ?? {};
-  const busInfo = {
-    ...FAKE_BUS_INFO,
-    bus_name: busModelName,
-    ...(bmd.manufacturer ? { manufacturer: bmd.manufacturer } : {}),
-    ...(bmd.cost != null && bmd.cost !== "" ? { cost_chf: formatCHF(bmd.cost) } : {}),
-    ...(bmd.bus_length_m != null && bmd.bus_length_m !== "" ? { bus_length_m: bmd.bus_length_m } : {}),
-    ...(bmd.max_passengers != null && bmd.max_passengers !== "" ? { max_passengers: bmd.max_passengers } : {}),
-    ...(bmd.bus_lifetime != null && bmd.bus_lifetime !== "" ? { bus_lifetime_years: bmd.bus_lifetime } : {}),
-    ...(bmd.battery_pack_cost != null && bmd.battery_pack_cost !== "" ? { single_pack_battery_cost_chf: formatCHF(bmd.battery_pack_cost) } : {}),
-    ...(bmd.battery_pack_lifetime != null && bmd.battery_pack_lifetime !== "" ? { battery_pack_lifetime_years: bmd.battery_pack_lifetime } : {}),
+  const renderBusInfo = () => {
+    const bmd = options.busModelData ?? {};
+    const busInfo = {
+      ...FAKE_BUS_INFO,
+      bus_name: busModelName,
+      ...(bmd.manufacturer ? { manufacturer: bmd.manufacturer } : {}),
+      ...(bmd.cost != null && bmd.cost !== "" ? { cost_chf: formatCHF(bmd.cost) } : {}),
+      ...(bmd.bus_length_m != null && bmd.bus_length_m !== "" ? { bus_length_m: bmd.bus_length_m } : {}),
+      ...(bmd.max_passengers != null && bmd.max_passengers !== "" ? { max_passengers: bmd.max_passengers } : {}),
+      ...(bmd.bus_lifetime != null && bmd.bus_lifetime !== "" ? { bus_lifetime_years: bmd.bus_lifetime } : {}),
+      ...(bmd.battery_pack_cost != null && bmd.battery_pack_cost !== "" ? { single_pack_battery_cost_chf: formatCHF(bmd.battery_pack_cost) } : {}),
+      ...(bmd.battery_pack_lifetime != null && bmd.battery_pack_lifetime !== "" ? { battery_pack_lifetime_years: bmd.battery_pack_lifetime } : {}),
+    };
+
+    renderFieldsInto(section.querySelector('[data-role="bus-info"]'), busInfo, BUS_LABELS);
   };
 
   if (subtitleEl) {
@@ -1776,7 +1927,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   }
 
   renderFieldsInto(section.querySelector('[data-role="general-info"]'), generalInfo, GENERAL_LABELS);
-  renderFieldsInto(section.querySelector('[data-role="bus-info"]'), busInfo, BUS_LABELS);
+  renderBusInfo();
   renderFieldsInto(section.querySelector('[data-role="charging-info"]'), FAKE_CHARGING_INFO, CHARGING_LABELS);
 
   const activateTab = (tabName) => {
@@ -1847,6 +1998,15 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
     try {
       const optimizationRun = await fetchOptimizationRun(options.runId);
+      try {
+        await hydrateBusModelDataFromOptimization(optimizationRun, options);
+        renderBusInfo();
+      } catch (busModelErr) {
+        console.warn(
+          "[elettra] Unable to hydrate bus model data from optimization run:",
+          busModelErr
+        );
+      }
       const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
         ? optimizationRun.prediction_run_ids
         : [];
