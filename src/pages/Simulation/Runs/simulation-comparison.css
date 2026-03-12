@@ -5,6 +5,7 @@
 .comparison-main {
   padding: var(--spacing-lg);
   overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
 }
 
@@ -14,6 +15,7 @@
   display: flex;
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
+  min-width: 0;
 }
 
 .comparison-label {
@@ -73,12 +75,14 @@
 
 .simulation-comparison-page .results-tab-panels {
   min-height: 300px;
+  min-width: 0;
 }
 
 .simulation-comparison-page .tab-panel {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+  min-width: 0;
 }
 
 .simulation-comparison-page .tab-panel[hidden] {
@@ -90,11 +94,13 @@
 .comparison-row {
   display: flex;
   gap: var(--spacing-md);
+  min-width: 0;
 }
 
 .comparison-row .chart-section {
   flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: var(--spacing-md);
@@ -110,7 +116,9 @@
 
 .comparison-row .chart-container {
   width: 100%;
+  max-width: 100%;
   min-height: 160px;
+  overflow: hidden;
 }
 
 .comparison-row .chart-container svg {

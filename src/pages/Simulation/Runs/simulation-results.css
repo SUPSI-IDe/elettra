@@ -17,6 +17,7 @@
 .results-main {
   padding: var(--spacing-lg);
   overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
 }
 
@@ -75,12 +76,14 @@
 
 .results-tab-panels {
   min-height: 300px;
+  min-width: 0;
 }
 
 .tab-panel {
   display: flex;
   flex-direction: row;
   gap: var(--spacing-md);
+  min-width: 0;
 }
 
 .tab-panel[data-panel="costs"] {
@@ -96,6 +99,7 @@
 .chart-section {
   flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: var(--spacing-md);
@@ -115,7 +119,9 @@
 
 .chart-container {
   width: 100%;
+  max-width: 100%;
   min-height: 180px;
+  overflow: hidden;
 }
 
 .chart-container svg {
@@ -354,6 +360,7 @@
 
 .tab-panel--full {
   flex-direction: column;
+  min-width: 0;
 }
 
 .efficiency-panel {
@@ -361,6 +368,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+  min-width: 0;
 }
 
 .efficiency-state-msg {
@@ -376,6 +384,7 @@
 /* Operating conditions params grid */
 
 .efficiency-section {
+  min-width: 0;
   border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: var(--spacing-md);
@@ -421,12 +430,14 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--spacing-md);
+  min-width: 0;
 }
 
 .efficiency-chart-card {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+  min-width: 0;
 }
 
 .efficiency-chart-copy h4 {
@@ -461,11 +472,13 @@
 /* Energy predictions table */
 
 .efficiency-table-wrap {
+  max-width: 100%;
   overflow-x: auto;
 }
 
 .efficiency-table {
   width: 100%;
+  min-width: max-content;
   border-collapse: collapse;
   font-size: 0.83rem;
 }
