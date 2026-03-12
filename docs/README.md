@@ -112,6 +112,8 @@ Main Docker variables:
 - `API_BACKEND_URL`: runtime backend URL used by nginx in production mode.
 - `VITE_API_ROOT`: optional build-time API root for the frontend bundle.
 - `VITE_API_PROXY_TARGET`: backend URL used by the development container.
+- `NPM_REGISTRY`: optional npm registry override for Docker builds.
+- `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`: optional proxy settings passed into Docker builds.
 
 ### Development with Docker
 

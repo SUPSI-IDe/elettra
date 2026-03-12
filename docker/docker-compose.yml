@@ -4,6 +4,15 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
+      network: host
+      args:
+        - HTTP_PROXY=${HTTP_PROXY:-}
+        - HTTPS_PROXY=${HTTPS_PROXY:-}
+        - NO_PROXY=${NO_PROXY:-}
+        - http_proxy=${http_proxy:-}
+        - https_proxy=${https_proxy:-}
+        - no_proxy=${no_proxy:-}
+        - NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmjs.org/}
     container_name: elettra-dev
     ports:
       - "9010:9010"
@@ -25,6 +34,15 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
+      network: host
+      args:
+        - HTTP_PROXY=${HTTP_PROXY:-}
+        - HTTPS_PROXY=${HTTPS_PROXY:-}
+        - NO_PROXY=${NO_PROXY:-}
+        - http_proxy=${http_proxy:-}
+        - https_proxy=${https_proxy:-}
+        - no_proxy=${no_proxy:-}
+        - NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmjs.org/}
     container_name: elettra-local
     ports:
       - "9010:9010"
@@ -46,6 +64,15 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
+      network: host
+      args:
+        - HTTP_PROXY=${HTTP_PROXY:-}
+        - HTTPS_PROXY=${HTTPS_PROXY:-}
+        - NO_PROXY=${NO_PROXY:-}
+        - http_proxy=${http_proxy:-}
+        - https_proxy=${https_proxy:-}
+        - no_proxy=${no_proxy:-}
+        - NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmjs.org/}
     container_name: elettra-local-vpn
     ports:
       - "9010:9010"
@@ -67,8 +94,16 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      network: host
       args:
         - VITE_API_ROOT=${VITE_API_ROOT:-}
+        - HTTP_PROXY=${HTTP_PROXY:-}
+        - HTTPS_PROXY=${HTTPS_PROXY:-}
+        - NO_PROXY=${NO_PROXY:-}
+        - http_proxy=${http_proxy:-}
+        - https_proxy=${https_proxy:-}
+        - no_proxy=${no_proxy:-}
+        - NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmjs.org/}
     container_name: elettra
     ports:
       - "80:80"

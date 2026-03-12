@@ -188,6 +188,11 @@ cd docker
 # Copy environment template
 cp env.example .env
 
+# Optional: if the server needs a proxy or an internal npm mirror, set it in docker/.env
+# HTTP_PROXY=http://proxy.example:3128
+# HTTPS_PROXY=http://proxy.example:3128
+# NPM_REGISTRY=https://registry.npmjs.org/
+
 # Start development environment
 docker compose --profile dev up
 
