@@ -53,11 +53,14 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
     <tr>
       <td class="checkbox"></td>
-      <td colspan="5">Loading…</td>
+      <td colspan="5">${textContent(t("common.loading") || "Loading…")}</td>
     </tr>`;
 };
 
-const renderError = (tbody, message = "Unable to load simulation runs.") => {
+const renderError = (
+  tbody,
+  message = t("simulation.failed_load_runs") || "Unable to load simulation runs."
+) => {
   if (!tbody) return;
   tbody.innerHTML = `
     <tr>
@@ -151,6 +154,20 @@ const resolveBusModelName = (run = {}) => {
   );
 };
 
+const formatStatusLabel = (status) => {
+  const normalized = text(status).trim().toLowerCase();
+  const key = ({
+    pending: "simulation.status_pending",
+    running: "simulation.status_running",
+    completed: "simulation.status_completed",
+    done: "simulation.status_completed",
+    failed: "simulation.status_failed",
+    error: "simulation.status_error",
+  })[normalized];
+
+  return (key && t(key)) || status || "—";
+};
+
 const renderRows = (tbody, runs = []) => {
   if (!tbody) return;
 
@@ -175,7 +192,7 @@ const renderRows = (tbody, runs = []) => {
       return `
         <tr data-id="${rowId}">
           <td class="checkbox">
-            <input type="checkbox" aria-label="Select run" />
+            <input type="checkbox" aria-label="${textContent(t("simulation.select_run") || "Select run")}" />
           </td>
           <td class="actions">${textContent(created)}</td>
           <td class="day" title="${textContent(busModelId || "")}">${textContent(
@@ -183,7 +200,7 @@ const renderRows = (tbody, runs = []) => {
           )}</td>
           <td class="name" title="${shiftId || rowId}">${textContent(shiftName)}</td>
           <td class="status">
-            <span class="status-badge ${status}">${textContent(status)}</span>
+            <span class="status-badge ${status}">${textContent(formatStatusLabel(status))}</span>
           </td>
           <td class="results">${resultsLink}</td>
         </tr>`;
@@ -337,7 +354,9 @@ export const initializeSimulationRuns = async (
       console.error("Failed to load simulation runs", error);
       renderError(
         tbody,
-        error?.message ?? "Unable to load simulation runs."
+        error?.message ??
+          t("simulation.failed_load_runs") ??
+          "Unable to load simulation runs."
       );
     }
   };
@@ -428,7 +447,8 @@ export const initializeSimulationRuns = async (
 
     setFlashMessage(
       section,
-      `${ids.length} simulation(s) removed.`
+      t("simulation.removed", { count: ids.length }) ||
+        `${ids.length} simulation(s) removed.`
     );
   };
   if (deleteButton) {

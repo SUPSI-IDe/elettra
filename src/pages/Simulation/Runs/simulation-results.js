@@ -32,37 +32,46 @@ const FAKE_GENERAL_INFO = {
 };
 
 const FAKE_BUS_INFO = {
-  bus_name: "Bus 01",
-  manufacturer: "Manufacturer 01",
-  cost_chf: "999'999",
-  bus_length_m: 99,
-  max_passengers: 99,
-  bus_lifetime_years: 99,
-  single_pack_battery_cost_chf: "999'999",
-  battery_pack_lifetime_years: 99,
+  bus_name: "—",
+  manufacturer: "—",
+  cost_chf: "—",
+  bus_length_m: "—",
+  max_passengers: "—",
+  bus_lifetime_years: "—",
+  single_pack_battery_cost_chf: "—",
+  battery_pack_lifetime_years: "—",
 };
 
-const GENERAL_LABELS = {
-  creation_date: "Creation date",
-  simulation_type: "Simulation type",
-  day: "Day",
-  lines: "Lines",
-  shift_name: "Shift name",
-  external_temp_celsius: "External temperature",
-  occupancy_percent: "Avg. passenger occupancy",
-  heating_type: "Auxiliary heating type",
-  battery_packs: "Number of battery packs",
-};
-const BUS_LABELS = {
-  bus_name: "Bus name",
-  manufacturer: "Manufacturer",
-  cost_chf: "Cost (CHF)",
-  bus_length_m: "Bus length (m)",
-  max_passengers: "Maximum number of passengers",
-  bus_lifetime_years: "Bus lifetime (years)",
-  single_pack_battery_cost_chf: "Single pack battery cost (CHF)",
-  battery_pack_lifetime_years: "Battery pack lifetime (years)",
-};
+const generalLabels = () => ({
+  creation_date: t("simulation.general_creation_date") || "Creation date",
+  simulation_type: t("simulation.general_simulation_type") || "Simulation type",
+  day: t("simulation.general_day") || "Day",
+  lines: t("simulation.general_lines") || "Lines",
+  shift_name: t("simulation.general_shift_name") || "Shift name",
+  external_temp_celsius:
+    t("simulation.general_external_temp") || "External temperature",
+  occupancy_percent:
+    t("simulation.general_occupancy") || "Avg. passenger occupancy",
+  heating_type: t("simulation.general_heating_type") || "Auxiliary heating type",
+  battery_packs:
+    t("simulation.general_battery_packs") || "Number of battery packs",
+});
+const busLabels = () => ({
+  bus_name: t("simulation.bus_name") || "Bus name",
+  manufacturer: t("simulation.bus_manufacturer") || "Manufacturer",
+  cost_chf: t("simulation.bus_cost") || "Cost (CHF)",
+  bus_length_m: t("simulation.bus_length_m_label") || "Bus length (m)",
+  max_passengers:
+    t("simulation.bus_max_passengers") || "Maximum number of passengers",
+  bus_lifetime_years:
+    t("simulation.bus_lifetime_years") || "Bus lifetime (years)",
+  single_pack_battery_cost_chf:
+    t("simulation.bus_single_pack_battery_cost") ||
+    "Single pack battery cost (CHF)",
+  battery_pack_lifetime_years:
+    t("simulation.bus_battery_pack_lifetime_years") ||
+    "Battery pack lifetime (years)",
+});
 /* ── Chart data helpers ───────────────────────────────────────── */
 
 const COST_STACK_KEYS = ["vehicle", "energy", "maintenance"];
@@ -99,13 +108,13 @@ const firstText = (...values) => {
 };
 
 const WEEKDAY_LABELS = {
-  monday: "Monday",
-  tuesday: "Tuesday",
-  wednesday: "Wednesday",
-  thursday: "Thursday",
-  friday: "Friday",
-  saturday: "Saturday",
-  sunday: "Sunday",
+  monday: "simulation.day_monday",
+  tuesday: "simulation.day_tuesday",
+  wednesday: "simulation.day_wednesday",
+  thursday: "simulation.day_thursday",
+  friday: "simulation.day_friday",
+  saturday: "simulation.day_saturday",
+  sunday: "simulation.day_sunday",
 };
 
 const formatWeekdayLabel = (value) => {
@@ -114,7 +123,8 @@ const formatWeekdayLabel = (value) => {
     return "—";
   }
   const normalized = raw.toLowerCase();
-  return WEEKDAY_LABELS[normalized] ?? `${raw.charAt(0).toUpperCase()}${raw.slice(1)}`;
+  return (WEEKDAY_LABELS[normalized] && t(WEEKDAY_LABELS[normalized])) ??
+    `${raw.charAt(0).toUpperCase()}${raw.slice(1)}`;
 };
 
 const resolveShiftLineLabel = (shift = {}) => {
@@ -227,12 +237,20 @@ const costKpiLabel = (key) =>
 
 const economicInputLabel = (key) =>
   ({
-    shift_id: "shift",
-    bus_length_m: "bus length",
-    battery_capacity_kwh: "battery capacity",
-    charger_power_kw: "charger power",
-    annual_consumption_kwh: "annual consumption",
+    shift_id: t("simulation.costs_input_shift") || "shift",
+    bus_length_m:
+      t("simulation.costs_input_bus_length_short") || "bus length",
+    battery_capacity_kwh:
+      t("simulation.costs_input_battery_capacity_short") ||
+      "battery capacity",
+    charger_power_kw:
+      t("simulation.costs_input_charger_power_short") || "charger power",
+    annual_consumption_kwh:
+      t("simulation.costs_input_annual_consumption_short") ||
+      "annual consumption",
   })[key] ?? key;
+
+const chartAriaLabel = (key, fallback) => t(key) || fallback;
 
 const parseBusModelSpecs = (specs) => {
   if (!specs) return {};
@@ -421,14 +439,20 @@ const renderChargingInfrastructure = (container, optimizationRun = null, options
   if (!container) return;
   if (options.loading) {
     container.innerHTML =
-      `<p class="efficiency-chart-empty">${textContent("Loading charging infrastructure…")}</p>`;
+      `<p class="efficiency-chart-empty">${textContent(
+        t("simulation.loading_charging_infrastructure") ||
+          "Loading charging infrastructure…"
+      )}</p>`;
     return;
   }
 
   const rows = buildChargingStationRows(optimizationRun);
   if (!rows.length) {
     container.innerHTML =
-      `<p class="efficiency-chart-empty">${textContent("No charging stations configured.")}</p>`;
+      `<p class="efficiency-chart-empty">${textContent(
+        t("simulation.no_charging_stations") ||
+          "No charging stations configured."
+      )}</p>`;
     return;
   }
 
@@ -437,9 +461,9 @@ const renderChargingInfrastructure = (container, optimizationRun = null, options
       <table class="efficiency-table">
         <thead>
           <tr>
-            <th class="efficiency-th-text">${textContent("Stop")}</th>
-            <th>${textContent("Slots")}</th>
-            <th>${textContent("kW / plug")}</th>
+            <th class="efficiency-th-text">${textContent(t("simulation.cs_stop_name") || "Stop")}</th>
+            <th>${textContent(t("simulation.opt_col_slots") || "Slots")}</th>
+            <th>${textContent(t("simulation.cs_power_per_plug") || "kW / plug")}</th>
           </tr>
         </thead>
         <tbody>
@@ -742,14 +766,27 @@ const renderCostsAssumption = (el, annualization = null) => {
     annualization?.yearlyDistanceKm != null
   ) {
     el.textContent =
-      `Annual cost comparison is scaled to ${formatFixed(annualization.yearlyDistanceKm, 0)} km/year ` +
-      `using the shift yearly-distance endpoint with recurrence=${annualization.recurrence}. ` +
-      `CAPEX is annualized at ${formatFixed((annualization?.opexAnnualizationRate ?? DEFAULT_OPEX_ANNUALIZATION_RATE) * 100, 1)}% in the EAC calculation.`;
+      t("simulation.costs_assumption_yearly_distance", {
+        distance: formatFixed(annualization.yearlyDistanceKm, 0),
+        recurrence: annualization.recurrence,
+        rate: formatFixed(
+          (annualization?.opexAnnualizationRate ??
+            DEFAULT_OPEX_ANNUALIZATION_RATE) * 100,
+          1
+        ),
+      }) ||
+      `Annual cost comparison is scaled to ${formatFixed(annualization.yearlyDistanceKm, 0)} km/year using recurrence=${annualization.recurrence}. CAPEX is annualized at ${formatFixed((annualization?.opexAnnualizationRate ?? DEFAULT_OPEX_ANNUALIZATION_RATE) * 100, 1)}% in the EAC calculation.`;
     return;
   }
   el.textContent =
-    `Current economic comparison assumes \`weekly_once\` recurrence. ` +
-    `CAPEX is annualized at ${formatFixed((annualization?.opexAnnualizationRate ?? DEFAULT_OPEX_ANNUALIZATION_RATE) * 100, 1)}% in the EAC calculation.`;
+    t("simulation.costs_assumption_weekly_once_detailed", {
+      rate: formatFixed(
+        (annualization?.opexAnnualizationRate ??
+          DEFAULT_OPEX_ANNUALIZATION_RATE) * 100,
+        1
+      ),
+    }) ||
+    `Current economic comparison assumes \`weekly_once\` recurrence. CAPEX is annualized at ${formatFixed((annualization?.opexAnnualizationRate ?? DEFAULT_OPEX_ANNUALIZATION_RATE) * 100, 1)}% in the EAC calculation.`;
 };
 
 const renderOpexInputsTable = (el, state) => {
@@ -765,74 +802,98 @@ const renderOpexInputsTable = (el, state) => {
       : `${formatFixed(state.costInputs.opexAnnualizationRate * 100, 1)}%`;
 
   const rows = [
-    ["Line", state.costInputs.shiftLineLabel],
-    ["Week day", state.costInputs.shiftWeekdayLabel],
-    ["Recurrence", state.costInputs.recurrence],
-    ["EAC equation", "EAC_CAPEX = CAPEX * [r(1+r)^n] / [(1+r)^n - 1]"],
-    ["Annual total equation", "Annual total = EAC_CAPEX + OPEX usage + OPEX maintenance"],
-    ["Trend equation", "Cumulative total by year = upfront CAPEX + battery replacements + yearly OPEX * year"],
-    ["Battery replacement years", (state.costInputs.replacementYears ?? []).join(", ") || "—"],
+    [t("simulation.costs_input_line") || "Line", state.costInputs.shiftLineLabel],
     [
-      "Battery replacement cost (CHF)",
-      state.costInputs.batteryReplacementCost == null
-        ? "—"
-        : formatCHF(state.costInputs.batteryReplacementCost),
+      t("simulation.costs_input_week_day") || "Week day",
+      state.costInputs.shiftWeekdayLabel,
     ],
     [
-      "Yearly distance (km)",
+      t("simulation.costs_input_recurrence") || "Recurrence",
+      state.costInputs.recurrence,
+    ],
+    [
+      t("simulation.costs_input_eac_equation") || "EAC equation",
+      "EAC_CAPEX = CAPEX * [r(1+r)^n] / [(1+r)^n - 1]",
+    ],
+    [
+      t("simulation.costs_input_annual_total_equation") ||
+        "Annual total equation",
+      "Annual total = EAC_CAPEX + OPEX usage + OPEX maintenance",
+    ],
+    [
+      t("simulation.costs_input_trend_equation") || "Trend equation",
+      "Cumulative total by year = upfront CAPEX + battery replacements + yearly OPEX * year",
+    ],
+    [
+      t("simulation.costs_input_battery_replacement_years") ||
+        "Battery replacement years",
+      (state.costInputs.replacementYears ?? []).join(", ") || "—",
+    ],
+    [
+      t("simulation.costs_input_yearly_distance") || "Yearly distance (km)",
       state.costInputs.yearlyDistanceKm == null
         ? "—"
         : formatFixed(state.costInputs.yearlyDistanceKm, 0),
     ],
     [
-      "Prediction distance per shift (km)",
+      t("simulation.costs_input_prediction_distance") ||
+        "Prediction distance per shift (km)",
       state.costInputs.predictedShiftDistanceKm == null
         ? "—"
         : formatFixed(state.costInputs.predictedShiftDistanceKm, 3),
     ],
     [
-      "Prediction consumption per shift (kWh)",
+      t("simulation.costs_input_prediction_consumption") ||
+        "Prediction consumption per shift (kWh)",
       state.costInputs.predictedShiftConsumptionKwh == null
         ? "—"
         : formatFixed(state.costInputs.predictedShiftConsumptionKwh, 3),
     ],
-    ["CAPEX annualization rate", opexAnnualizationRateValue],
     [
-      "Annual consumption (kWh)",
+      t("simulation.costs_input_capex_annualization_rate") ||
+        "CAPEX annualization rate",
+      opexAnnualizationRateValue,
+    ],
+    [
+      t("simulation.costs_input_annual_consumption") ||
+        "Annual consumption (kWh)",
       state.costInputs.annualConsumptionKwh == null
         ? "—"
         : formatFixed(state.costInputs.annualConsumptionKwh, 3),
     ],
     [
-      "Bus length (m)",
+      t("simulation.costs_input_bus_length") || "Bus length (m)",
       state.costInputs.busLengthM == null ? "—" : formatFixed(state.costInputs.busLengthM, 0),
     ],
     [
-      "Battery capacity (kWh)",
+      t("simulation.costs_input_battery_capacity") ||
+        "Battery capacity (kWh)",
       state.costInputs.batteryCapacityKwh == null
         ? "—"
         : formatFixed(state.costInputs.batteryCapacityKwh, 0),
     ],
     [
-      "Charger power (kW)",
+      t("simulation.costs_input_charger_power") || "Charger power (kW)",
       state.costInputs.chargerPowerKw == null
         ? "—"
         : formatFixed(state.costInputs.chargerPowerKw, 0),
     ],
     [
-      "Battery cost per kWh (CHF)",
+      t("simulation.costs_input_battery_cost_per_kwh") ||
+        "Battery cost per kWh (CHF)",
       state.costInputs.batteryCostPerKwh == null
         ? "—"
         : formatFixed(state.costInputs.batteryCostPerKwh, 2),
     ],
     [
-      "Bus lifetime (years)",
+      t("simulation.costs_input_bus_lifetime") || "Bus lifetime (years)",
       state.costInputs.lifetimeBus == null
         ? "—"
         : formatFixed(state.costInputs.lifetimeBus, 0),
     ],
     [
-      "Battery lifetime (years)",
+      t("simulation.costs_input_battery_lifetime") ||
+        "Battery lifetime (years)",
       state.costInputs.lifetimeBattery == null
         ? "—"
         : formatFixed(state.costInputs.lifetimeBattery, 0),
@@ -973,7 +1034,11 @@ const renderCostsBar = (el, data) => {
     COST_STACK_KEYS.reduce((sum, key) => sum + (row[key] ?? 0), 0)
   );
 
-  const svg = svgBase(W, H, "TCO stacked bar chart");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel("simulation.chart_aria_tco_stacked", "TCO stacked bar chart")
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x = d3.scaleBand().domain(data.map((d) => d.category)).range([0, iW]).padding(0.35);
@@ -999,7 +1064,7 @@ const renderCostsBar = (el, data) => {
     .attr("text-anchor", "middle")
     .attr("font-size", "11px")
     .attr("fill", "#666")
-    .text("CHF / year");
+    .text(t("simulation.axis_cost_chf_per_year") || "CHF / year");
 
   stacked.forEach((layer) => {
     g.selectAll(`.bar-${layer.key}`)
@@ -1053,7 +1118,14 @@ const renderCostsLine = (el, data) => {
   const W = 620, H = 260;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "Projected cumulative cost trend");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_cost_trend",
+      "Projected cumulative cost trend"
+    )
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x = d3.scaleLinear()
@@ -1129,10 +1201,10 @@ const chartEmptyStateHtml = () =>
   )}</p>`;
 
 const HEATING_LABELS = {
-  default: "Default",
-  hp: "Heat Pump",
-  electric: "Electric",
-  diesel: "Diesel",
+  default: "simulation.heating_default",
+  hp: "simulation.heating_hp",
+  electric: "simulation.heating_electric",
+  diesel: "simulation.heating_diesel",
 };
 
 const SOLVER_STATUS_CLASS = {
@@ -1372,7 +1444,14 @@ const renderEfficiencyCurveChart = (el, rows) => {
   const maxY = d3.max(data, (d) => d.consumptionPerKmKwh);
   const yPadding = Math.max(((maxY ?? 0) - (minY ?? 0)) * 0.15, 0.02);
 
-  const svg = svgBase(W, H, "Energy efficiency by battery configuration");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_efficiency_curve",
+      "Energy efficiency by battery configuration"
+    )
+  );
   const g = svg
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -1411,7 +1490,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("fill", "#666")
-    .text("# Packs");
+    .text(t("simulation.axis_packs") || "# Packs");
 
   g.append("text")
     .attr("transform", "rotate(-90)")
@@ -1420,7 +1499,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("fill", "#666")
-    .text("kWh / km");
+    .text(t("simulation.efficiency_col_per_km") || "kWh / km");
 
   const line = d3
     .line()
@@ -1449,11 +1528,11 @@ const renderEfficiencyCurveChart = (el, rows) => {
         .append("title")
         .text(
           [
-            `${d.numBatteryPacks} packs`,
-            `${formatFixed(d.consumptionPerKmKwh, 3)} kWh / km`,
-            `Capacity: ${formatFixed(d.batteryCapacityKwh, 0)} kWh`,
-            `Weight: ${formatFixed(d.totalWeightKg, 0)} kg`,
-            `Charg. sessions: ${formatFixed(d.numChargingSessions, 0)}`,
+            `${d.numBatteryPacks} ${t("simulation.unit_packs") || "packs"}`,
+            `${formatFixed(d.consumptionPerKmKwh, 3)} ${t("simulation.efficiency_col_per_km") || "kWh / km"}`,
+            `${t("simulation.efficiency_col_capacity") || "Capacity (kWh)"}: ${formatFixed(d.batteryCapacityKwh, 0)} kWh`,
+            `${t("simulation.efficiency_col_weight") || "Weight (kg)"}: ${formatFixed(d.totalWeightKg, 0)} kg`,
+            `${t("simulation.opt_col_sessions") || "Charging Sessions"}: ${formatFixed(d.numChargingSessions, 0)}`,
           ].join("\n")
         );
     });
@@ -1515,7 +1594,14 @@ const renderEfficiencyEnergySplitChart = (el, rows) => {
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "Energy consumption breakdown");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_energy_breakdown",
+      "Energy consumption breakdown"
+    )
+  );
   const g = svg
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -1556,7 +1642,7 @@ const renderEfficiencyEnergySplitChart = (el, rows) => {
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("fill", "#666")
-    .text("# Packs");
+    .text(t("simulation.axis_packs") || "# Packs");
 
   g.append("text")
     .attr("transform", "rotate(-90)")
@@ -1565,7 +1651,7 @@ const renderEfficiencyEnergySplitChart = (el, rows) => {
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("fill", "#666")
-    .text("kWh");
+    .text(t("simulation.axis_energy_kwh") || "kWh");
 
   const stack = d3.stack().keys(ENERGY_SPLIT_KEYS)(data);
 
@@ -1585,9 +1671,11 @@ const renderEfficiencyEnergySplitChart = (el, rows) => {
           .append("title")
           .text(
             [
-              `${d.data.numBatteryPacks} packs`,
-              `${layer.key === "totalDrivetrainKwh" ? "Drivetrain" : "Auxiliary"}: ${formatFixed(segmentValue, 1)} kWh`,
-              `Total: ${formatFixed(
+              `${d.data.numBatteryPacks} ${t("simulation.unit_packs") || "packs"}`,
+              `${layer.key === "totalDrivetrainKwh"
+                ? (t("simulation.efficiency_col_drivetrain") || "Drivetrain (kWh)")
+                : (t("simulation.efficiency_col_auxiliary") || "Auxiliary (kWh)")}: ${formatFixed(segmentValue, 1)} kWh`,
+              `${t("simulation.label_total") || "Total"}: ${formatFixed(
                 d.data.totalDrivetrainKwh + d.data.totalAuxiliaryKwh,
                 1
               )} kWh`,
@@ -1632,7 +1720,14 @@ const renderEfficiencySocEnvelopeChart = (el, rows) => {
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "State of charge operating window");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_soc_window",
+      "State of charge operating window"
+    )
+  );
   const g = svg
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -1667,7 +1762,7 @@ const renderEfficiencySocEnvelopeChart = (el, rows) => {
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("fill", "#666")
-    .text("# Packs");
+    .text(t("simulation.axis_packs") || "# Packs");
 
   g.append("text")
     .attr("transform", "rotate(-90)")
@@ -1676,7 +1771,7 @@ const renderEfficiencySocEnvelopeChart = (el, rows) => {
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("fill", "#666")
-    .text("kWh");
+    .text(t("simulation.axis_energy_kwh") || "kWh");
 
   g.selectAll(".soc-range")
     .data(data)
@@ -1729,11 +1824,11 @@ const renderEfficiencySocEnvelopeChart = (el, rows) => {
         .append("title")
         .text(
           [
-            `${d.numBatteryPacks} packs`,
-            `Min SoC: ${formatFixed(d.minSocKwh, 1)} kWh`,
-            `Max SoC: ${formatFixed(d.maxSocKwh, 1)} kWh`,
-            `Sessions: ${formatFixed(d.numChargingSessions, 0)}`,
-            `Charged: ${formatFixed(d.totalChargedKwh, 1)} kWh`,
+            `${d.numBatteryPacks} ${t("simulation.unit_packs") || "packs"}`,
+            `${t("simulation.opt_col_min_soc") || "Min SoC (kWh)"}: ${formatFixed(d.minSocKwh, 1)} kWh`,
+            `${t("simulation.opt_col_max_soc") || "Max SoC (kWh)"}: ${formatFixed(d.maxSocKwh, 1)} kWh`,
+            `${t("simulation.opt_col_sessions") || "Charging Sessions"}: ${formatFixed(d.numChargingSessions, 0)}`,
+            `${t("simulation.opt_col_charged") || "Total Charged (kWh)"}: ${formatFixed(d.totalChargedKwh, 1)} kWh`,
           ].join("\n")
         );
     });
@@ -1772,7 +1867,14 @@ const renderOptimizationBatteryChart = (el, rows) => {
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "Battery sizing comparison");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_battery_sizing",
+      "Battery sizing comparison"
+    )
+  );
   const g = svg
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -1851,7 +1953,11 @@ const renderEfficiencyTable = (el, state) => {
   }
 
   if (state.status === "error") {
-    el.innerHTML = `<p class="efficiency-state-msg efficiency-state-error">${textContent(state.error ?? "Failed to load efficiency data.")}</p>`;
+    el.innerHTML = `<p class="efficiency-state-msg efficiency-state-error">${textContent(
+      state.error ??
+        t("simulation.efficiency_error") ??
+        "Failed to load efficiency data."
+    )}</p>`;
     return;
   }
 
@@ -1869,7 +1975,14 @@ const renderEfficiencyTable = (el, state) => {
     { label: t("simulation.efficiency_soh") || "State of Health", value: formatPct(ip.state_of_health ?? 1.0) },
     { label: t("simulation.var_external_temp") || "Temperature (°C)", value: firstRun.external_temp_celsius != null ? `${firstRun.external_temp_celsius} °C` : "—" },
     { label: t("simulation.var_occupancy") || "Occupancy (%)", value: firstRun.occupancy_percent != null ? `${firstRun.occupancy_percent}%` : "—" },
-    { label: t("simulation.var_heating_type") || "Heating Type", value: textContent(HEATING_LABELS[firstRun.auxiliary_heating_type] ?? firstRun.auxiliary_heating_type ?? "—") },
+    {
+      label: t("simulation.var_heating_type") || "Heating Type",
+      value: textContent(
+        t(HEATING_LABELS[firstRun.auxiliary_heating_type]) ??
+          firstRun.auxiliary_heating_type ??
+          "—"
+      ),
+    },
     { label: t("simulation.efficiency_quantile") || "Quantile", value: textContent(ip.quantile_consumption ?? "mean") },
   ];
 
@@ -2338,7 +2451,14 @@ const renderCO2Bar = (el) => {
   const W = 620, H = 280;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "CO2 emissions comparison bar chart");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_co2_bar",
+      "CO2 emissions comparison bar chart"
+    )
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x = d3.scaleBand().domain(CO2_ANNUAL.map((d) => d.category)).range([0, iW]).padding(0.4);
@@ -2391,7 +2511,14 @@ const renderCO2Cumulative = (el) => {
   const W = 620, H = 260;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "Cumulative CO2 savings area chart");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_co2_cumulative",
+      "Cumulative CO2 savings area chart"
+    )
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x = d3.scaleLinear().domain([1, 15]).range([0, iW]);
@@ -2477,8 +2604,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const overlay = section.querySelector('[data-role="sim-data-overlay"]');
   const subtitleEl = section.querySelector('[data-role="sim-data-subtitle"]');
 
-  const shiftName = options.shiftName || "Shift 01";
-  const busModelName = options.busModelName || "Model A";
+  const shiftName = options.shiftName || "";
+  const busModelName = options.busModelName || "";
 
   if (simNameEl) simNameEl.textContent = shiftName;
   if (busModelEl) busModelEl.textContent = busModelName;
@@ -2490,11 +2617,20 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       ...(options.createdAt ? { creation_date: options.createdAt } : {}),
       ...(options.externalTemp != null ? { external_temp_celsius: `${options.externalTemp} °C` } : {}),
       ...(options.occupancyPercent != null ? { occupancy_percent: `${options.occupancyPercent}%` } : {}),
-      ...(options.heatingType ? { heating_type: options.heatingType } : {}),
+      ...(options.heatingType
+        ? {
+            heating_type:
+              t(HEATING_LABELS[options.heatingType]) || options.heatingType,
+          }
+        : {}),
       ...(options.numBatteryPacks != null ? { battery_packs: options.numBatteryPacks } : {}),
       ...overrides,
     };
-    renderFieldsInto(section.querySelector('[data-role="general-info"]'), generalInfo, GENERAL_LABELS);
+    renderFieldsInto(
+      section.querySelector('[data-role="general-info"]'),
+      generalInfo,
+      generalLabels()
+    );
   };
 
   const renderBusInfo = () => {
@@ -2511,7 +2647,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       ...(bmd.battery_pack_lifetime != null && bmd.battery_pack_lifetime !== "" ? { battery_pack_lifetime_years: bmd.battery_pack_lifetime } : {}),
     };
 
-    renderFieldsInto(section.querySelector('[data-role="bus-info"]'), busInfo, BUS_LABELS);
+    renderFieldsInto(
+      section.querySelector('[data-role="bus-info"]'),
+      busInfo,
+      busLabels()
+    );
   };
 
   if (subtitleEl) {
@@ -2664,7 +2804,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
         t("simulation.costs_error") ??
         "Unable to load cost comparison.";
       efficiencyState.status = "error";
-      efficiencyState.error = err?.message ?? "Failed to load efficiency data.";
+      efficiencyState.error =
+        err?.message ??
+        t("simulation.efficiency_error") ??
+        "Failed to load efficiency data.";
     }
 
     refreshCostsTab();

@@ -13,7 +13,7 @@ import { initializeSimulationComparison } from "./pages/Simulation/Runs/simulati
 import { initializeLogin } from "./pages/Auth/login";
 import { initializeLanding } from "./pages/Auth/landing";
 import { initializeRegister } from "./pages/Auth/register";
-import { applyTranslations, getCurrentLang } from "./i18n";
+import { applyTranslations, getCurrentLang, I18N_CHANGE_EVENT } from "./i18n";
 import { isAuthenticated } from "./api/session";
 
 const partials = import.meta.glob("./pages/**/*.html", {
@@ -44,8 +44,10 @@ const createPartialLoader = (render, onBeforeLoad) => {
     return state;
   };
 
-  return async (slug) => {
-    if (!slug || slug === state.current || slug === state.pending) {
+  return async (slug, options = {}) => {
+    const force = options?.force === true;
+
+    if (!slug || (!force && (slug === state.current || slug === state.pending))) {
       return state;
     }
 
@@ -85,6 +87,7 @@ export const initializeNavigation = (root = document) => {
   }
 
   let currentCleanup = null;
+  let currentRoute = { slug: "", options: {} };
 
   const runCleanup = () => {
     if (typeof currentCleanup === "function") {
@@ -159,11 +162,13 @@ export const initializeNavigation = (root = document) => {
     currentCleanup = cleanup;
   };
 
-  const loadAndInitialize = (slug, options = {}) => {
+  const loadAndInitialize = (slug, options = {}, loaderOptions = {}) => {
     const resolvedSlug =
       isProtectedPartial(slug) && !isAuthenticated() ? "login" : slug;
 
-    return loadPartial(resolvedSlug).then(() =>
+    currentRoute = { slug: resolvedSlug, options };
+
+    return loadPartial(resolvedSlug, loaderOptions).then(() =>
       initializePartial(resolvedSlug, container, options)
     );
   };
@@ -207,5 +212,13 @@ export const initializeNavigation = (root = document) => {
     updateNavVisibility();
 
     loadAndInitialize(slug, options);
+  });
+
+  document.addEventListener(I18N_CHANGE_EVENT, () => {
+    if (!currentRoute.slug) {
+      return;
+    }
+
+    loadAndInitialize(currentRoute.slug, currentRoute.options, { force: true });
   });
 };

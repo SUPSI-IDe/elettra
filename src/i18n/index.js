@@ -2,6 +2,7 @@ import { translations } from "./translations";
 
 const STORAGE_KEY = "elettra_lang";
 const DEFAULT_LANG = "en";
+export const I18N_CHANGE_EVENT = "i18n:change";
 
 export const getCurrentLang = () => {
   return localStorage.getItem(STORAGE_KEY) || DEFAULT_LANG;
@@ -12,6 +13,9 @@ export const setLanguage = (lang) => {
     localStorage.setItem(STORAGE_KEY, lang);
     applyTranslations(lang);
     updateLanguageSelector(lang);
+    document.dispatchEvent(
+      new CustomEvent(I18N_CHANGE_EVENT, { detail: { lang } })
+    );
   }
 };
 

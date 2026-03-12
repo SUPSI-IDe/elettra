@@ -89,7 +89,7 @@ const waitForOptimizationCompletion = async (runId) => {
 const renderShiftRows = (tbody, shifts = []) => {
   if (!tbody) return;
   if (!shifts.length) {
-    tbody.innerHTML = `<tr><td colspan="3">No shifts found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3">${textContent(t("simulation.no_shifts_in_table") || "No shifts found.")}</td></tr>`;
     return;
   }
 
@@ -99,7 +99,7 @@ const renderShiftRows = (tbody, shifts = []) => {
       return `
         <tr data-id="${text(shift?.id)}">
           <td class="checkbox">
-            <input type="checkbox" aria-label="Select shift" />
+            <input type="checkbox" aria-label="${textContent(t("simulation.select_shift") || "Select shift")}" />
           </td>
           <td>${textContent(shift?.name ?? "")}</td>
           <td>${textContent(busModelName)}</td>
@@ -256,7 +256,7 @@ const renderStopsTable = (thead, tbody, stops, mode) => {
   const cols = COLUMN_DEFS[mode] ?? COLUMN_DEFS.battery_only;
 
   thead.innerHTML = `<tr>
-    <th class="checkbox"><input type="checkbox" data-role="select-all-stops" aria-label="Select all stops" /></th>
+    <th class="checkbox"><input type="checkbox" data-role="select-all-stops" aria-label="${textContent(t("simulation.select_all_stops") || "Select all stops")}" /></th>
     <th>${t("simulation.cs_stop_name") || "Stop"}</th>
     ${cols.map((c) => `<th>${t(c.label) || c.fallback}</th>`).join("")}
   </tr>`;
@@ -271,7 +271,7 @@ const renderStopsTable = (thead, tbody, stops, mode) => {
   tbody.innerHTML = stops
     .map(
       (stop) => `<tr data-stop-id="${textContent(stop.stop_id)}">
-        <td class="checkbox"><input type="checkbox" ${stop.isCustom ? "checked" : ""} aria-label="Select stop" /></td>
+        <td class="checkbox"><input type="checkbox" ${stop.isCustom ? "checked" : ""} aria-label="${textContent(t("simulation.select_stop") || "Select stop")}" /></td>
         <td class="stop-name" title="${textContent(stop.stop_id)}">${textContent(stop.stop_name || stop.stop_id)}</td>
         ${cols
           .map(
@@ -848,7 +848,8 @@ export const initializeAddSimulation = async (
         hideProgress();
         setFeedback(
           section,
-          "Optimization run was submitted but no ID was returned. Check the backend logs."
+          t("simulation.no_run_ids") ||
+            "Simulation submitted but no run IDs returned."
         );
         return;
       }

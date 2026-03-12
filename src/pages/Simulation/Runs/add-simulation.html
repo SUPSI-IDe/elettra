@@ -95,8 +95,8 @@
               Heating type
             </label>
             <select id="var-heating-type" name="auxiliary_heating_type">
-              <option value="hp">HP</option>
-              <option value="diesel">Diesel</option>
+              <option value="hp" data-i18n="simulation.heating_hp">HP</option>
+              <option value="diesel" data-i18n="simulation.heating_diesel">Diesel</option>
             </select>
           </div>
           <div class="form-group">
@@ -214,7 +214,7 @@
         <div class="simulation-progress__overlay">
           <div class="simulation-progress__content">
             <div class="simulation-progress__spinner"></div>
-            <p class="simulation-progress__message" data-role="progress-message">
+            <p class="simulation-progress__message" data-role="progress-message" data-i18n="simulation.creating_predictions">
               Creating prediction runs…
             </p>
           </div>

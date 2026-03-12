@@ -33,6 +33,8 @@ const segmentLabel = (key) =>
     flat: t("simulation.segment_flat"),
   })[key] ?? key;
 
+const chartAriaLabel = (key, fallback) => t(key) || fallback;
+
 /* ── Fake data generators (seeded by index for variety) ───────── */
 
 const COST_STACK_KEYS = ["vehicle", "energy", "maintenance"];
@@ -119,7 +121,11 @@ const renderCostsBar = (el, data) => {
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
   const stacked = d3.stack().keys(COST_STACK_KEYS)(data);
-  const svg = svgBase(W, H, "TCO stacked bar chart");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel("simulation.chart_aria_tco_stacked", "TCO stacked bar chart")
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x = d3.scaleBand().domain(data.map((d) => d.category)).range([0, iW]).padding(0.35);
@@ -162,7 +168,14 @@ const renderCostsLine = (el, data) => {
   const W = 480, H = 220;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "Yearly cost comparison line chart");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_cost_trend",
+      "Yearly cost comparison line chart"
+    )
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x = d3.scaleLinear().domain([1, 15]).range([0, iW]);
@@ -188,7 +201,11 @@ const renderSOCChart = (el, data) => {
   const W = 480, H = 220;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "State of charge line chart");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel("simulation.chart_aria_soc_line", "State of charge line chart")
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x = d3.scaleLinear().domain([0, 8]).range([0, iW]);
@@ -218,7 +235,14 @@ const renderEnergyChart = (el, data) => {
   const W = 480, H = 240;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "Energy consumption grouped bar chart");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_energy_grouped",
+      "Energy consumption grouped bar chart"
+    )
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x0 = d3.scaleBand().domain(data.map((d) => d.segment)).range([0, iW]).padding(0.25);
@@ -244,7 +268,14 @@ const renderCO2Bar = (el, data) => {
   const W = 480, H = 240;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "CO2 emissions comparison bar chart");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_co2_bar",
+      "CO2 emissions comparison bar chart"
+    )
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x = d3.scaleBand().domain(data.map((d) => d.category)).range([0, iW]).padding(0.4);
@@ -283,7 +314,14 @@ const renderCO2Cumulative = (el, data) => {
   const W = 480, H = 220;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, "Cumulative CO2 savings area chart");
+  const svg = svgBase(
+    W,
+    H,
+    chartAriaLabel(
+      "simulation.chart_aria_co2_cumulative",
+      "Cumulative CO2 savings area chart"
+    )
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const x = d3.scaleLinear().domain([1, 15]).range([0, iW]);
@@ -319,8 +357,10 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
   const simA = options.simA ?? {};
   const simB = options.simB ?? {};
 
-  const labelA = simA.shiftName || "Simulation A";
-  const labelB = simB.shiftName || "Simulation B";
+  const labelA =
+    simA.shiftName || t("simulation.compare_simulation_a") || "Simulation A";
+  const labelB =
+    simB.shiftName || t("simulation.compare_simulation_b") || "Simulation B";
   const busA = simA.busModelName || "—";
   const busB = simB.busModelName || "—";
   const createdA = simA.createdAt || "—";
@@ -330,8 +370,12 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
 
   const labelElA = section.querySelector('[data-role="label-sim-a"]');
   const labelElB = section.querySelector('[data-role="label-sim-b"]');
-  if (labelElA) labelElA.textContent = `A: ${fullLabelA}`;
-  if (labelElB) labelElB.textContent = `B: ${fullLabelB}`;
+  if (labelElA) {
+    labelElA.textContent = `${t("simulation.compare_label_prefix_a") || "A"}: ${fullLabelA}`;
+  }
+  if (labelElB) {
+    labelElB.textContent = `${t("simulation.compare_label_prefix_b") || "B"}: ${fullLabelB}`;
+  }
 
   const dataA = {
     tco: makeTCOData(0),

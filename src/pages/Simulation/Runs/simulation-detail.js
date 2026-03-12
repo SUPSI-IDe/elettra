@@ -37,6 +37,20 @@ const formatResultValue = (value) => {
   return textContent(String(value));
 };
 
+const formatStatusLabel = (status) => {
+  const normalized = text(status).trim().toLowerCase();
+  const key = ({
+    pending: "simulation.status_pending",
+    running: "simulation.status_running",
+    completed: "simulation.status_completed",
+    done: "simulation.status_completed",
+    failed: "simulation.status_failed",
+    error: "simulation.status_error",
+  })[normalized];
+
+  return (key && t(key)) || status || "—";
+};
+
 const renderResults = (container, runs) => {
   if (!container || !Array.isArray(runs) || !runs.length) return;
 
@@ -62,10 +76,10 @@ const renderResults = (container, runs) => {
       return `
         <div class="result-card">
           <div class="result-header">
-            <span class="result-shift">Shift: ${textContent(shiftId.slice(0, 8))}…</span>
-            <span class="status-badge ${status}">${textContent(status)}</span>
+            <span class="result-shift">${textContent(t("simulation.shift_label", { id: shiftId.slice(0, 8) }) || `Shift: ${shiftId.slice(0, 8)}…`)}</span>
+            <span class="status-badge ${status}">${textContent(formatStatusLabel(status))}</span>
           </div>
-          ${summaryHtml || '<div class="result-row"><span class="result-label">Waiting for results…</span></div>'}
+          ${summaryHtml || `<div class="result-row"><span class="result-label">${textContent(t("simulation.waiting_results") || "Waiting for results…")}</span></div>`}
         </div>`;
     })
     .join("");
@@ -91,7 +105,8 @@ export const initializeSimulationDetail = async (
   const busModelId = options.busModelId ?? "";
 
   if (simNameEl) {
-    simNameEl.textContent = simulationName || "New Simulation";
+    simNameEl.textContent =
+      simulationName || t("simulation.new_simulation") || "New Simulation";
   }
 
   const handleBack = () => {
@@ -109,8 +124,9 @@ export const initializeSimulationDetail = async (
     setFeedback(
       section,
       !shiftIds.length
-        ? "No shifts selected. Go back and select shifts first."
-        : (t("simulation.login_required") || "Please login.")
+        ? t("simulation.no_shifts_selected") ||
+          "No shifts selected. Go back and select shifts first."
+        : (t("simulation.please_login") || "Please login.")
     );
     return () => cleanupHandlers.forEach((h) => h());
   }
@@ -127,14 +143,19 @@ export const initializeSimulationDetail = async (
     if (!busModelId) {
       setFeedback(
         section,
-        "Could not determine bus model from the selected shifts. Please go back and try again."
+        t("simulation.no_bus_model_detected") ||
+          "Could not determine bus model from the selected shifts. Please go back and try again."
       );
       return;
     }
 
     const submitBtn = form.querySelector('[type="submit"]');
     if (submitBtn) submitBtn.disabled = true;
-    setFeedback(section, "Submitting simulation…", "info");
+    setFeedback(
+      section,
+      t("simulation.submitting") || "Submitting simulation…",
+      "info"
+    );
 
     try {
       const result = await createOptimizationRun({
@@ -153,7 +174,12 @@ export const initializeSimulationDetail = async (
 
       const runId = result?.id ?? result?.optimization_run_id ?? "";
       if (!runId) {
-        setFeedback(section, "Simulation submitted but no run ID returned.", "info");
+        setFeedback(
+          section,
+          t("simulation.no_run_ids") ||
+            "Simulation submitted but no run ID returned.",
+          "info"
+        );
         return;
       }
 
@@ -170,7 +196,11 @@ export const initializeSimulationDetail = async (
       await pollResults([runId], resultsContent, section);
     } catch (error) {
       console.error("Failed to create optimization run", error);
-      setFeedback(section, error?.message ?? "Failed to run simulation.");
+      setFeedback(
+        section,
+        error?.message ??
+          (t("simulation.failed_to_run") || "Failed to run simulation.")
+      );
     } finally {
       if (submitBtn) submitBtn.disabled = false;
     }
@@ -205,7 +235,10 @@ async function pollResults(runIds, container, section, maxAttempts = 20) {
         if (failedCount > 0) {
           setFeedback(
             section,
-            `Simulation finished. ${failedCount} of ${runs.length} run(s) failed.`,
+            t("simulation.finished_with_failures", {
+              failed: failedCount,
+              total: runs.length,
+            }) || `Simulation finished. ${failedCount} of ${runs.length} run(s) failed.`,
             failedCount === runs.length ? "error" : "info"
           );
         } else {
@@ -223,7 +256,8 @@ async function pollResults(runIds, container, section, maxAttempts = 20) {
       } else {
         setFeedback(
           section,
-          "Simulation is still running. Refresh later to see results.",
+          t("simulation.still_running") ||
+            "Simulation is still running. Refresh later to see results.",
           "info"
         );
       }
