@@ -4,6 +4,10 @@ const EQUIVALENT_DIESEL_BUS_CAPEX_BY_LENGTH = {
   "18": 330000,
 };
 
+export const DEFAULT_OPEX_ANNUALIZATION_RATE = 0.1;
+export const DEFAULT_BUS_LIFETIME_YEARS = 12;
+export const DEFAULT_BATTERY_LIFETIME_YEARS = 8;
+
 const normalizeBusLengthKey = (length) => {
   if (length === null || length === undefined || length === "") return null;
 
@@ -21,4 +25,3 @@ export const getEquivalentDieselBusCapexForLength = (length) => {
   if (!key) return null;
   return EQUIVALENT_DIESEL_BUS_CAPEX_BY_LENGTH[key] ?? null;
 };
-

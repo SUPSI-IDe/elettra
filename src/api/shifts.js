@@ -73,7 +73,7 @@ export const fetchShiftInfo = async (shiftId) => {
 
 export const fetchShiftYearlyDistance = async (
   shiftId,
-  { recurrence = "weekdays" } = {}
+  { recurrence = "daily" } = {}
 ) => {
   if (!shiftId) {
     throw new Error("Missing shiftId");
