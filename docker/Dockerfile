@@ -3,7 +3,7 @@
 
 # Stage 1: Build the application
 # Vite 7.x requires Node.js 20.19+ or 22.12+
-FROM node:22-alpine AS builder
+FROM node:22.22.0-alpine AS builder
 
 WORKDIR /app
 
@@ -11,6 +11,9 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including devDependencies for build)
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_AUDIT=false
 RUN npm ci
 
 # Copy source code

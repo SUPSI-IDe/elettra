@@ -42,7 +42,7 @@ git clone <repository-url>
 cd elettra
 
 # Install dependencies
-npm install
+npm ci
 
 # Start development server
 npm run dev
@@ -57,7 +57,7 @@ The application will be available at `http://localhost:9010/elettra/`
 ### 1. Install Dependencies
 
 ```bash
-npm install
+npm ci
 ```
 
 This installs:

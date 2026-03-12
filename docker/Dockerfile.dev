@@ -1,12 +1,15 @@
 # Dockerfile.dev - Development environment for Elettra
 # Vite 7.x requires Node.js 20.19+ or 22.12+
-FROM node:22-alpine
+FROM node:22.22.0-alpine
 
 WORKDIR /app
 
 # Install dependencies first (better layer caching)
 COPY package*.json ./
-RUN npm install
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_AUDIT=false
+RUN npm ci
 
 # Copy source code
 COPY . .
