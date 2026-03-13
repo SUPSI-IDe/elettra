@@ -1,7 +1,7 @@
 const EQUIVALENT_DIESEL_BUS_CAPEX_BY_LENGTH = {
-  "9": 160000,
-  "12": 240000,
-  "18": 330000,
+  "9": 170000,
+  "12": 250000,
+  "18": 380000,
 };
 
 export const DEFAULT_OPEX_ANNUALIZATION_RATE = 0.1;

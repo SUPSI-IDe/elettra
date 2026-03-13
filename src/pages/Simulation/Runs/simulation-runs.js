@@ -53,7 +53,7 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
     <tr>
       <td class="checkbox"></td>
-      <td colspan="5">${textContent(t("common.loading") || "Loading…")}</td>
+      <td colspan="6">${textContent(t("common.loading") || "Loading…")}</td>
     </tr>`;
 };
 
@@ -65,7 +65,7 @@ const renderError = (
   tbody.innerHTML = `
     <tr>
       <td class="checkbox"></td>
-      <td colspan="5">${textContent(message)}</td>
+      <td colspan="6">${textContent(message)}</td>
     </tr>`;
 };
 
@@ -74,7 +74,7 @@ const renderEmpty = (tbody) => {
   tbody.innerHTML = `
     <tr>
       <td class="checkbox"></td>
-      <td colspan="5" data-i18n="simulation.no_runs">No simulation runs found.</td>
+      <td colspan="6" data-i18n="simulation.no_runs">No simulation runs found.</td>
     </tr>`;
 };
 
@@ -154,6 +154,16 @@ const resolveBusModelName = (run = {}) => {
   );
 };
 
+const resolveRunMode = (run = {}) =>
+  text(
+    run?.input_params?.mode ??
+    run?.inputParams?.mode ??
+    run?.optimization_mode ??
+    run?.optimizationMode ??
+    run?.mode ??
+    ""
+  ).trim();
+
 const formatStatusLabel = (status) => {
   const normalized = text(status).trim().toLowerCase();
   const key = ({
@@ -186,6 +196,7 @@ const renderRows = (tbody, runs = []) => {
       const busModelId = text(resolveBusModelId(run)).trim();
       const busModelName = text(resolveBusModelName(run)).trim();
       const busModelLabel = busModelName || busModelId || "—";
+      const mode = resolveRunMode(run) || "—";
 
       const resultsLink = `<a class="results-link" href="#" data-action="view-results" data-run-id="${rowId}">${t("simulation.col_results") || "Results"}</a>`;
 
@@ -199,6 +210,7 @@ const renderRows = (tbody, runs = []) => {
             busModelLabel
           )}</td>
           <td class="name" title="${shiftId || rowId}">${textContent(shiftName)}</td>
+          <td class="type">${textContent(mode)}</td>
           <td class="status">
             <span class="status-badge ${status}">${textContent(formatStatusLabel(status))}</span>
           </td>

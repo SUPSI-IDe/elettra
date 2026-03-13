@@ -14,7 +14,7 @@
 }
 
 .simulation-runs-table table {
-  width: 80%;
+  width: 100%;
   margin: 0;
   table-layout: fixed;
 }
@@ -33,12 +33,20 @@
 
 .simulation-runs-table th.name,
 .simulation-runs-table td.name {
-  width: 30%;
+  width: 22%;
+}
+
+.simulation-runs-table th.type,
+.simulation-runs-table td.type {
+  width: 14%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .simulation-runs-table th.day,
 .simulation-runs-table td.day {
-  width: 25%;
+  width: 20%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -46,12 +54,12 @@
 
 .simulation-runs-table th.status,
 .simulation-runs-table td.status {
-  width: 15%;
+  width: 14%;
 }
 
 .simulation-runs-table th.actions,
 .simulation-runs-table td.actions {
-  width: 25%;
+  width: 18%;
 }
 
 .simulation-runs-table .status-badge {
