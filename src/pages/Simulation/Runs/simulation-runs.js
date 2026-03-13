@@ -126,6 +126,22 @@ const resolveShiftId = (run = {}) => {
   return Array.isArray(ids) && ids.length ? text(ids[0]) : "";
 };
 
+const resolveShiftIds = (run = {}) => {
+  const directIds = [
+    run?.shift_ids,
+    run?.shiftIds,
+    run?.input_params?.shift_ids,
+    run?.inputParams?.shift_ids,
+  ].find((value) => Array.isArray(value) && value.length);
+
+  if (Array.isArray(directIds) && directIds.length) {
+    return directIds.map((id) => text(id).trim()).filter(Boolean);
+  }
+
+  const direct = text(run?.shift_id ?? run?.shiftId ?? "").trim();
+  return direct ? [direct] : [];
+};
+
 const resolveShiftName = (run = {}) => {
   return (
     run?._resolved_shift_name ??
@@ -134,6 +150,38 @@ const resolveShiftName = (run = {}) => {
     run?.shift?.name ??
     ""
   );
+};
+
+const resolveShiftNames = (run = {}) => {
+  const resolved = Array.isArray(run?._resolved_shift_names)
+    ? run._resolved_shift_names
+    : [];
+  if (resolved.length) return resolved.map((name) => text(name).trim()).filter(Boolean);
+
+  const directNames = [
+    run?.shift_names,
+    run?.shiftNames,
+    run?.shift?.names,
+  ].find((value) => Array.isArray(value) && value.length);
+
+  if (Array.isArray(directNames) && directNames.length) {
+    return directNames.map((name) => text(name).trim()).filter(Boolean);
+  }
+
+  const primary = text(resolveShiftName(run)).trim();
+  return primary ? [primary] : [];
+};
+
+const resolveShiftLabel = (run = {}) => {
+  const names = resolveShiftNames(run);
+  if (names.length) return names.join(", ");
+
+  const ids = resolveShiftIds(run);
+  if (ids.length) {
+    return ids.map((id) => `${id.slice(0, 8)}…`).join(", ");
+  }
+
+  return "—";
 };
 
 const resolveBusModelId = (run = {}) => {
@@ -191,8 +239,9 @@ const renderRows = (tbody, runs = []) => {
       const rowId = text(run?.id);
       const status = text(run?.status ?? "pending");
       const created = formatDate(resolveCreatedAt(run));
-      const shiftId = resolveShiftId(run);
-      const shiftName = resolveShiftName(run) || (shiftId ? `${shiftId.slice(0, 8)}…` : "—");
+      const shiftIds = resolveShiftIds(run);
+      const shiftTitle = shiftIds.length ? shiftIds.join(", ") : rowId;
+      const shiftName = resolveShiftLabel(run);
       const busModelId = text(resolveBusModelId(run)).trim();
       const busModelName = text(resolveBusModelName(run)).trim();
       const busModelLabel = busModelName || busModelId || "—";
@@ -209,7 +258,7 @@ const renderRows = (tbody, runs = []) => {
           <td class="day" title="${textContent(busModelId || "")}">${textContent(
             busModelLabel
           )}</td>
-          <td class="name" title="${shiftId || rowId}">${textContent(shiftName)}</td>
+          <td class="name" title="${textContent(shiftTitle)}">${textContent(shiftName)}</td>
           <td class="type">${textContent(mode)}</td>
           <td class="status">
             <span class="status-badge ${status}">${textContent(formatStatusLabel(status))}</span>
@@ -279,17 +328,18 @@ export const initializeSimulationRuns = async (
   };
 
   const enrichShiftNames = async (runs = []) => {
-    const missing = runs
-      .map((r) => ({
-        run: r,
-        shiftId: resolveShiftId(r),
-        hasName: Boolean(resolveShiftName(r)),
-      }))
-      .filter((x) => x.shiftId && !x.hasName);
+    const missing = runs.map((run) => ({
+      run,
+      shiftIds: resolveShiftIds(run),
+      resolvedNames: resolveShiftNames(run),
+    }));
 
-    if (!missing.length) return;
+    const idsToResolve = missing.flatMap(({ shiftIds, resolvedNames }) =>
+      resolvedNames.length >= shiftIds.length ? [] : shiftIds
+    );
+    if (!idsToResolve.length) return;
 
-    const uniqueShiftIds = [...new Set(missing.map((m) => m.shiftId))];
+    const uniqueShiftIds = [...new Set(idsToResolve)];
     const toFetch = uniqueShiftIds.filter((id) => !shiftMetaCache.has(id));
 
     if (toFetch.length) {
@@ -304,18 +354,25 @@ export const initializeSimulationRuns = async (
       });
     }
 
-    missing.forEach(({ run, shiftId }) => {
-      const meta = shiftMetaCache.get(shiftId);
-      if (meta?.name) run._resolved_shift_name = meta.name;
+    missing.forEach(({ run, shiftIds, resolvedNames }) => {
+      const fetchedNames = shiftIds
+        .map((shiftId) => shiftMetaCache.get(shiftId)?.name)
+        .filter(Boolean);
+      const allNames = [...resolvedNames, ...fetchedNames].filter(Boolean);
+
+      if (allNames.length) {
+        run._resolved_shift_names = [...new Set(allNames)];
+        run._resolved_shift_name = run._resolved_shift_names[0];
+      }
     });
   };
 
   const applyFilter = () => {
     const query = (searchInput?.value ?? "").toLowerCase().trim();
     const filtered = query
-      ? allRuns.filter(
+        ? allRuns.filter(
           (run = {}) =>
-            text(resolveShiftName(run)).toLowerCase().includes(query) ||
+            text(resolveShiftLabel(run)).toLowerCase().includes(query) ||
             text(resolveBusModelId(run)).toLowerCase().includes(query) ||
             text(resolveBusModelName(run)).toLowerCase().includes(query) ||
             text(run?.status).toLowerCase().includes(query) ||
@@ -533,7 +590,7 @@ export const initializeSimulationRuns = async (
       sel.innerHTML = `<option value="" disabled selected>${textContent(placeholder)}</option>`;
       allRuns.forEach((run) => {
         const id = text(run?.id);
-        const shift = resolveShiftName(run) || id.slice(0, 8);
+        const shift = resolveShiftLabel(run) || id.slice(0, 8);
         const bus = resolveBusModelName(run) || "—";
         const created = formatDate(resolveCreatedAt(run));
         const label = `${shift} — ${bus} — ${created}`;

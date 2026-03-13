@@ -16,6 +16,7 @@ import {
 import {
   DEFAULT_OPEX_ANNUALIZATION_RATE,
   DEFAULT_BUS_LIFETIME_YEARS,
+  DEFAULT_DIESEL_BUS_LIFETIME_YEARS,
   DEFAULT_BATTERY_LIFETIME_YEARS,
   getEquivalentDieselBusCapexForLength,
 } from "../../../config/economic-defaults";
@@ -93,6 +94,7 @@ const CO2_CUM = Array.from({ length: 15 }, (_, i) => ({
 
 const DEFAULT_INFRASTRUCTURE_SLOT_COST_CHF = 150000;
 const DEFAULT_FUEL_COST_PER_L = 1.85;
+const PROJECTED_COST_TREND_HORIZON_YEARS = 20;
 
 /* ── Shared helpers ───────────────────────────────────────────── */
 
@@ -174,9 +176,12 @@ const resolveShiftWeekday = (shift = {}) => {
   return formatWeekdayLabel(rawDay);
 };
 
-const resolveShiftPresentation = async (shiftId) => {
+const resolveShiftDisplayName = (shift = {}, fallback = "") =>
+  firstText(shift?.name, shift?.shift_name, shift?.shiftName, fallback) || "—";
+
+const resolveShiftPresentation = async (shiftId, fallbackName = "") => {
   if (!shiftId) {
-    return { lineLabel: "—", weekdayLabel: "—" };
+    return { shiftName: fallbackName || "—", lineLabel: "—", weekdayLabel: "—" };
   }
 
   let shift = null;
@@ -192,6 +197,7 @@ const resolveShiftPresentation = async (shiftId) => {
   }
 
   return {
+    shiftName: resolveShiftDisplayName(shift, fallbackName),
     lineLabel: resolveShiftLineLabel(shift),
     weekdayLabel: resolveShiftWeekday(shift),
   };
@@ -211,6 +217,46 @@ const resolveShiftSummary = async (shiftIds = []) => {
     lines: lines.join(", ") || "—",
     days: days.join(", ") || "—",
   };
+};
+
+const resolveShiftTabs = async (
+  shiftIds = [],
+  { fallbackShiftId = "", fallbackShiftName = "" } = {}
+) => {
+  const ids = [
+    ...new Set(
+      (Array.isArray(shiftIds) ? shiftIds : [])
+        .map((id) => firstText(id))
+        .filter(Boolean)
+    ),
+  ];
+
+  if (!ids.length && fallbackShiftId) {
+    return [
+      {
+        id: fallbackShiftId,
+        shiftName: fallbackShiftName || fallbackShiftId,
+        lineLabel: "—",
+        weekdayLabel: "—",
+      },
+    ];
+  }
+
+  const presentations = await Promise.all(
+    ids.map((shiftId, index) =>
+      resolveShiftPresentation(
+        shiftId,
+        index === 0 ? fallbackShiftName : ""
+      )
+    )
+  );
+
+  return ids.map((id, index) => ({
+    id,
+    shiftName: presentations[index]?.shiftName || fallbackShiftName || id,
+    lineLabel: presentations[index]?.lineLabel || "—",
+    weekdayLabel: presentations[index]?.weekdayLabel || "—",
+  }));
 };
 
 const busCategoryLabel = (key) =>
@@ -651,6 +697,8 @@ const resolveBatteryLifetimeYears = (options = {}) => {
   return value != null && value > 0 ? value : DEFAULT_BATTERY_LIFETIME_YEARS;
 };
 
+const resolveDieselBusLifetimeYears = () => DEFAULT_DIESEL_BUS_LIFETIME_YEARS;
+
 const computeReplacementYears = (busLifetimeYears, batteryLifetimeYears) => {
   const busLifetime = toFiniteNumber(busLifetimeYears);
   const batteryLifetime = toFiniteNumber(batteryLifetimeYears);
@@ -665,6 +713,40 @@ const computeReplacementYears = (busLifetimeYears, batteryLifetimeYears) => {
 
   const count = Math.floor((busLifetime - 1) / batteryLifetime);
   return Array.from({ length: count }, (_, index) => (index + 1) * batteryLifetime);
+};
+
+const computeRecurringReplacementYears = (lifetimeYears, horizonYears) => {
+  const lifetime = toFiniteNumber(lifetimeYears);
+  const horizon = toFiniteNumber(horizonYears);
+  if (lifetime == null || lifetime <= 0 || horizon == null || horizon <= 0) {
+    return [];
+  }
+
+  const years = [];
+  for (let year = lifetime; year <= horizon; year += lifetime) {
+    years.push(year);
+  }
+  return years;
+};
+
+const computeBatteryReplacementYearsOverHorizon = (
+  _busLifetimeYears,
+  batteryLifetimeYears,
+  horizonYears
+) => {
+  const batteryLifetime = toFiniteNumber(batteryLifetimeYears);
+  const horizon = toFiniteNumber(horizonYears);
+
+  if (
+    batteryLifetime == null ||
+    batteryLifetime <= 0 ||
+    horizon == null ||
+    horizon <= 0
+  ) {
+    return [];
+  }
+
+  return computeRecurringReplacementYears(batteryLifetime, horizon);
 };
 
 const computeEquivalentAnnualCost = (principal, rate, lifetimeYears) => {
@@ -685,6 +767,7 @@ const buildEquivalentAnnualCostData = (comparison, options = {}) => {
   const electricCapex = resolveElectricBusCapex(options?.optimizationRun, options);
   const dieselCapexChf = resolveEquivalentDieselBusCapex(options) ?? 0;
   const busLifetime = resolveBusLifetimeYears(options);
+  const dieselBusLifetime = resolveDieselBusLifetimeYears();
   const batteryLifetime = resolveBatteryLifetimeYears(options);
   const batteryReplacementYears = computeReplacementYears(busLifetime, batteryLifetime);
   const batteryReplacementCost = toFiniteNumber(electricCapex?.totalBatteryChf) ?? 0;
@@ -708,7 +791,7 @@ const buildEquivalentAnnualCostData = (comparison, options = {}) => {
   const dieselCapexAnnual = computeEquivalentAnnualCost(
     dieselCapexPv,
     annualizationRate,
-    busLifetime
+    dieselBusLifetime
   );
 
   const electricUsage = sumOpexItemsByType(comparison?.electric?.opex_items, "energy");
@@ -751,6 +834,7 @@ const buildEquivalentAnnualCostData = (comparison, options = {}) => {
       electric: electricUsage + electricMaintenance,
     },
     replacementYears: batteryReplacementYears,
+    dieselBusLifetime,
     batteryReplacementCost,
   };
 };
@@ -759,27 +843,66 @@ const buildCostsChartData = (comparison, options = {}) => {
   if (!comparison) return null;
 
   const eacData = buildEquivalentAnnualCostData(comparison, options);
-  const horizonYears = Math.max(1, Math.round(resolveBusLifetimeYears(options)));
+  const horizonYears = PROJECTED_COST_TREND_HORIZON_YEARS;
   const electricAnnualOpex = eacData.annualOpex.electric;
   const dieselAnnualOpex = eacData.annualOpex.diesel;
   const electricBusCapexChf = eacData.upfrontCapex.electric;
   const dieselBusCapexChf = eacData.upfrontCapex.diesel;
-  const replacementYears = eacData.replacementYears ?? [];
+  const electricCapexDetails = resolveElectricBusCapex(
+    options?.optimizationRun,
+    options
+  );
+  const electricBusLifetime = resolveBusLifetimeYears(options);
+  const dieselBusLifetime = eacData.dieselBusLifetime ?? resolveDieselBusLifetimeYears();
+  const electricBusReplacementYears = computeRecurringReplacementYears(
+    electricBusLifetime,
+    horizonYears
+  );
+  const dieselBusReplacementYears = computeRecurringReplacementYears(
+    dieselBusLifetime,
+    horizonYears
+  );
+  const batteryReplacementYears = computeBatteryReplacementYearsOverHorizon(
+    electricBusLifetime,
+    resolveBatteryLifetimeYears(options),
+    horizonYears
+  );
   const batteryReplacementCost = eacData.batteryReplacementCost ?? 0;
-  const replacementCostByYear = replacementYears.reduce((acc, year) => {
+  const batteryReplacementCostByYear = batteryReplacementYears.reduce((acc, year) => {
     acc[year] = (acc[year] ?? 0) + batteryReplacementCost;
+    return acc;
+  }, {});
+  const electricVehicleReplacementCost =
+    toFiniteNumber(electricCapexDetails?.busCostChf) ?? 0;
+  const electricBusReplacementCostByYear = electricBusReplacementYears.reduce((acc, year) => {
+    acc[year] = (acc[year] ?? 0) + electricVehicleReplacementCost;
+    return acc;
+  }, {});
+  const dieselBusReplacementCostByYear = dieselBusReplacementYears.reduce((acc, year) => {
+    acc[year] = (acc[year] ?? 0) + (toFiniteNumber(dieselBusCapexChf) ?? 0);
     return acc;
   }, {});
   const yearly = Array.from({ length: horizonYears }, (_, index) => ({
     year: index + 1,
-    diesel: dieselBusCapexChf + dieselAnnualOpex * (index + 1),
+    diesel:
+      dieselBusCapexChf +
+      dieselAnnualOpex * (index + 1) +
+      d3.sum(
+        Array.from({ length: index + 1 }, (_, yearIndex) => {
+          const year = yearIndex + 1;
+          return dieselBusReplacementCostByYear[year] ?? 0;
+        })
+      ),
     electric:
       electricBusCapexChf +
       electricAnnualOpex * (index + 1) +
       d3.sum(
         Array.from({ length: index + 1 }, (_, yearIndex) => {
           const year = yearIndex + 1;
-          return replacementCostByYear[year] ?? 0;
+          return (
+            (electricBusReplacementCostByYear[year] ?? 0) +
+            (batteryReplacementCostByYear[year] ?? 0)
+          );
         })
       ),
   }));
@@ -795,6 +918,11 @@ const buildCostsChartData = (comparison, options = {}) => {
   return {
     tco: eacData.tco,
     annualTotals: eacData.annualTotals,
+    replacementYears: {
+      electricBus: electricBusReplacementYears,
+      dieselBus: dieselBusReplacementYears,
+      battery: batteryReplacementYears,
+    },
     yearly,
   };
 };
@@ -995,10 +1123,13 @@ const renderOpexInputsTable = (el, state) => {
     state.costInputs.opexAnnualizationRate == null
       ? "—"
       : `${formatFixed(state.costInputs.opexAnnualizationRate * 100, 1)}%`;
-  const annualizationFactorValue =
-    state.costInputs.annualizationFactor == null
-      ? "—"
-      : formatFixed(state.costInputs.annualizationFactor, 3);
+  const predictedShiftConsumptionPerKm =
+    state.costInputs.predictedShiftDistanceKm != null &&
+    state.costInputs.predictedShiftDistanceKm > 0 &&
+    state.costInputs.predictedShiftConsumptionKwh != null
+      ? state.costInputs.predictedShiftConsumptionKwh /
+        state.costInputs.predictedShiftDistanceKm
+      : null;
 
   const scenarioRows = [
     [t("simulation.costs_input_line") || "Line", state.costInputs.shiftLineLabel],
@@ -1021,7 +1152,7 @@ const renderOpexInputsTable = (el, state) => {
     ],
     [
       t("simulation.costs_input_trend_equation") || "Trend equation",
-      "Cumulative total by year = upfront CAPEX + battery replacements + yearly OPEX * year",
+      "Cumulative total by year = upfront CAPEX + bus replacements + battery replacements + yearly OPEX * year",
     ],
     [
       translateOr("simulation.costs_input_usage_equation", "OPEX usage equation"),
@@ -1053,7 +1184,21 @@ const renderOpexInputsTable = (el, state) => {
     [
       t("simulation.costs_input_battery_replacement_years") ||
         "Battery replacement years",
-      (state.costInputs.replacementYears ?? []).join(", ") || "—",
+      (state.costInputs.trendBatteryReplacementYears ?? []).join(", ") || "—",
+    ],
+    [
+      translateOr("simulation.costs_input_electric_bus_replacement_years", "Electric bus replacement years"),
+      (state.costInputs.electricBusReplacementYears ?? []).join(", ") || "—",
+    ],
+    [
+      translateOr("simulation.costs_input_diesel_bus_replacement_years", "Diesel bus replacement years"),
+      (state.costInputs.dieselBusReplacementYears ?? []).join(", ") || "—",
+    ],
+    [
+      translateOr("simulation.costs_input_projection_horizon", "Projection horizon (years)"),
+      state.costInputs.projectedTrendHorizonYears == null
+        ? "—"
+        : formatFixed(state.costInputs.projectedTrendHorizonYears, 0),
     ],
     [
       t("simulation.costs_input_yearly_distance") || "Yearly distance (km)",
@@ -1076,8 +1221,13 @@ const renderOpexInputsTable = (el, state) => {
         : formatFixed(state.costInputs.predictedShiftConsumptionKwh, 3),
     ],
     [
-      translateOr("simulation.costs_input_annualization_factor", "Annualization factor"),
-      annualizationFactorValue,
+      translateOr(
+        "simulation.costs_input_prediction_consumption_per_km",
+        "Prediction consumption per km (kWh/km)"
+      ),
+      predictedShiftConsumptionPerKm == null
+        ? "—"
+        : formatFixed(predictedShiftConsumptionPerKm, 3),
     ],
     [
       t("simulation.costs_input_capex_annualization_rate") ||
@@ -1142,6 +1292,12 @@ const renderOpexInputsTable = (el, state) => {
       state.costInputs.economicComparisonParams?.lifetime_bus == null
         ? "—"
         : formatFixed(state.costInputs.economicComparisonParams.lifetime_bus, 0),
+    ],
+    [
+      translateOr("simulation.costs_input_diesel_bus_lifetime", "Diesel bus lifetime (years)"),
+      state.costInputs.dieselBusLifetime == null
+        ? "—"
+        : formatFixed(state.costInputs.dieselBusLifetime, 0),
     ],
     [
       t("simulation.costs_input_battery_lifetime") ||
@@ -1595,7 +1751,21 @@ const OPTIMIZATION_BATTERY_COLORS = {
   optimized: "#abe828",
 };
 
-const buildOptimizationResultsHtml = (results, inputParams = {}) => {
+const matchesSelectedShift = (batteryResult = {}, shiftKey = "", viewOptions = {}) => {
+  const selectedShiftId = firstText(viewOptions?.selectedShiftId);
+  const selectedShiftName = firstText(viewOptions?.selectedShiftName);
+
+  if (!selectedShiftId && !selectedShiftName) return true;
+  if (selectedShiftId && firstText(batteryResult?.shift_id, shiftKey) === selectedShiftId) {
+    return true;
+  }
+  if (selectedShiftName && firstText(batteryResult?.shift_name) === selectedShiftName) {
+    return true;
+  }
+  return false;
+};
+
+const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {}) => {
   if (!results || typeof results !== "object" || !Object.keys(results).length) return "";
 
   const solverStatus = results.solver_status ?? "—";
@@ -1614,11 +1784,13 @@ const buildOptimizationResultsHtml = (results, inputParams = {}) => {
     </div>`).join("");
 
   const batteryResults = results.battery_results ?? {};
-  const batteryEntries = Object.values(batteryResults);
+  const batteryEntries = Object.entries(batteryResults).filter(([shiftKey, result]) =>
+    matchesSelectedShift(result, shiftKey, viewOptions)
+  );
 
   let batteryTableHtml = "";
   if (batteryEntries.length) {
-    const rows = batteryEntries.map((b) => `
+    const rows = batteryEntries.map(([, b]) => `
       <tr>
         <td>${textContent(b.shift_name ?? "—")}</td>
         <td class="efficiency-td-num">${textContent(String(b.base_packs ?? "—"))}</td>
@@ -1716,11 +1888,13 @@ const buildOptimizationResultsHtml = (results, inputParams = {}) => {
     </div>`;
 };
 
-const buildOptimizationBatteryChartData = (batteryResults = {}) =>
-  Object.values(batteryResults ?? {})
-    .map((result, index) => ({
+const buildOptimizationBatteryChartData = (batteryResults = {}, viewOptions = {}) =>
+  Object.entries(batteryResults ?? {})
+    .filter(([shiftKey, result]) => matchesSelectedShift(result, shiftKey, viewOptions))
+    .map(([shiftKey, result], index) => ({
       shiftName:
         result?.shift_name ??
+        shiftKey ??
         `${t("simulation.opt_col_shift") || "Shift"} ${index + 1}`,
       basePacks: toFiniteNumber(result?.base_packs),
       optimizedPacks: toFiniteNumber(result?.optimized_packs),
@@ -2320,7 +2494,7 @@ const renderOptimizationBatteryChart = (el, rows) => {
   el.appendChild(svg.node());
 };
 
-const renderEfficiencyTable = (el, state) => {
+const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (!el) return;
 
   if (state.status === "idle" || state.status === "loading") {
@@ -2345,6 +2519,14 @@ const renderEfficiencyTable = (el, state) => {
   const batteryResults = results.battery_results ?? {};
 
   const conditions = [
+    ...(viewOptions?.selectedShiftName
+      ? [
+          {
+            label: t("simulation.general_shift_name") || "Shift name",
+            value: textContent(viewOptions.selectedShiftName),
+          },
+        ]
+      : []),
     { label: t("simulation.var_optimization_mode") || "Mode", value: modeLabel(ip.mode ?? "") },
     { label: t("simulation.efficiency_min_soc") || "Min SoC", value: formatPct(ip.min_soc ?? 0.4) },
     { label: t("simulation.efficiency_max_soc") || "Max SoC", value: formatPct(ip.max_soc ?? 0.9) },
@@ -2368,9 +2550,10 @@ const renderEfficiencyTable = (el, state) => {
       <span class="efficiency-param-value">${value}</span>
     </div>`).join("");
 
-  const optimizationHtml = buildOptimizationResultsHtml(results, ip);
+  const optimizationHtml = buildOptimizationResultsHtml(results, ip, viewOptions);
   const optimizationBatteryChartData = buildOptimizationBatteryChartData(
-    batteryResults
+    batteryResults,
+    viewOptions
   );
 
   const predictionData = buildUnifiedPredictionData(
@@ -2521,25 +2704,100 @@ const extractYearlyDistanceKm = (payload) =>
     payload?.data?.km
   );
 
-const selectCostPredictionRun = (predictionRuns = [], batteryResults = {}) => {
+const resolvePredictionRunShiftIds = (predictionRun = {}) => {
+  const directIds = [
+    predictionRun?.shift_ids,
+    predictionRun?.shiftIds,
+    predictionRun?.summary?.shift_ids,
+    predictionRun?.summary?.shiftIds,
+    predictionRun?.contextual_parameters?.shift_ids,
+    predictionRun?.contextual_parameters?.shiftIds,
+  ].find((value) => Array.isArray(value) && value.length);
+
+  if (Array.isArray(directIds) && directIds.length) {
+    return directIds.map((value) => firstText(value)).filter(Boolean);
+  }
+
+  const directId = firstText(
+    predictionRun?.shift_id,
+    predictionRun?.shiftId,
+    predictionRun?.summary?.shift_id,
+    predictionRun?.summary?.shiftId,
+    predictionRun?.contextual_parameters?.shift_id,
+    predictionRun?.contextual_parameters?.shiftId
+  );
+
+  return directId ? [directId] : [];
+};
+
+const resolvePredictionRunShiftNames = (predictionRun = {}) => {
+  const directNames = [
+    predictionRun?.shift_names,
+    predictionRun?.shiftNames,
+    predictionRun?.summary?.shift_names,
+    predictionRun?.summary?.shiftNames,
+    predictionRun?.contextual_parameters?.shift_names,
+    predictionRun?.contextual_parameters?.shiftNames,
+  ].find((value) => Array.isArray(value) && value.length);
+
+  if (Array.isArray(directNames) && directNames.length) {
+    return directNames.map((value) => firstText(value)).filter(Boolean);
+  }
+
+  const directName = firstText(
+    predictionRun?.shift_name,
+    predictionRun?.shiftName,
+    predictionRun?.summary?.shift_name,
+    predictionRun?.summary?.shiftName,
+    predictionRun?.contextual_parameters?.shift_name,
+    predictionRun?.contextual_parameters?.shiftName
+  );
+
+  return directName ? [directName] : [];
+};
+
+const matchesPredictionRunShift = (predictionRun = {}, options = {}) => {
+  const selectedShiftId = firstText(options?.selectedShiftId, options?.shiftId);
+  const selectedShiftName = firstText(options?.selectedShiftName, options?.shiftName);
+
+  if (!selectedShiftId && !selectedShiftName) return true;
+
+  const runShiftIds = resolvePredictionRunShiftIds(predictionRun);
+  if (selectedShiftId && runShiftIds.includes(selectedShiftId)) {
+    return true;
+  }
+
+  const runShiftNames = resolvePredictionRunShiftNames(predictionRun);
+  if (selectedShiftName && runShiftNames.includes(selectedShiftName)) {
+    return true;
+  }
+
+  return false;
+};
+
+const selectCostPredictionRun = (predictionRuns = [], batteryResults = {}, options = {}) => {
   if (!Array.isArray(predictionRuns) || !predictionRuns.length) return null;
 
+  const shiftMatchedRuns = predictionRuns.filter((run) =>
+    matchesPredictionRunShift(run, options)
+  );
+  const candidateRuns = shiftMatchedRuns.length ? shiftMatchedRuns : predictionRuns;
   const targetPacks = resolveOptimizedPackCount(batteryResults);
   if (targetPacks != null) {
-    const exactMatch = predictionRuns.find(
+    const exactMatch = candidateRuns.find(
       (run) =>
         toFiniteNumber(run?.contextual_parameters?.num_battery_packs) === targetPacks
     );
     if (exactMatch) return exactMatch;
   }
 
-  return [...predictionRuns].reduce((best, run) => {
+  return [...candidateRuns].reduce((best, run) => {
     const bestValue = toFiniteNumber(best?.summary?.consumption_per_km_kwh);
     const candidateValue = toFiniteNumber(run?.summary?.consumption_per_km_kwh);
     if (candidateValue == null) return best;
     if (bestValue == null || candidateValue < bestValue) return run;
     return best;
-  }, predictionRuns[0]);
+  }, candidateRuns[0]);
 };
 
 const resolveChargerPowerKw = (optimizationRun, options = {}) => {
@@ -2637,7 +2895,11 @@ const resolveCostAnnualization = async (shiftId, predictionSummary = {}) => {
 const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, options = {}) => {
   const inputParams = optimizationRun?.input_params ?? {};
   const batteryResults = optimizationRun?.results?.battery_results ?? {};
-  const selectedPredictionRun = selectCostPredictionRun(predictionRuns, batteryResults);
+  const selectedPredictionRun = selectCostPredictionRun(
+    predictionRuns,
+    batteryResults,
+    options
+  );
   const predictionSummary = selectedPredictionRun?.summary ?? {};
   const predictionContext = selectedPredictionRun?.contextual_parameters ?? {};
   const shiftId =
@@ -2694,9 +2956,24 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
   };
 
   const lifetimeBus = resolveBusLifetimeYears(options);
+  const dieselBusLifetime = resolveDieselBusLifetimeYears();
   const lifetimeBattery = resolveBatteryLifetimeYears(options);
   const batteryCostPerKwh = positiveOrNull(
     firstFiniteValue(inputParams?.battery_cost_per_kwh, derivedBatteryCostPerKwh)
+  );
+  const projectedTrendHorizonYears = PROJECTED_COST_TREND_HORIZON_YEARS;
+  const electricBusReplacementYears = computeRecurringReplacementYears(
+    lifetimeBus,
+    projectedTrendHorizonYears
+  );
+  const dieselBusReplacementYears = computeRecurringReplacementYears(
+    dieselBusLifetime,
+    projectedTrendHorizonYears
+  );
+  const trendBatteryReplacementYears = computeBatteryReplacementYearsOverHorizon(
+    lifetimeBus,
+    lifetimeBattery,
+    projectedTrendHorizonYears
   );
 
   const economicComparisonParams = {
@@ -2731,8 +3008,13 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
       chargerPowerKw,
       batteryCostPerKwh,
       lifetimeBus,
+      dieselBusLifetime,
       lifetimeBattery,
       replacementYears: computeReplacementYears(lifetimeBus, lifetimeBattery),
+      electricBusReplacementYears,
+      dieselBusReplacementYears,
+      trendBatteryReplacementYears,
+      projectedTrendHorizonYears,
       economicComparisonParams,
       batteryReplacementCost:
         resolveElectricBusCapex(options?.optimizationRun, options)?.totalBatteryChf ?? null,
@@ -2939,6 +3221,12 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const cleanupHandlers = [];
   const renderedTabs = new Set();
+  let activeShiftId = options.shiftId || "";
+  let activeShiftName = options.shiftName || "";
+  let availableShiftTabs = [];
+  let loadedOptimizationRun = null;
+  let loadedPredictionRuns = [];
+  let shiftRefreshSeq = 0;
 
   /* Async data — populated after loading the run */
   const costState = {
@@ -2962,7 +3250,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const refreshEfficiencyTab = () => {
     if (!renderedTabs.has("efficiency")) return;
-    renderEfficiencyTable(section.querySelector('[data-role="efficiency-table"]'), efficiencyState);
+    renderEfficiencyTable(
+      section.querySelector('[data-role="efficiency-table"]'),
+      efficiencyState,
+      { selectedShiftId: activeShiftId, selectedShiftName: activeShiftName }
+    );
   };
 
   const TAB_RENDERERS = {
@@ -2970,7 +3262,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       renderCostsSection(sec.querySelector('[data-panel="costs"]') ?? sec, costState, options);
     },
     efficiency: (sec) => {
-      renderEfficiencyTable(sec.querySelector('[data-role="efficiency-table"]'), efficiencyState);
+      renderEfficiencyTable(
+        sec.querySelector('[data-role="efficiency-table"]'),
+        efficiencyState,
+        { selectedShiftId: activeShiftId, selectedShiftName: activeShiftName }
+      );
     },
     emissions: (sec) => {
       renderCO2Bar(sec.querySelector('[data-role="emissions-bar-chart"]'));
@@ -2981,19 +3277,19 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const simNameEl = section.querySelector('[data-role="sim-name"]');
   const busModelEl = section.querySelector('[data-role="sim-bus-model"]');
+  const shiftTabsEl = section.querySelector('[data-role="shift-tabs"]');
   const overlay = section.querySelector('[data-role="sim-data-overlay"]');
   const subtitleEl = section.querySelector('[data-role="sim-data-subtitle"]');
 
-  const shiftName = options.shiftName || "";
   const busModelName = options.busModelName || "";
 
-  if (simNameEl) simNameEl.textContent = shiftName;
+  if (simNameEl) simNameEl.textContent = activeShiftName;
   if (busModelEl) busModelEl.textContent = busModelName;
 
   const renderGeneralInfo = (overrides = {}) => {
     const generalInfo = {
       ...FAKE_GENERAL_INFO,
-      shift_name: shiftName,
+      shift_name: activeShiftName,
       ...compactFieldEntries({
         creation_date: options.createdAt,
         external_temp_celsius: formatTemperatureValue(options.externalTemp),
@@ -3029,6 +3325,98 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       busInfo,
       busLabels()
     );
+  };
+
+  const renderShiftTabs = () => {
+    if (!shiftTabsEl) return;
+    if (!availableShiftTabs.length) {
+      shiftTabsEl.hidden = true;
+      shiftTabsEl.innerHTML = "";
+      return;
+    }
+
+    shiftTabsEl.hidden = false;
+    shiftTabsEl.innerHTML = availableShiftTabs
+      .map(
+        (shift) => `
+          <button
+            type="button"
+            class="results-shift-tab${shift.id === activeShiftId ? " active" : ""}"
+            data-action="select-shift"
+            data-shift-id="${textContent(shift.id)}"
+            aria-pressed="${shift.id === activeShiftId ? "true" : "false"}"
+          >
+            ${textContent(shift.shiftName)}
+          </button>`
+      )
+      .join("");
+  };
+
+  const refreshShiftScopedData = async () => {
+    const currentSeq = ++shiftRefreshSeq;
+    const activeShift =
+      availableShiftTabs.find((shift) => shift.id === activeShiftId) ?? null;
+
+    activeShiftName =
+      activeShift?.shiftName || options.shiftName || activeShiftId || "—";
+    options.shiftId = activeShiftId;
+    options.shiftName = activeShiftName;
+    renderShiftTabs();
+
+    if (simNameEl) simNameEl.textContent = activeShiftName;
+
+    const firstPredictionRun = loadedPredictionRuns[0] ?? {};
+    renderGeneralInfo({
+      simulation_type: resolveSimulationType(loadedOptimizationRun, options),
+      lines: activeShift?.lineLabel || "—",
+      day: activeShift?.weekdayLabel || "—",
+      min_soc: formatSocValue(loadedOptimizationRun?.input_params?.min_soc),
+      max_soc: formatSocValue(loadedOptimizationRun?.input_params?.max_soc),
+      external_temp_celsius: formatTemperatureValue(
+        firstPredictionRun.external_temp_celsius
+      ),
+      occupancy_percent: formatOccupancyValue(
+        firstPredictionRun.occupancy_percent
+      ),
+      heating_type: formatHeatingTypeValue(
+        firstPredictionRun.auxiliary_heating_type
+      ),
+    });
+
+    refreshEfficiencyTab();
+
+    if (!loadedOptimizationRun) return;
+
+    costState.status = "loading";
+    costState.comparison = null;
+    costState.annualization = null;
+    costState.costInputs = null;
+    costState.error = null;
+    costState.optimizationRun = loadedOptimizationRun;
+    refreshCostsTab();
+
+    try {
+      const costPayload = await loadCostComparison(
+        loadedOptimizationRun,
+        loadedPredictionRuns,
+        options
+      );
+      if (currentSeq !== shiftRefreshSeq) return;
+      costState.comparison = costPayload.comparison;
+      costState.annualization = costPayload.annualization;
+      costState.costInputs = costPayload.inputs;
+      costState.status = "done";
+    } catch (costErr) {
+      if (currentSeq !== shiftRefreshSeq) return;
+      costState.status = "error";
+      costState.costInputs = null;
+      costState.error =
+        costErr?.message ??
+        t("simulation.costs_error") ??
+        "Unable to load cost comparison.";
+    }
+
+    refreshCostsTab();
   };
 
   if (subtitleEl) {
@@ -3096,6 +3484,23 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     cleanupHandlers.push(() => overlay.removeEventListener("click", onBg));
   }
 
+  if (shiftTabsEl) {
+    const handleShiftTabClick = (event) => {
+      const btn = event.target.closest('[data-action="select-shift"]');
+      if (!btn) return;
+      const nextShiftId = firstText(btn.dataset.shiftId);
+      if (!nextShiftId || nextShiftId === activeShiftId) return;
+      activeShiftId = nextShiftId;
+      refreshShiftScopedData().catch((error) => {
+        console.error("[elettra] Unable to refresh shift-specific results:", error);
+      });
+    };
+    shiftTabsEl.addEventListener("click", handleShiftTabClick);
+    cleanupHandlers.push(() =>
+      shiftTabsEl.removeEventListener("click", handleShiftTabClick)
+    );
+  }
+
   /* Async: fetch optimization run + prediction runs, then derive costs */
   const loadResultData = async () => {
     if (!options.runId) return;
@@ -3125,65 +3530,37 @@ export const initializeSimulationResults = (root = document, options = {}) => {
         section.querySelector('[data-role="charging-info"]'),
         optimizationRun
       );
+      loadedOptimizationRun = optimizationRun;
       const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
         ? optimizationRun.prediction_run_ids
         : [];
       const predictionRuns = predRunIds.length
         ? await Promise.all(predRunIds.map((id) => fetchPredictionRun(id)))
         : [];
+      loadedPredictionRuns = predictionRuns;
 
       const inputShiftIds = Array.isArray(optimizationRun?.input_params?.shift_ids)
         ? optimizationRun.input_params.shift_ids
         : [];
-      const inputParams = optimizationRun?.input_params ?? {};
-      const firstPredictionRun = predictionRuns[0] ?? {};
-      const shiftSummary = await resolveShiftSummary(
-        inputShiftIds.length ? inputShiftIds : [options.shiftId]
-      );
-      renderGeneralInfo({
-        simulation_type: resolveSimulationType(optimizationRun, options),
-        lines: shiftSummary.lines,
-        day: shiftSummary.days,
-        min_soc: formatSocValue(inputParams.min_soc),
-        max_soc: formatSocValue(inputParams.max_soc),
-        external_temp_celsius: formatTemperatureValue(
-          firstPredictionRun.external_temp_celsius
-        ),
-        occupancy_percent: formatOccupancyValue(
-          firstPredictionRun.occupancy_percent
-        ),
-        heating_type: formatHeatingTypeValue(
-          firstPredictionRun.auxiliary_heating_type
-        ),
+      availableShiftTabs = await resolveShiftTabs(inputShiftIds, {
+        fallbackShiftId: options.shiftId,
+        fallbackShiftName: options.shiftName,
       });
+      activeShiftId =
+        availableShiftTabs.find((shift) => shift.id === activeShiftId)?.id ??
+        availableShiftTabs[0]?.id ??
+        activeShiftId;
+      activeShiftName =
+        availableShiftTabs.find((shift) => shift.id === activeShiftId)?.shiftName ??
+        activeShiftName;
+      renderShiftTabs();
 
       efficiencyState.status = "done";
       efficiencyState.optimizationRun = optimizationRun;
       efficiencyState.predictionRuns = predictionRuns;
 
       costState.optimizationRun = optimizationRun;
-      try {
-        const costPayload = await loadCostComparison(
-          optimizationRun,
-          predictionRuns,
-          options
-        );
-        costState.comparison = costPayload.comparison;
-        costState.annualization = costPayload.annualization;
-        costState.costInputs = costPayload.inputs;
-        console.info("[elettra] yearly operational costs:", {
-          electric_chf_per_year: sumOpexItems(costPayload.comparison?.electric?.opex_items),
-          diesel_chf_per_year: sumOpexItems(costPayload.comparison?.diesel?.opex_items),
-        });
-        costState.status = "done";
-      } catch (costErr) {
-        costState.status = "error";
-        costState.costInputs = null;
-        costState.error =
-          costErr?.message ??
-          t("simulation.costs_error") ??
-          "Unable to load cost comparison.";
-      }
+      await refreshShiftScopedData();
     } catch (err) {
       renderChargingInfrastructure(section.querySelector('[data-role="charging-info"]'));
       costState.status = "error";

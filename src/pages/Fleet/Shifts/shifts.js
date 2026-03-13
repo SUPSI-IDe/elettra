@@ -94,6 +94,24 @@ const formatTime = (minutes) => {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 };
 
+const sortShiftsByName = (shifts = []) =>
+  [...shifts].sort((left = {}, right = {}) => {
+    const leftName = text(left?.name).trim();
+    const rightName = text(right?.name).trim();
+    const nameComparison = leftName.localeCompare(rightName, undefined, {
+      sensitivity: "base",
+      numeric: true,
+    });
+
+    if (nameComparison !== 0) {
+      return nameComparison;
+    }
+
+    return text(left?.id).localeCompare(text(right?.id), undefined, {
+      numeric: true,
+    });
+  });
+
 const renderRows = (tbody, shifts = []) => {
   if (!tbody) {
     return;
@@ -383,20 +401,22 @@ export const initializeShifts = async (root = document, options = {}) => {
         })
       );
 
-      allShifts = (Array.isArray(userShifts) ? userShifts : []).map((shift) => {
-        const busId = text(
-          shift?.bus?.id ?? shift?.bus_id ?? shift?.busId ?? ""
-        );
-        const modelId = text(
-          shift?.bus?.bus_model_id ?? shift?.bus_model_id ?? shift?.busModelId ?? ""
-        );
-        const modelFromShift = resolveModelFields(modelsById[modelId]).model;
-        const modelLabel = busMap.get(busId) || modelFromShift || "";
-        return {
-          ...shift,
-          bus_model_name: modelLabel || shift?.bus_model_name,
-        };
-      });
+      allShifts = sortShiftsByName(
+        (Array.isArray(userShifts) ? userShifts : []).map((shift) => {
+          const busId = text(
+            shift?.bus?.id ?? shift?.bus_id ?? shift?.busId ?? ""
+          );
+          const modelId = text(
+            shift?.bus?.bus_model_id ?? shift?.bus_model_id ?? shift?.busModelId ?? ""
+          );
+          const modelFromShift = resolveModelFields(modelsById[modelId]).model;
+          const modelLabel = busMap.get(busId) || modelFromShift || "";
+          return {
+            ...shift,
+            bus_model_name: modelLabel || shift?.bus_model_name,
+          };
+        })
+      );
       applyFilter();
     } catch (error) {
       console.error("Failed to load shifts", error);
