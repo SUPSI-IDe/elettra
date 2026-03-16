@@ -69,7 +69,8 @@ COPY --from=builder /app/dist /usr/share/nginx/html/elettra
 EXPOSE 80
 
 # Default environment variables
-ENV API_BACKEND_URL=http://isaac-elettra.dacd.supsi.ch:8002
+ENV API_BACKEND_URL=http://isaac-elettra.dacd.supsi.ch:8002 \
+    ESC=$
 
 # Start nginx (envsubst is handled by nginx docker image automatically)
 CMD ["nginx", "-g", "daemon off;"]
