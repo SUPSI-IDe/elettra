@@ -109,7 +109,7 @@ services:
         - NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmjs.org/}
     container_name: elettra
     ports:
-      - "80:80"
+      - "9010:80"
     environment:
       - API_BACKEND_URL=${API_BACKEND_URL:-http://isaac-elettra.dacd.supsi.ch:8002}
     restart: unless-stopped

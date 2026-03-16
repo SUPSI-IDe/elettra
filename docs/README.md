@@ -170,14 +170,14 @@ This flow:
 
 - builds the frontend in a Node `22-alpine` stage
 - copies `dist/` into an nginx image
-- serves the app on port `80`
+- serves the app from nginx on container port `80`, published externally on `9010`
 - proxies `/auth` and `/api` to `API_BACKEND_URL`
 - exposes a health endpoint at `/health`
 
 Open:
 
 ```text
-http://localhost/elettra/
+http://localhost:9010/elettra/
 ```
 
 To stop the containers:

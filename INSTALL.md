@@ -247,12 +247,12 @@ docker compose --profile prod up -d --build
 docker build -f Dockerfile -t elettra:latest ..
 docker run -d \
   --name elettra \
-  -p 80:80 \
+  -p 9010:80 \
   -e API_BACKEND_URL=http://isaac-elettra.dacd.supsi.ch:8002 \
   elettra:latest
 ```
 
-Access the application at `http://localhost/elettra/`
+Access the application at `http://localhost:9010/elettra/`
 
 ### Production with Docker and Vite
 
