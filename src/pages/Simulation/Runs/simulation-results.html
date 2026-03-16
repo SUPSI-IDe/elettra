@@ -30,6 +30,14 @@
       >
         Simulation data
       </button>
+      <button
+        type="button"
+        class="sim-data-btn sim-data-btn--secondary"
+        data-action="toggle-scenario-scaling"
+        data-i18n="simulation.results_scenario_scaling"
+      >
+        Scenario and scaling
+      </button>
     </div>
 
     <!-- Tabs -->
@@ -120,14 +128,14 @@
               <input
                 class="results-cost-variables__range"
                 type="range"
-                min="0.08"
-                max="0.15"
+                min="0.02"
+                max="0.10"
                 step="0.005"
                 data-role="cost-variable-interest-rate"
               />
               <div class="results-cost-variables__range-scale" aria-hidden="true">
-                <span>8%</span>
-                <span>15%</span>
+                <span>2%</span>
+                <span>10%</span>
               </div>
               <div class="results-cost-variables__actions">
                 <button
@@ -169,10 +177,6 @@
         <div class="chart-section costs-trend-section">
           <h2 data-i18n="simulation.results_costs_trend">Projected cost trend</h2>
           <div class="chart-container" data-role="costs-line-chart"></div>
-        </div>
-        <div class="chart-section chart-section--full costs-inputs-section">
-          <h2 data-i18n="simulation.results_opex_inputs_title">OPEX calculation inputs</h2>
-          <div data-role="costs-opex-inputs"></div>
         </div>
       </div>
 
@@ -246,6 +250,46 @@
             type="button"
             class="btn-close-results"
             data-action="close-sim-data"
+            data-i18n="common.close"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-data-overlay" data-role="scenario-scaling-overlay" hidden>
+      <div class="sim-data-panel sim-data-panel--wide">
+        <div class="sim-data-header">
+          <div>
+            <h2 data-i18n="simulation.results_scenario_scaling">Scenario and scaling</h2>
+            <p class="sim-data-subtitle" data-role="scenario-scaling-subtitle"></p>
+          </div>
+          <button
+            type="button"
+            class="close-button"
+            data-action="close-scenario-scaling"
+            aria-label="Close"
+            data-i18n-aria-label="common.close"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="sim-data-columns sim-data-columns--single">
+          <div class="sim-data-col">
+            <div data-role="scenario-scaling-content"></div>
+          </div>
+        </div>
+
+        <div class="sim-data-actions">
+          <button
+            type="button"
+            class="btn-close-results"
+            data-action="close-scenario-scaling"
             data-i18n="common.close"
           >
             Close

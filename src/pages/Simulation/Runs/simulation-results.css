@@ -22,6 +22,9 @@
 }
 
 .results-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
 }
 
@@ -72,6 +75,16 @@
 
 .sim-data-btn:hover {
   background-color: var(--brand-teal-dark);
+}
+
+.sim-data-btn--secondary {
+  background-color: #fff;
+  color: var(--brand-teal);
+  border: 1px solid var(--brand-teal);
+}
+
+.sim-data-btn--secondary:hover {
+  background-color: rgba(0, 99, 154, 0.06);
 }
 
 /* Tabs */
@@ -128,8 +141,7 @@
     "investment trend"
     "electric ."
     "diesel ."
-    "api ."
-    "inputs inputs";
+    "api .";
   align-items: start;
   gap: var(--spacing-md);
 }
@@ -190,10 +202,6 @@
 
 .costs-trend-section {
   grid-area: trend;
-}
-
-.costs-inputs-section {
-  grid-area: inputs;
 }
 
 .results-cost-variables__header {
@@ -585,6 +593,10 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
 }
 
+.sim-data-panel--wide {
+  max-width: 1180px;
+}
+
 .sim-data-header {
   display: flex;
   justify-content: space-between;
@@ -610,6 +622,10 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--spacing-xl);
+}
+
+.sim-data-columns--single {
+  grid-template-columns: 1fr;
 }
 
 .sim-data-col h3 {
@@ -723,6 +739,41 @@
   font-size: 0.88rem;
   color: var(--text-main);
   font-weight: 500;
+}
+
+.efficiency-summary-table-wrap {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-light);
+}
+
+.efficiency-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+}
+
+.efficiency-summary-table th,
+.efficiency-summary-table td {
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.efficiency-summary-table th {
+  width: 70%;
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.efficiency-summary-table td {
+  text-align: right;
+  color: var(--text-main);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .efficiency-chart-grid {

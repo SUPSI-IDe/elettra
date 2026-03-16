@@ -100,7 +100,9 @@ const CO2_CUM = Array.from({ length: 15 }, (_, i) => ({
 const DEFAULT_INFRASTRUCTURE_SLOT_COST_CHF = 150000;
 const DEFAULT_FUEL_COST_PER_L = 1.85;
 const DEFAULT_ENERGY_PRICE_SLIDER_VALUE = 0.2;
-const DEFAULT_INTEREST_RATE_SLIDER_VALUE = 0.03;
+const MIN_INTEREST_RATE = 0.02;
+const MAX_INTEREST_RATE = 0.1;
+const DEFAULT_INTEREST_RATE_SLIDER_VALUE = DEFAULT_OPEX_ANNUALIZATION_RATE;
 const PROJECTED_COST_TREND_HORIZON_YEARS = 20;
 const COST_VARIABLE_REFRESH_DEBOUNCE_MS = 450;
 
@@ -327,8 +329,8 @@ const normalizeEnergyPricePerKwh = (value) =>
 
 const normalizeInterestRate = (value) =>
   toFiniteNumber(value) != null &&
-  Number(value) >= 0 &&
-  Number(value) <= 1
+  Number(value) >= MIN_INTEREST_RATE &&
+  Number(value) <= MAX_INTEREST_RATE
     ? Number(value)
     : null;
 
@@ -1176,8 +1178,23 @@ const buildOpexBreakdownTable = (items = [], yearlyDistanceKm = null) => {
 
 const renderOpexInputsTable = (el, state) => {
   if (!el) return;
+  if (state.status === "loading" || state.status === "refreshing") {
+    el.innerHTML = costsStateHtml(
+      t("simulation.costs_loading") || "Loading cost comparison…"
+    );
+    return;
+  }
+  if (state.status === "error") {
+    el.innerHTML = costsStateHtml(
+      state.error || t("simulation.costs_error") || "Unable to load cost comparison.",
+      "error"
+    );
+    return;
+  }
   if (state.status !== "done" || !state.costInputs) {
-    el.innerHTML = "";
+    el.innerHTML = costsStateHtml(
+      t("simulation.costs_empty") || "No economic comparison data available."
+    );
     return;
   }
 
@@ -1185,13 +1202,6 @@ const renderOpexInputsTable = (el, state) => {
     state.costInputs.opexAnnualizationRate == null
       ? "—"
       : `${formatFixed(state.costInputs.opexAnnualizationRate * 100, 1)}%`;
-  const predictedShiftConsumptionPerKm =
-    state.costInputs.predictedShiftDistanceKm != null &&
-    state.costInputs.predictedShiftDistanceKm > 0 &&
-    state.costInputs.predictedShiftConsumptionKwh != null
-      ? state.costInputs.predictedShiftConsumptionKwh /
-        state.costInputs.predictedShiftDistanceKm
-      : null;
 
   const scenarioRows = [
     [t("simulation.costs_input_line") || "Line", state.costInputs.shiftLineLabel],
@@ -1276,11 +1286,33 @@ const renderOpexInputsTable = (el, state) => {
         : formatFixed(state.costInputs.predictedShiftDistanceKm, 3),
     ],
     [
+      t("simulation.costs_input_capex_annualization_rate") ||
+        "CAPEX annualization rate",
+      opexAnnualizationRateValue,
+    ],
+  ];
+
+  el.innerHTML = `
+    <div class="costs-inputs-layout">
+      ${buildSimpleRowsTable(scenarioRows)}
+    </div>`;
+};
+
+const renderEfficiencyPredictionSummary = (costInputs) => {
+  const predictedShiftConsumption = costInputs?.predictedShiftConsumptionKwh;
+  const predictedShiftDistanceKm = costInputs?.predictedShiftDistanceKm;
+  const predictedShiftConsumptionPerKm =
+    predictedShiftDistanceKm != null &&
+    predictedShiftDistanceKm > 0 &&
+    predictedShiftConsumption != null
+      ? predictedShiftConsumption / predictedShiftDistanceKm
+      : null;
+
+  const rows = [
+    [
       t("simulation.costs_input_prediction_consumption") ||
         "Prediction consumption per shift (kWh)",
-      state.costInputs.predictedShiftConsumptionKwh == null
-        ? "—"
-        : formatFixed(state.costInputs.predictedShiftConsumptionKwh, 3),
+      predictedShiftConsumption == null ? "—" : formatFixed(predictedShiftConsumption, 3),
     ],
     [
       translateOr(
@@ -1291,21 +1323,20 @@ const renderOpexInputsTable = (el, state) => {
         ? "—"
         : formatFixed(predictedShiftConsumptionPerKm, 3),
     ],
-    [
-      t("simulation.costs_input_capex_annualization_rate") ||
-        "CAPEX annualization rate",
-      opexAnnualizationRateValue,
-    ],
   ];
 
-  el.innerHTML = `
-    <div class="costs-inputs-layout">
-      <section class="costs-inputs-section">
-        <h3 class="costs-inputs-section-title">${textContent(
-          translateOr("simulation.costs_input_section_scaling", "Scenario and scaling")
-        )}</h3>
-        ${buildSimpleRowsTable(scenarioRows)}
-      </section>
+  return `
+    <div class="efficiency-summary-table-wrap">
+      <table class="efficiency-summary-table">
+        <tbody>
+          ${rows
+            .map(
+              ([label, value]) =>
+                `<tr><th scope="row">${textContent(label)}</th><td>${textContent(value)}</td></tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
     </div>`;
 };
 
@@ -2680,6 +2711,9 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       <span class="efficiency-param-label">${textContent(label)}</span>
       <span class="efficiency-param-value">${value}</span>
     </div>`).join("");
+  const predictionSummaryHtml = renderEfficiencyPredictionSummary(
+    viewOptions?.costInputs ?? null
+  );
 
   const optimizationHtml = buildOptimizationResultsHtml(results, ip, viewOptions);
   const optimizationBatteryChartData = buildOptimizationBatteryChartData(
@@ -2763,6 +2797,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     <div class="efficiency-section">
       <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
       <div class="efficiency-params-grid">${conditionsHtml}</div>
+      ${predictionSummaryHtml}
     </div>
     ${chartsHtml}
     ${optimizationHtml}
@@ -3284,7 +3319,6 @@ const renderCostsSection = (sec, state, options = {}) => {
   const barEl = sec.querySelector('[data-role="costs-bar-chart"]');
   const legendEl = sec.querySelector('[data-role="costs-legend"]');
   const lineEl = sec.querySelector('[data-role="costs-line-chart"]');
-  const inputsEl = sec.querySelector('[data-role="costs-opex-inputs"]');
 
   const hasResolvedCostData =
     !!state.comparison && !!state.annualization && !!state.costInputs;
@@ -3296,7 +3330,6 @@ const renderCostsSection = (sec, state, options = {}) => {
     renderCostApiParamsSection(apiParamsEl, state);
     renderCostsKpis(kpiEl, null);
     renderCostsAssumption(noteEl, state.annualization);
-    renderOpexInputsTable(inputsEl, state);
     if (barEl) {
       barEl.innerHTML = costsStateHtml(
         t("simulation.costs_loading") || "Loading cost comparison…"
@@ -3318,7 +3351,6 @@ const renderCostsSection = (sec, state, options = {}) => {
     renderCostApiParamsSection(apiParamsEl, state);
     renderCostsKpis(kpiEl, null);
     renderCostsAssumption(noteEl, state.annualization);
-    renderOpexInputsTable(inputsEl, state);
     if (barEl) {
       barEl.innerHTML = costsStateHtml(
         state.error ||
@@ -3350,7 +3382,6 @@ const renderCostsSection = (sec, state, options = {}) => {
   });
   renderCostsKpis(kpiEl, state.comparison, chartData?.annualTotals);
   renderCostsAssumption(noteEl, state.annualization);
-  renderOpexInputsTable(inputsEl, state);
   renderCostsBar(
     barEl,
     chartData?.tco ?? [],
@@ -3514,6 +3545,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const efficiencyState = { status: "idle", optimizationRun: null, predictionRuns: [], error: null };
 
   const refreshCostsTab = () => {
+    renderOpexInputsTable(scenarioScalingContentEl, costState);
+    refreshEfficiencyTab();
     if (!renderedTabs.has("costs")) return;
     renderCostsSection(
       section.querySelector('[data-panel="costs"]'),
@@ -3536,7 +3569,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     renderEfficiencyTable(
       section.querySelector('[data-role="efficiency-table"]'),
       efficiencyState,
-      { selectedShiftId: activeShiftId, selectedShiftName: activeShiftName }
+      {
+        selectedShiftId: activeShiftId,
+        selectedShiftName: activeShiftName,
+        costInputs: costState.costInputs,
+      }
     );
   };
 
@@ -3548,7 +3585,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       renderEfficiencyTable(
         sec.querySelector('[data-role="efficiency-table"]'),
         efficiencyState,
-        { selectedShiftId: activeShiftId, selectedShiftName: activeShiftName }
+        {
+          selectedShiftId: activeShiftId,
+          selectedShiftName: activeShiftName,
+          costInputs: costState.costInputs,
+        }
       );
     },
     emissions: (sec) => {
@@ -3563,6 +3604,13 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const shiftTabsEl = section.querySelector('[data-role="shift-tabs"]');
   const overlay = section.querySelector('[data-role="sim-data-overlay"]');
   const subtitleEl = section.querySelector('[data-role="sim-data-subtitle"]');
+  const scenarioScalingOverlay = section.querySelector('[data-role="scenario-scaling-overlay"]');
+  const scenarioScalingSubtitleEl = section.querySelector(
+    '[data-role="scenario-scaling-subtitle"]'
+  );
+  const scenarioScalingContentEl = section.querySelector(
+    '[data-role="scenario-scaling-content"]'
+  );
   const fuelCostInput = section.querySelector('[data-role="cost-variable-fuel-cost"]');
   const energyPriceInput = section.querySelector('[data-role="cost-variable-energy-price"]');
   const interestRateInput = section.querySelector('[data-role="cost-variable-interest-rate"]');
@@ -3574,6 +3622,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   if (simNameEl) simNameEl.textContent = activeShiftName;
   if (busModelEl) busModelEl.textContent = busModelName;
+  if (scenarioScalingSubtitleEl) {
+    scenarioScalingSubtitleEl.textContent = activeShiftName || "";
+    scenarioScalingSubtitleEl.hidden = !activeShiftName;
+  }
 
   const renderGeneralInfo = (overrides = {}) => {
     const generalInfo = {
@@ -3653,6 +3705,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     renderShiftTabs();
 
     if (simNameEl) simNameEl.textContent = activeShiftName;
+    if (scenarioScalingSubtitleEl) {
+      scenarioScalingSubtitleEl.textContent = activeShiftName || "";
+      scenarioScalingSubtitleEl.hidden = !activeShiftName;
+    }
 
     const firstPredictionRun = loadedPredictionRuns[0] ?? {};
     renderGeneralInfo({
@@ -3714,6 +3770,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     subtitleEl.textContent = "";
     subtitleEl.hidden = true;
   }
+  if (scenarioScalingSubtitleEl) {
+    scenarioScalingSubtitleEl.textContent = "";
+    scenarioScalingSubtitleEl.hidden = true;
+  }
 
   renderGeneralInfo();
   renderBusInfo();
@@ -3773,6 +3833,36 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     const onBg = (e) => { if (e.target === overlay) closeOverlay(); };
     overlay.addEventListener("click", onBg);
     cleanupHandlers.push(() => overlay.removeEventListener("click", onBg));
+  }
+
+  const toggleScenarioScalingOverlay = () => {
+    if (scenarioScalingOverlay) scenarioScalingOverlay.hidden = !scenarioScalingOverlay.hidden;
+  };
+  section.querySelectorAll('[data-action="toggle-scenario-scaling"]').forEach((btn) => {
+    btn.addEventListener("click", toggleScenarioScalingOverlay);
+    cleanupHandlers.push(() =>
+      btn.removeEventListener("click", toggleScenarioScalingOverlay)
+    );
+  });
+
+  const closeScenarioScalingOverlay = () => {
+    if (scenarioScalingOverlay) scenarioScalingOverlay.hidden = true;
+  };
+  section.querySelectorAll('[data-action="close-scenario-scaling"]').forEach((btn) => {
+    btn.addEventListener("click", closeScenarioScalingOverlay);
+    cleanupHandlers.push(() =>
+      btn.removeEventListener("click", closeScenarioScalingOverlay)
+    );
+  });
+
+  if (scenarioScalingOverlay) {
+    const onScenarioScalingBg = (e) => {
+      if (e.target === scenarioScalingOverlay) closeScenarioScalingOverlay();
+    };
+    scenarioScalingOverlay.addEventListener("click", onScenarioScalingBg);
+    cleanupHandlers.push(() =>
+      scenarioScalingOverlay.removeEventListener("click", onScenarioScalingBg)
+    );
   }
 
   if (shiftTabsEl) {
