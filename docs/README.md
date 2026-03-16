@@ -112,6 +112,7 @@ Main Docker variables:
 - `API_BACKEND_URL`: runtime backend URL used by nginx in production mode.
 - `VITE_API_ROOT`: optional build-time API root for the frontend bundle.
 - `VITE_API_PROXY_TARGET`: backend URL used by the development container.
+- `VITE_ALLOWED_HOSTS`: optional comma-separated extra hostnames allowed by the Vite dev server.
 - `NPM_REGISTRY`: optional npm registry override for Docker builds.
 - `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`: optional proxy settings passed into Docker builds.
 
@@ -130,6 +131,7 @@ This starts the `elettra-dev` service with:
 - source mounted into the container
 - live Vite development server on port `9010`
 - proxy support for `/auth` and `/api`
+- default access allowed from `isaac-elettra.dacd.supsi.ch` and `bismuto.supsi.ch`
 
 Open:
 
@@ -142,11 +144,18 @@ Available compose profiles:
 - `dev`: proxy target defaults to `http://host.docker.internal:8002`
 - `local`: proxy target defaults to `http://isaac-elettra.dacd.supsi.ch:8002`
 - `local-vpn`: proxy target defaults to `http://10.9.0.5:8002`
+- `prod-vite`: production build served by `vite preview` on port `9010`, default host `bismuto.supsi.ch`
 
 Example:
 
 ```bash
 docker compose --profile local up --build
+```
+
+If you expose the dev server through another hostname, add it in `docker/.env`:
+
+```env
+VITE_ALLOWED_HOSTS=your-hostname.example.org
 ```
 
 ### Production with Docker
@@ -177,11 +186,40 @@ To stop the containers:
 docker compose --profile prod down
 ```
 
+### Production with Docker and Vite
+
+Start the Vite-based production profile:
+
+```bash
+docker compose --profile prod-vite up -d --build
+```
+
+This flow:
+
+- builds the optimized frontend bundle
+- serves it with `vite preview` on port `9010`
+- keeps the `/auth` and `/api` proxy behavior from the Vite config
+- allows `bismuto.supsi.ch` by default
+
+Open:
+
+```text
+http://bismuto.supsi.ch:9010/elettra/
+```
+
+If the backend target or hostname changes, set them in `docker/.env`:
+
+```env
+VITE_API_PROXY_TARGET=http://your-backend:8002
+VITE_ALLOWED_HOSTS=your-hostname.example.org
+```
+
 ## Installation Summary
 
 - Use the direct setup when you want the fastest frontend iteration loop on your machine.
 - Use Docker development when you want a reproducible containerized dev environment on port `9010`.
 - Use Docker production when you want the same `/elettra/` static hosting and nginx proxying model used by the deployment image.
+- Use `prod-vite` when you need a Vite-served production build on `9010`, such as the deployment on `bismuto.supsi.ch`.
 
 ## Backend Dependency
 

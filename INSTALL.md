@@ -192,12 +192,17 @@ cp env.example .env
 # HTTP_PROXY=http://proxy.example:3128
 # HTTPS_PROXY=http://proxy.example:3128
 # NPM_REGISTRY=https://registry.npmjs.org/
+# Optional: if you access the Vite dev server through a custom hostname
+# VITE_ALLOWED_HOSTS=your-hostname.example.org
 
 # Start development environment
 docker compose --profile dev up
 
 # Or start production environment
 docker compose --profile prod up -d
+
+# Or start the Vite-based production environment
+docker compose --profile prod-vite up -d --build
 ```
 
 ### Development with Docker
@@ -221,6 +226,13 @@ docker run -it --rm \
 
 Access the application at `http://localhost:9010/elettra/`
 
+If you reach the Docker development server through a remote hostname such as
+`bismuto.supsi.ch`, add any extra hostname to `docker/.env` with:
+
+```env
+VITE_ALLOWED_HOSTS=your-hostname.example.org
+```
+
 ### Production with Docker
 
 From the `docker/` folder:
@@ -242,6 +254,29 @@ docker run -d \
 
 Access the application at `http://localhost/elettra/`
 
+### Production with Docker and Vite
+
+From the `docker/` folder:
+
+```bash
+cd docker
+
+# Build and start Vite-based production
+docker compose --profile prod-vite up -d --build
+```
+
+This serves the optimized production bundle with `vite preview` on port `9010`.
+For the deployment on `bismuto.supsi.ch`, the hostname is allowed by default.
+
+Access the application at `http://bismuto.supsi.ch:9010/elettra/`
+
+If you deploy the same profile under another hostname, set it in `docker/.env`:
+
+```env
+VITE_ALLOWED_HOSTS=your-hostname.example.org
+VITE_API_PROXY_TARGET=http://your-api-server:8002
+```
+
 ### Docker Compose Commands
 
 All commands should be run from the `docker/` folder:
@@ -257,6 +292,9 @@ docker compose --profile prod up -d
 
 # Build and start production
 docker compose --profile prod up -d --build
+
+# Build and start Vite-based production
+docker compose --profile prod-vite up -d --build
 
 # View logs
 docker compose logs -f elettra

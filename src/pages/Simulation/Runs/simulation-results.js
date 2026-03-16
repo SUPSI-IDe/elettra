@@ -1614,7 +1614,7 @@ const renderInvestmentTable = (el, state, options = {}) => {
     ${investmentNote}`;
 };
 
-const renderCostsBar = (el, data) => {
+const renderCostsBar = (el, data, yearlyDistanceKm = null) => {
   if (!el) return;
   el.innerHTML = "";
   if (!Array.isArray(data) || data.length === 0) {
@@ -1623,8 +1623,8 @@ const renderCostsBar = (el, data) => {
     );
     return;
   }
-  const margin = { top: 16, right: 24, bottom: 32, left: 72 };
-  const W = 620, H = 168;
+  const margin = { top: 28, right: 24, bottom: 32, left: 72 };
+  const W = 620, H = 188;
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -1680,28 +1680,48 @@ const renderCostsBar = (el, data) => {
           (sum, key) => sum + (d.data[key] ?? 0),
           0
         );
+        const segmentPerKm = formatChfPerKmValue(segmentValue, yearlyDistanceKm);
+        const totalPerKm = formatChfPerKmValue(totalValue, yearlyDistanceKm);
         d3.select(this)
           .append("title")
-          .text(
-            [
-              busCategoryLabel(d.data.category),
-              `${costStackLabel(layer.key)}: ${formatChfValue(segmentValue)}`,
-              `${t("simulation.label_total") || "Total"}: ${formatChfValue(totalValue)}`,
-            ].join("\n")
-          );
+          .text([
+            busCategoryLabel(d.data.category),
+            `${costStackLabel(layer.key)}: ${formatChfValue(segmentValue)}${
+              segmentPerKm !== "—" ? ` (${segmentPerKm})` : ""
+            }`,
+            `${t("simulation.label_total") || "Total"}: ${formatChfValue(totalValue)}${
+              totalPerKm !== "—" ? ` (${totalPerKm})` : ""
+            }`,
+          ].join("\n"));
       });
   });
 
   data.forEach((d) => {
     const total = COST_STACK_KEYS.reduce((s, k) => s + d[k], 0);
-    g.append("text")
+    const totalPerKm = formatChfPerKmValue(total, yearlyDistanceKm);
+    const labelY = Math.max(10, y(total) - (totalPerKm !== "—" ? 18 : 6));
+    const label = g.append("text")
       .attr("x", x(d.category) + x.bandwidth() / 2)
-      .attr("y", y(total) - 6)
+      .attr("y", labelY)
       .attr("text-anchor", "middle")
       .attr("font-size", "12px")
       .attr("font-weight", "600")
-      .attr("fill", "#1c1c1c")
+      .attr("fill", "#1c1c1c");
+
+    label
+      .append("tspan")
+      .attr("x", x(d.category) + x.bandwidth() / 2)
       .text(formatChfLabel(total));
+
+    if (totalPerKm !== "—") {
+      label
+        .append("tspan")
+        .attr("x", x(d.category) + x.bandwidth() / 2)
+        .attr("dy", "1.1em")
+        .attr("font-size", "10px")
+        .attr("font-weight", "500")
+        .text(totalPerKm);
+    }
   });
 
   el.appendChild(svg.node());
@@ -3331,7 +3351,11 @@ const renderCostsSection = (sec, state, options = {}) => {
   renderCostsKpis(kpiEl, state.comparison, chartData?.annualTotals);
   renderCostsAssumption(noteEl, state.annualization);
   renderOpexInputsTable(inputsEl, state);
-  renderCostsBar(barEl, chartData?.tco ?? []);
+  renderCostsBar(
+    barEl,
+    chartData?.tco ?? [],
+    state.costInputs?.yearlyDistanceKm ?? state.annualization?.yearlyDistanceKm
+  );
   renderCostsLegend(legendEl);
   renderCostsLine(lineEl, chartData?.yearly ?? []);
 };
