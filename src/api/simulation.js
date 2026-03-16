@@ -315,6 +315,23 @@ export const fetchPredictionRunPredictions = async (runId) => {
 
 const NON_NUMERIC_ECONOMIC_KEYS = new Set(["shift_id", "recurrence"]);
 
+export const fetchEconomicDefaults = async () => {
+  const headers = authHeaders();
+  const response = await fetch(`${ECONOMIC_PATH}/defaults`, {
+    method: "GET",
+    headers,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load economic defaults.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
 export const fetchEconomicComparison = async (params = {}) => {
   const headers = authHeaders();
   const query = new URLSearchParams();

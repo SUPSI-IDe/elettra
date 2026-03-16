@@ -4,6 +4,7 @@ import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
 import {
   fetchEconomicComparison,
+  fetchEconomicDefaults,
   fetchOptimizationRun,
   fetchPredictionRun,
 } from "../../../api/simulation";
@@ -78,7 +79,11 @@ const busLabels = () => ({
 /* ── Chart data helpers ───────────────────────────────────────── */
 
 const COST_STACK_KEYS = ["vehicle", "energy", "maintenance"];
-const COST_COLORS = { vehicle: "#6fbeec", energy: "#f5a623", maintenance: "#abe828" };
+const FUEL_COLORS = {
+  diesel: "#c0392b",
+  electric: "#2e7d32",
+};
+const COST_COLORS = { vehicle: "#4f86c6", energy: "#d4881f", maintenance: "#5f8f2f" };
 const COST_ANNUALIZATION_FACTOR = 52;
 
 
@@ -94,7 +99,10 @@ const CO2_CUM = Array.from({ length: 15 }, (_, i) => ({
 
 const DEFAULT_INFRASTRUCTURE_SLOT_COST_CHF = 150000;
 const DEFAULT_FUEL_COST_PER_L = 1.85;
+const DEFAULT_ENERGY_PRICE_SLIDER_VALUE = 0.2;
+const DEFAULT_INTEREST_RATE_SLIDER_VALUE = 0.03;
 const PROJECTED_COST_TREND_HORIZON_YEARS = 20;
+const COST_VARIABLE_REFRESH_DEBOUNCE_MS = 450;
 
 /* ── Shared helpers ───────────────────────────────────────────── */
 
@@ -305,6 +313,60 @@ const chartAriaLabel = (key, fallback) => t(key) || fallback;
 const translateOr = (key, fallback, params = {}) => {
   const translated = t(key, params);
   return translated === key ? fallback : translated;
+};
+
+const normalizeFuelCostPerL = (value) =>
+  toFiniteNumber(value) != null && Number(value) > 0
+    ? Number(value)
+    : null;
+
+const normalizeEnergyPricePerKwh = (value) =>
+  toFiniteNumber(value) != null && Number(value) > 0
+    ? Number(value)
+    : null;
+
+const normalizeInterestRate = (value) =>
+  toFiniteNumber(value) != null &&
+  Number(value) >= 0 &&
+  Number(value) <= 1
+    ? Number(value)
+    : null;
+
+const resolveFuelCostPerL = (options = {}) =>
+  normalizeFuelCostPerL(options?.costOverrides?.fuelCostPerL) ??
+  normalizeFuelCostPerL(
+    options?.economicDefaults?.fuelCostPerL ??
+    options?.economicDefaults?.fuel_cost_per_l
+  ) ??
+  DEFAULT_FUEL_COST_PER_L;
+
+const resolveEnergyPricePerKwh = (options = {}) =>
+  normalizeEnergyPricePerKwh(options?.costOverrides?.energyPricePerKwh) ??
+  normalizeEnergyPricePerKwh(
+    options?.economicDefaults?.energyPricePerKwh ??
+    options?.economicDefaults?.energy_price_per_kwh
+  ) ??
+  DEFAULT_ENERGY_PRICE_SLIDER_VALUE;
+
+const resolveInterestRate = (options = {}) =>
+  normalizeInterestRate(options?.costOverrides?.interestRate) ??
+  normalizeInterestRate(
+    options?.economicDefaults?.interestRate ??
+    options?.economicDefaults?.interest_rate
+  ) ??
+  DEFAULT_INTEREST_RATE_SLIDER_VALUE;
+
+const setRangeProgress = (input, value) => {
+  if (!input) return;
+  const min = Number(input.min);
+  const max = Number(input.max);
+  const numeric = Number(value);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min || !Number.isFinite(numeric)) {
+    input.style.setProperty("--slider-progress", "0%");
+    return;
+  }
+  const progress = ((numeric - min) / (max - min)) * 100;
+  input.style.setProperty("--slider-progress", `${Math.min(100, Math.max(0, progress))}%`);
 };
 
 const parseBusModelSpecs = (specs) => {
@@ -1236,6 +1298,24 @@ const renderOpexInputsTable = (el, state) => {
     ],
   ];
 
+  el.innerHTML = `
+    <div class="costs-inputs-layout">
+      <section class="costs-inputs-section">
+        <h3 class="costs-inputs-section-title">${textContent(
+          translateOr("simulation.costs_input_section_scaling", "Scenario and scaling")
+        )}</h3>
+        ${buildSimpleRowsTable(scenarioRows)}
+      </section>
+    </div>`;
+};
+
+const renderCostApiParamsSection = (el, state) => {
+  if (!el) return;
+  if (state.status !== "done" || !state.costInputs) {
+    el.innerHTML = "";
+    return;
+  }
+
   const apiRows = [
     [
       translateOr("simulation.costs_input_shift_id", "Shift ID"),
@@ -1288,6 +1368,30 @@ const renderOpexInputsTable = (el, state) => {
           ),
     ],
     [
+      translateOr("simulation.costs_input_interest_rate", "Interest rate"),
+      state.costInputs.economicComparisonParams?.interest_rate == null
+        ? "—"
+        : `${formatFixed(
+            state.costInputs.economicComparisonParams.interest_rate * 100,
+            1
+          )}%`,
+    ],
+    [
+      translateOr(
+        "simulation.costs_input_energy_price_per_kwh",
+        "Electricity price (CHF/kWh)"
+      ),
+      state.costInputs.economicComparisonParams?.energy_price_per_kwh == null
+        ? translateOr(
+            "simulation.costs_input_backend_default",
+            "Backend default (not overridden)"
+          )
+        : formatFixed(
+            state.costInputs.economicComparisonParams.energy_price_per_kwh,
+            2
+          ),
+    ],
+    [
       t("simulation.costs_input_bus_lifetime") || "Bus lifetime (years)",
       state.costInputs.economicComparisonParams?.lifetime_bus == null
         ? "—"
@@ -1318,62 +1422,53 @@ const renderOpexInputsTable = (el, state) => {
   ];
 
   el.innerHTML = `
-    <div class="costs-inputs-layout">
-      <section class="costs-inputs-section">
-        <h3 class="costs-inputs-section-title">${textContent(
-          translateOr("simulation.costs_input_section_scaling", "Scenario and scaling")
-        )}</h3>
-        ${buildSimpleRowsTable(scenarioRows)}
-      </section>
+    <p class="costs-inputs-note">${textContent(
+      translateOr(
+        "simulation.costs_input_api_note",
+        "These are the exact parameters sent by the frontend to the economic comparison endpoint. Default cost values are loaded from the backend and can then be adjusted here."
+      )
+    )}</p>
+    ${buildSimpleRowsTable(apiRows)}`;
+};
 
-      <section class="costs-inputs-section">
-        <h3 class="costs-inputs-section-title">${textContent(
-          translateOr(
-            "simulation.costs_input_section_api",
-            "Economic comparison API parameters"
-          )
-        )}</h3>
-        <p class="costs-inputs-note">${textContent(
-          translateOr(
-            "simulation.costs_input_api_note",
-            "These are the exact parameters sent by the frontend to the economic comparison endpoint."
-          )
-        )}</p>
-        ${buildSimpleRowsTable(apiRows)}
-      </section>
+const renderElectricOpexSection = (el, state) => {
+  if (!el) return;
+  if (state.status !== "done" || !state.costInputs) {
+    el.innerHTML = "";
+    return;
+  }
 
-      <section class="costs-inputs-section">
-        <h3 class="costs-inputs-section-title">${textContent(
-          translateOr("simulation.costs_input_section_diesel", "Diesel OPEX breakdown")
-        )}</h3>
-        <p class="costs-inputs-note">${textContent(
-          translateOr(
-            "simulation.costs_input_opex_note",
-            "OPEX usage and OPEX maintenance are the sums of the itemized costs returned by the economic comparison."
-          )
-        )}</p>
-        ${buildOpexBreakdownTable(
-          state.comparison?.diesel?.opex_items,
-          state.costInputs.yearlyDistanceKm
-        )}
-      </section>
+  el.innerHTML = `
+    <p class="costs-inputs-note">${textContent(
+      translateOr(
+        "simulation.costs_input_opex_note",
+        "OPEX usage and OPEX maintenance are the sums of the itemized costs returned by the economic comparison."
+      )
+    )}</p>
+    ${buildOpexBreakdownTable(
+      state.comparison?.electric?.opex_items,
+      state.costInputs.yearlyDistanceKm
+    )}`;
+};
 
-      <section class="costs-inputs-section">
-        <h3 class="costs-inputs-section-title">${textContent(
-          translateOr("simulation.costs_input_section_electric", "Electric OPEX breakdown")
-        )}</h3>
-        <p class="costs-inputs-note">${textContent(
-          translateOr(
-            "simulation.costs_input_opex_note",
-            "OPEX usage and OPEX maintenance are the sums of the itemized costs returned by the economic comparison."
-          )
-        )}</p>
-        ${buildOpexBreakdownTable(
-          state.comparison?.electric?.opex_items,
-          state.costInputs.yearlyDistanceKm
-        )}
-      </section>
-    </div>`;
+const renderDieselOpexSection = (el, state) => {
+  if (!el) return;
+  if (state.status !== "done" || !state.costInputs) {
+    el.innerHTML = "";
+    return;
+  }
+
+  el.innerHTML = `
+    <p class="costs-inputs-note">${textContent(
+      translateOr(
+        "simulation.costs_input_opex_note",
+        "OPEX usage and OPEX maintenance are the sums of the itemized costs returned by the economic comparison."
+      )
+    )}</p>
+    ${buildOpexBreakdownTable(
+      state.comparison?.diesel?.opex_items,
+      state.costInputs.yearlyDistanceKm
+    )}`;
 };
 
 const formatChfAxis = (value) => {
@@ -1528,8 +1623,8 @@ const renderCostsBar = (el, data) => {
     );
     return;
   }
-  const margin = { top: 20, right: 30, bottom: 40, left: 80 };
-  const W = 620, H = 300;
+  const margin = { top: 16, right: 24, bottom: 32, left: 72 };
+  const W = 620, H = 168;
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -1578,7 +1673,23 @@ const renderCostsBar = (el, data) => {
       .attr("y", (d) => y(d[1]))
       .attr("height", (d) => y(d[0]) - y(d[1]))
       .attr("width", x.bandwidth())
-      .attr("fill", COST_COLORS[layer.key]);
+      .attr("fill", COST_COLORS[layer.key])
+      .each(function addTooltip(d) {
+        const segmentValue = Math.max(0, (d[1] ?? 0) - (d[0] ?? 0));
+        const totalValue = COST_STACK_KEYS.reduce(
+          (sum, key) => sum + (d.data[key] ?? 0),
+          0
+        );
+        d3.select(this)
+          .append("title")
+          .text(
+            [
+              busCategoryLabel(d.data.category),
+              `${costStackLabel(layer.key)}: ${formatChfValue(segmentValue)}`,
+              `${t("simulation.label_total") || "Total"}: ${formatChfValue(totalValue)}`,
+            ].join("\n")
+          );
+      });
   });
 
   data.forEach((d) => {
@@ -1618,8 +1729,8 @@ const renderCostsLine = (el, data) => {
     );
     return;
   }
-  const margin = { top: 20, right: 30, bottom: 40, left: 70 };
-  const W = 620, H = 260;
+  const margin = { top: 16, right: 24, bottom: 32, left: 64 };
+  const W = 620, H = 147;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
   const svg = svgBase(
@@ -1654,11 +1765,11 @@ const renderCostsLine = (el, data) => {
   const dieselLine = d3.line().x((d) => x(d.year)).y((d) => y(d.diesel)).curve(d3.curveMonotoneX);
   const elecLine = d3.line().x((d) => x(d.year)).y((d) => y(d.electric)).curve(d3.curveMonotoneX);
 
-  g.append("path").datum(data).attr("d", dieselLine).attr("fill", "none").attr("stroke", "#6fbeec").attr("stroke-width", 2.5);
-  g.append("path").datum(data).attr("d", elecLine).attr("fill", "none").attr("stroke", "#abe828").attr("stroke-width", 2.5);
+  g.append("path").datum(data).attr("d", dieselLine).attr("fill", "none").attr("stroke", FUEL_COLORS.diesel).attr("stroke-width", 2.5);
+  g.append("path").datum(data).attr("d", elecLine).attr("fill", "none").attr("stroke", FUEL_COLORS.electric).attr("stroke-width", 2.5);
 
-  g.append("text").attr("x", iW + 4).attr("y", y(data.at(-1).diesel)).attr("font-size", "10px").attr("fill", "#6fbeec").attr("dominant-baseline", "middle").text(fuelLabel("diesel"));
-  g.append("text").attr("x", iW + 4).attr("y", y(data.at(-1).electric)).attr("font-size", "10px").attr("fill", "#abe828").attr("dominant-baseline", "middle").text(fuelLabel("electric"));
+  g.append("text").attr("x", iW + 4).attr("y", y(data.at(-1).diesel)).attr("font-size", "10px").attr("fill", FUEL_COLORS.diesel).attr("dominant-baseline", "middle").text(fuelLabel("diesel"));
+  g.append("text").attr("x", iW + 4).attr("y", y(data.at(-1).electric)).attr("font-size", "10px").attr("fill", FUEL_COLORS.electric).attr("dominant-baseline", "middle").text(fuelLabel("electric"));
 
   el.appendChild(svg.node());
 };
@@ -2921,6 +3032,7 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
     resolveCostAnnualization(shiftId, predictionSummary),
     resolveShiftPresentation(shiftId),
   ]);
+  const interestRate = resolveInterestRate(options);
   const annualConsumptionKwh = annualization.annualConsumptionKwh;
 
   const invalidInputs = [
@@ -2961,6 +3073,8 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
   const batteryCostPerKwh = positiveOrNull(
     firstFiniteValue(inputParams?.battery_cost_per_kwh, derivedBatteryCostPerKwh)
   );
+  const fuelCostPerL = positiveOrNull(resolveFuelCostPerL(options));
+  const energyPricePerKwh = positiveOrNull(resolveEnergyPricePerKwh(options));
   const projectedTrendHorizonYears = PROJECTED_COST_TREND_HORIZON_YEARS;
   const electricBusReplacementYears = computeRecurringReplacementYears(
     lifetimeBus,
@@ -2983,15 +3097,20 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
     battery_capacity_kwh: batteryCapacityKwh,
     charger_power_kw: chargerPowerKw,
     annual_consumption_kwh: annualConsumptionKwh,
+    interest_rate: interestRate,
     lifetime_bus: lifetimeBus,
     lifetime_battery: lifetimeBattery,
     battery_cost_per_kwh: batteryCostPerKwh,
-    fuel_cost_per_l: DEFAULT_FUEL_COST_PER_L,
+    fuel_cost_per_l: fuelCostPerL,
+    energy_price_per_kwh: energyPricePerKwh,
   };
 
   return {
     params: economicComparisonParams,
-    annualization,
+    annualization: {
+      ...annualization,
+      opexAnnualizationRate: interestRate,
+    },
     inputs: {
       shiftId,
       shiftLineLabel: shiftPresentation.lineLabel,
@@ -3001,12 +3120,15 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
       predictedShiftDistanceKm: annualization.predictedShiftDistanceKm,
       predictedShiftConsumptionKwh: annualization.predictedShiftConsumptionKwh,
       annualizationFactor: annualization.factor,
-      opexAnnualizationRate: annualization.opexAnnualizationRate,
+      opexAnnualizationRate: interestRate,
       annualConsumptionKwh,
       busLengthM,
       batteryCapacityKwh,
       chargerPowerKw,
+      interestRate,
       batteryCostPerKwh,
+      fuelCostPerL,
+      energyPricePerKwh,
       lifetimeBus,
       dieselBusLifetime,
       lifetimeBattery,
@@ -3035,10 +3157,108 @@ const loadCostComparison = async (optimizationRun, predictionRuns, options = {})
   };
 };
 
+const renderCostVariablesSection = (sec, state, options = {}) => {
+  if (!sec) return;
+
+  const fuelInput = sec.querySelector('[data-role="cost-variable-fuel-cost"]');
+  const energyInput = sec.querySelector('[data-role="cost-variable-energy-price"]');
+  const interestRateInput = sec.querySelector('[data-role="cost-variable-interest-rate"]');
+  const fuelValueEl = sec.querySelector('[data-role="cost-variable-fuel-cost-value"]');
+  const energyValueEl = sec.querySelector('[data-role="cost-variable-energy-price-value"]');
+  const interestRateValueEl = sec.querySelector('[data-role="cost-variable-interest-rate-value"]');
+  const fuelResetBtn = sec.querySelector('[data-role="cost-variable-fuel-cost-reset"]');
+  const energyResetBtn = sec.querySelector('[data-role="cost-variable-energy-price-reset"]');
+  const interestRateResetBtn = sec.querySelector('[data-role="cost-variable-interest-rate-reset"]');
+  const noteEl = sec.querySelector('[data-role="cost-variables-note"]');
+  const fuelCostPerL = resolveFuelCostPerL(options);
+  const energyPricePerKwh = resolveEnergyPricePerKwh(options);
+  const interestRate = resolveInterestRate(options);
+  const controlsDisabled = !state.optimizationRun;
+  const energyIsDefault =
+    normalizeEnergyPricePerKwh(options?.costOverrides?.energyPricePerKwh) == null;
+  const interestRateIsDefault =
+    normalizeInterestRate(options?.costOverrides?.interestRate) == null;
+
+  if (fuelInput) {
+    fuelInput.value = String(fuelCostPerL);
+    fuelInput.disabled = controlsDisabled;
+    setRangeProgress(fuelInput, fuelCostPerL);
+  }
+  if (energyInput) {
+    energyInput.value = String(energyPricePerKwh);
+    energyInput.disabled = controlsDisabled;
+    setRangeProgress(energyInput, energyPricePerKwh);
+  }
+  if (interestRateInput) {
+    interestRateInput.value = String(interestRate);
+    interestRateInput.disabled = controlsDisabled;
+    setRangeProgress(interestRateInput, interestRate);
+  }
+  if (fuelValueEl) {
+    fuelValueEl.textContent = `CHF ${formatFixed(fuelCostPerL, 2)}`;
+  }
+  if (energyValueEl) {
+    energyValueEl.textContent =
+      energyIsDefault
+        ? `${translateOr("simulation.costs_variable_default", "Default")} CHF ${formatFixed(energyPricePerKwh, 2)}`
+        : `CHF ${formatFixed(energyPricePerKwh, 2)}`;
+  }
+  if (interestRateValueEl) {
+    interestRateValueEl.textContent =
+      interestRateIsDefault
+        ? `${translateOr("simulation.costs_variable_default", "Default")} ${formatFixed(
+            interestRate * 100,
+            1
+          )}%`
+        : `${formatFixed(interestRate * 100, 1)}%`;
+  }
+  if (fuelResetBtn) {
+    fuelResetBtn.disabled = controlsDisabled;
+  }
+  if (energyResetBtn) {
+    energyResetBtn.disabled = controlsDisabled;
+  }
+  if (interestRateResetBtn) {
+    interestRateResetBtn.disabled = controlsDisabled;
+  }
+
+  if (!noteEl) return;
+
+  noteEl.hidden = true;
+
+  if (
+    (state.status === "loading" || state.status === "refreshing") &&
+    state.optimizationRun
+  ) {
+    noteEl.textContent =
+      t("simulation.costs_loading") || "Loading cost comparison…";
+    noteEl.dataset.tone = "info";
+    noteEl.hidden = false;
+    return;
+  }
+
+  if (state.status === "error") {
+    noteEl.textContent =
+      state.error ||
+      t("simulation.costs_error") ||
+      "Unable to load cost comparison.";
+    noteEl.dataset.tone = "error";
+    noteEl.hidden = false;
+    return;
+  }
+  noteEl.textContent = "";
+  noteEl.removeAttribute("data-tone");
+};
+
 const renderCostsSection = (sec, state, options = {}) => {
   if (!sec) return;
 
+  renderCostVariablesSection(sec, state, options);
+
   const investEl = sec.querySelector('[data-role="costs-investment"]');
+  const electricOpexEl = sec.querySelector('[data-role="costs-electric-opex"]');
+  const dieselOpexEl = sec.querySelector('[data-role="costs-diesel-opex"]');
+  const apiParamsEl = sec.querySelector('[data-role="costs-api-params"]');
   const kpiEl = sec.querySelector('[data-role="costs-kpis"]');
   const noteEl = sec.querySelector('[data-role="costs-assumption"]');
   const barEl = sec.querySelector('[data-role="costs-bar-chart"]');
@@ -3046,8 +3266,14 @@ const renderCostsSection = (sec, state, options = {}) => {
   const lineEl = sec.querySelector('[data-role="costs-line-chart"]');
   const inputsEl = sec.querySelector('[data-role="costs-opex-inputs"]');
 
-  if (state.status === "idle" || state.status === "loading") {
+  const hasResolvedCostData =
+    !!state.comparison && !!state.annualization && !!state.costInputs;
+
+  if ((state.status === "idle" || state.status === "loading") && !hasResolvedCostData) {
     renderInvestmentTable(investEl, state, options);
+    renderElectricOpexSection(electricOpexEl, state);
+    renderDieselOpexSection(dieselOpexEl, state);
+    renderCostApiParamsSection(apiParamsEl, state);
     renderCostsKpis(kpiEl, null);
     renderCostsAssumption(noteEl, state.annualization);
     renderOpexInputsTable(inputsEl, state);
@@ -3065,8 +3291,11 @@ const renderCostsSection = (sec, state, options = {}) => {
     return;
   }
 
-  if (state.status === "error") {
+  if (state.status === "error" && !hasResolvedCostData) {
     renderInvestmentTable(investEl, state, options);
+    renderElectricOpexSection(electricOpexEl, state);
+    renderDieselOpexSection(dieselOpexEl, state);
+    renderCostApiParamsSection(apiParamsEl, state);
     renderCostsKpis(kpiEl, null);
     renderCostsAssumption(noteEl, state.annualization);
     renderOpexInputsTable(inputsEl, state);
@@ -3091,6 +3320,9 @@ const renderCostsSection = (sec, state, options = {}) => {
   }
 
   renderInvestmentTable(investEl, state, options);
+  renderElectricOpexSection(electricOpexEl, state);
+  renderDieselOpexSection(dieselOpexEl, state);
+  renderCostApiParamsSection(apiParamsEl, state);
   const chartData = buildCostsChartData(state.comparison, {
     ...options,
     annualizationRate: state.annualization?.opexAnnualizationRate,
@@ -3221,12 +3453,30 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const cleanupHandlers = [];
   const renderedTabs = new Set();
+  const costOverrides = {
+    fuelCostPerL: normalizeFuelCostPerL(options?.costOverrides?.fuelCostPerL),
+    energyPricePerKwh: normalizeEnergyPricePerKwh(
+      options?.costOverrides?.energyPricePerKwh
+    ),
+    interestRate: normalizeInterestRate(options?.costOverrides?.interestRate),
+  };
+  const economicDefaults = {
+    fuelCostPerL: normalizeFuelCostPerL(options?.economicDefaults?.fuelCostPerL),
+    energyPricePerKwh: normalizeEnergyPricePerKwh(
+      options?.economicDefaults?.energyPricePerKwh
+    ),
+    interestRate: normalizeInterestRate(options?.economicDefaults?.interestRate),
+  };
   let activeShiftId = options.shiftId || "";
   let activeShiftName = options.shiftName || "";
   let availableShiftTabs = [];
   let loadedOptimizationRun = null;
   let loadedPredictionRuns = [];
   let shiftRefreshSeq = 0;
+  let costVariableRefreshTimer = null;
+
+  options.costOverrides = costOverrides;
+  options.economicDefaults = economicDefaults;
 
   /* Async data — populated after loading the run */
   const costState = {
@@ -3242,6 +3492,15 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const refreshCostsTab = () => {
     if (!renderedTabs.has("costs")) return;
     renderCostsSection(
+      section.querySelector('[data-panel="costs"]'),
+      costState,
+      options
+    );
+  };
+
+  const refreshCostVariableControls = () => {
+    if (!renderedTabs.has("costs")) return;
+    renderCostVariablesSection(
       section.querySelector('[data-panel="costs"]'),
       costState,
       options
@@ -3280,6 +3539,12 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const shiftTabsEl = section.querySelector('[data-role="shift-tabs"]');
   const overlay = section.querySelector('[data-role="sim-data-overlay"]');
   const subtitleEl = section.querySelector('[data-role="sim-data-subtitle"]');
+  const fuelCostInput = section.querySelector('[data-role="cost-variable-fuel-cost"]');
+  const energyPriceInput = section.querySelector('[data-role="cost-variable-energy-price"]');
+  const interestRateInput = section.querySelector('[data-role="cost-variable-interest-rate"]');
+  const fuelCostResetBtn = section.querySelector('[data-role="cost-variable-fuel-cost-reset"]');
+  const energyPriceResetBtn = section.querySelector('[data-role="cost-variable-energy-price-reset"]');
+  const interestRateResetBtn = section.querySelector('[data-role="cost-variable-interest-rate-reset"]');
 
   const busModelName = options.busModelName || "";
 
@@ -3352,7 +3617,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       .join("");
   };
 
-  const refreshShiftScopedData = async () => {
+  const refreshShiftScopedData = async ({ preserveExistingCostData = false } = {}) => {
     const currentSeq = ++shiftRefreshSeq;
     const activeShift =
       availableShiftTabs.find((shift) => shift.id === activeShiftId) ?? null;
@@ -3387,10 +3652,12 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
     if (!loadedOptimizationRun) return;
 
-    costState.status = "loading";
-    costState.comparison = null;
-    costState.annualization = null;
-    costState.costInputs = null;
+    costState.status = preserveExistingCostData ? "refreshing" : "loading";
+    if (!preserveExistingCostData) {
+      costState.comparison = null;
+      costState.annualization = null;
+      costState.costInputs = null;
+    }
     costState.error = null;
     costState.optimizationRun = loadedOptimizationRun;
     refreshCostsTab();
@@ -3491,13 +3758,133 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       const nextShiftId = firstText(btn.dataset.shiftId);
       if (!nextShiftId || nextShiftId === activeShiftId) return;
       activeShiftId = nextShiftId;
-      refreshShiftScopedData().catch((error) => {
+      refreshShiftScopedData({ preserveExistingCostData: false }).catch((error) => {
         console.error("[elettra] Unable to refresh shift-specific results:", error);
       });
     };
     shiftTabsEl.addEventListener("click", handleShiftTabClick);
     cleanupHandlers.push(() =>
       shiftTabsEl.removeEventListener("click", handleShiftTabClick)
+    );
+  }
+
+  const scheduleCostVariableRefresh = () => {
+    if (!loadedOptimizationRun) return;
+    if (costVariableRefreshTimer) {
+      clearTimeout(costVariableRefreshTimer);
+    }
+    costVariableRefreshTimer = setTimeout(() => {
+      costVariableRefreshTimer = null;
+      refreshShiftScopedData({ preserveExistingCostData: true }).catch((error) => {
+        console.error("[elettra] Unable to refresh cost comparison:", error);
+      });
+    }, COST_VARIABLE_REFRESH_DEBOUNCE_MS);
+  };
+
+  const handleFuelCostInput = () => {
+    costOverrides.fuelCostPerL = normalizeFuelCostPerL(fuelCostInput?.value);
+    setRangeProgress(fuelCostInput, resolveFuelCostPerL(options));
+    refreshCostVariableControls();
+    scheduleCostVariableRefresh();
+  };
+
+  const handleEnergyPriceInput = () => {
+    costOverrides.energyPricePerKwh = normalizeEnergyPricePerKwh(
+      energyPriceInput?.value
+    );
+    setRangeProgress(
+      energyPriceInput,
+      resolveEnergyPricePerKwh(options)
+    );
+    refreshCostVariableControls();
+    scheduleCostVariableRefresh();
+  };
+
+  const handleInterestRateInput = () => {
+    costOverrides.interestRate = normalizeInterestRate(interestRateInput?.value);
+    setRangeProgress(interestRateInput, resolveInterestRate(options));
+    refreshCostVariableControls();
+    scheduleCostVariableRefresh();
+  };
+
+  const handleFuelCostReset = () => {
+    costOverrides.fuelCostPerL = null;
+    const nextFuelCostPerL = resolveFuelCostPerL(options);
+    if (fuelCostInput) {
+      fuelCostInput.value = String(nextFuelCostPerL);
+      setRangeProgress(fuelCostInput, nextFuelCostPerL);
+    }
+    scheduleCostVariableRefresh();
+    refreshCostVariableControls();
+  };
+
+  const handleEnergyPriceReset = () => {
+    costOverrides.energyPricePerKwh = null;
+    const nextEnergyPricePerKwh = resolveEnergyPricePerKwh(options);
+    if (energyPriceInput) {
+      energyPriceInput.value = String(nextEnergyPricePerKwh);
+      setRangeProgress(energyPriceInput, nextEnergyPricePerKwh);
+    }
+    scheduleCostVariableRefresh();
+    refreshCostVariableControls();
+  };
+
+  const handleInterestRateReset = () => {
+    costOverrides.interestRate = null;
+    const nextInterestRate = resolveInterestRate(options);
+    if (interestRateInput) {
+      interestRateInput.value = String(nextInterestRate);
+      setRangeProgress(interestRateInput, nextInterestRate);
+    }
+    scheduleCostVariableRefresh();
+    refreshCostVariableControls();
+  };
+
+  if (fuelCostInput) {
+    fuelCostInput.addEventListener("input", handleFuelCostInput);
+    fuelCostInput.addEventListener("change", handleFuelCostInput);
+    cleanupHandlers.push(() => {
+      fuelCostInput.removeEventListener("input", handleFuelCostInput);
+      fuelCostInput.removeEventListener("change", handleFuelCostInput);
+    });
+  }
+
+  if (energyPriceInput) {
+    energyPriceInput.addEventListener("input", handleEnergyPriceInput);
+    energyPriceInput.addEventListener("change", handleEnergyPriceInput);
+    cleanupHandlers.push(() => {
+      energyPriceInput.removeEventListener("input", handleEnergyPriceInput);
+      energyPriceInput.removeEventListener("change", handleEnergyPriceInput);
+    });
+  }
+
+  if (interestRateInput) {
+    interestRateInput.addEventListener("input", handleInterestRateInput);
+    interestRateInput.addEventListener("change", handleInterestRateInput);
+    cleanupHandlers.push(() => {
+      interestRateInput.removeEventListener("input", handleInterestRateInput);
+      interestRateInput.removeEventListener("change", handleInterestRateInput);
+    });
+  }
+
+  if (fuelCostResetBtn) {
+    fuelCostResetBtn.addEventListener("click", handleFuelCostReset);
+    cleanupHandlers.push(() =>
+      fuelCostResetBtn.removeEventListener("click", handleFuelCostReset)
+    );
+  }
+
+  if (energyPriceResetBtn) {
+    energyPriceResetBtn.addEventListener("click", handleEnergyPriceReset);
+    cleanupHandlers.push(() =>
+      energyPriceResetBtn.removeEventListener("click", handleEnergyPriceReset)
+    );
+  }
+
+  if (interestRateResetBtn) {
+    interestRateResetBtn.addEventListener("click", handleInterestRateReset);
+    cleanupHandlers.push(() =>
+      interestRateResetBtn.removeEventListener("click", handleInterestRateReset)
     );
   }
 
@@ -3516,7 +3903,23 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     refreshCostsTab();
 
     try {
-      const optimizationRun = await fetchOptimizationRun(options.runId);
+      const [optimizationRun, economicDefaultsPayload] = await Promise.all([
+        fetchOptimizationRun(options.runId),
+        fetchEconomicDefaults().catch((error) => {
+          console.warn("[elettra] Unable to load economic defaults:", error);
+          return null;
+        }),
+      ]);
+      economicDefaults.fuelCostPerL = normalizeFuelCostPerL(
+        economicDefaultsPayload?.fuel_cost_per_l
+      );
+      economicDefaults.energyPricePerKwh = normalizeEnergyPricePerKwh(
+        economicDefaultsPayload?.energy_price_per_kwh
+      );
+      economicDefaults.interestRate = normalizeInterestRate(
+        economicDefaultsPayload?.interest_rate
+      );
+      refreshCostsTab();
       try {
         await hydrateBusModelDataFromOptimization(optimizationRun, options);
         renderBusInfo();
@@ -3583,5 +3986,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   loadResultData();
 
-  return () => cleanupHandlers.forEach((h) => h());
+  return () => {
+    if (costVariableRefreshTimer) {
+      clearTimeout(costVariableRefreshTimer);
+    }
+    cleanupHandlers.forEach((h) => h());
+  };
 };

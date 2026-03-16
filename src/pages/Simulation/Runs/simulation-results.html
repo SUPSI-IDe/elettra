@@ -48,24 +48,129 @@
     <!-- Tab panels -->
     <div class="results-tab-panels">
       <div class="tab-panel active" data-panel="costs" role="tabpanel">
-        <div class="chart-section">
+        <div class="chart-section results-cost-variables">
+          <div class="results-cost-variables__header">
+            <div>
+              <h2 data-i18n="simulation.results_custom_variables_title">Adjustable parameters</h2>
+              <p class="results-cost-variables__note" data-role="cost-variables-note"></p>
+            </div>
+          </div>
+          <div class="results-cost-variables__grid">
+            <div class="results-cost-variables__field">
+              <div class="results-cost-variables__field-top">
+                <span data-i18n="simulation.var_fuel_cost_per_l">Diesel cost (CHF / liter)</span>
+                <output class="results-cost-variables__value" data-role="cost-variable-fuel-cost-value"></output>
+              </div>
+              <input
+                class="results-cost-variables__range"
+                type="range"
+                min="1"
+                max="3"
+                step="0.01"
+                data-role="cost-variable-fuel-cost"
+              />
+              <div class="results-cost-variables__range-scale" aria-hidden="true">
+                <span>1.00</span>
+                <span>3.00</span>
+              </div>
+              <div class="results-cost-variables__actions">
+                <button
+                  type="button"
+                  class="results-cost-variables__reset"
+                  data-role="cost-variable-fuel-cost-reset"
+                  data-i18n="simulation.costs_variable_reset"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+            <div class="results-cost-variables__field">
+              <div class="results-cost-variables__field-top">
+                <span data-i18n="simulation.var_energy_price_per_kwh">Energy tariff (CHF / kWh)</span>
+                <output class="results-cost-variables__value" data-role="cost-variable-energy-price-value"></output>
+              </div>
+              <input
+                class="results-cost-variables__range"
+                type="range"
+                min="0.05"
+                max="0.60"
+                step="0.01"
+                data-role="cost-variable-energy-price"
+              />
+              <div class="results-cost-variables__range-scale" aria-hidden="true">
+                <span>0.05</span>
+                <span>0.60</span>
+              </div>
+              <div class="results-cost-variables__actions">
+                <button
+                  type="button"
+                  class="results-cost-variables__reset"
+                  data-role="cost-variable-energy-price-reset"
+                  data-i18n="simulation.costs_variable_reset"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+            <div class="results-cost-variables__field">
+              <div class="results-cost-variables__field-top">
+                <span data-i18n="simulation.var_interest_rate">Interest rate (%)</span>
+                <output class="results-cost-variables__value" data-role="cost-variable-interest-rate-value"></output>
+              </div>
+              <input
+                class="results-cost-variables__range"
+                type="range"
+                min="0.08"
+                max="0.15"
+                step="0.005"
+                data-role="cost-variable-interest-rate"
+              />
+              <div class="results-cost-variables__range-scale" aria-hidden="true">
+                <span>8%</span>
+                <span>15%</span>
+              </div>
+              <div class="results-cost-variables__actions">
+                <button
+                  type="button"
+                  class="results-cost-variables__reset"
+                  data-role="cost-variable-interest-rate-reset"
+                  data-i18n="simulation.costs_variable_reset"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-section costs-investment-section">
           <h2 data-i18n="simulation.results_investment_title">Investment cost breakdown</h2>
           <div data-role="costs-investment"></div>
         </div>
-        <div class="chart-section">
+        <div class="chart-section costs-electric-opex-section">
+          <h2 data-i18n="simulation.costs_input_section_electric">Electric OPEX breakdown</h2>
+          <div data-role="costs-electric-opex"></div>
+        </div>
+        <div class="chart-section costs-diesel-opex-section">
+          <h2 data-i18n="simulation.costs_input_section_diesel">Diesel OPEX breakdown</h2>
+          <div data-role="costs-diesel-opex"></div>
+        </div>
+        <div class="chart-section costs-api-section">
+          <h2 data-i18n="simulation.costs_input_section_api">Economic comparison API parameters</h2>
+          <div data-role="costs-api-params"></div>
+        </div>
+        <div class="chart-section costs-annual-section">
           <h2 data-i18n="simulation.results_tco_title">Annual cost comparison</h2>
-          <div class="costs-kpi-grid" data-role="costs-kpis"></div>
           <p class="costs-assumption-note" data-role="costs-assumption" data-i18n="simulation.costs_assumption_weekly_once">
             Current economic comparison assumes `weekly_once` recurrence.
           </p>
           <div class="chart-container" data-role="costs-bar-chart"></div>
           <div class="chart-legend" data-role="costs-legend"></div>
         </div>
-        <div class="chart-section">
+        <div class="chart-section costs-trend-section">
           <h2 data-i18n="simulation.results_costs_trend">Projected cost trend</h2>
           <div class="chart-container" data-role="costs-line-chart"></div>
         </div>
-        <div class="chart-section chart-section--full">
+        <div class="chart-section chart-section--full costs-inputs-section">
           <h2 data-i18n="simulation.results_opex_inputs_title">OPEX calculation inputs</h2>
           <div data-role="costs-opex-inputs"></div>
         </div>

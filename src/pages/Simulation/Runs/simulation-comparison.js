@@ -38,7 +38,11 @@ const chartAriaLabel = (key, fallback) => t(key) || fallback;
 /* ── Fake data generators (seeded by index for variety) ───────── */
 
 const COST_STACK_KEYS = ["vehicle", "energy", "maintenance"];
-const COST_COLORS = { vehicle: "#6fbeec", energy: "#f5a623", maintenance: "#abe828" };
+const FUEL_COLORS = {
+  diesel: "#c0392b",
+  electric: "#2e7d32",
+};
+const COST_COLORS = { vehicle: "#4f86c6", energy: "#d4881f", maintenance: "#5f8f2f" };
 
 const makeTCOData = (seed) => [
   {
@@ -185,11 +189,11 @@ const renderCostsLine = (el, data) => {
   g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat((d) => `${(d / 1e3).toFixed(0)}k`)).selectAll("text").attr("font-size", "9px");
   gridLines(g, y, iW);
 
-  g.append("path").datum(data).attr("d", d3.line().x((d) => x(d.year)).y((d) => y(d.diesel)).curve(d3.curveMonotoneX)).attr("fill", "none").attr("stroke", "#6fbeec").attr("stroke-width", 2);
-  g.append("path").datum(data).attr("d", d3.line().x((d) => x(d.year)).y((d) => y(d.electric)).curve(d3.curveMonotoneX)).attr("fill", "none").attr("stroke", "#abe828").attr("stroke-width", 2);
+  g.append("path").datum(data).attr("d", d3.line().x((d) => x(d.year)).y((d) => y(d.diesel)).curve(d3.curveMonotoneX)).attr("fill", "none").attr("stroke", FUEL_COLORS.diesel).attr("stroke-width", 2);
+  g.append("path").datum(data).attr("d", d3.line().x((d) => x(d.year)).y((d) => y(d.electric)).curve(d3.curveMonotoneX)).attr("fill", "none").attr("stroke", FUEL_COLORS.electric).attr("stroke-width", 2);
 
-  g.append("text").attr("x", iW + 3).attr("y", y(data.at(-1).diesel)).attr("font-size", "9px").attr("fill", "#6fbeec").attr("dominant-baseline", "middle").text(fuelLabel("diesel"));
-  g.append("text").attr("x", iW + 3).attr("y", y(data.at(-1).electric)).attr("font-size", "9px").attr("fill", "#abe828").attr("dominant-baseline", "middle").text(fuelLabel("electric"));
+  g.append("text").attr("x", iW + 3).attr("y", y(data.at(-1).diesel)).attr("font-size", "9px").attr("fill", FUEL_COLORS.diesel).attr("dominant-baseline", "middle").text(fuelLabel("diesel"));
+  g.append("text").attr("x", iW + 3).attr("y", y(data.at(-1).electric)).attr("font-size", "9px").attr("fill", FUEL_COLORS.electric).attr("dominant-baseline", "middle").text(fuelLabel("electric"));
 
   el.appendChild(svg.node());
 };
@@ -254,8 +258,8 @@ const renderEnergyChart = (el, data) => {
   g.append("text").attr("transform", "rotate(-90)").attr("y", -42).attr("x", -iH / 2).attr("text-anchor", "middle").attr("font-size", "9px").attr("fill", "#666").text(t("simulation.axis_energy_units"));
 
   data.forEach((d) => {
-    g.append("rect").attr("x", x0(d.segment) + x1("diesel")).attr("y", y(d.diesel)).attr("width", x1.bandwidth()).attr("height", iH - y(d.diesel)).attr("rx", 3).attr("fill", "#6fbeec");
-    g.append("rect").attr("x", x0(d.segment) + x1("electric")).attr("y", y(d.electric)).attr("width", x1.bandwidth()).attr("height", iH - y(d.electric)).attr("rx", 3).attr("fill", "#abe828");
+    g.append("rect").attr("x", x0(d.segment) + x1("diesel")).attr("y", y(d.diesel)).attr("width", x1.bandwidth()).attr("height", iH - y(d.diesel)).attr("rx", 3).attr("fill", FUEL_COLORS.diesel);
+    g.append("rect").attr("x", x0(d.segment) + x1("electric")).attr("y", y(d.electric)).attr("width", x1.bandwidth()).attr("height", iH - y(d.electric)).attr("rx", 3).attr("fill", FUEL_COLORS.electric);
   });
 
   el.appendChild(svg.node());

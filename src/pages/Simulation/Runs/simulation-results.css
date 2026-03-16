@@ -121,7 +121,17 @@
 }
 
 .tab-panel[data-panel="costs"] {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(320px, 38%) minmax(0, 1fr);
+  grid-template-areas:
+    "params annual"
+    "investment trend"
+    "electric ."
+    "diesel ."
+    "api ."
+    "inputs inputs";
+  align-items: start;
+  gap: var(--spacing-md);
 }
 
 .tab-panel[hidden] {
@@ -151,11 +161,199 @@
   margin-bottom: var(--spacing-sm);
 }
 
+.results-cost-variables {
+  grid-area: params;
+  background:
+    linear-gradient(180deg, rgba(111, 190, 236, 0.08), rgba(111, 190, 236, 0)),
+    #fff;
+}
+
+.costs-investment-section {
+  grid-area: investment;
+}
+
+.costs-electric-opex-section {
+  grid-area: electric;
+}
+
+.costs-diesel-opex-section {
+  grid-area: diesel;
+}
+
+.costs-api-section {
+  grid-area: api;
+}
+
+.costs-annual-section {
+  grid-area: annual;
+}
+
+.costs-trend-section {
+  grid-area: trend;
+}
+
+.costs-inputs-section {
+  grid-area: inputs;
+}
+
+.results-cost-variables__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.results-cost-variables__note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.results-cost-variables__note[data-tone="error"] {
+  color: var(--danger, #c0392b);
+}
+
+.results-cost-variables__note[data-tone="info"] {
+  color: var(--brand-teal-dark, #0f766e);
+}
+
+.results-cost-variables__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.results-cost-variables__field {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-main);
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border-light, #dde4ea);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.results-cost-variables__field-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.results-cost-variables__value {
+  min-width: 4.5rem;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(11, 126, 119, 0.08);
+  color: var(--brand-teal-dark, #0f766e);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.results-cost-variables__range {
+  --slider-progress: 50%;
+  appearance: none;
+  width: clamp(160px, 52%, 260px);
+  height: 0.65rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      var(--brand-teal) 0,
+      var(--brand-teal) var(--slider-progress),
+      #d7e1e8 var(--slider-progress),
+      #d7e1e8 100%
+    );
+  cursor: pointer;
+}
+
+.results-cost-variables__range:focus {
+  outline: none;
+}
+
+.results-cost-variables__range::-webkit-slider-thumb {
+  appearance: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--brand-teal);
+  box-shadow: 0 0 0 3px rgba(11, 126, 119, 0.12);
+}
+
+.results-cost-variables__range::-moz-range-thumb {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--brand-teal);
+  box-shadow: 0 0 0 3px rgba(11, 126, 119, 0.12);
+}
+
+.results-cost-variables__range:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.results-cost-variables__range-scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: clamp(160px, 52%, 260px);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.results-cost-variables__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.results-cost-variables__reset {
+  border: none;
+  background: transparent;
+  color: var(--brand-teal-dark, #0f766e);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+}
+
+@media (max-width: 980px) {
+  .tab-panel[data-panel="costs"] {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "params"
+      "investment"
+      "electric"
+      "diesel"
+      "api"
+      "annual"
+      "trend"
+      "inputs";
+  }
+}
+
+.results-cost-variables__reset:disabled {
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
 .chart-container {
   width: 100%;
   max-width: 100%;
-  min-height: 180px;
+  min-height: 150px;
   overflow: hidden;
+}
+
+.costs-annual-section .chart-container,
+.costs-trend-section .chart-container {
+  min-height: 100px;
 }
 
 .chart-container svg {
