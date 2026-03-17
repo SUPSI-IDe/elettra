@@ -116,7 +116,7 @@ services:
     profiles:
       - prod
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -147,7 +147,7 @@ services:
     profiles:
       - prod-vite
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9010/elettra/"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
