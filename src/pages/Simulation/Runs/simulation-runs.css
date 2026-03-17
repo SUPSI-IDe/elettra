@@ -25,6 +25,30 @@
   vertical-align: middle;
 }
 
+.simulation-runs-table .sort-button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.simulation-runs-table .sort-button:hover,
+.simulation-runs-table .sort-button:focus-visible {
+  color: var(--brand-teal);
+}
+
+.simulation-runs-table .sort-arrow {
+  font-size: 0.8em;
+  line-height: 1;
+}
+
 .simulation-runs-table th.checkbox,
 .simulation-runs-table td.checkbox {
   width: 2.5rem;
@@ -33,12 +57,28 @@
 
 .simulation-runs-table th.name,
 .simulation-runs-table td.name {
-  width: 22%;
+  width: 16%;
+}
+
+.simulation-runs-table th.objective,
+.simulation-runs-table td.objective {
+  width: 10%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simulation-runs-table th.main-parameters,
+.simulation-runs-table td.main-parameters {
+  width: 18%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .simulation-runs-table th.type,
 .simulation-runs-table td.type {
-  width: 14%;
+  width: 10%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -46,7 +86,7 @@
 
 .simulation-runs-table th.day,
 .simulation-runs-table td.day {
-  width: 20%;
+  width: 16%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -54,12 +94,12 @@
 
 .simulation-runs-table th.status,
 .simulation-runs-table td.status {
-  width: 14%;
+  width: 10%;
 }
 
 .simulation-runs-table th.actions,
 .simulation-runs-table td.actions {
-  width: 18%;
+  width: 14%;
 }
 
 .simulation-runs-table .status-badge {
@@ -93,7 +133,7 @@
 
 .simulation-runs-table th.results,
 .simulation-runs-table td.results {
-  width: 10%;
+  width: 6%;
   text-align: center;
 }
 

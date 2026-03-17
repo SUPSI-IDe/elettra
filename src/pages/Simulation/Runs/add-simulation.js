@@ -15,6 +15,11 @@ import { isAuthenticated } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveModelFields } from "../../../ui-helpers";
+import {
+  extractShiftDistanceKm,
+  formatDistanceKm,
+  resolveShiftDailyDistanceKm,
+} from "../../../utils/shift-distance";
 import { saveRunIds } from "./simulation-runs";
 import {
   DEFAULT_PREDICTION_MODEL_NAME,
@@ -89,13 +94,16 @@ const waitForOptimizationCompletion = async (runId) => {
 const renderShiftRows = (tbody, shifts = []) => {
   if (!tbody) return;
   if (!shifts.length) {
-    tbody.innerHTML = `<tr><td colspan="3">${textContent(t("simulation.no_shifts_in_table") || "No shifts found.")}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4">${textContent(t("simulation.no_shifts_in_table") || "No shifts found.")}</td></tr>`;
     return;
   }
 
   tbody.innerHTML = shifts
     .map((shift) => {
       const busModelName = text(shift._resolved_bus_model ?? "—");
+      const distanceLabel = text(
+        shift._resolved_daily_distance_label ?? formatDistanceKm(null)
+      );
       return `
         <tr data-id="${text(shift?.id)}">
           <td class="checkbox">
@@ -103,6 +111,7 @@ const renderShiftRows = (tbody, shifts = []) => {
           </td>
           <td>${textContent(shift?.name ?? "")}</td>
           <td>${textContent(busModelName)}</td>
+          <td class="distance" data-role="shift-distance">${textContent(distanceLabel)}</td>
         </tr>`;
     })
     .join("");
@@ -391,6 +400,37 @@ export const initializeAddSimulation = async (
   let allUserModels = [];
   let currentStops = [];
 
+  const hydrateShiftDistances = (shifts = []) => {
+    const pendingShifts = shifts.filter(
+      (shift) =>
+        shift &&
+        shift._resolved_daily_distance_km == null &&
+        text(shift?.id).trim()
+    );
+
+    pendingShifts.forEach((shift) => {
+      resolveShiftDailyDistanceKm(shift)
+        .then((distanceKm) => {
+          shift._resolved_daily_distance_km = distanceKm;
+          shift._resolved_daily_distance_label = formatDistanceKm(distanceKm);
+
+          const row = shiftTbody?.querySelector(`tr[data-id="${text(shift.id)}"]`);
+          const distanceCell = row?.querySelector('[data-role="shift-distance"]');
+          if (distanceCell) {
+            distanceCell.textContent = textContent(
+              shift._resolved_daily_distance_label
+            );
+          }
+        })
+        .catch((error) => {
+          console.warn(
+            `[elettra] Unable to resolve distance for shift ${text(shift?.id)}`,
+            error
+          );
+        });
+    });
+  };
+
   const getSelectedShiftIds = () =>
     Array.from(
       shiftTbody?.querySelectorAll('input[type="checkbox"]:checked') ?? []
@@ -585,17 +625,21 @@ export const initializeAddSimulation = async (
         ).model;
         const busModelName =
           modelFromBus || modelFromDirect || shift?.bus_model_name || "";
+        const dailyDistanceKm = extractShiftDistanceKm(shift);
 
         return {
           ...shift,
           _resolved_bus_model: busModelName,
           _resolved_bus_model_id: resolvedModelId,
+          _resolved_daily_distance_km: dailyDistanceKm,
+          _resolved_daily_distance_label: formatDistanceKm(dailyDistanceKm),
         };
       });
 
       allUserModels = userModels;
 
       renderShiftRows(shiftTbody, allShifts);
+      hydrateShiftDistances(allShifts);
       refreshBusModelOverride();
 
       if (options.prefill?.shiftId) {

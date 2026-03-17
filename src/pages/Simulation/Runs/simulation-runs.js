@@ -1,7 +1,11 @@
 import { t } from "../../../i18n";
 import "./simulation-runs.css";
 import { fetchBusModels } from "../../../api";
-import { fetchOptimizationRuns, deleteOptimizationRun } from "../../../api/simulation";
+import {
+  fetchOptimizationRuns,
+  deleteOptimizationRun,
+  fetchPredictionRun,
+} from "../../../api/simulation";
 import { fetchShiftById } from "../../../api/shifts";
 import { isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
@@ -10,6 +14,21 @@ import { resolveModelFields, textContent } from "../../../ui-helpers";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
+
+const toFiniteNumber = (value) => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().replace(",", ".");
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -53,7 +72,7 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
     <tr>
       <td class="checkbox"></td>
-      <td colspan="6">${textContent(t("common.loading") || "Loading…")}</td>
+      <td colspan="8">${textContent(t("common.loading") || "Loading…")}</td>
     </tr>`;
 };
 
@@ -65,7 +84,7 @@ const renderError = (
   tbody.innerHTML = `
     <tr>
       <td class="checkbox"></td>
-      <td colspan="6">${textContent(message)}</td>
+      <td colspan="8">${textContent(message)}</td>
     </tr>`;
 };
 
@@ -74,7 +93,7 @@ const renderEmpty = (tbody) => {
   tbody.innerHTML = `
     <tr>
       <td class="checkbox"></td>
-      <td colspan="6" data-i18n="simulation.no_runs">No simulation runs found.</td>
+      <td colspan="8" data-i18n="simulation.no_runs">No simulation runs found.</td>
     </tr>`;
 };
 
@@ -93,6 +112,26 @@ const formatDate = (dateStr) => {
   } catch {
     return "—";
   }
+};
+
+const formatObjectiveValue = (value) => {
+  const numericValue = toFiniteNumber(value);
+  if (numericValue == null) return "—";
+
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 3,
+  }).format(numericValue);
+};
+
+const formatCompactNumber = (value, suffix = "") => {
+  const numericValue = toFiniteNumber(value);
+  if (numericValue == null) return "—";
+
+  const formatted = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: Number.isInteger(numericValue) ? 0 : 1,
+  }).format(numericValue);
+
+  return `${formatted}${suffix}`;
 };
 
 const resolveCreatedAt = (run = {}) => {
@@ -142,6 +181,22 @@ const resolveShiftIds = (run = {}) => {
   return direct ? [direct] : [];
 };
 
+const resolvePredictionRunIds = (run = {}) => {
+  const directIds = [
+    run?.prediction_run_ids,
+    run?.predictionRunIds,
+    run?.results?.prediction_run_ids,
+    run?.results?.predictionRunIds,
+  ].find((value) => Array.isArray(value) && value.length);
+
+  if (Array.isArray(directIds) && directIds.length) {
+    return directIds.map((id) => text(id).trim()).filter(Boolean);
+  }
+
+  const direct = text(run?.prediction_run_id ?? run?.predictionRunId ?? "").trim();
+  return direct ? [direct] : [];
+};
+
 const resolveShiftName = (run = {}) => {
   return (
     run?._resolved_shift_name ??
@@ -184,6 +239,14 @@ const resolveShiftLabel = (run = {}) => {
   return "—";
 };
 
+const resolveRunName = (run = {}) =>
+  text(
+    run?.input_params?.name ??
+    run?.inputParams?.name ??
+    run?.name ??
+    ""
+  ).trim();
+
 const resolveBusModelId = (run = {}) => {
   return text(
     run?._resolved_bus_model_id ??
@@ -202,6 +265,45 @@ const resolveBusModelName = (run = {}) => {
   );
 };
 
+const parseModelSpecs = (specs) => {
+  if (!specs) return {};
+  if (typeof specs === "string") {
+    try {
+      const parsed = JSON.parse(specs);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof specs === "object" ? specs : {};
+};
+
+const buildBusModelTooltip = (model = {}) => {
+  const specs = parseModelSpecs(model?.specs);
+  const lines = [
+    [
+      t("buses.field_min_battery_packs") || "Min battery packs",
+      toFiniteNumber(specs?.min_battery_packs),
+    ],
+    [
+      t("buses.field_max_battery_packs") || "Max battery packs",
+      toFiniteNumber(specs?.max_battery_packs),
+    ],
+    [
+      t("buses.field_battery_pack_size") || "Battery pack size (kWh)",
+      toFiniteNumber(specs?.battery_pack_size_kwh),
+    ],
+    [
+      t("simulation.bus_length_m_label") || "Bus length (m)",
+      toFiniteNumber(specs?.bus_length_m),
+    ],
+  ]
+    .filter(([, value]) => value != null)
+    .map(([label, value]) => `${label}: ${formatCompactNumber(value)}`);
+
+  return lines.join("\n");
+};
+
 const resolveRunMode = (run = {}) =>
   text(
     run?.input_params?.mode ??
@@ -211,6 +313,113 @@ const resolveRunMode = (run = {}) =>
     run?.mode ??
     ""
   ).trim();
+
+const resolveExternalTemp = (run = {}) =>
+  toFiniteNumber(
+    run?.external_temp_celsius ??
+      run?.externalTempCelsius ??
+      run?._resolved_prediction_run?.external_temp_celsius ??
+      run?._resolved_prediction_run?.externalTempCelsius ??
+      run?.input_params?.prediction_params?.external_temp_celsius ??
+      run?.inputParams?.prediction_params?.external_temp_celsius ??
+      run?.prediction_params?.external_temp_celsius ??
+      run?.predictionParams?.external_temp_celsius
+  );
+
+const resolveOccupancyPercent = (run = {}) =>
+  toFiniteNumber(
+    run?.occupancy_percent ??
+      run?.occupancyPercent ??
+      run?._resolved_prediction_run?.occupancy_percent ??
+      run?._resolved_prediction_run?.occupancyPercent ??
+      run?.input_params?.prediction_params?.occupancy_percent ??
+      run?.inputParams?.prediction_params?.occupancy_percent ??
+      run?.prediction_params?.occupancy_percent ??
+      run?.predictionParams?.occupancy_percent
+  );
+
+const resolveSocPercent = (value) => {
+  const numericValue = toFiniteNumber(value);
+  if (numericValue == null) return null;
+  return numericValue <= 1 ? numericValue * 100 : numericValue;
+};
+
+const resolveMinSocPercent = (run = {}) =>
+  resolveSocPercent(
+    run?.min_soc ??
+      run?.minSoc ??
+      run?.input_params?.min_soc ??
+      run?.inputParams?.min_soc
+  );
+
+const resolveMaxSocPercent = (run = {}) =>
+  resolveSocPercent(
+    run?.max_soc ??
+      run?.maxSoc ??
+      run?.input_params?.max_soc ??
+      run?.inputParams?.max_soc
+  );
+
+const formatMainParameters = (run = {}) => {
+  const externalTemp = resolveExternalTemp(run);
+  const occupancyPercent = resolveOccupancyPercent(run);
+  const minSocPercent = resolveMinSocPercent(run);
+  const maxSocPercent = resolveMaxSocPercent(run);
+
+  const parts = [];
+  if (externalTemp != null) {
+    parts.push(formatCompactNumber(externalTemp, " °C"));
+  }
+  if (occupancyPercent != null) {
+    parts.push(formatCompactNumber(occupancyPercent, "%"));
+  }
+  if (minSocPercent != null && maxSocPercent != null) {
+    parts.push(
+      `[${formatCompactNumber(minSocPercent)}-${formatCompactNumber(maxSocPercent)}]%`
+    );
+  }
+
+  return parts.length ? parts.join(", ") : "—";
+};
+
+const resolveObjectiveValue = (run = {}) => {
+  const directValue = toFiniteNumber(
+    run?.objective_value ?? run?.objectiveValue ?? run?.results?.objective_value
+  );
+  if (directValue != null) return directValue;
+
+  const nestedCandidates = [
+    run?.optimization_runs,
+    run?.optimisation_runs,
+    run?.optimizationRun,
+    run?.optimisationRun,
+    run?.optimization_run,
+    run?.optimisation_run,
+  ];
+
+  for (const candidate of nestedCandidates) {
+    if (!candidate) continue;
+
+    if (Array.isArray(candidate)) {
+      for (const item of candidate) {
+        const value = toFiniteNumber(
+          item?.objective_value ?? item?.objectiveValue ?? item?.results?.objective_value
+        );
+        if (value != null) return value;
+      }
+      continue;
+    }
+
+    const value = toFiniteNumber(
+      candidate?.objective_value ??
+        candidate?.objectiveValue ??
+        candidate?.results?.objective_value
+    );
+    if (value != null) return value;
+  }
+
+  return null;
+};
 
 const formatStatusLabel = (status) => {
   const normalized = text(status).trim().toLowerCase();
@@ -224,6 +433,113 @@ const formatStatusLabel = (status) => {
   })[normalized];
 
   return (key && t(key)) || status || "—";
+};
+
+const DEFAULT_SORT = {
+  key: "created_at",
+  direction: "desc",
+};
+
+const compareNullableNumbers = (left, right) => {
+  if (left == null && right == null) return 0;
+  if (left == null) return 1;
+  if (right == null) return -1;
+  return left - right;
+};
+
+const compareTexts = (left, right) =>
+  text(left).localeCompare(text(right), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+
+const getSortValue = (run = {}, key = "") => {
+  switch (key) {
+    case "created_at": {
+      const timestamp = Date.parse(resolveCreatedAt(run));
+      return Number.isNaN(timestamp) ? null : timestamp;
+    }
+    case "bus_model":
+      return resolveBusModelName(run) || resolveBusModelId(run) || "—";
+    case "shift":
+      return resolveShiftLabel(run) || resolveRunName(run) || "—";
+    case "objective_value":
+      return resolveObjectiveValue(run);
+    case "main_parameters":
+      return [
+        resolveExternalTemp(run) ?? Number.POSITIVE_INFINITY,
+        resolveOccupancyPercent(run) ?? Number.POSITIVE_INFINITY,
+        resolveMinSocPercent(run) ?? Number.POSITIVE_INFINITY,
+        resolveMaxSocPercent(run) ?? Number.POSITIVE_INFINITY,
+      ].join("|");
+    case "optimization_mode":
+      return resolveRunMode(run) || "—";
+    case "status":
+      return formatStatusLabel(run?.status ?? "pending");
+    default:
+      return text(run?.id);
+  }
+};
+
+const sortRuns = (runs = [], sortState = DEFAULT_SORT) => {
+  const directionMultiplier = sortState.direction === "asc" ? 1 : -1;
+
+  return [...runs].sort((left, right) => {
+    const leftValue = getSortValue(left, sortState.key);
+    const rightValue = getSortValue(right, sortState.key);
+
+    const comparison =
+      typeof leftValue === "number" || typeof rightValue === "number"
+        ? compareNullableNumbers(
+            typeof leftValue === "number" ? leftValue : null,
+            typeof rightValue === "number" ? rightValue : null
+          )
+        : compareTexts(leftValue, rightValue);
+
+    if (comparison !== 0) {
+      return comparison * directionMultiplier;
+    }
+
+    const leftCreated = Date.parse(resolveCreatedAt(left));
+    const rightCreated = Date.parse(resolveCreatedAt(right));
+    const fallbackComparison = compareNullableNumbers(
+      Number.isNaN(leftCreated) ? null : leftCreated,
+      Number.isNaN(rightCreated) ? null : rightCreated
+    );
+    if (fallbackComparison !== 0) {
+      return fallbackComparison * -1;
+    }
+
+    return compareTexts(text(left?.id), text(right?.id));
+  });
+};
+
+const updateSortHeaders = (table, sortState) => {
+  table?.querySelectorAll("thead th[data-sort-key]").forEach((header) => {
+    const key = header.dataset.sortKey;
+    const isActive = key === sortState.key;
+    const arrow = header.querySelector(".sort-arrow");
+    header.setAttribute(
+      "aria-sort",
+      isActive
+        ? sortState.direction === "asc"
+          ? "ascending"
+          : "descending"
+        : "none"
+    );
+    if (arrow) {
+      arrow.textContent = !isActive ? "↕" : sortState.direction === "asc" ? "↑" : "↓";
+    }
+  });
+};
+
+const updateMainParametersTooltip = (section) => {
+  const label = section?.querySelector('[data-role="main-parameters-label"]');
+  if (!label) return;
+
+  label.title =
+    t("simulation.main_parameters_help") ||
+    "Temperature, occupancy, and minimum/maximum SoC used for the simulation.";
 };
 
 const renderRows = (tbody, runs = []) => {
@@ -242,10 +558,15 @@ const renderRows = (tbody, runs = []) => {
       const shiftIds = resolveShiftIds(run);
       const shiftTitle = shiftIds.length ? shiftIds.join(", ") : rowId;
       const shiftName = resolveShiftLabel(run);
+      const shiftLabel = shiftName !== "—" ? shiftName : resolveRunName(run) || "—";
       const busModelId = text(resolveBusModelId(run)).trim();
       const busModelName = text(resolveBusModelName(run)).trim();
       const busModelLabel = busModelName || busModelId || "—";
+      const busModelTooltip =
+        text(run?._resolved_bus_model_tooltip).trim() || busModelLabel;
       const mode = resolveRunMode(run) || "—";
+      const objectiveValue = formatObjectiveValue(resolveObjectiveValue(run));
+      const mainParameters = formatMainParameters(run);
 
       const resultsLink = `<a class="results-link" href="#" data-action="view-results" data-run-id="${rowId}">${t("simulation.col_results") || "Results"}</a>`;
 
@@ -255,10 +576,12 @@ const renderRows = (tbody, runs = []) => {
             <input type="checkbox" aria-label="${textContent(t("simulation.select_run") || "Select run")}" />
           </td>
           <td class="actions">${textContent(created)}</td>
-          <td class="day" title="${textContent(busModelId || "")}">${textContent(
+          <td class="day" title="${textContent(busModelTooltip)}">${textContent(
             busModelLabel
           )}</td>
-          <td class="name" title="${textContent(shiftTitle)}">${textContent(shiftName)}</td>
+          <td class="name" title="${textContent(shiftLabel || shiftTitle)}">${textContent(shiftLabel)}</td>
+          <td class="objective">${textContent(objectiveValue)}</td>
+          <td class="main-parameters">${textContent(mainParameters)}</td>
           <td class="type">${textContent(mode)}</td>
           <td class="status">
             <span class="status-badge ${status}">${textContent(formatStatusLabel(status))}</span>
@@ -302,24 +625,31 @@ export const initializeSimulationRuns = async (
     '[data-action="duplicate-simulation"]'
   );
   setFlashMessage(section, options.flashMessage ?? "");
+  updateMainParametersTooltip(section);
 
   if (!table || !tbody) return null;
 
   let allRuns = [];
+  let sortState = { ...DEFAULT_SORT };
   const shiftMetaCache = new Map();
+  const predictionRunCache = new Map();
   let busModelsById = {};
 
   const hydrateRunModelNamesFromId = (runs = []) => {
     runs.forEach((run) => {
       const currentName = text(resolveBusModelName(run)).trim();
-      if (currentName && !looksLikeUuid(currentName)) {
-        return;
-      }
       const modelId = text(resolveBusModelId(run)).trim();
       if (!modelId) {
         return;
       }
       const model = busModelsById?.[modelId];
+      const tooltip = buildBusModelTooltip(model);
+      if (tooltip) {
+        run._resolved_bus_model_tooltip = tooltip;
+      }
+      if (currentName && !looksLikeUuid(currentName)) {
+        return;
+      }
       const modelName = text(resolveModelFields(model).model).trim();
       if (modelName) {
         run._resolved_bus_model_name = modelName;
@@ -367,11 +697,51 @@ export const initializeSimulationRuns = async (
     });
   };
 
+  const enrichPredictionRunParameters = async (runs = []) => {
+    const predictionRunIdsToResolve = [
+      ...new Set(
+        runs
+          .flatMap((run) => resolvePredictionRunIds(run))
+          .filter((id) => id && !predictionRunCache.has(id))
+      ),
+    ];
+
+    if (predictionRunIdsToResolve.length) {
+      const results = await Promise.allSettled(
+        predictionRunIdsToResolve.map((id) => fetchPredictionRun(id))
+      );
+
+      results.forEach((result, index) => {
+        const runId = predictionRunIdsToResolve[index];
+        if (result.status === "fulfilled") {
+          predictionRunCache.set(runId, result.value ?? null);
+        }
+      });
+    }
+
+    runs.forEach((run) => {
+      if (resolveExternalTemp(run) != null && resolveOccupancyPercent(run) != null) {
+        return;
+      }
+
+      const firstPredictionRunId = resolvePredictionRunIds(run)[0];
+      if (!firstPredictionRunId) {
+        return;
+      }
+
+      const predictionRun = predictionRunCache.get(firstPredictionRunId);
+      if (predictionRun) {
+        run._resolved_prediction_run = predictionRun;
+      }
+    });
+  };
+
   const applyFilter = () => {
     const query = (searchInput?.value ?? "").toLowerCase().trim();
     const filtered = query
         ? allRuns.filter(
           (run = {}) =>
+            text(resolveRunName(run)).toLowerCase().includes(query) ||
             text(resolveShiftLabel(run)).toLowerCase().includes(query) ||
             text(resolveBusModelId(run)).toLowerCase().includes(query) ||
             text(resolveBusModelName(run)).toLowerCase().includes(query) ||
@@ -380,7 +750,8 @@ export const initializeSimulationRuns = async (
         )
       : allRuns;
 
-    renderRows(tbody, filtered);
+    renderRows(tbody, sortRuns(filtered, sortState));
+    updateSortHeaders(table, sortState);
     bindSelectAll(headerCheckbox, table);
   };
 
@@ -417,6 +788,7 @@ export const initializeSimulationRuns = async (
 
       hydrateRunModelNamesFromId(allRuns);
       await enrichShiftNames(allRuns);
+      await enrichPredictionRunParameters(allRuns);
 
       applyFilter();
     } catch (error) {
@@ -437,6 +809,31 @@ export const initializeSimulationRuns = async (
     );
   }
 
+  const handleSortClick = (event) => {
+    const button = event.target.closest("button[data-sort-key]");
+    if (!button) return;
+
+    const nextKey = text(button.dataset.sortKey).trim();
+    if (!nextKey) return;
+
+    sortState =
+      sortState.key === nextKey
+        ? {
+            key: nextKey,
+            direction: sortState.direction === "asc" ? "desc" : "asc",
+          }
+        : {
+            key: nextKey,
+            direction: nextKey === DEFAULT_SORT.key ? DEFAULT_SORT.direction : "asc",
+          };
+
+    applyFilter();
+  };
+  table.querySelector("thead")?.addEventListener("click", handleSortClick);
+  cleanupHandlers.push(() =>
+    table.querySelector("thead")?.removeEventListener("click", handleSortClick)
+  );
+
   const handleDuplicateClick = () => {
     const ids = getSelectedIdsFrom(table);
     if (ids.length !== 1) {
@@ -453,12 +850,12 @@ export const initializeSimulationRuns = async (
 
     triggerPartialLoad("add-simulation", {
       prefill: {
+        name: resolveRunName(run),
         shiftId: resolveShiftId(run),
         optimizationMode:
           run?.mode ?? run?.optimization_mode ?? "battery_only",
-        externalTempCelsius:
-          run?.external_temp_celsius ?? run?.externalTempCelsius ?? -5,
-        occupancyPercent: run?.occupancy_percent ?? run?.occupancyPercent ?? 50,
+        externalTempCelsius: resolveExternalTemp(run) ?? -5,
+        occupancyPercent: resolveOccupancyPercent(run) ?? 50,
         heatingType:
           run?.auxiliary_heating_type ??
           run?.auxiliaryHeatingType ??
@@ -546,14 +943,15 @@ export const initializeSimulationRuns = async (
     })();
     triggerPartialLoad("simulation-results", {
       runId,
+      simulationName: resolveRunName(run),
       shiftName: resolveShiftName(run),
       busModelName: resolveBusModelName(run),
       busModelId: modelId,
       status: text(run?.status ?? ""),
       createdAt: formatDate(resolveCreatedAt(run)),
       shiftId: resolveShiftId(run),
-      occupancyPercent: run?.occupancy_percent ?? run?.occupancyPercent,
-      externalTemp: run?.external_temp_celsius ?? run?.externalTempCelsius,
+      occupancyPercent: resolveOccupancyPercent(run),
+      externalTemp: resolveExternalTemp(run),
       heatingType: run?.auxiliary_heating_type ?? run?.auxiliaryHeatingType,
       numBatteryPacks: run?.num_battery_packs ?? run?.numBatteryPacks,
       busModelData: {
@@ -590,10 +988,10 @@ export const initializeSimulationRuns = async (
       sel.innerHTML = `<option value="" disabled selected>${textContent(placeholder)}</option>`;
       allRuns.forEach((run) => {
         const id = text(run?.id);
-        const shift = resolveShiftLabel(run) || id.slice(0, 8);
+        const runName = resolveRunName(run) || resolveShiftLabel(run) || id.slice(0, 8);
         const bus = resolveBusModelName(run) || "—";
         const created = formatDate(resolveCreatedAt(run));
-        const label = `${shift} — ${bus} — ${created}`;
+        const label = `${runName} — ${bus} — ${created}`;
         const opt = document.createElement("option");
         opt.value = id;
         opt.textContent = label;
@@ -631,13 +1029,14 @@ export const initializeSimulationRuns = async (
       })();
       return {
         runId: text(run?.id),
+        simulationName: resolveRunName(run),
         shiftName: resolveShiftName(run),
         busModelName: resolveBusModelName(run),
         busModelId: modelId,
         status: text(run?.status ?? ""),
         createdAt: formatDate(resolveCreatedAt(run)),
-        occupancyPercent: run?.occupancy_percent ?? run?.occupancyPercent,
-        externalTemp: run?.external_temp_celsius ?? run?.externalTempCelsius,
+        occupancyPercent: resolveOccupancyPercent(run),
+        externalTemp: resolveExternalTemp(run),
         heatingType: run?.auxiliary_heating_type ?? run?.auxiliaryHeatingType,
         numBatteryPacks: run?.num_battery_packs ?? run?.numBatteryPacks,
         busModelData: {

@@ -10,6 +10,11 @@ import {
 import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveModelFields } from "../../../ui-helpers";
 import {
+  extractShiftDistanceKm,
+  formatDistanceKm,
+  resolveShiftDailyDistanceKm,
+} from "../../../utils/shift-distance";
+import {
   text,
   firstAvailable,
   normalizeTime,
@@ -80,6 +85,7 @@ export const initializeVisualizeShift = async (
     startDepotName: text(options.startDepotName ?? ""),
     endTime: normalizeTime(options.endTime),
     endDepotName: text(options.endDepotName ?? ""),
+    dailyDistanceKm: extractShiftDistanceKm(options),
     trips:
       Array.isArray(options.trips) ?
         options.trips.map((trip) => normalizeTrip(trip)).filter(Boolean).filter((trip) => !isDepotTrip(trip))
@@ -172,6 +178,7 @@ export const initializeVisualizeShift = async (
 
     setFieldText("name", state.name || "Untitled shift");
     setFieldText("bus-name", state.busModelName);
+    setFieldText("daily-distance", formatDistanceKm(state.dailyDistanceKm));
     setFieldText("start-time", startTime);
     setFieldText("start-depot", state.startDepotName || "—");
     setFieldText("end-time", endTime);
@@ -342,6 +349,21 @@ export const initializeVisualizeShift = async (
         ...shift,
         structure: enrichedStructure,
       }).filter((trip) => !isDepotTrip(trip));
+      state.dailyDistanceKm =
+        extractShiftDistanceKm({
+          ...shift,
+          structure: enrichedStructure,
+          trips: state.trips,
+        }) ?? state.dailyDistanceKm;
+
+      if (state.dailyDistanceKm == null) {
+        state.dailyDistanceKm = await resolveShiftDailyDistanceKm({
+          ...shift,
+          id: options.shiftId,
+          structure: enrichedStructure,
+          trips: state.trips,
+        });
+      }
 
       // Fallback: try to get depot names from the first/last trip stops if still missing
       if (!state.startDepotName && state.trips.length > 0) {

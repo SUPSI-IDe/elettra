@@ -109,6 +109,11 @@
   text-align: center;
 }
 
+.add-simulation .shift-table th.distance,
+.add-simulation .shift-table td.distance {
+  white-space: nowrap;
+}
+
 .add-simulation .shift-table tbody tr:hover {
   background-color: var(--bg-hover);
 }

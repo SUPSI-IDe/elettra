@@ -14,6 +14,7 @@ import {
   fetchShiftInfo,
   fetchShiftYearlyDistance,
 } from "../../../api/shifts";
+import { resolveShiftDailyDistanceKm } from "../../../utils/shift-distance";
 import {
   DEFAULT_OPEX_ANNUALIZATION_RATE,
   DEFAULT_BUS_LIFETIME_YEARS,
@@ -26,6 +27,7 @@ import "./simulation-results.css";
 /* ── Fake simulation-data fields ──────────────────────────────── */
 
 const FAKE_GENERAL_INFO = {
+  name: "—",
   creation_date: "—",
   simulation_type: "—",
   day: "—",
@@ -45,6 +47,7 @@ const FAKE_BUS_INFO = {
 };
 
 const generalLabels = () => ({
+  name: t("simulation.field_name") || "Name",
   creation_date: t("simulation.general_creation_date") || "Creation date",
   simulation_type: t("simulation.general_simulation_type") || "Simulation type",
   day: t("simulation.general_day") || "Day",
@@ -123,6 +126,14 @@ const firstText = (...values) => {
   }
   return "";
 };
+
+const resolveSimulationName = (optimizationRun = {}, options = {}) =>
+  firstText(
+    options?.simulationName,
+    optimizationRun?.input_params?.name,
+    optimizationRun?.inputParams?.name,
+    optimizationRun?.name
+  );
 
 const WEEKDAY_LABELS = {
   monday: "simulation.day_monday",
@@ -1092,13 +1103,138 @@ const buildSimpleRowsTable = (rows = []) => `
     </tbody>
   </table>`;
 
+const formatSlotCostsSummary = (slotCosts = []) => {
+  const normalizedCosts = (Array.isArray(slotCosts) ? slotCosts : [])
+    .map((value) => toFiniteNumber(value))
+    .filter((value) => value != null);
+
+  return normalizedCosts.length
+    ? normalizedCosts.map((value) => formatChfValue(value, 0)).join(", ")
+    : "—";
+};
+
+const formatChargingStationStatus = (status) => {
+  const normalized = firstText(status).toLowerCase();
+  return (
+    {
+      installed: translateOr(
+        "simulation.costs_input_station_installed",
+        "Installed"
+      ),
+      configured: translateOr(
+        "simulation.costs_input_station_configured",
+        "Configured"
+      ),
+    }[normalized] ??
+    firstText(status, translateOr("simulation.costs_input_station_configured", "Configured"))
+  );
+};
+
+const buildChargingConfigurationSection = (costInputs = {}) => {
+  const rows = Array.isArray(costInputs?.chargingStationRows)
+    ? costInputs.chargingStationRows
+    : [];
+  const mode = firstText(costInputs?.optimizationMode, "battery_only");
+  const includeStatus = mode !== "battery_only";
+  const includeSlotCosts = mode === "charging_only" || mode === "joint";
+
+  const noteByMode = {
+    battery_only: translateOr(
+      "simulation.costs_input_charging_mode_battery_only",
+      "Battery-only mode shows the configured charging locations and technical limits used for the shift."
+    ),
+    charging_only: translateOr(
+      "simulation.costs_input_charging_mode_charging_only",
+      "Charging mode shows the configured charging locations, plug costs, and technical limits."
+    ),
+    joint: translateOr(
+      "simulation.costs_input_charging_mode_joint",
+      "Joint mode shows the configured charging locations, plug costs, and technical limits."
+    ),
+  };
+
+  const tableHtml = rows.length
+    ? `
+      <div class="efficiency-table-wrap">
+        <table class="efficiency-table">
+          <thead>
+            <tr>
+              <th class="efficiency-th-text">${textContent(
+                t("simulation.cs_stop_name") || "Stop"
+              )}</th>
+              ${includeStatus
+                ? `<th>${textContent(
+                    translateOr("simulation.costs_input_station_status", "Status")
+                  )}</th>`
+                : ""}
+              <th>${textContent(t("simulation.cs_num_plugs") || "Plugs")}</th>
+              <th>${textContent(t("simulation.cs_power_per_plug") || "kW / plug")}</th>
+              <th>${textContent(
+                translateOr("simulation.costs_input_total_power", "Total power (kW)")
+              )}</th>
+              ${includeSlotCosts
+                ? `<th>${textContent(
+                    translateOr("simulation.costs_input_slot_costs", "Slot costs")
+                  )}</th>`
+                : ""}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows
+              .map((row) => `
+                <tr>
+                  <td>${textContent(row.stopName || row.stopId || "—")}</td>
+                  ${includeStatus
+                    ? `<td>${textContent(
+                        formatChargingStationStatus(row.status)
+                      )}</td>`
+                    : ""}
+                  <td class="efficiency-td-num">${
+                    row.slots == null ? "—" : textContent(formatFixed(row.slots, 0))
+                  }</td>
+                  <td class="efficiency-td-num">${
+                    row.powerPerSlotKw == null
+                      ? "—"
+                      : textContent(formatFixed(row.powerPerSlotKw, 0))
+                  }</td>
+                  <td class="efficiency-td-num">${
+                    row.totalPowerKw == null
+                      ? "—"
+                      : textContent(formatFixed(row.totalPowerKw, 0))
+                  }</td>
+                  ${includeSlotCosts
+                    ? `<td>${textContent(formatSlotCostsSummary(row.slotCosts))}</td>`
+                    : ""}
+                </tr>`)
+              .join("")}
+          </tbody>
+        </table>
+      </div>`
+    : `<p class="costs-inputs-note">${textContent(
+        t("simulation.no_charging_stations") ||
+          "No charging stations configured."
+      )}</p>`;
+
+  return `
+    <section class="costs-inputs-section">
+      <h3 class="costs-inputs-section-title">${textContent(
+        translateOr(
+          "simulation.costs_input_charging_configuration",
+          "Charging station configuration"
+        )
+      )}</h3>
+      <p class="costs-inputs-note">${textContent(
+        noteByMode[mode] || noteByMode.battery_only
+      )}</p>
+      ${tableHtml}
+    </section>`;
+};
+
 const buildOpexBreakdownTable = (items = [], yearlyDistanceKm = null) => {
   const normalizedItems = (Array.isArray(items) ? items : []).map((item) => {
     const annualCost = toFiniteNumber(item?.cost_chf_per_year);
-    const type = classifyOpexCost(item);
     return {
       name: firstText(item?.name, item?.label, item?.type) || "—",
-      type,
       annualCost,
       costPerKm: formatChfPerKmValue(annualCost, yearlyDistanceKm),
     };
@@ -1108,24 +1244,18 @@ const buildOpexBreakdownTable = (items = [], yearlyDistanceKm = null) => {
   const maintenanceTotal = sumOpexItemsByType(items, "maintenance");
   const totalOpex = sumOpexItems(items);
 
-  const typeLabel = (type) =>
-    type === "energy"
-      ? translateOr("simulation.costs_input_usage", "Usage")
-      : translateOr("simulation.costs_input_maintenance", "Maintenance");
-
   const bodyRows = normalizedItems.length
     ? normalizedItems
         .map(
           (row) => `
             <tr>
               <td>${textContent(row.name)}</td>
-              <td>${textContent(typeLabel(row.type))}</td>
               <td>${textContent(formatChfValue(row.annualCost, 0))}</td>
               <td>${textContent(row.costPerKm)}</td>
             </tr>`
         )
         .join("")
-    : `<tr><td colspan="4">${textContent(
+    : `<tr><td colspan="3">${textContent(
         translateOr(
           "simulation.costs_input_no_opex_items",
           "No OPEX items returned by the economic comparison."
@@ -1151,7 +1281,6 @@ const buildOpexBreakdownTable = (items = [], yearlyDistanceKm = null) => {
           ([label, value]) => `
             <tr class="costs-inputs-table__summary">
               <td>${textContent(label)}</td>
-              <td>${textContent(translateOr("simulation.costs_input_summary", "Summary"))}</td>
               <td>${textContent(formatChfValue(value, 0))}</td>
               <td>${textContent(formatChfPerKmValue(value, yearlyDistanceKm))}</td>
             </tr>`
@@ -1164,7 +1293,6 @@ const buildOpexBreakdownTable = (items = [], yearlyDistanceKm = null) => {
       <thead>
         <tr>
           <th>${textContent(translateOr("simulation.costs_input_param", "Component"))}</th>
-          <th>${textContent(translateOr("simulation.costs_input_item_type", "Type"))}</th>
           <th>${textContent(translateOr("simulation.costs_input_annual_cost", "Annual cost"))}</th>
           <th>${textContent(translateOr("simulation.costs_input_cost_per_km", "Cost per km"))}</th>
         </tr>
@@ -1204,6 +1332,10 @@ const renderOpexInputsTable = (el, state) => {
       : `${formatFixed(state.costInputs.opexAnnualizationRate * 100, 1)}%`;
 
   const scenarioRows = [
+    [
+      t("simulation.general_shift_name") || "Shift name",
+      state.costInputs.shiftName || "—",
+    ],
     [t("simulation.costs_input_line") || "Line", state.costInputs.shiftLineLabel],
     [
       t("simulation.costs_input_week_day") || "Week day",
@@ -1212,6 +1344,12 @@ const renderOpexInputsTable = (el, state) => {
     [
       t("simulation.costs_input_recurrence") || "Recurrence",
       state.costInputs.recurrence,
+    ],
+    [
+      translateOr("simulation.costs_input_daily_distance", "Daily distance (km)"),
+      state.costInputs.dailyShiftDistanceKm == null
+        ? "—"
+        : formatFixed(state.costInputs.dailyShiftDistanceKm, 3),
     ],
     [
       t("simulation.costs_input_eac_equation") || "EAC equation",
@@ -1295,6 +1433,7 @@ const renderOpexInputsTable = (el, state) => {
   el.innerHTML = `
     <div class="costs-inputs-layout">
       ${buildSimpleRowsTable(scenarioRows)}
+      ${buildChargingConfigurationSection(state.costInputs)}
     </div>`;
 };
 
@@ -3083,10 +3222,18 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
     })()
   );
   const chargerPowerKw = resolveChargerPowerKw(optimizationRun, options);
-  const [annualization, shiftPresentation] = await Promise.all([
+  const optimizationMode = resolveOptimizationMode(optimizationRun, options) || "battery_only";
+  const chargingStationRows = buildChargingStationRows(optimizationRun);
+  const [annualization, shiftPresentation, resolvedDailyShiftDistanceKm] = await Promise.all([
     resolveCostAnnualization(shiftId, predictionSummary),
     resolveShiftPresentation(shiftId),
+    resolveShiftDailyDistanceKm({ id: shiftId }),
   ]);
+  const dailyShiftDistanceKm =
+    annualization.yearlyDistanceKm != null &&
+    annualization.recurrence === DEFAULT_SHIFT_YEARLY_DISTANCE_RECURRENCE
+      ? annualization.yearlyDistanceKm / 365
+      : resolvedDailyShiftDistanceKm;
   const interestRate = resolveInterestRate(options);
   const annualConsumptionKwh = annualization.annualConsumptionKwh;
 
@@ -3168,9 +3315,13 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
     },
     inputs: {
       shiftId,
+      shiftName: shiftPresentation.shiftName,
       shiftLineLabel: shiftPresentation.lineLabel,
       shiftWeekdayLabel: shiftPresentation.weekdayLabel,
+      optimizationMode,
+      chargingStationRows,
       recurrence: annualization.recurrence,
+      dailyShiftDistanceKm,
       yearlyDistanceKm: annualization.yearlyDistanceKm,
       predictedShiftDistanceKm: annualization.predictedShiftDistanceKm,
       predictedShiftConsumptionKwh: annualization.predictedShiftConsumptionKwh,
@@ -3619,12 +3770,20 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const interestRateResetBtn = section.querySelector('[data-role="cost-variable-interest-rate-reset"]');
 
   const busModelName = options.busModelName || "";
+  const getResultsSubtitle = () =>
+    firstText(options.simulationName, activeShiftName);
 
   if (simNameEl) simNameEl.textContent = activeShiftName;
   if (busModelEl) busModelEl.textContent = busModelName;
+  if (subtitleEl) {
+    const subtitle = getResultsSubtitle();
+    subtitleEl.textContent = subtitle;
+    subtitleEl.hidden = !subtitle;
+  }
   if (scenarioScalingSubtitleEl) {
-    scenarioScalingSubtitleEl.textContent = activeShiftName || "";
-    scenarioScalingSubtitleEl.hidden = !activeShiftName;
+    const subtitle = getResultsSubtitle();
+    scenarioScalingSubtitleEl.textContent = subtitle;
+    scenarioScalingSubtitleEl.hidden = !subtitle;
   }
 
   const renderGeneralInfo = (overrides = {}) => {
@@ -3632,6 +3791,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       ...FAKE_GENERAL_INFO,
       shift_name: activeShiftName,
       ...compactFieldEntries({
+        name: options.simulationName,
         creation_date: options.createdAt,
         external_temp_celsius: formatTemperatureValue(options.externalTemp),
         occupancy_percent: formatOccupancyValue(options.occupancyPercent),
@@ -3705,9 +3865,15 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     renderShiftTabs();
 
     if (simNameEl) simNameEl.textContent = activeShiftName;
+    if (subtitleEl) {
+      const subtitle = getResultsSubtitle();
+      subtitleEl.textContent = subtitle;
+      subtitleEl.hidden = !subtitle;
+    }
     if (scenarioScalingSubtitleEl) {
-      scenarioScalingSubtitleEl.textContent = activeShiftName || "";
-      scenarioScalingSubtitleEl.hidden = !activeShiftName;
+      const subtitle = getResultsSubtitle();
+      scenarioScalingSubtitleEl.textContent = subtitle;
+      scenarioScalingSubtitleEl.hidden = !subtitle;
     }
 
     const firstPredictionRun = loadedPredictionRuns[0] ?? {};
@@ -4048,6 +4214,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
         optimizationRun
       );
       loadedOptimizationRun = optimizationRun;
+      options.simulationName = resolveSimulationName(optimizationRun, options);
       const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
         ? optimizationRun.prediction_run_ids
         : [];

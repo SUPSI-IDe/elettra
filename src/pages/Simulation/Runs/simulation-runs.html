@@ -76,20 +76,47 @@
                 data-i18n-aria-label="simulation.select_all"
               />
             </th>
-            <th class="actions" scope="col" data-i18n="simulation.col_created">
-              Created
+            <th class="actions" scope="col" data-sort-key="created_at" aria-sort="descending">
+              <button type="button" class="sort-button" data-sort-key="created_at">
+                <span data-i18n="simulation.col_created">Created</span>
+                <span class="sort-arrow" aria-hidden="true">↓</span>
+              </button>
             </th>
-            <th class="day" scope="col" data-i18n="simulation.field_bus_model">
-              Bus model
+            <th class="day" scope="col" data-sort-key="bus_model" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="bus_model">
+                <span data-i18n="simulation.field_bus_model">Bus model</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
             </th>
-            <th class="name" scope="col" data-i18n="simulation.shift_col_name">
-              Shift name
+            <th class="name" scope="col" data-sort-key="shift" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="shift">
+                <span data-i18n="simulation.field_shifts">Shift</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
             </th>
-            <th class="type" scope="col" data-i18n="simulation.var_optimization_mode">
-              Optimization mode
+            <th class="objective" scope="col" data-sort-key="objective_value" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="objective_value">
+                <span data-i18n="simulation.opt_objective_value">Objective Value</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
             </th>
-            <th class="status" scope="col" data-i18n="simulation.col_status">
-              Status
+            <th class="main-parameters" scope="col" data-sort-key="main_parameters" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="main_parameters">
+                <span data-role="main-parameters-label" data-i18n="simulation.main_parameters">Main parameters</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
+            </th>
+            <th class="type" scope="col" data-sort-key="optimization_mode" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="optimization_mode">
+                <span data-i18n="simulation.var_optimization_mode">Optimization mode</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
+            </th>
+            <th class="status" scope="col" data-sort-key="status" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="status">
+                <span data-i18n="simulation.col_status">Status</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
             </th>
             <th class="results" scope="col" data-i18n="simulation.col_results">
               Results

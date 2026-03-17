@@ -325,7 +325,8 @@
   color: var(--text-main);
 }
 
-.shift-summary__bus {
+.shift-summary__bus,
+.shift-summary__distance {
   color: var(--text-secondary);
   font-size: 0.95rem;
 }
