@@ -2271,6 +2271,784 @@ const buildUnifiedPredictionRows = (rows) =>
       </tr>`)
     .join("");
 
+const PREDICTION_QUANTILE_KEYS = ["q05", "q50", "q95"];
+const PREDICTION_CONSUMPTION_COLORS = {
+  drivetrain: "#6fbeec",
+  auxiliary: "#f5a623",
+  total: "#00639a",
+};
+const PREDICTION_QUANTILE_SERIES_COLORS = {
+  q05: "#6fbeec",
+  q50: "#00639a",
+  q95: "#f5a623",
+};
+
+const predictionConsumptionLabel = (key) =>
+  ({
+    drivetrain:
+      t("simulation.predictions_consumption_drivetrain") || "Drivetrain",
+    auxiliary:
+      t("simulation.predictions_consumption_auxiliary") || "Auxiliary",
+    total: t("simulation.predictions_consumption_total") || "Total",
+  })[key] ?? key;
+
+const readPredictionQuantiles = (summary = {}, candidateKeys = []) => {
+  const sourceKey = candidateKeys.find((key) => {
+    const value = summary?.[key];
+    return value && typeof value === "object" && !Array.isArray(value);
+  });
+  const source = sourceKey ? summary[sourceKey] : {};
+
+  return Object.fromEntries(
+    PREDICTION_QUANTILE_KEYS.map((key) => [key, toFiniteNumber(source?.[key])])
+  );
+};
+
+const hasPredictionQuantiles = (quantiles = {}) =>
+  PREDICTION_QUANTILE_KEYS.some((key) => quantiles?.[key] != null);
+
+const subtractPredictionQuantiles = (total = {}, drivetrain = {}) =>
+  Object.fromEntries(
+    PREDICTION_QUANTILE_KEYS.map((key) => {
+      const totalValue = toFiniteNumber(total?.[key]);
+      const drivetrainValue = toFiniteNumber(drivetrain?.[key]);
+      return [
+        key,
+        totalValue != null && drivetrainValue != null
+          ? totalValue - drivetrainValue
+          : null,
+      ];
+    })
+  );
+
+const buildPredictionQuantileRows = (summary = {}, kind = "absolute") => {
+  const isPerKm = kind === "per_km";
+  const totalQuantiles = readPredictionQuantiles(
+    summary,
+    isPerKm
+      ? [
+          "consumption_per_km_kwh_quantiles",
+          "total_consumption_per_km_kwh_quantiles",
+          "total_per_km_kwh_quantiles",
+        ]
+      : ["quantiles", "total_quantiles", "consumption_quantiles"]
+  );
+  const drivetrainQuantiles = readPredictionQuantiles(
+    summary,
+    isPerKm ? ["drivetrain_per_km_kwh_quantiles"] : ["drivetrain_quantiles"]
+  );
+  const auxiliaryQuantilesDirect = readPredictionQuantiles(
+    summary,
+    isPerKm ? ["auxiliary_per_km_kwh_quantiles"] : ["auxiliary_quantiles"]
+  );
+  const auxiliaryQuantiles = hasPredictionQuantiles(auxiliaryQuantilesDirect)
+    ? auxiliaryQuantilesDirect
+    : subtractPredictionQuantiles(totalQuantiles, drivetrainQuantiles);
+
+  return [
+    {
+      key: "drivetrain",
+      label: predictionConsumptionLabel("drivetrain"),
+      mean: toFiniteNumber(
+        isPerKm ? summary?.drivetrain_per_km_kwh : summary?.total_drivetrain_kwh
+      ),
+      quantiles: drivetrainQuantiles,
+      derived: false,
+    },
+    {
+      key: "auxiliary",
+      label: predictionConsumptionLabel("auxiliary"),
+      mean: toFiniteNumber(
+        isPerKm ? summary?.auxiliary_per_km_kwh : summary?.total_auxiliary_kwh
+      ),
+      quantiles: auxiliaryQuantiles,
+      derived: !hasPredictionQuantiles(auxiliaryQuantilesDirect),
+    },
+    {
+      key: "total",
+      label: predictionConsumptionLabel("total"),
+      mean: toFiniteNumber(
+        isPerKm ? summary?.consumption_per_km_kwh : summary?.total_consumption_kwh
+      ),
+      quantiles: totalQuantiles,
+      derived: false,
+    },
+  ].filter((row) => row.mean != null || hasPredictionQuantiles(row.quantiles));
+};
+
+const buildPredictionScenarioTitle = (run = {}, index = 0) => {
+  const packs = toFiniteNumber(run?.contextual_parameters?.num_battery_packs);
+  if (packs != null) {
+    return translateOr(
+      "simulation.predictions_scenario_title",
+      `Scenario ${formatFixed(packs, 0)} packs`,
+      { packs: formatFixed(packs, 0) }
+    );
+  }
+
+  return translateOr(
+    "simulation.predictions_scenario_fallback",
+    `Scenario ${index + 1}`,
+    { index: String(index + 1) }
+  );
+};
+
+const renderPredictionsQuantileTable = (
+  title,
+  rows,
+  { decimals = 1, unit = "", chartRole = "" } = {}
+) => `
+  <section class="predictions-card-section">
+    <div class="predictions-card-section__header">
+      <h4>${textContent(title)}</h4>
+      <span class="predictions-card-section__unit">${textContent(unit)}</span>
+    </div>
+    <div
+      class="chart-container predictions-chart-container"
+      data-predictions-chart="${textContent(chartRole)}"
+    ></div>
+    <div
+      class="chart-legend predictions-chart-legend"
+      data-predictions-legend="${textContent(chartRole)}"
+    ></div>
+    <div class="predictions-table-wrap">
+      <table class="predictions-table">
+        <thead>
+          <tr>
+            <th>${textContent(
+              t("simulation.predictions_col_consumption") || "Consumption"
+            )}</th>
+            <th>${textContent(t("simulation.predictions_col_q05") || "Q05")}</th>
+            <th>${textContent(t("simulation.predictions_col_q50") || "Q50")}</th>
+            <th>${textContent(t("simulation.predictions_col_q95") || "Q95")}</th>
+            <th>${textContent(t("simulation.predictions_col_mean") || "Mean")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (row) => `
+                <tr>
+                  <th scope="row">${textContent(row.label)}</th>
+                  <td>${textContent(formatFixed(row.quantiles?.q05, decimals))}</td>
+                  <td>${textContent(formatFixed(row.quantiles?.q50, decimals))}</td>
+                  <td>${textContent(formatFixed(row.quantiles?.q95, decimals))}</td>
+                  <td>${textContent(formatFixed(row.mean, decimals))}</td>
+                </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  </section>`;
+
+const buildPredictionChartData = (rows = []) =>
+  PREDICTION_QUANTILE_KEYS.map((quantileKey) => ({
+    quantileKey,
+    quantileLabel: quantileKey.toUpperCase(),
+    ...Object.fromEntries(
+      rows.map((row) => [row.key, toFiniteNumber(row?.quantiles?.[quantileKey])])
+    ),
+  })).filter((item) =>
+    rows.some((row) => item?.[row.key] != null)
+  );
+
+const renderPredictionsChartLegend = (el, rows = []) => {
+  if (!el) return;
+  el.innerHTML = rows
+    .map(
+      (row) => `
+        <div class="chart-legend-item">
+          <span class="chart-legend-swatch" style="background:${PREDICTION_CONSUMPTION_COLORS[row.key] ?? "#00639a"}"></span>
+          ${textContent(row.label)}
+        </div>`
+    )
+    .join("");
+};
+
+const buildPredictionOverviewData = (
+  runs = [],
+  { kind = "absolute" } = {}
+) =>
+  runs
+    .map((run, index) => {
+      const summary = run?.summary ?? {};
+      const packs = toFiniteNumber(run?.contextual_parameters?.num_battery_packs);
+      const totalQuantiles = readPredictionQuantiles(
+        summary,
+        kind === "per_km"
+          ? [
+              "consumption_per_km_kwh_quantiles",
+              "total_consumption_per_km_kwh_quantiles",
+              "total_per_km_kwh_quantiles",
+            ]
+          : ["quantiles", "total_quantiles", "consumption_quantiles"]
+      );
+
+      return {
+        scenarioLabel:
+          packs != null ? formatFixed(packs, 0) : String(index + 1),
+        scenarioTitle: buildPredictionScenarioTitle(run, index),
+        q05: toFiniteNumber(totalQuantiles?.q05),
+        q50: toFiniteNumber(totalQuantiles?.q50),
+        q95: toFiniteNumber(totalQuantiles?.q95),
+      };
+    })
+    .filter((item) => item.q05 != null || item.q50 != null || item.q95 != null);
+
+const renderPredictionOverviewLegend = (el) => {
+  if (!el) return;
+  el.innerHTML = PREDICTION_QUANTILE_KEYS.map(
+    (key) => `
+      <div class="chart-legend-item">
+        <span class="chart-legend-swatch" style="background:${PREDICTION_QUANTILE_SERIES_COLORS[key]}"></span>
+        ${textContent(key.toUpperCase())}
+      </div>`
+  ).join("");
+};
+
+const renderPredictionOverviewChart = (
+  el,
+  data = [],
+  {
+    unit = "kWh",
+    ariaLabel = "Total consumption quantiles across simulations",
+    yAxisLabel = "Total consumption",
+    decimals = 1,
+  } = {}
+) => {
+  if (!el) return;
+  el.innerHTML = "";
+
+  if (!Array.isArray(data) || !data.length) {
+    el.innerHTML = chartEmptyStateHtml();
+    return;
+  }
+
+  const values = data.flatMap((row) =>
+    PREDICTION_QUANTILE_KEYS.map((key) => toFiniteNumber(row?.[key])).filter(
+      (value) => value != null
+    )
+  );
+  if (!values.length) {
+    el.innerHTML = chartEmptyStateHtml();
+    return;
+  }
+
+  const margin = { top: 16, right: 20, bottom: 48, left: 68 };
+  const W = 620;
+  const H = 280;
+  const iW = W - margin.left - margin.right;
+  const iH = H - margin.top - margin.bottom;
+
+  const svg = svgBase(
+    W,
+    H,
+    ariaLabel
+  );
+  const g = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3
+    .scalePoint()
+    .domain(data.map((row) => row.scenarioLabel))
+    .range([0, iW])
+    .padding(0.5);
+  const y = d3
+    .scaleLinear()
+    .domain([d3.min(values) * 0.95, d3.max(values) * 1.05])
+    .nice()
+    .range([iH, 0]);
+
+  gridLines(g, y, iW);
+
+  g.append("g")
+    .attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  g.append("g")
+    .call(
+      d3.axisLeft(y).ticks(6).tickFormat((value) =>
+        unit === "kWh/km" ? d3.format(".3~f")(value) : d3.format(".3~s")(value)
+      )
+    )
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  g.append("text")
+    .attr("x", iW / 2)
+    .attr("y", iH + 38)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("fill", "#666")
+    .text(t("simulation.axis_packs") || "# Packs");
+
+  g.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -iH / 2)
+    .attr("y", -48)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("fill", "#666")
+    .text(yAxisLabel);
+
+  PREDICTION_QUANTILE_KEYS.forEach((key) => {
+    const seriesData = data.filter((row) => toFiniteNumber(row?.[key]) != null);
+    if (!seriesData.length) return;
+
+    const line = d3
+      .line()
+      .x((row) => x(row.scenarioLabel))
+      .y((row) => y(row[key]))
+      .curve(d3.curveMonotoneX);
+
+    g.append("path")
+      .datum(seriesData)
+      .attr("d", line)
+      .attr("fill", "none")
+      .attr("stroke", PREDICTION_QUANTILE_SERIES_COLORS[key])
+      .attr("stroke-width", 2.5);
+
+    g.selectAll(`.predictions-overview-dot-${key}`)
+      .data(seriesData)
+      .join("circle")
+      .attr("cx", (row) => x(row.scenarioLabel))
+      .attr("cy", (row) => y(row[key]))
+      .attr("r", 4)
+      .attr("fill", PREDICTION_QUANTILE_SERIES_COLORS[key])
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 1.5)
+      .each(function addTooltip(row) {
+        d3.select(this)
+          .append("title")
+          .text(
+            [
+              row.scenarioTitle,
+              `${key.toUpperCase()}: ${formatFixed(row[key], decimals)} ${unit}`,
+            ].join("\n")
+          );
+      });
+  });
+
+  el.appendChild(svg.node());
+};
+
+const renderPredictionsQuantileChart = (
+  el,
+  rows,
+  { decimals = 1, unit = "" } = {}
+) => {
+  if (!el) return;
+  el.innerHTML = "";
+
+  const chartRows = Array.isArray(rows) ? rows : [];
+  const data = buildPredictionChartData(chartRows);
+  if (!data.length) {
+    el.innerHTML = chartEmptyStateHtml();
+    return;
+  }
+
+  const keys = chartRows.map((row) => row.key);
+  const values = data.flatMap((item) =>
+    keys.map((key) => toFiniteNumber(item?.[key])).filter((value) => value != null)
+  );
+  if (!values.length) {
+    el.innerHTML = chartEmptyStateHtml();
+    return;
+  }
+
+  const margin = { top: 20, right: 16, bottom: 40, left: 64 };
+  const W = 620;
+  const H = 240;
+  const iW = W - margin.left - margin.right;
+  const iH = H - margin.top - margin.bottom;
+
+  const svg = svgBase(
+    W,
+    H,
+    `${textContent(
+      translateOr(
+        "simulation.predictions_chart_aria",
+        "Prediction quantiles chart"
+      )
+    )} (${textContent(unit)})`
+  );
+  const g = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x0 = d3
+    .scaleBand()
+    .domain(data.map((item) => item.quantileLabel))
+    .range([0, iW])
+    .padding(0.24);
+  const x1 = d3
+    .scaleBand()
+    .domain(keys)
+    .range([0, x0.bandwidth()])
+    .padding(0.14);
+  const y = d3
+    .scaleLinear()
+    .domain([0, d3.max(values) * 1.15])
+    .nice()
+    .range([iH, 0]);
+
+  gridLines(g, y, iW);
+
+  g.append("g")
+    .attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(x0))
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  g.append("g")
+    .call(
+      d3.axisLeft(y).ticks(5).tickFormat((value) =>
+        unit === "kWh/km" ? d3.format(".3~f")(value) : d3.format(".3~s")(value)
+      )
+    )
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  g.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -iH / 2)
+    .attr("y", -46)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("fill", "#666")
+    .text(unit);
+
+  keys.forEach((key) => {
+    g.selectAll(`.predictions-bar-${key}`)
+      .data(data)
+      .join("rect")
+      .attr("x", (item) => x0(item.quantileLabel) + x1(key))
+      .attr("y", (item) => y(item?.[key] ?? 0))
+      .attr("width", x1.bandwidth())
+      .attr("height", (item) => iH - y(item?.[key] ?? 0))
+      .attr("rx", 4)
+      .attr("fill", PREDICTION_CONSUMPTION_COLORS[key] ?? "#00639a")
+      .each(function addTooltip(item) {
+        const value = toFiniteNumber(item?.[key]);
+        d3.select(this)
+          .append("title")
+          .text(
+            [
+              item.quantileLabel,
+              `${predictionConsumptionLabel(key)}: ${
+                value == null ? "—" : formatFixed(value, decimals)
+              } ${unit}`,
+            ].join("\n")
+          );
+      });
+  });
+
+  el.appendChild(svg.node());
+};
+
+const renderPredictionsPanel = (el, state, viewOptions = {}) => {
+  if (!el) return;
+
+  if (state.status === "idle" || state.status === "loading") {
+    el.innerHTML = `<p class="efficiency-state-msg">${textContent(
+      t("simulation.predictions_loading") ||
+        "Loading prediction summaries…"
+    )}</p>`;
+    return;
+  }
+
+  if (state.status === "error") {
+    el.innerHTML = `<p class="efficiency-state-msg efficiency-state-error">${textContent(
+      state.error ??
+        t("simulation.predictions_error") ??
+        "Failed to load prediction summaries."
+    )}</p>`;
+    return;
+  }
+
+  const predictionRuns = Array.isArray(state.predictionRuns) ? state.predictionRuns : [];
+  const shiftMatchedRuns = predictionRuns.filter((run) =>
+    matchesPredictionRunShift(run, viewOptions)
+  );
+  const scopedRuns = shiftMatchedRuns.length ? shiftMatchedRuns : predictionRuns;
+  const sortedRuns = [...scopedRuns].sort(
+    (a, b) =>
+      (toFiniteNumber(a?.contextual_parameters?.num_battery_packs) ??
+        Number.MAX_SAFE_INTEGER) -
+      (toFiniteNumber(b?.contextual_parameters?.num_battery_packs) ??
+        Number.MAX_SAFE_INTEGER)
+  );
+
+  if (!sortedRuns.length) {
+    el.innerHTML = `<div class="efficiency-section"><p class="efficiency-state-msg">${textContent(
+      t("simulation.predictions_no_data") ||
+        "No prediction summaries available."
+    )}</p></div>`;
+    return;
+  }
+
+  let hasDerivedAuxiliaryQuantiles = false;
+  const chartPlans = [];
+  const overviewData = buildPredictionOverviewData(sortedRuns, {
+    kind: "absolute",
+  });
+  const overviewPerKmData = buildPredictionOverviewData(sortedRuns, {
+    kind: "per_km",
+  });
+
+  const cardsHtml = sortedRuns
+    .map((run, index) => {
+      const summary = run?.summary ?? {};
+      const contextualParameters = run?.contextual_parameters ?? {};
+      const absoluteRows = buildPredictionQuantileRows(summary, "absolute");
+      const perKmRows = buildPredictionQuantileRows(summary, "per_km");
+      const usesDerivedAuxiliary = [...absoluteRows, ...perKmRows].some(
+        (row) => row.key === "auxiliary" && row.derived
+      );
+
+      if (usesDerivedAuxiliary) {
+        hasDerivedAuxiliaryQuantiles = true;
+      }
+
+      const metricItems = [
+        {
+          label: t("simulation.predictions_metric_packs") || "Battery packs",
+          value:
+            toFiniteNumber(contextualParameters?.num_battery_packs) == null
+              ? "—"
+              : formatFixed(contextualParameters.num_battery_packs, 0),
+        },
+        {
+          label: t("simulation.predictions_metric_capacity") || "Battery capacity",
+          value:
+            toFiniteNumber(contextualParameters?.battery_capacity_kwh) == null
+              ? "—"
+              : `${formatFixed(contextualParameters.battery_capacity_kwh, 0)} kWh`,
+        },
+        {
+          label: t("simulation.predictions_metric_weight") || "Total weight",
+          value:
+            toFiniteNumber(contextualParameters?.total_weight_kg) == null
+              ? "—"
+              : `${formatFixed(contextualParameters.total_weight_kg, 0)} kg`,
+        },
+        {
+          label: t("simulation.predictions_metric_distance") || "Distance",
+          value:
+            toFiniteNumber(summary?.total_distance_km) == null
+              ? "—"
+              : `${formatFixed(summary.total_distance_km, 1)} km`,
+        },
+        {
+          label:
+            t("simulation.predictions_metric_total_consumption") ||
+            "Total consumption",
+          value:
+            toFiniteNumber(summary?.total_consumption_kwh) == null
+              ? "—"
+              : `${formatFixed(summary.total_consumption_kwh, 1)} kWh`,
+        },
+        {
+          label:
+            t("simulation.predictions_metric_specific_consumption") ||
+            "Specific consumption",
+          value:
+            toFiniteNumber(summary?.consumption_per_km_kwh) == null
+              ? "—"
+              : `${formatFixed(summary.consumption_per_km_kwh, 3)} kWh/km`,
+        },
+      ];
+
+      const metricHtml = metricItems
+        .map(
+          (item) => `
+            <div class="predictions-metric">
+              <span class="predictions-metric__label">${textContent(item.label)}</span>
+              <span class="predictions-metric__value">${textContent(item.value)}</span>
+            </div>`
+        )
+        .join("");
+
+      const sections = [];
+      if (absoluteRows.length) {
+        const chartRole = `predictions-chart-${index}-absolute`;
+        chartPlans.push({
+          chartRole,
+          rows: absoluteRows,
+          options: { decimals: 1, unit: "kWh" },
+        });
+        sections.push(
+          renderPredictionsQuantileTable(
+            t("simulation.predictions_absolute_title") ||
+              "Quantiles by consumption type",
+            absoluteRows,
+            { decimals: 1, unit: "kWh", chartRole }
+          )
+        );
+      }
+      if (perKmRows.length) {
+        const chartRole = `predictions-chart-${index}-per-km`;
+        chartPlans.push({
+          chartRole,
+          rows: perKmRows,
+          options: { decimals: 3, unit: "kWh/km" },
+        });
+        sections.push(
+          renderPredictionsQuantileTable(
+            t("simulation.predictions_per_km_title") ||
+              "Specific consumption quantiles",
+            perKmRows,
+            { decimals: 3, unit: "kWh/km", chartRole }
+          )
+        );
+      }
+
+      if (!sections.length) {
+        sections.push(
+          `<p class="efficiency-state-msg">${textContent(
+            t("simulation.predictions_no_data") ||
+              "No prediction summaries available."
+          )}</p>`
+        );
+      }
+
+      return `
+        <article class="efficiency-section predictions-card">
+          <header class="predictions-card__header">
+            <h3 class="efficiency-section-title predictions-card__title">${textContent(
+              buildPredictionScenarioTitle(run, index)
+            )}</h3>
+          </header>
+          <div class="predictions-metrics-grid">${metricHtml}</div>
+          <div class="predictions-card-grid">
+            ${sections.join("")}
+          </div>
+        </article>`;
+    })
+    .join("");
+
+  const derivedAuxiliaryNote = hasDerivedAuxiliaryQuantiles
+    ? `<p class="predictions-note">${textContent(
+        t("simulation.predictions_auxiliary_note") ||
+          "Auxiliary quantiles are derived from total minus drivetrain when the API summary does not provide them directly."
+      )}</p>`
+    : "";
+
+  const overviewHtml = overviewData.length
+    ? `
+      <section class="efficiency-section predictions-overview">
+        <h3 class="efficiency-section-title">${textContent(
+          translateOr(
+            "simulation.predictions_overview_title",
+            "Total consumption quantiles across simulations"
+          )
+        )}</h3>
+        <p class="predictions-overview__copy">${textContent(
+          translateOr(
+            "simulation.predictions_overview_subtitle",
+            "This view keeps only total consumption and shows how Q05, Q50, and Q95 move across the prediction scenarios."
+          )
+        )}</p>
+        <div
+          class="chart-container predictions-overview__chart"
+          data-predictions-overview-chart
+        ></div>
+        <div
+          class="chart-legend predictions-chart-legend"
+          data-predictions-overview-legend
+        ></div>
+      </section>`
+    : "";
+
+  const overviewPerKmHtml = overviewPerKmData.length
+    ? `
+      <section class="efficiency-section predictions-overview">
+        <h3 class="efficiency-section-title">${textContent(
+          translateOr(
+            "simulation.predictions_overview_per_km_title",
+            "Total specific-consumption quantiles across simulations"
+          )
+        )}</h3>
+        <p class="predictions-overview__copy">${textContent(
+          translateOr(
+            "simulation.predictions_overview_per_km_subtitle",
+            "This view keeps only total consumption normalized by distance and shows how Q05, Q50, and Q95 move across the prediction scenarios."
+          )
+        )}</p>
+        <div
+          class="chart-container predictions-overview__chart"
+          data-predictions-overview-per-km-chart
+        ></div>
+        <div
+          class="chart-legend predictions-chart-legend"
+          data-predictions-overview-per-km-legend
+        ></div>
+      </section>`
+    : "";
+
+  const overviewGridHtml =
+    overviewHtml || overviewPerKmHtml
+      ? `<div class="predictions-overview-grid">${overviewHtml}${overviewPerKmHtml}</div>`
+      : "";
+
+  el.innerHTML = `${derivedAuxiliaryNote}${overviewGridHtml}${cardsHtml}`;
+
+  renderPredictionOverviewChart(
+    el.querySelector("[data-predictions-overview-chart]"),
+    overviewData,
+    {
+      unit: "kWh",
+      ariaLabel: translateOr(
+        "simulation.predictions_overview_aria",
+        "Total consumption quantiles across simulations"
+      ),
+      yAxisLabel: `${
+        t("simulation.predictions_metric_total_consumption") ||
+        "Total consumption"
+      } (kWh)`,
+      decimals: 1,
+    }
+  );
+  renderPredictionOverviewLegend(
+    el.querySelector("[data-predictions-overview-legend]")
+  );
+  renderPredictionOverviewChart(
+    el.querySelector("[data-predictions-overview-per-km-chart]"),
+    overviewPerKmData,
+    {
+      unit: "kWh/km",
+      ariaLabel: translateOr(
+        "simulation.predictions_overview_per_km_aria",
+        "Total specific-consumption quantiles across simulations"
+      ),
+      yAxisLabel: `${
+        t("simulation.predictions_metric_specific_consumption") ||
+        "Specific consumption"
+      } (kWh/km)`,
+      decimals: 3,
+    }
+  );
+  renderPredictionOverviewLegend(
+    el.querySelector("[data-predictions-overview-per-km-legend]")
+  );
+
+  chartPlans.forEach((plan) => {
+    renderPredictionsQuantileChart(
+      el.querySelector(`[data-predictions-chart="${plan.chartRole}"]`),
+      plan.rows,
+      plan.options
+    );
+    renderPredictionsChartLegend(
+      el.querySelector(`[data-predictions-legend="${plan.chartRole}"]`),
+      plan.rows
+    );
+  });
+};
+
 const renderEfficiencyCurveChart = (el, rows) => {
   if (!el) return;
   el.innerHTML = "";
@@ -3698,6 +4476,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const refreshCostsTab = () => {
     renderOpexInputsTable(scenarioScalingContentEl, costState);
     refreshEfficiencyTab();
+    refreshPredictionsTab();
     if (!renderedTabs.has("costs")) return;
     renderCostsSection(
       section.querySelector('[data-panel="costs"]'),
@@ -3728,6 +4507,18 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     );
   };
 
+  const refreshPredictionsTab = () => {
+    if (!renderedTabs.has("predictions")) return;
+    renderPredictionsPanel(
+      section.querySelector('[data-role="predictions-panel"]'),
+      efficiencyState,
+      {
+        selectedShiftId: activeShiftId,
+        selectedShiftName: activeShiftName,
+      }
+    );
+  };
+
   const TAB_RENDERERS = {
     costs: (sec) => {
       renderCostsSection(sec.querySelector('[data-panel="costs"]') ?? sec, costState, options);
@@ -3740,6 +4531,16 @@ export const initializeSimulationResults = (root = document, options = {}) => {
           selectedShiftId: activeShiftId,
           selectedShiftName: activeShiftName,
           costInputs: costState.costInputs,
+        }
+      );
+    },
+    predictions: (sec) => {
+      renderPredictionsPanel(
+        sec.querySelector('[data-role="predictions-panel"]'),
+        efficiencyState,
+        {
+          selectedShiftId: activeShiftId,
+          selectedShiftName: activeShiftName,
         }
       );
     },
@@ -3895,6 +4696,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     });
 
     refreshEfficiencyTab();
+    refreshPredictionsTab();
 
     if (!loadedOptimizationRun) return;
 
@@ -4180,6 +4982,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     efficiencyState.status = "loading";
     efficiencyState.error = null;
     refreshEfficiencyTab();
+    refreshPredictionsTab();
     refreshCostsTab();
 
     try {
@@ -4263,6 +5066,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
     refreshCostsTab();
     refreshEfficiencyTab();
+    refreshPredictionsTab();
   };
 
   loadResultData();
