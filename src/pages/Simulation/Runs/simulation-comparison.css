@@ -149,6 +149,19 @@
   border-radius: 2px;
 }
 
+/* State messages (loading / error) */
+
+.simulation-comparison-page .costs-state-msg {
+  margin: 0;
+  padding: var(--spacing-lg);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.simulation-comparison-page .costs-state-msg--error {
+  color: var(--danger, #c0392b);
+}
+
 /* Close button */
 
 .simulation-comparison-page .results-actions {

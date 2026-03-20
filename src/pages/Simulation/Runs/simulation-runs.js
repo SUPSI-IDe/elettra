@@ -1031,6 +1031,7 @@ export const initializeSimulationRuns = async (
         runId: text(run?.id),
         simulationName: resolveRunName(run),
         shiftName: resolveShiftName(run),
+        shiftId: resolveShiftId(run),
         busModelName: resolveBusModelName(run),
         busModelId: modelId,
         status: text(run?.status ?? ""),
@@ -1048,6 +1049,7 @@ export const initializeSimulationRuns = async (
           battery_pack_size_kwh: specs?.battery_pack_size_kwh ?? "",
           battery_pack_cost: specs?.battery_pack_cost_chf ?? "",
           battery_pack_lifetime: specs?.battery_pack_lifetime ?? "",
+          max_charging_power_kw: specs?.max_charging_power_kw ?? "",
         },
       };
     };
