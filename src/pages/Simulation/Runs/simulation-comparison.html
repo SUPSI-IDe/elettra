@@ -27,11 +27,14 @@
 
     <!-- Tabs -->
     <div class="results-tabs" role="tablist">
-      <button class="results-tab active" role="tab" aria-selected="true" data-tab="costs" data-i18n="simulation.tab_costs">
-        Costs
-      </button>
-      <button class="results-tab" role="tab" aria-selected="false" data-tab="efficiency" data-i18n="simulation.tab_efficiency">
+      <button class="results-tab active" role="tab" aria-selected="true" data-tab="efficiency" data-i18n="simulation.tab_efficiency">
         Efficiency
+      </button>
+      <button class="results-tab" role="tab" aria-selected="false" data-tab="predictions" data-i18n="simulation.tab_predictions">
+        Predictions
+      </button>
+      <button class="results-tab" role="tab" aria-selected="false" data-tab="costs" data-i18n="simulation.tab_costs">
+        Costs
       </button>
       <button class="results-tab" role="tab" aria-selected="false" data-tab="emissions" data-i18n="simulation.tab_emissions">
         Emissions
@@ -41,7 +44,7 @@
     <!-- Tab panels -->
     <div class="results-tab-panels">
       <!-- Costs -->
-      <div class="tab-panel active" data-panel="costs" role="tabpanel">
+      <div class="tab-panel" data-panel="costs" role="tabpanel" hidden>
         <div class="comparison-row">
           <div class="chart-section">
             <h3 data-role="costs-bar-title-a"></h3>
@@ -67,7 +70,7 @@
       </div>
 
       <!-- Efficiency -->
-      <div class="tab-panel" data-panel="efficiency" role="tabpanel" hidden>
+      <div class="tab-panel active" data-panel="efficiency" role="tabpanel">
         <div class="comparison-row">
           <div class="chart-section">
             <h3 data-role="soc-title-a"></h3>
@@ -86,6 +89,20 @@
           <div class="chart-section">
             <h3 data-role="energy-title-b"></h3>
             <div class="chart-container" data-role="efficiency-energy-chart-b"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Predictions -->
+      <div class="tab-panel" data-panel="predictions" role="tabpanel" hidden>
+        <div class="comparison-row">
+          <div class="chart-section">
+            <h3 data-role="predictions-title-a"></h3>
+            <div class="predictions-panel" data-role="predictions-panel-a"></div>
+          </div>
+          <div class="chart-section">
+            <h3 data-role="predictions-title-b"></h3>
+            <div class="predictions-panel" data-role="predictions-panel-b"></div>
           </div>
         </div>
       </div>

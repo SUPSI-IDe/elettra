@@ -737,7 +737,7 @@ const loadSimulationCosts = async (simOptions, economicDefaults = {}) => {
   if (comparison) {
     const chartData = buildCostsChartData(comparison, opts);
     if (chartData?.tco?.length) {
-      return { tco: chartData.tco, yearly: chartData.yearly ?? [] };
+      return { tco: chartData.tco, yearly: chartData.yearly ?? [], optimizationRun, predictionRuns };
     }
   }
 
@@ -768,7 +768,7 @@ const loadSimulationCosts = async (simOptions, economicDefaults = {}) => {
     })),
   ];
 
-  return { tco, yearly };
+  return { tco, yearly, optimizationRun, predictionRuns };
 };
 
 /* ── SVG helpers ──────────────────────────────────────────────── */
@@ -1178,6 +1178,10 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
     a: { status: hasRunIds ? "loading" : "idle", tco: [], yearly: [], error: null },
     b: { status: hasRunIds ? "loading" : "idle", tco: [], yearly: [], error: null },
   };
+  const runDataState = {
+    a: { optimizationRun: null, predictionRuns: [] },
+    b: { optimizationRun: null, predictionRuns: [] },
+  };
 
   const setTitle = (role, text) => {
     const el = section.querySelector(`[data-role="${role}"]`);
@@ -1207,6 +1211,8 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
   setTitle("energy-title-a", `${labelA}`);
   setTitle("energy-title-b", `${labelB}`);
 
+  setTitle("predictions-title-a", `${t("simulation.tab_predictions") || "Predictions"} — ${fullLabelA}`);
+  setTitle("predictions-title-b", `${t("simulation.tab_predictions") || "Predictions"} — ${fullLabelB}`);
   setTitle("co2-bar-title-a", `${co2Title} — ${fullLabelA}`);
   setTitle("co2-bar-title-b", `${co2Title} — ${fullLabelB}`);
   setTitle("co2-cum-title-a", `${co2CumTitle} — ${fullLabelA}`);
@@ -1264,24 +1270,233 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
     });
   };
 
+  const isSimFeasible = (side) => {
+    const run = runDataState[side]?.optimizationRun;
+    return run?.results?.electrification_feasible !== false;
+  };
+
+  const renderInfeasibleNotice = (el, run) => {
+    if (!el) return;
+    const summary = run?.results?.electrification_summary;
+    const msg = summary?.message ||
+      (t("simulation.infeasible_notice") || "The optimization determined that electrification is not feasible for this configuration.");
+    el.innerHTML = `
+      <div class="infeasibility-tab-notice">
+        <div class="infeasibility-tab-notice__icon">⚠</div>
+        <h3>${textContent(t("simulation.infeasible_tab_title") || "Electrification not feasible")}</h3>
+        <p>${textContent(msg)}</p>
+      </div>`;
+  };
+
   const renderEfficiencySide = (suffix) => {
+    const side = suffix === "a" ? "a" : "b";
+    const run = runDataState[side]?.optimizationRun;
     const socEl = section.querySelector(
       `[data-role="efficiency-soc-chart-${suffix}"]`
     );
     const energyEl = section.querySelector(
       `[data-role="efficiency-energy-chart-${suffix}"]`
     );
-    renderStateMessage(socEl, efficiencyNotAvailableMsg);
-    renderStateMessage(energyEl, efficiencyNotAvailableMsg);
+
+    if (!run) {
+      const loadingMsg = costDataState[side].status === "loading"
+        ? (t("simulation.efficiency_loading") || "Loading efficiency data…")
+        : efficiencyNotAvailableMsg;
+      renderStateMessage(socEl, loadingMsg);
+      renderStateMessage(energyEl, loadingMsg);
+      return;
+    }
+
+    const results = run.results ?? {};
+    const feasible = results.electrification_feasible;
+    const summary = results.electrification_summary ?? {};
+    const batteryResults = results.battery_results ?? {};
+    const batteryEntries = Object.entries(batteryResults);
+
+    let socHtml = "";
+
+    const feasLabel = feasible === true
+      ? (t("simulation.feasibility_feasible") || "Feasible")
+      : feasible === false
+        ? (t("simulation.feasibility_infeasible") || "Infeasible")
+        : "—";
+    const feasCls = feasible === true ? "efficiency-badge--ok" : feasible === false ? "efficiency-badge--err" : "efficiency-badge--neutral";
+
+    socHtml += `<div class="efficiency-params-grid">
+      <div class="efficiency-param">
+        <span class="efficiency-param-label">${textContent(t("simulation.opt_solver_status") || "Solver Status")}</span>
+        <span class="efficiency-param-value">${textContent(results.solver_status ?? "—")}</span>
+      </div>
+      <div class="efficiency-param">
+        <span class="efficiency-param-label">${textContent(t("simulation.opt_feasibility") || "Electrification Feasibility")}</span>
+        <span class="efficiency-param-value"><span class="efficiency-badge ${feasCls}">${textContent(feasLabel)}</span></span>
+      </div>
+      <div class="efficiency-param">
+        <span class="efficiency-param-label">${textContent(t("simulation.opt_solve_time") || "Solve Time (s)")}</span>
+        <span class="efficiency-param-value">${textContent(formatFixed(results.solve_time_seconds, 2))}</span>
+      </div>
+    </div>`;
+
+    if (summary.status === "infeasible" && summary.message) {
+      socHtml += `<div class="efficiency-infeasibility-notice">
+        <p class="efficiency-infeasibility-msg"><strong>${textContent(
+          t("simulation.electrification_infeasible_title") || "Electrification not feasible"
+        )}:</strong> ${textContent(summary.message)}</p>
+      </div>`;
+    }
+
+    if (batteryEntries.length) {
+      const uniqueByShift = [];
+      const seenShifts = new Set();
+      for (const [key, b] of batteryEntries) {
+        const shiftKey = b.shift_name ?? key;
+        if (seenShifts.has(shiftKey)) continue;
+        seenShifts.add(shiftKey);
+        uniqueByShift.push(b);
+      }
+      const rows = uniqueByShift.map((b) => {
+        const pf = b.physical_feasible;
+        const badge = pf === true ? "efficiency-badge--ok" : pf === false ? "efficiency-badge--err" : "efficiency-badge--neutral";
+        return `<tr>
+          <td>${textContent(b.shift_name ?? "—")}</td>
+          <td class="efficiency-td-num">${textContent(String(b.optimized_packs ?? "—"))}</td>
+          <td class="efficiency-td-num">${formatFixed(b.optimized_kwh, 0)}</td>
+          <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
+          <td class="efficiency-td-num">${formatFixed(b.max_physical_kwh, 0)}</td>
+          <td><span class="efficiency-badge ${badge}">${textContent(
+            pf === true ? (t("simulation.feasibility_feasible") || "Feasible") :
+            pf === false ? (t("simulation.feasibility_infeasible") || "Infeasible") : "—"
+          )}</span></td>
+        </tr>`;
+      }).join("");
+
+      socHtml += `
+        <div class="efficiency-table-wrap" style="margin-top:0.8rem;">
+          <table class="efficiency-table">
+            <thead><tr>
+              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_shift") || "Shift")}</th>
+              <th>${textContent(t("simulation.opt_col_opt_packs") || "Opt. Packs")}</th>
+              <th>${textContent(t("simulation.opt_col_opt_kwh") || "Opt. (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical")}</th>
+              <th>${textContent(t("simulation.opt_col_max_kwh") || "Max (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_feasibility") || "Feasibility")}</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    if (socEl) socEl.innerHTML = socHtml;
+    if (energyEl) energyEl.innerHTML = "";
+  };
+
+  const renderPredictionsSide = (suffix) => {
+    const side = suffix === "a" ? "a" : "b";
+    const el = section.querySelector(`[data-role="predictions-panel-${suffix}"]`);
+    if (!el) return;
+
+    const run = runDataState[side]?.optimizationRun;
+    const predRuns = runDataState[side]?.predictionRuns ?? [];
+
+    if (!run || !predRuns.length) {
+      const msg = costDataState[side].status === "loading"
+        ? (t("simulation.predictions_loading") || "Loading predictions…")
+        : (t("simulation.predictions_not_available") || "Prediction data is available in the individual simulation results.");
+      el.innerHTML = `<p class="costs-state-msg">${textContent(msg)}</p>`;
+      return;
+    }
+
+    const summaries = predRuns.map((pred) => {
+      const summary = pred?.summary ?? {};
+      const ctx = pred?.contextual_parameters ?? {};
+      return {
+        packs: ctx.num_battery_packs ?? "—",
+        totalKwh: formatFixed(summary.total_consumption_kwh, 1),
+        distanceKm: formatFixed(summary.total_distance_km, 1),
+        perKm: formatFixed(summary.consumption_per_km_kwh, 3),
+      };
+    });
+
+    const rows = summaries.map((s) => `
+      <tr>
+        <td class="efficiency-td-num">${textContent(String(s.packs))}</td>
+        <td class="efficiency-td-num">${textContent(s.totalKwh)}</td>
+        <td class="efficiency-td-num">${textContent(s.distanceKm)}</td>
+        <td class="efficiency-td-num">${textContent(s.perKm)}</td>
+      </tr>`).join("");
+
+    el.innerHTML = `
+      <div class="efficiency-table-wrap">
+        <table class="efficiency-table">
+          <thead><tr>
+            <th>${textContent(t("simulation.efficiency_col_packs") || "# Packs")}</th>
+            <th>${textContent(t("simulation.efficiency_col_total_energy") || "Total Energy (kWh)")}</th>
+            <th>${textContent(t("simulation.efficiency_col_distance") || "Distance (km)")}</th>
+            <th>${textContent(t("simulation.efficiency_col_per_km") || "kWh / km")}</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
   };
 
   const TAB_RENDERERS = {
-    costs: () => renderCosts(),
+    costs: () => {
+      if (!isSimFeasible("a") || !isSimFeasible("b")) {
+        const costsPanel = section.querySelector('[data-panel="costs"]');
+        if (costsPanel) {
+          let html = "";
+          if (!isSimFeasible("a")) {
+            html += `<div style="margin-bottom:1rem;"><strong>${textContent(fullLabelA)}:</strong></div>`;
+            renderInfeasibleNotice(document.createElement("div"), runDataState.a.optimizationRun);
+            const tmp = document.createElement("div");
+            renderInfeasibleNotice(tmp, runDataState.a.optimizationRun);
+            html += tmp.innerHTML;
+          }
+          if (!isSimFeasible("b")) {
+            html += `<div style="margin:1rem 0;"><strong>${textContent(fullLabelB)}:</strong></div>`;
+            const tmp = document.createElement("div");
+            renderInfeasibleNotice(tmp, runDataState.b.optimizationRun);
+            html += tmp.innerHTML;
+          }
+          if (isSimFeasible("a") && isSimFeasible("b")) {
+            renderCosts();
+          } else {
+            costsPanel.innerHTML = html;
+          }
+        }
+        return;
+      }
+      renderCosts();
+    },
     efficiency: () => {
       renderEfficiencySide("a");
       renderEfficiencySide("b");
     },
+    predictions: () => {
+      renderPredictionsSide("a");
+      renderPredictionsSide("b");
+    },
     emissions: () => {
+      if (!isSimFeasible("a") || !isSimFeasible("b")) {
+        const emissionsPanel = section.querySelector('[data-panel="emissions"]');
+        if (emissionsPanel) {
+          let html = "";
+          if (!isSimFeasible("a")) {
+            html += `<div style="margin-bottom:1rem;"><strong>${textContent(fullLabelA)}:</strong></div>`;
+            const tmp = document.createElement("div");
+            renderInfeasibleNotice(tmp, runDataState.a.optimizationRun);
+            html += tmp.innerHTML;
+          }
+          if (!isSimFeasible("b")) {
+            html += `<div style="margin:1rem 0;"><strong>${textContent(fullLabelB)}:</strong></div>`;
+            const tmp = document.createElement("div");
+            renderInfeasibleNotice(tmp, runDataState.b.optimizationRun);
+            html += tmp.innerHTML;
+          }
+          emissionsPanel.innerHTML = html;
+        }
+        return;
+      }
       renderCO2Bar(
         section.querySelector('[data-role="emissions-bar-chart-a"]'),
         CO2_ANNUAL
@@ -1326,7 +1541,7 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
     }
   };
 
-  activateTab("costs");
+  activateTab("efficiency");
 
   const handleTabClick = (e) => {
     const btn = e.target.closest(".results-tab");
@@ -1361,6 +1576,12 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
         costDataState[side].tco = result.tco;
         costDataState[side].yearly = result.yearly;
         costDataState[side].status = "done";
+        if (result.optimizationRun) {
+          runDataState[side].optimizationRun = result.optimizationRun;
+        }
+        if (result.predictionRuns) {
+          runDataState[side].predictionRuns = result.predictionRuns;
+        }
       } catch (err) {
         costDataState[side].status = "error";
         costDataState[side].error =
@@ -1376,9 +1597,9 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
 
     await Promise.all([loadSide(simA, "a"), loadSide(simB, "b")]);
 
-    renderedTabs.delete("costs");
+    ["costs", "efficiency", "predictions", "emissions"].forEach((tab) => renderedTabs.delete(tab));
     activateTab(
-      section.querySelector(".results-tab.active")?.dataset?.tab ?? "costs"
+      section.querySelector(".results-tab.active")?.dataset?.tab ?? "efficiency"
     );
   };
 

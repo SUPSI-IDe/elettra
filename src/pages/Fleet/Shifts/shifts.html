@@ -64,12 +64,42 @@
                 data-i18n-aria-label="shifts.select_all"
               />
             </th>
-
-            <th class="name" scope="col" data-i18n="shifts.col_name">Shift name</th>
-            <th class="bus" scope="col" data-i18n="shifts.col_bus_model">Bus model</th>
-            <th class="start" scope="col" data-i18n="shifts.col_start_time">Start time</th>
-            <th class="end" scope="col" data-i18n="shifts.col_end_time">End time</th>
-            <th class="route" scope="col" data-i18n="shifts.col_route">Route</th>
+            <th class="name" scope="col" data-sort-key="name" aria-sort="ascending">
+              <button type="button" class="sort-button" data-sort-key="name">
+                <span data-i18n="shifts.col_name">Shift name</span>
+                <span class="sort-arrow" aria-hidden="true">↑</span>
+              </button>
+            </th>
+            <th class="bus" scope="col" data-sort-key="bus_model" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="bus_model">
+                <span data-i18n="shifts.col_bus_model">Bus model</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
+            </th>
+            <th class="start" scope="col" data-sort-key="start_time" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="start_time">
+                <span data-i18n="shifts.col_start_time">Start time</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
+            </th>
+            <th class="end" scope="col" data-sort-key="end_time" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="end_time">
+                <span data-i18n="shifts.col_end_time">End time</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
+            </th>
+            <th class="distance" scope="col" data-sort-key="distance" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="distance">
+                <span data-i18n="shifts.col_distance">Distance</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
+            </th>
+            <th class="route" scope="col" data-sort-key="route" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="route">
+                <span data-i18n="shifts.col_route">Route</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
+            </th>
             <th class="actions" scope="col">
               <span class="sr-only" data-i18n="common.actions">Actions</span>
             </th>

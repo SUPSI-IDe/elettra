@@ -42,14 +42,14 @@
 
     <!-- Tabs -->
     <div class="results-tabs" role="tablist">
-      <button class="results-tab active" role="tab" aria-selected="true" data-tab="costs" data-i18n="simulation.tab_costs">
-        Costs
-      </button>
-      <button class="results-tab" role="tab" aria-selected="false" data-tab="efficiency" data-i18n="simulation.tab_efficiency">
+      <button class="results-tab active" role="tab" aria-selected="true" data-tab="efficiency" data-i18n="simulation.tab_efficiency">
         Efficiency
       </button>
       <button class="results-tab" role="tab" aria-selected="false" data-tab="predictions" data-i18n="simulation.tab_predictions">
         Predictions
+      </button>
+      <button class="results-tab" role="tab" aria-selected="false" data-tab="costs" data-i18n="simulation.tab_costs">
+        Costs
       </button>
       <button class="results-tab" role="tab" aria-selected="false" data-tab="emissions" data-i18n="simulation.tab_emissions">
         Emissions
@@ -58,7 +58,7 @@
 
     <!-- Tab panels -->
     <div class="results-tab-panels">
-      <div class="tab-panel active" data-panel="costs" role="tabpanel">
+      <div class="tab-panel" data-panel="costs" role="tabpanel" hidden>
         <div class="chart-section results-cost-variables">
           <div class="results-cost-variables__header">
             <div>
@@ -184,7 +184,7 @@
         </div>
       </div>
 
-      <div class="tab-panel tab-panel--full" data-panel="efficiency" role="tabpanel" hidden>
+      <div class="tab-panel tab-panel--full active" data-panel="efficiency" role="tabpanel">
         <div class="efficiency-panel" data-role="efficiency-table"></div>
       </div>
 

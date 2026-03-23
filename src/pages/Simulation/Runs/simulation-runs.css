@@ -60,17 +60,9 @@
   width: 16%;
 }
 
-.simulation-runs-table th.objective,
-.simulation-runs-table td.objective {
-  width: 10%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .simulation-runs-table th.main-parameters,
 .simulation-runs-table td.main-parameters {
-  width: 18%;
+  width: 16%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -94,12 +86,17 @@
 
 .simulation-runs-table th.status,
 .simulation-runs-table td.status {
-  width: 10%;
+  width: 9%;
+}
+
+.simulation-runs-table th.feasibility,
+.simulation-runs-table td.feasibility {
+  width: 9%;
 }
 
 .simulation-runs-table th.actions,
 .simulation-runs-table td.actions {
-  width: 14%;
+  width: 12%;
 }
 
 .simulation-runs-table .status-badge {
@@ -129,6 +126,21 @@
 .simulation-runs-table .status-badge.failed {
   background-color: #f8d7da;
   color: #721c24;
+}
+
+.simulation-runs-table .status-badge.feasible {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.simulation-runs-table .status-badge.infeasible {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.simulation-runs-table .status-badge.unknown {
+  background-color: #f5f7fa;
+  color: #6c757d;
 }
 
 .simulation-runs-table th.results,

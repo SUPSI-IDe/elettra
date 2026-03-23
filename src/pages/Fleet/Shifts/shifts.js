@@ -14,9 +14,24 @@ import { getCurrentUserId } from "../../../store";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveModelFields } from "../../../ui-helpers";
+import {
+  extractShiftDistanceKm,
+  formatDistanceKm,
+  resolveShiftDailyDistanceKm,
+} from "../../../utils/shift-distance";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
+
+const textCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+
+const DEFAULT_SORT = {
+  key: "name",
+  direction: "asc",
+};
 
 const setFlashMessage = (section, message) => {
   const flashElement = section.querySelector('[data-role="flash"]');
@@ -41,7 +56,9 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="id" colspan="6">Loading…</td>
+            <td class="id" colspan="7">${textContent(
+              t("common.loading") || "Loading…"
+            )}</td>
         </tr>
     `;
 };
@@ -54,7 +71,7 @@ const renderError = (tbody, message = "Unable to load shifts.") => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="id" colspan="6">${textContent(message)}</td>
+            <td class="id" colspan="7">${textContent(message)}</td>
         </tr>
     `;
 };
@@ -67,13 +84,27 @@ const renderEmpty = (tbody) => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="id" colspan="6">No shifts found.</td>
+            <td class="id" colspan="7">${textContent(
+              t("shifts.no_shifts_found") || "No shifts found."
+            )}</td>
         </tr>
     `;
 };
 
 const parseTime = (time) => {
-  const match = /^\s*(\d{1,2}):(\d{2})/.exec(time ?? "");
+  const value = text(time).trim();
+  if (!value) {
+    return null;
+  }
+
+  if (value.includes("T")) {
+    const parsedDate = new Date(value);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.getHours() * 60 + parsedDate.getMinutes();
+    }
+  }
+
+  const match = /^\s*(\d{1,2}):(\d{2})/.exec(value);
   if (!match) {
     return null;
   }
@@ -94,25 +125,179 @@ const formatTime = (minutes) => {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 };
 
+const compareNullableNumbers = (left, right) => {
+  if (left == null && right == null) return 0;
+  if (left == null) return 1;
+  if (right == null) return -1;
+  return left - right;
+};
+
+const compareTexts = (left, right) =>
+  textCollator.compare(text(left).trim(), text(right).trim());
+
 const sortShiftsByName = (shifts = []) =>
   [...shifts].sort((left = {}, right = {}) => {
-    const leftName = text(left?.name).trim();
-    const rightName = text(right?.name).trim();
-    const nameComparison = leftName.localeCompare(rightName, undefined, {
-      sensitivity: "base",
-      numeric: true,
-    });
-
-    if (nameComparison !== 0) {
-      return nameComparison;
-    }
-
-    return text(left?.id).localeCompare(text(right?.id), undefined, {
-      numeric: true,
-    });
+    const nameComparison = compareTexts(left?.name, right?.name);
+    if (nameComparison !== 0) return nameComparison;
+    return compareTexts(left?.id, right?.id);
   });
 
-const renderRows = (tbody, shifts = []) => {
+const normalizeTimeLabel = (value) => {
+  const parsedMinutes = parseTime(value);
+  if (parsedMinutes == null) {
+    return text(value).trim() || "—";
+  }
+  return formatTime(parsedMinutes);
+};
+
+const readStructure = (shift = {}) =>
+  Array.isArray(shift?.structure) ? shift.structure : [];
+
+const resolveTripCount = (shift = {}) => readStructure(shift).length;
+
+const formatRouteLabel = (tripCount) => {
+  if (!tripCount) {
+    return "—";
+  }
+  return (
+    t("shifts.trip_count", { count: tripCount }) ||
+    `${tripCount} trip${tripCount === 1 ? "" : "s"}`
+  );
+};
+
+const resolveShiftTimes = (shift = {}) => {
+  let startTime =
+    text(shift?.start_time).trim() || text(shift?.startTime).trim();
+  let endTime = text(shift?.end_time).trim() || text(shift?.endTime).trim();
+
+  const structure = readStructure(shift);
+  if ((!startTime || !endTime) && structure.length > 0) {
+    const times = structure.flatMap((item) => {
+      const trip = item?.trip ?? {};
+      const nestedTrip = trip?.trip ?? {};
+      const stopTimes = Array.isArray(trip?.stop_times)
+        ? trip.stop_times
+        : Array.isArray(nestedTrip?.stop_times)
+          ? nestedTrip.stop_times
+          : [];
+
+      return [
+        trip.departure_time,
+        trip.arrival_time,
+        trip.start_time,
+        trip.end_time,
+        nestedTrip.departure_time,
+        nestedTrip.arrival_time,
+        nestedTrip.start_time,
+        nestedTrip.end_time,
+        stopTimes[0]?.departure_time,
+        stopTimes[0]?.arrival_time,
+        stopTimes[stopTimes.length - 1]?.departure_time,
+        stopTimes[stopTimes.length - 1]?.arrival_time,
+      ];
+    });
+
+    const minutes = times.map(parseTime).filter((m) => m !== null);
+    if (minutes.length > 0) {
+      if (!startTime) {
+        startTime = formatTime(Math.min(...minutes));
+      }
+      if (!endTime) {
+        endTime = formatTime(Math.max(...minutes));
+      }
+    }
+  }
+
+  const startMinutes = parseTime(startTime);
+  const endMinutes = parseTime(endTime);
+
+  return {
+    startLabel: startTime ? normalizeTimeLabel(startTime) : "—",
+    endLabel: endTime ? normalizeTimeLabel(endTime) : "—",
+    startMinutes,
+    endMinutes,
+  };
+};
+
+const sortShifts = (shifts = [], sortState = DEFAULT_SORT) => {
+  const directionMultiplier = sortState.direction === "desc" ? -1 : 1;
+
+  return [...shifts].sort((left = {}, right = {}) => {
+    let comparison = 0;
+
+    switch (sortState.key) {
+      case "bus_model":
+        comparison = compareTexts(
+          left?.bus_model_name,
+          right?.bus_model_name
+        );
+        break;
+      case "start_time":
+        comparison = compareNullableNumbers(
+          left?._resolved_start_minutes,
+          right?._resolved_start_minutes
+        );
+        break;
+      case "end_time":
+        comparison = compareNullableNumbers(
+          left?._resolved_end_minutes,
+          right?._resolved_end_minutes
+        );
+        break;
+      case "distance":
+        comparison = compareNullableNumbers(
+          left?._resolved_daily_distance_km,
+          right?._resolved_daily_distance_km
+        );
+        break;
+      case "route":
+        comparison = compareNullableNumbers(
+          left?._resolved_trip_count,
+          right?._resolved_trip_count
+        );
+        break;
+      case "name":
+      default:
+        comparison = compareTexts(left?.name, right?.name);
+        break;
+    }
+
+    if (comparison !== 0) {
+      return comparison * directionMultiplier;
+    }
+
+    const fallbackByName = compareTexts(left?.name, right?.name);
+    if (fallbackByName !== 0) {
+      return fallbackByName;
+    }
+
+    return compareTexts(left?.id, right?.id);
+  });
+};
+
+const updateSortHeaders = (table, sortState) => {
+  table?.querySelectorAll("thead th[data-sort-key]").forEach((header) => {
+    const key = text(header.dataset.sortKey).trim();
+    const isActive = key === sortState.key;
+    const arrow = header.querySelector(".sort-arrow");
+
+    header.setAttribute(
+      "aria-sort",
+      isActive
+        ? sortState.direction === "asc"
+          ? "ascending"
+          : "descending"
+        : "none"
+    );
+
+    if (arrow) {
+      arrow.textContent =
+        !isActive ? "↕" : sortState.direction === "asc" ? "↑" : "↓";
+    }
+  });
+};
+
+const renderRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
   if (!tbody) {
     return;
   }
@@ -124,71 +309,33 @@ const renderRows = (tbody, shifts = []) => {
 
   const rows = shifts
     .map((shift = {}) => {
-      const structure = Array.isArray(shift?.structure) ? shift.structure : [];
-      const tripsCount = structure.length;
-      const routeLabel =
-        tripsCount === 0 ? "—" : (
-          `${tripsCount} trip${tripsCount === 1 ? "" : "s"}`
-        );
-
-      let startTime =
-        text(shift?.start_time).trim() || text(shift?.startTime).trim();
-      let endTime = text(shift?.end_time).trim() || text(shift?.endTime).trim();
-
-      if ((!startTime || !endTime) && structure.length > 0) {
-        const times = structure.flatMap((item) => {
-          const trip = item?.trip ?? {};
-          const nestedTrip = trip?.trip ?? {};
-          const stopTimes =
-            Array.isArray(trip?.stop_times) ? trip.stop_times
-            : Array.isArray(nestedTrip?.stop_times) ? nestedTrip.stop_times
-            : [];
-
-          return [
-            trip.departure_time,
-            trip.arrival_time,
-            trip.start_time,
-            trip.end_time,
-            nestedTrip.departure_time,
-            nestedTrip.arrival_time,
-            nestedTrip.start_time,
-            nestedTrip.end_time,
-            stopTimes[0]?.departure_time,
-            stopTimes[0]?.arrival_time,
-            stopTimes[stopTimes.length - 1]?.departure_time,
-            stopTimes[stopTimes.length - 1]?.arrival_time,
-          ];
-        });
-
-        const minutes = times.map(parseTime).filter((m) => m !== null);
-
-        if (minutes.length > 0) {
-          if (!startTime) {
-            startTime = formatTime(Math.min(...minutes));
-          }
-          if (!endTime) {
-            endTime = formatTime(Math.max(...minutes));
-          }
-        }
-      }
-
-      startTime = startTime || "—";
-      endTime = endTime || "—";
-
       const rowId = text(shift?.id);
       const rowName = text(shift?.name);
       const rowBus = text(shift?.bus_id ?? shift?.busId ?? shift?.bus?.id ?? "");
+      const isSelected = selectedIds.has(rowId);
+
       return `
                 <tr data-id="${rowId}" data-name="${rowName}" data-bus="${rowBus}">
-                    <td class="checkbox"><input type="checkbox" aria-label="Select shift"></td>
+                    <td class="checkbox"><input type="checkbox" aria-label="Select shift" ${
+                      isSelected ? "checked" : ""
+                    }></td>
 
                     <td class="name">${textContent(shift?.name ?? "")}</td>
                     <td class="bus">${textContent(
                       shift?.bus_model_name ?? "—"
                     )}</td>
-                    <td class="start">${textContent(startTime)}</td>
-                    <td class="end">${textContent(endTime)}</td>
-                    <td class="route">${textContent(routeLabel)}</td>
+                    <td class="start" data-role="shift-start">${textContent(
+                      shift?._resolved_start_label ?? "—"
+                    )}</td>
+                    <td class="end" data-role="shift-end">${textContent(
+                      shift?._resolved_end_label ?? "—"
+                    )}</td>
+                    <td class="distance" data-role="shift-distance">${textContent(
+                      shift?._resolved_daily_distance_label ?? formatDistanceKm(null)
+                    )}</td>
+                    <td class="route">${textContent(
+                      shift?._resolved_route_label ?? "—"
+                    )}</td>
                     <td class="actions">
                         <button type="button" data-action="visualize-shift">Visualize shift</button>
                     </td>
@@ -198,77 +345,6 @@ const renderRows = (tbody, shifts = []) => {
     .join("");
 
   tbody.innerHTML = rows;
-
-  shifts.forEach((shift) => {
-    const row = tbody.querySelector(`tr[data-id="${shift.id}"]`);
-    updateShiftTimes(row, shift);
-  });
-};
-
-const updateShiftTimes = async (row, shift) => {
-  if (!row || !shift) {
-    return;
-  }
-
-  const startCell = row.querySelector(".start");
-  const endCell = row.querySelector(".end");
-
-  if (
-    !startCell ||
-    !endCell ||
-    (startCell.textContent !== "—" && endCell.textContent !== "—")
-  ) {
-    return;
-  }
-
-  const structure = Array.isArray(shift?.structure) ? shift.structure : [];
-  if (structure.length === 0) {
-    return;
-  }
-
-  const sorted = [...structure].sort(
-    (a, b) => (a.sequence_number || 0) - (b.sequence_number || 0)
-  );
-  const firstItem = sorted[0];
-  const lastItem = sorted[sorted.length - 1];
-
-  try {
-    let startTime = null;
-    let endTime = null;
-
-    const firstTripId = firstItem?.trip_id;
-    const lastTripId = lastItem?.trip_id;
-
-    if (firstTripId) {
-      const stops = await fetchStopsByTripId(firstTripId);
-      if (stops?.length) {
-        startTime = stops[0].departure_time || stops[0].arrival_time;
-        if (firstTripId === lastTripId) {
-          endTime =
-            stops[stops.length - 1].arrival_time ||
-            stops[stops.length - 1].departure_time;
-        }
-      }
-    }
-
-    if (lastTripId && lastTripId !== firstTripId) {
-      const stops = await fetchStopsByTripId(lastTripId);
-      if (stops?.length) {
-        endTime =
-          stops[stops.length - 1].arrival_time ||
-          stops[stops.length - 1].departure_time;
-      }
-    }
-
-    if (startTime) {
-      startCell.textContent = formatTime(parseTime(startTime));
-    }
-    if (endTime) {
-      endCell.textContent = formatTime(parseTime(endTime));
-    }
-  } catch (e) {
-    console.warn("Failed to update shift times", e);
-  }
 };
 
 const getSelectedIdsFrom = (table) =>
@@ -320,18 +396,224 @@ export const initializeShifts = async (root = document, options = {}) => {
   }
 
   let allShifts = [];
+  let sortState = { ...DEFAULT_SORT };
+  const tripStopsCache = new Map();
+  const pendingTimeResolutions = new Set();
+  const pendingDistanceResolutions = new Set();
 
-  const applyFilter = () => {
+  const fetchTripStopsCached = async (tripId) => {
+    const cacheKey = text(tripId).trim();
+    if (!cacheKey) {
+      return [];
+    }
+
+    if (!tripStopsCache.has(cacheKey)) {
+      const pendingStops = fetchStopsByTripId(cacheKey)
+        .then((rawStops) => {
+          const stops = Array.isArray(rawStops) ? [...rawStops] : [];
+          return stops.sort(
+            (left, right) =>
+              (left?.stop_sequence ?? 0) - (right?.stop_sequence ?? 0)
+          );
+        })
+        .catch((error) => {
+          tripStopsCache.delete(cacheKey);
+          throw error;
+        });
+
+      tripStopsCache.set(cacheKey, pendingStops);
+    }
+
+    return tripStopsCache.get(cacheKey);
+  };
+
+  const resolveShiftTimesFromStops = async (shift = {}) => {
+    const structure = readStructure(shift);
+    if (!structure.length) {
+      return null;
+    }
+
+    const sortedStructure = [...structure].sort(
+      (left, right) => (left?.sequence_number ?? 0) - (right?.sequence_number ?? 0)
+    );
+    const firstItem = sortedStructure[0] ?? {};
+    const lastItem = sortedStructure[sortedStructure.length - 1] ?? {};
+    const firstTripId = text(
+      firstItem?.trip_id ?? firstItem?.trip?.trip_id ?? ""
+    ).trim();
+    const lastTripId = text(
+      lastItem?.trip_id ?? lastItem?.trip?.trip_id ?? ""
+    ).trim();
+
+    let startTime = "";
+    let endTime = "";
+
+    if (firstTripId) {
+      const stops = await fetchTripStopsCached(firstTripId);
+      if (stops.length) {
+        startTime = text(
+          stops[0]?.departure_time ?? stops[0]?.arrival_time ?? ""
+        ).trim();
+        if (firstTripId === lastTripId) {
+          const lastStop = stops[stops.length - 1] ?? {};
+          endTime = text(
+            lastStop?.arrival_time ?? lastStop?.departure_time ?? ""
+          ).trim();
+        }
+      }
+    }
+
+    if (lastTripId && lastTripId !== firstTripId) {
+      const stops = await fetchTripStopsCached(lastTripId);
+      if (stops.length) {
+        const lastStop = stops[stops.length - 1] ?? {};
+        endTime = text(
+          lastStop?.arrival_time ?? lastStop?.departure_time ?? ""
+        ).trim();
+      }
+    }
+
+    if (!startTime && !endTime) {
+      return null;
+    }
+
+    return {
+      startLabel: startTime ? normalizeTimeLabel(startTime) : null,
+      endLabel: endTime ? normalizeTimeLabel(endTime) : null,
+      startMinutes: parseTime(startTime),
+      endMinutes: parseTime(endTime),
+    };
+  };
+
+  const getFilteredShifts = () => {
     const query = (searchInput?.value ?? "").toLowerCase().trim();
-    const filtered =
-      query ?
-        allShifts.filter((shift = {}) =>
-          text(shift?.name).toLowerCase().includes(query)
+    return query
+      ? allShifts.filter(
+          (shift = {}) =>
+            text(shift?.name).toLowerCase().includes(query) ||
+            text(shift?.bus_model_name).toLowerCase().includes(query)
         )
       : allShifts;
+  };
 
-    renderRows(tbody, filtered);
+  const renderCurrentView = () => {
+    const selectedIds = new Set(getSelectedIdsFrom(table));
+    const visibleShifts = sortShifts(getFilteredShifts(), sortState);
+    renderRows(tbody, visibleShifts, { selectedIds });
+    updateSortHeaders(table, sortState);
     bindSelectAll(headerCheckbox, table);
+  };
+
+  const updateShiftRow = (shift) => {
+    const rowId = text(shift?.id).trim();
+    if (!rowId) {
+      return;
+    }
+
+    const row = tbody.querySelector(`tr[data-id="${rowId}"]`);
+    if (!row) {
+      return;
+    }
+
+    const startCell = row.querySelector('[data-role="shift-start"]');
+    const endCell = row.querySelector('[data-role="shift-end"]');
+    const distanceCell = row.querySelector('[data-role="shift-distance"]');
+
+    if (startCell) {
+      startCell.textContent = shift?._resolved_start_label ?? "—";
+    }
+    if (endCell) {
+      endCell.textContent = shift?._resolved_end_label ?? "—";
+    }
+    if (distanceCell) {
+      distanceCell.textContent =
+        shift?._resolved_daily_distance_label ?? formatDistanceKm(null);
+    }
+  };
+
+  const hydrateShiftTimes = (shifts = []) => {
+    shifts.forEach((shift) => {
+      const shiftId = text(shift?.id).trim();
+      if (
+        !shiftId ||
+        pendingTimeResolutions.has(shiftId) ||
+        (shift?._resolved_start_minutes != null &&
+          shift?._resolved_end_minutes != null)
+      ) {
+        return;
+      }
+
+      pendingTimeResolutions.add(shiftId);
+      resolveShiftTimesFromStops(shift)
+        .then((resolvedTimes) => {
+          if (!resolvedTimes) {
+            return;
+          }
+
+          if (shift?._resolved_start_minutes == null && resolvedTimes.startMinutes != null) {
+            shift._resolved_start_minutes = resolvedTimes.startMinutes;
+          }
+          if (shift?._resolved_end_minutes == null && resolvedTimes.endMinutes != null) {
+            shift._resolved_end_minutes = resolvedTimes.endMinutes;
+          }
+          if (
+            shift?._resolved_start_label === "—" &&
+            resolvedTimes.startLabel
+          ) {
+            shift._resolved_start_label = resolvedTimes.startLabel;
+          }
+          if (shift?._resolved_end_label === "—" && resolvedTimes.endLabel) {
+            shift._resolved_end_label = resolvedTimes.endLabel;
+          }
+
+          updateShiftRow(shift);
+          if (
+            sortState.key === "start_time" ||
+            sortState.key === "end_time"
+          ) {
+            renderCurrentView();
+          }
+        })
+        .catch((error) => {
+          console.warn("Failed to resolve shift times", error);
+        })
+        .finally(() => {
+          pendingTimeResolutions.delete(shiftId);
+        });
+    });
+  };
+
+  const hydrateShiftDistances = (shifts = []) => {
+    shifts.forEach((shift) => {
+      const shiftId = text(shift?.id).trim();
+      if (
+        !shiftId ||
+        pendingDistanceResolutions.has(shiftId) ||
+        shift?._resolved_daily_distance_km != null
+      ) {
+        return;
+      }
+
+      pendingDistanceResolutions.add(shiftId);
+      resolveShiftDailyDistanceKm(shift)
+        .then((distanceKm) => {
+          shift._resolved_daily_distance_km = distanceKm;
+          shift._resolved_daily_distance_label = formatDistanceKm(distanceKm);
+          updateShiftRow(shift);
+          if (sortState.key === "distance") {
+            renderCurrentView();
+          }
+        })
+        .catch((error) => {
+          console.warn(
+            `[elettra] Unable to resolve distance for shift ${shiftId}`,
+            error
+          );
+        })
+        .finally(() => {
+          pendingDistanceResolutions.delete(shiftId);
+        });
+    });
   };
 
   const loadShifts = async () => {
@@ -411,13 +693,27 @@ export const initializeShifts = async (root = document, options = {}) => {
           );
           const modelFromShift = resolveModelFields(modelsById[modelId]).model;
           const modelLabel = busMap.get(busId) || modelFromShift || "";
+          const tripCount = resolveTripCount(shift);
+          const resolvedTimes = resolveShiftTimes(shift);
+          const dailyDistanceKm = extractShiftDistanceKm(shift);
+
           return {
             ...shift,
             bus_model_name: modelLabel || shift?.bus_model_name,
+            _resolved_trip_count: tripCount,
+            _resolved_route_label: formatRouteLabel(tripCount),
+            _resolved_start_label: resolvedTimes.startLabel,
+            _resolved_end_label: resolvedTimes.endLabel,
+            _resolved_start_minutes: resolvedTimes.startMinutes,
+            _resolved_end_minutes: resolvedTimes.endMinutes,
+            _resolved_daily_distance_km: dailyDistanceKm,
+            _resolved_daily_distance_label: formatDistanceKm(dailyDistanceKm),
           };
         })
       );
-      applyFilter();
+      renderCurrentView();
+      hydrateShiftTimes(allShifts);
+      hydrateShiftDistances(allShifts);
     } catch (error) {
       console.error("Failed to load shifts", error);
       renderError(tbody, error?.message ?? "Unable to load shifts.");
@@ -425,11 +721,43 @@ export const initializeShifts = async (root = document, options = {}) => {
   };
 
   if (searchInput) {
-    searchInput.addEventListener("input", applyFilter);
+    searchInput.addEventListener("input", renderCurrentView);
     cleanupHandlers.push(() => {
-      searchInput.removeEventListener("input", applyFilter);
+      searchInput.removeEventListener("input", renderCurrentView);
     });
   }
+
+  const handleSortClick = (event) => {
+    const button = event.target.closest("button[data-sort-key]");
+    if (!button) {
+      return;
+    }
+
+    const nextKey = text(button.dataset.sortKey).trim();
+    if (!nextKey) {
+      return;
+    }
+
+    sortState =
+      sortState.key === nextKey
+        ? {
+            key: nextKey,
+            direction: sortState.direction === "asc" ? "desc" : "asc",
+          }
+        : {
+            key: nextKey,
+            direction: nextKey === DEFAULT_SORT.key ? DEFAULT_SORT.direction : "asc",
+          };
+
+    renderCurrentView();
+  };
+
+  table.querySelector("thead")?.addEventListener("click", handleSortClick);
+  cleanupHandlers.push(() => {
+    table
+      .querySelector("thead")
+      ?.removeEventListener("click", handleSortClick);
+  });
 
   const handleAddClick = () => {
     triggerPartialLoad("shift-form");

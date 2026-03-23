@@ -2071,10 +2071,26 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
 
   const solverStatus = results.solver_status ?? "—";
   const badgeCls = SOLVER_STATUS_CLASS[solverStatus] ?? "efficiency-badge--neutral";
+  const electrificationFeasible = results.electrification_feasible;
+  const feasibilityBadgeCls = electrificationFeasible === true
+    ? "efficiency-badge--ok"
+    : electrificationFeasible === false
+      ? "efficiency-badge--err"
+      : "efficiency-badge--neutral";
 
   const kpis = [
     { label: t("simulation.opt_solver_status") || "Solver Status", value: `<span class="efficiency-badge ${badgeCls}">${textContent(solverStatus)}</span>`, raw: true },
-    { label: t("simulation.opt_objective_value") || "Objective Value", value: formatFixed(results.objective_value, 0) },
+    {
+      label: t("simulation.opt_feasibility") || "Electrification Feasibility",
+      value: `<span class="efficiency-badge ${feasibilityBadgeCls}">${textContent(
+        electrificationFeasible === true
+          ? (t("simulation.feasibility_feasible") || "Feasible")
+          : electrificationFeasible === false
+            ? (t("simulation.feasibility_infeasible") || "Infeasible")
+            : "—"
+      )}</span>`,
+      raw: true,
+    },
     { label: t("simulation.opt_solve_time") || "Solve Time (s)", value: formatFixed(results.solve_time_seconds, 2) },
   ];
 
@@ -2084,6 +2100,62 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
       <span class="efficiency-param-value">${raw ? value : textContent(value)}</span>
     </div>`).join("");
 
+  const electSummary = results.electrification_summary ?? {};
+  let electrificationSummaryHtml = "";
+  if (electSummary.status === "infeasible" && electSummary.message) {
+    const infeasibleBuses = Array.isArray(electSummary.infeasible_buses) ? electSummary.infeasible_buses : [];
+    const uniqueByShift = [];
+    const seenShifts = new Set();
+    for (const bus of infeasibleBuses) {
+      const key = bus.shift_id ?? bus.shift_name ?? "";
+      if (key && seenShifts.has(key)) continue;
+      if (key) seenShifts.add(key);
+      uniqueByShift.push(bus);
+    }
+
+    const detailRows = uniqueByShift.map((bus) => {
+      const req = toFiniteNumber(bus.required_total_packs);
+      const max = toFiniteNumber(bus.max_physical_packs);
+      const over = req != null && max != null && req > max;
+      const bo = over ? "<strong>" : "";
+      const bc = over ? "</strong>" : "";
+      return `
+      <tr>
+        <td>${textContent(bus.shift_name ?? "—")}</td>
+        <td class="efficiency-td-num">${bo}${textContent(String(bus.required_total_packs ?? "—"))}${bc}</td>
+        <td class="efficiency-td-num">${bo}${formatFixed(bus.required_total_kwh, 0)}${bc}</td>
+        <td class="efficiency-td-num">${textContent(String(bus.max_physical_packs ?? "—"))}</td>
+        <td class="efficiency-td-num">${formatFixed(bus.max_physical_kwh, 0)}</td>
+        <td class="efficiency-td-num">${textContent(String(bus.excess_packs ?? 0))}</td>
+      </tr>`;
+    }).join("");
+
+    const detailTableHtml = uniqueByShift.length ? `
+      <div class="efficiency-table-wrap">
+        <table class="efficiency-table">
+          <thead>
+            <tr>
+              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_shift") || "Shift")}</th>
+              <th>${textContent(t("simulation.opt_col_required_packs") || "Required Packs")}</th>
+              <th>${textContent(t("simulation.opt_col_required_kwh") || "Required (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical Packs")}</th>
+              <th>${textContent(t("simulation.opt_col_max_kwh") || "Max Physical (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_excess") || "Excess Packs")}</th>
+            </tr>
+          </thead>
+          <tbody>${detailRows}</tbody>
+        </table>
+      </div>` : "";
+
+    electrificationSummaryHtml = `
+      <div class="efficiency-infeasibility-notice">
+        <p class="efficiency-infeasibility-msg"><strong>${textContent(
+          t("simulation.electrification_infeasible_title") || "Electrification not feasible"
+        )}:</strong> ${textContent(electSummary.message)}</p>
+        ${detailTableHtml}
+      </div>`;
+  }
+
   const batteryResults = results.battery_results ?? {};
   const batteryEntries = Object.entries(batteryResults).filter(([shiftKey, result]) =>
     matchesSelectedShift(result, shiftKey, viewOptions)
@@ -2091,28 +2163,57 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
 
   let batteryTableHtml = "";
   if (batteryEntries.length) {
-    const rows = batteryEntries.map(([, b]) => `
+    const rows = batteryEntries.map(([, b]) => {
+      const physFeasible = b.physical_feasible;
+      const feasBadge = physFeasible === true
+        ? "efficiency-badge--ok"
+        : physFeasible === false
+          ? "efficiency-badge--err"
+          : "efficiency-badge--neutral";
+      const reqPacks = toFiniteNumber(b.required_total_packs);
+      const maxPacks = toFiniteNumber(b.max_physical_packs);
+      const overLimit = reqPacks != null && maxPacks != null && reqPacks > maxPacks;
+      const bOpen = overLimit ? "<strong>" : "";
+      const bClose = overLimit ? "</strong>" : "";
+      const kwhPerPack =
+        (toFiniteNumber(b.optimized_kwh) != null && toFiniteNumber(b.optimized_packs) > 0)
+          ? toFiniteNumber(b.optimized_kwh) / toFiniteNumber(b.optimized_packs)
+          : (toFiniteNumber(b.max_physical_kwh) != null && maxPacks > 0)
+            ? toFiniteNumber(b.max_physical_kwh) / maxPacks
+            : null;
+      const requiredKwh =
+        toFiniteNumber(b.required_total_kwh) ??
+        (reqPacks != null && kwhPerPack != null ? reqPacks * kwhPerPack : null);
+      return `
       <tr>
         <td>${textContent(b.shift_name ?? "—")}</td>
-        <td class="efficiency-td-num">${textContent(String(b.base_packs ?? "—"))}</td>
-        <td class="efficiency-td-num">${formatFixed(b.base_kwh, 0)}</td>
         <td class="efficiency-td-num efficiency-td-highlight">${textContent(String(b.optimized_packs ?? "—"))}</td>
         <td class="efficiency-td-num efficiency-td-highlight">${formatFixed(b.optimized_kwh, 0)}</td>
+        <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
+        <td class="efficiency-td-num">${bOpen}${textContent(String(b.required_total_packs ?? "—"))}${bClose}</td>
+        <td class="efficiency-td-num">${bOpen}${requiredKwh == null ? "—" : formatFixed(requiredKwh, 0)}${bClose}</td>
         <td class="efficiency-td-num">${textContent(String(b.excess_packs ?? 0))}</td>
-      </tr>`).join("");
+        <td class="efficiency-td-center"><span class="efficiency-badge ${feasBadge}">${textContent(
+          physFeasible === true ? (t("simulation.feasibility_feasible") || "Feasible") :
+          physFeasible === false ? (t("simulation.feasibility_infeasible") || "Infeasible") : "—"
+        )}</span></td>
+      </tr>`;
+    }).join("");
 
     batteryTableHtml = `
-      <h4 class="efficiency-subsection-title">${textContent(t("simulation.opt_battery_results") || "Battery Sizing")}</h4>
+      <h4 class="efficiency-subsection-title">${textContent(t("simulation.opt_battery_results") || "Battery Sizing Results")}</h4>
       <div class="efficiency-table-wrap">
         <table class="efficiency-table">
           <thead>
             <tr>
               <th class="efficiency-th-text">${textContent(t("simulation.opt_col_shift") || "Shift")}</th>
-              <th>${textContent(t("simulation.opt_col_base_packs") || "Base Packs")}</th>
-              <th>${textContent(t("simulation.opt_col_base_kwh") || "Base (kWh)")}</th>
               <th>${textContent(t("simulation.opt_col_opt_packs") || "Opt. Packs")}</th>
               <th>${textContent(t("simulation.opt_col_opt_kwh") || "Opt. (kWh)")}</th>
-              <th>${textContent(t("simulation.opt_col_excess") || "Excess Packs")}</th>
+              <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical")}</th>
+              <th>${textContent(t("simulation.opt_col_required_packs") || "Required")}</th>
+              <th>${textContent(t("simulation.opt_col_required_kwh") || "Required (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_excess") || "Excess")}</th>
+              <th class="efficiency-th-center">${textContent(t("simulation.opt_col_feasibility") || "Feasibility")}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -2184,6 +2285,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
     <div class="efficiency-section">
       <h3 class="efficiency-section-title">${textContent(t("simulation.opt_section_title") || "Optimization Results")}</h3>
       <div class="efficiency-params-grid">${kpisHtml}</div>
+      ${electrificationSummaryHtml}
       ${batteryTableHtml}
       ${chargersHtml}
     </div>`;
@@ -2202,25 +2304,43 @@ const buildOptimizationBatteryChartData = (batteryResults = {}, viewOptions = {}
     }))
     .filter((row) => row.basePacks != null || row.optimizedPacks != null);
 
-const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResults = {}) => {
-  const sorted = [...(predictionRuns ?? [])].sort((a, b) =>
+const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResults = {}, viewOptions = {}) => {
+  const allRuns = [...(predictionRuns ?? [])];
+  const selectedShiftId = firstText(viewOptions?.selectedShiftId);
+
+  const filtered = selectedShiftId
+    ? allRuns.filter((run) => firstText(run?.shift_id) === selectedShiftId)
+    : allRuns;
+
+  const sorted = filtered.sort((a, b) =>
     Number(a?.contextual_parameters?.num_battery_packs ?? 0) - Number(b?.contextual_parameters?.num_battery_packs ?? 0)
   );
 
   const perBusArr = Array.isArray(perBusSummary) ? perBusSummary : [];
+  const filteredPerBus = selectedShiftId
+    ? perBusArr.filter((entry) => firstText(entry?.shift_id) === selectedShiftId)
+    : perBusArr;
+
   const optimizedPackSet = new Set(
-    Object.values(batteryResults ?? {})
-      .map((result) => toFiniteNumber(result?.optimized_packs))
+    Object.entries(batteryResults ?? {})
+      .filter(([shiftKey, result]) =>
+        !selectedShiftId || firstText(result?.shift_id, shiftKey) === selectedShiftId
+      )
+      .map(([, result]) => toFiniteNumber(result?.optimized_packs))
       .filter((value) => value != null)
   );
 
   const rows = sorted.map((run, idx) => {
     const cp = run?.contextual_parameters ?? {};
     const s = run?.summary ?? {};
-    const bus = perBusArr[idx] ?? {};
+    const packs = toFiniteNumber(cp.num_battery_packs);
+    const matchedBus = filteredPerBus.find((entry) => {
+      const entryPacks = toFiniteNumber(entry?.optimized_packs ?? entry?.num_battery_packs);
+      return entryPacks != null && entryPacks === packs;
+    }) ?? filteredPerBus[idx] ?? {};
 
     return {
-      numBatteryPacks: toFiniteNumber(cp.num_battery_packs),
+      numBatteryPacks: packs,
       batteryCapacityKwh: toFiniteNumber(cp.battery_capacity_kwh),
       totalWeightKg: toFiniteNumber(cp.total_weight_kg),
       totalDistanceKm: toFiniteNumber(s.total_distance_km),
@@ -2228,10 +2348,10 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
       consumptionPerKmKwh: toFiniteNumber(s.consumption_per_km_kwh),
       totalDrivetrainKwh: toFiniteNumber(s.total_drivetrain_kwh),
       totalAuxiliaryKwh: toFiniteNumber(s.total_auxiliary_kwh),
-      minSocKwh: toFiniteNumber(bus.min_soc_kwh),
-      maxSocKwh: toFiniteNumber(bus.max_soc_kwh),
-      numChargingSessions: toFiniteNumber(bus.num_charging_sessions),
-      totalChargedKwh: toFiniteNumber(bus.total_charged_kwh),
+      minSocKwh: toFiniteNumber(matchedBus.min_soc_kwh),
+      maxSocKwh: toFiniteNumber(matchedBus.max_soc_kwh),
+      numChargingSessions: toFiniteNumber(matchedBus.num_charging_sessions),
+      totalChargedKwh: toFiniteNumber(matchedBus.total_charged_kwh),
     };
   });
 
@@ -3633,15 +3753,12 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   );
 
   const optimizationHtml = buildOptimizationResultsHtml(results, ip, viewOptions);
-  const optimizationBatteryChartData = buildOptimizationBatteryChartData(
-    batteryResults,
-    viewOptions
-  );
 
   const predictionData = buildUnifiedPredictionData(
     predictionRuns,
     perBusSummary,
-    batteryResults
+    batteryResults,
+    viewOptions
   );
   const unifiedRows = buildUnifiedPredictionRows(predictionData);
   const hasPerBus = perBusSummary.length > 0;
@@ -3677,27 +3794,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           <div class="chart-container efficiency-chart-container" data-role="efficiency-energy-chart"></div>
           <div class="chart-legend efficiency-chart-legend" data-role="efficiency-energy-legend"></div>
         </div>`);
-
-    chartCards.push(`
-        <div class="chart-section efficiency-chart-card">
-          <div class="efficiency-chart-copy">
-            <h4>${textContent(t("simulation.efficiency_soc_title") || "State of charge operating window")}</h4>
-            <p>${textContent(t("simulation.efficiency_soc_subtitle") || "Compare minimum and maximum state of charge reached for each battery-pack scenario.")}</p>
-          </div>
-          <div class="chart-container efficiency-chart-container" data-role="efficiency-soc-chart"></div>
-        </div>`);
-  }
-
-  if (optimizationBatteryChartData.length > 0) {
-    chartCards.push(`
-        <div class="chart-section efficiency-chart-card">
-          <div class="efficiency-chart-copy">
-            <h4>${textContent(t("simulation.opt_battery_chart_title") || "Battery sizing comparison")}</h4>
-            <p>${textContent(t("simulation.opt_battery_chart_subtitle") || "Compare the base and optimized battery-pack recommendation for each shift.")}</p>
-          </div>
-          <div class="chart-container efficiency-chart-container" data-role="optimization-battery-chart"></div>
-          <div class="chart-legend efficiency-chart-legend" data-role="optimization-battery-legend"></div>
-        </div>`);
   }
 
   const chartsHtml = chartCards.length > 0
@@ -3716,10 +3812,10 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       <div class="efficiency-params-grid">${conditionsHtml}</div>
       ${predictionSummaryHtml}
     </div>
-    ${chartsHtml}
     ${optimizationHtml}
-    <div class="efficiency-section">
-      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</h3>
+    ${chartsHtml}
+    <details class="efficiency-section efficiency-collapsible">
+      <summary class="efficiency-section-title efficiency-collapsible__toggle">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</summary>
       <div class="efficiency-table-wrap">
         <table class="efficiency-table">
           <thead>
@@ -3738,7 +3834,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           <tbody>${tableBody}</tbody>
         </table>
       </div>
-    </div>`;
+    </details>`;
 
   renderEfficiencyCurveChart(
     el.querySelector('[data-role="efficiency-curve-chart"]'),
@@ -3750,17 +3846,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   );
   renderEfficiencyEnergyLegend(
     el.querySelector('[data-role="efficiency-energy-legend"]')
-  );
-  renderEfficiencySocEnvelopeChart(
-    el.querySelector('[data-role="efficiency-soc-chart"]'),
-    predictionData
-  );
-  renderOptimizationBatteryChart(
-    el.querySelector('[data-role="optimization-battery-chart"]'),
-    optimizationBatteryChartData
-  );
-  renderOptimizationBatteryLegend(
-    el.querySelector('[data-role="optimization-battery-legend"]')
   );
 };
 
@@ -4473,11 +4558,91 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   };
   const efficiencyState = { status: "idle", optimizationRun: null, predictionRuns: [], error: null };
 
+  const isElectrificationFeasible = () =>
+    loadedOptimizationRun?.results?.electrification_feasible !== false;
+
+  const renderInfeasibleNotice = (container) => {
+    if (!container) return;
+    const summary = loadedOptimizationRun?.results?.electrification_summary;
+    const msg =
+      summary?.message ||
+      (t("simulation.infeasible_notice") ||
+        "The optimization determined that electrification is not feasible for this configuration. Cost and emission data cannot be computed.");
+
+    const batteryResults = loadedOptimizationRun?.results?.battery_results ?? {};
+    const batteryEntries = Object.entries(batteryResults ?? {});
+    const scopedEntries = batteryEntries.filter(([shiftKey, result]) =>
+      matchesSelectedShift(result, shiftKey, { selectedShiftId: activeShiftId })
+    );
+
+    const maxPhysicalRows = (scopedEntries.length ? scopedEntries : batteryEntries)
+      .map(([shiftKey, result], index) => ({
+        shiftName:
+          result?.shift_name ??
+          shiftKey ??
+          `${t("simulation.opt_col_shift") || "Shift"} ${index + 1}`,
+        maxPacks: toFiniteNumber(result?.max_physical_packs),
+        maxKwh: toFiniteNumber(result?.max_physical_kwh),
+      }))
+      .filter((row) => row.maxPacks != null || row.maxKwh != null);
+
+    const maxPhysicalHtml = maxPhysicalRows.length
+      ? `
+        <div class="efficiency-table-wrap" style="margin-top: 1rem;">
+          <table class="efficiency-table">
+            <thead>
+              <tr>
+                <th class="efficiency-th-text">${textContent(
+                  t("simulation.opt_col_shift") || "Shift"
+                )}</th>
+                <th>${textContent(
+                  t("simulation.opt_col_max_packs") || "Max Physical Packs"
+                )}</th>
+                <th>${textContent(
+                  t("simulation.opt_col_max_kwh") || "Max Physical (kWh)"
+                )}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${maxPhysicalRows
+                .map(
+                  (row) => `
+                <tr>
+                  <td>${textContent(row.shiftName ?? "—")}</td>
+                  <td class="efficiency-td-num">${
+                    row.maxPacks == null ? "—" : textContent(String(row.maxPacks))
+                  }</td>
+                  <td class="efficiency-td-num">${
+                    row.maxKwh == null ? "—" : formatFixed(row.maxKwh, 0)
+                  }</td>
+                </tr>`
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>`
+      : "";
+
+    container.innerHTML = `
+      <div class="infeasibility-tab-notice">
+        <div class="infeasibility-tab-notice__icon">⚠</div>
+        <h3>${textContent(
+          t("simulation.infeasible_tab_title") || "Electrification not feasible"
+        )}</h3>
+        <p>${textContent(msg)}</p>
+        ${maxPhysicalHtml}
+      </div>`;
+  };
+
   const refreshCostsTab = () => {
     renderOpexInputsTable(scenarioScalingContentEl, costState);
     refreshEfficiencyTab();
     refreshPredictionsTab();
     if (!renderedTabs.has("costs")) return;
+    if (!isElectrificationFeasible()) {
+      renderInfeasibleNotice(section.querySelector('[data-panel="costs"]'));
+      return;
+    }
     renderCostsSection(
       section.querySelector('[data-panel="costs"]'),
       costState,
@@ -4519,9 +4684,25 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     );
   };
 
+  const refreshEmissionsTab = () => {
+    if (!renderedTabs.has("emissions")) return;
+    if (!isElectrificationFeasible()) {
+      renderInfeasibleNotice(section.querySelector('[data-panel="emissions"]'));
+      return;
+    }
+    renderCO2Bar(section.querySelector('[data-role="emissions-bar-chart"]'));
+    renderCO2Legend(section.querySelector('[data-role="emissions-legend"]'));
+    renderCO2Cumulative(section.querySelector('[data-role="emissions-line-chart"]'));
+  };
+
   const TAB_RENDERERS = {
     costs: (sec) => {
-      renderCostsSection(sec.querySelector('[data-panel="costs"]') ?? sec, costState, options);
+      const panel = sec.querySelector('[data-panel="costs"]') ?? sec;
+      if (!isElectrificationFeasible()) {
+        renderInfeasibleNotice(panel);
+        return;
+      }
+      renderCostsSection(panel, costState, options);
     },
     efficiency: (sec) => {
       renderEfficiencyTable(
@@ -4545,6 +4726,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       );
     },
     emissions: (sec) => {
+      if (!isElectrificationFeasible()) {
+        const panel = sec.querySelector('[data-panel="emissions"]');
+        renderInfeasibleNotice(panel);
+        return;
+      }
       renderCO2Bar(sec.querySelector('[data-role="emissions-bar-chart"]'));
       renderCO2Legend(sec.querySelector('[data-role="emissions-legend"]'));
       renderCO2Cumulative(sec.querySelector('[data-role="emissions-line-chart"]'));
@@ -4766,7 +4952,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     }
   };
 
-  activateTab("costs");
+  activateTab("efficiency");
 
   const handleTabClick = (e) => {
     const btn = e.target.closest(".results-tab");
@@ -5067,6 +5253,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     refreshCostsTab();
     refreshEfficiencyTab();
     refreshPredictionsTab();
+    refreshEmissionsTab();
   };
 
   loadResultData();

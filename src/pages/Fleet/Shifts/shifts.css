@@ -278,6 +278,82 @@
   padding: var(--spacing-sm);
 }
 
+.shifts-table {
+  overflow-x: auto;
+}
+
+.shifts-table table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.shifts-table th,
+.shifts-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.shifts-table .sort-button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.shifts-table .sort-button:hover,
+.shifts-table .sort-button:focus-visible {
+  color: var(--brand-teal);
+}
+
+.shifts-table .sort-arrow {
+  font-size: 0.8em;
+  line-height: 1;
+}
+
+.shifts-table th.checkbox,
+.shifts-table td.checkbox {
+  width: 2.5rem;
+}
+
+.shifts-table th.name,
+.shifts-table td.name {
+  width: 16%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shifts-table th.bus,
+.shifts-table td.bus {
+  width: 16%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shifts-table th.start,
+.shifts-table td.start,
+.shifts-table th.end,
+.shifts-table td.end,
+.shifts-table th.distance,
+.shifts-table td.distance,
+.shifts-table th.route,
+.shifts-table td.route {
+  width: 10%;
+}
+
+.shifts-table th.actions,
+.shifts-table td.actions {
+  width: 12%;
+}
+
 .visualize-shift {
   display: flex;
   flex-direction: column;

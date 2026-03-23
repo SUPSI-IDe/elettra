@@ -185,6 +185,130 @@
   background-color: var(--brand-teal-dark);
 }
 
+/* Efficiency & infeasibility in comparison */
+
+.simulation-comparison-page .efficiency-params-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.2rem;
+  margin-bottom: 0.8rem;
+}
+
+.simulation-comparison-page .efficiency-param {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  font-size: 0.82rem;
+}
+
+.simulation-comparison-page .efficiency-param-label {
+  color: var(--text-secondary);
+}
+
+.simulation-comparison-page .efficiency-param-value {
+  font-weight: 600;
+}
+
+.simulation-comparison-page .efficiency-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.simulation-comparison-page .efficiency-badge--ok {
+  background: rgba(171, 232, 40, 0.18);
+  color: #3d7a00;
+}
+
+.simulation-comparison-page .efficiency-badge--err {
+  background: rgba(192, 57, 43, 0.12);
+  color: #c0392b;
+}
+
+.simulation-comparison-page .efficiency-badge--neutral {
+  background: var(--background-alt, #f5f7fa);
+  color: var(--text-secondary);
+}
+
+.simulation-comparison-page .efficiency-infeasibility-notice {
+  margin: 0.8rem 0;
+  padding: 0.8rem 1rem;
+  border-left: 4px solid #c0392b;
+  background: rgba(192, 57, 43, 0.06);
+  border-radius: 0 6px 6px 0;
+}
+
+.simulation-comparison-page .efficiency-infeasibility-msg {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #7a1a10;
+  line-height: 1.5;
+}
+
+.simulation-comparison-page .efficiency-table-wrap {
+  overflow-x: auto;
+}
+
+.simulation-comparison-page .efficiency-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.simulation-comparison-page .efficiency-table th,
+.simulation-comparison-page .efficiency-table td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border-color, #e5e5e5);
+  text-align: left;
+}
+
+.simulation-comparison-page .efficiency-table th {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+
+.simulation-comparison-page .efficiency-td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.simulation-comparison-page .infeasibility-tab-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.simulation-comparison-page .infeasibility-tab-notice__icon {
+  font-size: 2rem;
+  margin-bottom: 0.6rem;
+  opacity: 0.7;
+}
+
+.simulation-comparison-page .infeasibility-tab-notice h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  color: #c0392b;
+  font-weight: 600;
+}
+
+.simulation-comparison-page .infeasibility-tab-notice p {
+  margin: 0;
+  max-width: 440px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 @media (max-width: 900px) {
   .comparison-row {
     flex-direction: column;

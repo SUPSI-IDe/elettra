@@ -29,6 +29,20 @@ import {
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
 
+const shiftNameCollator = new Intl.Collator(undefined, {
+  sensitivity: "base",
+  numeric: true,
+});
+
+const compareShiftsByName = (left, right) => {
+  const leftName = text(left?.name).trim();
+  const rightName = text(right?.name).trim();
+  const byName = shiftNameCollator.compare(leftName, rightName);
+  if (byName !== 0) return byName;
+
+  return shiftNameCollator.compare(text(left?.id), text(right?.id));
+};
+
 const DEFAULT_USABLE_SOC_PERCENT = 50;
 const ALLOWED_USABLE_SOC_PERCENTS = new Set([
   100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
@@ -607,34 +621,36 @@ export const initializeAddSimulation = async (
           })
       );
 
-      allShifts = (Array.isArray(shifts) ? shifts : []).map((shift) => {
-        const busId = text(
-          shift?.bus?.id ?? shift?.bus_id ?? shift?.busId ?? ""
-        );
-        const directModelId = text(
-          shift?.bus?.bus_model_id ??
-            shift?.bus_model_id ??
-            shift?.busModelId ??
-            ""
-        );
-        const resolvedModelId =
-          directModelId || busToModelIdMap.get(busId) || "";
-        const modelFromBus = busModelMap.get(busId) || "";
-        const modelFromDirect = resolveModelFields(
-          modelsById[resolvedModelId]
-        ).model;
-        const busModelName =
-          modelFromBus || modelFromDirect || shift?.bus_model_name || "";
-        const dailyDistanceKm = extractShiftDistanceKm(shift);
+      allShifts = (Array.isArray(shifts) ? shifts : [])
+        .map((shift) => {
+          const busId = text(
+            shift?.bus?.id ?? shift?.bus_id ?? shift?.busId ?? ""
+          );
+          const directModelId = text(
+            shift?.bus?.bus_model_id ??
+              shift?.bus_model_id ??
+              shift?.busModelId ??
+              ""
+          );
+          const resolvedModelId =
+            directModelId || busToModelIdMap.get(busId) || "";
+          const modelFromBus = busModelMap.get(busId) || "";
+          const modelFromDirect = resolveModelFields(
+            modelsById[resolvedModelId]
+          ).model;
+          const busModelName =
+            modelFromBus || modelFromDirect || shift?.bus_model_name || "";
+          const dailyDistanceKm = extractShiftDistanceKm(shift);
 
-        return {
-          ...shift,
-          _resolved_bus_model: busModelName,
-          _resolved_bus_model_id: resolvedModelId,
-          _resolved_daily_distance_km: dailyDistanceKm,
-          _resolved_daily_distance_label: formatDistanceKm(dailyDistanceKm),
-        };
-      });
+          return {
+            ...shift,
+            _resolved_bus_model: busModelName,
+            _resolved_bus_model_id: resolvedModelId,
+            _resolved_daily_distance_km: dailyDistanceKm,
+            _resolved_daily_distance_label: formatDistanceKm(dailyDistanceKm),
+          };
+        })
+        .sort(compareShiftsByName);
 
       allUserModels = userModels;
 

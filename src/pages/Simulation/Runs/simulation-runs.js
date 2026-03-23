@@ -97,6 +97,30 @@ const renderEmpty = (tbody) => {
     </tr>`;
 };
 
+const resolveElectrificationFeasible = (run = {}) => {
+  const direct = run?.results?.electrification_feasible;
+  if (direct === true) return true;
+  if (direct === false) return false;
+  const summary = run?.results?.electrification_summary;
+  if (summary?.status === "feasible") return true;
+  if (summary?.status === "infeasible") return false;
+  return null;
+};
+
+const formatFeasibilityLabel = (feasible) => {
+  if (feasible === true)
+    return t("simulation.feasibility_feasible") || "Feasible";
+  if (feasible === false)
+    return t("simulation.feasibility_infeasible") || "Infeasible";
+  return "—";
+};
+
+const feasibilityBadgeClass = (feasible) => {
+  if (feasible === true) return "feasible";
+  if (feasible === false) return "infeasible";
+  return "unknown";
+};
+
 const formatDate = (dateStr) => {
   if (!dateStr) return "—";
   try {
@@ -463,8 +487,12 @@ const getSortValue = (run = {}, key = "") => {
       return resolveBusModelName(run) || resolveBusModelId(run) || "—";
     case "shift":
       return resolveShiftLabel(run) || resolveRunName(run) || "—";
-    case "objective_value":
-      return resolveObjectiveValue(run);
+    case "feasibility": {
+      const feasible = resolveElectrificationFeasible(run);
+      if (feasible === true) return "a_feasible";
+      if (feasible === false) return "b_infeasible";
+      return "c_unknown";
+    }
     case "main_parameters":
       return [
         resolveExternalTemp(run) ?? Number.POSITIVE_INFINITY,
@@ -565,8 +593,10 @@ const renderRows = (tbody, runs = []) => {
       const busModelTooltip =
         text(run?._resolved_bus_model_tooltip).trim() || busModelLabel;
       const mode = resolveRunMode(run) || "—";
-      const objectiveValue = formatObjectiveValue(resolveObjectiveValue(run));
       const mainParameters = formatMainParameters(run);
+      const feasible = resolveElectrificationFeasible(run);
+      const feasibilityLabel = formatFeasibilityLabel(feasible);
+      const feasibilityCls = feasibilityBadgeClass(feasible);
 
       const resultsLink = `<a class="results-link" href="#" data-action="view-results" data-run-id="${rowId}">${t("simulation.col_results") || "Results"}</a>`;
 
@@ -580,11 +610,13 @@ const renderRows = (tbody, runs = []) => {
             busModelLabel
           )}</td>
           <td class="name" title="${textContent(shiftLabel || shiftTitle)}">${textContent(shiftLabel)}</td>
-          <td class="objective">${textContent(objectiveValue)}</td>
           <td class="main-parameters">${textContent(mainParameters)}</td>
           <td class="type">${textContent(mode)}</td>
           <td class="status">
             <span class="status-badge ${status}">${textContent(formatStatusLabel(status))}</span>
+          </td>
+          <td class="feasibility">
+            <span class="status-badge ${feasibilityCls}">${textContent(feasibilityLabel)}</span>
           </td>
           <td class="results">${resultsLink}</td>
         </tr>`;
