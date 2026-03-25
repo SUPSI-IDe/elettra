@@ -48,9 +48,30 @@
                 <th class="checkbox">
                   
                 </th>
-                <th data-i18n="simulation.shift_col_name">Shift name</th>
-                <th data-i18n="simulation.shift_col_bus_model">Bus model</th>
-                <th class="distance" data-i18n="simulation.shift_col_distance">Distance (km)</th>
+                <th scope="col" data-sort-key="name" aria-sort="ascending">
+                  <button type="button" class="sort-button" data-sort-key="name">
+                    <span data-i18n="simulation.shift_col_name">Shift name</span>
+                    <span class="sort-arrow" aria-hidden="true">↑</span>
+                  </button>
+                </th>
+                <th scope="col" data-sort-key="bus_model" aria-sort="none">
+                  <button type="button" class="sort-button" data-sort-key="bus_model">
+                    <span data-i18n="simulation.shift_col_bus_model">Bus model</span>
+                    <span class="sort-arrow" aria-hidden="true">↕</span>
+                  </button>
+                </th>
+                <th class="distance" scope="col" data-sort-key="distance" aria-sort="none">
+                  <button type="button" class="sort-button" data-sort-key="distance">
+                    <span data-i18n="simulation.shift_col_distance">Distance (km)</span>
+                    <span class="sort-arrow" aria-hidden="true">↕</span>
+                  </button>
+                </th>
+                <th class="distance" scope="col" data-sort-key="yearly_distance" aria-sort="none">
+                  <button type="button" class="sort-button" data-sort-key="yearly_distance">
+                    <span data-i18n="simulation.shift_col_yearly_distance">Yearly distance (km)</span>
+                    <span class="sort-arrow" aria-hidden="true">↕</span>
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody data-role="shift-selection-body"></tbody>

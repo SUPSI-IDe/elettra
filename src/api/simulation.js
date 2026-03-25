@@ -313,7 +313,7 @@ export const fetchPredictionRunPredictions = async (runId) => {
   return payload;
 };
 
-const NON_NUMERIC_ECONOMIC_KEYS = new Set(["shift_id", "recurrence"]);
+const NON_NUMERIC_ECONOMIC_KEYS = new Set(["shift_id", "recurrence", "include_capex"]);
 
 export const fetchEconomicDefaults = async () => {
   const headers = authHeaders();

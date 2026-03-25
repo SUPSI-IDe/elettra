@@ -80,7 +80,7 @@
 
 .add-simulation .shift-table-wrapper {
   max-height: 220px;
-  overflow-y: auto;
+  overflow: auto;
   border: 1px solid var(--border-light);
   border-radius: 5px;
 }
@@ -97,6 +97,30 @@
   z-index: 1;
   font-size: 0.75rem;
   padding: 0.3rem 0.5rem;
+}
+
+.add-simulation .shift-table .sort-button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.add-simulation .shift-table .sort-button:hover,
+.add-simulation .shift-table .sort-button:focus-visible {
+  color: var(--brand-teal);
+}
+
+.add-simulation .shift-table .sort-arrow {
+  font-size: 0.8em;
+  line-height: 1;
 }
 
 .add-simulation .shift-table td {

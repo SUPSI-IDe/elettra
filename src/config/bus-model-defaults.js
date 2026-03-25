@@ -12,7 +12,7 @@ const BUS_MODEL_DEFAULTS_BY_LENGTH = {
     max_passengers: 55,
     empty_weight_kg: 12000,
     max_battery_packs: 8,
-    min_battery_packs: 4,
+    min_battery_packs: 5,
     battery_pack_size_kwh: 40,
     battery_pack_cost_chf: 6000,
     max_charging_power_kw: 300,
@@ -24,8 +24,8 @@ const BUS_MODEL_DEFAULTS_BY_LENGTH = {
     cost: 600000,
     max_passengers: 85,
     empty_weight_kg: 14000,
-    max_battery_packs: 10,
-    min_battery_packs: 6,
+    max_battery_packs: 11,
+    min_battery_packs: 7,
     battery_pack_size_kwh: 40,
     battery_pack_cost_chf: 6000,
     max_charging_power_kw: 450,
@@ -37,8 +37,8 @@ const BUS_MODEL_DEFAULTS_BY_LENGTH = {
     cost: 800000,
     max_passengers: 120,
     empty_weight_kg: 18000,
-    max_battery_packs: 14,
-    min_battery_packs: 10,
+    max_battery_packs: 16,
+    min_battery_packs: 12,
     battery_pack_size_kwh: 40,
     battery_pack_cost_chf: 6000,
     max_charging_power_kw: 450,
@@ -53,4 +53,3 @@ export const getBusModelDefaultsForLength = (length) => {
   const key = String(length).trim();
   return BUS_MODEL_DEFAULTS_BY_LENGTH[key] || null;
 };
-

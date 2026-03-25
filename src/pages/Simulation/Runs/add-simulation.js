@@ -17,8 +17,10 @@ import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveModelFields } from "../../../ui-helpers";
 import {
   extractShiftDistanceKm,
+  extractShiftYearlyDistanceKm,
   formatDistanceKm,
   resolveShiftDailyDistanceKm,
+  resolveShiftYearlyDistanceKm,
 } from "../../../utils/shift-distance";
 import { saveRunIds } from "./simulation-runs";
 import {
@@ -41,6 +43,17 @@ const compareShiftsByName = (left, right) => {
   if (byName !== 0) return byName;
 
   return shiftNameCollator.compare(text(left?.id), text(right?.id));
+};
+
+const compareShiftTexts = (left, right) =>
+  shiftNameCollator.compare(text(left).trim(), text(right).trim());
+
+const formatShiftDistanceValue = (distanceKm) =>
+  text(formatDistanceKm(distanceKm)).replace(/\s*km$/i, "");
+
+const DEFAULT_SHIFT_SORT = {
+  key: "name",
+  direction: "asc",
 };
 
 const DEFAULT_USABLE_SOC_PERCENT = 50;
@@ -105,27 +118,95 @@ const waitForOptimizationCompletion = async (runId) => {
   );
 };
 
-const renderShiftRows = (tbody, shifts = []) => {
+const sortShifts = (shifts = [], sortState = DEFAULT_SHIFT_SORT) => {
+  const directionMultiplier = sortState.direction === "desc" ? -1 : 1;
+
+  return [...shifts].sort((left, right) => {
+    let comparison = 0;
+
+    switch (sortState.key) {
+      case "bus_model":
+        comparison = compareShiftTexts(
+          left?._resolved_bus_model,
+          right?._resolved_bus_model
+        );
+        break;
+      case "distance": {
+        const leftDistance = Number(left?._resolved_daily_distance_km ?? -1);
+        const rightDistance = Number(right?._resolved_daily_distance_km ?? -1);
+        comparison = leftDistance - rightDistance;
+        break;
+      }
+      case "yearly_distance": {
+        const leftDistance = Number(left?._resolved_yearly_distance_km ?? -1);
+        const rightDistance = Number(right?._resolved_yearly_distance_km ?? -1);
+        comparison = leftDistance - rightDistance;
+        break;
+      }
+      case "name":
+      default:
+        comparison = compareShiftTexts(left?.name, right?.name);
+        break;
+    }
+
+    if (comparison !== 0) {
+      return comparison * directionMultiplier;
+    }
+
+    return compareShiftsByName(left, right);
+  });
+};
+
+const updateSortHeaders = (table, sortState) => {
+  table?.querySelectorAll("thead th[data-sort-key]").forEach((header) => {
+    const key = text(header.dataset.sortKey).trim();
+    const isActive = key === sortState.key;
+    const arrow = header.querySelector(".sort-arrow");
+
+    header.setAttribute(
+      "aria-sort",
+      isActive
+        ? sortState.direction === "asc"
+          ? "ascending"
+          : "descending"
+        : "none"
+    );
+
+    if (arrow) {
+      arrow.textContent =
+        !isActive ? "↕" : sortState.direction === "asc" ? "↑" : "↓";
+    }
+  });
+};
+
+const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
   if (!tbody) return;
   if (!shifts.length) {
-    tbody.innerHTML = `<tr><td colspan="4">${textContent(t("simulation.no_shifts_in_table") || "No shifts found.")}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5">${textContent(t("simulation.no_shifts_in_table") || "No shifts found.")}</td></tr>`;
     return;
   }
 
   tbody.innerHTML = shifts
     .map((shift) => {
+      const shiftId = text(shift?.id);
       const busModelName = text(shift._resolved_bus_model ?? "—");
-      const distanceLabel = text(
-        shift._resolved_daily_distance_label ?? formatDistanceKm(null)
+      const dailyDistanceLabel = text(
+        shift._resolved_daily_distance_label ?? formatShiftDistanceValue(null)
+      );
+      const yearlyDistanceLabel = text(
+        shift._resolved_yearly_distance_label ?? formatShiftDistanceValue(null)
       );
       return `
-        <tr data-id="${text(shift?.id)}">
+        <tr data-id="${shiftId}">
           <td class="checkbox">
-            <input type="checkbox" aria-label="${textContent(t("simulation.select_shift") || "Select shift")}" />
+            <input type="checkbox" aria-label="${textContent(t("simulation.select_shift") || "Select shift")}" ${
+              selectedIds.has(shiftId) ? "checked" : ""
+            } />
           </td>
           <td>${textContent(shift?.name ?? "")}</td>
           <td>${textContent(busModelName)}</td>
-          <td class="distance" data-role="shift-distance">${textContent(distanceLabel)}</td>
+          <td class="distance" data-role="shift-distance">${textContent(dailyDistanceLabel)}</td>
+          <td class="distance" data-role="shift-yearly-distance">${textContent(yearlyDistanceLabel)}</td>
         </tr>`;
     })
     .join("");
@@ -372,6 +453,7 @@ export const initializeAddSimulation = async (
 
   const cleanupHandlers = [];
   const form = section.querySelector("form");
+  const shiftTable = section.querySelector(".shift-table");
   const shiftTbody = section.querySelector(
     'tbody[data-role="shift-selection-body"]'
   );
@@ -413,44 +495,71 @@ export const initializeAddSimulation = async (
   let allShifts = [];
   let allUserModels = [];
   let currentStops = [];
+  let selectedShiftIds = new Set();
+  let sortState = { ...DEFAULT_SHIFT_SORT };
 
   const hydrateShiftDistances = (shifts = []) => {
     const pendingShifts = shifts.filter(
       (shift) =>
         shift &&
-        shift._resolved_daily_distance_km == null &&
+        (shift._resolved_daily_distance_km == null ||
+          shift._resolved_yearly_distance_km == null) &&
         text(shift?.id).trim()
     );
 
     pendingShifts.forEach((shift) => {
-      resolveShiftDailyDistanceKm(shift)
-        .then((distanceKm) => {
-          shift._resolved_daily_distance_km = distanceKm;
-          shift._resolved_daily_distance_label = formatDistanceKm(distanceKm);
+      Promise.all([
+        shift._resolved_daily_distance_km != null
+          ? Promise.resolve(shift._resolved_daily_distance_km)
+          : resolveShiftDailyDistanceKm(shift),
+        shift._resolved_yearly_distance_km != null
+          ? Promise.resolve(shift._resolved_yearly_distance_km)
+          : resolveShiftYearlyDistanceKm(shift),
+      ])
+        .then(([dailyDistanceKm, yearlyDistanceKm]) => {
+          shift._resolved_daily_distance_km = dailyDistanceKm;
+          shift._resolved_daily_distance_label = formatShiftDistanceValue(
+            dailyDistanceKm
+          );
+          shift._resolved_yearly_distance_km = yearlyDistanceKm;
+          shift._resolved_yearly_distance_label = formatShiftDistanceValue(
+            yearlyDistanceKm
+          );
+
+          if (
+            sortState.key === "distance" ||
+            sortState.key === "yearly_distance"
+          ) {
+            renderCurrentView();
+            return;
+          }
 
           const row = shiftTbody?.querySelector(`tr[data-id="${text(shift.id)}"]`);
           const distanceCell = row?.querySelector('[data-role="shift-distance"]');
+          const yearlyDistanceCell = row?.querySelector(
+            '[data-role="shift-yearly-distance"]'
+          );
           if (distanceCell) {
             distanceCell.textContent = textContent(
               shift._resolved_daily_distance_label
             );
           }
+          if (yearlyDistanceCell) {
+            yearlyDistanceCell.textContent = textContent(
+              shift._resolved_yearly_distance_label
+            );
+          }
         })
         .catch((error) => {
           console.warn(
-            `[elettra] Unable to resolve distance for shift ${text(shift?.id)}`,
+            `[elettra] Unable to resolve distances for shift ${text(shift?.id)}`,
             error
           );
         });
     });
   };
 
-  const getSelectedShiftIds = () =>
-    Array.from(
-      shiftTbody?.querySelectorAll('input[type="checkbox"]:checked') ?? []
-    )
-      .map((input) => input.closest("tr")?.dataset?.id)
-      .filter(Boolean);
+  const getSelectedShiftIds = () => [...selectedShiftIds];
 
   const refreshBusModelOverride = () => {
     if (!busModelOverride) return;
@@ -641,20 +750,27 @@ export const initializeAddSimulation = async (
           const busModelName =
             modelFromBus || modelFromDirect || shift?.bus_model_name || "";
           const dailyDistanceKm = extractShiftDistanceKm(shift);
+          const yearlyDistanceKm = extractShiftYearlyDistanceKm(shift);
 
           return {
             ...shift,
             _resolved_bus_model: busModelName,
             _resolved_bus_model_id: resolvedModelId,
             _resolved_daily_distance_km: dailyDistanceKm,
-            _resolved_daily_distance_label: formatDistanceKm(dailyDistanceKm),
+            _resolved_daily_distance_label: formatShiftDistanceValue(
+              dailyDistanceKm
+            ),
+            _resolved_yearly_distance_km: yearlyDistanceKm,
+            _resolved_yearly_distance_label: formatShiftDistanceValue(
+              yearlyDistanceKm
+            ),
           };
         })
         .sort(compareShiftsByName);
 
       allUserModels = userModels;
 
-      renderShiftRows(shiftTbody, allShifts);
+      renderCurrentView();
       hydrateShiftDistances(allShifts);
       refreshBusModelOverride();
 
@@ -679,6 +795,9 @@ export const initializeAddSimulation = async (
     } = prefill;
 
     if (shiftId && shiftTbody) {
+      selectedShiftIds.add(String(shiftId));
+      renderCurrentView();
+
       const row = shiftTbody.querySelector(`tr[data-id="${shiftId}"]`);
       if (row) {
         const checkbox = row.querySelector('input[type="checkbox"]');
@@ -711,11 +830,12 @@ export const initializeAddSimulation = async (
       if (usableSocInput) usableSocInput.value = String(usableSocPercent);
     }
 
+    refreshBusModelOverride();
     rebuildStopsTable();
   }
 
   // ── Shift filter ─────────────────────────────────────────────────
-  const applyShiftFilter = () => {
+  function renderCurrentView() {
     const query = (shiftFilter?.value ?? "").toLowerCase().trim();
     const filtered = query
       ? allShifts.filter(
@@ -724,18 +844,34 @@ export const initializeAddSimulation = async (
             text(s?._resolved_bus_model).toLowerCase().includes(query)
         )
       : allShifts;
-    renderShiftRows(shiftTbody, filtered);
-  };
+
+    renderShiftRows(shiftTbody, sortShifts(filtered, sortState), {
+      selectedIds: selectedShiftIds,
+    });
+    updateSortHeaders(shiftTable, sortState);
+  }
 
   if (shiftFilter) {
-    shiftFilter.addEventListener("input", applyShiftFilter);
+    shiftFilter.addEventListener("input", renderCurrentView);
     cleanupHandlers.push(() =>
-      shiftFilter.removeEventListener("input", applyShiftFilter)
+      shiftFilter.removeEventListener("input", renderCurrentView)
     );
   }
 
   // ── Shift checkbox & mode change → rebuild stops ─────────────────
-  const handleSelectionChange = () => {
+  const handleSelectionChange = (event) => {
+    const checkbox = event.target.closest('input[type="checkbox"]');
+    const row = checkbox?.closest("tr[data-id]");
+    const shiftId = text(row?.dataset?.id).trim();
+
+    if (checkbox && shiftId) {
+      if (checkbox.checked) {
+        selectedShiftIds.add(shiftId);
+      } else {
+        selectedShiftIds.delete(shiftId);
+      }
+    }
+
     refreshBusModelOverride();
     rebuildStopsTable();
   };
@@ -753,6 +889,37 @@ export const initializeAddSimulation = async (
       modeSelect.removeEventListener("change", handleSelectionChange)
     );
   }
+
+  const handleSortClick = (event) => {
+    const button = event.target.closest("button[data-sort-key]");
+    if (!button) return;
+
+    const nextKey = text(button.dataset.sortKey).trim();
+    if (!nextKey) return;
+
+    sortState =
+      sortState.key === nextKey
+        ? {
+            key: nextKey,
+            direction: sortState.direction === "asc" ? "desc" : "asc",
+          }
+        : {
+            key: nextKey,
+            direction:
+              nextKey === DEFAULT_SHIFT_SORT.key
+                ? DEFAULT_SHIFT_SORT.direction
+                : "asc",
+          };
+
+    renderCurrentView();
+  };
+
+  shiftTable?.querySelector("thead")?.addEventListener("click", handleSortClick);
+  cleanupHandlers.push(() =>
+    shiftTable
+      ?.querySelector("thead")
+      ?.removeEventListener("click", handleSortClick)
+  );
 
   // ── Select-all / individual stop checkbox sync ─────────────────────
   const syncSelectAll = () => {

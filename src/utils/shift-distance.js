@@ -191,7 +191,42 @@ const extractYearlyDistanceKm = (payload) =>
     payload?.data?.km
   );
 
+export const extractShiftYearlyDistanceKm = (shift = {}) =>
+  extractYearlyDistanceKm(shift);
+
+const yearlyDistancePromiseCache = new Map();
 const dailyDistancePromiseCache = new Map();
+
+export const fetchShiftYearlyDistanceKm = async (
+  shiftId,
+  { recurrence = DAILY_DISTANCE_RECURRENCE } = {}
+) => {
+  if (!shiftId) {
+    return null;
+  }
+
+  const cacheKey = `${String(shiftId)}:${String(recurrence)}`;
+  if (!yearlyDistancePromiseCache.has(cacheKey)) {
+    const pendingDistance = fetchShiftYearlyDistance(String(shiftId), {
+      recurrence,
+    })
+      .then((payload) => {
+        const yearlyDistanceKm = extractYearlyDistanceKm(payload);
+        if (yearlyDistanceKm == null || yearlyDistanceKm <= 0) {
+          return null;
+        }
+        return yearlyDistanceKm;
+      })
+      .catch((error) => {
+        yearlyDistancePromiseCache.delete(cacheKey);
+        throw error;
+      });
+
+    yearlyDistancePromiseCache.set(cacheKey, pendingDistance);
+  }
+
+  return yearlyDistancePromiseCache.get(cacheKey);
+};
 
 export const fetchShiftDailyDistanceKm = async (shiftId) => {
   if (!shiftId) {
@@ -200,16 +235,12 @@ export const fetchShiftDailyDistanceKm = async (shiftId) => {
 
   const cacheKey = String(shiftId);
   if (!dailyDistancePromiseCache.has(cacheKey)) {
-    const pendingDistance = fetchShiftYearlyDistance(cacheKey, {
+    const pendingDistance = fetchShiftYearlyDistanceKm(cacheKey, {
       recurrence: DAILY_DISTANCE_RECURRENCE,
     })
-      .then((payload) => {
-        const yearlyDistanceKm = extractYearlyDistanceKm(payload);
-        if (yearlyDistanceKm == null || yearlyDistanceKm <= 0) {
-          return null;
-        }
-        return yearlyDistanceKm / DAILY_RECURRENCE_DAYS_PER_YEAR;
-      })
+      .then((yearlyDistanceKm) =>
+        yearlyDistanceKm != null ? yearlyDistanceKm / DAILY_RECURRENCE_DAYS_PER_YEAR : null
+      )
       .catch((error) => {
         dailyDistancePromiseCache.delete(cacheKey);
         throw error;
@@ -236,6 +267,27 @@ export const resolveShiftDailyDistanceKm = async (shift = {}) => {
     return await fetchShiftDailyDistanceKm(shiftId);
   } catch (error) {
     console.warn(`[elettra] Unable to load daily distance for shift ${shiftId}`, error);
+    return null;
+  }
+};
+
+export const resolveShiftYearlyDistanceKm = async (shift = {}) => {
+  const knownDistanceKm = extractShiftYearlyDistanceKm(shift);
+  if (knownDistanceKm != null) {
+    return knownDistanceKm;
+  }
+
+  const shiftId = String(shift?.id ?? shift?.shift_id ?? shift?.shiftId ?? "").trim();
+  if (!shiftId) {
+    return null;
+  }
+
+  try {
+    return await fetchShiftYearlyDistanceKm(shiftId, {
+      recurrence: DAILY_DISTANCE_RECURRENCE,
+    });
+  } catch (error) {
+    console.warn(`[elettra] Unable to load yearly distance for shift ${shiftId}`, error);
     return null;
   }
 };

@@ -914,6 +914,63 @@ const buildEquivalentAnnualCostData = (comparison, options = {}) => {
   };
 };
 
+const buildProjectedCostTrendYearlySeries = ({
+  horizonYears,
+  dieselBusCapexChf,
+  dieselAnnualOpex,
+  dieselBusReplacementCostByYear,
+  electricBusCapexChf,
+  electricAnnualOpex,
+  electricBusReplacementCostByYear,
+  batteryReplacementCostByYear,
+}) => {
+  const yearly = [];
+  let dieselReplacementCarry = 0;
+  let electricReplacementCarry = 0;
+
+  if (electricBusCapexChf > 0 || dieselBusCapexChf > 0) {
+    yearly.push({
+      year: 0,
+      diesel: dieselBusCapexChf,
+      electric: electricBusCapexChf,
+    });
+  }
+
+  for (let year = 1; year <= horizonYears; year += 1) {
+    const dieselReplacementCost =
+      year < horizonYears ? dieselBusReplacementCostByYear[year] ?? 0 : 0;
+    const electricReplacementCost =
+      year < horizonYears
+        ? (electricBusReplacementCostByYear[year] ?? 0) +
+          (batteryReplacementCostByYear[year] ?? 0)
+        : 0;
+
+    const dieselPreReplacement =
+      dieselBusCapexChf + dieselAnnualOpex * year + dieselReplacementCarry;
+    const electricPreReplacement =
+      electricBusCapexChf + electricAnnualOpex * year + electricReplacementCarry;
+
+    if (dieselReplacementCost > 0 || electricReplacementCost > 0) {
+      yearly.push({
+        year,
+        diesel: dieselPreReplacement,
+        electric: electricPreReplacement,
+      });
+    }
+
+    dieselReplacementCarry += dieselReplacementCost;
+    electricReplacementCarry += electricReplacementCost;
+
+    yearly.push({
+      year,
+      diesel: dieselPreReplacement + dieselReplacementCost,
+      electric: electricPreReplacement + electricReplacementCost,
+    });
+  }
+
+  return yearly;
+};
+
 const buildCostsChartData = (comparison, options = {}) => {
   if (!comparison) return null;
 
@@ -957,38 +1014,16 @@ const buildCostsChartData = (comparison, options = {}) => {
     acc[year] = (acc[year] ?? 0) + (toFiniteNumber(dieselBusCapexChf) ?? 0);
     return acc;
   }, {});
-  const yearly = Array.from({ length: horizonYears }, (_, index) => ({
-    year: index + 1,
-    diesel:
-      dieselBusCapexChf +
-      dieselAnnualOpex * (index + 1) +
-      d3.sum(
-        Array.from({ length: index + 1 }, (_, yearIndex) => {
-          const year = yearIndex + 1;
-          return dieselBusReplacementCostByYear[year] ?? 0;
-        })
-      ),
-    electric:
-      electricBusCapexChf +
-      electricAnnualOpex * (index + 1) +
-      d3.sum(
-        Array.from({ length: index + 1 }, (_, yearIndex) => {
-          const year = yearIndex + 1;
-          return (
-            (electricBusReplacementCostByYear[year] ?? 0) +
-            (batteryReplacementCostByYear[year] ?? 0)
-          );
-        })
-      ),
-  }));
-
-  if (electricBusCapexChf > 0 || dieselBusCapexChf > 0) {
-    yearly.unshift({
-      year: 0,
-      diesel: dieselBusCapexChf,
-      electric: electricBusCapexChf,
-    });
-  }
+  const yearly = buildProjectedCostTrendYearlySeries({
+    horizonYears,
+    dieselBusCapexChf,
+    dieselAnnualOpex,
+    dieselBusReplacementCostByYear,
+    electricBusCapexChf,
+    electricAnnualOpex,
+    electricBusReplacementCostByYear,
+    batteryReplacementCostByYear,
+  });
 
   return {
     tco: eacData.tco,
@@ -1910,6 +1945,190 @@ const renderCostsLegend = (el) => {
     .join("");
 };
 
+const renderCostsLineLegend = (el) => {
+  if (!el) return;
+  el.innerHTML = ["diesel", "electric"]
+    .map(
+      (key) => `
+    <div class="chart-legend-item">
+      <span class="chart-legend-swatch" style="background:${FUEL_COLORS[key]}"></span>
+      ${textContent(fuelLabel(key))}
+    </div>`
+    )
+    .join("");
+};
+
+const findClosestPointOnPath = (pathNode, pointer) => {
+  const totalLength = pathNode.getTotalLength();
+  if (!Number.isFinite(totalLength) || totalLength <= 0) return null;
+
+  const samples = Math.max(48, Math.ceil(totalLength / 8));
+  let bestLength = 0;
+  let bestDistanceSq = Infinity;
+
+  for (let index = 0; index <= samples; index += 1) {
+    const length = (totalLength * index) / samples;
+    const point = pathNode.getPointAtLength(length);
+    const distanceSq =
+      (point.x - pointer[0]) ** 2 + (point.y - pointer[1]) ** 2;
+    if (distanceSq < bestDistanceSq) {
+      bestLength = length;
+      bestDistanceSq = distanceSq;
+    }
+  }
+
+  let step = totalLength / samples;
+  while (step > 0.5) {
+    const beforeLength = Math.max(0, bestLength - step);
+    const afterLength = Math.min(totalLength, bestLength + step);
+    const beforePoint = pathNode.getPointAtLength(beforeLength);
+    const afterPoint = pathNode.getPointAtLength(afterLength);
+    const beforeDistanceSq =
+      (beforePoint.x - pointer[0]) ** 2 + (beforePoint.y - pointer[1]) ** 2;
+    const afterDistanceSq =
+      (afterPoint.x - pointer[0]) ** 2 + (afterPoint.y - pointer[1]) ** 2;
+
+    if (beforeDistanceSq < bestDistanceSq) {
+      bestLength = beforeLength;
+      bestDistanceSq = beforeDistanceSq;
+    } else if (afterDistanceSq < bestDistanceSq) {
+      bestLength = afterLength;
+      bestDistanceSq = afterDistanceSq;
+    } else {
+      step /= 2;
+    }
+  }
+
+  return pathNode.getPointAtLength(bestLength);
+};
+
+const attachCostsLineHover = ({
+  layer,
+  lineData,
+  lineGenerator,
+  x,
+  y,
+  innerWidth,
+  innerHeight,
+  key,
+  color,
+}) => {
+  if (!lineData.length) return;
+
+  const visiblePath = layer
+    .append("path")
+    .datum(lineData)
+    .attr("d", lineGenerator)
+    .attr("fill", "none")
+    .attr("stroke", color)
+    .attr("stroke-width", 2.5);
+
+  const hoverPath = layer
+    .append("path")
+    .datum(lineData)
+    .attr("d", lineGenerator)
+    .attr("fill", "none")
+    .attr("stroke", "transparent")
+    .attr("stroke-width", 14)
+    .style("cursor", "pointer");
+
+  const focus = layer
+    .append("g")
+    .style("display", "none")
+    .attr("pointer-events", "none");
+
+  focus
+    .append("circle")
+    .attr("r", 4)
+    .attr("fill", "#fff")
+    .attr("stroke", color)
+    .attr("stroke-width", 2);
+
+  const tooltip = focus.append("g");
+  const tooltipBg = tooltip
+    .append("rect")
+    .attr("fill", "#fff")
+    .attr("stroke", color)
+    .attr("stroke-width", 1)
+    .attr("rx", 6)
+    .attr("ry", 6)
+    .attr("opacity", 0.96);
+  const tooltipText = tooltip
+    .append("text")
+    .attr("fill", "#1c1c1c")
+    .attr("font-size", "10px");
+
+  const updateHover = (event) => {
+    const pointer = d3.pointer(event, layer.node());
+    const closestPoint = findClosestPointOnPath(hoverPath.node(), pointer);
+    if (!closestPoint) return;
+
+    const yearValue = x.invert(closestPoint.x);
+    const costValue = y.invert(closestPoint.y);
+    const yearLabel =
+      Math.abs(yearValue - Math.round(yearValue)) < 0.05
+        ? formatFixed(Math.round(yearValue), 0)
+        : formatFixed(yearValue, 1);
+
+    focus.attr(
+      "transform",
+      `translate(${closestPoint.x},${closestPoint.y})`
+    );
+    tooltipText.selectAll("*").remove();
+    tooltipText
+      .append("tspan")
+      .attr("x", 8)
+      .attr("y", 14)
+      .attr("font-weight", "700")
+      .text(fuelLabel(key));
+    tooltipText
+      .append("tspan")
+      .attr("x", 8)
+      .attr("dy", "1.25em")
+      .text(`${t("simulation.general_year") || "Year"} ${yearLabel}`);
+    tooltipText
+      .append("tspan")
+      .attr("x", 8)
+      .attr("dy", "1.25em")
+      .text(`CHF ${formatCHF(Math.round(costValue))}`);
+
+    const bbox = tooltipText.node().getBBox();
+    const tooltipWidth = bbox.width + 16;
+    const tooltipHeight = bbox.height + 10;
+    let tooltipX = closestPoint.x + 12;
+    let tooltipY = closestPoint.y - tooltipHeight - 12;
+
+    if (tooltipX + tooltipWidth > innerWidth) {
+      tooltipX = closestPoint.x - tooltipWidth - 12;
+    }
+    if (tooltipX < 0) {
+      tooltipX = Math.max(0, innerWidth - tooltipWidth);
+    }
+    if (tooltipY < 0) {
+      tooltipY = closestPoint.y + 12;
+    }
+    if (tooltipY + tooltipHeight > innerHeight) {
+      tooltipY = Math.max(0, innerHeight - tooltipHeight);
+    }
+
+    tooltip.attr(
+      "transform",
+      `translate(${tooltipX - closestPoint.x},${tooltipY - closestPoint.y})`
+    );
+    tooltipBg.attr("width", tooltipWidth).attr("height", tooltipHeight);
+    focus.style("display", null);
+  };
+
+  hoverPath
+    .on("pointerenter", updateHover)
+    .on("pointermove", updateHover)
+    .on("pointerleave", () => {
+      focus.style("display", "none");
+    });
+
+  return visiblePath;
+};
+
 const renderCostsLine = (el, data) => {
   if (!el) return;
   el.innerHTML = "";
@@ -1932,6 +2151,7 @@ const renderCostsLine = (el, data) => {
     )
   );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+  const tickYears = Array.from(new Set(data.map((d) => d.year)));
 
   const x = d3.scaleLinear()
     .domain(d3.extent(data, (d) => d.year))
@@ -1943,7 +2163,7 @@ const renderCostsLine = (el, data) => {
 
   g.append("g")
     .attr("transform", `translate(0,${iH})`)
-    .call(d3.axisBottom(x).tickValues(data.map((d) => d.year)).tickFormat((d) => `${d}`))
+    .call(d3.axisBottom(x).tickValues(tickYears).tickFormat((d) => `${d}`))
     .selectAll("text")
     .attr("font-size", "10px");
   g.append("g")
@@ -1952,14 +2172,33 @@ const renderCostsLine = (el, data) => {
     .attr("font-size", "10px");
   gridLines(g, y, iW);
 
-  const dieselLine = d3.line().x((d) => x(d.year)).y((d) => y(d.diesel)).curve(d3.curveMonotoneX);
-  const elecLine = d3.line().x((d) => x(d.year)).y((d) => y(d.electric)).curve(d3.curveMonotoneX);
+  const dieselLine = d3.line().x((d) => x(d.year)).y((d) => y(d.diesel));
+  const elecLine = d3.line().x((d) => x(d.year)).y((d) => y(d.electric));
+  const dieselLayer = g.append("g");
+  const electricLayer = g.append("g");
 
-  g.append("path").datum(data).attr("d", dieselLine).attr("fill", "none").attr("stroke", FUEL_COLORS.diesel).attr("stroke-width", 2.5);
-  g.append("path").datum(data).attr("d", elecLine).attr("fill", "none").attr("stroke", FUEL_COLORS.electric).attr("stroke-width", 2.5);
-
-  g.append("text").attr("x", iW + 4).attr("y", y(data.at(-1).diesel)).attr("font-size", "10px").attr("fill", FUEL_COLORS.diesel).attr("dominant-baseline", "middle").text(fuelLabel("diesel"));
-  g.append("text").attr("x", iW + 4).attr("y", y(data.at(-1).electric)).attr("font-size", "10px").attr("fill", FUEL_COLORS.electric).attr("dominant-baseline", "middle").text(fuelLabel("electric"));
+  attachCostsLineHover({
+    layer: dieselLayer,
+    lineData: data,
+    lineGenerator: dieselLine,
+    x,
+    y,
+    innerWidth: iW,
+    innerHeight: iH,
+    key: "diesel",
+    color: FUEL_COLORS.diesel,
+  });
+  attachCostsLineHover({
+    layer: electricLayer,
+    lineData: data,
+    lineGenerator: elecLine,
+    x,
+    y,
+    innerWidth: iW,
+    innerHeight: iH,
+    key: "electric",
+    color: FUEL_COLORS.electric,
+  });
 
   el.appendChild(svg.node());
 };
@@ -4168,6 +4407,7 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
     battery_cost_per_kwh: batteryCostPerKwh,
     fuel_cost_per_l: fuelCostPerL,
     energy_price_per_kwh: energyPricePerKwh,
+    include_capex: false,
   };
 
   return {
@@ -4333,6 +4573,7 @@ const renderCostsSection = (sec, state, options = {}) => {
   const barEl = sec.querySelector('[data-role="costs-bar-chart"]');
   const legendEl = sec.querySelector('[data-role="costs-legend"]');
   const lineEl = sec.querySelector('[data-role="costs-line-chart"]');
+  const lineLegendEl = sec.querySelector('[data-role="costs-line-legend"]');
 
   const hasResolvedCostData =
     !!state.comparison && !!state.annualization && !!state.costInputs;
@@ -4350,6 +4591,7 @@ const renderCostsSection = (sec, state, options = {}) => {
       );
     }
     if (legendEl) legendEl.innerHTML = "";
+    if (lineLegendEl) lineLegendEl.innerHTML = "";
     if (lineEl) {
       lineEl.innerHTML = costsStateHtml(
         t("simulation.costs_loading") || "Loading cost comparison…"
@@ -4374,6 +4616,7 @@ const renderCostsSection = (sec, state, options = {}) => {
       );
     }
     if (legendEl) legendEl.innerHTML = "";
+    if (lineLegendEl) lineLegendEl.innerHTML = "";
     if (lineEl) {
       lineEl.innerHTML = costsStateHtml(
         state.error ||
@@ -4403,6 +4646,7 @@ const renderCostsSection = (sec, state, options = {}) => {
   );
   renderCostsLegend(legendEl);
   renderCostsLine(lineEl, chartData?.yearly ?? []);
+  renderCostsLineLegend(lineLegendEl);
 };
 
 /* ── Emissions tab charts ─────────────────────────────────────── */
