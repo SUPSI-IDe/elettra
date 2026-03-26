@@ -137,13 +137,32 @@
   display: grid;
   grid-template-columns: minmax(320px, 38%) minmax(0, 1fr);
   grid-template-areas:
-    "params annual"
-    "investment trend"
-    "electric ."
-    "diesel ."
-    "api .";
+    "params charts"
+    "investment charts"
+    "electric charts"
+    "diesel charts"
+    "api charts";
   align-items: start;
   gap: var(--spacing-md);
+}
+
+.costs-charts-column {
+  grid-area: charts;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.costs-charts-column > .chart-section {
+  flex: 0 0 auto;
+}
+
+.costs-kpis-section {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.costs-kpis-section h2 {
+  margin-bottom: var(--spacing-xs);
 }
 
 .tab-panel[hidden] {
@@ -194,14 +213,6 @@
 
 .costs-api-section {
   grid-area: api;
-}
-
-.costs-annual-section {
-  grid-area: annual;
-}
-
-.costs-trend-section {
-  grid-area: trend;
 }
 
 .results-cost-variables__header {
@@ -346,9 +357,7 @@
       "electric"
       "diesel"
       "api"
-      "annual"
-      "trend"
-      "inputs";
+      "charts";
   }
 }
 
@@ -371,10 +380,9 @@
 }
 
 .costs-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .costs-assumption-note {
@@ -413,27 +421,33 @@
 }
 
 .costs-kpi-card {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 110px;
   border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 0.75rem 0.9rem;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
   background: var(--background-alt, #f5f7fa);
+  cursor: default;
 }
 
 .costs-kpi-label {
   display: block;
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--text-secondary);
+  line-height: 1.2;
 }
 
 .costs-kpi-value {
   display: block;
-  margin-top: 0.3rem;   
-  font-size: 0.95rem;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-main);
+  white-space: nowrap;
 }
 
 .costs-kpi-value--positive {
@@ -442,6 +456,41 @@
 
 .costs-kpi-value--negative {
   color: var(--danger, #c0392b);
+}
+
+.costs-kpi-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 260px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #fff;
+  background: #1e293b;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  z-index: 20;
+  white-space: normal;
+}
+
+.costs-kpi-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1e293b;
+}
+
+.costs-kpi-card:hover .costs-kpi-tooltip {
+  display: block;
 }
 
 .costs-state-msg {
@@ -1233,4 +1282,165 @@
   .predictions-overview-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Emissions tab ─────────────────────────────────────────── */
+
+.emissions-simplified {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+.emissions-histogram-section {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.emissions-recap-section {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+@media (max-width: 900px) {
+  .emissions-simplified {
+    grid-template-columns: 1fr;
+  }
+}
+
+.emissions-state-msg {
+  margin: 0;
+  padding: var(--spacing-lg);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.emissions-state-msg--error {
+  color: var(--danger, #c0392b);
+}
+
+.emissions-recap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.emissions-recap-table thead th {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-light);
+  text-align: left;
+  background: var(--background-alt, #f5f7fa);
+}
+
+.emissions-recap-table thead th:not(:first-child) {
+  text-align: right;
+}
+
+.emissions-recap-table tbody td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-main);
+}
+
+.emissions-recap-table tbody td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.emissions-recap-table tbody td:first-child {
+  font-weight: 600;
+}
+
+.emissions-recap-table tbody tr:nth-child(even) {
+  background: var(--background-alt, #f5f7fa);
+}
+
+.emissions-recap-table tbody tr:hover {
+  background: rgba(0, 99, 154, 0.05);
+}
+
+.emissions-recap-table .emissions-recap-reduction {
+  font-weight: 700;
+}
+
+.emissions-recap-reduction--positive {
+  color: #3d7a00;
+}
+
+.emissions-recap-reduction--negative {
+  color: var(--danger, #c0392b);
+}
+
+.emissions-recap-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* KPI cards (per-km intensity) */
+
+.emissions-kpi-section {
+  grid-column: 1 / -1;
+}
+
+.emissions-kpi-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.emissions-kpi-card {
+  flex: 1 1 140px;
+  min-width: 130px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  background: var(--background-alt, #f5f7fa);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.emissions-kpi-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+
+.emissions-kpi-value {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.emissions-kpi-sub {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.emissions-kpi-reduction {
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.emissions-kpi-reduction--positive {
+  color: #3d7a00;
+}
+
+.emissions-kpi-reduction--negative {
+  color: var(--danger, #c0392b);
+}
+
+/* CO₂ phase breakdown + primary energy sections */
+
+.emissions-phase-section,
+.emissions-energy-section {
+  padding: var(--spacing-sm) var(--spacing-md);
 }

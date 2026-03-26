@@ -169,19 +169,32 @@
           <h2 data-i18n="simulation.costs_input_section_api">Economic comparison API parameters</h2>
           <div data-role="costs-api-params"></div>
         </div>
-        <div class="costs-kpi-grid" data-role="costs-kpis"></div>
-        <div class="chart-section costs-annual-section">
-          <h2 data-i18n="simulation.results_tco_title">Annual cost comparison</h2>
-          <p class="costs-assumption-note" data-role="costs-assumption" data-i18n="simulation.costs_assumption_weekly_once">
-            Current economic comparison assumes `weekly_once` recurrence.
-          </p>
-          <div class="chart-container" data-role="costs-bar-chart"></div>
-          <div class="chart-legend" data-role="costs-legend"></div>
-        </div>
-        <div class="chart-section costs-trend-section">
-          <h2 data-i18n="simulation.results_costs_trend">Projected cost trend</h2>
-          <div class="chart-container" data-role="costs-line-chart"></div>
-          <div class="chart-legend" data-role="costs-line-legend"></div>
+        <div class="costs-charts-column">
+          <div class="chart-section costs-kpis-section">
+            <h2 data-i18n="simulation.results_costs_kpis_title">Key financial metrics</h2>
+            <div class="costs-kpi-grid" data-role="costs-kpis"></div>
+          </div>
+          <div class="chart-section costs-annual-section">
+            <h2 data-i18n="simulation.results_tco_title">Annual cost comparison</h2>
+            <p class="costs-assumption-note" data-role="costs-assumption" data-i18n="simulation.costs_assumption_weekly_once">
+              Current economic comparison assumes `weekly_once` recurrence.
+            </p>
+            <div class="chart-container" data-role="costs-bar-chart"></div>
+            <div class="chart-legend" data-role="costs-legend"></div>
+          </div>
+          <div class="chart-section costs-trend-section">
+            <h2 data-i18n="simulation.results_costs_trend">Projected cost trend</h2>
+            <div class="chart-container" data-role="costs-line-chart"></div>
+            <div class="chart-legend" data-role="costs-line-legend"></div>
+          </div>
+          <div class="chart-section costs-savings-section">
+            <h2 data-i18n="simulation.results_cumulative_savings">Cumulative savings</h2>
+            <div class="chart-container" data-role="costs-savings-chart"></div>
+          </div>
+          <div class="chart-section costs-waterfall-section">
+            <h2 data-i18n="simulation.results_waterfall">Annual cost waterfall</h2>
+            <div class="chart-container" data-role="costs-waterfall-chart"></div>
+          </div>
         </div>
       </div>
 
@@ -193,15 +206,31 @@
         <div class="predictions-panel" data-role="predictions-panel"></div>
       </div>
 
-      <div class="tab-panel" data-panel="emissions" role="tabpanel" hidden>
-        <div class="chart-section">
-          <h2 data-i18n="simulation.results_co2_title">CO₂ emissions comparison</h2>
-          <div class="chart-container" data-role="emissions-bar-chart"></div>
-          <div class="chart-legend" data-role="emissions-legend"></div>
-        </div>
-        <div class="chart-section">
-          <h2 data-i18n="simulation.results_co2_yearly">Cumulative CO₂ savings over time</h2>
-          <div class="chart-container" data-role="emissions-line-chart"></div>
+      <div class="tab-panel tab-panel--full" data-panel="emissions" role="tabpanel" hidden>
+        <div class="emissions-simplified">
+          <div class="chart-section emissions-kpi-section">
+            <h2 data-i18n="simulation.emissions_intensity_title">Emissions per km</h2>
+            <div class="emissions-kpi-grid" data-role="emissions-intensity-kpis"></div>
+          </div>
+          <div class="chart-section emissions-histogram-section">
+            <h2 data-i18n="simulation.emissions_saved_title">Emissions saved</h2>
+            <div class="chart-container" data-role="emissions-histogram"></div>
+            <div class="chart-legend" data-role="emissions-histogram-legend"></div>
+          </div>
+          <div class="chart-section emissions-recap-section">
+            <h2 data-i18n="simulation.emissions_recap_title">Emissions summary</h2>
+            <div data-role="emissions-recap-table"></div>
+          </div>
+          <div class="chart-section emissions-phase-section">
+            <h2 data-i18n="simulation.emissions_co2_phase_title">CO₂ lifecycle breakdown</h2>
+            <div class="chart-container" data-role="emissions-co2-phase"></div>
+            <div class="chart-legend" data-role="emissions-co2-phase-legend"></div>
+          </div>
+          <div class="chart-section emissions-energy-section">
+            <h2 data-i18n="simulation.emissions_energy_title">Primary energy consumption</h2>
+            <div class="chart-container" data-role="emissions-primary-energy"></div>
+            <div class="chart-legend" data-role="emissions-primary-energy-legend"></div>
+          </div>
         </div>
       </div>
     </div>

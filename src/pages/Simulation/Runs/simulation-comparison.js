@@ -11,6 +11,11 @@ import {
 import { fetchBusModelById } from "../../../api/bus-models";
 import { fetchShiftYearlyDistance } from "../../../api/shifts";
 import {
+  fetchShiftYearlyImpact,
+  fetchLcaVehicles,
+  fetchVehicleImpact,
+} from "../../../api/environmental";
+import {
   DEFAULT_OPEX_ANNUALIZATION_RATE,
   DEFAULT_BUS_LIFETIME_YEARS,
   DEFAULT_DIESEL_BUS_LIFETIME_YEARS,
@@ -59,11 +64,11 @@ const formatChfAxis = (value) => {
   return String(Math.round(value));
 };
 
-const formatChfLabel = (value) => {
-  if (Math.abs(value) >= 1e6) return `CHF ${(value / 1e6).toFixed(1)}M`;
-  if (Math.abs(value) >= 1e3) return `CHF ${formatCHF(value)}`;
-  return `CHF ${Math.round(value)}`;
-};
+const formatChfAxisWithUnit = (value) => `${formatChfAxis(value)} CHF`;
+
+const formatKChfAxis = (value) => String(Math.round(value / 1000));
+
+const formatKChfLabel = (value) => `${Math.round(value / 1000)} kCHF`;
 
 const hasValue = (value) =>
   value !== null && value !== undefined && value !== "";
@@ -107,14 +112,26 @@ const PROJECTED_COST_TREND_HORIZON_YEARS = 20;
 const COST_ANNUALIZATION_FACTOR = 52;
 const DEFAULT_INFRASTRUCTURE_SLOT_COST_CHF = 150000;
 
-const CO2_ANNUAL = [
-  { category: "equivalent_diesel_bus", value: 85, color: "#6fbeec" },
-  { category: "electric_bus", value: 12, color: "#abe828" },
+const LCA_INDICATORS = [
+  { key: "gwp100a", i18n: "simulation.emissions_lca_gwp100a", fallback: "GWP₁₀₀ₐ" },
+  { key: "primaryEnergy", i18n: "simulation.emissions_lca_primary_energy", fallback: "Primary energy" },
+  { key: "primaryEnergyNonRenewable", i18n: "simulation.emissions_lca_primary_energy_nr", fallback: "Prim. energy (non-ren.)" },
+  { key: "pm10", i18n: "simulation.emissions_lca_pm10", fallback: "PM₁₀" },
+  { key: "pm25", i18n: "simulation.emissions_lca_pm25", fallback: "PM₂.₅" },
+  { key: "nox", i18n: "simulation.emissions_lca_nox", fallback: "NOx" },
+  { key: "nmvoc", i18n: "simulation.emissions_lca_nmvoc", fallback: "NMVOC" },
+  { key: "ubp21", i18n: "simulation.emissions_lca_ubp21", fallback: "UBP'21" },
 ];
-const CO2_CUM = Array.from({ length: 15 }, (_, i) => ({
-  year: i + 1,
-  saved: (i + 1) * 73,
-}));
+
+const LCA_PHASES = [
+  { key: "direct", i18n: "simulation.emissions_phase_direct", fallback: "Direct", color: "#e74c3c" },
+  { key: "directNonExhaust", i18n: "simulation.emissions_phase_direct_non_exhaust", fallback: "Non-exhaust", color: "#e67e22" },
+  { key: "energyChain", i18n: "simulation.emissions_phase_energy_chain", fallback: "Energy chain", color: "#f1c40f" },
+  { key: "maintenance", i18n: "simulation.emissions_phase_maintenance", fallback: "Maintenance", color: "#3498db" },
+  { key: "vehicle", i18n: "simulation.emissions_phase_vehicle", fallback: "Vehicle mfg.", color: "#9b59b6" },
+  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", fallback: "End of life", color: "#7f8c8d" },
+  { key: "infrastructure", i18n: "simulation.emissions_phase_infrastructure", fallback: "Infrastructure", color: "#1abc9c" },
+];
 
 /* ── Bus model helpers ────────────────────────────────────────── */
 
@@ -881,18 +898,18 @@ const renderComparisonCostsBar = (el, data) => {
     .selectAll("text")
     .attr("font-size", "11px");
   g.append("g")
-    .call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxis))
+    .call(d3.axisLeft(y).ticks(5).tickFormat(formatKChfAxis))
     .selectAll("text")
     .attr("font-size", "11px");
 
   g.append("text")
     .attr("transform", "rotate(-90)")
-    .attr("y", -65)
+    .attr("y", -54)
     .attr("x", -iH / 2)
     .attr("text-anchor", "middle")
     .attr("font-size", "11px")
     .attr("fill", "#666")
-    .text(t("simulation.axis_cost_chf_per_year") || "CHF / year");
+    .text(t("simulation.axis_cost_kchf_per_year") || "kCHF / year");
 
   stacked.forEach((layer) => {
     g.selectAll(`.bar-${layer.key}`)
@@ -914,7 +931,7 @@ const renderComparisonCostsBar = (el, data) => {
       .attr("font-size", "12px")
       .attr("font-weight", "600")
       .attr("fill", "#1c1c1c")
-      .text(formatChfLabel(total));
+      .text(formatKChfLabel(total));
   });
 
   el.appendChild(svg.node());
@@ -1125,7 +1142,7 @@ const renderComparisonCostsLine = (el, data) => {
     );
     return;
   }
-  const margin = { top: 16, right: 24, bottom: 32, left: 64 };
+  const margin = { top: 16, right: 24, bottom: 32, left: 84 };
   const W = 620, H = 147;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
@@ -1158,7 +1175,7 @@ const renderComparisonCostsLine = (el, data) => {
     .selectAll("text")
     .attr("font-size", "10px");
   g.append("g")
-    .call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxis))
+    .call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxisWithUnit))
     .selectAll("text")
     .attr("font-size", "10px");
   gridLines(g, y, iW);
@@ -1194,189 +1211,537 @@ const renderComparisonCostsLine = (el, data) => {
   el.appendChild(svg.node());
 };
 
-const renderCO2Bar = (el, data) => {
-  if (!el) return;
-  el.innerHTML = "";
-  const margin = { top: 20, right: 20, bottom: 40, left: 55 };
-  const W = 480,
-    H = 240;
-  const iW = W - margin.left - margin.right,
-    iH = H - margin.top - margin.bottom;
+const LCA_SIZE_BUCKETS = ["9m", "13m", "18m"];
 
-  const svg = svgBase(
-    W,
-    H,
-    chartAriaLabel(
-      "simulation.chart_aria_co2_bar",
-      "CO2 emissions comparison bar chart"
-    )
-  );
-  const g = svg
-    .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-  const x = d3
-    .scaleBand()
-    .domain(data.map((d) => d.category))
-    .range([0, iW])
-    .padding(0.4);
-  const y = d3
-    .scaleLinear()
-    .domain([0, d3.max(data, (d) => d.value) * 1.2])
-    .nice()
-    .range([iH, 0]);
-
-  g.append("g")
-    .attr("transform", `translate(0,${iH})`)
-    .call(d3.axisBottom(x).tickFormat((d) => busCategoryLabel(d)))
-    .selectAll("text")
-    .attr("font-size", "10px");
-  g.append("g")
-    .call(
-      d3
-        .axisLeft(y)
-        .ticks(5)
-        .tickFormat((d) => `${d}`)
-    )
-    .selectAll("text")
-    .attr("font-size", "10px");
-  g.append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("y", -42)
-    .attr("x", -iH / 2)
-    .attr("text-anchor", "middle")
-    .attr("font-size", "9px")
-    .attr("fill", "#666")
-    .text(t("simulation.axis_co2_t_per_year"));
-
-  g.selectAll(".bar")
-    .data(data)
-    .join("rect")
-    .attr("x", (d) => x(d.category))
-    .attr("y", (d) => y(d.value))
-    .attr("width", x.bandwidth())
-    .attr("height", (d) => iH - y(d.value))
-    .attr("rx", 4)
-    .attr("fill", (d) => d.color);
-
-  g.selectAll(".bar-label")
-    .data(data)
-    .join("text")
-    .attr("x", (d) => x(d.category) + x.bandwidth() / 2)
-    .attr("y", (d) => y(d.value) - 5)
-    .attr("text-anchor", "middle")
-    .attr("font-size", "11px")
-    .attr("font-weight", "600")
-    .attr("fill", "#1c1c1c")
-    .text((d) => `${d.value} ${t("simulation.unit_tonnes_short")}`);
-
-  el.appendChild(svg.node());
+const inferLcaSize = (busLengthM, busModelName) => {
+  const lengthNum = toFiniteNumber(busLengthM);
+  if (lengthNum != null) {
+    if (lengthNum <= 10) return "9m";
+    if (lengthNum <= 15) return "13m";
+    return "18m";
+  }
+  const nameStr = String(busModelName || "").toLowerCase();
+  for (const bucket of LCA_SIZE_BUCKETS) {
+    if (nameStr.includes(bucket)) return bucket;
+  }
+  const mMatch = nameStr.match(/(\d{1,2})m/);
+  if (mMatch) {
+    const n = parseInt(mMatch[1], 10);
+    if (n <= 10) return "9m";
+    if (n <= 15) return "13m";
+    return "18m";
+  }
+  return null;
 };
 
-const renderCO2Legend = (el, data) => {
+const ELECTRIC_PT_KEYWORDS = ["bev", "electric", "battery"];
+const DIESEL_PT_KEYWORDS = ["icev-d", "diesel", "ice-d"];
+
+const findVehicleByPowertrainAndSize = (vehicles, powertrain, size) => {
+  if (!Array.isArray(vehicles) || !size) return null;
+  const sizeLower = size.toLowerCase();
+  const ptLower = powertrain.toLowerCase();
+  const ptKeywords =
+    ELECTRIC_PT_KEYWORDS.some((k) => ptLower.includes(k)) ? ELECTRIC_PT_KEYWORDS :
+    DIESEL_PT_KEYWORDS.some((k) => ptLower.includes(k)) ? DIESEL_PT_KEYWORDS :
+    [ptLower];
+
+  const isBus = (v) => {
+    const vt = (v.vehicleType || "").toLowerCase();
+    return vt.includes("bus") || vt.includes("coach") || vt === "";
+  };
+  const ptMatches = (v) => {
+    const vPt = (v.powertrain || "").toLowerCase();
+    return ptKeywords.some((k) => vPt.includes(k));
+  };
+
+  const candidates = vehicles.filter((v) => isBus(v) && ptMatches(v));
+  if (!candidates.length) return null;
+
+  const exactMatch = candidates.find(
+    (v) => (v.size || "").toLowerCase() === sizeLower
+  );
+  if (exactMatch) return exactMatch;
+
+  const sizePrefix = sizeLower.replace(/m$/, "").replace(/-.*/, "");
+  const prefixMatches = candidates.filter((v) => {
+    const vSz = (v.size || "").toLowerCase();
+    return vSz.startsWith(sizeLower) || vSz.startsWith(sizePrefix + "m");
+  });
+  if (!prefixMatches.length) return null;
+
+  const preferCity = prefixMatches.find((v) =>
+    (v.size || "").toLowerCase().includes("city") &&
+    !(v.size || "").toLowerCase().includes("double")
+  );
+  return preferCity || prefixMatches[0];
+};
+
+const findDieselEquivalent = (vehicles, electricSize) =>
+  findVehicleByPowertrainAndSize(vehicles, "icev-d", electricSize) ||
+  findVehicleByPowertrainAndSize(vehicles, "diesel", electricSize);
+
+const scaleDieselImpactToYearly = (perUnitImpact, yearlyDistanceKm, passengers) => {
+  if (!perUnitImpact || !yearlyDistanceKm || !passengers) return null;
+  const factor = yearlyDistanceKm * passengers;
+  const yearly = {};
+  for (const ind of LCA_INDICATORS) {
+    const bd = perUnitImpact[ind.key];
+    if (!bd) continue;
+    const entry = { unit: "" };
+    for (const phase of LCA_PHASES) {
+      const val = toFiniteNumber(bd[phase.key]);
+      entry[phase.key] = val != null ? val * factor : null;
+    }
+    let total = 0;
+    for (const phase of LCA_PHASES) {
+      if (entry[phase.key] != null) total += entry[phase.key];
+    }
+    entry.total = total;
+    yearly[ind.key] = entry;
+  }
+  return yearly;
+};
+
+const loadEmissionsDataForComparison = async (
+  shiftId,
+  { recurrence = "daily", busLengthM, busModelName } = {}
+) => {
+  let yearlyImpact = null;
+  let electricYearly = null;
+
+  try {
+    yearlyImpact = await fetchShiftYearlyImpact(shiftId, { recurrence });
+    electricYearly = yearlyImpact.yearly_impact ?? {};
+  } catch (primaryErr) {
+    const lcaSize = inferLcaSize(busLengthM, busModelName);
+    if (!lcaSize) throw primaryErr;
+    const allVehicles = await fetchLcaVehicles();
+    const electricMatch =
+      findVehicleByPowertrainAndSize(allVehicles, "bev", lcaSize);
+    if (!electricMatch) throw primaryErr;
+    let yDistKm = null;
+    try {
+      const yd = await fetchShiftYearlyDistance(shiftId, { recurrence });
+      yDistKm = yd.yearly_distance_km;
+    } catch (_) { throw primaryErr; }
+    if (!yDistKm) throw primaryErr;
+    const passengers = 1;
+    const electricPerUnit = await fetchVehicleImpact(electricMatch.id, { passengers });
+    electricYearly = scaleDieselImpactToYearly(electricPerUnit, yDistKm, passengers) ?? {};
+    yearlyImpact = {
+      shift_id: shiftId, shift_name: "",
+      lca_vehicle: {
+        lca_vehicle_id: electricMatch.id,
+        lca_vehicle_name: electricMatch.name || electricMatch.id,
+        lca_size: lcaSize, powertrain: electricMatch.powertrain || "electric",
+      },
+      bus_model_name: busModelName || "", bus_model_size: lcaSize,
+      passengers, recurrence, yearly_distance_km: yDistKm,
+      functional_unit: electricMatch.functionalUnit || "pkm",
+      yearly_impact: electricYearly,
+    };
+  }
+
+  let dieselYearly = null;
+  let dieselVehicleName = null;
+  try {
+    const electricSize =
+      yearlyImpact?.lca_vehicle?.lca_size ||
+      yearlyImpact?.bus_model_size ||
+      inferLcaSize(busLengthM, busModelName) || "";
+    if (electricSize) {
+      const allVehicles = await fetchLcaVehicles();
+      const dieselMatch = findDieselEquivalent(allVehicles, electricSize);
+      if (dieselMatch) {
+        dieselVehicleName = dieselMatch.name || dieselMatch.id;
+        const dieselPerUnit = await fetchVehicleImpact(dieselMatch.id, { passengers: yearlyImpact?.passengers ?? 1 });
+        dieselYearly = scaleDieselImpactToYearly(
+          dieselPerUnit, yearlyImpact?.yearly_distance_km, yearlyImpact?.passengers ?? 1
+        );
+      }
+    }
+  } catch (_) { /* best-effort */ }
+  return { yearlyImpact, electricYearly, dieselYearly, dieselVehicleName };
+};
+
+const EMISSIONS_POLLUTANTS = [
+  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "#c0392b", unitGroup: "ton", divisor: 1e6 },
+  { key: "nox", i18n: "simulation.emissions_nox_label", fallback: "NOx (nitric oxide)", color: "#d4a017", unitGroup: "kg", divisor: 1e6 },
+  { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6 },
+];
+
+const renderComparisonHistogram = (el, legendEl, emState) => {
   if (!el) return;
-  el.innerHTML = data
-    .map(
-      (d) => `
-    <div class="chart-legend-item">
-      <span class="chart-legend-swatch" style="background:${d.color}"></span>
-      ${textContent(busCategoryLabel(d.category))}
-    </div>`
-    )
+  el.innerHTML = "";
+  if (legendEl) legendEl.innerHTML = "";
+
+  if (!emState || emState.status !== "done" || !emState.electricYearly) {
+    el.innerHTML = `<p class="emissions-state-msg">${textContent(
+      t("simulation.emissions_no_data") || "No environmental impact data available."
+    )}</p>`;
+    return;
+  }
+
+  const electricY = emState.electricYearly;
+  const dieselY = emState.dieselYearly;
+  const hasDiesel = !!dieselY;
+
+  const data = EMISSIONS_POLLUTANTS
+    .filter((p) => electricY[p.key]?.total != null)
+    .map((p) => {
+      const eTotal = toFiniteNumber(electricY[p.key]?.total) ?? 0;
+      const dTotal = hasDiesel ? (toFiniteNumber(dieselY[p.key]?.total) ?? 0) : 0;
+      const displayE = eTotal / p.divisor;
+      const displayD = dTotal / p.divisor;
+      const unitLabel = p.unitGroup === "ton"
+        ? (t("simulation.emissions_unit_ton_year") || "ton/year")
+        : (t("simulation.emissions_unit_kg_year") || "kg/year");
+      return { key: p.key, label: t(p.i18n) || p.fallback, color: p.color, unitGroup: p.unitGroup, unitLabel, electric: displayE, diesel: displayD };
+    });
+
+  if (!data.length) return;
+
+  const unitGroups = [...new Set(data.map((d) => d.unitGroup))];
+  const groupData = unitGroups.map((ug) => ({
+    unitLabel: data.find((d) => d.unitGroup === ug).unitLabel,
+    items: data.filter((d) => d.unitGroup === ug),
+  }));
+
+  const barHeight = 28;
+  const groupGap = 22;
+  const barGap = 5;
+  const totalBars = data.length;
+  const margin = { top: 12, right: 70, bottom: 20, left: 8 };
+  const chartHeight = margin.top + margin.bottom + totalBars * barHeight + (totalBars - 1) * barGap + (unitGroups.length - 1) * groupGap;
+  const W = 440;
+
+  const allValues = data.flatMap((d) => hasDiesel ? [d.electric, d.diesel] : [d.electric]);
+  const maxVal = d3.max(allValues) * 1.2 || 1;
+  const iW = W - margin.left - margin.right;
+  const x = d3.scaleLinear().domain([0, maxVal]).nice().range([0, iW]);
+
+  const svg = svgBase(W, chartHeight, chartAriaLabel("simulation.chart_aria_emissions_saved", "Emissions saved"));
+
+  let yOffset = margin.top;
+  groupData.forEach((group, gi) => {
+    if (gi > 0) yOffset += groupGap;
+    svg.append("text")
+      .attr("x", W - margin.right + 4).attr("y", yOffset + (group.items.length * (barHeight + barGap)) / 2)
+      .attr("dy", "0.35em").attr("font-size", "10px").attr("font-weight", "600").attr("fill", "#666")
+      .text(group.unitLabel);
+    group.items.forEach((item) => {
+      const g = svg.append("g").attr("transform", `translate(${margin.left},${yOffset})`);
+      if (hasDiesel) {
+        g.append("rect").attr("x", 0).attr("y", 0).attr("width", Math.max(0, x(item.diesel)))
+          .attr("height", barHeight / 2 - 1).attr("rx", 2).attr("fill", item.color).attr("opacity", 0.35);
+        g.append("text").attr("x", Math.max(0, x(item.diesel)) + 3).attr("y", barHeight / 4)
+          .attr("dy", "0.35em").attr("font-size", "8px").attr("fill", "#999").text(formatFixed(item.diesel, 1));
+      }
+      g.append("rect").attr("x", 0).attr("y", hasDiesel ? barHeight / 2 + 1 : 0)
+        .attr("width", Math.max(0, x(item.electric))).attr("height", hasDiesel ? barHeight / 2 - 1 : barHeight)
+        .attr("rx", 2).attr("fill", item.color).attr("opacity", 0.85);
+      g.append("text").attr("x", Math.max(0, x(item.electric)) + 3).attr("y", hasDiesel ? barHeight * 3 / 4 : barHeight / 2)
+        .attr("dy", "0.35em").attr("font-size", "8px").attr("fill", "#333").text(formatFixed(item.electric, 1));
+      yOffset += barHeight + barGap;
+    });
+  });
+
+  el.appendChild(svg.node());
+
+  if (legendEl) {
+    const items = EMISSIONS_POLLUTANTS
+      .filter((p) => data.some((d) => d.key === p.key))
+      .map((p) => `<div class="chart-legend-item"><span class="chart-legend-swatch" style="background:${p.color}"></span>${textContent(t(p.i18n) || p.fallback)}</div>`);
+    if (hasDiesel) {
+      items.push(`<div class="chart-legend-item" style="margin-left:8px"><span class="chart-legend-swatch" style="background:#999;opacity:0.35"></span>${textContent(t("simulation.emissions_toggle_diesel") || "Diesel bus")}</div>`);
+      items.push(`<div class="chart-legend-item"><span class="chart-legend-swatch" style="background:#333;opacity:0.85"></span>${textContent(t("simulation.emissions_toggle_electric") || "Electric bus")}</div>`);
+    }
+    legendEl.innerHTML = items.join("");
+  }
+};
+
+const renderComparisonRecapTable = (el, emState) => {
+  if (!el) return;
+  if (!emState || emState.status !== "done" || !emState.electricYearly) {
+    el.innerHTML = `<p class="emissions-state-msg">${textContent(
+      t("simulation.emissions_no_data") || "No environmental impact data available."
+    )}</p>`;
+    return;
+  }
+
+  const electricY = emState.electricYearly;
+  const dieselY = emState.dieselYearly;
+  const hasDiesel = !!dieselY;
+
+  const pollutantLabel = t("simulation.emissions_table_pollutant") || "Pollutant";
+  const unitLabel = t("simulation.emissions_table_unit") || "Unit";
+  const electricLabel = t("simulation.emissions_toggle_electric") || "Electric bus";
+  const dieselLabel = t("simulation.emissions_toggle_diesel") || "Diesel bus";
+  const reductionLabel = t("simulation.emissions_reduction_col") || "Reduction";
+
+  const rows = EMISSIONS_POLLUTANTS
+    .filter((p) => electricY[p.key]?.total != null)
+    .map((p) => {
+      const eTotal = toFiniteNumber(electricY[p.key]?.total) ?? 0;
+      const dTotal = hasDiesel ? (toFiniteNumber(dieselY[p.key]?.total) ?? 0) : null;
+      const displayE = eTotal / p.divisor;
+      const displayD = dTotal != null ? dTotal / p.divisor : null;
+      const reduction = dTotal != null && dTotal !== 0 ? ((dTotal - eTotal) / Math.abs(dTotal)) * 100 : null;
+      const unit = p.unitGroup === "ton" ? (t("simulation.emissions_unit_ton_year") || "ton/year") : (t("simulation.emissions_unit_kg_year") || "kg/year");
+      const reductionStr = reduction != null ? `${reduction > 0 ? "−" : "+"}${formatFixed(Math.abs(reduction), 0)}%` : "—";
+      const tone = reduction != null && reduction > 0 ? "positive" : reduction != null && reduction < 0 ? "negative" : "";
+      return `<tr>
+        <td>${textContent(t(p.i18n) || p.fallback)}</td>
+        <td>${textContent(unit)}</td>
+        <td>${formatFixed(displayE, 2)}</td>
+        ${hasDiesel ? `<td>${displayD != null ? formatFixed(displayD, 2) : "—"}</td>` : ""}
+        ${hasDiesel ? `<td class="emissions-recap-reduction${tone ? ` emissions-recap-reduction--${tone}` : ""}">${textContent(reductionStr)}</td>` : ""}
+      </tr>`;
+    })
     .join("");
+
+  el.innerHTML = `<div class="emissions-recap-table-wrap">
+    <table class="emissions-recap-table">
+      <thead>
+        <tr>
+          <th>${textContent(pollutantLabel)}</th>
+          <th>${textContent(unitLabel)}</th>
+          <th>${textContent(electricLabel)}</th>
+          ${hasDiesel ? `<th>${textContent(dieselLabel)}</th>` : ""}
+          ${hasDiesel ? `<th>${textContent(reductionLabel)}</th>` : ""}
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
 };
 
-const renderCO2Cumulative = (el, data) => {
+const COMP_INTENSITY_DEFS = [
+  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂", unit: "g/km" },
+  { key: "nox", i18n: "simulation.emissions_nox_label", fallback: "NOx", unit: "mg/km" },
+  { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", unit: "mg/km" },
+];
+
+const renderComparisonIntensityKpis = (el, emState) => {
+  if (!el) return;
+  const yearlyDistKm = toFiniteNumber(emState?.yearlyImpact?.yearly_distance_km);
+  if (!emState || emState.status !== "done" || !emState.electricYearly || !yearlyDistKm) {
+    el.innerHTML = "";
+    return;
+  }
+  const electricY = emState.electricYearly;
+  const dieselY = emState.dieselYearly;
+  const hasDiesel = !!dieselY;
+
+  el.innerHTML = COMP_INTENSITY_DEFS
+    .filter((p) => electricY[p.key]?.total != null)
+    .map((p) => {
+      const eRaw = toFiniteNumber(electricY[p.key]?.total) ?? 0;
+      const dRaw = hasDiesel ? (toFiniteNumber(dieselY[p.key]?.total) ?? 0) : null;
+      const ePerKm = eRaw / yearlyDistKm;
+      const dPerKm = dRaw != null ? dRaw / yearlyDistKm : null;
+      const reduction = dRaw != null && dRaw !== 0
+        ? ((dRaw - eRaw) / Math.abs(dRaw)) * 100 : null;
+      const redStr = reduction != null
+        ? `${reduction > 0 ? "−" : "+"}${formatFixed(Math.abs(reduction), 0)}%` : "";
+      const tone = reduction != null && reduction > 0 ? "positive"
+        : reduction != null && reduction < 0 ? "negative" : "";
+      return `<div class="emissions-kpi-card">
+        <span class="emissions-kpi-label">${textContent(t(p.i18n) || p.fallback)}</span>
+        <span class="emissions-kpi-value">${formatFixed(ePerKm, 1)} ${textContent(p.unit)}</span>
+        ${hasDiesel && dPerKm != null ? `<span class="emissions-kpi-sub">${textContent(t("simulation.emissions_toggle_diesel") || "Diesel")}: ${formatFixed(dPerKm, 1)} ${textContent(p.unit)}</span>` : ""}
+        ${redStr ? `<span class="emissions-kpi-reduction${tone ? ` emissions-kpi-reduction--${tone}` : ""}">${textContent(redStr)}</span>` : ""}
+      </div>`;
+    }).join("");
+};
+
+const COMP_CO2_PHASE_DIVISOR = 1e6;
+
+const renderComparisonCo2Phase = (el, legendEl, emState) => {
   if (!el) return;
   el.innerHTML = "";
-  const margin = { top: 20, right: 20, bottom: 40, left: 55 };
-  const W = 480,
-    H = 220;
-  const iW = W - margin.left - margin.right,
-    iH = H - margin.top - margin.bottom;
+  if (legendEl) legendEl.innerHTML = "";
+  if (!emState || emState.status !== "done" || !emState.electricYearly) {
+    el.innerHTML = `<p class="emissions-state-msg">${textContent(
+      t("simulation.emissions_no_data") || "No environmental impact data available."
+    )}</p>`;
+    return;
+  }
+  const electricGwp = emState.electricYearly.gwp100a;
+  const dieselGwp = emState.dieselYearly?.gwp100a;
+  if (!electricGwp) return;
 
-  const svg = svgBase(
-    W,
-    H,
-    chartAriaLabel(
-      "simulation.chart_aria_co2_cumulative",
-      "Cumulative CO2 savings area chart"
-    )
-  );
-  const g = svg
-    .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
+  const buildPhases = (gwp) =>
+    LCA_PHASES.map((p) => ({
+      key: p.key, label: t(p.i18n) || p.fallback, color: p.color,
+      value: Math.max(0, (toFiniteNumber(gwp[p.key]) ?? 0) / COMP_CO2_PHASE_DIVISOR),
+    }));
 
-  const x = d3.scaleLinear().domain([1, 15]).range([0, iW]);
-  const y = d3
-    .scaleLinear()
-    .domain([0, d3.max(data, (d) => d.saved) * 1.1])
-    .nice()
-    .range([iH, 0]);
+  const bars = [{ label: t("simulation.emissions_toggle_electric") || "Electric", phases: buildPhases(electricGwp) }];
+  if (dieselGwp) bars.push({ label: t("simulation.emissions_toggle_diesel") || "Diesel", phases: buildPhases(dieselGwp) });
 
-  g.append("g")
-    .attr("transform", `translate(0,${iH})`)
-    .call(
-      d3
-        .axisBottom(x)
-        .ticks(15)
-        .tickFormat((d) => `${d}`)
-    )
-    .selectAll("text")
-    .attr("font-size", "9px");
-  g.append("g")
-    .call(
-      d3
-        .axisLeft(y)
-        .ticks(5)
-        .tickFormat((d) => `${d}`)
-    )
-    .selectAll("text")
-    .attr("font-size", "9px");
-  g.append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("y", -40)
-    .attr("x", -iH / 2)
-    .attr("text-anchor", "middle")
-    .attr("font-size", "9px")
-    .attr("fill", "#666")
-    .text(t("simulation.axis_co2_saved_t"));
-  gridLines(g, y, iW);
+  const maxTotal = Math.max(...bars.map((b) => b.phases.reduce((s, p) => s + p.value, 0))) * 1.15 || 1;
+  const barHeight = 32;
+  const barGap = 14;
+  const labelWidth = 70;
+  const margin = { top: 10, right: 60, bottom: 24, left: labelWidth };
+  const W = 440;
+  const chartHeight = margin.top + margin.bottom + bars.length * barHeight + (bars.length - 1) * barGap;
 
-  const areaGen = d3
-    .area()
-    .x((d) => x(d.year))
-    .y0(iH)
-    .y1((d) => y(d.saved))
-    .curve(d3.curveMonotoneX);
-  const lineGen = d3
-    .line()
-    .x((d) => x(d.year))
-    .y((d) => y(d.saved))
-    .curve(d3.curveMonotoneX);
+  const svg = svgBase(W, chartHeight, chartAriaLabel("simulation.chart_aria_co2_phase", "CO₂ lifecycle phase breakdown"));
+  const iW = W - margin.left - margin.right;
+  const x = d3.scaleLinear().domain([0, maxTotal]).nice().range([0, iW]);
 
-  g.append("path")
-    .datum(data)
-    .attr("d", areaGen)
-    .attr("fill", "rgba(171,232,40,0.15)");
-  g.append("path")
-    .datum(data)
-    .attr("d", lineGen)
-    .attr("fill", "none")
-    .attr("stroke", "#abe828")
-    .attr("stroke-width", 2);
+  bars.forEach((bar, i) => {
+    const y = margin.top + i * (barHeight + barGap);
+    svg.append("text").attr("x", margin.left - 6).attr("y", y + barHeight / 2)
+      .attr("dy", "0.35em").attr("text-anchor", "end")
+      .attr("font-size", "10px").attr("font-weight", "600").attr("fill", "#333").text(bar.label);
+    let xOff = 0;
+    const total = bar.phases.reduce((s, p) => s + p.value, 0);
+    bar.phases.forEach((phase) => {
+      const w = Math.max(0, x(phase.value));
+      if (w > 0.5) {
+        const pct = total > 0 ? Math.round((phase.value / total) * 100) : 0;
+        svg.append("rect").attr("x", margin.left + xOff).attr("y", y)
+          .attr("width", w).attr("height", barHeight).attr("fill", phase.color)
+          .attr("rx", xOff === 0 ? 2 : 0)
+          .style("cursor", "pointer")
+          .append("title")
+          .text(`${bar.label} · ${phase.label}: ${formatFixed(phase.value, 1)} ${t("simulation.emissions_unit_ton_year") || "ton/year"} (${pct}%)`);
+        xOff += w;
+      }
+    });
+    svg.append("text").attr("x", margin.left + xOff + 4).attr("y", y + barHeight / 2)
+      .attr("dy", "0.35em").attr("font-size", "9px").attr("fill", "#666")
+      .text(`${formatFixed(total, 1)} ${t("simulation.emissions_unit_ton_year") || "ton/year"}`);
+  });
 
-  g.selectAll(".dot")
-    .data(data)
-    .join("circle")
-    .attr("cx", (d) => x(d.year))
-    .attr("cy", (d) => y(d.saved))
-    .attr("r", 2.5)
-    .attr("fill", "#abe828")
-    .attr("stroke", "#fff")
-    .attr("stroke-width", 1);
+  const xAxis = d3.axisBottom(x).ticks(4).tickFormat((d) => formatFixed(d, 0));
+  svg.append("g").attr("transform", `translate(${margin.left},${chartHeight - margin.bottom})`)
+    .call(xAxis).selectAll("text").attr("font-size", "8px");
 
   el.appendChild(svg.node());
+
+  if (legendEl) {
+    legendEl.innerHTML = LCA_PHASES.map((p) =>
+      `<div class="chart-legend-item"><span class="chart-legend-swatch" style="background:${p.color}"></span>${textContent(t(p.i18n) || p.fallback)}</div>`
+    ).join("");
+  }
+};
+
+const COMP_ENERGY_COLORS = { renewable: "#27ae60", nonRenewable: "#e67e22" };
+
+const renderComparisonPrimaryEnergy = (el, legendEl, emState) => {
+  if (!el) return;
+  el.innerHTML = "";
+  if (legendEl) legendEl.innerHTML = "";
+  if (!emState || emState.status !== "done" || !emState.electricYearly) {
+    el.innerHTML = `<p class="emissions-state-msg">${textContent(
+      t("simulation.emissions_no_data") || "No environmental impact data available."
+    )}</p>`;
+    return;
+  }
+
+  const ePE = emState.electricYearly.primaryEnergy;
+  const ePENR = emState.electricYearly.primaryEnergyNonRenewable;
+  const dPE = emState.dieselYearly?.primaryEnergy;
+  const dPENR = emState.dieselYearly?.primaryEnergyNonRenewable;
+
+  if (!ePE || !ePENR) {
+    el.innerHTML = `<p class="emissions-state-msg">${textContent(
+      t("simulation.emissions_no_data") || "No primary energy data available."
+    )}</p>`;
+    return;
+  }
+
+  const eTotal = toFiniteNumber(ePE.total) ?? 0;
+  const eNR = toFiniteNumber(ePENR.total) ?? 0;
+  const eRen = Math.max(0, eTotal - eNR);
+  const dTotal = dPE ? (toFiniteNumber(dPE.total) ?? 0) : null;
+  const dNR = dPENR ? (toFiniteNumber(dPENR.total) ?? 0) : null;
+  const dRen = dTotal != null && dNR != null ? Math.max(0, dTotal - dNR) : null;
+
+  const peak = Math.max(...[eTotal, dTotal].filter((v) => v != null));
+  let unitDiv = 1;
+  let unitLabel = "MJ/year";
+  if (peak > 1e6) { unitDiv = 1e3; unitLabel = "GJ/year"; }
+  const renewableLabel = t("simulation.emissions_energy_renewable") || "Renewable";
+  const nonRenewableLabel = t("simulation.emissions_energy_non_renewable") || "Non-renewable";
+  const buildEnergySegments = (renewableValue, nonRenewableValue) => ([
+    {
+      key: "renewable",
+      label: renewableLabel,
+      color: COMP_ENERGY_COLORS.renewable,
+      value: renewableValue / unitDiv,
+    },
+    {
+      key: "nonRenewable",
+      label: nonRenewableLabel,
+      color: COMP_ENERGY_COLORS.nonRenewable,
+      value: Math.max(0, nonRenewableValue) / unitDiv,
+    },
+  ]);
+
+  const bars = [{
+    label: t("simulation.emissions_toggle_electric") || "Electric",
+    segments: buildEnergySegments(eRen, eNR),
+  }];
+  if (dTotal != null) {
+    bars.push({
+      label: t("simulation.emissions_toggle_diesel") || "Diesel",
+      segments: buildEnergySegments(dRen ?? 0, dNR ?? 0),
+    });
+  }
+
+  const maxBar = Math.max(...bars.map((bar) => bar.segments.reduce((sum, segment) => sum + segment.value, 0))) * 1.15 || 1;
+  const barHeight = 32;
+  const barGap = 14;
+  const labelWidth = 70;
+  const margin = { top: 10, right: 70, bottom: 24, left: labelWidth };
+  const W = 440;
+  const chartHeight = margin.top + margin.bottom + bars.length * barHeight + (bars.length - 1) * barGap;
+
+  const svg = svgBase(W, chartHeight, chartAriaLabel("simulation.chart_aria_primary_energy", "Primary energy consumption"));
+  const iW = W - margin.left - margin.right;
+  const x = d3.scaleLinear().domain([0, maxBar]).nice().range([0, iW]);
+
+  bars.forEach((bar, i) => {
+    const y = margin.top + i * (barHeight + barGap);
+    svg.append("text").attr("x", margin.left - 6).attr("y", y + barHeight / 2)
+      .attr("dy", "0.35em").attr("text-anchor", "end")
+      .attr("font-size", "10px").attr("font-weight", "600").attr("fill", "#333").text(bar.label);
+    let xOff = 0;
+    const total = bar.segments.reduce((sum, segment) => sum + segment.value, 0);
+    bar.segments.forEach((segment) => {
+      const w = Math.max(0, x(segment.value));
+      if (w > 0.5) {
+        const pct = total > 0 ? Math.round((segment.value / total) * 100) : 0;
+        svg.append("rect").attr("x", margin.left + xOff).attr("y", y).attr("width", w).attr("height", barHeight)
+          .attr("fill", segment.color).attr("rx", xOff === 0 ? 2 : 0)
+          .style("cursor", "pointer")
+          .append("title")
+          .text(`${bar.label} · ${segment.label}: ${formatFixed(segment.value, 1)} ${unitLabel} (${pct}%)`);
+        xOff += w;
+      }
+    });
+    svg.append("text").attr("x", margin.left + xOff + 4).attr("y", y + barHeight / 2)
+      .attr("dy", "0.35em").attr("font-size", "9px").attr("fill", "#666")
+      .text(`${formatFixed(total, 0)} ${unitLabel}`);
+  });
+
+  const xAxis = d3.axisBottom(x).ticks(4).tickFormat((d) => formatFixed(d, 0));
+  svg.append("g").attr("transform", `translate(${margin.left},${chartHeight - margin.bottom})`)
+    .call(xAxis).selectAll("text").attr("font-size", "8px");
+
+  el.appendChild(svg.node());
+
+  if (legendEl) {
+    legendEl.innerHTML = `
+      <div class="chart-legend-item"><span class="chart-legend-swatch" style="background:${COMP_ENERGY_COLORS.renewable}"></span>${textContent(renewableLabel)}</div>
+      <div class="chart-legend-item"><span class="chart-legend-swatch" style="background:${COMP_ENERGY_COLORS.nonRenewable}"></span>${textContent(nonRenewableLabel)}</div>`;
+  }
 };
 
 /* ── Init ──────────────────────────────────────────────────────── */
@@ -1420,6 +1785,10 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
     a: { optimizationRun: null, predictionRuns: [] },
     b: { optimizationRun: null, predictionRuns: [] },
   };
+  const emissionsDataState = {
+    a: { status: "idle", yearlyImpact: null, electricYearly: null, dieselYearly: null, dieselVehicleName: null, error: null },
+    b: { status: "idle", yearlyImpact: null, electricYearly: null, dieselYearly: null, dieselVehicleName: null, error: null },
+  };
 
   const setTitle = (role, text) => {
     const el = section.querySelector(`[data-role="${role}"]`);
@@ -1430,11 +1799,6 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
     t("simulation.results_tco_title") || "Annual cost comparison";
   const yearlyTitle =
     t("simulation.results_costs_trend") || "Projected cost trend";
-  const co2Title =
-    t("simulation.results_co2_title") || "CO₂ emissions comparison";
-  const co2CumTitle =
-    t("simulation.results_co2_yearly") ||
-    "Cumulative CO₂ savings over time";
   setTitle("costs-bar-title-a", `${tcoTitle} — ${fullLabelA}`);
   setTitle("costs-bar-title-b", `${tcoTitle} — ${fullLabelB}`);
   setTitle("costs-line-title-a", `${yearlyTitle} — ${fullLabelA}`);
@@ -1451,10 +1815,21 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
 
   setTitle("predictions-title-a", `${t("simulation.tab_predictions") || "Predictions"} — ${fullLabelA}`);
   setTitle("predictions-title-b", `${t("simulation.tab_predictions") || "Predictions"} — ${fullLabelB}`);
-  setTitle("co2-bar-title-a", `${co2Title} — ${fullLabelA}`);
-  setTitle("co2-bar-title-b", `${co2Title} — ${fullLabelB}`);
-  setTitle("co2-cum-title-a", `${co2CumTitle} — ${fullLabelA}`);
-  setTitle("co2-cum-title-b", `${co2CumTitle} — ${fullLabelB}`);
+  const emissionsHistogramTitle = t("simulation.emissions_saved_title") || "Emissions saved";
+  const emissionsRecapTitle = t("simulation.emissions_recap_title") || "Emissions summary";
+  const emissionsIntensityTitle = t("simulation.emissions_intensity_title") || "Emissions per km";
+  const emissionsCo2PhaseTitle = t("simulation.emissions_co2_phase_title") || "CO₂ lifecycle breakdown";
+  const emissionsEnergyTitle = t("simulation.emissions_energy_title") || "Primary energy consumption";
+  setTitle("emissions-kpi-title-a", `${emissionsIntensityTitle} — ${fullLabelA}`);
+  setTitle("emissions-kpi-title-b", `${emissionsIntensityTitle} — ${fullLabelB}`);
+  setTitle("emissions-histogram-title-a", `${emissionsHistogramTitle} — ${fullLabelA}`);
+  setTitle("emissions-histogram-title-b", `${emissionsHistogramTitle} — ${fullLabelB}`);
+  setTitle("emissions-recap-title-a", `${emissionsRecapTitle} — ${fullLabelA}`);
+  setTitle("emissions-recap-title-b", `${emissionsRecapTitle} — ${fullLabelB}`);
+  setTitle("emissions-phase-title-a", `${emissionsCo2PhaseTitle} — ${fullLabelA}`);
+  setTitle("emissions-phase-title-b", `${emissionsCo2PhaseTitle} — ${fullLabelB}`);
+  setTitle("emissions-energy-title-a", `${emissionsEnergyTitle} — ${fullLabelA}`);
+  setTitle("emissions-energy-title-b", `${emissionsEnergyTitle} — ${fullLabelB}`);
 
   const renderCosts = () => {
     const renderSide = (side, roles) => {
@@ -1744,30 +2119,37 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
         }
         return;
       }
-      renderCO2Bar(
-        section.querySelector('[data-role="emissions-bar-chart-a"]'),
-        CO2_ANNUAL
-      );
-      renderCO2Legend(
-        section.querySelector('[data-role="emissions-legend-a"]'),
-        CO2_ANNUAL
-      );
-      renderCO2Bar(
-        section.querySelector('[data-role="emissions-bar-chart-b"]'),
-        CO2_ANNUAL
-      );
-      renderCO2Legend(
-        section.querySelector('[data-role="emissions-legend-b"]'),
-        CO2_ANNUAL
-      );
-      renderCO2Cumulative(
-        section.querySelector('[data-role="emissions-line-chart-a"]'),
-        CO2_CUM
-      );
-      renderCO2Cumulative(
-        section.querySelector('[data-role="emissions-line-chart-b"]'),
-        CO2_CUM
-      );
+      const renderEmSide = (side, suffix) => {
+        const st = emissionsDataState[side];
+        const histEl = section.querySelector(`[data-role="emissions-histogram-${suffix}"]`);
+        const histLeg = section.querySelector(`[data-role="emissions-histogram-legend-${suffix}"]`);
+        const recapEl = section.querySelector(`[data-role="emissions-recap-table-${suffix}"]`);
+        const kpiEl = section.querySelector(`[data-role="emissions-intensity-kpis-${suffix}"]`);
+        const phaseEl = section.querySelector(`[data-role="emissions-co2-phase-${suffix}"]`);
+        const phaseLeg = section.querySelector(`[data-role="emissions-co2-phase-legend-${suffix}"]`);
+        const energyEl = section.querySelector(`[data-role="emissions-primary-energy-${suffix}"]`);
+        const energyLeg = section.querySelector(`[data-role="emissions-primary-energy-legend-${suffix}"]`);
+
+        if (st.status === "loading") {
+          const msg = t("simulation.emissions_loading") || "Loading environmental impact data…";
+          renderStateMessage(histEl, msg);
+          [recapEl, kpiEl, phaseEl, energyEl].forEach((e) => { if (e) e.innerHTML = ""; });
+          return;
+        }
+        if (st.status === "error") {
+          const msg = st.error || t("simulation.emissions_error") || "Unable to load environmental impact data.";
+          renderStateMessage(histEl, msg, true);
+          [recapEl, kpiEl, phaseEl, energyEl].forEach((e) => { if (e) e.innerHTML = ""; });
+          return;
+        }
+        renderComparisonIntensityKpis(kpiEl, st);
+        renderComparisonHistogram(histEl, histLeg, st);
+        renderComparisonRecapTable(recapEl, st);
+        renderComparisonCo2Phase(phaseEl, phaseLeg, st);
+        renderComparisonPrimaryEnergy(energyEl, energyLeg, st);
+      };
+      renderEmSide("a", "a");
+      renderEmSide("b", "b");
     },
   };
 
@@ -1848,6 +2230,31 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
     activateTab(
       section.querySelector(".results-tab.active")?.dataset?.tab ?? "efficiency"
     );
+
+    const loadEmissionsSide = async (simOpts, side) => {
+      if (!isSimFeasible(side) || !simOpts.shiftId) return;
+      emissionsDataState[side].status = "loading";
+      try {
+        const emData = await loadEmissionsDataForComparison(simOpts.shiftId, {
+          busModelName: simOpts.busModelName,
+        });
+        emissionsDataState[side].yearlyImpact = emData.yearlyImpact;
+        emissionsDataState[side].electricYearly = emData.electricYearly;
+        emissionsDataState[side].dieselYearly = emData.dieselYearly;
+        emissionsDataState[side].dieselVehicleName = emData.dieselVehicleName;
+        emissionsDataState[side].status = "done";
+      } catch (err) {
+        emissionsDataState[side].status = "error";
+        emissionsDataState[side].error =
+          err?.message || t("simulation.emissions_error") || "Unable to load environmental impact data.";
+      }
+    };
+
+    await Promise.all([loadEmissionsSide(simA, "a"), loadEmissionsSide(simB, "b")]);
+    renderedTabs.delete("emissions");
+    if (section.querySelector('.results-tab.active')?.dataset?.tab === "emissions") {
+      TAB_RENDERERS.emissions?.();
+    }
   };
 
   if (hasRunIds) {
