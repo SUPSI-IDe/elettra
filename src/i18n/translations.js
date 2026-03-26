@@ -16,8 +16,25 @@ export const translations = {
     "header.login": "Login",
     "header.logout": "Logout",
     "header.change_password": "Change Password",
-    "footer.impressum": "Elettra | Electric Transport Transition Assessment",
+    "header.about": "About",
+    "footer.about": "About",
     "footer.privacy_policy": "Privacy Policy",
+
+    // About
+    "about.title": "About ELETTRA",
+    "about.tagline": "Electric Transport Transition Assessment",
+    "about.description": "ELETTRA is a web tool developed within the ELETTRA research project to support public transport companies in transitioning to electric bus fleets. It provides precise analyses for energy consumption, infrastructure needs, and battery sizing.",
+    "about.project_link": "View project on ARAMIS",
+    "about.funder_title": "Funder",
+    "about.funder_name": "Federal Office of Transport",
+    "about.partners_title": "Partners",
+    "about.partner_supsi": "University of Applied Sciences and Arts of Southern Switzerland",
+    "about.partner_vbz": "Verkehrsbetriebe Zürich",
+    "about.partner_amsa": "Azienda Multiservizi Bellinzona",
+    "about.partner_fart": "Ferrovie Autolinee Regionali Ticinesi",
+    "about.privacy_title": "Privacy Policy",
+    "about.privacy_text": "This tool is operated by SUPSI. Your data is handled in accordance with the SUPSI privacy policy.",
+    "about.privacy_link": "SUPSI Privacy Policy",
 
     // Common
     "common.delete": "Delete",
@@ -696,13 +713,14 @@ export const translations = {
     "password.success": "Password updated successfully!",
 
     // Login
-    "login.title": "Welcome to Elettra",
+    "login.title": "Welcome to ELETTRA",
     "login.subtitle": "Electric Transport Transition Assessment",
     "login.email": "Email",
     "login.password": "Password",
     "login.remember": "Remember me",
     "login.submit": "Sign In",
     "login.help": "Need help? Contact your administrator.",
+    "login.about_link": "Learn more about the project",
     "login.success": "Login successful! Redirecting...",
     "login.error": "Login failed. Please check your credentials.",
     "login.no_account": "Don't have an account?",
@@ -710,7 +728,7 @@ export const translations = {
     "login.email_password_required": "Please enter your email and password.",
 
     // Landing
-    "landing.title": "Elettra",
+    "landing.title": "ELETTRA",
     "landing.tagline": "Electric Transport Transition Assessment",
     "landing.description": "Streamline your electric bus fleet management with intelligent shift planning, real-time monitoring, and optimized scheduling.",
     "landing.feature_fleet": "Fleet Management",
@@ -718,11 +736,12 @@ export const translations = {
     "landing.feature_simulation": "Route Simulation",
     "landing.login": "Sign In",
     "landing.register": "Create Account",
-    "landing.footer": "© 2026 Elettra - Electric Transport Transition Assessment",
+    "landing.about_link": "About the project",
+    "landing.footer": "© 2026 ELETTRA - Electric Transport Transition Assessment",
 
     // Register
     "register.title": "Create Account",
-    "register.subtitle": "Join Elettra to manage your electric fleet",
+    "register.subtitle": "Join ELETTRA to manage your electric fleet",
     "register.first_name": "First Name",
     "register.last_name": "Last Name",
     "register.email": "Email",
@@ -763,8 +782,25 @@ export const translations = {
     "header.login": "Anmelden",
     "header.logout": "Abmelden",
     "header.change_password": "Passwort ändern",
-    "footer.impressum": "Elettra | Elektrischer Schichtplaner",
+    "header.about": "Über",
+    "footer.about": "Über",
     "footer.privacy_policy": "Datenschutzerklärung",
+
+    // About
+    "about.title": "Über ELETTRA",
+    "about.tagline": "Bewertung der Elektromobilität im Verkehr",
+    "about.description": "ELETTRA ist ein Webtool, das im Rahmen des ELETTRA-Forschungsprojekts entwickelt wurde, um öffentliche Verkehrsunternehmen bei der Umstellung auf elektrische Busflotten zu unterstützen. Es bietet präzise Analysen zu Energieverbrauch, Infrastrukturbedarf und Batteriedimensionierung.",
+    "about.project_link": "Projekt auf ARAMIS ansehen",
+    "about.funder_title": "Fördergeber",
+    "about.funder_name": "Bundesamt für Verkehr",
+    "about.partners_title": "Partner",
+    "about.partner_supsi": "Fachhochschule Südschweiz",
+    "about.partner_vbz": "Verkehrsbetriebe Zürich",
+    "about.partner_amsa": "Azienda Multiservizi Bellinzona",
+    "about.partner_fart": "Ferrovie Autolinee Regionali Ticinesi",
+    "about.privacy_title": "Datenschutzerklärung",
+    "about.privacy_text": "Dieses Tool wird von der SUPSI betrieben. Ihre Daten werden gemäss der Datenschutzerklärung der SUPSI verarbeitet.",
+    "about.privacy_link": "SUPSI Datenschutzerklärung",
 
     // Common
     "common.delete": "Löschen",
@@ -1402,13 +1438,14 @@ export const translations = {
     "password.success": "Passwort erfolgreich aktualisiert!",
 
     // Login
-    "login.title": "Willkommen bei Elettra",
+    "login.title": "Willkommen bei ELETTRA",
     "login.subtitle": "Elektrischer Schichtplaner",
     "login.email": "E-Mail",
     "login.password": "Passwort",
     "login.remember": "Angemeldet bleiben",
     "login.submit": "Anmelden",
     "login.help": "Brauchen Sie Hilfe? Kontaktieren Sie Ihren Administrator.",
+    "login.about_link": "Mehr über das Projekt erfahren",
     "login.success": "Anmeldung erfolgreich! Weiterleitung...",
     "login.error": "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.",
     "login.no_account": "Sie haben noch kein Konto?",
@@ -1416,7 +1453,7 @@ export const translations = {
     "login.email_password_required": "Bitte geben Sie Ihre E-Mail und Ihr Passwort ein.",
 
     // Landing
-    "landing.title": "Elettra",
+    "landing.title": "ELETTRA",
     "landing.tagline": "Elektrischer Schichtplaner",
     "landing.description": "Optimieren Sie Ihre Elektrobusflotten-Verwaltung mit intelligenter Schichtplanung, Echtzeitüberwachung und optimierter Terminierung.",
     "landing.feature_fleet": "Flottenverwaltung",
@@ -1424,11 +1461,12 @@ export const translations = {
     "landing.feature_simulation": "Routensimulation",
     "landing.login": "Anmelden",
     "landing.register": "Konto erstellen",
-    "landing.footer": "© 2026 Elettra - Elektrischer Schichtplaner",
+    "landing.about_link": "Über das Projekt",
+    "landing.footer": "© 2026 ELETTRA - Elektrischer Schichtplaner",
 
     // Register
     "register.title": "Konto erstellen",
-    "register.subtitle": "Treten Sie Elettra bei, um Ihre Elektroflotte zu verwalten",
+    "register.subtitle": "Treten Sie ELETTRA bei, um Ihre Elektroflotte zu verwalten",
     "register.first_name": "Vorname",
     "register.last_name": "Nachname",
     "register.email": "E-Mail",
@@ -1469,8 +1507,25 @@ export const translations = {
     "header.login": "Connexion",
     "header.logout": "Déconnexion",
     "header.change_password": "Changer le mot de passe",
-    "footer.impressum": "Elettra | Planificateur de quarts électriques",
+    "header.about": "À propos",
+    "footer.about": "À propos",
     "footer.privacy_policy": "Politique de confidentialité",
+
+    // About
+    "about.title": "À propos d'ELETTRA",
+    "about.tagline": "Évaluation de la transition électrique des transports",
+    "about.description": "ELETTRA est un outil web développé dans le cadre du projet de recherche ELETTRA pour aider les entreprises de transport public à passer aux flottes de bus électriques. Il fournit des analyses précises sur la consommation d'énergie, les besoins en infrastructure et le dimensionnement des batteries.",
+    "about.project_link": "Voir le projet sur ARAMIS",
+    "about.funder_title": "Financeur",
+    "about.funder_name": "Office fédéral des transports",
+    "about.partners_title": "Partenaires",
+    "about.partner_supsi": "Haute école spécialisée de la Suisse italienne",
+    "about.partner_vbz": "Verkehrsbetriebe Zürich",
+    "about.partner_amsa": "Azienda Multiservizi Bellinzona",
+    "about.partner_fart": "Ferrovie Autolinee Regionali Ticinesi",
+    "about.privacy_title": "Politique de confidentialité",
+    "about.privacy_text": "Cet outil est exploité par la SUPSI. Vos données sont traitées conformément à la politique de confidentialité de la SUPSI.",
+    "about.privacy_link": "Politique de confidentialité SUPSI",
 
     // Common
     "common.delete": "Supprimer",
@@ -2108,13 +2163,14 @@ export const translations = {
     "password.success": "Mot de passe mis à jour avec succès !",
 
     // Login
-    "login.title": "Bienvenue sur Elettra",
+    "login.title": "Bienvenue sur ELETTRA",
     "login.subtitle": "Planificateur de quarts électriques",
     "login.email": "E-mail",
     "login.password": "Mot de passe",
     "login.remember": "Se souvenir de moi",
     "login.submit": "Se connecter",
     "login.help": "Besoin d'aide ? Contactez votre administrateur.",
+    "login.about_link": "En savoir plus sur le projet",
     "login.success": "Connexion réussie ! Redirection...",
     "login.error": "Échec de la connexion. Veuillez vérifier vos identifiants.",
     "login.no_account": "Vous n'avez pas de compte ?",
@@ -2122,7 +2178,7 @@ export const translations = {
     "login.email_password_required": "Veuillez saisir votre e-mail et votre mot de passe.",
 
     // Landing
-    "landing.title": "Elettra",
+    "landing.title": "ELETTRA",
     "landing.tagline": "Planificateur de quarts électriques",
     "landing.description": "Optimisez la gestion de votre flotte de bus électriques avec une planification intelligente des quarts, une surveillance en temps réel et une programmation optimisée.",
     "landing.feature_fleet": "Gestion de flotte",
@@ -2130,11 +2186,12 @@ export const translations = {
     "landing.feature_simulation": "Simulation d'itinéraire",
     "landing.login": "Se connecter",
     "landing.register": "Créer un compte",
-    "landing.footer": "© 2026 Elettra - Planificateur de quarts électriques",
+    "landing.about_link": "À propos du projet",
+    "landing.footer": "© 2026 ELETTRA - Planificateur de quarts électriques",
 
     // Register
     "register.title": "Créer un compte",
-    "register.subtitle": "Rejoignez Elettra pour gérer votre flotte électrique",
+    "register.subtitle": "Rejoignez ELETTRA pour gérer votre flotte électrique",
     "register.first_name": "Prénom",
     "register.last_name": "Nom",
     "register.email": "E-mail",
@@ -2175,8 +2232,25 @@ export const translations = {
     "header.login": "Accedi",
     "header.logout": "Esci",
     "header.change_password": "Cambia password",
-    "footer.impressum": "Elettra | Pianificatore di turni elettrici",
+    "header.about": "Informazioni",
+    "footer.about": "Informazioni",
     "footer.privacy_policy": "Informativa sulla privacy",
+
+    // About
+    "about.title": "Informazioni su ELETTRA",
+    "about.tagline": "Valutazione della transizione elettrica nei trasporti",
+    "about.description": "ELETTRA è uno strumento web sviluppato nell'ambito del progetto di ricerca ELETTRA per supportare le aziende di trasporto pubblico nella transizione verso flotte di autobus elettrici. Fornisce analisi precise su consumo energetico, esigenze infrastrutturali e dimensionamento delle batterie.",
+    "about.project_link": "Vedi il progetto su ARAMIS",
+    "about.funder_title": "Finanziatore",
+    "about.funder_name": "Ufficio federale dei trasporti",
+    "about.partners_title": "Partner",
+    "about.partner_supsi": "Scuola universitaria professionale della Svizzera italiana",
+    "about.partner_vbz": "Verkehrsbetriebe Zürich",
+    "about.partner_amsa": "Azienda Multiservizi Bellinzona",
+    "about.partner_fart": "Ferrovie Autolinee Regionali Ticinesi",
+    "about.privacy_title": "Informativa sulla privacy",
+    "about.privacy_text": "Questo strumento è gestito dalla SUPSI. I tuoi dati sono trattati in conformità con l'informativa sulla privacy della SUPSI.",
+    "about.privacy_link": "Informativa sulla privacy SUPSI",
 
     // Common
     "common.delete": "Elimina",
@@ -2814,13 +2888,14 @@ export const translations = {
     "password.success": "Password aggiornata con successo!",
 
     // Login
-    "login.title": "Benvenuto su Elettra",
+    "login.title": "Benvenuto su ELETTRA",
     "login.subtitle": "Pianificatore di turni elettrici",
     "login.email": "E-mail",
     "login.password": "Password",
     "login.remember": "Ricordami",
     "login.submit": "Accedi",
     "login.help": "Hai bisogno di aiuto? Contatta il tuo amministratore.",
+    "login.about_link": "Scopri di più sul progetto",
     "login.success": "Accesso effettuato! Reindirizzamento...",
     "login.error": "Accesso fallito. Verifica le tue credenziali.",
     "login.no_account": "Non hai un account?",
@@ -2828,7 +2903,7 @@ export const translations = {
     "login.email_password_required": "Inserisci e-mail e password.",
 
     // Landing
-    "landing.title": "Elettra",
+    "landing.title": "ELETTRA",
     "landing.tagline": "Pianificatore di turni elettrici",
     "landing.description": "Ottimizza la gestione della tua flotta di autobus elettrici con pianificazione intelligente dei turni, monitoraggio in tempo reale e programmazione ottimizzata.",
     "landing.feature_fleet": "Gestione flotta",
@@ -2836,11 +2911,12 @@ export const translations = {
     "landing.feature_simulation": "Simulazione percorsi",
     "landing.login": "Accedi",
     "landing.register": "Crea account",
-    "landing.footer": "© 2026 Elettra - Pianificatore di turni elettrici",
+    "landing.about_link": "Informazioni sul progetto",
+    "landing.footer": "© 2026 ELETTRA - Pianificatore di turni elettrici",
 
     // Register
     "register.title": "Crea account",
-    "register.subtitle": "Unisciti a Elettra per gestire la tua flotta elettrica",
+    "register.subtitle": "Unisciti a ELETTRA per gestire la tua flotta elettrica",
     "register.first_name": "Nome",
     "register.last_name": "Cognome",
     "register.email": "E-mail",

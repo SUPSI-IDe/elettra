@@ -1,0 +1,232 @@
+.about-page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--blue-gray);
+}
+
+.about-hero {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3rem 2rem;
+}
+
+.about-content {
+  text-align: center;
+  max-width: 780px;
+  width: 100%;
+}
+
+.about-logo {
+  margin-bottom: 1.25rem;
+}
+
+.about-logo img {
+  width: 80px;
+  height: auto;
+  filter: invert(15%) sepia(50%) saturate(500%) hue-rotate(180deg);
+}
+
+.about-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem 0;
+  letter-spacing: -0.02em;
+  color: var(--dark-blue);
+}
+
+.about-tagline {
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin: 0 0 1.25rem 0;
+}
+
+.about-description {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0 0 1.25rem 0;
+}
+
+.about-project-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--brand-teal);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  margin-bottom: 2.5rem;
+}
+
+.about-project-link:hover {
+  color: var(--brand-teal-dark);
+  text-decoration: underline;
+}
+
+.about-section {
+  margin-bottom: 2rem;
+}
+
+.about-section h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--dark-blue);
+  margin: 0 0 1.25rem 0;
+  position: relative;
+  display: inline-block;
+}
+
+.about-section h2::after {
+  content: "";
+  position: absolute;
+  left: 25%;
+  right: 25%;
+  bottom: -4px;
+  height: 2px;
+  background-color: var(--brand-teal-light);
+  border-radius: 1px;
+}
+
+.about-cards {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.about-cards--single {
+  justify-content: center;
+}
+
+.about-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1.25rem 1.5rem;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  min-width: 160px;
+  max-width: 200px;
+  flex: 1;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.about-cards--single .about-card {
+  max-width: 240px;
+}
+
+.about-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.about-card-logo {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.25rem;
+}
+
+.about-card-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.about-card-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.about-card-full {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.about-card-link {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--brand-teal);
+  text-decoration: none;
+  margin-top: 0.2rem;
+  transition: color 0.2s ease;
+}
+
+.about-card-link:hover {
+  color: var(--brand-teal-dark);
+  text-decoration: underline;
+}
+
+.about-privacy {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.about-privacy h2 {
+  margin-bottom: 0.75rem;
+}
+
+.about-privacy p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0 0 1rem 0;
+}
+
+.about-privacy-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--brand-teal);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--brand-teal);
+  border-radius: 6px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.about-privacy-link:hover {
+  background-color: var(--brand-teal);
+  color: #ffffff;
+}
+
+.about-privacy-link:hover svg {
+  stroke: #ffffff;
+}
+
+@media (max-width: 640px) {
+  .about-hero {
+    padding: 2rem 1rem;
+  }
+
+  .about-title {
+    font-size: 1.75rem;
+  }
+
+  .about-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .about-card {
+    min-width: 0;
+    width: 100%;
+    max-width: 280px;
+  }
+}

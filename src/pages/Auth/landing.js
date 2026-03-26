@@ -3,6 +3,7 @@ import { triggerPartialLoad } from "../../events";
 export const initializeLanding = (container, options = {}) => {
   const loginBtn = container.querySelector('[data-action="go-to-login"]');
   const registerBtn = container.querySelector('[data-action="go-to-register"]');
+  const aboutBtn = container.querySelector('[data-action="go-to-about"]');
 
   const handleLoginClick = (event) => {
     event.preventDefault();
@@ -14,6 +15,11 @@ export const initializeLanding = (container, options = {}) => {
     triggerPartialLoad("register");
   };
 
+  const handleAboutClick = (event) => {
+    event.preventDefault();
+    triggerPartialLoad("about");
+  };
+
   if (loginBtn) {
     loginBtn.addEventListener("click", handleLoginClick);
   }
@@ -22,13 +28,19 @@ export const initializeLanding = (container, options = {}) => {
     registerBtn.addEventListener("click", handleRegisterClick);
   }
 
-  // Cleanup function
+  if (aboutBtn) {
+    aboutBtn.addEventListener("click", handleAboutClick);
+  }
+
   return () => {
     if (loginBtn) {
       loginBtn.removeEventListener("click", handleLoginClick);
     }
     if (registerBtn) {
       registerBtn.removeEventListener("click", handleRegisterClick);
+    }
+    if (aboutBtn) {
+      aboutBtn.removeEventListener("click", handleAboutClick);
     }
   };
 };

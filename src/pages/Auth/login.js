@@ -257,6 +257,7 @@ export const initializeLogin = (container, options = {}) => {
   const feedback = container.querySelector('[data-role="login-feedback"]');
   const backBtn = container.querySelector('[data-action="back-to-landing"]');
   const registerLink = container.querySelector('[data-action="go-to-register"]');
+  const aboutLink = container.querySelector('[data-action="go-to-about"]');
 
   if (!form) {
     console.warn("Login form not found");
@@ -281,10 +282,14 @@ export const initializeLogin = (container, options = {}) => {
     triggerPartialLoad("landing");
   };
 
-  // Navigate to register
   const handleRegisterClick = (event) => {
     event.preventDefault();
     triggerPartialLoad("register");
+  };
+
+  const handleAboutClick = (event) => {
+    event.preventDefault();
+    triggerPartialLoad("about");
   };
 
   form.addEventListener("submit", handleSubmit);
@@ -297,6 +302,10 @@ export const initializeLogin = (container, options = {}) => {
     registerLink.addEventListener("click", handleRegisterClick);
   }
 
+  if (aboutLink) {
+    aboutLink.addEventListener("click", handleAboutClick);
+  }
+
   // Focus email input on load
   const emailInput = form.querySelector('#login-email');
   if (emailInput && !emailInput.value) {
@@ -307,7 +316,6 @@ export const initializeLogin = (container, options = {}) => {
     passwordInput?.focus();
   }
 
-  // Cleanup function
   return () => {
     form.removeEventListener("submit", handleSubmit);
     if (backBtn) {
@@ -315,6 +323,9 @@ export const initializeLogin = (container, options = {}) => {
     }
     if (registerLink) {
       registerLink.removeEventListener("click", handleRegisterClick);
+    }
+    if (aboutLink) {
+      aboutLink.removeEventListener("click", handleAboutClick);
     }
   };
 };

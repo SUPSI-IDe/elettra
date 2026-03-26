@@ -13,6 +13,7 @@ import { initializeSimulationComparison } from "./pages/Simulation/Runs/simulati
 import { initializeLogin } from "./pages/Auth/login";
 import { initializeLanding } from "./pages/Auth/landing";
 import { initializeRegister } from "./pages/Auth/register";
+import { initializeAbout } from "./pages/About/about";
 import { applyTranslations, getCurrentLang, I18N_CHANGE_EVENT } from "./i18n";
 import { isAuthenticated } from "./api/session";
 
@@ -22,7 +23,7 @@ const partials = import.meta.glob("./pages/**/*.html", {
 });
 
 const slugFrom = (node) => node?.dataset.partial?.trim() || "";
-const PUBLIC_PARTIALS = new Set(["landing", "login", "register"]);
+const PUBLIC_PARTIALS = new Set(["landing", "login", "register", "about"]);
 const isProtectedPartial = (slug) => Boolean(slug) && !PUBLIC_PARTIALS.has(slug);
 
 const getLoader = (slug) => {
@@ -155,6 +156,9 @@ export const initializeNavigation = (root = document) => {
       case "simulation-comparison":
         cleanup = initializeSimulationComparison(target, options);
         break;
+      case "about":
+        cleanup = initializeAbout(target, options);
+        break;
       default:
         break;
     }
@@ -189,6 +193,21 @@ export const initializeNavigation = (root = document) => {
     const slug = slugFrom(link);
     loadAndInitialize(slug);
   });
+
+  const aboutBtn = root.querySelector(".about-btn[data-partial]");
+  if (aboutBtn) {
+    aboutBtn.addEventListener("click", () => {
+      loadAndInitialize(slugFrom(aboutBtn));
+    });
+  }
+
+  const footerAboutLink = root.querySelector(".footer-about-link[data-partial]");
+  if (footerAboutLink) {
+    footerAboutLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      loadAndInitialize(slugFrom(footerAboutLink));
+    });
+  }
 
   // Determine initial page based on authentication
   const authenticated = isAuthenticated();
