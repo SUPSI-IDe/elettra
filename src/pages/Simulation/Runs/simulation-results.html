@@ -207,30 +207,61 @@
       </div>
 
       <div class="tab-panel tab-panel--full" data-panel="emissions" role="tabpanel" hidden>
-        <div class="emissions-simplified">
-          <div class="chart-section emissions-kpi-section">
-            <h2 data-i18n="simulation.emissions_intensity_title">Emissions per km</h2>
-            <div class="emissions-kpi-grid" data-role="emissions-intensity-kpis"></div>
+        <div class="env-page">
+
+          <!-- 1. Page title -->
+          <div class="env-page__header">
+            <h2 class="env-page__title" data-i18n="simulation.env_page_title">Environmental comparison</h2>
+            <p class="env-page__subtitle" data-i18n-html="simulation.env_page_subtitle">Lifecycle-based indicators derived from the <a href="https://www.i14y.admin.ch/en/catalog/dataservices/171b09a4-5b5f-4577-8921-3af7fc6eee39/description" target="_blank" rel="noopener noreferrer">official Swiss Mobitool methodology</a>.</p>
           </div>
-          <div class="chart-section emissions-histogram-section">
-            <h2 data-i18n="simulation.emissions_saved_title">Emissions saved</h2>
-            <div class="chart-container" data-role="emissions-histogram"></div>
-            <div class="chart-legend" data-role="emissions-histogram-legend"></div>
-          </div>
-          <div class="chart-section emissions-recap-section">
-            <h2 data-i18n="simulation.emissions_recap_title">Emissions summary</h2>
+
+          <!-- 2. Mission summary row -->
+          <div class="env-mission-bar" data-role="env-mission-bar"></div>
+
+          <!-- 3. Main KPI cards -->
+          <div class="env-kpi-row" data-role="env-kpi-cards"></div>
+
+          <!-- 4. Comparison table -->
+          <div class="chart-section env-table-section">
+            <h3 class="env-section-title" data-i18n="simulation.env_table_title">Environmental indicator comparison</h3>
+            <p class="env-section-subtitle" data-i18n="simulation.env_table_subtitle">Full set of environmental indicators for both technologies.</p>
             <div data-role="emissions-recap-table"></div>
           </div>
-          <div class="chart-section emissions-phase-section">
-            <h2 data-i18n="simulation.emissions_co2_phase_title">CO₂ lifecycle breakdown</h2>
-            <div class="chart-container" data-role="emissions-co2-phase"></div>
-            <div class="chart-legend" data-role="emissions-co2-phase-legend"></div>
+
+          <div class="env-chart-grid">
+            <!-- 5. Chart A — Emissions saved -->
+            <div class="chart-section env-chart-section env-chart-section--prominent">
+              <h3 class="env-section-title" data-i18n="simulation.emissions_saved_title">Emissions saved</h3>
+              <p class="env-section-subtitle" data-i18n="simulation.env_emissions_saved_subtitle">Annual reduction achieved by the electric bus relative to the diesel bus.</p>
+              <div class="chart-container" data-role="emissions-histogram"></div>
+              <div class="chart-legend" data-role="emissions-histogram-legend"></div>
+            </div>
+
+            <!-- 6. Chart B — CO₂ lifecycle breakdown -->
+            <div class="chart-section env-chart-section">
+              <h3 class="env-section-title" data-i18n="simulation.emissions_co2_phase_title">CO₂ lifecycle breakdown</h3>
+              <p class="env-section-subtitle" data-i18n="simulation.env_co2_phase_subtitle">Contribution of lifecycle components to total CO₂ emissions for the two technologies.</p>
+              <div class="chart-container" data-role="emissions-co2-phase"></div>
+              <div class="chart-legend" data-role="emissions-co2-phase-legend"></div>
+            </div>
+
+            <!-- 7. Chart C — Primary energy consumption -->
+            <div class="chart-section env-chart-section">
+              <h3 class="env-section-title" data-i18n="simulation.emissions_energy_title">Primary energy consumption</h3>
+              <p class="env-section-subtitle" data-i18n="simulation.env_energy_subtitle">Total primary energy and its renewable / non-renewable composition.</p>
+              <div class="chart-container" data-role="emissions-primary-energy"></div>
+              <div class="chart-legend" data-role="emissions-primary-energy-legend"></div>
+            </div>
           </div>
-          <div class="chart-section emissions-energy-section">
-            <h2 data-i18n="simulation.emissions_energy_title">Primary energy consumption</h2>
-            <div class="chart-container" data-role="emissions-primary-energy"></div>
-            <div class="chart-legend" data-role="emissions-primary-energy-legend"></div>
+
+          <!-- 8. Methodology note -->
+          <div class="env-methodology-note" data-role="env-methodology-note">
+            <p data-i18n="simulation.env_methodology_note">Environmental indicators are derived from the official Swiss API based on Mobitool factors. Results should be interpreted as standardized comparative lifecycle-based indicators rather than pure tailpipe-only emissions. In particular, total primary energy may be influenced by the accounting of electricity production, so renewable and non-renewable shares are shown separately.</p>
           </div>
+
+          <!-- Hidden legacy slot for intensity KPIs (kept for code compatibility) -->
+          <div data-role="emissions-intensity-kpis" hidden></div>
+
         </div>
       </div>
     </div>

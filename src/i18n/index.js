@@ -23,6 +23,11 @@ export const applyTranslations = (lang) => {
   const dict = translations[lang];
   if (!dict) return;
 
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-html");
+    if (dict[key]) el.innerHTML = dict[key];
+  });
+
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     const key = el.getAttribute("data-i18n");
     if (dict[key]) el.textContent = dict[key];
