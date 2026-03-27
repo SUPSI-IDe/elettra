@@ -5250,9 +5250,9 @@ const renderCostsSection = (sec, state, options = {}) => {
 /* ── Emissions tab ────────────────────────────────────────────── */
 
 const EMISSIONS_POLLUTANTS = [
-  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "#c0392b", unitGroup: "ton", divisor: 1e6 },
-  { key: "nox", i18n: "simulation.emissions_nox_label", fallback: "NOx (nitric oxide)", color: "#d4a017", unitGroup: "kg", divisor: 1e6 },
-  { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6 },
+  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "#c0392b", unitGroup: "ton", divisor: 1e6, perKmUnit: "g/km" },
+  { key: "nox", i18n: "simulation.emissions_nox_label", fallback: "NOx (nitric oxide)", color: "#d4a017", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
+  { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
 ];
 
 /* ── Environmental page: Mission summary bar ─────────────────── */
@@ -5336,15 +5336,14 @@ const renderEnvKpiCards = (el, emState) => {
         ? `${arrow} ${formatFixed(Math.abs(pctChange), 0)}%`
         : "—";
       const diffStr = absDiff != null
-        ? `${absDiff > 0 ? "−" : "+"}${formatFixed(Math.abs(absDiff), def.key === "primaryEnergyNonRenewable" ? 0 : 2)} ${unitLabel}`
+        ? `${absDiff > 0 ? "−" : "+"}${formatFixed(Math.abs(absDiff), 0)}`
         : "";
 
       const electricLabel = t("simulation.emissions_toggle_electric") || "Electric";
       const dieselLabel = t("simulation.emissions_toggle_diesel") || "Diesel";
-      const decimals = def.key === "primaryEnergyNonRenewable" ? 0 : 2;
-
+      const decimals = 0;
       return `<div class="env-kpi-card env-kpi-card--${tone}">
-        <p class="env-kpi-card__title">${textContent(t(def.i18n) || def.label)}</p>
+        <p class="env-kpi-card__title">${textContent(t(def.i18n) || def.label)} <span class="env-kpi-card__unit-inline">(${textContent(unitLabel)})</span></p>
         <div class="env-kpi-card__values">
           <span class="env-kpi-card__val-label">${textContent(electricLabel)}</span>
           <span class="env-kpi-card__val-num">${formatFixed(eDisplay, decimals)}</span>
@@ -5353,7 +5352,6 @@ const renderEnvKpiCards = (el, emState) => {
             <span class="env-kpi-card__val-num">${formatFixed(dDisplay, decimals)}</span>
           ` : ""}
         </div>
-        <span class="env-kpi-card__unit">${textContent(unitLabel)}</span>
         ${hasDiesel ? `
           <div class="env-kpi-card__delta">
             <span class="env-kpi-card__badge env-kpi-card__badge--${tone}">${textContent(pctStr)}</span>
@@ -5368,12 +5366,12 @@ const renderEnvKpiCards = (el, emState) => {
 /* ── Environmental page: Enhanced recap table with energy rows ─ */
 
 const ENV_TABLE_ROWS = [
-  { key: "gwp100a", label: "CO₂ emissions", i18n: "simulation.env_table_co2", unit: "t/year", divisor: 1e6, decimals: 2 },
-  { key: "nox", label: "NOx emissions", i18n: "simulation.env_table_nox", unit: "kg/year", divisor: 1e6, decimals: 2 },
-  { key: "pm10", label: "PM₁₀ emissions", i18n: "simulation.env_table_pm10", unit: "kg/year", divisor: 1e6, decimals: 2 },
-  { key: "primaryEnergyNonRenewable", label: "Non-renewable primary energy", i18n: "simulation.env_table_penr", unit: "MJ/year", divisor: 1, decimals: 0 },
-  { key: "_renewablePrimaryEnergy", label: "Renewable primary energy", i18n: "simulation.env_table_per", unit: "MJ/year", divisor: 1, decimals: 0, computed: true },
-  { key: "primaryEnergy", label: "Total primary energy", i18n: "simulation.env_table_pe_total", unit: "MJ/year", divisor: 1, decimals: 0 },
+  { key: "gwp100a", label: "CO₂ emissions", i18n: "simulation.env_table_co2", unit: "t/year", perKmUnit: "g/km", divisor: 1e6, decimals: 0, perKmDecimals: 0, rowTone: "green" },
+  { key: "nox", label: "NOx emissions", i18n: "simulation.env_table_nox", unit: "kg/year", perKmUnit: "mg/km", divisor: 1e6, decimals: 0, perKmDecimals: 0, rowTone: "green" },
+  { key: "pm10", label: "PM₁₀ emissions", i18n: "simulation.env_table_pm10", unit: "kg/year", perKmUnit: "mg/km", divisor: 1e6, decimals: 0, perKmDecimals: 0, rowTone: "amber" },
+  { key: "primaryEnergyNonRenewable", label: "Non-renewable primary energy", i18n: "simulation.env_table_penr", unit: "MJ/year", perKmUnit: "MJ/km", divisor: 1, decimals: 0, perKmDecimals: 2, rowTone: "green" },
+  { key: "_renewablePrimaryEnergy", label: "Renewable primary energy", i18n: "simulation.env_table_per", unit: "MJ/year", perKmUnit: "MJ/km", divisor: 1, decimals: 0, perKmDecimals: 2, computed: true, rowTone: "neutral" },
+  { key: "primaryEnergy", label: "Total primary energy", i18n: "simulation.env_table_pe_total", unit: "MJ/year", perKmUnit: "MJ/km", divisor: 1, decimals: 0, perKmDecimals: 2, rowTone: "muted" },
 ];
 
 const renderEnvRecapTable = (el, emState) => {
@@ -5388,13 +5386,15 @@ const renderEnvRecapTable = (el, emState) => {
   const electricY = emState.electricYearly;
   const dieselY = emState.dieselYearly;
   const hasDiesel = !!dieselY;
+  const yearlyDistKm = toFiniteNumber(emState?.yearlyImpact?.yearly_distance_km);
 
   const indicatorLabel = t("simulation.emissions_table_indicator") || "Indicator";
-  const unitLabel = t("simulation.emissions_table_unit") || "Unit";
   const electricLabel = t("simulation.emissions_toggle_electric") || "Electric bus";
   const dieselLabel = t("simulation.emissions_toggle_diesel") || "Diesel bus";
-  const diffLabel = t("simulation.emissions_saved_col") || "Difference";
-  const reductionLabel = t("simulation.emissions_reduction_col") || "Change";
+  const diffLabel = t("simulation.emissions_saved_col") || "Difference (Diesel − Electric)";
+  const reductionLabel = t("simulation.emissions_reduction_col") || "Reduction";
+  const yearlySubLabel = t("simulation.env_table_subhead_yearly") || "yearly";
+  const perKmSubLabel = t("simulation.env_table_subhead_per_km") || "per km";
 
   const resolveValue = (yearly, def) => {
     if (def.key === "_renewablePrimaryEnergy") {
@@ -5405,17 +5405,21 @@ const renderEnvRecapTable = (el, emState) => {
     return toFiniteNumber(yearly?.[def.key]?.total) ?? 0;
   };
 
-  const rows = ENV_TABLE_ROWS
-    .filter((def) => {
-      if (def.key === "_renewablePrimaryEnergy") return electricY.primaryEnergy?.total != null;
-      return electricY[def.key]?.total != null;
-    })
+  const visibleDefs = ENV_TABLE_ROWS.filter((def) => {
+    if (def.key === "_renewablePrimaryEnergy") return electricY.primaryEnergy?.total != null;
+    return electricY[def.key]?.total != null;
+  });
+
+  const rows = visibleDefs
     .map((def) => {
       const eRaw = resolveValue(electricY, def);
       const dRaw = hasDiesel ? resolveValue(dieselY, def) : null;
       const eDisplay = eRaw / def.divisor;
       const dDisplay = dRaw != null ? dRaw / def.divisor : null;
+      const ePerKm = yearlyDistKm ? eRaw / yearlyDistKm : null;
+      const dPerKm = yearlyDistKm && dRaw != null ? dRaw / yearlyDistKm : null;
       const diff = dDisplay != null ? dDisplay - eDisplay : null;
+      const diffPerKm = dPerKm != null && ePerKm != null ? dPerKm - ePerKm : null;
       const pct = dRaw != null && dRaw !== 0
         ? ((dRaw - eRaw) / Math.abs(dRaw)) * 100
         : null;
@@ -5423,30 +5427,42 @@ const renderEnvRecapTable = (el, emState) => {
       const pctStr = pct != null
         ? `${pct > 0 ? "−" : "+"}${formatFixed(Math.abs(pct), 0)}%`
         : "—";
-      const tone = pct != null && pct > 0 ? "positive"
+      const pctTone = pct != null && pct > 0 ? "positive"
         : pct != null && pct < 0 ? "negative" : "";
 
-      return `<tr>
+      const unitSuffix = `<span class="env-cell-unit">${textContent(def.unit)}</span>`;
+      const perKmUnitSuffix = `<span class="env-cell-unit">${textContent(def.perKmUnit)}</span>`;
+
+      return `<tr class="env-row env-row--${def.rowTone}">
         <td>${textContent(t(def.i18n) || def.label)}</td>
-        <td>${textContent(def.unit)}</td>
-        <td>${formatFixed(eDisplay, def.decimals)}</td>
-        ${hasDiesel ? `<td>${dDisplay != null ? formatFixed(dDisplay, def.decimals) : "—"}</td>` : ""}
-        ${hasDiesel ? `<td>${diff != null ? formatFixed(diff, def.decimals) : "—"}</td>` : ""}
-        ${hasDiesel ? `<td class="emissions-recap-reduction${tone ? ` emissions-recap-reduction--${tone}` : ""}">${textContent(pctStr)}</td>` : ""}
+        <td>${formatFixed(eDisplay, def.decimals)} ${unitSuffix}</td>
+        <td>${ePerKm != null ? formatFixed(ePerKm, def.perKmDecimals) : "—"} ${perKmUnitSuffix}</td>
+        ${hasDiesel ? `<td>${dDisplay != null ? formatFixed(dDisplay, def.decimals) : "—"} ${unitSuffix}</td>` : ""}
+        ${hasDiesel ? `<td>${dPerKm != null ? formatFixed(dPerKm, def.perKmDecimals) : "—"} ${perKmUnitSuffix}</td>` : ""}
+        ${hasDiesel ? `<td>${diff != null ? formatFixed(diff, def.decimals) : "—"} ${unitSuffix}</td>` : ""}
+        ${hasDiesel ? `<td>${diffPerKm != null ? formatFixed(diffPerKm, def.perKmDecimals) : "—"} ${perKmUnitSuffix}</td>` : ""}
+        ${hasDiesel ? `<td class="emissions-recap-reduction${pctTone ? ` emissions-recap-reduction--${pctTone}` : ""}">${textContent(pctStr)}</td>` : ""}
       </tr>`;
     })
     .join("");
 
   el.innerHTML = `<div class="emissions-recap-table-wrap">
-    <table class="emissions-recap-table">
+    <table class="emissions-recap-table emissions-recap-table--env">
       <thead>
-        <tr>
-          <th>${textContent(indicatorLabel)}</th>
-          <th>${textContent(unitLabel)}</th>
-          <th>${textContent(electricLabel)}</th>
-          ${hasDiesel ? `<th>${textContent(dieselLabel)}</th>` : ""}
-          ${hasDiesel ? `<th>${textContent(diffLabel)}</th>` : ""}
-          ${hasDiesel ? `<th>${textContent(reductionLabel)}</th>` : ""}
+        <tr class="env-header-main">
+          <th rowspan="2">${textContent(indicatorLabel)}</th>
+          <th colspan="2">${textContent(electricLabel)}</th>
+          ${hasDiesel ? `<th colspan="2">${textContent(dieselLabel)}</th>` : ""}
+          ${hasDiesel ? `<th colspan="2">${textContent(diffLabel)}</th>` : ""}
+          ${hasDiesel ? `<th rowspan="2">${textContent(reductionLabel)}</th>` : ""}
+        </tr>
+        <tr class="env-header-sub">
+          <th>${textContent(yearlySubLabel)}</th>
+          <th>${textContent(perKmSubLabel)}</th>
+          ${hasDiesel ? `<th>${textContent(yearlySubLabel)}</th>` : ""}
+          ${hasDiesel ? `<th>${textContent(perKmSubLabel)}</th>` : ""}
+          ${hasDiesel ? `<th>${textContent(yearlySubLabel)}</th>` : ""}
+          ${hasDiesel ? `<th>${textContent(perKmSubLabel)}</th>` : ""}
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -5638,13 +5654,14 @@ const renderEmissionsRecapTable = (el, emState) => {
   const electricY = emState.electricYearly;
   const dieselY = emState.dieselYearly;
   const hasDiesel = !!dieselY;
+  const yearlyDistKm = toFiniteNumber(emState?.yearlyImpact?.yearly_distance_km);
 
   const pollutantLabel = t("simulation.emissions_table_pollutant") || "Pollutant";
-  const unitLabel = t("simulation.emissions_table_unit") || "Unit";
   const electricLabel = t("simulation.emissions_toggle_electric") || "Electric bus";
   const dieselLabel = t("simulation.emissions_toggle_diesel") || "Diesel bus";
   const savedLabel = t("simulation.emissions_saved_col") || "Saved";
   const reductionLabel = t("simulation.emissions_reduction_col") || "Reduction";
+  const perYearLabel = t("simulation.emissions_kpi_per_year") || "per year";
 
   const rows = EMISSIONS_POLLUTANTS
     .filter((p) => electricY[p.key]?.total != null)
@@ -5653,13 +5670,17 @@ const renderEmissionsRecapTable = (el, emState) => {
       const dTotal = hasDiesel ? (toFiniteNumber(dieselY[p.key]?.total) ?? 0) : null;
       const displayE = eTotal / p.divisor;
       const displayD = dTotal != null ? dTotal / p.divisor : null;
+      const perKmE = yearlyDistKm ? eTotal / yearlyDistKm : null;
+      const perKmD = yearlyDistKm && dTotal != null ? dTotal / yearlyDistKm : null;
       const saved = displayD != null ? displayD - displayE : null;
+      const savedPerKm = perKmD != null && perKmE != null ? perKmD - perKmE : null;
       const reduction = dTotal != null && dTotal !== 0
         ? ((dTotal - eTotal) / Math.abs(dTotal)) * 100
         : null;
       const unit = p.unitGroup === "ton"
         ? (t("simulation.emissions_unit_ton_year") || "ton/year")
         : (t("simulation.emissions_unit_kg_year") || "kg/year");
+      const indicatorWithUnit = `${t(p.i18n) || p.fallback} ${unit} | ${p.perKmUnit}`;
 
       const reductionStr = reduction != null
         ? `${reduction > 0 ? "−" : "+"}${formatFixed(Math.abs(reduction), 0)}%`
@@ -5668,11 +5689,13 @@ const renderEmissionsRecapTable = (el, emState) => {
         : reduction != null && reduction < 0 ? "negative" : "";
 
       return `<tr>
-        <td>${textContent(t(p.i18n) || p.fallback)}</td>
-        <td>${textContent(unit)}</td>
-        <td>${formatFixed(displayE, 2)}</td>
-        ${hasDiesel ? `<td>${displayD != null ? formatFixed(displayD, 2) : "—"}</td>` : ""}
-        ${hasDiesel ? `<td>${saved != null ? formatFixed(saved, 2) : "—"}</td>` : ""}
+        <td>${textContent(indicatorWithUnit)}</td>
+        <td>${formatFixed(displayE, 0)}</td>
+        <td>${perKmE != null ? formatFixed(perKmE, 0) : "—"}</td>
+        ${hasDiesel ? `<td>${displayD != null ? formatFixed(displayD, 0) : "—"}</td>` : ""}
+        ${hasDiesel ? `<td>${perKmD != null ? formatFixed(perKmD, 0) : "—"}</td>` : ""}
+        ${hasDiesel ? `<td>${saved != null ? formatFixed(saved, 0) : "—"}</td>` : ""}
+        ${hasDiesel ? `<td>${savedPerKm != null ? formatFixed(savedPerKm, 0) : "—"}</td>` : ""}
         ${hasDiesel ? `<td class="emissions-recap-reduction${reductionTone ? ` emissions-recap-reduction--${reductionTone}` : ""}">${textContent(reductionStr)}</td>` : ""}
       </tr>`;
     })
@@ -5704,10 +5727,12 @@ const renderEmissionsRecapTable = (el, emState) => {
       <thead>
         <tr>
           <th>${textContent(pollutantLabel)}</th>
-          <th>${textContent(unitLabel)}</th>
-          <th>${textContent(electricLabel)}</th>
-          ${hasDiesel ? `<th>${textContent(dieselLabel)}</th>` : ""}
-          ${hasDiesel ? `<th>${textContent(savedLabel)}</th>` : ""}
+          <th>${textContent(`${electricLabel} ${perYearLabel}`)}</th>
+          <th>${textContent(`${electricLabel} / km`)}</th>
+          ${hasDiesel ? `<th>${textContent(`${dieselLabel} ${perYearLabel}`)}</th>` : ""}
+          ${hasDiesel ? `<th>${textContent(`${dieselLabel} / km`)}</th>` : ""}
+          ${hasDiesel ? `<th>${textContent(`${savedLabel} ${perYearLabel}`)}</th>` : ""}
+          ${hasDiesel ? `<th>${textContent(`${savedLabel} / km`)}</th>` : ""}
           ${hasDiesel ? `<th>${textContent(reductionLabel)}</th>` : ""}
         </tr>
       </thead>

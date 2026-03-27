@@ -1366,9 +1366,9 @@ const loadEmissionsDataForComparison = async (
 };
 
 const EMISSIONS_POLLUTANTS = [
-  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "#c0392b", unitGroup: "ton", divisor: 1e6 },
-  { key: "nox", i18n: "simulation.emissions_nox_label", fallback: "NOx (nitric oxide)", color: "#d4a017", unitGroup: "kg", divisor: 1e6 },
-  { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6 },
+  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "#c0392b", unitGroup: "ton", divisor: 1e6, perKmUnit: "g/km" },
+  { key: "nox", i18n: "simulation.emissions_nox_label", fallback: "NOx (nitric oxide)", color: "#d4a017", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
+  { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
 ];
 
 const renderComparisonHistogram = (el, legendEl, emState) => {
@@ -1473,12 +1473,13 @@ const renderComparisonRecapTable = (el, emState) => {
   const electricY = emState.electricYearly;
   const dieselY = emState.dieselYearly;
   const hasDiesel = !!dieselY;
+  const yearlyDistKm = toFiniteNumber(emState?.yearlyImpact?.yearly_distance_km);
 
   const pollutantLabel = t("simulation.emissions_table_pollutant") || "Pollutant";
-  const unitLabel = t("simulation.emissions_table_unit") || "Unit";
   const electricLabel = t("simulation.emissions_toggle_electric") || "Electric bus";
   const dieselLabel = t("simulation.emissions_toggle_diesel") || "Diesel bus";
   const reductionLabel = t("simulation.emissions_reduction_col") || "Reduction";
+  const perYearLabel = t("simulation.emissions_kpi_per_year") || "per year";
 
   const rows = EMISSIONS_POLLUTANTS
     .filter((p) => electricY[p.key]?.total != null)
@@ -1487,15 +1488,19 @@ const renderComparisonRecapTable = (el, emState) => {
       const dTotal = hasDiesel ? (toFiniteNumber(dieselY[p.key]?.total) ?? 0) : null;
       const displayE = eTotal / p.divisor;
       const displayD = dTotal != null ? dTotal / p.divisor : null;
+      const perKmE = yearlyDistKm ? eTotal / yearlyDistKm : null;
+      const perKmD = yearlyDistKm && dTotal != null ? dTotal / yearlyDistKm : null;
       const reduction = dTotal != null && dTotal !== 0 ? ((dTotal - eTotal) / Math.abs(dTotal)) * 100 : null;
       const unit = p.unitGroup === "ton" ? (t("simulation.emissions_unit_ton_year") || "ton/year") : (t("simulation.emissions_unit_kg_year") || "kg/year");
+      const indicatorWithUnit = `${t(p.i18n) || p.fallback} ${unit} | ${p.perKmUnit}`;
       const reductionStr = reduction != null ? `${reduction > 0 ? "−" : "+"}${formatFixed(Math.abs(reduction), 0)}%` : "—";
       const tone = reduction != null && reduction > 0 ? "positive" : reduction != null && reduction < 0 ? "negative" : "";
       return `<tr>
-        <td>${textContent(t(p.i18n) || p.fallback)}</td>
-        <td>${textContent(unit)}</td>
-        <td>${formatFixed(displayE, 2)}</td>
-        ${hasDiesel ? `<td>${displayD != null ? formatFixed(displayD, 2) : "—"}</td>` : ""}
+        <td>${textContent(indicatorWithUnit)}</td>
+        <td>${formatFixed(displayE, 0)}</td>
+        <td>${perKmE != null ? formatFixed(perKmE, 0) : "—"}</td>
+        ${hasDiesel ? `<td>${displayD != null ? formatFixed(displayD, 0) : "—"}</td>` : ""}
+        ${hasDiesel ? `<td>${perKmD != null ? formatFixed(perKmD, 0) : "—"}</td>` : ""}
         ${hasDiesel ? `<td class="emissions-recap-reduction${tone ? ` emissions-recap-reduction--${tone}` : ""}">${textContent(reductionStr)}</td>` : ""}
       </tr>`;
     })
@@ -1506,9 +1511,10 @@ const renderComparisonRecapTable = (el, emState) => {
       <thead>
         <tr>
           <th>${textContent(pollutantLabel)}</th>
-          <th>${textContent(unitLabel)}</th>
-          <th>${textContent(electricLabel)}</th>
-          ${hasDiesel ? `<th>${textContent(dieselLabel)}</th>` : ""}
+          <th>${textContent(`${electricLabel} ${perYearLabel}`)}</th>
+          <th>${textContent(`${electricLabel} / km`)}</th>
+          ${hasDiesel ? `<th>${textContent(`${dieselLabel} ${perYearLabel}`)}</th>` : ""}
+          ${hasDiesel ? `<th>${textContent(`${dieselLabel} / km`)}</th>` : ""}
           ${hasDiesel ? `<th>${textContent(reductionLabel)}</th>` : ""}
         </tr>
       </thead>
