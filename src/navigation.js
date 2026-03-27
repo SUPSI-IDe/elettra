@@ -26,6 +26,32 @@ const slugFrom = (node) => node?.dataset.partial?.trim() || "";
 const PUBLIC_PARTIALS = new Set(["landing", "login", "register", "about"]);
 const isProtectedPartial = (slug) => Boolean(slug) && !PUBLIC_PARTIALS.has(slug);
 
+const buildHash = (slug, options = {}) => {
+  if (!slug) return "";
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(options)) {
+    if (value != null && typeof value !== "function" && typeof value !== "object") {
+      params.set(key, value);
+    }
+  }
+  const qs = params.toString();
+  return qs ? `${slug}?${qs}` : slug;
+};
+
+const parseHash = () => {
+  const raw = location.hash.slice(1);
+  if (!raw) return null;
+  const qIdx = raw.indexOf("?");
+  const slug = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+  const options = {};
+  if (qIdx >= 0) {
+    for (const [k, v] of new URLSearchParams(raw.slice(qIdx + 1))) {
+      options[k] = v;
+    }
+  }
+  return slug ? { slug, options } : null;
+};
+
 const getLoader = (slug) => {
   const key = Object.keys(partials).find((k) => k.endsWith(`/${slug}.html`));
   return partials[key];
@@ -172,6 +198,13 @@ export const initializeNavigation = (root = document) => {
 
     currentRoute = { slug: resolvedSlug, options };
 
+    const hashAction = loaderOptions.hashAction ?? "push";
+    if (hashAction !== "none") {
+      const hash = buildHash(resolvedSlug, options);
+      const method = hashAction === "replace" ? "replaceState" : "pushState";
+      history[method](null, "", `#${hash}`);
+    }
+
     return loadPartial(resolvedSlug, loaderOptions).then(() =>
       initializePartial(resolvedSlug, container, options)
     );
@@ -209,16 +242,17 @@ export const initializeNavigation = (root = document) => {
     });
   }
 
-  // Determine initial page based on authentication
+  // Determine initial page based on authentication and URL hash
   const authenticated = isAuthenticated();
   updateNavVisibility();
 
-  if (authenticated) {
-    const initialSlug = slugFrom(nav.querySelector("a[data-partial]"));
-    loadAndInitialize(initialSlug);
-  } else {
-    loadAndInitialize("login");
-  }
+  const fromHash = parseHash();
+  const defaultSlug = authenticated
+    ? slugFrom(nav.querySelector("a[data-partial]"))
+    : "login";
+  const initialSlug = fromHash?.slug || defaultSlug;
+  const initialOptions = fromHash?.options || {};
+  loadAndInitialize(initialSlug, initialOptions, { hashAction: "replace" });
 
   document.addEventListener("partial:request", (event) => {
     const detail = event.detail ?? {};
@@ -233,11 +267,22 @@ export const initializeNavigation = (root = document) => {
     loadAndInitialize(slug, options);
   });
 
+  window.addEventListener("popstate", () => {
+    const fromHash = parseHash();
+    if (fromHash?.slug) {
+      updateNavVisibility();
+      loadAndInitialize(fromHash.slug, fromHash.options, { hashAction: "none" });
+    }
+  });
+
   document.addEventListener(I18N_CHANGE_EVENT, () => {
     if (!currentRoute.slug) {
       return;
     }
 
-    loadAndInitialize(currentRoute.slug, currentRoute.options, { force: true });
+    loadAndInitialize(currentRoute.slug, currentRoute.options, {
+      force: true,
+      hashAction: "replace",
+    });
   });
 };

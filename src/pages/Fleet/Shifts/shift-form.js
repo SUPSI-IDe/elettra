@@ -919,16 +919,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const loadBuses = async () => {
-    const cached = getOwnedBuses();
-    if (Array.isArray(cached) && cached.length > 0) {
-      renderBusOptions(busSelect, cached, getModelsById());
-      return;
-    }
-
     try {
       const [payload, modelsPayload, userId] = await Promise.all([
-        fetchBuses({ skip: 0, limit: 100 }),
-        fetchBusModels({ skip: 0, limit: 100 }),
+        fetchBuses({ skip: 0, limit: 1000 }),
+        fetchBusModels({ skip: 0, limit: 1000 }),
         resolveUserId().catch(() => null),
       ]);
 

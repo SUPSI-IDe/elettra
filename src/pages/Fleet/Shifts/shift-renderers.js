@@ -223,27 +223,30 @@ export const renderBusOptions = (select, buses = [], modelsById = {}) => {
     return;
   }
 
-  const modelOptions = [];
-  const seenModels = new Set();
-
+  const busByModelId = {};
   buses
     .filter((bus) => bus && bus.id)
     .forEach((bus) => {
       const modelId = text(bus?.bus_model_id ?? "");
-      if (!modelId || seenModels.has(modelId)) {
-        return;
+      if (modelId && !busByModelId[modelId]) {
+        busByModelId[modelId] = bus;
       }
-      const model = modelsById?.[modelId];
-      const resolved = resolveModelFields(model);
-      const label = resolved.model;
-      if (!label) {
-        return;
-      }
-      seenModels.add(modelId);
-      modelOptions.push(
-        `<option value="${text(bus.id)}">${textContent(label)}</option>`
-      );
     });
+
+  const modelOptions = [];
+
+  for (const [modelId, model] of Object.entries(modelsById)) {
+    if (!modelId) continue;
+    const resolved = resolveModelFields(model);
+    const label = resolved.model;
+    if (!label) continue;
+
+    const bus = busByModelId[modelId];
+    const value = bus ? text(bus.id) : text(modelId);
+    modelOptions.push(
+      `<option value="${value}" data-bus-model-id="${textContent(modelId)}">${textContent(label)}</option>`
+    );
+  }
 
   const options = [
     '<option value="">Select a bus model</option>',

@@ -38,21 +38,6 @@ const looksLikeUuid = (value) => UUID_RE.test(text(value).trim());
 /** @deprecated Runs are now persisted server-side; kept for backward compat with callers. */
 export const saveRunIds = () => {};
 
-const DISMISSED_KEY = "elettra_dismissed_runs";
-
-const getDismissedIds = () => {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]"));
-  } catch {
-    return new Set();
-  }
-};
-
-const addDismissedIds = (ids = []) => {
-  const current = getDismissedIds();
-  ids.forEach((id) => current.add(id));
-  localStorage.setItem(DISMISSED_KEY, JSON.stringify([...current]));
-};
 
 const setFlashMessage = (section, message) => {
   const flashElement = section.querySelector('[data-role="flash"]');
@@ -815,8 +800,7 @@ export const initializeSimulationRuns = async (
         ? runsPayload
         : (runsPayload?.items ?? runsPayload?.results ?? []);
 
-      const dismissed = getDismissedIds();
-      allRuns = rawRuns.filter((r) => !dismissed.has(text(r?.id)));
+      allRuns = rawRuns;
 
       hydrateRunModelNamesFromId(allRuns);
       await enrichShiftNames(allRuns);
@@ -917,37 +901,47 @@ export const initializeSimulationRuns = async (
       .replace("{count}", ids.length);
     if (!confirm(msg)) return;
 
-    let serverDeleted = 0;
+    const deletedIds = new Set();
     let serverFailed = 0;
-    const notSupported = [];
 
     for (const id of ids) {
       try {
         const result = await deleteOptimizationRun(id);
         if (result.deleted) {
-          serverDeleted++;
+          deletedIds.add(id);
         } else {
-          notSupported.push(id);
+          serverFailed++;
         }
       } catch {
         serverFailed++;
-        notSupported.push(id);
       }
     }
 
-    if (notSupported.length) {
-      addDismissedIds(notSupported);
+    if (deletedIds.size > 0) {
+      allRuns = allRuns.filter((r) => !deletedIds.has(text(r?.id)));
+      applyFilter();
+      populateCompareSelects();
     }
 
-    allRuns = allRuns.filter((r) => !ids.includes(text(r?.id)));
-    applyFilter();
-    populateCompareSelects();
-
-    setFlashMessage(
-      section,
-      t("simulation.removed", { count: ids.length }) ||
-        `${ids.length} simulation(s) removed.`
-    );
+    if (serverFailed > 0 && deletedIds.size > 0) {
+      setFlashMessage(
+        section,
+        t("simulation.partial_delete", { deleted: deletedIds.size, failed: serverFailed }) ||
+          `${deletedIds.size} simulation(s) removed, ${serverFailed} failed to delete.`
+      );
+    } else if (serverFailed > 0) {
+      setFlashMessage(
+        section,
+        t("simulation.delete_failed", { count: serverFailed }) ||
+          `Failed to delete ${serverFailed} simulation(s). The server may not support deletion.`
+      );
+    } else {
+      setFlashMessage(
+        section,
+        t("simulation.removed", { count: deletedIds.size }) ||
+          `${deletedIds.size} simulation(s) removed.`
+      );
+    }
   };
   if (deleteButton) {
     deleteButton.addEventListener("click", handleDeleteClick);

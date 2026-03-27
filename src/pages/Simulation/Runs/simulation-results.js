@@ -1109,9 +1109,12 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
 
   const upfrontDelta =
     (chartData?.upfrontCapex?.electric ?? 0) - (chartData?.upfrontCapex?.diesel ?? 0);
+  const annualOpexSaving =
+    (toFiniteNumber(chartData?.annualOpex?.diesel) ?? 0) -
+    (toFiniteNumber(chartData?.annualOpex?.electric) ?? 0);
   const paybackYears =
-    annualSaving > 0 && upfrontDelta > 0
-      ? upfrontDelta / annualSaving
+    annualOpexSaving > 0 && upfrontDelta > 0
+      ? upfrontDelta / annualOpexSaving
       : null;
 
   const roi =
@@ -1129,6 +1132,7 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
         "Diesel − electric equivalent annual cost (EAC + OPEX). Positive = electric is cheaper.",
     },
     {
+      hidden: breakEvenYear == null,
       label:
         t("simulation.costs_kpi_break_even") || "Break-even",
       value:
@@ -1141,6 +1145,7 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
         "Year when cumulative electric costs fall below diesel on the projected cost trend.",
     },
     {
+      hidden: lifetimeSaving == null,
       label:
         t("simulation.costs_kpi_lifetime_saving") ||
         `${horizonYears}-yr savings`,
@@ -1159,6 +1164,7 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
         `Cumulative savings over the ${horizonYears}-year horizon, incl. replacements.`,
     },
     {
+      hidden: paybackYears == null,
       label: t("simulation.costs_kpi_payback") || "Payback",
       value:
         paybackYears != null
@@ -1170,6 +1176,7 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
         "Years to recover the extra electric CAPEX through annual OPEX savings (simple payback).",
     },
     {
+      hidden: roi == null,
       label: t("simulation.costs_kpi_roi") || "ROI",
       value: roi != null ? `${formatFixed(roi, 0)}%` : "—",
       tone: roi != null && roi > 0 ? "positive" : roi != null && roi < 0 ? "negative" : "",
@@ -1180,6 +1187,7 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
   ];
 
   el.innerHTML = kpis
+    .filter(({ hidden }) => !hidden)
     .map(
       ({ label, value, tone, tooltip }) => `
         <div class="costs-kpi-card">
