@@ -3156,9 +3156,19 @@ const buildOptimizationBatteryChartData = (batteryResults = {}, viewOptions = {}
     }))
     .filter((row) => row.basePacks != null || row.optimizedPacks != null);
 
+const deriveSocKwh = (batteryCapacityKwh, socFraction) => {
+  const capacity = toFiniteNumber(batteryCapacityKwh);
+  const soc = toFiniteNumber(socFraction);
+
+  if (capacity == null || soc == null) return null;
+  return capacity * soc;
+};
+
 const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResults = {}, viewOptions = {}) => {
   const allRuns = [...(predictionRuns ?? [])];
   const selectedShiftId = firstText(viewOptions?.selectedShiftId);
+  const minSocFraction = toFiniteNumber(viewOptions?.inputParams?.min_soc);
+  const maxSocFraction = toFiniteNumber(viewOptions?.inputParams?.max_soc);
 
   const filtered = selectedShiftId
     ? allRuns.filter((run) => firstText(run?.shift_id) === selectedShiftId)
@@ -3182,28 +3192,31 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
       .filter((value) => value != null)
   );
 
-  const rows = sorted.map((run, idx) => {
+  const rows = sorted.map((run) => {
     const cp = run?.contextual_parameters ?? {};
     const s = run?.summary ?? {};
     const packs = toFiniteNumber(cp.num_battery_packs);
+    const batteryCapacityKwh = toFiniteNumber(cp.battery_capacity_kwh);
     const matchedBus = filteredPerBus.find((entry) => {
       const entryPacks = toFiniteNumber(entry?.optimized_packs ?? entry?.num_battery_packs);
       return entryPacks != null && entryPacks === packs;
-    }) ?? filteredPerBus[idx] ?? {};
+    }) ?? {};
 
     return {
       numBatteryPacks: packs,
-      batteryCapacityKwh: toFiniteNumber(cp.battery_capacity_kwh),
+      batteryCapacityKwh,
       totalWeightKg: toFiniteNumber(cp.total_weight_kg),
       totalDistanceKm: toFiniteNumber(s.total_distance_km),
       totalConsumptionKwh: toFiniteNumber(s.total_consumption_kwh),
       consumptionPerKmKwh: toFiniteNumber(s.consumption_per_km_kwh),
       totalDrivetrainKwh: toFiniteNumber(s.total_drivetrain_kwh),
       totalAuxiliaryKwh: toFiniteNumber(s.total_auxiliary_kwh),
-      minSocKwh: toFiniteNumber(matchedBus.min_soc_kwh),
-      maxSocKwh: toFiniteNumber(matchedBus.max_soc_kwh),
-      numChargingSessions: toFiniteNumber(matchedBus.num_charging_sessions),
-      totalChargedKwh: toFiniteNumber(matchedBus.total_charged_kwh),
+      minSocKwh:
+        deriveSocKwh(batteryCapacityKwh, minSocFraction) ??
+        toFiniteNumber(matchedBus.min_soc_kwh),
+      maxSocKwh:
+        deriveSocKwh(batteryCapacityKwh, maxSocFraction) ??
+        toFiniteNumber(matchedBus.max_soc_kwh),
     };
   });
 
@@ -3236,10 +3249,8 @@ const buildUnifiedPredictionRows = (rows) =>
         <td class="efficiency-td-num efficiency-td-highlight">${formatFixed(row.consumptionPerKmKwh, 3)}</td>
         <td class="efficiency-td-num">${formatFixed(row.totalDrivetrainKwh, 1)}</td>
         <td class="efficiency-td-num">${formatFixed(row.totalAuxiliaryKwh, 1)}</td>
-        <td class="efficiency-td-num">${formatFixed(row.minSocKwh, 1)}</td>
-        <td class="efficiency-td-num">${formatFixed(row.maxSocKwh, 1)}</td>
-        <td class="efficiency-td-num">${textContent(String(row.numChargingSessions ?? "—"))}</td>
-        <td class="efficiency-td-num">${formatFixed(row.totalChargedKwh, 1)}</td>
+        <td class="efficiency-td-num">${formatFixed(row.minSocKwh, 0)}</td>
+        <td class="efficiency-td-num">${formatFixed(row.maxSocKwh, 0)}</td>
       </tr>`)
     .join("");
 
@@ -4610,20 +4621,21 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     predictionRuns,
     perBusSummary,
     batteryResults,
-    viewOptions
+    {
+      ...viewOptions,
+      inputParams: ip,
+    }
   );
   const unifiedRows = buildUnifiedPredictionRows(predictionData);
   const hasPerBus = perBusSummary.length > 0;
 
   const tableBody = predictionData.length === 0
-    ? `<tr><td colspan="${hasPerBus ? 12 : 8}" class="efficiency-no-data">${textContent(t("simulation.efficiency_no_predictions") || "No prediction data available.")}</td></tr>`
+    ? `<tr><td colspan="${hasPerBus ? 10 : 8}" class="efficiency-no-data">${textContent(t("simulation.efficiency_no_predictions") || "No prediction data available.")}</td></tr>`
     : unifiedRows;
 
   const perBusHeaders = hasPerBus ? `
               <th>${textContent(t("simulation.opt_col_min_soc") || "Min SoC (kWh)")}</th>
-              <th>${textContent(t("simulation.opt_col_max_soc") || "Max SoC (kWh)")}</th>
-              <th>${textContent(t("simulation.opt_col_sessions") || "Chg. Sessions")}</th>
-              <th>${textContent(t("simulation.opt_col_charged") || "Charged (kWh)")}</th>` : "";
+              <th>${textContent(t("simulation.opt_col_max_soc") || "Max SoC (kWh)")}</th>` : "";
 
   const chartCards = [];
 

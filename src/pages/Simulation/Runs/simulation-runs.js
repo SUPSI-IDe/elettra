@@ -34,6 +34,9 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const looksLikeUuid = (value) => UUID_RE.test(text(value).trim());
+const ALLOWED_USABLE_SOC_PERCENTS = new Set([
+  100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
+]);
 
 /** @deprecated Runs are now persisted server-side; kept for backward compat with callers. */
 export const saveRunIds = () => {};
@@ -259,6 +262,8 @@ const resolveRunName = (run = {}) =>
 const resolveBusModelId = (run = {}) => {
   return text(
     run?._resolved_bus_model_id ??
+    run?.input_params?.bus_model_id ??
+    run?.inputParams?.bus_model_id ??
     run?.bus_model_id ??
     run?.busModelId ??
     ""
@@ -347,6 +352,18 @@ const resolveOccupancyPercent = (run = {}) =>
       run?.predictionParams?.occupancy_percent
   );
 
+const resolveHeatingType = (run = {}) =>
+  text(
+    run?.auxiliary_heating_type ??
+      run?.auxiliaryHeatingType ??
+      run?._resolved_prediction_run?.auxiliary_heating_type ??
+      run?._resolved_prediction_run?.auxiliaryHeatingType ??
+      run?.input_params?.prediction_params?.auxiliary_heating_type ??
+      run?.inputParams?.prediction_params?.auxiliary_heating_type ??
+      run?.prediction_params?.auxiliary_heating_type ??
+      run?.predictionParams?.auxiliary_heating_type
+  ).trim();
+
 const resolveSocPercent = (value) => {
   const numericValue = toFiniteNumber(value);
   if (numericValue == null) return null;
@@ -368,6 +385,60 @@ const resolveMaxSocPercent = (run = {}) =>
       run?.input_params?.max_soc ??
       run?.inputParams?.max_soc
   );
+
+const resolveUsableSocPercent = (run = {}) => {
+  const direct = toFiniteNumber(
+    run?.usable_soc_percent ??
+      run?.usableSocPercent ??
+      run?.input_params?.usable_soc_percent ??
+      run?.inputParams?.usable_soc_percent
+  );
+  if (direct != null && ALLOWED_USABLE_SOC_PERCENTS.has(Math.round(direct))) {
+    return Math.round(direct);
+  }
+
+  const minSocPercent = resolveMinSocPercent(run);
+  const maxSocPercent = resolveMaxSocPercent(run);
+  if (minSocPercent == null || maxSocPercent == null) return null;
+
+  const usableSocPercent = Math.round(maxSocPercent - minSocPercent);
+  return ALLOWED_USABLE_SOC_PERCENTS.has(usableSocPercent)
+    ? usableSocPercent
+    : null;
+};
+
+const resolveChargingStations = (run = {}) => {
+  const stations =
+    run?.input_params?.charging_stations ??
+    run?.inputParams?.charging_stations ??
+    run?.charging_stations ??
+    run?.chargingStations;
+
+  if (!Array.isArray(stations)) return [];
+
+  return stations.map((station) => ({
+    ...station,
+    slot_costs_chf: Array.isArray(station?.slot_costs_chf)
+      ? [...station.slot_costs_chf]
+      : station?.slot_costs_chf,
+  }));
+};
+
+const resolveBatteryCostPerKwh = (run = {}) =>
+  toFiniteNumber(
+    run?.battery_cost_per_kwh ??
+      run?.batteryCostPerKwh ??
+      run?.input_params?.battery_cost_per_kwh ??
+      run?.inputParams?.battery_cost_per_kwh
+  );
+
+const resolveBatterySizingMode = (run = {}) =>
+  text(
+    run?.battery_sizing_mode ??
+      run?.batterySizingMode ??
+      run?.input_params?.battery_sizing_mode ??
+      run?.inputParams?.battery_sizing_mode
+  ).trim();
 
 const formatMainParameters = (run = {}) => {
   const externalTemp = resolveExternalTemp(run);
@@ -866,16 +937,16 @@ export const initializeSimulationRuns = async (
 
     triggerPartialLoad("add-simulation", {
       prefill: {
-        name: resolveRunName(run),
-        shiftId: resolveShiftId(run),
-        optimizationMode:
-          run?.mode ?? run?.optimization_mode ?? "battery_only",
+        shiftIds: resolveShiftIds(run),
+        optimizationMode: resolveRunMode(run) || "battery_only",
         externalTempCelsius: resolveExternalTemp(run) ?? -5,
         occupancyPercent: resolveOccupancyPercent(run) ?? 50,
-        heatingType:
-          run?.auxiliary_heating_type ??
-          run?.auxiliaryHeatingType ??
-          "hp",
+        heatingType: resolveHeatingType(run) || "hp",
+        usableSocPercent: resolveUsableSocPercent(run),
+        busModelId: resolveBusModelId(run),
+        batteryCostPerKwh: resolveBatteryCostPerKwh(run),
+        batterySizingMode: resolveBatterySizingMode(run) || "per_bus",
+        chargingStations: resolveChargingStations(run),
       },
     });
   };

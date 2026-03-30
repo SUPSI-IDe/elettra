@@ -927,13 +927,9 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.55rem 0.85rem;
-  text-align: right;
+  text-align: center;
   border-bottom: 2px solid var(--border-light);
   white-space: nowrap;
-}
-
-.efficiency-table thead th:first-child {
-  text-align: center;
 }
 
 .efficiency-table tbody tr:nth-child(even) {
@@ -949,10 +945,11 @@
   border-bottom: 1px solid var(--border-light);
   color: var(--text-main);
   white-space: nowrap;
+  text-align: center;
 }
 
 .efficiency-td-num {
-  text-align: right;
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
@@ -986,7 +983,7 @@
 /* Left-aligned text header for Shift column */
 
 .efficiency-th-text {
-  text-align: left !important;
+  text-align: center !important;
 }
 
 .efficiency-th-center {
