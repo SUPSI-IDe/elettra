@@ -355,6 +355,27 @@ const COLUMN_DEFS = {
   ],
 };
 
+const syncSelectAllCheckbox = (thead, tbody) => {
+  const selectAll = thead?.querySelector('[data-role="select-all-stops"]');
+  if (!selectAll) return;
+  const boxes = tbody?.querySelectorAll('input[type="checkbox"]') ?? [];
+  const total = boxes.length;
+  let checked = 0;
+  boxes.forEach((cb) => {
+    if (cb.checked) checked += 1;
+  });
+  selectAll.checked = total > 0 && checked === total;
+  selectAll.indeterminate = checked > 0 && checked < total;
+};
+
+const toFiniteNumber = (value) => {
+  if (value === "" || (typeof value === "string" && value.trim() === "")) {
+    return null;
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
 const renderStopsTable = (thead, tbody, stops, mode) => {
   if (!thead || !tbody) return;
   const cols = COLUMN_DEFS[mode] ?? COLUMN_DEFS.battery_only;
@@ -387,14 +408,7 @@ const renderStopsTable = (thead, tbody, stops, mode) => {
     )
     .join("");
 
-  // Sync the select-all checkbox with the initial state
-  const selectAll = thead.querySelector('[data-role="select-all-stops"]');
-  if (selectAll) {
-    const allBoxes = tbody.querySelectorAll('input[type="checkbox"]');
-    const checkedCount = tbody.querySelectorAll('input[type="checkbox"]:checked').length;
-    selectAll.checked = allBoxes.length > 0 && checkedCount === allBoxes.length;
-    selectAll.indeterminate = checkedCount > 0 && checkedCount < allBoxes.length;
-  }
+  syncSelectAllCheckbox(thead, tbody);
 };
 
 const collectChargingStations = (tbody, mode) => {
@@ -440,6 +454,80 @@ const collectChargingStations = (tbody, mode) => {
     stations.push(station);
   }
   return stations;
+};
+
+const resolveStationPowerPerSlotKw = (station = {}) => {
+  const direct = toFiniteNumber(
+    station?.max_power_per_slot_kw ?? station?.power_per_slot_kw
+  );
+  if (direct != null) return direct;
+
+  const totalPower = toFiniteNumber(
+    station?.max_total_power_kw ?? station?.total_power_kw ?? station?.max_power_kw
+  );
+  const slots = toFiniteNumber(station?.num_slots ?? station?.slots);
+  if (totalPower == null || slots == null || slots <= 0) return null;
+  return totalPower / slots;
+};
+
+const resolveStationCostPerPlug = (station = {}) => {
+  const slotCosts = Array.isArray(station?.slot_costs_chf)
+    ? station.slot_costs_chf.map((value) => toFiniteNumber(value)).filter((value) => value != null)
+    : [];
+
+  if (!slotCosts.length) return null;
+  if (slotCosts.length > 1 && slotCosts[1] != null) {
+    return slotCosts[1];
+  }
+  return slotCosts[0] / 2;
+};
+
+const applyChargingStationPrefill = ({
+  tbody,
+  thead,
+  mode,
+  chargingStations = [],
+} = {}) => {
+  if (!tbody) return;
+
+  const cols = COLUMN_DEFS[mode] ?? COLUMN_DEFS.battery_only;
+  const savedByStopId = new Map(
+    (Array.isArray(chargingStations) ? chargingStations : [])
+      .filter((station) => text(station?.stop_id).trim())
+      .map((station) => [text(station.stop_id).trim(), station])
+  );
+
+  const rows = tbody.querySelectorAll("tr[data-stop-id]");
+  rows.forEach((row) => {
+    const checkbox = row.querySelector('input[type="checkbox"]');
+    if (checkbox) checkbox.checked = false;
+  });
+
+  rows.forEach((row) => {
+    const stopId = text(row.dataset.stopId).trim();
+    const station = savedByStopId.get(stopId);
+    const checkbox = row.querySelector('input[type="checkbox"]');
+    if (!station || !checkbox) return;
+
+    checkbox.checked = true;
+
+    const slotValues = {
+      slot_cost_chf: resolveStationCostPerPlug(station),
+      num_slots: toFiniteNumber(station?.num_slots ?? station?.slots),
+      max_power_per_slot_kw: resolveStationPowerPerSlotKw(station),
+    };
+
+    cols.forEach((col) => {
+      const input = row.querySelector(`input[data-field="${col.key}"]`);
+      if (!input) return;
+      const nextValue = slotValues[col.key];
+      if (nextValue != null) {
+        input.value = String(nextValue);
+      }
+    });
+  });
+
+  syncSelectAllCheckbox(thead, tbody);
 };
 
 // ── Main initializer ─────────────────────────────────────────────────
@@ -774,8 +862,8 @@ export const initializeAddSimulation = async (
       hydrateShiftDistances(allShifts);
       refreshBusModelOverride();
 
-      if (options.prefill?.shiftId) {
-        applyPrefill(options.prefill);
+      if (options.prefill) {
+        await applyPrefill(options.prefill);
       }
     } catch (error) {
       console.error("Failed to load form data", error);
@@ -784,21 +872,34 @@ export const initializeAddSimulation = async (
   }
 
   // ── Prefill ──────────────────────────────────────────────────────
-  function applyPrefill(prefill = {}) {
+  async function applyPrefill(prefill = {}) {
     const {
+      shiftIds,
       shiftId,
       optimizationMode,
       externalTempCelsius,
       occupancyPercent,
       heatingType,
       usableSocPercent,
+      busModelId,
+      batteryCostPerKwh,
+      batterySizingMode,
+      chargingStations,
     } = prefill;
 
-    if (shiftId && shiftTbody) {
-      selectedShiftIds.add(String(shiftId));
+    const normalizedShiftIds = (
+      Array.isArray(shiftIds) && shiftIds.length ? shiftIds : [shiftId]
+    )
+      .map((id) => text(id).trim())
+      .filter(Boolean);
+
+    if (normalizedShiftIds.length && shiftTbody) {
+      selectedShiftIds = new Set(normalizedShiftIds);
       renderCurrentView();
 
-      const row = shiftTbody.querySelector(`tr[data-id="${shiftId}"]`);
+      const row = shiftTbody.querySelector(
+        `tr[data-id="${text(normalizedShiftIds[0])}"]`
+      );
       if (row) {
         const checkbox = row.querySelector('input[type="checkbox"]');
         if (checkbox) {
@@ -831,7 +932,31 @@ export const initializeAddSimulation = async (
     }
 
     refreshBusModelOverride();
-    rebuildStopsTable();
+
+    if (busModelId && busModelOverride) {
+      const normalizedBusModelId = text(busModelId).trim();
+      if ([...busModelOverride.options].some((option) => option.value === normalizedBusModelId)) {
+        busModelOverride.value = normalizedBusModelId;
+      }
+    }
+
+    if (batteryCostPerKwh != null) {
+      const batteryCostInput = section.querySelector("#var-battery-cost-per-kwh");
+      if (batteryCostInput) batteryCostInput.value = String(batteryCostPerKwh);
+    }
+
+    if (batterySizingMode) {
+      const batterySizingSelect = section.querySelector("#var-battery-sizing-mode");
+      if (batterySizingSelect) batterySizingSelect.value = batterySizingMode;
+    }
+
+    await rebuildStopsTable();
+    applyChargingStationPrefill({
+      tbody: stopsTbody,
+      thead: stopsThead,
+      mode: text(modeSelect?.value).trim(),
+      chargingStations,
+    });
   }
 
   // ── Shift filter ─────────────────────────────────────────────────
@@ -922,24 +1047,13 @@ export const initializeAddSimulation = async (
   );
 
   // ── Select-all / individual stop checkbox sync ─────────────────────
-  const syncSelectAll = () => {
-    const selectAll = stopsThead?.querySelector('[data-role="select-all-stops"]');
-    if (!selectAll) return;
-    const boxes = stopsTbody?.querySelectorAll('input[type="checkbox"]') ?? [];
-    const total = boxes.length;
-    let checked = 0;
-    boxes.forEach((cb) => { if (cb.checked) checked++; });
-    selectAll.checked = total > 0 && checked === total;
-    selectAll.indeterminate = checked > 0 && checked < total;
-  };
-
   const handleStopsTableChange = (e) => {
     const target = e.target;
     if (target.dataset.role === "select-all-stops") {
       const boxes = stopsTbody?.querySelectorAll('input[type="checkbox"]') ?? [];
       boxes.forEach((cb) => { cb.checked = target.checked; });
     } else if (target.type === "checkbox") {
-      syncSelectAll();
+      syncSelectAllCheckbox(stopsThead, stopsTbody);
     }
   };
 
