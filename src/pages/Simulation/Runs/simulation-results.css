@@ -65,12 +65,13 @@
 .sim-data-btn {
   background-color: var(--brand-teal);
   color: #fff;
-  padding: 0.5rem 1.2rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 6px;
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.15s;
+  line-height: 1.2;
 }
 
 .sim-data-btn:hover {
@@ -85,6 +86,12 @@
 
 .sim-data-btn--secondary:hover {
   background-color: rgba(0, 99, 154, 0.06);
+}
+
+.results-toolbar .sim-data-btn--secondary {
+  max-width: 10rem;
+  white-space: normal;
+  text-align: center;
 }
 
 /* Tabs */
@@ -136,25 +143,27 @@
 .tab-panel[data-panel="costs"] {
   display: grid;
   grid-template-columns: minmax(320px, 38%) minmax(0, 1fr);
-  grid-template-areas:
-    "params charts"
-    "investment charts"
-    "electric charts"
-    "diesel charts"
-    "api charts";
   align-items: start;
   gap: var(--spacing-md);
 }
 
-.costs-charts-column {
-  grid-area: charts;
-  display: flex;
-  flex-direction: column;
+.costs-primary-stack {
+  display: grid;
   gap: var(--spacing-md);
+  min-width: 0;
+  align-self: stretch;
 }
 
-.costs-charts-column > .chart-section {
-  flex: 0 0 auto;
+.costs-primary-stack--inputs {
+  grid-template-rows: auto auto;
+}
+
+.costs-primary-stack--charts {
+  grid-template-rows: auto auto;
+}
+
+.costs-primary-stack > .chart-section {
+  min-width: 0;
 }
 
 .costs-kpis-section {
@@ -193,27 +202,15 @@
 }
 
 .results-cost-variables {
-  grid-area: params;
+  padding: 0.65rem;
   background:
     linear-gradient(180deg, rgba(111, 190, 236, 0.08), rgba(111, 190, 236, 0)),
     #fff;
 }
 
-.costs-investment-section {
-  grid-area: investment;
-}
+.costs-electric-opex-section {}
 
-.costs-electric-opex-section {
-  grid-area: electric;
-}
-
-.costs-diesel-opex-section {
-  grid-area: diesel;
-}
-
-.costs-api-section {
-  grid-area: api;
-}
+.costs-diesel-opex-section {}
 
 .results-cost-variables__header {
   display: flex;
@@ -238,18 +235,18 @@
 
 .results-cost-variables__grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.45rem;
-  margin-top: 0.45rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.32rem 0.42rem;
+  margin-top: 0.32rem;
 }
 
 .results-cost-variables__field {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.14rem;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-main);
-  padding: 0.5rem 0.65rem;
+  padding: 0.3rem 0.42rem;
   border: 1px solid var(--border-light, #dde4ea);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.96);
@@ -263,12 +260,12 @@
 }
 
 .results-cost-variables__value {
-  min-width: 4.5rem;
-  padding: 0.18rem 0.45rem;
+  min-width: 4.1rem;
+  padding: 0.14rem 0.38rem;
   border-radius: 999px;
   background: rgba(11, 126, 119, 0.08);
   color: var(--brand-teal-dark, #0f766e);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-align: center;
 }
@@ -276,8 +273,8 @@
 .results-cost-variables__range {
   --slider-progress: 50%;
   appearance: none;
-  width: clamp(160px, 52%, 260px);
-  height: 0.65rem;
+  width: 100%;
+  height: 0.56rem;
   border-radius: 999px;
   background:
     linear-gradient(
@@ -296,8 +293,8 @@
 
 .results-cost-variables__range::-webkit-slider-thumb {
   appearance: none;
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 0.82rem;
+  height: 0.82rem;
   border: 2px solid #fff;
   border-radius: 50%;
   background: var(--brand-teal);
@@ -305,8 +302,8 @@
 }
 
 .results-cost-variables__range::-moz-range-thumb {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 0.82rem;
+  height: 0.82rem;
   border: 2px solid #fff;
   border-radius: 50%;
   background: var(--brand-teal);
@@ -322,8 +319,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: clamp(160px, 52%, 260px);
-  font-size: 0.68rem;
+  width: 100%;
+  font-size: 0.64rem;
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -331,6 +328,15 @@
 .results-cost-variables__actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.costs-trend-section {
+  padding-top: var(--spacing-sm);
+  padding-bottom: 0.85rem;
+}
+
+.costs-trend-section h2 {
+  margin-bottom: 0.35rem;
 }
 
 .results-cost-variables__reset {
@@ -351,13 +357,15 @@
 @media (max-width: 980px) {
   .tab-panel[data-panel="costs"] {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      "params"
-      "investment"
-      "electric"
-      "diesel"
-      "api"
-      "charts";
+  }
+
+  .costs-primary-stack--inputs,
+  .costs-primary-stack--charts {
+    grid-template-rows: auto;
+  }
+
+  .results-cost-variables__grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -368,9 +376,12 @@
   overflow: hidden;
 }
 
-.costs-annual-section .chart-container,
+.costs-annual-section .chart-container {
+  min-height: 72px;
+}
+
 .costs-trend-section .chart-container {
-  min-height: 100px;
+  min-height: 72px;
 }
 
 .chart-container svg {
@@ -520,6 +531,15 @@
   border-radius: 8px;
   overflow: hidden;
   background: #fff;
+}
+
+.costs-inputs-section-body {
+  padding: 0 0.95rem 0.95rem;
+}
+
+.costs-inputs-section-body .investment-table {
+  max-width: none;
+  margin-bottom: 0;
 }
 
 .costs-inputs-section-title {
@@ -675,6 +695,10 @@
   max-width: 1180px;
 }
 
+.sim-data-panel--investment {
+  max-width: 560px;
+}
+
 .sim-data-header {
   display: flex;
   justify-content: space-between;
@@ -713,6 +737,23 @@
   margin-bottom: var(--spacing-md);
   padding-bottom: var(--spacing-xs);
   border-bottom: 1px solid var(--border-light);
+}
+
+[data-role="investment-content"] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+[data-role="investment-content"] .investment-table {
+  max-width: 420px;
+  margin-bottom: 0;
+}
+
+[data-role="investment-content"] .investment-table__note {
+  max-width: 420px;
+  margin-top: 0;
 }
 
 .sim-data-field {

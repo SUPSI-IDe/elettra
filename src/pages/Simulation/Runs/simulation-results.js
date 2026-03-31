@@ -26,6 +26,14 @@ import {
   DEFAULT_DIESEL_BUS_LIFETIME_YEARS,
   DEFAULT_BATTERY_LIFETIME_YEARS,
   getEquivalentDieselBusCapexForLength,
+  getDieselEfficiencyForLength,
+  getDieselMaintenanceCostForLength,
+  getElectricMaintenanceCostForLength,
+  getBusParameterDefaults,
+  rescaleLinearModelFromAnchor,
+  DIESEL_CONSUMPTION_BASE,
+  DIESEL_MAINT_BASE,
+  ELECTRIC_MAINT_BASE,
 } from "../../../config/economic-defaults";
 import "./simulation-results.css";
 
@@ -410,6 +418,20 @@ const setRangeProgress = (input, value) => {
   input.style.setProperty("--slider-progress", `${Math.min(100, Math.max(0, progress))}%`);
 };
 
+const applySliderRange = (input, range) => {
+  if (!input || !range) return;
+  input.min = String(range.min);
+  input.max = String(range.max);
+  const scaleEl = input
+    .closest(".results-cost-variables__field")
+    ?.querySelector(".results-cost-variables__range-scale");
+  if (scaleEl) {
+    const spans = scaleEl.querySelectorAll("span");
+    if (spans[0]) spans[0].textContent = String(range.min);
+    if (spans[1]) spans[1].textContent = String(range.max);
+  }
+};
+
 const parseBusModelSpecs = (specs) => {
   if (!specs) return {};
   if (typeof specs === "string") {
@@ -787,8 +809,46 @@ const resolveElectricBusCapex = (optimizationRun, options = {}) => {
   };
 };
 
-const resolveEquivalentDieselBusCapex = (options = {}) =>
-  getEquivalentDieselBusCapexForLength(options?.busModelData?.bus_length_m);
+const resolveEquivalentDieselBusCapex = (options = {}) => {
+  const override = toFiniteNumber(options?.costOverrides?.dieselBusCapex);
+  if (override != null && override > 0) return override;
+  const apiDefault = toFiniteNumber(options?.economicDefaults?.dieselBusCapex);
+  if (apiDefault != null && apiDefault > 0) return apiDefault;
+  return getEquivalentDieselBusCapexForLength(options?.busModelData?.bus_length_m);
+};
+
+const resolveBusLengthM = (options = {}) =>
+  toFiniteNumber(options?.busModelData?.bus_length_m);
+
+const resolveDieselEfficiency = (options = {}) => {
+  const override = toFiniteNumber(options?.costOverrides?.dieselEfficiency);
+  if (override != null && override > 0) return override;
+  const busLength = resolveBusLengthM(options);
+  if (busLength != null) return getDieselEfficiencyForLength(busLength);
+  const apiDefault = toFiniteNumber(options?.economicDefaults?.dieselConsumptionConst);
+  if (apiDefault != null && apiDefault > 0) return apiDefault;
+  return 0.40;
+};
+
+const resolveDieselMaintenanceCost = (options = {}) => {
+  const override = toFiniteNumber(options?.costOverrides?.dieselMaintenanceCost);
+  if (override != null && override > 0) return override;
+  const busLength = resolveBusLengthM(options);
+  if (busLength != null) return getDieselMaintenanceCostForLength(busLength);
+  const apiDefault = toFiniteNumber(options?.economicDefaults?.dieselMaintCostConst);
+  if (apiDefault != null && apiDefault > 0) return apiDefault;
+  return 0.20;
+};
+
+const resolveElectricMaintenanceCost = (options = {}) => {
+  const override = toFiniteNumber(options?.costOverrides?.electricMaintenanceCost);
+  if (override != null && override > 0) return override;
+  const busLength = resolveBusLengthM(options);
+  if (busLength != null) return getElectricMaintenanceCostForLength(busLength);
+  const apiDefault = toFiniteNumber(options?.economicDefaults?.electricMaintCostConst);
+  if (apiDefault != null && apiDefault > 0) return apiDefault;
+  return 0.15;
+};
 
 const resolveBusLifetimeYears = (options = {}) => {
   const value = toFiniteNumber(options?.busModelData?.bus_lifetime);
@@ -1458,7 +1518,149 @@ const buildOpexBreakdownTable = (items = [], yearlyDistanceKm = null) => {
     </table>`;
 };
 
-const renderOpexInputsTable = (el, state) => {
+const buildInvestmentTableHtml = (state, options = {}) => {
+  if (!state.optimizationRun) {
+    return "";
+  }
+
+  const batteryResults = state.optimizationRun?.results?.battery_results ?? {};
+  const entries = Object.values(batteryResults);
+  const busModelName = options?.busModelName || "";
+  const busLengthM = options?.busModelData?.bus_length_m;
+  const {
+    busCostChf,
+    packCostChf,
+    packSizeKwh,
+    optimizedPacks,
+    totalBatteryChf,
+    infrastructure,
+    infrastructureCapexChf,
+    totalCapexChf,
+  } = resolveElectricBusCapex(state.optimizationRun, options);
+
+  if (!entries.length && busCostChf == null && packCostChf == null) {
+    return "";
+  }
+
+  const dash = "—";
+  const fmtChf = (v) => (v != null ? `CHF ${formatCHF(v)}` : dash);
+
+  const rows = [
+    [
+      t("simulation.inv_bus_model") || "Bus model",
+      busModelName ? busModelName : dash,
+    ],
+    [
+      t("simulation.inv_bus_length") || "Bus length",
+      busLengthM != null && busLengthM !== "" ? `${busLengthM} m` : dash,
+    ],
+    [
+      t("simulation.inv_bus_cost") || "Electric bus (body)",
+      fmtChf(busCostChf),
+    ],
+    [
+      t("simulation.inv_pack_cost") || "Battery pack (unit cost)",
+      packCostChf != null ? `CHF ${formatCHF(packCostChf)}` : dash,
+    ],
+    [
+      t("simulation.inv_pack_size") || "Battery pack size",
+      packSizeKwh != null ? `${packSizeKwh} kWh` : dash,
+    ],
+    [
+      t("simulation.inv_opt_packs") || "Optimized battery packs",
+      optimizedPacks != null ? String(optimizedPacks) : dash,
+    ],
+    [
+      t("simulation.inv_total_battery") || "Total battery investment",
+      fmtChf(totalBatteryChf),
+    ],
+    [
+      translateOr(
+        "simulation.inv_infra_stations",
+        "Charging stations included"
+      ),
+      infrastructure?.stationCount ? String(infrastructure.stationCount) : dash,
+    ],
+    [
+      translateOr("simulation.inv_infra_slots", "Charging plugs included"),
+      infrastructure?.totalSlots ? String(infrastructure.totalSlots) : dash,
+    ],
+    [
+      translateOr(
+        "simulation.inv_infra_cost_assumption",
+        "Charging plug cost assumption"
+      ),
+      infrastructure?.usedDefaultCosts
+        ? `CHF ${formatCHF(infrastructure.defaultSlotCostChf)} / plug`
+        : dash,
+    ],
+    [
+      translateOr(
+        "simulation.inv_total_infrastructure",
+        "Total charging infrastructure investment"
+      ),
+      infrastructure?.usedBatteryOnlyDefaults
+        ? translateOr("simulation.inv_not_included", "Not included")
+        : fmtChf(infrastructureCapexChf),
+    ],
+  ];
+
+  const totalRow = totalCapexChf != null
+    ? `<tr class="investment-table__total">
+         <td>${textContent(t("simulation.inv_grand_total") || "Total investment")}</td>
+         <td>${textContent(fmtChf(totalCapexChf))}</td>
+       </tr>`
+    : "";
+
+  return `
+    <table class="investment-table">
+      <tbody>
+        ${rows
+          .map(
+            ([label, value]) =>
+              `<tr><td>${textContent(label)}</td><td>${textContent(value)}</td></tr>`
+          )
+          .join("")}
+        ${totalRow}
+      </tbody>
+    </table>`;
+};
+
+const buildInvestmentNoteHtml = (state, options = {}) => {
+  if (!state.optimizationRun) {
+    return "";
+  }
+
+  const { infrastructure } = resolveElectricBusCapex(state.optimizationRun, options);
+  if (!infrastructure?.usedBatteryOnlyDefaults) {
+    return "";
+  }
+
+  return `<p class="investment-table__note">${textContent(
+    translateOr(
+      "simulation.inv_battery_only_note",
+      `Battery-only optimization does not optimize charging infrastructure cost. A default assumption of CHF ${formatCHF(infrastructure.defaultSlotCostChf)} per plug is shown for reference and is not included in the total investment.`
+    )
+  )}</p>`;
+};
+
+const renderInvestmentSection = (el, state, options = {}) => {
+  if (!el) return;
+
+  const investmentTableHtml = buildInvestmentTableHtml(state, options);
+  if (!investmentTableHtml) {
+    el.innerHTML = costsStateHtml(
+      t("simulation.costs_empty") || "No economic comparison data available."
+    );
+    return;
+  }
+
+  el.innerHTML = `
+    ${investmentTableHtml}
+    ${buildInvestmentNoteHtml(state, options)}`;
+};
+
+const renderOpexInputsTable = (el, state, options = {}) => {
   if (!el) return;
   if (state.status === "loading" || state.status === "refreshing") {
     el.innerHTML = costsStateHtml(
@@ -1633,128 +1835,6 @@ const renderEfficiencyPredictionSummary = (costInputs) => {
     </div>`;
 };
 
-const renderCostApiParamsSection = (el, state) => {
-  if (!el) return;
-  if (state.status !== "done" || !state.costInputs) {
-    el.innerHTML = "";
-    return;
-  }
-
-  const apiRows = [
-    [
-      translateOr("simulation.costs_input_shift_id", "Shift ID"),
-      state.costInputs.economicComparisonParams?.shift_id ?? "—",
-    ],
-    [
-      translateOr("simulation.costs_input_recurrence_api", "Recurrence"),
-      state.costInputs.economicComparisonParams?.recurrence ?? "—",
-    ],
-    [
-      t("simulation.costs_input_annual_consumption") ||
-        "Annual consumption (kWh)",
-      state.costInputs.economicComparisonParams?.annual_consumption_kwh == null
-        ? "—"
-        : formatFixed(
-            state.costInputs.economicComparisonParams.annual_consumption_kwh,
-            3
-          ),
-    ],
-    [
-      t("simulation.costs_input_bus_length") || "Bus length (m)",
-      state.costInputs.economicComparisonParams?.bus_length_m == null
-        ? "—"
-        : formatFixed(state.costInputs.economicComparisonParams.bus_length_m, 0),
-    ],
-    [
-      t("simulation.costs_input_battery_capacity") ||
-        "Battery capacity (kWh)",
-      state.costInputs.economicComparisonParams?.battery_capacity_kwh == null
-        ? "—"
-        : formatFixed(
-            state.costInputs.economicComparisonParams.battery_capacity_kwh,
-            0
-          ),
-    ],
-    [
-      t("simulation.costs_input_charger_power") || "Charger power (kW)",
-      state.costInputs.economicComparisonParams?.charger_power_kw == null
-        ? "—"
-        : formatFixed(state.costInputs.economicComparisonParams.charger_power_kw, 0),
-    ],
-    [
-      t("simulation.costs_input_battery_cost_per_kwh") ||
-        "Battery cost per kWh (CHF)",
-      state.costInputs.economicComparisonParams?.battery_cost_per_kwh == null
-        ? "—"
-        : formatFixed(
-            state.costInputs.economicComparisonParams.battery_cost_per_kwh,
-            2
-          ),
-    ],
-    [
-      translateOr("simulation.costs_input_interest_rate", "Interest rate"),
-      state.costInputs.economicComparisonParams?.interest_rate == null
-        ? "—"
-        : `${formatFixed(
-            state.costInputs.economicComparisonParams.interest_rate * 100,
-            1
-          )}%`,
-    ],
-    [
-      translateOr(
-        "simulation.costs_input_energy_price_per_kwh",
-        "Electricity price (CHF/kWh)"
-      ),
-      state.costInputs.economicComparisonParams?.energy_price_per_kwh == null
-        ? translateOr(
-            "simulation.costs_input_backend_default",
-            "Backend default (not overridden)"
-          )
-        : formatFixed(
-            state.costInputs.economicComparisonParams.energy_price_per_kwh,
-            2
-          ),
-    ],
-    [
-      t("simulation.costs_input_bus_lifetime") || "Bus lifetime (years)",
-      state.costInputs.economicComparisonParams?.lifetime_bus == null
-        ? "—"
-        : formatFixed(state.costInputs.economicComparisonParams.lifetime_bus, 0),
-    ],
-    [
-      translateOr("simulation.costs_input_diesel_bus_lifetime", "Diesel bus lifetime (years)"),
-      state.costInputs.dieselBusLifetime == null
-        ? "—"
-        : formatFixed(state.costInputs.dieselBusLifetime, 0),
-    ],
-    [
-      t("simulation.costs_input_battery_lifetime") ||
-        "Battery lifetime (years)",
-      state.costInputs.economicComparisonParams?.lifetime_battery == null
-        ? "—"
-        : formatFixed(
-            state.costInputs.economicComparisonParams.lifetime_battery,
-            0
-          ),
-    ],
-    [
-      translateOr("simulation.costs_input_fuel_cost_per_l", "Fuel cost per liter (CHF/l)"),
-      state.costInputs.economicComparisonParams?.fuel_cost_per_l == null
-        ? "—"
-        : formatFixed(state.costInputs.economicComparisonParams.fuel_cost_per_l, 2),
-    ],
-  ];
-
-  el.innerHTML = `
-    <p class="costs-inputs-note">${textContent(
-      translateOr(
-        "simulation.costs_input_api_note",
-        "These are the exact parameters sent by the frontend to the economic comparison endpoint. Default cost values are loaded from the backend and can then be adjusted here."
-      )
-    )}</p>
-    ${buildSimpleRowsTable(apiRows)}`;
-};
-
 const renderElectricOpexSection = (el, state) => {
   if (!el) return;
   if (state.status !== "done" || !state.costInputs) {
@@ -1807,137 +1887,6 @@ const formatKChfAxis = (value) => String(Math.round(value / 1000));
 
 const formatKChfLabel = (value) => `${Math.round(value / 1000)} kCHF`;
 
-const renderInvestmentTable = (el, state, options = {}) => {
-  if (!el) return;
-  if (state.status !== "done" || !state.optimizationRun) {
-    el.innerHTML = "";
-    return;
-  }
-
-  const batteryResults = state.optimizationRun?.results?.battery_results ?? {};
-  const entries = Object.values(batteryResults);
-  const busModelName = options?.busModelName || "";
-  const busLengthM = options?.busModelData?.bus_length_m;
-  const {
-    busCostChf,
-    packCostChf,
-    packSizeKwh,
-    optimizedPacks,
-    totalBatteryChf,
-    infrastructure,
-    infrastructureCapexChf,
-    totalCapexChf,
-  } = resolveElectricBusCapex(state.optimizationRun, options);
-  const dieselBusCapexChf = resolveEquivalentDieselBusCapex(options);
-
-  if (
-    !entries.length &&
-    busCostChf == null &&
-    packCostChf == null &&
-    dieselBusCapexChf == null
-  ) {
-    el.innerHTML = "";
-    return;
-  }
-
-  const dash = "—";
-  const fmtChf = (v) => v != null ? `CHF ${formatCHF(v)}` : dash;
-
-  const rows = [
-    [
-      t("simulation.inv_bus_model") || "Bus model",
-      busModelName ? busModelName : dash,
-    ],
-    [
-      t("simulation.inv_bus_length") || "Bus length",
-      busLengthM != null && busLengthM !== "" ? `${busLengthM} m` : dash,
-    ],
-    [
-      t("simulation.inv_bus_cost") || "Electric bus (body)",
-      fmtChf(busCostChf),
-    ],
-    [
-      t("simulation.inv_pack_cost") || "Battery pack (unit cost)",
-      packCostChf != null ? `CHF ${formatCHF(packCostChf)}` : dash,
-    ],
-    [
-      t("simulation.inv_pack_size") || "Battery pack size",
-      packSizeKwh != null ? `${packSizeKwh} kWh` : dash,
-    ],
-    [
-      t("simulation.inv_opt_packs") || "Optimized battery packs",
-      optimizedPacks != null ? String(optimizedPacks) : dash,
-    ],
-    [
-      t("simulation.inv_total_battery") || "Total battery investment",
-      fmtChf(totalBatteryChf),
-    ],
-    [
-      translateOr(
-        "simulation.inv_infra_stations",
-        "Charging stations included"
-      ),
-      infrastructure?.stationCount ? String(infrastructure.stationCount) : dash,
-    ],
-    [
-      translateOr("simulation.inv_infra_slots", "Charging plugs included"),
-      infrastructure?.totalSlots ? String(infrastructure.totalSlots) : dash,
-    ],
-    [
-      translateOr(
-        "simulation.inv_infra_cost_assumption",
-        "Charging plug cost assumption"
-      ),
-      infrastructure?.usedDefaultCosts
-        ? `CHF ${formatCHF(infrastructure.defaultSlotCostChf)} / plug`
-        : dash,
-    ],
-    [
-      translateOr(
-        "simulation.inv_total_infrastructure",
-        "Total charging infrastructure investment"
-      ),
-      infrastructure?.usedBatteryOnlyDefaults
-        ? translateOr("simulation.inv_not_included", "Not included")
-        : fmtChf(infrastructureCapexChf),
-    ],
-    [
-      t("simulation.inv_diesel_default") || "Equivalent diesel bus (default)",
-      fmtChf(dieselBusCapexChf),
-    ],
-  ];
-
-  const totalRow = totalCapexChf != null
-    ? `<tr class="investment-table__total">
-         <td>${textContent(t("simulation.inv_grand_total") || "Total investment")}</td>
-         <td>${textContent(fmtChf(totalCapexChf))}</td>
-       </tr>`
-    : "";
-
-  const investmentNote = infrastructure?.usedBatteryOnlyDefaults
-    ? `<p class="investment-table__note">${textContent(
-        translateOr(
-          "simulation.inv_battery_only_note",
-          `Battery-only optimization does not optimize charging infrastructure cost. A default assumption of CHF ${formatCHF(infrastructure.defaultSlotCostChf)} per plug is shown for reference and is not included in the total investment.`
-        )
-      )}</p>`
-    : "";
-
-  el.innerHTML = `
-    <table class="investment-table">
-      <tbody>
-        ${rows
-          .map(
-            ([label, value]) =>
-              `<tr><td>${textContent(label)}</td><td>${textContent(value)}</td></tr>`
-          )
-          .join("")}
-        ${totalRow}
-      </tbody>
-    </table>
-    ${investmentNote}`;
-};
-
 const COST_STACK_DESCRIPTIONS = {
   vehicle:
     "Annualized capital expenditure (bus body, battery packs, and charging infrastructure where applicable), spread over the vehicle lifetime using the Equivalent Annual Cost formula.",
@@ -1960,7 +1909,7 @@ const renderCostsBar = (el, data, yearlyDistanceKm = null) => {
     return;
   }
   const margin = { top: 28, right: 24, bottom: 32, left: 72 };
-  const W = 620, H = 188;
+  const W = 620, H = 164;
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -2751,8 +2700,8 @@ const renderCostsLine = (el, data) => {
     );
     return;
   }
-  const margin = { top: 16, right: 24, bottom: 32, left: 84 };
-  const W = 620, H = 147;
+  const margin = { top: 14, right: 24, bottom: 30, left: 84 };
+  const W = 620, H = 118;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
   const svg = svgBase(
@@ -4924,6 +4873,17 @@ const resolveCostAnnualization = async (shiftId, predictionSummary = {}) => {
   };
 };
 
+const buildLinearModelParams = (prefix, valueAtLength, busLengthM, base) => {
+  const v = toFiniteNumber(valueAtLength);
+  if (v == null || v <= 0) return { [`${prefix}_const`]: null, [`${prefix}_per_m`]: null };
+  const l = toFiniteNumber(busLengthM);
+  if (l == null) return { [`${prefix}_const`]: v, [`${prefix}_per_m`]: null };
+  const { intercept, slope } = rescaleLinearModelFromAnchor(
+    l, v, base.intercept, base.slope
+  );
+  return { [`${prefix}_const`]: intercept, [`${prefix}_per_m`]: slope };
+};
+
 const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, options = {}) => {
   const inputParams = optimizationRun?.input_params ?? {};
   const batteryResults = optimizationRun?.results?.battery_results ?? {};
@@ -5032,6 +4992,24 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
     battery_cost_per_kwh: batteryCostPerKwh,
     fuel_cost_per_l: fuelCostPerL,
     energy_price_per_kwh: energyPricePerKwh,
+    ...buildLinearModelParams(
+      "diesel_consumption",
+      resolveDieselEfficiency(options),
+      busLengthM,
+      DIESEL_CONSUMPTION_BASE
+    ),
+    ...buildLinearModelParams(
+      "diesel_maint_cost",
+      resolveDieselMaintenanceCost(options),
+      busLengthM,
+      DIESEL_MAINT_BASE
+    ),
+    ...buildLinearModelParams(
+      "electric_maint_cost",
+      resolveElectricMaintenanceCost(options),
+      busLengthM,
+      ELECTRIC_MAINT_BASE
+    ),
     include_capex: false,
   };
 
@@ -5156,6 +5134,91 @@ const renderCostVariablesSection = (sec, state, options = {}) => {
     interestRateResetBtn.disabled = controlsDisabled;
   }
 
+  const capexInput = sec.querySelector('[data-role="diesel-var-capex"]');
+  const efficiencyInput = sec.querySelector('[data-role="diesel-var-efficiency"]');
+  const maintenanceInput = sec.querySelector('[data-role="diesel-var-maintenance"]');
+  const capexValueEl = sec.querySelector('[data-role="diesel-var-capex-value"]');
+  const efficiencyValueEl = sec.querySelector('[data-role="diesel-var-efficiency-value"]');
+  const maintenanceValueEl = sec.querySelector('[data-role="diesel-var-maintenance-value"]');
+  const capexResetBtn = sec.querySelector('[data-role="diesel-var-capex-reset"]');
+  const efficiencyResetBtn = sec.querySelector('[data-role="diesel-var-efficiency-reset"]');
+  const maintenanceResetBtn = sec.querySelector('[data-role="diesel-var-maintenance-reset"]');
+
+  const busLenLabel = resolveBusLengthM(options);
+  const efficiencyLabelEl = sec.querySelector('[data-role="diesel-var-efficiency-label"]');
+  const maintLabelEl = sec.querySelector('[data-role="diesel-var-maintenance-label"]');
+  const elecMaintLabelEl = sec.querySelector('[data-role="electric-var-maintenance-label"]');
+  if (busLenLabel != null) {
+    const lenStr = String(busLenLabel);
+    if (efficiencyLabelEl) {
+      efficiencyLabelEl.textContent =
+        (t("simulation.var_diesel_efficiency_for_length") || "Diesel consumption for {length} m bus (l / km)")
+          .replace("{length}", lenStr);
+    }
+    if (maintLabelEl) {
+      maintLabelEl.textContent =
+        (t("simulation.var_diesel_maintenance_for_length") || "Diesel maintenance for {length} m bus (CHF / km)")
+          .replace("{length}", lenStr);
+    }
+    if (elecMaintLabelEl) {
+      elecMaintLabelEl.textContent =
+        (t("simulation.var_electric_maintenance_for_length") || "Electric maintenance for {length} m bus (CHF / km)")
+          .replace("{length}", lenStr);
+    }
+  }
+
+  const busParamDefaults = getBusParameterDefaults(busLenLabel);
+  applySliderRange(efficiencyInput, busParamDefaults.diesel_consumption_l_per_km);
+  applySliderRange(maintenanceInput, busParamDefaults.diesel_maintenance_chf_per_km);
+
+  const dieselCapex = resolveEquivalentDieselBusCapex(options);
+  const dieselEfficiency = resolveDieselEfficiency(options);
+  const dieselMaintenance = resolveDieselMaintenanceCost(options);
+
+  if (capexInput) {
+    capexInput.value = String(dieselCapex ?? 350000);
+    capexInput.disabled = controlsDisabled;
+    setRangeProgress(capexInput, dieselCapex ?? 350000);
+  }
+  if (efficiencyInput) {
+    efficiencyInput.value = String(dieselEfficiency);
+    efficiencyInput.disabled = controlsDisabled;
+    setRangeProgress(efficiencyInput, dieselEfficiency);
+  }
+  if (maintenanceInput) {
+    maintenanceInput.value = String(dieselMaintenance);
+    maintenanceInput.disabled = controlsDisabled;
+    setRangeProgress(maintenanceInput, dieselMaintenance);
+  }
+  if (capexValueEl) {
+    capexValueEl.textContent = dieselCapex != null ? `CHF ${formatCHF(dieselCapex)}` : "—";
+  }
+  if (efficiencyValueEl) {
+    efficiencyValueEl.textContent = `${formatFixed(dieselEfficiency, 2)} l/km`;
+  }
+  if (maintenanceValueEl) {
+    maintenanceValueEl.textContent = `CHF ${formatFixed(dieselMaintenance, 2)} /km`;
+  }
+  if (capexResetBtn) capexResetBtn.disabled = controlsDisabled;
+  if (efficiencyResetBtn) efficiencyResetBtn.disabled = controlsDisabled;
+  if (maintenanceResetBtn) maintenanceResetBtn.disabled = controlsDisabled;
+
+  const elecMaintInput = sec.querySelector('[data-role="electric-var-maintenance"]');
+  const elecMaintValueEl = sec.querySelector('[data-role="electric-var-maintenance-value"]');
+  const elecMaintResetBtn = sec.querySelector('[data-role="electric-var-maintenance-reset"]');
+  applySliderRange(elecMaintInput, busParamDefaults.electric_maintenance_chf_per_km);
+  const electricMaintenance = resolveElectricMaintenanceCost(options);
+
+  if (elecMaintInput) {
+    elecMaintInput.value = String(electricMaintenance);
+    elecMaintInput.disabled = controlsDisabled;
+    setRangeProgress(elecMaintInput, electricMaintenance);
+  }
+  if (elecMaintValueEl) {
+    elecMaintValueEl.textContent = `CHF ${formatFixed(electricMaintenance, 2)} /km`;
+  }
+  if (elecMaintResetBtn) elecMaintResetBtn.disabled = controlsDisabled;
+
   if (!noteEl) return;
 
   noteEl.hidden = true;
@@ -5189,18 +5252,14 @@ const renderCostsSection = (sec, state, options = {}) => {
 
   renderCostVariablesSection(sec, state, options);
 
-  const investEl = sec.querySelector('[data-role="costs-investment"]');
   const electricOpexEl = sec.querySelector('[data-role="costs-electric-opex"]');
   const dieselOpexEl = sec.querySelector('[data-role="costs-diesel-opex"]');
-  const apiParamsEl = sec.querySelector('[data-role="costs-api-params"]');
   const kpiEl = sec.querySelector('[data-role="costs-kpis"]');
   const noteEl = sec.querySelector('[data-role="costs-assumption"]');
   const barEl = sec.querySelector('[data-role="costs-bar-chart"]');
   const legendEl = sec.querySelector('[data-role="costs-legend"]');
   const lineEl = sec.querySelector('[data-role="costs-line-chart"]');
   const lineLegendEl = sec.querySelector('[data-role="costs-line-legend"]');
-  const savingsEl = sec.querySelector('[data-role="costs-savings-chart"]');
-  const waterfallEl = sec.querySelector('[data-role="costs-waterfall-chart"]');
   const hasResolvedCostData =
     !!state.comparison && !!state.annualization && !!state.costInputs;
 
@@ -5209,15 +5268,11 @@ const renderCostsSection = (sec, state, options = {}) => {
     if (legendEl) legendEl.innerHTML = "";
     if (lineLegendEl) lineLegendEl.innerHTML = "";
     if (lineEl) lineEl.innerHTML = costsStateHtml(message, tone);
-    if (savingsEl) savingsEl.innerHTML = costsStateHtml(message, tone);
-    if (waterfallEl) waterfallEl.innerHTML = costsStateHtml(message, tone);
   };
 
   if ((state.status === "idle" || state.status === "loading") && !hasResolvedCostData) {
-    renderInvestmentTable(investEl, state, options);
     renderElectricOpexSection(electricOpexEl, state);
     renderDieselOpexSection(dieselOpexEl, state);
-    renderCostApiParamsSection(apiParamsEl, state);
     renderCostsKpis(kpiEl, null);
     renderCostsAssumption(noteEl, state.annualization);
     clearCharts(t("simulation.costs_loading") || "Loading cost comparison…");
@@ -5225,10 +5280,8 @@ const renderCostsSection = (sec, state, options = {}) => {
   }
 
   if (state.status === "error" && !hasResolvedCostData) {
-    renderInvestmentTable(investEl, state, options);
     renderElectricOpexSection(electricOpexEl, state);
     renderDieselOpexSection(dieselOpexEl, state);
-    renderCostApiParamsSection(apiParamsEl, state);
     renderCostsKpis(kpiEl, null);
     renderCostsAssumption(noteEl, state.annualization);
     clearCharts(
@@ -5238,10 +5291,8 @@ const renderCostsSection = (sec, state, options = {}) => {
     return;
   }
 
-  renderInvestmentTable(investEl, state, options);
   renderElectricOpexSection(electricOpexEl, state);
   renderDieselOpexSection(dieselOpexEl, state);
-  renderCostApiParamsSection(apiParamsEl, state);
   const chartData = buildCostsChartData(state.comparison, {
     ...options,
     annualizationRate: state.annualization?.opexAnnualizationRate,
@@ -5255,8 +5306,6 @@ const renderCostsSection = (sec, state, options = {}) => {
   renderCostsLegend(legendEl);
   renderCostsLine(lineEl, chartData?.yearly ?? []);
   renderCostsLineLegend(lineLegendEl);
-  renderCumulativeSavings(savingsEl, chartData?.yearly ?? []);
-  renderWaterfall(waterfallEl, chartData?.tco ?? []);
 };
 
 /* ── Emissions tab ────────────────────────────────────────────── */
@@ -6224,6 +6273,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       options?.costOverrides?.energyPricePerKwh
     ),
     interestRate: normalizeInterestRate(options?.costOverrides?.interestRate),
+    dieselBusCapex: toFiniteNumber(options?.costOverrides?.dieselBusCapex),
+    dieselEfficiency: toFiniteNumber(options?.costOverrides?.dieselEfficiency),
+    dieselMaintenanceCost: toFiniteNumber(options?.costOverrides?.dieselMaintenanceCost),
+    electricMaintenanceCost: toFiniteNumber(options?.costOverrides?.electricMaintenanceCost),
   };
   const economicDefaults = {
     fuelCostPerL: normalizeFuelCostPerL(options?.economicDefaults?.fuelCostPerL),
@@ -6231,6 +6284,13 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       options?.economicDefaults?.energyPricePerKwh
     ),
     interestRate: normalizeInterestRate(options?.economicDefaults?.interestRate),
+    dieselBusCapex: toFiniteNumber(options?.economicDefaults?.dieselBusCapex),
+    dieselConsumptionConst: toFiniteNumber(options?.economicDefaults?.dieselConsumptionConst),
+    dieselConsumptionPerM: toFiniteNumber(options?.economicDefaults?.dieselConsumptionPerM),
+    dieselMaintCostConst: toFiniteNumber(options?.economicDefaults?.dieselMaintCostConst),
+    dieselMaintCostPerM: toFiniteNumber(options?.economicDefaults?.dieselMaintCostPerM),
+    electricMaintCostConst: toFiniteNumber(options?.economicDefaults?.electricMaintCostConst),
+    electricMaintCostPerM: toFiniteNumber(options?.economicDefaults?.electricMaintCostPerM),
   };
   let activeShiftId = options.shiftId || "";
   let activeShiftName = options.shiftName || "";
@@ -6340,7 +6400,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   };
 
   const refreshCostsTab = () => {
-    renderOpexInputsTable(scenarioScalingContentEl, costState);
+    renderOpexInputsTable(scenarioScalingContentEl, costState, options);
+    renderInvestmentSection(investmentContentEl, costState, options);
     refreshEfficiencyTab();
     refreshPredictionsTab();
     if (!renderedTabs.has("costs")) return;
@@ -6483,12 +6544,23 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const scenarioScalingContentEl = section.querySelector(
     '[data-role="scenario-scaling-content"]'
   );
+  const investmentOverlay = section.querySelector('[data-role="investment-overlay"]');
+  const investmentSubtitleEl = section.querySelector('[data-role="investment-subtitle"]');
+  const investmentContentEl = section.querySelector('[data-role="investment-content"]');
   const fuelCostInput = section.querySelector('[data-role="cost-variable-fuel-cost"]');
   const energyPriceInput = section.querySelector('[data-role="cost-variable-energy-price"]');
   const interestRateInput = section.querySelector('[data-role="cost-variable-interest-rate"]');
   const fuelCostResetBtn = section.querySelector('[data-role="cost-variable-fuel-cost-reset"]');
   const energyPriceResetBtn = section.querySelector('[data-role="cost-variable-energy-price-reset"]');
   const interestRateResetBtn = section.querySelector('[data-role="cost-variable-interest-rate-reset"]');
+  const dieselCapexInput = section.querySelector('[data-role="diesel-var-capex"]');
+  const dieselEfficiencyInput = section.querySelector('[data-role="diesel-var-efficiency"]');
+  const dieselMaintenanceInput = section.querySelector('[data-role="diesel-var-maintenance"]');
+  const dieselCapexResetBtn = section.querySelector('[data-role="diesel-var-capex-reset"]');
+  const dieselEfficiencyResetBtn = section.querySelector('[data-role="diesel-var-efficiency-reset"]');
+  const dieselMaintenanceResetBtn = section.querySelector('[data-role="diesel-var-maintenance-reset"]');
+  const electricMaintenanceInput = section.querySelector('[data-role="electric-var-maintenance"]');
+  const electricMaintenanceResetBtn = section.querySelector('[data-role="electric-var-maintenance-reset"]');
 
   const busModelName = options.busModelName || "";
   const getResultsSubtitle = () =>
@@ -6505,6 +6577,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     const subtitle = getResultsSubtitle();
     scenarioScalingSubtitleEl.textContent = subtitle;
     scenarioScalingSubtitleEl.hidden = !subtitle;
+  }
+  if (investmentSubtitleEl) {
+    const subtitle = getResultsSubtitle();
+    investmentSubtitleEl.textContent = subtitle;
+    investmentSubtitleEl.hidden = !subtitle;
   }
 
   const renderGeneralInfo = (overrides = {}) => {
@@ -6595,6 +6672,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       const subtitle = getResultsSubtitle();
       scenarioScalingSubtitleEl.textContent = subtitle;
       scenarioScalingSubtitleEl.hidden = !subtitle;
+    }
+    if (investmentSubtitleEl) {
+      const subtitle = getResultsSubtitle();
+      investmentSubtitleEl.textContent = subtitle;
+      investmentSubtitleEl.hidden = !subtitle;
     }
 
     const firstPredictionRun = loadedPredictionRuns[0] ?? {};
@@ -6693,6 +6775,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     scenarioScalingSubtitleEl.textContent = "";
     scenarioScalingSubtitleEl.hidden = true;
   }
+  if (investmentSubtitleEl) {
+    investmentSubtitleEl.textContent = "";
+    investmentSubtitleEl.hidden = true;
+  }
 
   renderGeneralInfo();
   renderBusInfo();
@@ -6781,6 +6867,36 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     scenarioScalingOverlay.addEventListener("click", onScenarioScalingBg);
     cleanupHandlers.push(() =>
       scenarioScalingOverlay.removeEventListener("click", onScenarioScalingBg)
+    );
+  }
+
+  const toggleInvestmentOverlay = () => {
+    if (investmentOverlay) investmentOverlay.hidden = !investmentOverlay.hidden;
+  };
+  section.querySelectorAll('[data-action="toggle-investment-breakdown"]').forEach((btn) => {
+    btn.addEventListener("click", toggleInvestmentOverlay);
+    cleanupHandlers.push(() =>
+      btn.removeEventListener("click", toggleInvestmentOverlay)
+    );
+  });
+
+  const closeInvestmentOverlay = () => {
+    if (investmentOverlay) investmentOverlay.hidden = true;
+  };
+  section.querySelectorAll('[data-action="close-investment-breakdown"]').forEach((btn) => {
+    btn.addEventListener("click", closeInvestmentOverlay);
+    cleanupHandlers.push(() =>
+      btn.removeEventListener("click", closeInvestmentOverlay)
+    );
+  });
+
+  if (investmentOverlay) {
+    const onInvestmentBg = (e) => {
+      if (e.target === investmentOverlay) closeInvestmentOverlay();
+    };
+    investmentOverlay.addEventListener("click", onInvestmentBg);
+    cleanupHandlers.push(() =>
+      investmentOverlay.removeEventListener("click", onInvestmentBg)
     );
   }
 
@@ -6921,6 +7037,142 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     );
   }
 
+  const handleDieselCapexInput = () => {
+    costOverrides.dieselBusCapex = toFiniteNumber(dieselCapexInput?.value);
+    setRangeProgress(dieselCapexInput, resolveEquivalentDieselBusCapex(options));
+    refreshCostVariableControls();
+    scheduleCostVariableRefresh();
+  };
+
+  const handleDieselEfficiencyInput = () => {
+    costOverrides.dieselEfficiency = toFiniteNumber(dieselEfficiencyInput?.value);
+    setRangeProgress(dieselEfficiencyInput, resolveDieselEfficiency(options));
+    refreshCostVariableControls();
+    scheduleCostVariableRefresh();
+  };
+
+  const handleDieselMaintenanceInput = () => {
+    costOverrides.dieselMaintenanceCost = toFiniteNumber(dieselMaintenanceInput?.value);
+    setRangeProgress(dieselMaintenanceInput, resolveDieselMaintenanceCost(options));
+    refreshCostVariableControls();
+    scheduleCostVariableRefresh();
+  };
+
+  const handleDieselCapexReset = () => {
+    costOverrides.dieselBusCapex = null;
+    const next = resolveEquivalentDieselBusCapex(options);
+    if (dieselCapexInput) {
+      dieselCapexInput.value = String(next ?? 350000);
+      setRangeProgress(dieselCapexInput, next ?? 350000);
+    }
+    scheduleCostVariableRefresh();
+    refreshCostVariableControls();
+  };
+
+  const handleDieselEfficiencyReset = () => {
+    costOverrides.dieselEfficiency = null;
+    const next = resolveDieselEfficiency(options);
+    if (dieselEfficiencyInput) {
+      dieselEfficiencyInput.value = String(next);
+      setRangeProgress(dieselEfficiencyInput, next);
+    }
+    scheduleCostVariableRefresh();
+    refreshCostVariableControls();
+  };
+
+  const handleDieselMaintenanceReset = () => {
+    costOverrides.dieselMaintenanceCost = null;
+    const next = resolveDieselMaintenanceCost(options);
+    if (dieselMaintenanceInput) {
+      dieselMaintenanceInput.value = String(next);
+      setRangeProgress(dieselMaintenanceInput, next);
+    }
+    scheduleCostVariableRefresh();
+    refreshCostVariableControls();
+  };
+
+  if (dieselCapexInput) {
+    dieselCapexInput.addEventListener("input", handleDieselCapexInput);
+    dieselCapexInput.addEventListener("change", handleDieselCapexInput);
+    cleanupHandlers.push(() => {
+      dieselCapexInput.removeEventListener("input", handleDieselCapexInput);
+      dieselCapexInput.removeEventListener("change", handleDieselCapexInput);
+    });
+  }
+
+  if (dieselEfficiencyInput) {
+    dieselEfficiencyInput.addEventListener("input", handleDieselEfficiencyInput);
+    dieselEfficiencyInput.addEventListener("change", handleDieselEfficiencyInput);
+    cleanupHandlers.push(() => {
+      dieselEfficiencyInput.removeEventListener("input", handleDieselEfficiencyInput);
+      dieselEfficiencyInput.removeEventListener("change", handleDieselEfficiencyInput);
+    });
+  }
+
+  if (dieselMaintenanceInput) {
+    dieselMaintenanceInput.addEventListener("input", handleDieselMaintenanceInput);
+    dieselMaintenanceInput.addEventListener("change", handleDieselMaintenanceInput);
+    cleanupHandlers.push(() => {
+      dieselMaintenanceInput.removeEventListener("input", handleDieselMaintenanceInput);
+      dieselMaintenanceInput.removeEventListener("change", handleDieselMaintenanceInput);
+    });
+  }
+
+  if (dieselCapexResetBtn) {
+    dieselCapexResetBtn.addEventListener("click", handleDieselCapexReset);
+    cleanupHandlers.push(() =>
+      dieselCapexResetBtn.removeEventListener("click", handleDieselCapexReset)
+    );
+  }
+
+  if (dieselEfficiencyResetBtn) {
+    dieselEfficiencyResetBtn.addEventListener("click", handleDieselEfficiencyReset);
+    cleanupHandlers.push(() =>
+      dieselEfficiencyResetBtn.removeEventListener("click", handleDieselEfficiencyReset)
+    );
+  }
+
+  if (dieselMaintenanceResetBtn) {
+    dieselMaintenanceResetBtn.addEventListener("click", handleDieselMaintenanceReset);
+    cleanupHandlers.push(() =>
+      dieselMaintenanceResetBtn.removeEventListener("click", handleDieselMaintenanceReset)
+    );
+  }
+
+  const handleElectricMaintenanceInput = () => {
+    costOverrides.electricMaintenanceCost = toFiniteNumber(electricMaintenanceInput?.value);
+    setRangeProgress(electricMaintenanceInput, resolveElectricMaintenanceCost(options));
+    refreshCostVariableControls();
+    scheduleCostVariableRefresh();
+  };
+
+  const handleElectricMaintenanceReset = () => {
+    costOverrides.electricMaintenanceCost = null;
+    const next = resolveElectricMaintenanceCost(options);
+    if (electricMaintenanceInput) {
+      electricMaintenanceInput.value = String(next);
+      setRangeProgress(electricMaintenanceInput, next);
+    }
+    scheduleCostVariableRefresh();
+    refreshCostVariableControls();
+  };
+
+  if (electricMaintenanceInput) {
+    electricMaintenanceInput.addEventListener("input", handleElectricMaintenanceInput);
+    electricMaintenanceInput.addEventListener("change", handleElectricMaintenanceInput);
+    cleanupHandlers.push(() => {
+      electricMaintenanceInput.removeEventListener("input", handleElectricMaintenanceInput);
+      electricMaintenanceInput.removeEventListener("change", handleElectricMaintenanceInput);
+    });
+  }
+
+  if (electricMaintenanceResetBtn) {
+    electricMaintenanceResetBtn.addEventListener("click", handleElectricMaintenanceReset);
+    cleanupHandlers.push(() =>
+      electricMaintenanceResetBtn.removeEventListener("click", handleElectricMaintenanceReset)
+    );
+  }
+
   /* Async: fetch optimization run + prediction runs, then derive costs */
   const loadResultData = async () => {
     if (!options.runId) return;
@@ -6952,6 +7204,27 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       );
       economicDefaults.interestRate = normalizeInterestRate(
         economicDefaultsPayload?.interest_rate
+      );
+      economicDefaults.dieselBusCapex = toFiniteNumber(
+        economicDefaultsPayload?.equivalent_diesel_bus_capex
+      );
+      economicDefaults.dieselConsumptionConst = toFiniteNumber(
+        economicDefaultsPayload?.diesel_consumption_const
+      );
+      economicDefaults.dieselConsumptionPerM = toFiniteNumber(
+        economicDefaultsPayload?.diesel_consumption_per_m
+      );
+      economicDefaults.dieselMaintCostConst = toFiniteNumber(
+        economicDefaultsPayload?.diesel_maint_cost_const
+      );
+      economicDefaults.dieselMaintCostPerM = toFiniteNumber(
+        economicDefaultsPayload?.diesel_maint_cost_per_m
+      );
+      economicDefaults.electricMaintCostConst = toFiniteNumber(
+        economicDefaultsPayload?.electric_maint_cost_const
+      );
+      economicDefaults.electricMaintCostPerM = toFiniteNumber(
+        economicDefaultsPayload?.electric_maint_cost_per_m
       );
       refreshCostsTab();
       try {

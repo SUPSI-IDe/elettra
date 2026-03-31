@@ -38,6 +38,14 @@
       >
         Scenario and scaling
       </button>
+      <button
+        type="button"
+        class="sim-data-btn sim-data-btn--secondary"
+        data-action="toggle-investment-breakdown"
+        data-i18n="simulation.results_investment_title"
+      >
+        Investment cost breakdown
+      </button>
     </div>
 
     <!-- Tabs -->
@@ -59,121 +67,216 @@
     <!-- Tab panels -->
     <div class="results-tab-panels">
       <div class="tab-panel" data-panel="costs" role="tabpanel" hidden>
-        <div class="chart-section results-cost-variables">
-          <div class="results-cost-variables__header">
-            <div>
-              <h2 data-i18n="simulation.results_custom_variables_title">Adjustable parameters</h2>
-              <p class="results-cost-variables__note" data-role="cost-variables-note"></p>
-            </div>
-          </div>
-          <div class="results-cost-variables__grid">
-            <div class="results-cost-variables__field">
-              <div class="results-cost-variables__field-top">
-                <span data-i18n="simulation.var_fuel_cost_per_l">Diesel cost (CHF / liter)</span>
-                <output class="results-cost-variables__value" data-role="cost-variable-fuel-cost-value"></output>
-              </div>
-              <input
-                class="results-cost-variables__range"
-                type="range"
-                min="1"
-                max="3"
-                step="0.01"
-                data-role="cost-variable-fuel-cost"
-              />
-              <div class="results-cost-variables__range-scale" aria-hidden="true">
-                <span>1.00</span>
-                <span>3.00</span>
-              </div>
-              <div class="results-cost-variables__actions">
-                <button
-                  type="button"
-                  class="results-cost-variables__reset"
-                  data-role="cost-variable-fuel-cost-reset"
-                  data-i18n="simulation.costs_variable_reset"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-            <div class="results-cost-variables__field">
-              <div class="results-cost-variables__field-top">
-                <span data-i18n="simulation.var_energy_price_per_kwh">Energy tariff (CHF / kWh)</span>
-                <output class="results-cost-variables__value" data-role="cost-variable-energy-price-value"></output>
-              </div>
-              <input
-                class="results-cost-variables__range"
-                type="range"
-                min="0.05"
-                max="0.60"
-                step="0.01"
-                data-role="cost-variable-energy-price"
-              />
-              <div class="results-cost-variables__range-scale" aria-hidden="true">
-                <span>0.05</span>
-                <span>0.60</span>
-              </div>
-              <div class="results-cost-variables__actions">
-                <button
-                  type="button"
-                  class="results-cost-variables__reset"
-                  data-role="cost-variable-energy-price-reset"
-                  data-i18n="simulation.costs_variable_reset"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-            <div class="results-cost-variables__field">
-              <div class="results-cost-variables__field-top">
-                <span data-i18n="simulation.var_interest_rate">Interest rate (%)</span>
-                <output class="results-cost-variables__value" data-role="cost-variable-interest-rate-value"></output>
-              </div>
-              <input
-                class="results-cost-variables__range"
-                type="range"
-                min="0.02"
-                max="0.10"
-                step="0.005"
-                data-role="cost-variable-interest-rate"
-              />
-              <div class="results-cost-variables__range-scale" aria-hidden="true">
-                <span>2%</span>
-                <span>10%</span>
-              </div>
-              <div class="results-cost-variables__actions">
-                <button
-                  type="button"
-                  class="results-cost-variables__reset"
-                  data-role="cost-variable-interest-rate-reset"
-                  data-i18n="simulation.costs_variable_reset"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="chart-section costs-investment-section">
-          <h2 data-i18n="simulation.results_investment_title">Investment cost breakdown</h2>
-          <div data-role="costs-investment"></div>
-        </div>
-        <div class="chart-section costs-electric-opex-section">
-          <h2 data-i18n="simulation.costs_input_section_electric">Electric OPEX breakdown</h2>
-          <div data-role="costs-electric-opex"></div>
-        </div>
-        <div class="chart-section costs-diesel-opex-section">
-          <h2 data-i18n="simulation.costs_input_section_diesel">Diesel OPEX breakdown</h2>
-          <div data-role="costs-diesel-opex"></div>
-        </div>
-        <div class="chart-section costs-api-section">
-          <h2 data-i18n="simulation.costs_input_section_api">Economic comparison API parameters</h2>
-          <div data-role="costs-api-params"></div>
-        </div>
-        <div class="costs-charts-column">
+        <div class="costs-primary-stack costs-primary-stack--inputs">
           <div class="chart-section costs-kpis-section">
             <h2 data-i18n="simulation.results_costs_kpis_title">Key financial metrics</h2>
             <div class="costs-kpi-grid" data-role="costs-kpis"></div>
           </div>
+          <div class="chart-section results-cost-variables">
+            <div class="results-cost-variables__header">
+              <p class="results-cost-variables__note" data-role="cost-variables-note"></p>
+            </div>
+            <div class="results-cost-variables__grid">
+              <div class="results-cost-variables__field">
+                <div class="results-cost-variables__field-top">
+                  <span data-i18n="simulation.var_fuel_cost_per_l">Diesel cost (CHF / liter)</span>
+                  <output class="results-cost-variables__value" data-role="cost-variable-fuel-cost-value"></output>
+                </div>
+                <input
+                  class="results-cost-variables__range"
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.01"
+                  data-role="cost-variable-fuel-cost"
+                />
+                <div class="results-cost-variables__range-scale" aria-hidden="true">
+                  <span>1.00</span>
+                  <span>3.00</span>
+                </div>
+                <div class="results-cost-variables__actions">
+                  <button
+                    type="button"
+                    class="results-cost-variables__reset"
+                    data-role="cost-variable-fuel-cost-reset"
+                    data-i18n="simulation.costs_variable_reset"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <div class="results-cost-variables__field">
+                <div class="results-cost-variables__field-top">
+                  <span data-role="diesel-var-maintenance-label" data-i18n="simulation.var_diesel_maintenance">Diesel maintenance (CHF / km)</span>
+                  <output class="results-cost-variables__value" data-role="diesel-var-maintenance-value"></output>
+                </div>
+                <input
+                  class="results-cost-variables__range"
+                  type="range"
+                  min="0.05"
+                  max="0.50"
+                  step="0.01"
+                  data-role="diesel-var-maintenance"
+                />
+                <div class="results-cost-variables__range-scale" aria-hidden="true">
+                  <span>0.05</span>
+                  <span>0.50</span>
+                </div>
+                <div class="results-cost-variables__actions">
+                  <button
+                    type="button"
+                    class="results-cost-variables__reset"
+                    data-role="diesel-var-maintenance-reset"
+                    data-i18n="simulation.costs_variable_reset"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <div class="results-cost-variables__field">
+                <div class="results-cost-variables__field-top">
+                  <span data-i18n="simulation.var_energy_price_per_kwh">Energy tariff (CHF / kWh)</span>
+                  <output class="results-cost-variables__value" data-role="cost-variable-energy-price-value"></output>
+                </div>
+                <input
+                  class="results-cost-variables__range"
+                  type="range"
+                  min="0.05"
+                  max="0.60"
+                  step="0.01"
+                  data-role="cost-variable-energy-price"
+                />
+                <div class="results-cost-variables__range-scale" aria-hidden="true">
+                  <span>0.05</span>
+                  <span>0.60</span>
+                </div>
+                <div class="results-cost-variables__actions">
+                  <button
+                    type="button"
+                    class="results-cost-variables__reset"
+                    data-role="cost-variable-energy-price-reset"
+                    data-i18n="simulation.costs_variable_reset"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <div class="results-cost-variables__field">
+                <div class="results-cost-variables__field-top">
+                  <span data-role="electric-var-maintenance-label" data-i18n="simulation.var_electric_maintenance">Electric maintenance (CHF / km)</span>
+                  <output class="results-cost-variables__value" data-role="electric-var-maintenance-value"></output>
+                </div>
+                <input
+                  class="results-cost-variables__range"
+                  type="range"
+                  min="0.05"
+                  max="0.50"
+                  step="0.01"
+                  data-role="electric-var-maintenance"
+                />
+                <div class="results-cost-variables__range-scale" aria-hidden="true">
+                  <span>0.05</span>
+                  <span>0.50</span>
+                </div>
+                <div class="results-cost-variables__actions">
+                  <button
+                    type="button"
+                    class="results-cost-variables__reset"
+                    data-role="electric-var-maintenance-reset"
+                    data-i18n="simulation.costs_variable_reset"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <div class="results-cost-variables__field">
+                <div class="results-cost-variables__field-top">
+                  <span data-i18n="simulation.var_interest_rate">Interest rate (%)</span>
+                  <output class="results-cost-variables__value" data-role="cost-variable-interest-rate-value"></output>
+                </div>
+                <input
+                  class="results-cost-variables__range"
+                  type="range"
+                  min="0.02"
+                  max="0.10"
+                  step="0.005"
+                  data-role="cost-variable-interest-rate"
+                />
+                <div class="results-cost-variables__range-scale" aria-hidden="true">
+                  <span>2%</span>
+                  <span>10%</span>
+                </div>
+                <div class="results-cost-variables__actions">
+                  <button
+                    type="button"
+                    class="results-cost-variables__reset"
+                    data-role="cost-variable-interest-rate-reset"
+                    data-i18n="simulation.costs_variable_reset"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <div class="results-cost-variables__field">
+                <div class="results-cost-variables__field-top">
+                  <span data-role="diesel-var-efficiency-label" data-i18n="simulation.var_diesel_efficiency">Diesel efficiency (l / km)</span>
+                  <output class="results-cost-variables__value" data-role="diesel-var-efficiency-value"></output>
+                </div>
+                <input
+                  class="results-cost-variables__range"
+                  type="range"
+                  min="0.15"
+                  max="0.80"
+                  step="0.01"
+                  data-role="diesel-var-efficiency"
+                />
+                <div class="results-cost-variables__range-scale" aria-hidden="true">
+                  <span>0.15</span>
+                  <span>0.80</span>
+                </div>
+                <div class="results-cost-variables__actions">
+                  <button
+                    type="button"
+                    class="results-cost-variables__reset"
+                    data-role="diesel-var-efficiency-reset"
+                    data-i18n="simulation.costs_variable_reset"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <div class="results-cost-variables__field">
+                <div class="results-cost-variables__field-top">
+                  <span data-i18n="simulation.var_diesel_bus_capex">Equivalent diesel bus (CHF)</span>
+                  <output class="results-cost-variables__value" data-role="diesel-var-capex-value"></output>
+                </div>
+                <input
+                  class="results-cost-variables__range"
+                  type="range"
+                  min="200000"
+                  max="700000"
+                  step="10000"
+                  data-role="diesel-var-capex"
+                />
+                <div class="results-cost-variables__range-scale" aria-hidden="true">
+                  <span>200k</span>
+                  <span>700k</span>
+                </div>
+                <div class="results-cost-variables__actions">
+                  <button
+                    type="button"
+                    class="results-cost-variables__reset"
+                    data-role="diesel-var-capex-reset"
+                    data-i18n="simulation.costs_variable_reset"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="costs-primary-stack costs-primary-stack--charts">
           <div class="chart-section costs-annual-section">
             <h2 data-i18n="simulation.results_tco_title">Annual cost comparison</h2>
             <p class="costs-assumption-note" data-role="costs-assumption" data-i18n="simulation.costs_assumption_weekly_once">
@@ -187,14 +290,14 @@
             <div class="chart-container" data-role="costs-line-chart"></div>
             <div class="chart-legend" data-role="costs-line-legend"></div>
           </div>
-          <div class="chart-section costs-savings-section">
-            <h2 data-i18n="simulation.results_cumulative_savings">Cumulative savings</h2>
-            <div class="chart-container" data-role="costs-savings-chart"></div>
-          </div>
-          <div class="chart-section costs-waterfall-section">
-            <h2 data-i18n="simulation.results_waterfall">Annual cost waterfall</h2>
-            <div class="chart-container" data-role="costs-waterfall-chart"></div>
-          </div>
+        </div>
+        <div class="chart-section costs-electric-opex-section">
+          <h2 data-i18n="simulation.costs_input_section_electric">Electric OPEX breakdown</h2>
+          <div data-role="costs-electric-opex"></div>
+        </div>
+        <div class="chart-section costs-diesel-opex-section">
+          <h2 data-i18n="simulation.costs_input_section_diesel">Diesel OPEX breakdown</h2>
+          <div data-role="costs-diesel-opex"></div>
         </div>
       </div>
 
@@ -359,6 +462,46 @@
             type="button"
             class="btn-close-results"
             data-action="close-scenario-scaling"
+            data-i18n="common.close"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-data-overlay" data-role="investment-overlay" hidden>
+      <div class="sim-data-panel sim-data-panel--investment">
+        <div class="sim-data-header">
+          <div>
+            <h2 data-i18n="simulation.results_investment_title">Investment cost breakdown</h2>
+            <p class="sim-data-subtitle" data-role="investment-subtitle"></p>
+          </div>
+          <button
+            type="button"
+            class="close-button"
+            data-action="close-investment-breakdown"
+            aria-label="Close"
+            data-i18n-aria-label="common.close"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="sim-data-columns sim-data-columns--single">
+          <div class="sim-data-col">
+            <div data-role="investment-content"></div>
+          </div>
+        </div>
+
+        <div class="sim-data-actions">
+          <button
+            type="button"
+            class="btn-close-results"
+            data-action="close-investment-breakdown"
             data-i18n="common.close"
           >
             Close
