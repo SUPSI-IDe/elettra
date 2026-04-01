@@ -487,7 +487,12 @@ const mergeBusModelData = (current = {}, specs = {}, busModel = {}) => ({
 
 const hydrateBusModelDataFromOptimization = async (optimizationRun, options = {}) => {
   const current = options?.busModelData ?? {};
-  if (toFiniteNumber(current?.bus_length_m) != null) return current;
+  if (
+    toFiniteNumber(current?.bus_length_m) != null &&
+    toFiniteNumber(current?.battery_pack_size_kwh) != null
+  ) {
+    return current;
+  }
 
   const modelId = String(
     options?.busModelId ??
@@ -3008,8 +3013,8 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
           <thead>
             <tr>
               <th class="efficiency-th-text">${textContent(t("simulation.opt_col_shift") || "Shift")}</th>
-              <th>${textContent(t("simulation.opt_col_opt_packs") || "Opt. Packs")}</th>
-              <th>${textContent(t("simulation.opt_col_opt_kwh") || "Opt. (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_opt_packs") || "Optimized Packs")}</th>
+              <th>${textContent(t("simulation.opt_col_opt_kwh") || "Optimized (kWh)")}</th>
               <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical")}</th>
               <th>${textContent(t("simulation.opt_col_required_packs") || "Required")}</th>
               <th>${textContent(t("simulation.opt_col_required_kwh") || "Required (kWh)")}</th>
@@ -4406,7 +4411,7 @@ const renderOptimizationBatteryLegend = (el) => {
     </div>
     <div class="chart-legend-item">
       <span class="chart-legend-swatch" style="background:${OPTIMIZATION_BATTERY_COLORS.optimized}"></span>
-      ${textContent(t("simulation.opt_col_opt_packs") || "Opt. Packs")}
+      ${textContent(t("simulation.opt_col_opt_packs") || "Optimized Packs")}
     </div>`;
 };
 
@@ -4496,7 +4501,7 @@ const renderOptimizationBatteryChart = (el, rows) => {
             `${d.shiftName}\n${
               key === "basePacks"
                 ? (t("simulation.opt_col_base_packs") || "Base Packs")
-                : (t("simulation.opt_col_opt_packs") || "Opt. Packs")
+                : (t("simulation.opt_col_opt_packs") || "Optimized Packs")
             }: ${formatFixed(d[key], 0)}`
           );
       });
@@ -5245,6 +5250,299 @@ const renderCostVariablesSection = (sec, state, options = {}) => {
   }
   noteEl.textContent = "";
   noteEl.removeAttribute("data-tone");
+};
+
+/* ── Overview tab: compact 3-column recap ─────────────────────── */
+
+const overviewRowHtml = (label, value, raw = false) =>
+  `<div class="overview-row">
+    <span class="overview-row__label">${textContent(label)}</span>
+    <span class="overview-row__value">${raw ? value : textContent(value)}</span>
+  </div>`;
+
+const overviewColShell = (icon, title, bodyHtml) =>
+  `<div class="overview-col">
+    <div class="overview-col__header">
+      <span class="overview-col__icon" aria-hidden="true">${icon}</span>
+      <h3 class="overview-col__title">${textContent(title)}</h3>
+    </div>
+    ${bodyHtml}
+  </div>`;
+
+const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
+  if (!el) return;
+
+  const allLoading =
+    effState.status === "loading" ||
+    effState.status === "idle" ||
+    cState.status === "loading" ||
+    cState.status === "idle";
+
+  if (allLoading) {
+    el.innerHTML = `<p class="overview-state-msg">${textContent(
+      t("simulation.overview_loading") || "Loading overview data…"
+    )}</p>`;
+    return;
+  }
+
+  const columns = [];
+
+  /* ── Column 1: Efficiency ────────────────────────────────────── */
+  {
+    const optRun = effState.optimizationRun;
+    const results = optRun?.results ?? {};
+    const ip = optRun?.input_params ?? {};
+    const batteryResults = results.battery_results ?? {};
+    const batteryEntry = Object.values(batteryResults)[0] ?? {};
+
+    const feasible = results.electrification_feasible;
+    const feasBadge =
+      feasible === true ? "overview-badge--ok"
+        : feasible === false ? "overview-badge--err"
+          : "overview-badge--neutral";
+    const feasLabel =
+      feasible === true ? t("simulation.feasibility_feasible") || "Feasible"
+        : feasible === false ? t("simulation.feasibility_infeasible") || "Infeasible"
+          : "—";
+
+    const optPacks = batteryEntry.optimized_packs;
+    const optKwh = batteryEntry.optimized_kwh;
+
+    const reqPacks = toFiniteNumber(batteryEntry.required_total_packs);
+    const maxPacks = toFiniteNumber(batteryEntry.max_physical_packs);
+    const kwhPerPack =
+      (optKwh != null && optPacks > 0)
+        ? optKwh / optPacks
+        : (toFiniteNumber(batteryEntry.max_physical_kwh) != null && maxPacks > 0)
+          ? toFiniteNumber(batteryEntry.max_physical_kwh) / maxPacks
+          : null;
+    const singlePackCapacityKwh =
+      toFiniteNumber(opts?.busModelData?.battery_pack_size_kwh) ?? kwhPerPack;
+    const requiredKwh =
+      toFiniteNumber(batteryEntry.required_total_kwh) ??
+      (reqPacks != null && kwhPerPack != null ? reqPacks * kwhPerPack : null);
+
+    const predictedConsumption = cState.costInputs?.predictedShiftConsumptionKwh;
+    const predictedDistance = cState.costInputs?.predictedShiftDistanceKm;
+    const consumptionPerKm =
+      predictedDistance > 0 && predictedConsumption != null
+        ? predictedConsumption / predictedDistance
+        : null;
+
+    const body = [
+      overviewRowHtml(
+        t("simulation.opt_feasibility") || "Feasibility",
+        `<span class="overview-badge ${feasBadge}">${textContent(feasLabel)}</span>`,
+        true
+      ),
+      overviewRowHtml(
+        t("simulation.var_optimization_mode") || "Mode",
+        modeLabel(ip.mode ?? "")
+      ),
+      overviewRowHtml(
+        t("simulation.opt_col_opt_packs") || "Optimized packs",
+        optPacks != null ? String(optPacks) : "—"
+      ),
+      overviewRowHtml(
+        t("simulation.overview_single_pack_capacity") || "Single pack capacity",
+        singlePackCapacityKwh != null ? `${formatFixed(singlePackCapacityKwh, 0)} kWh` : "—"
+      ),
+      overviewRowHtml(
+        t("simulation.opt_col_opt_kwh") || "Optimized capacity",
+        optKwh != null ? `${formatFixed(optKwh, 0)} kWh` : "—"
+      ),
+      overviewRowHtml(
+        t("simulation.opt_col_required_kwh") || "Required (kWh)",
+        requiredKwh != null ? `${formatFixed(requiredKwh, 0)} kWh` : "—"
+      ),
+      overviewRowHtml(
+        t("simulation.overview_consumption_shift") || "Consumption / shift",
+        predictedConsumption != null ? `${formatFixed(predictedConsumption, 1)} kWh` : "—"
+      ),
+      overviewRowHtml(
+        t("simulation.overview_consumption_km") || "Consumption / km",
+        consumptionPerKm != null ? `${formatFixed(consumptionPerKm, 3)} kWh` : "—"
+      ),
+    ].join("");
+
+    columns.push(overviewColShell("⚡", t("simulation.tab_efficiency") || "Efficiency", body));
+  }
+
+  /* ── Column 2: Costs ─────────────────────────────────────────── */
+  {
+    const feasible =
+      effState.optimizationRun?.results?.electrification_feasible !== false;
+    const hasCostData = cState.status === "done" && cState.comparison;
+
+    if (!feasible) {
+      columns.push(overviewColShell(
+        "💰",
+        t("simulation.tab_costs") || "Costs",
+        `<p class="overview-col__msg">${textContent(
+          t("simulation.infeasible_costs_note") || "Not available — infeasible."
+        )}</p>`
+      ));
+    } else if (!hasCostData) {
+      const msg =
+        cState.status === "error"
+          ? cState.error || t("simulation.costs_error") || "Unable to load cost data."
+          : t("simulation.overview_loading") || "Loading…";
+      columns.push(overviewColShell(
+        "💰",
+        t("simulation.tab_costs") || "Costs",
+        `<p class="overview-col__msg">${textContent(msg)}</p>`
+      ));
+    } else {
+      const chartData = buildCostsChartData(cState.comparison, {
+        ...opts,
+        annualizationRate: cState.annualization?.opexAnnualizationRate,
+        optimizationRun: cState.optimizationRun,
+      });
+
+      const annualTotals = chartData?.annualTotals;
+      const yearlyData = chartData?.yearly;
+      const electricAnnual = toFiniteNumber(annualTotals?.electric) ?? 0;
+      const dieselAnnual = toFiniteNumber(annualTotals?.diesel) ?? 0;
+      const annualSaving = dieselAnnual - electricAnnual;
+      const breakEvenYear = computeBreakEvenYear(yearlyData);
+
+      const electricCapex = chartData?.upfrontCapex?.electric ?? 0;
+      const dieselCapex = chartData?.upfrontCapex?.diesel ?? 0;
+      const electricOpex = toFiniteNumber(chartData?.annualOpex?.electric) ?? 0;
+      const dieselOpex = toFiniteNumber(chartData?.annualOpex?.diesel) ?? 0;
+      const yearlyKm = toFiniteNumber(
+        cState.costInputs?.yearlyDistanceKm ?? cState.annualization?.yearlyDistanceKm
+      );
+      const electricPerKm = yearlyKm > 0 ? electricAnnual / yearlyKm : null;
+      const dieselPerKm = yearlyKm > 0 ? dieselAnnual / yearlyKm : null;
+
+      const toneCls = (val) =>
+        val > 0 ? "overview-highlight--positive"
+          : val < 0 ? "overview-highlight--negative"
+            : "overview-highlight--neutral";
+
+      const body = [
+        overviewRowHtml(
+          t("simulation.overview_capex_electric") || "CAPEX electric",
+          `CHF ${formatCHF(Math.round(electricCapex))}`
+        ),
+        overviewRowHtml(
+          t("simulation.overview_capex_diesel") || "CAPEX diesel",
+          `CHF ${formatCHF(Math.round(dieselCapex))}`
+        ),
+        overviewRowHtml(
+          t("simulation.overview_opex_electric") || "OPEX electric / yr",
+          `CHF ${formatCHF(Math.round(electricOpex))}`
+        ),
+        overviewRowHtml(
+          t("simulation.overview_opex_diesel") || "OPEX diesel / yr",
+          `CHF ${formatCHF(Math.round(dieselOpex))}`
+        ),
+        overviewRowHtml(
+          t("simulation.overview_electric_annual") || "Electric total / yr",
+          `CHF ${formatCHF(Math.round(electricAnnual))}`
+        ),
+        overviewRowHtml(
+          t("simulation.overview_diesel_annual") || "Diesel total / yr",
+          `CHF ${formatCHF(Math.round(dieselAnnual))}`
+        ),
+        overviewRowHtml(
+          t("simulation.overview_cost_per_km_electric") || "Cost / km electric",
+          electricPerKm != null ? `${formatFixed(electricPerKm, 3)} CHF/km` : "—"
+        ),
+        overviewRowHtml(
+          t("simulation.overview_cost_per_km_diesel") || "Cost / km diesel",
+          dieselPerKm != null ? `${formatFixed(dieselPerKm, 3)} CHF/km` : "—"
+        ),
+        overviewRowHtml(
+          costKpiLabel("annual_saving"),
+          `<span class="overview-highlight ${toneCls(annualSaving)}">CHF ${formatCHF(Math.round(annualSaving))}</span>`,
+          true
+        ),
+        overviewRowHtml(
+          t("simulation.costs_kpi_break_even") || "Break-even",
+          breakEvenYear != null
+            ? `${t("simulation.general_year") || "Yr"} ${formatFixed(breakEvenYear, 1)}`
+            : "—"
+        ),
+      ].join("");
+
+      columns.push(overviewColShell("💰", t("simulation.tab_costs") || "Costs", body));
+    }
+  }
+
+  /* ── Column 3: Emissions ─────────────────────────────────────── */
+  {
+    const feasible =
+      effState.optimizationRun?.results?.electrification_feasible !== false;
+
+    if (!feasible) {
+      columns.push(overviewColShell(
+        "🌿",
+        t("simulation.tab_emissions") || "Emissions",
+        `<p class="overview-col__msg">${textContent(
+          t("simulation.infeasible_emissions_note") || "Not available — infeasible."
+        )}</p>`
+      ));
+    } else if (!emState || emState.status !== "done" || !emState.electricYearly) {
+      const msg =
+        emState?.status === "error"
+          ? emState.error || t("simulation.emissions_error") || "Unable to load data."
+          : t("simulation.overview_loading") || "Loading…";
+      columns.push(overviewColShell(
+        "🌿",
+        t("simulation.tab_emissions") || "Emissions",
+        `<p class="overview-col__msg">${textContent(msg)}</p>`
+      ));
+    } else {
+      const electricY = emState.electricYearly;
+      const dieselY = emState.dieselYearly;
+      const hasDiesel = !!dieselY;
+
+      const emissionDefs = [
+        { key: "gwp100a", label: "CO₂", i18n: "simulation.env_kpi_co2", unit: "t/yr", divisor: 1e6 },
+        { key: "nox", label: "NOx", i18n: "simulation.env_kpi_nox", unit: "kg/yr", divisor: 1e6 },
+        { key: "pm10", label: "PM₁₀", i18n: "simulation.env_kpi_pm10", unit: "kg/yr", divisor: 1e6 },
+        { key: "primaryEnergyNonRenewable", label: "Non-ren. energy", i18n: "simulation.env_kpi_penr", unit: "MJ/yr", divisor: 1 },
+      ];
+
+      const body = emissionDefs
+        .filter((def) => electricY[def.key]?.total != null)
+        .map((def) => {
+          const eRaw = toFiniteNumber(electricY[def.key]?.total) ?? 0;
+          const dRaw = hasDiesel ? (toFiniteNumber(dieselY[def.key]?.total) ?? 0) : null;
+          const eVal = eRaw / def.divisor;
+          const pctChange =
+            dRaw != null && dRaw !== 0
+              ? ((dRaw - eRaw) / Math.abs(dRaw)) * 100
+              : null;
+          const pctStr =
+            pctChange != null
+              ? `${pctChange > 0 ? "↓" : "↑"} ${formatFixed(Math.abs(pctChange), 0)}%`
+              : "";
+          const toneCls =
+            pctChange != null && pctChange > 0 ? "overview-highlight--positive"
+              : pctChange != null && pctChange < 0 ? "overview-highlight--negative"
+                : "overview-highlight--neutral";
+
+          const indicatorName = t(def.i18n) || def.label;
+          const valueStr = pctStr
+            ? `${formatFixed(eVal, 0)} <span class="overview-highlight ${toneCls}">${textContent(pctStr)}</span>`
+            : `${formatFixed(eVal, 0)}`;
+
+          return overviewRowHtml(
+            `${indicatorName} (${def.unit})`,
+            valueStr,
+            true
+          );
+        })
+        .join("");
+
+      columns.push(overviewColShell("🌿", t("simulation.tab_emissions") || "Emissions", body));
+    }
+  }
+
+  el.innerHTML = `<div class="overview-grid">${columns.join("")}</div>`;
 };
 
 const renderCostsSection = (sec, state, options = {}) => {
@@ -6404,6 +6702,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     renderInvestmentSection(investmentContentEl, costState, options);
     refreshEfficiencyTab();
     refreshPredictionsTab();
+    refreshOverviewTab();
     if (!renderedTabs.has("costs")) return;
     if (!isElectrificationFeasible()) {
       renderInfeasibleNotice(section.querySelector('[data-panel="costs"]'));
@@ -6492,7 +6791,27 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     renderEmissionsPanel(section);
   };
 
+  const refreshOverviewTab = () => {
+    if (!renderedTabs.has("overview")) return;
+    renderOverviewPanel(
+      section.querySelector('[data-role="overview-panel"]'),
+      efficiencyState,
+      costState,
+      emissionsState,
+      options
+    );
+  };
+
   const TAB_RENDERERS = {
+    overview: (sec) => {
+      renderOverviewPanel(
+        sec.querySelector('[data-role="overview-panel"]'),
+        efficiencyState,
+        costState,
+        emissionsState,
+        options
+      );
+    },
     costs: (sec) => {
       const panel = sec.querySelector('[data-panel="costs"]') ?? sec;
       if (!isElectrificationFeasible()) {
@@ -6764,6 +7083,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       }
 
       refreshEmissionsTab();
+      refreshOverviewTab();
     }
   };
 
@@ -6803,7 +7123,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     }
   };
 
-  activateTab("efficiency");
+  activateTab("overview");
 
   const handleTabClick = (e) => {
     const btn = e.target.closest(".results-tab");
