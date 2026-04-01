@@ -1,4 +1,4 @@
-import { fetchCurrentUser, changePassword, fetchAgencyById } from "./user";
+import { fetchCurrentUser, fetchAgencyById } from "./user";
 import { getCurrentUserId, setCurrentUserId, getCurrentAgencyId, setCurrentAgencyId, clearDataCache } from "../store";
 import { triggerPartialLoad } from "../events";
 import { readAccessToken } from "./client";
@@ -203,6 +203,20 @@ const navigateToLogin = () => {
   triggerPartialLoad("login");
 };
 
+export const refreshSessionUserInfo = async () => {
+  if (!sessionElementsRef || !isAuthenticated()) {
+    return null;
+  }
+
+  const email = localStorage.getItem("user_email") || "";
+  const sessionIsValid = await loadUserInfo(sessionElementsRef, email);
+  if (!sessionIsValid) {
+    return null;
+  }
+
+  return getUserInfo();
+};
+
 export const handleUnauthorizedSession = () => {
   if (unauthorizedRedirectPending) {
     return;
@@ -244,53 +258,6 @@ const handleLogout = (elements) => {
   triggerPartialLoad("login");
 };
 
-// Password Change Handler
-const handlePasswordChange = async (modal, feedback) => {
-  const form = modal.querySelector("form");
-  const currentPassword = form.querySelector("#current-password").value;
-  const newPassword = form.querySelector("#new-password").value;
-  const confirmPassword = form.querySelector("#confirm-password").value;
-
-  // Validate passwords match
-  if (newPassword !== confirmPassword) {
-    showFeedback(feedback, "New passwords do not match.", "error");
-    return false;
-  }
-
-  // Validate password length
-  if (newPassword.length < 8) {
-    showFeedback(feedback, "Password must be at least 8 characters.", "error");
-    return false;
-  }
-
-  try {
-    showFeedback(feedback, "Updating password...", "info");
-    await changePassword(currentPassword, newPassword);
-    showFeedback(feedback, "Password updated successfully!", "success");
-    
-    // Close modal after short delay
-    setTimeout(() => {
-      modal.close();
-      form.reset();
-      feedback.hidden = true;
-    }, 1500);
-    
-    return true;
-  } catch (error) {
-    console.error("Password change failed", error);
-    showFeedback(feedback, error.message || "Failed to change password.", "error");
-    return false;
-  }
-};
-
-// Feedback Helper
-const showFeedback = (element, message, tone) => {
-  if (!element) return;
-  element.textContent = message;
-  element.dataset.tone = tone;
-  element.hidden = false;
-};
-
 // Initialize User Menu
 const initializeUserMenu = (elements) => {
   const { userMenu } = elements;
@@ -326,53 +293,10 @@ const initializeUserMenu = (elements) => {
     
     if (action === "logout") {
       handleLogout(elements);
-    } else if (action === "change-password") {
-      const modal = document.querySelector('[data-modal="change-password"]');
-      if (modal) {
-        modal.showModal();
-      }
+    } else if (action === "account-settings") {
+      triggerPartialLoad("settings");
       dropdown.hidden = true;
       toggle.setAttribute("aria-expanded", "false");
-    }
-  });
-};
-
-// Initialize Password Modal
-const initializePasswordModal = () => {
-  const modal = document.querySelector('[data-modal="change-password"]');
-  if (!modal) return;
-
-  const form = modal.querySelector("form");
-  const feedback = modal.querySelector('[data-role="password-feedback"]');
-  const cancelBtn = modal.querySelector('[data-action="cancel-password"]');
-
-  // Handle form submit
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    await handlePasswordChange(modal, feedback);
-  });
-
-  // Handle cancel
-  cancelBtn?.addEventListener("click", () => {
-    modal.close();
-    form.reset();
-    if (feedback) {
-      feedback.hidden = true;
-    }
-  });
-
-  // Reset form when modal closes
-  modal.addEventListener("close", () => {
-    form.reset();
-    if (feedback) {
-      feedback.hidden = true;
-    }
-  });
-
-  // Close on backdrop click
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) {
-      modal.close();
     }
   });
 };
@@ -410,9 +334,6 @@ export const initializeSession = async (loginButton) => {
 
   // Initialize user menu
   initializeUserMenu(elements);
-
-  // Initialize password modal
-  initializePasswordModal();
 
   // Validate the persisted session before allowing access to protected pages.
   if (authenticated) {

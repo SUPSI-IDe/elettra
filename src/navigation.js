@@ -14,6 +14,7 @@ import { initializeLogin } from "./pages/Auth/login";
 import { initializeLanding } from "./pages/Auth/landing";
 import { initializeRegister } from "./pages/Auth/register";
 import { initializeAbout } from "./pages/About/about";
+import { initializeSettings } from "./pages/Account/settings";
 import { applyTranslations, getCurrentLang, I18N_CHANGE_EVENT } from "./i18n";
 import { isAuthenticated } from "./api/session";
 
@@ -145,6 +146,9 @@ export const initializeNavigation = (root = document) => {
         break;
       case "register":
         cleanup = initializeRegister(target, options);
+        break;
+      case "settings":
+        cleanup = await initializeSettings(target, options);
         break;
       case "buses":
         cleanup = await initializeBuses(target, options);

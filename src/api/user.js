@@ -65,6 +65,37 @@ export const changePassword = async (currentPassword, newPassword) => {
   return payload;
 };
 
+export const updateCurrentUser = async (profile = {}) => {
+  const headers = {
+    ...authHeaders(),
+    "Content-Type": "application/json",
+  };
+
+  if (!headers.Authorization) {
+    throw new Error("Missing access token.");
+  }
+
+  const response = await fetch(CURRENT_USER_PATH, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(profile),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to update profile.";
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  return payload;
+};
+
 export const fetchAgencyById = async (agencyId) => {
   if (!agencyId) {
     return null;
