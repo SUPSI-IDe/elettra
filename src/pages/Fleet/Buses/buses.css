@@ -139,6 +139,11 @@
   grid-column: 1 / -1;
 }
 
+.add-bus-model .bus-model-field--compact {
+  justify-self: start;
+  width: min(100%, 15.5rem);
+}
+
 .add-bus-model .form-group {
   gap: 0.35rem;
 }
@@ -220,6 +225,10 @@
   .add-bus-model .bus-model-grid--2,
   .add-bus-model .bus-model-grid--3 {
     grid-template-columns: 1fr;
+  }
+
+  .add-bus-model .bus-model-field--compact {
+    width: 100%;
   }
 }
 

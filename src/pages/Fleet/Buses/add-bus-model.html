@@ -144,6 +144,18 @@
                   autocomplete="off"
                 />
               </div>
+              <div class="form-group bus-model-field--compact">
+                <label for="bus_lifetime" data-i18n="buses.field_bus_lifetime">Bus lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>
+                <input
+                  type="number"
+                  id="bus_lifetime"
+                  name="bus_lifetime"
+                  required
+                  min="0"
+                  step="1"
+                  autocomplete="off"
+                />
+              </div>
             </div>
           </section>
 
@@ -224,32 +236,12 @@
                   autocomplete="off"
                 />
               </div>
-            </div>
-          </section>
-
-          <section class="bus-model-panel bus-model-panel--wide">
-            <div class="bus-model-panel-header">
-              <h3>Lifecycle</h3>
-            </div>
-            <div class="bus-model-grid bus-model-grid--2">
-              <div class="form-group">
+              <div class="form-group bus-model-field--compact">
                 <label for="battery_pack_lifetime" data-i18n="buses.field_battery_pack_lifetime">Battery pack lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>
                 <input
                   type="number"
                   id="battery_pack_lifetime"
                   name="battery_pack_lifetime"
-                  required
-                  min="0"
-                  step="1"
-                  autocomplete="off"
-                />
-              </div>
-              <div class="form-group">
-                <label for="bus_lifetime" data-i18n="buses.field_bus_lifetime">Bus lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>
-                <input
-                  type="number"
-                  id="bus_lifetime"
-                  name="bus_lifetime"
                   required
                   min="0"
                   step="1"
