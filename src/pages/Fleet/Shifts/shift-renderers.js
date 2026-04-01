@@ -1,9 +1,11 @@
 import { resolveModelFields, textContent } from "../../../ui-helpers";
+import { t } from "../../../i18n";
 import {
   text,
   normalizeTrip,
   resolveTripId,
   resolveRouteLabel,
+  getEligibleScheduledTrips,
 } from "./shift-utils";
 
 // Helper to get the consistent trip ID for use in data attributes
@@ -90,6 +92,7 @@ export const renderScheduledTrips = ({
   lastTripEndStop = null,
   shiftStartTime = null,
   shiftEndTime = null,
+  eligibleTrips = null,
 }) => {
   if (!tbody) {
     return;
@@ -100,58 +103,16 @@ export const renderScheduledTrips = ({
     return;
   }
 
-  // Determine the earliest allowed departure time:
-  // - If there are already selected trips, use lastTripEndTime (bus must finish previous trip first)
-  // - Otherwise, use shiftStartTime (bus must leave the depot first)
-  const earliestAllowedTime = lastTripEndTime || shiftStartTime || null;
-
-  // Normalize stop name for consistent comparison (trim whitespace)
-  const normalizeStopName = (name) => String(name ?? "").trim();
-  const normalizedLastTripEndStop = lastTripEndStop ? normalizeStopName(lastTripEndStop) : null;
-  
-  // Only apply location filter if there are selected trips (bus is somewhere)
-  const hasSelectedTrips = selectedTripIds.size > 0;
-
-  // Filter trips to show only valid options
-  const validTrips = trips.filter((trip = {}) => {
-    const normalized = normalizeTrip(trip);
-    const id = resolveTripId(normalized);
-    const startStop = normalizeStopName(
-      normalized?.start_stop_name ?? normalized?.startStopName ?? ""
-    );
-
-    // Hide already selected trips
-    if (selectedTripIds.has(id)) {
-      return false;
-    }
-
-    // Hide trips that start from a different location than where the bus is
-    // Only apply this filter if there are selected trips (bus is at a known location)
-    if (hasSelectedTrips && normalizedLastTripEndStop && startStop && startStop !== normalizedLastTripEndStop) {
-      return false;
-    }
-
-    // Hide trips that depart too early (before shift start or before previous trip ends)
-    if (earliestAllowedTime) {
-      const departure =
-        normalized?.departure_time ?? normalized?.departureTime ?? "";
-      if (departure && departure < earliestAllowedTime) {
-        return false;
-      }
-    }
-
-    // Hide trips that arrive too late (after shift end time / depot arrival)
-    if (shiftEndTime) {
-      const arrival =
-        normalized?.arrival_time ?? normalized?.arrivalTime ??
-        normalized?.departure_time ?? normalized?.departureTime ?? "";
-      if (arrival && arrival > shiftEndTime) {
-        return false;
-      }
-    }
-
-    return true;
-  });
+  const validTrips = Array.isArray(eligibleTrips)
+    ? eligibleTrips
+    : getEligibleScheduledTrips({
+        trips,
+        selectedTripIds,
+        lastTripEndTime,
+        lastTripEndStop,
+        shiftStartTime,
+        shiftEndTime,
+      });
 
   const rows = validTrips
     .map((trip = {}) => {
@@ -195,8 +156,9 @@ export const renderRouteOptions = (select, routes = []) => {
 
   const map = {};
   const seenLabels = new Set();
+  const linePrefix = t("shifts.filter_line") || "Line";
   const options = [
-    '<option value="">All lines</option>',
+    `<option value="">${textContent(t("shifts.filter_all_lines") || "Select a line")}</option>`,
     ...routes
       .filter((route) => route && route.id)
       .map((route) => {
@@ -204,12 +166,13 @@ export const renderRouteOptions = (select, routes = []) => {
         const shortName = text(route?.route_short_name ?? "");
         const longName = text(route?.route_long_name ?? "");
         const label = shortName || longName || `Route ${id}`;
-        if (seenLabels.has(label)) {
+        const displayLabel = `${linePrefix} ${label}`;
+        if (seenLabels.has(displayLabel)) {
           return null;
         }
-        seenLabels.add(label);
-        map[id] = label;
-        return `<option value="${id}">${textContent(label)}</option>`;
+        seenLabels.add(displayLabel);
+        map[id] = displayLabel;
+        return `<option value="${id}">${textContent(displayLabel)}</option>`;
       })
       .filter(Boolean),
   ].join("");
@@ -282,7 +245,7 @@ export const populateDayOptions = (select, days = []) => {
   }
 
   const options = [
-    '<option value="">All days</option>',
+    `<option value="">${textContent(t("shifts.filter_all_days") || "Select a day")}</option>`,
     ...days.map((day) => {
       const value = typeof day === "string" ? day : day.id || day.value;
       const label =

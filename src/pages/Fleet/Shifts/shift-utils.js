@@ -97,6 +97,8 @@ export const resolveTripPk = (trip = {}) =>
     trip?.trip?.trip_pk
   );
 
+const normalizeStopName = (name) => String(name ?? "").trim();
+
 export const normalizeTrip = (trip = {}) => {
   const stopTimes =
     Array.isArray(trip?.stop_times) && trip.stop_times.length > 0
@@ -217,6 +219,104 @@ export const normalizeTrip = (trip = {}) => {
     arrival_time: arrivalTime || departureTime,
   };
 };
+
+export const evaluateTripEligibility = ({
+  trip,
+  selectedTripIds = new Set(),
+  lastTripEndTime = null,
+  lastTripEndStop = null,
+  shiftStartTime = null,
+  shiftEndTime = null,
+} = {}) => {
+  const normalized = normalizeTrip(trip);
+  const id = resolveTripId(normalized);
+
+  if (!id) {
+    return { valid: false, reason: "missing_id", trip: normalized };
+  }
+
+  if (selectedTripIds.has(id)) {
+    return { valid: false, reason: "selected", trip: normalized };
+  }
+
+  const departure =
+    normalized?.departure_time ?? normalized?.departureTime ?? "";
+  const arrival =
+    normalized?.arrival_time ??
+    normalized?.arrivalTime ??
+    normalized?.departure_time ??
+    normalized?.departureTime ??
+    "";
+  const startStop = normalizeStopName(
+    normalized?.start_stop_name ?? normalized?.startStopName ?? ""
+  );
+  const endStop = normalizeStopName(lastTripEndStop);
+  const hasSelectedTrips = selectedTripIds.size > 0;
+
+  if (shiftStartTime && departure && departure < shiftStartTime) {
+    return {
+      valid: false,
+      reason: "before_shift_start",
+      trip: normalized,
+      departure,
+      boundary: shiftStartTime,
+    };
+  }
+
+  if (shiftEndTime && arrival && arrival > shiftEndTime) {
+    return {
+      valid: false,
+      reason: "after_shift_end",
+      trip: normalized,
+      arrival,
+      boundary: shiftEndTime,
+    };
+  }
+
+  if (hasSelectedTrips && endStop && startStop && startStop !== endStop) {
+    return {
+      valid: false,
+      reason: "location_mismatch",
+      trip: normalized,
+      startStop,
+      endStop,
+    };
+  }
+
+  if (hasSelectedTrips && lastTripEndTime && departure && departure < lastTripEndTime) {
+    return {
+      valid: false,
+      reason: "overlap",
+      trip: normalized,
+      departure,
+      boundary: lastTripEndTime,
+    };
+  }
+
+  return { valid: true, reason: null, trip: normalized };
+};
+
+export const getEligibleScheduledTrips = ({
+  trips = [],
+  selectedTripIds = new Set(),
+  lastTripEndTime = null,
+  lastTripEndStop = null,
+  shiftStartTime = null,
+  shiftEndTime = null,
+} = {}) =>
+  (Array.isArray(trips) ? trips : [])
+    .map((trip) =>
+      evaluateTripEligibility({
+        trip,
+        selectedTripIds,
+        lastTripEndTime,
+        lastTripEndStop,
+        shiftStartTime,
+        shiftEndTime,
+      })
+    )
+    .filter((result) => result.valid)
+    .map((result) => result.trip);
 
 export const readShiftTripsFromStructure = (shift = {}) => {
   const structure = Array.isArray(shift?.structure) ? shift.structure : [];

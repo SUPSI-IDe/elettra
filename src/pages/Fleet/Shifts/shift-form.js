@@ -38,6 +38,8 @@ import {
   readShiftTripsFromStructure,
   getNextDay,
   DAYS_OF_WEEK,
+  evaluateTripEligibility,
+  getEligibleScheduledTrips,
 } from "./shift-utils";
 import {
   populateDayOptions,
@@ -341,11 +343,17 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const scheduledTripsEmpty = form.querySelector(
     '[data-role="scheduled-trips-empty"]'
   );
+  const addAllTripsButton = form.querySelector(
+    'button[data-action="add-all-trips"]'
+  );
 
   const shiftTripsBody = form.querySelector(
     'tbody[data-role="shift-trips-body"]'
   );
   const shiftTripsEmpty = form.querySelector('[data-role="shift-trips-empty"]');
+  const removeAllTripsButton = form.querySelector(
+    'button[data-action="remove-all-trips"]'
+  );
   const timelineContainer = section.querySelector('[data-role="shift-timeline"]');
 
   // populateDayOptions(daySelect); // Removed, called in loadDays
@@ -373,6 +381,32 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   let currentTrips = [];
   const selectedTripIds = new Set();
   let selectedTrips = [];
+
+  const dedupeTrips = (trips = []) => {
+    const seenTripIds = new Set();
+    const seenDbIds = new Set();
+
+    return (Array.isArray(trips) ? trips : [])
+      .filter((trip) => {
+        const tripId = resolveTripId(trip);
+        const dbId = trip?.id;
+        const isDuplicateByTripId = tripId && seenTripIds.has(tripId);
+        const isDuplicateByDbId = dbId && seenDbIds.has(dbId);
+
+        if (isDuplicateByTripId || isDuplicateByDbId) {
+          return false;
+        }
+
+        if (tripId) seenTripIds.add(tripId);
+        if (dbId) seenDbIds.add(dbId);
+        return true;
+      })
+      .sort((a, b) => {
+        const timeA = a?.departure_time || "";
+        const timeB = b?.departure_time || "";
+        return timeA.localeCompare(timeB);
+      });
+  };
 
   // Only set times from trips if the inputs are empty
   // Never overwrite user-specified depot times (start_time/end_time from the shift)
@@ -420,9 +454,47 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
   };
 
+  const getScheduledTripsRenderState = () => ({
+    trips: currentTrips,
+    routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
+    selectedTripIds,
+    lastTripEndTime: getLatestEndTime(),
+    lastTripEndStop: getLastTripEndStop(),
+    shiftStartTime: getShiftStartTime(),
+    shiftEndTime: getShiftEndTime(),
+  });
+
+  const refreshScheduledTrips = () => {
+    const renderState = getScheduledTripsRenderState();
+    const eligibleTrips = getEligibleScheduledTrips(renderState);
+
+    renderScheduledTrips({
+      tbody: scheduledTripsBody,
+      ...renderState,
+      eligibleTrips,
+    });
+
+    if (addAllTripsButton instanceof HTMLButtonElement) {
+      addAllTripsButton.disabled = eligibleTrips.length === 0;
+    }
+
+    updateEmptyState(
+      scheduledTripsEmpty,
+      eligibleTrips.length > 0,
+      currentTrips.length > 0 ?
+        (t("shifts.no_valid_trips_to_add") || "No trips can be added with the current depot time limits.")
+      : (t("shifts.no_trips_match") || "No trips match the current filters.")
+    );
+
+    return eligibleTrips;
+  };
+
   const updateShiftTrips = () => {
     renderShiftTrips(shiftTripsBody, selectedTrips);
     updateEmptyState(shiftTripsEmpty, selectedTrips.length > 0);
+    if (removeAllTripsButton instanceof HTMLButtonElement) {
+      removeAllTripsButton.disabled = selectedTrips.length === 0;
+    }
   };
 
   // Update the shift timeline visualization
@@ -509,6 +581,35 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     return value || null;
   };
 
+  const isTripSelectionReady = () => {
+    const lineValue = lineSelect instanceof HTMLSelectElement ? lineSelect.value.trim() : "";
+    const dayValue = daySelect instanceof HTMLSelectElement ? daySelect.value.trim() : "";
+    const startTimeValue = getShiftStartTime() ?? "";
+    const endTimeValue = getShiftEndTime() ?? "";
+    const startDepotValue =
+      startDepotSelect instanceof HTMLSelectElement ? startDepotSelect.value.trim() : "";
+    const endDepotValue =
+      endDepotSelect instanceof HTMLSelectElement ? endDepotSelect.value.trim() : "";
+
+    return Boolean(
+      lineValue &&
+      dayValue &&
+      startTimeValue &&
+      endTimeValue &&
+      startDepotValue &&
+      endDepotValue
+    );
+  };
+
+  const resetScheduledTrips = (message) => {
+    currentTrips = [];
+    clearNode(scheduledTripsBody);
+    if (addAllTripsButton instanceof HTMLButtonElement) {
+      addAllTripsButton.disabled = true;
+    }
+    updateEmptyState(scheduledTripsEmpty, false, message);
+  };
+
   // Get the end stop name of the last selected trip (where the bus currently is)
   // Returns normalized (trimmed) string for consistent comparison
   const getLastTripEndStop = () => {
@@ -521,161 +622,167 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     return normalized || null;
   };
 
-  const addTrip = (trip) => {
+  const getTripValidationMessage = (eligibility) => {
+    switch (eligibility?.reason) {
+      case "before_shift_start":
+        return (
+          t("shifts.trip_departs_before", {
+            departure: eligibility?.departure ?? "",
+            start: eligibility?.boundary ?? "",
+          }) ||
+          `Trip departs at ${eligibility?.departure ?? ""} but the shift starts at ${eligibility?.boundary ?? ""}. The bus cannot be at a stop before leaving the depot.`
+        );
+      case "after_shift_end":
+        return (
+          t("shifts.trip_arrives_after", {
+            arrival: eligibility?.arrival ?? "",
+            end: eligibility?.boundary ?? "",
+          }) ||
+          `Trip arrives at ${eligibility?.arrival ?? ""} but the shift ends at ${eligibility?.boundary ?? ""}. The bus must return to the depot by the shift end time.`
+        );
+      case "location_mismatch":
+        return (
+          t("shifts.trip_wrong_start", {
+            startStop: eligibility?.startStop ?? "",
+            endStop: eligibility?.endStop ?? "",
+          }) ||
+          `Trip starts at "${eligibility?.startStop ?? ""}" but the bus is at "${eligibility?.endStop ?? ""}". The next trip must start from where the previous trip ended.`
+        );
+      case "overlap":
+        return (
+          t("shifts.trips_overlap", {
+            departure: eligibility?.departure ?? "",
+            arrival: eligibility?.boundary ?? "",
+          }) ||
+          `Trip starts at ${eligibility?.departure ?? ""} but the latest trip ends at ${eligibility?.boundary ?? ""}. Trips cannot overlap.`
+        );
+      default:
+        return "";
+    }
+  };
+
+  const addTrip = (trip, { silent = false } = {}) => {
     const normalized = normalizeTrip(trip);
     const id = resolveTripId(normalized);
     if (!id || selectedTripIds.has(id)) {
-      return;
+      return false;
     }
 
-    const newDeparture = normalized.departure_time;
-    const newArrival = normalized.arrival_time || normalized.departure_time;
-    const newStartStop = normalized.start_stop_name || normalized.startStopName || "";
-    const shiftStart = getShiftStartTime();
-    const shiftEnd = getShiftEndTime();
-
-    // Validate: new trip must not start before the shift start time (depot departure)
-    if (shiftStart && newDeparture && newDeparture < shiftStart) {
-      updateFeedback(
-        feedback,
-        `Trip departs at ${newDeparture} but the shift starts at ${shiftStart}. The bus cannot be at a stop before leaving the depot.`,
-        "error"
-      );
-      return;
-    }
-
-    // Validate: new trip must not arrive after the shift end time (depot arrival)
-    if (shiftEnd && newArrival && newArrival > shiftEnd) {
-      updateFeedback(
-        feedback,
-        `Trip arrives at ${newArrival} but the shift ends at ${shiftEnd}. The bus must return to the depot by the shift end time.`,
-        "error"
-      );
-      return;
-    }
-
-    // Validate: new trip must start from where the last trip ended (location continuity)
-    const lastEndStop = getLastTripEndStop();
-    if (lastEndStop && newStartStop && lastEndStop !== newStartStop) {
-      updateFeedback(
-        feedback,
-        `Trip starts at "${newStartStop}" but the bus is at "${lastEndStop}". The next trip must start from where the previous trip ended.`,
-        "error"
-      );
-      return;
-    }
-
-    // Validate: new trip must not start before the latest existing trip ends
-    if (selectedTrips.length > 0 && newDeparture) {
-      const latestArrival = selectedTrips
-        .map((t) => t.arrival_time || t.departure_time || "")
-        .filter(Boolean)
-        .sort((a, b) => b.localeCompare(a))[0];
-
-      if (latestArrival && newDeparture < latestArrival) {
-        updateFeedback(
-          feedback,
-          `Trip starts at ${newDeparture} but the latest trip ends at ${latestArrival}. Trips cannot overlap.`,
-          "error"
-        );
-        return;
-      }
-    }
-
-    selectedTripIds.add(id);
-    selectedTrips = [...selectedTrips, normalized];
-    updateShiftTrips();
-    // Don't automatically update times - let user set them manually
-    renderScheduledTrips({
-      tbody: scheduledTripsBody,
-      trips: currentTrips,
-      routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
+    const eligibility = evaluateTripEligibility({
+      trip: normalized,
       selectedTripIds,
       lastTripEndTime: getLatestEndTime(),
       lastTripEndStop: getLastTripEndStop(),
       shiftStartTime: getShiftStartTime(),
       shiftEndTime: getShiftEndTime(),
     });
+
+    if (!eligibility.valid) {
+      if (!silent) {
+        updateFeedback(feedback, getTripValidationMessage(eligibility), "error");
+      }
+      return false;
+    }
+
+    selectedTripIds.add(id);
+    selectedTrips = [...selectedTrips, normalized];
+    updateShiftTrips();
+    refreshScheduledTrips();
     updateTimeline();
+    return true;
   };
 
   const removeTrip = (id) => {
     if (!selectedTripIds.has(id)) {
-      return;
+      return false;
     }
-    
-    // Find the trip being removed before filtering it out
+
     const removedTrip = selectedTrips.find((trip = {}) => resolveTripId(trip) === id);
-    
-    // Also get the database UUID (id field) for better duplicate detection
     const removedTripDbId = removedTrip?.id || id;
-    
+
     selectedTripIds.delete(id);
-    
+
     selectedTrips = selectedTrips.filter((trip = {}) => {
       const tripId = resolveTripId(trip);
       return tripId && tripId !== id;
     });
-    
-    // In edit mode, ensure the removed trip is in currentTrips so it appears in scheduled trips
-    // Check if the trip already exists in currentTrips by comparing BOTH trip_id AND database id
-    const existsInCurrentTrips = currentTrips.some((t) => {
-      const existingTripId = resolveTripId(t);
-      const existingDbId = t?.id;
-      // Match if either the trip_id matches OR the database id matches
-      return (existingTripId && existingTripId === id) || 
-             (existingDbId && removedTripDbId && existingDbId === removedTripDbId);
+
+    const existsInCurrentTrips = currentTrips.some((trip) => {
+      const existingTripId = resolveTripId(trip);
+      const existingDbId = trip?.id;
+      return (existingTripId && existingTripId === id) ||
+        (existingDbId && removedTripDbId && existingDbId === removedTripDbId);
     });
-    
+
     if (removedTrip && !existsInCurrentTrips) {
-      // Add the removed trip back to currentTrips
       currentTrips = [...currentTrips, removedTrip];
     }
-    
-    // Remove any duplicates from currentTrips
-    // A trip is considered duplicate if it has the same trip_id OR the same database id
-    const seenTripIds = new Set();
-    const seenDbIds = new Set();
-    currentTrips = currentTrips.filter((trip) => {
-      const tripId = resolveTripId(trip);
-      const dbId = trip?.id;
-      
-      // Check if we've seen this trip before (by either ID)
-      const isDuplicateByTripId = tripId && seenTripIds.has(tripId);
-      const isDuplicateByDbId = dbId && seenDbIds.has(dbId);
-      
-      if (isDuplicateByTripId || isDuplicateByDbId) {
-        return false;
-      }
-      
-      // Mark this trip as seen
-      if (tripId) seenTripIds.add(tripId);
-      if (dbId) seenDbIds.add(dbId);
-      
-      return true;
-    }).sort((a, b) => {
-      const timeA = a.departure_time || "";
-      const timeB = b.departure_time || "";
-      return timeA.localeCompare(timeB);
-    });
-    
+
+    currentTrips = dedupeTrips(currentTrips);
+
     updateShiftTrips();
-    // Don't automatically update times - let user set them manually
-    
-    // Create a fresh copy of the Set to ensure the filter sees updated state
-    const updatedSelectedTripIds = new Set(selectedTripIds);
-    
-    renderScheduledTrips({
-      tbody: scheduledTripsBody,
-      trips: currentTrips,
-      routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
-      selectedTripIds: updatedSelectedTripIds,
-      lastTripEndTime: getLatestEndTime(),
-      lastTripEndStop: getLastTripEndStop(),
-      shiftStartTime: getShiftStartTime(),
-      shiftEndTime: getShiftEndTime(),
-    });
+    refreshScheduledTrips();
     updateTimeline();
+    return true;
+  };
+
+  const addAllTrips = () => {
+    let addedCount = 0;
+    const maxIterations = Array.isArray(currentTrips) ? currentTrips.length : 0;
+
+    for (let index = 0; index < maxIterations; index += 1) {
+      const eligibleTrips = getEligibleScheduledTrips(getScheduledTripsRenderState());
+      const nextTrip = eligibleTrips[0];
+      if (!nextTrip) {
+        break;
+      }
+      if (!addTrip(nextTrip, { silent: true })) {
+        break;
+      }
+      addedCount += 1;
+    }
+
+    if (addedCount === 0) {
+      updateFeedback(
+        feedback,
+        t("shifts.no_valid_trips_to_add") || "No trips can be added with the current depot time limits.",
+        "info"
+      );
+      return;
+    }
+
+    updateFeedback(
+      feedback,
+      t("shifts.bulk_added_trips", { count: addedCount }) ||
+        `${addedCount} trip(s) added to the shift.`,
+      "success"
+    );
+  };
+
+  const removeAllTrips = () => {
+    if (selectedTrips.length === 0) {
+      updateFeedback(
+        feedback,
+        t("shifts.no_trips_to_remove") || "There are no trips to remove from the shift.",
+        "info"
+      );
+      return;
+    }
+
+    const removedCount = selectedTrips.length;
+    currentTrips = dedupeTrips([...currentTrips, ...selectedTrips]);
+    selectedTrips = [];
+    selectedTripIds.clear();
+
+    updateShiftTrips();
+    refreshScheduledTrips();
+    updateTimeline();
+    updateFeedback(
+      feedback,
+      t("shifts.bulk_removed_trips", { count: removedCount }) ||
+        `${removedCount} trip(s) removed from the shift.`,
+      "success"
+    );
   };
 
   const prefillSelectValue = (select, value, fallbackLabel) => {
@@ -753,18 +860,102 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       endTimeInput.value = endTime;
     }
 
+    const startDepotId = firstAvailable(
+      shift?.start_depot_id,
+      shift?.startDepotId,
+      shift?.start_depot?.id,
+      shift?.startDepot?.id
+    );
+    const startDepotLabel = firstAvailable(
+      shift?.start_depot_name,
+      shift?.startDepotName,
+      shift?.start_depot?.name,
+      shift?.startDepot?.name
+    );
+    const endDepotId = firstAvailable(
+      shift?.end_depot_id,
+      shift?.endDepotId,
+      shift?.end_depot?.id,
+      shift?.endDepot?.id
+    );
+    const endDepotLabel = firstAvailable(
+      shift?.end_depot_name,
+      shift?.endDepotName,
+      shift?.end_depot?.name,
+      shift?.endDepot?.name
+    );
+
+    prefillSelectValue(startDepotSelect, startDepotId, startDepotLabel);
+    prefillSelectValue(endDepotSelect, endDepotId, endDepotLabel);
+
     const allTrips = readShiftTripsFromStructure(shift);
     const depotTrips = allTrips.filter((trip) => isDepotTrip(trip));
     const trips = allTrips.filter((trip) => !isDepotTrip(trip));
 
-    // The API does NOT return depot info as top-level shift fields.
-    // Depot association lives only in the structure as auxiliary trips.
-    // Extract depot names from the first/last depot trips and match
-    // against the loaded depot options.
+    // The API does NOT always return depot info as top-level shift fields.
+    // Fall back to auxiliary depot trips and match by linked stop_id first,
+    // then by depot label as a last resort.
     const depotNameFromTrip = (trip) =>
       (trip?.start_stop_name || trip?.startStopName ||
        trip?.end_stop_name || trip?.endStopName ||
        trip?.trip?.start_stop_name || trip?.trip?.end_stop_name || "").trim();
+
+    const depotStopIdFromTrip = (trip, side = "start") => {
+      if (!trip) {
+        return "";
+      }
+
+      const stop =
+        side === "start" ?
+          firstAvailable(
+            trip?.departure_stop_id,
+            trip?.departureStopId,
+            trip?.start_stop_id,
+            trip?.startStopId,
+            trip?.start_stop?.id,
+            trip?.start_stop?.stop_id,
+            trip?.startStop?.id,
+            trip?.trip?.departure_stop_id,
+            trip?.trip?.departureStopId,
+            trip?.trip?.start_stop_id,
+            trip?.trip?.startStopId,
+            trip?.trip?.start_stop?.id,
+            trip?.trip?.start_stop?.stop_id,
+            trip?.trip?.startStop?.id
+          )
+        : firstAvailable(
+            trip?.arrival_stop_id,
+            trip?.arrivalStopId,
+            trip?.end_stop_id,
+            trip?.endStopId,
+            trip?.end_stop?.id,
+            trip?.end_stop?.stop_id,
+            trip?.endStop?.id,
+            trip?.trip?.arrival_stop_id,
+            trip?.trip?.arrivalStopId,
+            trip?.trip?.end_stop_id,
+            trip?.trip?.endStopId,
+            trip?.trip?.end_stop?.id,
+            trip?.trip?.end_stop?.stop_id,
+            trip?.trip?.endStop?.id
+          );
+
+      return text(stop).trim();
+    };
+
+    const selectDepotByStopId = (select, stopId) => {
+      if (!(select instanceof HTMLSelectElement) || !stopId) {
+        return false;
+      }
+
+      const match = loadedDepots.find((depot) => text(depot?.stop_id).trim() === stopId);
+      if (!match?.id) {
+        return false;
+      }
+
+      prefillSelectValue(select, match.id, match?.name ?? match?.label ?? "");
+      return true;
+    };
 
     const selectDepotByName = (select, name) => {
       if (!(select instanceof HTMLSelectElement) || !name) return;
@@ -774,11 +965,26 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       if (match) select.value = match.value;
     };
 
-    if (depotTrips.length > 0) {
-      const startDepotName = depotNameFromTrip(depotTrips[0]);
-      const endDepotName = depotNameFromTrip(depotTrips[depotTrips.length - 1]);
-      selectDepotByName(startDepotSelect, startDepotName);
-      selectDepotByName(endDepotSelect, endDepotName);
+    if (depotTrips.length > 0 && (!startDepotId || !endDepotId)) {
+      const startDepotTrip = depotTrips[0];
+      const endDepotTrip = depotTrips[depotTrips.length - 1];
+      const startDepotName = depotNameFromTrip(startDepotTrip);
+      const endDepotName = depotNameFromTrip(endDepotTrip);
+      const startDepotStopId = depotStopIdFromTrip(startDepotTrip, "start");
+      const endDepotStopId = depotStopIdFromTrip(endDepotTrip, "end");
+
+      if (!startDepotId) {
+        const matched = selectDepotByStopId(startDepotSelect, startDepotStopId);
+        if (!matched) {
+          selectDepotByName(startDepotSelect, startDepotName);
+        }
+      }
+      if (!endDepotId) {
+        const matched = selectDepotByStopId(endDepotSelect, endDepotStopId);
+        if (!matched) {
+          selectDepotByName(endDepotSelect, endDepotName);
+        }
+      }
     }
     selectedTrips = trips;
     selectedTripIds.clear();
@@ -895,16 +1101,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       "startTimeInput.value": startTimeInput?.value,
       "endTimeInput.value": endTimeInput?.value,
     });
-    renderScheduledTrips({
-      tbody: scheduledTripsBody,
-      trips: currentTrips,
-      routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
-      selectedTripIds,
-      lastTripEndTime: getLatestEndTime(),
-      lastTripEndStop: getLastTripEndStop(),
-      shiftStartTime: getShiftStartTime(),
-      shiftEndTime: getShiftEndTime(),
-    });
+    refreshScheduledTrips();
     updateTimeline();
 
     if (
@@ -1058,13 +1255,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     const routeId = lineSelect.value;
     const day = daySelect.value;
 
-    if (!routeId || !day) {
-      currentTrips = [];
-      clearNode(scheduledTripsBody);
-      updateEmptyState(
-        scheduledTripsEmpty,
-        false,
-        "Select a line and day to view trips."
+    if (!routeId || !day || !isTripSelectionReady()) {
+      resetScheduledTrips(
+        t("shifts.select_trip_filters") ||
+          "Select a line, day, start depot, and return depot details to view trips."
       );
       return;
     }
@@ -1128,31 +1322,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
           return timeA.localeCompare(timeB);
         });
 
-      renderScheduledTrips({
-        tbody: scheduledTripsBody,
-        trips: currentTrips,
-        routeLabel: routesById[routeId] ?? "",
-        selectedTripIds,
-        lastTripEndTime: getLatestEndTime(),
-        lastTripEndStop: getLastTripEndStop(),
-        shiftStartTime: getShiftStartTime(),
-        shiftEndTime: getShiftEndTime(),
-      });
+      refreshScheduledTrips();
       syncSelectedTripsWithCurrent();
-      updateEmptyState(
-        scheduledTripsEmpty,
-        currentTrips.length > 0,
-        "No trips match the current filters."
-      );
     } catch (error) {
       console.error("Failed to load trips", error);
-      currentTrips = [];
-      clearNode(scheduledTripsBody);
-      updateEmptyState(
-        scheduledTripsEmpty,
-        false,
-        error?.message ?? "Unable to load trips."
-      );
+      resetScheduledTrips(error?.message ?? "Unable to load trips.");
     }
   };
 
@@ -1191,6 +1365,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
 
     removeTrip(id);
+  };
+
+  const handleAddAllTripsClick = () => {
+    addAllTrips();
+  };
+
+  const handleRemoveAllTripsClick = () => {
+    removeAllTrips();
   };
 
   // Helper to fetch stops for a trip and extract first/last stop info
@@ -1552,40 +1734,37 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     // Note: Trip preview (map + elevation) is only shown for scheduled trips (left list)
     // to help users decide which trips to add to the shift
   }
+  if (addAllTripsButton) {
+    addAllTripsButton.addEventListener("click", handleAddAllTripsClick);
+    cleanupHandlers.push(() => {
+      addAllTripsButton.removeEventListener("click", handleAddAllTripsClick);
+    });
+  }
+  if (removeAllTripsButton) {
+    removeAllTripsButton.addEventListener("click", handleRemoveAllTripsClick);
+    cleanupHandlers.push(() => {
+      removeAllTripsButton.removeEventListener("click", handleRemoveAllTripsClick);
+    });
+  }
 
-  const handleLineChange = () => {
+  const handleTripFiltersChange = () => {
     loadTrips({ includeNextDay: isEditMode });
   };
   if (lineSelect) {
-    lineSelect.addEventListener("change", handleLineChange);
+    lineSelect.addEventListener("change", handleTripFiltersChange);
     cleanupHandlers.push(() => {
-      lineSelect.removeEventListener("change", handleLineChange);
+      lineSelect.removeEventListener("change", handleTripFiltersChange);
     });
   }
-  const handleDayChange = () => {
-    loadTrips({ includeNextDay: isEditMode });
-  };
   if (daySelect) {
-    daySelect.addEventListener("change", handleDayChange);
+    daySelect.addEventListener("change", handleTripFiltersChange);
     cleanupHandlers.push(() => {
-      daySelect.removeEventListener("change", handleDayChange);
+      daySelect.removeEventListener("change", handleTripFiltersChange);
     });
   }
 
-  // Re-render scheduled trips when start/end time changes to update which trips are available
   const handleShiftTimeChange = () => {
-    if (currentTrips.length > 0) {
-      renderScheduledTrips({
-        tbody: scheduledTripsBody,
-        trips: currentTrips,
-        routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
-        selectedTripIds,
-        lastTripEndTime: getLatestEndTime(),
-        lastTripEndStop: getLastTripEndStop(),
-        shiftStartTime: getShiftStartTime(),
-        shiftEndTime: getShiftEndTime(),
-      });
-    }
+    loadTrips({ includeNextDay: isEditMode });
     updateTimeline();
   };
   if (startTimeInput) {
@@ -1601,8 +1780,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     });
   }
   
-  // Update timeline when depot selection changes
   const handleDepotChange = () => {
+    loadTrips({ includeNextDay: isEditMode });
     updateTimeline();
   };
   if (startDepotSelect) {
@@ -1643,8 +1822,15 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   updateEmptyState(
     scheduledTripsEmpty,
     false,
-    "Select a line and day to view trips."
+    t("shifts.select_trip_filters") ||
+      "Select a line, day, start depot, and return depot details to view trips."
   );
+  if (addAllTripsButton instanceof HTMLButtonElement) {
+    addAllTripsButton.disabled = true;
+  }
+  if (removeAllTripsButton instanceof HTMLButtonElement) {
+    removeAllTripsButton.disabled = true;
+  }
 
   if (!isEditMode && nameInput instanceof HTMLInputElement) {
     nameInput.focus();

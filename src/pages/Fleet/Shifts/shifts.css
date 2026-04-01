@@ -6,30 +6,9 @@
 }
 
 .shift-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: var(--spacing-xl);
-  align-items: start;
-}
-
-/* Edit mode layout: place Shift Timeline directly under page title */
-.shift-form form[data-mode="edit"] .shift-form-grid {
-  grid-template-areas:
-    "timeline timeline"
-    "scheduled details";
-}
-
-.shift-form form[data-mode="edit"] .scheduled-trips {
-  grid-area: scheduled;
-}
-
-.shift-form form[data-mode="edit"] .shift-details {
-  grid-area: details;
-}
-
-.shift-form form[data-mode="edit"] .shift-timeline-section {
-  grid-area: timeline;
-  margin-top: 0;
 }
 
 /* Page-specific overrides */
@@ -57,13 +36,14 @@
   color: var(--text-main);
 }
 
+.shift-form .shift-config h2,
 .shift-form .shift-details h2 {
   color: var(--brand-teal);
   font-size: 1.25rem;
   font-weight: 600;
 }
 
-.shift-form .shift-details .section-header {
+.shift-form .shift-config .section-header {
   flex-direction: column;
   align-items: stretch;
 }
@@ -92,26 +72,56 @@
   font-weight: 600;
 }
 
-.shift-form .filters,
-.shift-form .start-controls,
-.shift-form .end-controls {
+.shift-form .shift-config {
   display: flex;
-  gap: var(--spacing-md);
-  flex-wrap: wrap;
-  align-items: flex-end;
-}
-
-.shift-form .start-controls,
-.shift-form .end-controls {
   flex-direction: column;
-  align-items: stretch;
+  gap: var(--spacing-md);
 }
 
-.shift-form .control-row {
-  display: flex;
+.shift-form .shift-control-grid {
+  display: grid;
   gap: var(--spacing-md);
-  flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: end;
+}
+
+.shift-form .shift-control-grid--primary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shift-form .shift-control-grid--secondary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shift-form .shift-secondary-group {
+  display: grid;
+  gap: var(--spacing-md);
+  min-width: 0;
+}
+
+.shift-form .shift-secondary-group--filters {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shift-form .shift-secondary-group--depots {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shift-form .shift-secondary-group--depots .controls-group-fields {
+  display: grid;
+  grid-template-columns: minmax(90px, 110px) minmax(0, 1fr);
+  gap: var(--spacing-sm);
+  align-items: end;
+}
+
+.shift-form .shift-secondary-group--depots .form-group {
+  min-width: 0;
+}
+
+.shift-form .shift-trip-tables {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-xl);
+  align-items: start;
 }
 
 .shift-form .controls-group-box {
@@ -155,6 +165,27 @@
   max-height: 500px;
   overflow-y: auto;
   background: white;
+}
+
+.shift-form .table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--spacing-sm);
+}
+
+.shift-form .table-bulk-action {
+  background-color: white;
+  border: 1px solid var(--brand-teal-light);
+  color: var(--brand-teal);
+}
+
+.shift-form .table-bulk-action:hover:not(:disabled) {
+  background-color: var(--brand-teal-bg);
+}
+
+.shift-form .table-bulk-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .shift-form table {
@@ -562,19 +593,26 @@
     grid-template-columns: 1fr;
   }
 
-  .shift-form-grid {
+  .shift-form .shift-control-grid--secondary,
+  .shift-form .shift-trip-tables {
     grid-template-columns: 1fr;
-  }
-
-  .shift-form form[data-mode="edit"] .shift-form-grid {
-    grid-template-areas:
-      "timeline"
-      "scheduled"
-      "details";
   }
 
   .timeline {
     min-height: 260px;
+  }
+}
+
+@media (max-width: 760px) {
+  .shift-form .shift-control-grid--primary,
+  .shift-form .shift-secondary-group--filters,
+  .shift-form .shift-secondary-group--depots,
+  .shift-form .shift-trip-tables {
+    grid-template-columns: 1fr;
+  }
+
+  .shift-form .shift-secondary-group--depots .controls-group-fields {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -703,8 +741,7 @@
 
 /* Shift Timeline Section in Form */
 .shift-timeline-section {
-  grid-column: 1 / -1;
-  margin-top: var(--spacing-lg);
+  margin-top: 0;
 }
 
 .shift-timeline-header {
