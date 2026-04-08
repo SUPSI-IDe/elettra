@@ -1255,10 +1255,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     const routeId = lineSelect.value;
     const day = daySelect.value;
 
-    if (!routeId || !day || !isTripSelectionReady()) {
+    if (!routeId || !day) {
       resetScheduledTrips(
-        t("shifts.select_trip_filters") ||
-          "Select a line, day, start depot, and return depot details to view trips."
+        t("shifts.select_line_and_day") ||
+          "Select a line and day to view available trips."
       );
       return;
     }
@@ -1764,7 +1764,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   }
 
   const handleShiftTimeChange = () => {
-    loadTrips({ includeNextDay: isEditMode });
+    if (currentTrips.length > 0) {
+      refreshScheduledTrips();
+    } else {
+      loadTrips({ includeNextDay: isEditMode });
+    }
     updateTimeline();
   };
   if (startTimeInput) {
@@ -1781,7 +1785,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   }
   
   const handleDepotChange = () => {
-    loadTrips({ includeNextDay: isEditMode });
+    if (currentTrips.length > 0) {
+      refreshScheduledTrips();
+    } else {
+      loadTrips({ includeNextDay: isEditMode });
+    }
     updateTimeline();
   };
   if (startDepotSelect) {
@@ -1822,8 +1830,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   updateEmptyState(
     scheduledTripsEmpty,
     false,
-    t("shifts.select_trip_filters") ||
-      "Select a line, day, start depot, and return depot details to view trips."
+    t("shifts.select_line_and_day") ||
+      "Select a line and day to view available trips."
   );
   if (addAllTripsButton instanceof HTMLButtonElement) {
     addAllTripsButton.disabled = true;
