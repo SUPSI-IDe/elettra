@@ -150,6 +150,7 @@ const createPredictionRunVariants = async ({
   shift_ids,
   bus_model_id,
   prediction_params = {},
+  pack_count_override = null,
 }) => {
   const busModel = await fetchBusModelById(bus_model_id);
   const specs = parseSpecs(busModel?.specs);
@@ -165,7 +166,10 @@ const createPredictionRunVariants = async ({
   const modelName =
     text(prediction_params.model_name).trim() ||
     DEFAULT_PREDICTION_MODEL_NAME;
-  const batteryPackCases = computeBatteryPackCases(specs);
+  const batteryPackCases =
+    pack_count_override != null
+      ? [Math.round(Number(pack_count_override))]
+      : computeBatteryPackCases(specs);
 
   const createdIds = [];
 
@@ -203,6 +207,61 @@ const createPredictionRunVariants = async ({
   const uniqueIds = [...new Set(createdIds)];
   await waitForPredictionRuns(uniqueIds);
   return uniqueIds;
+};
+
+/**
+ * Create a single prediction run for a known battery pack count (no
+ * optimization).  Returns the completed prediction run objects.
+ */
+export const createSinglePredictionRun = async ({
+  shift_ids,
+  bus_model_id,
+  prediction_params = {},
+  num_battery_packs,
+}) => {
+  const busModel = await fetchBusModelById(bus_model_id);
+  const specs = parseSpecs(busModel?.specs);
+  const quantiles =
+    Array.isArray(prediction_params.quantiles) &&
+    prediction_params.quantiles.length
+      ? prediction_params.quantiles
+      : DEFAULT_PREDICTION_QUANTILES;
+  const occupancyPercent =
+    prediction_params.occupancy_percent == null
+      ? 50
+      : Number(prediction_params.occupancy_percent);
+  const modelName =
+    text(prediction_params.model_name).trim() ||
+    DEFAULT_PREDICTION_MODEL_NAME;
+
+  const contextualParameters = buildContextualParameters({
+    specs,
+    occupancyPercent,
+    quantiles,
+    numBatteryPacks: num_battery_packs,
+  });
+
+  const payload = await createPredictionRuns({
+    shift_ids,
+    bus_model_id,
+    model_name: modelName,
+    external_temp_celsius: prediction_params.external_temp_celsius ?? 15,
+    occupancy_percent: occupancyPercent,
+    auxiliary_heating_type:
+      prediction_params.auxiliary_heating_type ?? "default",
+    quantiles,
+    num_battery_packs,
+    contextual_parameters: contextualParameters,
+  });
+
+  const ids = extractPredictionRunIds(payload);
+  if (!ids.length) {
+    throw new Error("No prediction run IDs returned.");
+  }
+
+  await waitForPredictionRuns(ids);
+  const runs = await Promise.all(ids.map((id) => fetchPredictionRun(id)));
+  return runs;
 };
 
 // ── Prediction Runs ──────────────────────────────────────────────────
@@ -360,7 +419,7 @@ export const fetchEconomicComparison = async (params = {}) => {
 // ── Optimization Runs ────────────────────────────────────────────────
 
 export const createOptimizationRun = async (params = {}) => {
-  const { shift_ids, charging_stations, ...rest } = params;
+  const { shift_ids, charging_stations, pack_count_override, ...rest } = params;
 
   if (!Array.isArray(shift_ids) || !shift_ids.length) {
     throw new Error("At least one shift is required.");
@@ -375,6 +434,7 @@ export const createOptimizationRun = async (params = {}) => {
     shift_ids,
     bus_model_id: rest.bus_model_id,
     prediction_params: rest.prediction_params,
+    pack_count_override: pack_count_override ?? null,
   });
 
   const { prediction_params: _discarded, ...restWithoutPrediction } = rest;
@@ -490,6 +550,31 @@ export const fetchOptimizationRun = async (runId) => {
     throw new Error(typeof message === "string" ? message : JSON.stringify(message));
   }
   return payload;
+};
+
+// ── Optimization Run Polling ─────────────────────────────────────────
+
+const OPTIMIZATION_POLL_INTERVAL_MS = 3000;
+const OPTIMIZATION_MAX_POLL_ATTEMPTS = 200;
+const TERMINAL_OPTIMIZATION_STATUSES = new Set([
+  "completed",
+  "failed",
+  "done",
+  "error",
+]);
+
+export const waitForOptimizationCompletion = async (runId) => {
+  for (let attempt = 0; attempt < OPTIMIZATION_MAX_POLL_ATTEMPTS; attempt++) {
+    const run = await fetchOptimizationRun(runId);
+    const status = text(run?.status ?? "").trim().toLowerCase();
+    if (TERMINAL_OPTIMIZATION_STATUSES.has(status)) {
+      return run;
+    }
+    await new Promise((resolve) => setTimeout(resolve, OPTIMIZATION_POLL_INTERVAL_MS));
+  }
+  throw new Error(
+    "Simulation did not complete in time. Refresh later to see results."
+  );
 };
 
 // ── Trip Statistics ──────────────────────────────────────────────────

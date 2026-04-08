@@ -41,6 +41,7 @@ import "./simulation-results.css";
 
 const FAKE_GENERAL_INFO = {
   name: "—",
+  optimization_id: "—",
   creation_date: "—",
   simulation_type: "—",
   day: "—",
@@ -61,6 +62,7 @@ const FAKE_BUS_INFO = {
 
 const generalLabels = () => ({
   name: t("simulation.field_name") || "Name",
+  optimization_id: t("simulation.general_optimization_id") || "Optimization ID",
   creation_date: t("simulation.general_creation_date") || "Creation date",
   simulation_type: t("simulation.general_simulation_type") || "Simulation type",
   day: t("simulation.general_day") || "Day",
@@ -169,6 +171,16 @@ const resolveSimulationName = (optimizationRun = {}, options = {}) =>
     optimizationRun?.input_params?.name,
     optimizationRun?.inputParams?.name,
     optimizationRun?.name
+  );
+
+const resolveOptimizationId = (optimizationRun = {}, options = {}) =>
+  firstText(
+    optimizationRun?.id,
+    optimizationRun?.optimization_run_id,
+    optimizationRun?.optimizationRunId,
+    optimizationRun?.run_id,
+    options?.optimizationId,
+    options?.runId
   );
 
 const WEEKDAY_LABELS = {
@@ -1812,7 +1824,7 @@ const renderEfficiencyPredictionSummary = (costInputs) => {
     [
       t("simulation.costs_input_prediction_consumption") ||
         "Prediction consumption per shift (kWh)",
-      predictedShiftConsumption == null ? "—" : formatFixed(predictedShiftConsumption, 3),
+      predictedShiftConsumption == null ? "—" : formatFixed(predictedShiftConsumption, 0),
     ],
     [
       translateOr(
@@ -2800,10 +2812,134 @@ const formatFixed = (val, dec = 1) => {
   return Number.isNaN(n) ? "—" : n.toLocaleString("de-CH", { maximumFractionDigits: dec, minimumFractionDigits: dec });
 };
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const escapeAttr = (value) => escapeHtml(value).replace(/\n/g, "&#10;");
+
 const toFiniteNumber = (value) => {
   if (value === "" || (typeof value === "string" && value.trim() === "")) return null;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+};
+
+const toOptionalFiniteNumber = (value) => {
+  if (value === null || value === undefined) return null;
+  return toFiniteNumber(value);
+};
+
+const normalizeSocFraction = (value) => {
+  const numeric = toOptionalFiniteNumber(value);
+  if (numeric == null) return null;
+  return numeric > 1 ? numeric / 100 : numeric;
+};
+
+const resolveUsableSocFraction = (inputParams = {}) => {
+  const minSoc = normalizeSocFraction(inputParams?.min_soc);
+  const maxSoc = normalizeSocFraction(inputParams?.max_soc);
+
+  if (minSoc != null && maxSoc != null && maxSoc >= minSoc) {
+    return maxSoc - minSoc;
+  }
+
+  return normalizeSocFraction(
+    inputParams?.usable_soc_percent ?? inputParams?.usableSocPercent
+  );
+};
+
+const applyUsableSocWindow = (nominalKwh, usableSocFraction) => {
+  const nominal = toOptionalFiniteNumber(nominalKwh);
+  if (nominal == null) return null;
+  if (usableSocFraction === null || usableSocFraction === undefined) return nominal;
+  const usable = toFiniteNumber(usableSocFraction);
+  return usable == null ? nominal : nominal * usable;
+};
+
+const buildUsableSocCapacityNoteHtml = (inputParams = {}) => {
+  const minSoc = normalizeSocFraction(inputParams?.min_soc);
+  const maxSoc = normalizeSocFraction(inputParams?.max_soc);
+  const usableSoc = resolveUsableSocFraction(inputParams);
+  if (minSoc == null || maxSoc == null || usableSoc == null) return "";
+
+  return `<p class="efficiency-table-note">${textContent(
+    t("simulation.opt_usable_soc_capacity_note", {
+      min_soc: formatPct(minSoc),
+      max_soc: formatPct(maxSoc),
+      usable_soc: formatPct(usableSoc),
+    }) ||
+      `Usable kWh values apply the SoC window (${formatPct(minSoc)}-${formatPct(
+        maxSoc
+      )}, ${formatPct(usableSoc)} of nominal). Pack counts remain physical.`
+  )}</p>`;
+};
+
+const buildUsableSocTooltip = ({
+  inputParams = {},
+  nominalKwh = null,
+  usableKwh = null,
+} = {}) => {
+  const base =
+    t("simulation.opt_usable_soc_tooltip") ||
+    "This kWh value applies the min/max SoC window: usable kWh = nominal kWh * (max SoC - min SoC).";
+  const minSoc = normalizeSocFraction(inputParams?.min_soc);
+  const maxSoc = normalizeSocFraction(inputParams?.max_soc);
+  const usableSoc = resolveUsableSocFraction(inputParams);
+  const nominal = toOptionalFiniteNumber(nominalKwh);
+  const usable = toOptionalFiniteNumber(usableKwh);
+
+  if (minSoc == null || maxSoc == null || usableSoc == null || nominal == null || usable == null) {
+    return base;
+  }
+
+  const caseLine =
+    t("simulation.opt_usable_soc_tooltip_case", {
+      nominal_kwh: formatFixed(nominal, 0),
+      usable_soc: formatPct(usableSoc),
+      usable_kwh: formatFixed(usable, 0),
+      min_soc: formatPct(minSoc),
+      max_soc: formatPct(maxSoc),
+    }) ||
+    `In this case ${formatFixed(nominal, 0)} kWh x ${formatPct(
+      usableSoc
+    )} = ${formatFixed(usable, 0)} kWh (${formatPct(minSoc)}-${formatPct(maxSoc)}).`;
+
+  return `${base}\n${caseLine}`;
+};
+
+const usableSocInfoLabelHtml = (label, tooltipOptions = {}) => {
+  const tooltip = buildUsableSocTooltip(tooltipOptions);
+
+  return `<span class="efficiency-label-with-info">${escapeHtml(
+    label
+  )}<span class="efficiency-info-icon" tabindex="0" role="img" aria-label="${escapeAttr(
+    tooltip
+  )}" title="${escapeAttr(tooltip)}">i</span></span>`;
+};
+
+const maxUsableLimitCellHtml = (maxUsableKwh, shiftConsumptionKwh) => {
+  if (maxUsableKwh == null) return "—";
+  const comparison = toOptionalFiniteNumber(shiftConsumptionKwh);
+  const valueHtml = formatFixed(maxUsableKwh, 0);
+
+  if (comparison == null || maxUsableKwh >= comparison) {
+    return valueHtml;
+  }
+
+  const message =
+    t("simulation.opt_max_usable_limit_exceeded", {
+      consumption_kwh: formatFixed(comparison, 0),
+    }) ||
+    `Limit exceeded: shift needs ${formatFixed(comparison, 0)} kWh.`;
+
+  return `<span class="efficiency-limit-cell">
+    <span>${valueHtml}</span>
+    <span class="efficiency-limit-cell__warning" title="${escapeAttr(message)}">${escapeHtml(message)}</span>
+  </span>`;
 };
 
 const chartEmptyStateHtml = () =>
@@ -2875,6 +3011,8 @@ const matchesSelectedShift = (batteryResult = {}, shiftKey = "", viewOptions = {
 const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {}) => {
   if (!results || typeof results !== "object" || !Object.keys(results).length) return "";
 
+  const usableSocFraction = resolveUsableSocFraction(inputParams);
+  const usableSocNoteHtml = buildUsableSocCapacityNoteHtml(inputParams);
   const solverStatus = results.solver_status ?? "—";
   const badgeCls = SOLVER_STATUS_CLASS[solverStatus] ?? "efficiency-badge--neutral";
   const electrificationFeasible = results.electrification_feasible;
@@ -2910,6 +3048,10 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
   let electrificationSummaryHtml = "";
   if (electSummary.status === "infeasible" && electSummary.message) {
     const infeasibleBuses = Array.isArray(electSummary.infeasible_buses) ? electSummary.infeasible_buses : [];
+    const predictedShiftConsumptionKwh = toOptionalFiniteNumber(
+      viewOptions?.predictedShiftConsumptionKwh ??
+      viewOptions?.costInputs?.predictedShiftConsumptionKwh
+    );
     const uniqueByShift = [];
     const seenShifts = new Set();
     for (const bus of infeasibleBuses) {
@@ -2919,19 +3061,51 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
       uniqueByShift.push(bus);
     }
 
+    let electSummaryRequiredTooltipOptions = {};
+    let electSummaryMaxTooltipOptions = {};
     const detailRows = uniqueByShift.map((bus) => {
       const req = toFiniteNumber(bus.required_total_packs);
       const max = toFiniteNumber(bus.max_physical_packs);
       const over = req != null && max != null && req > max;
       const bo = over ? "<strong>" : "";
       const bc = over ? "</strong>" : "";
+      const maxPhysicalKwh = toOptionalFiniteNumber(bus.max_physical_kwh);
+      const electSummaryKwhPerPack =
+        maxPhysicalKwh != null && max > 0
+          ? maxPhysicalKwh / max
+          : null;
+      const requiredNominalKwh =
+        toOptionalFiniteNumber(bus.required_total_kwh) ??
+        (req != null && electSummaryKwhPerPack != null
+          ? req * electSummaryKwhPerPack
+          : null);
+      const requiredUsableKwh = applyUsableSocWindow(
+        requiredNominalKwh,
+        usableSocFraction
+      );
+      const maxUsableKwh = applyUsableSocWindow(
+        maxPhysicalKwh,
+        usableSocFraction
+      );
+      if (uniqueByShift.length === 1) {
+        electSummaryRequiredTooltipOptions = {
+          inputParams,
+          nominalKwh: requiredNominalKwh,
+          usableKwh: requiredUsableKwh,
+        };
+        electSummaryMaxTooltipOptions = {
+          inputParams,
+          nominalKwh: maxPhysicalKwh,
+          usableKwh: maxUsableKwh,
+        };
+      }
       return `
       <tr>
         <td>${textContent(bus.shift_name ?? "—")}</td>
         <td class="efficiency-td-num">${bo}${textContent(String(bus.required_total_packs ?? "—"))}${bc}</td>
-        <td class="efficiency-td-num">${bo}${formatFixed(bus.required_total_kwh, 0)}${bc}</td>
+        <td class="efficiency-td-num">${bo}${requiredUsableKwh == null ? "—" : formatFixed(requiredUsableKwh, 0)}${bc}</td>
         <td class="efficiency-td-num">${textContent(String(bus.max_physical_packs ?? "—"))}</td>
-        <td class="efficiency-td-num">${formatFixed(bus.max_physical_kwh, 0)}</td>
+        <td class="efficiency-td-num">${maxUsableLimitCellHtml(maxUsableKwh, predictedShiftConsumptionKwh)}</td>
         <td class="efficiency-td-num">${textContent(String(bus.excess_packs ?? 0))}</td>
       </tr>`;
     }).join("");
@@ -2943,9 +3117,9 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
             <tr>
               <th class="efficiency-th-text">${textContent(t("simulation.opt_col_shift") || "Shift")}</th>
               <th>${textContent(t("simulation.opt_col_required_packs") || "Required Packs")}</th>
-              <th>${textContent(t("simulation.opt_col_required_kwh") || "Required (kWh)")}</th>
+              <th>${usableSocInfoLabelHtml(t("simulation.opt_col_required_usable_kwh") || "Required usable (kWh)", electSummaryRequiredTooltipOptions)}</th>
               <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical Packs")}</th>
-              <th>${textContent(t("simulation.opt_col_max_kwh") || "Max Physical (kWh)")}</th>
+              <th>${usableSocInfoLabelHtml(t("simulation.opt_col_max_usable_kwh") || "Max usable (kWh)", electSummaryMaxTooltipOptions)}</th>
               <th>${textContent(t("simulation.opt_col_excess") || "Excess Packs")}</th>
             </tr>
           </thead>
@@ -2969,6 +3143,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
 
   let batteryTableHtml = "";
   if (batteryEntries.length) {
+    let batteryOptimizedTooltipOptions = {};
     const rows = batteryEntries.map(([, b]) => {
       const physFeasible = b.physical_feasible;
       const feasBadge = physFeasible === true
@@ -2981,23 +3156,25 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
       const overLimit = reqPacks != null && maxPacks != null && reqPacks > maxPacks;
       const bOpen = overLimit ? "<strong>" : "";
       const bClose = overLimit ? "</strong>" : "";
-      const kwhPerPack =
-        (toFiniteNumber(b.optimized_kwh) != null && toFiniteNumber(b.optimized_packs) > 0)
-          ? toFiniteNumber(b.optimized_kwh) / toFiniteNumber(b.optimized_packs)
-          : (toFiniteNumber(b.max_physical_kwh) != null && maxPacks > 0)
-            ? toFiniteNumber(b.max_physical_kwh) / maxPacks
-            : null;
-      const requiredKwh =
-        toFiniteNumber(b.required_total_kwh) ??
-        (reqPacks != null && kwhPerPack != null ? reqPacks * kwhPerPack : null);
+      const optimizedKwh = toOptionalFiniteNumber(b.optimized_kwh);
+      const optimizedUsableKwh = applyUsableSocWindow(
+        optimizedKwh,
+        usableSocFraction
+      );
+      if (batteryEntries.length === 1) {
+        batteryOptimizedTooltipOptions = {
+          inputParams,
+          nominalKwh: optimizedKwh,
+          usableKwh: optimizedUsableKwh,
+        };
+      }
       return `
       <tr>
         <td>${textContent(b.shift_name ?? "—")}</td>
         <td class="efficiency-td-num efficiency-td-highlight">${textContent(String(b.optimized_packs ?? "—"))}</td>
-        <td class="efficiency-td-num efficiency-td-highlight">${formatFixed(b.optimized_kwh, 0)}</td>
+        <td class="efficiency-td-num efficiency-td-highlight">${optimizedUsableKwh == null ? "—" : formatFixed(optimizedUsableKwh, 0)}</td>
         <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
         <td class="efficiency-td-num">${bOpen}${textContent(String(b.required_total_packs ?? "—"))}${bClose}</td>
-        <td class="efficiency-td-num">${bOpen}${requiredKwh == null ? "—" : formatFixed(requiredKwh, 0)}${bClose}</td>
         <td class="efficiency-td-num">${textContent(String(b.excess_packs ?? 0))}</td>
         <td class="efficiency-td-center"><span class="efficiency-badge ${feasBadge}">${textContent(
           physFeasible === true ? (t("simulation.feasibility_feasible") || "Feasible") :
@@ -3014,10 +3191,12 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
             <tr>
               <th class="efficiency-th-text">${textContent(t("simulation.opt_col_shift") || "Shift")}</th>
               <th>${textContent(t("simulation.opt_col_opt_packs") || "Optimized Packs")}</th>
-              <th>${textContent(t("simulation.opt_col_opt_kwh") || "Optimized (kWh)")}</th>
+              <th>${usableSocInfoLabelHtml(
+                t("simulation.opt_col_opt_usable_kwh") || "Optimized usable (kWh)",
+                batteryOptimizedTooltipOptions
+              )}</th>
               <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical")}</th>
               <th>${textContent(t("simulation.opt_col_required_packs") || "Required")}</th>
-              <th>${textContent(t("simulation.opt_col_required_kwh") || "Required (kWh)")}</th>
               <th>${textContent(t("simulation.opt_col_excess") || "Excess")}</th>
               <th class="efficiency-th-center">${textContent(t("simulation.opt_col_feasibility") || "Feasibility")}</th>
             </tr>
@@ -3091,6 +3270,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
     <div class="efficiency-section">
       <h3 class="efficiency-section-title">${textContent(t("simulation.opt_section_title") || "Optimization Results")}</h3>
       <div class="efficiency-params-grid">${kpisHtml}</div>
+      ${usableSocNoteHtml}
       ${electrificationSummaryHtml}
       ${batteryTableHtml}
       ${chargersHtml}
@@ -4510,6 +4690,25 @@ const renderOptimizationBatteryChart = (el, rows) => {
   el.appendChild(svg.node());
 };
 
+const resolveSinglePackCapacityKwh = (predictionRun = {}, batteryResults = {}, viewOptions = {}) => {
+  const cp = predictionRun?.contextual_parameters ?? {};
+  const predictionCapacity = toOptionalFiniteNumber(cp.battery_capacity_kwh);
+  const predictionPacks = toOptionalFiniteNumber(cp.num_battery_packs);
+  if (predictionCapacity != null && predictionPacks > 0) {
+    return predictionCapacity / predictionPacks;
+  }
+
+  const batteryEntry = Object.entries(batteryResults ?? {})
+    .find(([shiftKey, result]) => matchesSelectedShift(result, shiftKey, viewOptions))?.[1];
+  const maxPhysicalKwh = toOptionalFiniteNumber(batteryEntry?.max_physical_kwh);
+  const maxPhysicalPacks = toOptionalFiniteNumber(batteryEntry?.max_physical_packs);
+  if (maxPhysicalKwh != null && maxPhysicalPacks > 0) {
+    return maxPhysicalKwh / maxPhysicalPacks;
+  }
+
+  return null;
+};
+
 const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (!el) return;
 
@@ -4533,6 +4732,11 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   const firstRun = predictionRuns?.[0] ?? {};
   const perBusSummary = results.per_bus_summary ?? [];
   const batteryResults = results.battery_results ?? {};
+  const singlePackCapacityKwh = resolveSinglePackCapacityKwh(
+    firstRun,
+    batteryResults,
+    viewOptions
+  );
 
   const conditions = [
     ...(viewOptions?.selectedShiftName
@@ -4546,6 +4750,10 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     { label: t("simulation.var_optimization_mode") || "Mode", value: modeLabel(ip.mode ?? "") },
     { label: t("simulation.efficiency_min_soc") || "Min SoC", value: formatPct(ip.min_soc ?? 0.4) },
     { label: t("simulation.efficiency_max_soc") || "Max SoC", value: formatPct(ip.max_soc ?? 0.9) },
+    {
+      label: t("simulation.overview_single_pack_capacity") || "Single pack capacity",
+      value: singlePackCapacityKwh == null ? "—" : `${formatFixed(singlePackCapacityKwh, 0)} kWh`,
+    },
     { label: t("simulation.efficiency_soh") || "State of Health", value: formatPct(ip.state_of_health ?? 1.0) },
     { label: t("simulation.var_external_temp") || "Temperature (°C)", value: firstRun.external_temp_celsius != null ? `${firstRun.external_temp_celsius} °C` : "—" },
     { label: t("simulation.var_occupancy") || "Occupancy (%)", value: firstRun.occupancy_percent != null ? `${firstRun.occupancy_percent}%` : "—" },
@@ -4569,7 +4777,12 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     viewOptions?.costInputs ?? null
   );
 
-  const optimizationHtml = buildOptimizationResultsHtml(results, ip, viewOptions);
+  const optimizationHtml = buildOptimizationResultsHtml(results, ip, {
+    ...viewOptions,
+    predictedShiftConsumptionKwh:
+      toOptionalFiniteNumber(viewOptions?.costInputs?.predictedShiftConsumptionKwh) ??
+      toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh),
+  });
 
   const predictionData = buildUnifiedPredictionData(
     predictionRuns,
@@ -5254,9 +5467,9 @@ const renderCostVariablesSection = (sec, state, options = {}) => {
 
 /* ── Overview tab: compact 3-column recap ─────────────────────── */
 
-const overviewRowHtml = (label, value, raw = false) =>
+const overviewRowHtml = (label, value, raw = false, rawLabel = false) =>
   `<div class="overview-row">
-    <span class="overview-row__label">${textContent(label)}</span>
+    <span class="overview-row__label">${rawLabel ? label : textContent(label)}</span>
     <span class="overview-row__value">${raw ? value : textContent(value)}</span>
   </div>`;
 
@@ -5310,17 +5523,24 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
 
     const reqPacks = toFiniteNumber(batteryEntry.required_total_packs);
     const maxPacks = toFiniteNumber(batteryEntry.max_physical_packs);
+    const optimizedKwh = toOptionalFiniteNumber(optKwh);
+    const optimizedPacks = toOptionalFiniteNumber(optPacks);
+    const maxPhysicalKwh = toOptionalFiniteNumber(batteryEntry.max_physical_kwh);
     const kwhPerPack =
-      (optKwh != null && optPacks > 0)
-        ? optKwh / optPacks
-        : (toFiniteNumber(batteryEntry.max_physical_kwh) != null && maxPacks > 0)
-          ? toFiniteNumber(batteryEntry.max_physical_kwh) / maxPacks
+      (optimizedKwh != null && optimizedPacks > 0)
+        ? optimizedKwh / optimizedPacks
+        : (maxPhysicalKwh != null && maxPacks > 0)
+          ? maxPhysicalKwh / maxPacks
           : null;
     const singlePackCapacityKwh =
       toFiniteNumber(opts?.busModelData?.battery_pack_size_kwh) ?? kwhPerPack;
     const requiredKwh =
-      toFiniteNumber(batteryEntry.required_total_kwh) ??
+      toOptionalFiniteNumber(batteryEntry.required_total_kwh) ??
       (reqPacks != null && kwhPerPack != null ? reqPacks * kwhPerPack : null);
+    const requiredUsableKwh = applyUsableSocWindow(
+      requiredKwh,
+      resolveUsableSocFraction(ip)
+    );
 
     const predictedConsumption = cState.costInputs?.predictedShiftConsumptionKwh;
     const predictedDistance = cState.costInputs?.predictedShiftDistanceKm;
@@ -5348,16 +5568,21 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
         singlePackCapacityKwh != null ? `${formatFixed(singlePackCapacityKwh, 0)} kWh` : "—"
       ),
       overviewRowHtml(
-        t("simulation.opt_col_opt_kwh") || "Optimized capacity",
+        t("simulation.overview_optimized_nominal_capacity") || "Optimized nominal capacity",
         optKwh != null ? `${formatFixed(optKwh, 0)} kWh` : "—"
       ),
       overviewRowHtml(
-        t("simulation.opt_col_required_kwh") || "Required (kWh)",
-        requiredKwh != null ? `${formatFixed(requiredKwh, 0)} kWh` : "—"
+        usableSocInfoLabelHtml(
+          t("simulation.opt_col_required_usable_kwh") || "Required usable (kWh)",
+          { inputParams: ip, nominalKwh: requiredKwh, usableKwh: requiredUsableKwh }
+        ),
+        requiredUsableKwh != null ? `${formatFixed(requiredUsableKwh, 0)} kWh` : "—",
+        false,
+        true
       ),
       overviewRowHtml(
         t("simulation.overview_consumption_shift") || "Consumption / shift",
-        predictedConsumption != null ? `${formatFixed(predictedConsumption, 1)} kWh` : "—"
+        predictedConsumption != null ? `${formatFixed(predictedConsumption, 0)} kWh` : "—"
       ),
       overviewRowHtml(
         t("simulation.overview_consumption_km") || "Consumption / km",
@@ -6637,17 +6862,32 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     const scopedEntries = batteryEntries.filter(([shiftKey, result]) =>
       matchesSelectedShift(result, shiftKey, { selectedShiftId: activeShiftId })
     );
+    const usableSocFraction = resolveUsableSocFraction(
+      loadedOptimizationRun?.input_params ?? {}
+    );
 
     const maxPhysicalRows = (scopedEntries.length ? scopedEntries : batteryEntries)
-      .map(([shiftKey, result], index) => ({
-        shiftName:
-          result?.shift_name ??
-          shiftKey ??
-          `${t("simulation.opt_col_shift") || "Shift"} ${index + 1}`,
-        maxPacks: toFiniteNumber(result?.max_physical_packs),
-        maxKwh: toFiniteNumber(result?.max_physical_kwh),
-      }))
+      .map(([shiftKey, result], index) => {
+        const maxNominalKwh = toOptionalFiniteNumber(result?.max_physical_kwh);
+        return {
+          shiftName:
+            result?.shift_name ??
+            shiftKey ??
+            `${t("simulation.opt_col_shift") || "Shift"} ${index + 1}`,
+          maxPacks: toFiniteNumber(result?.max_physical_packs),
+          maxNominalKwh,
+          maxKwh: applyUsableSocWindow(maxNominalKwh, usableSocFraction),
+        };
+      })
       .filter((row) => row.maxPacks != null || row.maxKwh != null);
+    const maxPhysicalTooltipOptions =
+      maxPhysicalRows.length === 1
+        ? {
+            inputParams: loadedOptimizationRun?.input_params ?? {},
+            nominalKwh: maxPhysicalRows[0].maxNominalKwh,
+            usableKwh: maxPhysicalRows[0].maxKwh,
+          }
+        : {};
 
     const maxPhysicalHtml = maxPhysicalRows.length
       ? `
@@ -6661,8 +6901,9 @@ export const initializeSimulationResults = (root = document, options = {}) => {
                 <th>${textContent(
                   t("simulation.opt_col_max_packs") || "Max Physical Packs"
                 )}</th>
-                <th>${textContent(
-                  t("simulation.opt_col_max_kwh") || "Max Physical (kWh)"
+                <th>${usableSocInfoLabelHtml(
+                  t("simulation.opt_col_max_usable_kwh") || "Max usable (kWh)",
+                  maxPhysicalTooltipOptions
                 )}</th>
               </tr>
             </thead>
@@ -6909,6 +7150,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       shift_name: activeShiftName,
       ...compactFieldEntries({
         name: options.simulationName,
+        optimization_id: resolveOptimizationId(loadedOptimizationRun, options),
         creation_date: options.createdAt,
         external_temp_celsius: formatTemperatureValue(options.externalTemp),
         occupancy_percent: formatOccupancyValue(options.occupancyPercent),
@@ -7000,6 +7242,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
     const firstPredictionRun = loadedPredictionRuns[0] ?? {};
     renderGeneralInfo({
+      optimization_id: resolveOptimizationId(loadedOptimizationRun, options),
       simulation_type: resolveSimulationType(loadedOptimizationRun, options),
       lines: activeShift?.lineLabel || "—",
       day: activeShift?.weekdayLabel || "—",

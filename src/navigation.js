@@ -10,6 +10,9 @@ import { initializeAddSimulation } from "./pages/Simulation/Runs/add-simulation"
 import { initializeSimulationDetail } from "./pages/Simulation/Runs/simulation-detail";
 import { initializeSimulationResults } from "./pages/Simulation/Runs/simulation-results";
 import { initializeSimulationComparison } from "./pages/Simulation/Runs/simulation-comparison";
+import { initializeCreateYearlyAnalysis } from "./pages/Simulation/YearlyAnalysis/create-yearly-analysis";
+import { initializeYearlyAnalysisRuns } from "./pages/Simulation/YearlyAnalysis/yearly-analysis-runs";
+import { initializeYearlyAnalysisResults } from "./pages/Simulation/YearlyAnalysis/yearly-analysis-results";
 import { initializeLogin } from "./pages/Auth/login";
 import { initializeLanding } from "./pages/Auth/landing";
 import { initializeRegister } from "./pages/Auth/register";
@@ -185,6 +188,15 @@ export const initializeNavigation = (root = document) => {
         break;
       case "simulation-comparison":
         cleanup = initializeSimulationComparison(target, options);
+        break;
+      case "create-yearly-analysis":
+        cleanup = await initializeCreateYearlyAnalysis(target, options);
+        break;
+      case "yearly-analysis-runs":
+        cleanup = initializeYearlyAnalysisRuns(target, options);
+        break;
+      case "yearly-analysis-results":
+        cleanup = initializeYearlyAnalysisResults(target, options);
         break;
       case "about":
         cleanup = initializeAbout(target, options);

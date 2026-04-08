@@ -8,7 +8,7 @@ import {
 } from "../../../api";
 import {
   createOptimizationRun,
-  fetchOptimizationRun,
+  waitForOptimizationCompletion,
 } from "../../../api/simulation";
 import { fetchShiftById } from "../../../api/shifts";
 import { isAuthenticated } from "../../../api/session";
@@ -60,16 +60,6 @@ const DEFAULT_USABLE_SOC_PERCENT = 50;
 const ALLOWED_USABLE_SOC_PERCENTS = new Set([
   100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
 ]);
-const OPTIMIZATION_POLL_INTERVAL_MS = 3000;
-const OPTIMIZATION_MAX_POLL_ATTEMPTS = 200;
-const TERMINAL_OPTIMIZATION_STATUSES = new Set([
-  "completed",
-  "failed",
-  "done",
-  "error",
-]);
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 const resolveSocBounds = (usableSocPercent) => {
   const parsedPercent = Number(usableSocPercent);
   const percent = ALLOWED_USABLE_SOC_PERCENTS.has(parsedPercent)
@@ -98,24 +88,6 @@ const setFeedback = (section, message, tone = "error") => {
     el.textContent = "";
     el.hidden = true;
   }
-};
-
-const waitForOptimizationCompletion = async (runId) => {
-  for (let attempt = 0; attempt < OPTIMIZATION_MAX_POLL_ATTEMPTS; attempt++) {
-    const run = await fetchOptimizationRun(runId);
-    const status = text(run?.status).trim().toLowerCase();
-
-    if (TERMINAL_OPTIMIZATION_STATUSES.has(status)) {
-      return run;
-    }
-
-    await wait(OPTIMIZATION_POLL_INTERVAL_MS);
-  }
-
-  throw new Error(
-    t("simulation.still_running") ||
-      "Simulation is still running. Refresh later to see results."
-  );
 };
 
 const sortShifts = (shifts = [], sortState = DEFAULT_SHIFT_SORT) => {

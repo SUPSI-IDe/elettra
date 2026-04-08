@@ -1,0 +1,80 @@
+<section class="create-yearly-analysis form-page">
+  <header class="page-header">
+    <div class="header-with-close">
+      <div class="title-container">
+        <h1>Create yearly analysis</h1>
+      </div>
+      <button type="button" class="close-button" data-action="cancel" aria-label="Close">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <p class="ya-create-description">
+      Select a feasible simulation as the base configuration, then define 4
+      temperature scenarios. Only prediction runs are executed — the battery
+      sizing is inherited from the selected simulation.
+    </p>
+    <form novalidate>
+      <p class="form-feedback" data-role="feedback" role="status" aria-live="polite" hidden></p>
+
+      <!-- Base simulation selector -->
+      <fieldset class="ya-base-section">
+        <legend>Base simulation <span class="required-mark">*</span></legend>
+        <div class="form-group">
+          <label for="ya-base-run">Select a feasible simulation</label>
+          <select id="ya-base-run" data-role="base-run-select">
+            <option value="" disabled selected>Loading simulations…</option>
+          </select>
+        </div>
+        <div class="ya-config-summary" data-role="config-summary" hidden></div>
+      </fieldset>
+
+      <!-- Temperature scenarios -->
+      <fieldset class="ya-scenarios-section">
+        <legend>Temperature scenarios</legend>
+        <div class="ya-scenarios-table-wrapper">
+          <table class="ya-scenarios-table">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Daily avg. temperature (°C)</th>
+                <th>Occurrences (days/year)</th>
+              </tr>
+            </thead>
+            <tbody data-role="scenarios-body">
+              <tr><td><input type="text" data-field="label" value="Scenario 1" /></td><td><input type="number" data-field="temperature" value="-5" step="0.5" /></td><td><input type="number" data-field="occurrences" value="20" min="0" step="1" /></td></tr>
+              <tr><td><input type="text" data-field="label" value="Scenario 2" /></td><td><input type="number" data-field="temperature" value="5" step="0.5" /></td><td><input type="number" data-field="occurrences" value="100" min="0" step="1" /></td></tr>
+              <tr><td><input type="text" data-field="label" value="Scenario 3" /></td><td><input type="number" data-field="temperature" value="15" step="0.5" /></td><td><input type="number" data-field="occurrences" value="180" min="0" step="1" /></td></tr>
+              <tr><td><input type="text" data-field="label" value="Scenario 4" /></td><td><input type="number" data-field="temperature" value="30" step="0.5" /></td><td><input type="number" data-field="occurrences" value="65" min="0" step="1" /></td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" class="ya-total-label">Total occurrences</td>
+                <td class="ya-total-value" data-role="total-occurrences">365</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="ya-occurrences-warning" data-role="occurrences-warning" hidden>Total occurrences do not sum to 365 days.</p>
+      </fieldset>
+
+      <div class="form-actions">
+        <button type="button" data-action="cancel">Cancel</button>
+        <button type="submit">Run yearly analysis</button>
+      </div>
+
+      <div class="simulation-progress" data-role="simulation-progress" hidden>
+        <div class="simulation-progress__overlay">
+          <div class="simulation-progress__content">
+            <div class="simulation-progress__spinner"></div>
+            <p class="simulation-progress__message" data-role="progress-message">Running predictions…</p>
+          </div>
+        </div>
+      </div>
+    </form>
+  </main>
+</section>

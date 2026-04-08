@@ -1,0 +1,32 @@
+<section class="yearly-analysis-runs">
+  <header class="page-header">
+    <div class="title-container">
+      <h1>Yearly analyses</h1>
+    </div>
+  </header>
+  <p class="flash-message" data-role="flash" role="status" aria-live="polite" hidden></p>
+  <main class="ya-runs-main">
+    <div class="ya-runs-actions">
+      <button type="button" class="ya-new-btn" data-action="new-analysis">+ New yearly analysis</button>
+      <button type="button" data-action="delete-selected">Delete selected</button>
+    </div>
+    <div class="ya-runs-table-wrap">
+      <table class="ya-runs-table">
+        <caption class="sr-only">Yearly analyses</caption>
+        <thead>
+          <tr>
+            <th class="checkbox"><input type="checkbox" data-role="select-all" aria-label="Select all" /></th>
+            <th>Created</th>
+            <th>Shift(s)</th>
+            <th>Mode</th>
+            <th>Scenarios</th>
+            <th>Status</th>
+            <th>Results</th>
+          </tr>
+        </thead>
+        <tbody data-role="ya-runs-body"></tbody>
+      </table>
+    </div>
+    <p class="ya-runs-empty" data-role="empty-message" hidden>No yearly analyses yet. Create one to get started.</p>
+  </main>
+</section>

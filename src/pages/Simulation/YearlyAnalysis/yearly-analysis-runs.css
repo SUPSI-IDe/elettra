@@ -1,0 +1,21 @@
+.yearly-analysis-runs h1 { color: var(--brand-teal); }
+.ya-runs-main { padding: var(--spacing-sm); overflow-y: auto; }
+.ya-runs-actions { display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); }
+.ya-new-btn { background-color: var(--brand-teal); color: #fff; padding: 0.45rem 1rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; }
+.ya-new-btn:hover { background-color: var(--brand-teal-dark); }
+.ya-runs-actions button:not(.ya-new-btn) { padding: 0.4rem 0.8rem; font-size: 0.82rem; border: 1px solid var(--border-medium); border-radius: 5px; cursor: pointer; background: #fff; }
+.ya-runs-table-wrap { overflow-x: auto; }
+.ya-runs-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.ya-runs-table th { background: var(--bg-subtle); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.45rem 0.55rem; text-align: left; white-space: nowrap; color: var(--text-secondary); }
+.ya-runs-table td { padding: 0.4rem 0.55rem; border-bottom: 1px solid var(--border-light); vertical-align: middle; }
+.ya-runs-table th.checkbox, .ya-runs-table td.checkbox { width: 2.5rem; text-align: center; }
+.ya-runs-table tbody tr:hover { background: var(--bg-hover); }
+.ya-runs-table tbody tr:has(input:checked) { background: var(--brand-teal-bg); }
+.ya-runs-table .ya-status-badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 600; text-transform: capitalize; }
+.ya-status-badge.completed { background: #d4edda; color: #155724; }
+.ya-status-badge.partial { background: #fff3cd; color: #856404; }
+.ya-status-badge.failed { background: #f8d7da; color: #721c24; }
+.ya-runs-table .ya-results-link { color: #0062cc; text-decoration: underline; cursor: pointer; font-size: 0.82rem; font-weight: 500; }
+.ya-runs-table .ya-results-link:hover { color: #004499; }
+.ya-runs-empty { font-size: 0.88rem; color: var(--text-secondary); text-align: center; padding: var(--spacing-xl) 0; }
+.yearly-analysis-runs [hidden] { display: none !important; }
