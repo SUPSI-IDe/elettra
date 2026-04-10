@@ -7366,7 +7366,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     }
   };
 
-  activateTab("overview");
+  activateTab("efficiency");
 
   const handleTabClick = (e) => {
     const btn = e.target.closest(".results-tab");

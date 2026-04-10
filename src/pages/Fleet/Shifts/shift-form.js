@@ -3,10 +3,12 @@ import "./shift-visualization.css";
 import {
   createShift,
   createAuxiliaryTrip,
+  createWeatherTemperatureClusters,
   fetchBuses,
   fetchBusById,
   fetchBusModels,
   fetchDepots,
+  fetchPvgisTmy,
   fetchRoutes,
   fetchRoutesByAgency,
   fetchServiceDays,
@@ -14,6 +16,7 @@ import {
   fetchShiftInfo,
   fetchStopsByTripId,
   fetchTripsByRoute,
+  fetchWeatherTemperatureClusters,
   updateShift,
 } from "../../../api";
 import { resolveUserId, resolveAgencyId } from "../../../api/session";
@@ -1591,10 +1594,54 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       }
 
       await createShift({ name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId });
-      updateFeedback(feedback, t("shifts.shift_created") || "Shift created.", "success");
-      triggerPartialLoad("shifts", {
-        flashMessage: t("shifts.shift_created") || "Shift created.",
-      });
+
+      // Ensure PVGIS TMY + weather clustering data exist for the shift's location
+      let weatherDataWarning = "";
+      try {
+        const pvgisTripId = firstTrip?.id || resolveTripPk(firstTrip);
+        console.debug("[SHIFT][PVGIS] firstTrip:", firstTrip, "resolved trip ID:", pvgisTripId);
+        if (pvgisTripId) {
+          const stops = await fetchStopsByTripId(pvgisTripId);
+          console.debug("[SHIFT][PVGIS] stops for trip:", stops?.length, "first stop:", stops?.[0]);
+          const firstStop = Array.isArray(stops) && stops.length > 0 ? stops[0] : null;
+          if (firstStop?.stop_lat != null && firstStop?.stop_lon != null) {
+            const lat = Math.round(firstStop.stop_lat * 1000) / 1000;
+            const lon = Math.round(firstStop.stop_lon * 1000) / 1000;
+            console.debug("[SHIFT][PVGIS] Rounded coords:", { lat, lon, raw_lat: firstStop.stop_lat, raw_lon: firstStop.stop_lon });
+
+            await fetchPvgisTmy({ latitude: lat, longitude: lon });
+            console.debug("[SHIFT][PVGIS] TMY data ensured for:", { lat, lon });
+
+            const existing = await fetchWeatherTemperatureClusters({ latitude: lat, longitude: lon });
+            if (!existing) {
+              await createWeatherTemperatureClusters({ latitude: lat, longitude: lon });
+              console.debug("[SHIFT][PVGIS] Weather temperature clusters created for:", { lat, lon });
+            } else {
+              console.debug("[SHIFT][PVGIS] Weather temperature clusters already exist for:", { lat, lon });
+            }
+          } else {
+            console.warn("[SHIFT][PVGIS] First stop missing stop_lat/stop_lon:", firstStop);
+          }
+        } else {
+          console.warn("[SHIFT][PVGIS] Could not resolve trip ID from firstTrip:", firstTrip);
+        }
+      } catch (weatherErr) {
+        console.warn("[SHIFT][PVGIS] PVGIS/clustering failed (non-blocking):", weatherErr);
+        weatherDataWarning = weatherErr.message || "Unknown error";
+      }
+
+      if (weatherDataWarning) {
+        const msg =
+          t("shifts.weather_data_warning", { message: weatherDataWarning }) ||
+          `Shift created, but weather data setup failed: ${weatherDataWarning}`;
+        updateFeedback(feedback, msg, "error");
+        triggerPartialLoad("shifts", { flashMessage: msg, flashType: "error" });
+      } else {
+        updateFeedback(feedback, t("shifts.shift_created") || "Shift created.", "success");
+        triggerPartialLoad("shifts", {
+          flashMessage: t("shifts.shift_created") || "Shift created.",
+        });
+      }
     } catch (error) {
       console.error(
         isEditMode ? "Failed to update shift" : "Failed to create shift",

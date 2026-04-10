@@ -7,9 +7,17 @@
   <p class="flash-message" data-role="flash" role="status" aria-live="polite" hidden></p>
   <main class="ya-runs-main">
     <div class="ya-runs-actions">
-      <button type="button" class="ya-new-btn" data-action="new-analysis">+ New yearly analysis</button>
-      <button type="button" data-action="delete-selected">Delete selected</button>
+      <label class="sr-only" for="ya-filter">Filter yearly analyses</label>
+      <input
+        id="ya-filter"
+        class="ya-runs-search"
+        type="search"
+        placeholder="Search yearly analyses"
+      />
+      <button type="button" class="ya-new-btn" data-action="new-analysis">New</button>
+      <button type="button" data-action="delete-selected">Delete</button>
     </div>
+    <p class="ya-loading" data-role="loading" hidden>Loading analyses…</p>
     <div class="ya-runs-table-wrap">
       <table class="ya-runs-table">
         <caption class="sr-only">Yearly analyses</caption>
@@ -17,6 +25,7 @@
           <tr>
             <th class="checkbox"><input type="checkbox" data-role="select-all" aria-label="Select all" /></th>
             <th>Created</th>
+            <th>Name</th>
             <th>Shift(s)</th>
             <th>Mode</th>
             <th>Scenarios</th>

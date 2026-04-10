@@ -300,5 +300,3 @@ export const clearDataCache = () => {
     busesById = null;
     busesByModelId = null;
 };
-
-

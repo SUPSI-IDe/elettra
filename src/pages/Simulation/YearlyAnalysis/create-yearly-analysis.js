@@ -1,11 +1,18 @@
 import "./create-yearly-analysis.css";
+import { t } from "../../../i18n";
 import { fetchBusModels } from "../../../api";
 import {
   createSinglePredictionRun,
   fetchOptimizationRuns,
   fetchPredictionRun,
+  fetchPvgisTmy,
+  fetchWeatherTemperatureClusters,
+  createWeatherTemperatureClusters,
+  createYearlyAnalysis,
+  updateYearlyAnalysis,
 } from "../../../api/simulation";
 import { fetchShiftById } from "../../../api/shifts";
+import { fetchStopsByTripId } from "../../../api/gtfs";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveModelFields } from "../../../ui-helpers";
@@ -14,10 +21,10 @@ import {
   DEFAULT_PREDICTION_QUANTILES,
 } from "../../../config/simulation-defaults";
 import {
-  saveAnalysis,
   computeYearlyTotals,
   MODE_LABELS,
 } from "./yearly-analysis-store";
+import { extractShiftDistanceKm } from "../../../utils/shift-distance";
 
 const text = (v) => (v === null || v === undefined ? "" : String(v));
 
@@ -25,6 +32,23 @@ const toFiniteNumber = (v) => {
   if (v === "" || (typeof v === "string" && v.trim() === "")) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+};
+
+const formatScenarioValue = (value, decimals = 1) => {
+  const numeric = toFiniteNumber(value);
+  return numeric != null ? numeric.toFixed(decimals) : "—";
+};
+
+const temperatureToColor = (temperature, minTemperature, maxTemperature) => {
+  const value = toFiniteNumber(temperature);
+  if (value == null) return "hsl(220 78% 55%)";
+
+  const min = toFiniteNumber(minTemperature);
+  const max = toFiniteNumber(maxTemperature);
+  const ratio = min != null && max != null && max > min ? (value - min) / (max - min) : 0.5;
+  const clamped = Math.max(0, Math.min(1, ratio));
+  const hue = 220 - (220 * clamped);
+  return `hsl(${hue} 78% 55%)`;
 };
 
 // ── Extract info from an optimization run ────────────────────────────
@@ -112,6 +136,19 @@ const runBelongsToCurrentUser = (run, currentUserId, modelsById = {}) => {
   return Boolean(busModelId && modelsById[busModelId]);
 };
 
+const readQuantiles = (summary, candidateKeys) => {
+  const src = candidateKeys.find((k) => {
+    const v = summary?.[k];
+    return v && typeof v === "object" && !Array.isArray(v);
+  });
+  if (!src) return null;
+  const obj = summary[src];
+  const q05 = toFiniteNumber(obj.q05);
+  const q50 = toFiniteNumber(obj.q50);
+  const q95 = toFiniteNumber(obj.q95);
+  return q05 != null || q50 != null || q95 != null ? { q05, q50, q95 } : null;
+};
+
 const extractPredictionOnlyKpis = (predRun) => {
   const s = predRun?.summary ?? {};
   return {
@@ -122,6 +159,16 @@ const extractPredictionOnlyKpis = (predRun) => {
     auxiliaryEnergyKwh: toFiniteNumber(s.total_auxiliary_kwh),
     distanceKm: toFiniteNumber(s.total_distance_km),
     energyPerKm: toFiniteNumber(s.consumption_per_km_kwh),
+    auxiliaryPerKmKwh: toFiniteNumber(s.auxiliary_per_km_kwh),
+    drivetrainPerKmKwh: toFiniteNumber(s.drivetrain_per_km_kwh),
+    quantiles: readQuantiles(s, ["quantiles", "total_quantiles", "consumption_quantiles"]),
+    drivetrainQuantiles: readQuantiles(s, ["drivetrain_quantiles"]),
+    consumptionPerKmQuantiles: readQuantiles(s, [
+      "consumption_per_km_kwh_quantiles",
+      "total_consumption_per_km_kwh_quantiles",
+      "total_per_km_kwh_quantiles",
+    ]),
+    drivetrainPerKmQuantiles: readQuantiles(s, ["drivetrain_per_km_kwh_quantiles"]),
   };
 };
 
@@ -133,17 +180,22 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
 
   const cleanups = [];
   const form = section.querySelector("form");
+  const nameInput = section.querySelector("#ya-analysis-name");
   const baseSelect = section.querySelector('[data-role="base-run-select"]');
   const configSummary = section.querySelector('[data-role="config-summary"]');
   const scenariosTbody = section.querySelector('[data-role="scenarios-body"]');
   const totalOccEl = section.querySelector('[data-role="total-occurrences"]');
   const occWarning = section.querySelector('[data-role="occurrences-warning"]');
+  const occupancySelect = section.querySelector('[data-role="occupancy-select"]');
+  const occupancyNote = section.querySelector('[data-role="occupancy-note"]');
   const feedbackEl = section.querySelector('[data-role="feedback"]');
   const progressOverlay = section.querySelector('[data-role="simulation-progress"]');
   const progressMsg = section.querySelector('[data-role="progress-message"]');
 
   let feasibleRuns = [];
   let resolvedNames = {};
+  const shiftMap = new Map();
+  let scenarioRows = [];
 
   const setFeedback = (msg, tone = "error") => {
     if (!feedbackEl) return;
@@ -156,25 +208,160 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
   // ── Scenarios tracking ──────────────────────────────────────────
 
   const updateTotalOcc = () => {
-    let total = 0;
-    (scenariosTbody?.querySelectorAll("tr") ?? []).forEach((row) => {
-      total += Math.max(0, Number(row.querySelector('[data-field="occurrences"]')?.value) || 0);
-    });
+    const total = scenarioRows.reduce(
+      (sum, row) => sum + Math.max(0, Number(row?.occurrences) || 0),
+      0
+    );
     if (totalOccEl) { totalOccEl.textContent = String(total); totalOccEl.classList.toggle("ya-total-warn", total !== 365); }
     if (occWarning) occWarning.hidden = total === 365;
   };
 
   const readScenarios = () =>
-    [...(scenariosTbody?.querySelectorAll("tr") ?? [])].map((row) => ({
-      label: row.querySelector('[data-field="label"]')?.value?.trim() || "",
-      temperature: Number(row.querySelector('[data-field="temperature"]')?.value ?? 0),
-      occurrences: Math.max(0, Number(row.querySelector('[data-field="occurrences"]')?.value ?? 0)),
+    scenarioRows.map((row) => ({
+      label: text(row?.label).trim(),
+      temperature: Number(row?.temperature ?? 0),
+      occurrences: Math.max(0, Number(row?.occurrences ?? 0)),
     }));
 
-  if (scenariosTbody) { scenariosTbody.addEventListener("input", updateTotalOcc); cleanups.push(() => scenariosTbody.removeEventListener("input", updateTotalOcc)); }
+  const renderScenariosPlaceholder = (msg) => {
+    if (!scenariosTbody) return;
+    scenarioRows = [];
+    scenariosTbody.innerHTML = `<tr><td colspan="3" class="ya-scenarios-placeholder">${textContent(msg)}</td></tr>`;
+    updateTotalOcc();
+  };
+
+  const renderClusterScenarios = (clusters) => {
+    if (!scenariosTbody || !Array.isArray(clusters) || !clusters.length) return;
+    scenarioRows = [...clusters]
+      .sort((a, b) => a.temperature - b.temperature)
+      .map((cluster, index) => ({
+        label: text(cluster.label || `Cluster ${index + 1}`).trim(),
+        temperature: Number.isFinite(cluster.temperature) ? cluster.temperature : 0,
+        occurrences: Number.isFinite(cluster.occurrences) ? cluster.occurrences : 0,
+      }));
+    const temperatures = scenarioRows.map((scenario) => scenario.temperature);
+    const minTemperature = temperatures.length ? Math.min(...temperatures) : null;
+    const maxTemperature = temperatures.length ? Math.max(...temperatures) : null;
+
+    scenariosTbody.innerHTML = scenarioRows.map((scenario) => {
+      const temperatureColor = temperatureToColor(scenario.temperature, minTemperature, maxTemperature);
+      return `<tr>
+        <td class="ya-scenarios-color-cell">
+          <span
+            class="ya-scenarios-swatch"
+            style="background-color: ${temperatureColor};"
+            title="${textContent(`${formatScenarioValue(scenario.temperature, 1)} °C`)}"
+            aria-label="${textContent(`${formatScenarioValue(scenario.temperature, 1)} degrees Celsius`)}"
+          ></span>
+        </td>
+        <td class="ya-scenarios-number">${formatScenarioValue(scenario.temperature, 1)}</td>
+        <td class="ya-scenarios-number">${formatScenarioValue(scenario.occurrences, 0)}</td>
+      </tr>`;
+    }).join("");
+    updateTotalOcc();
+  };
+
+  const parseClusters = (payload) => {
+    if (!payload) return [];
+    const raw = payload.clusters ?? (Array.isArray(payload) ? payload : []);
+    if (!Array.isArray(raw)) return [];
+    return raw.map((c, i) => {
+      const temp = toFiniteNumber(c.centroid_daily_avg_temp ?? c.centroid ?? c.centroid_temperature ?? c.temperature);
+      const occ = toFiniteNumber(c.occurrences ?? c.count ?? c.n_days);
+      return {
+        label: text(c.label || c.name || `Cluster ${i + 1}`),
+        temperature: temp != null ? Math.round(temp * 10) / 10 : 0,
+        occurrences: occ != null ? Math.round(occ) : 0,
+      };
+    });
+  };
+
+  const getShiftTripIds = (shift) => {
+    const direct = shift?.trip_ids ?? shift?.tripIds ?? [];
+    if (Array.isArray(direct) && direct.length) return direct.filter(Boolean);
+    const structure = Array.isArray(shift?.structure) ? shift.structure : [];
+    return structure.map((item) => item?.trip_id).filter(Boolean);
+  };
+
+  const resolveShiftLocation = async (shiftIds, shiftMapLocal) => {
+    for (const sid of shiftIds) {
+      const shift = shiftMapLocal.get(sid);
+      if (!shift) continue;
+      const tripIds = getShiftTripIds(shift);
+      if (!tripIds.length) continue;
+      try {
+        const stops = await fetchStopsByTripId(tripIds[0]);
+        const first = Array.isArray(stops) && stops.length ? stops[0] : null;
+        if (first?.stop_lat != null && first?.stop_lon != null) {
+          return {
+            lat: Math.round(first.stop_lat * 100) / 100,
+            lon: Math.round(first.stop_lon * 100) / 100,
+          };
+        }
+      } catch { /* skip */ }
+    }
+    return null;
+  };
+
+  const loadClustersForRun = async (run) => {
+    const sids = resolveShiftIds(run);
+    if (!sids.length) {
+      renderScenariosPlaceholder("Feasibility evaluation has no shifts — cannot load clusters.");
+      return;
+    }
+    renderScenariosPlaceholder("Loading temperature clusters…");
+    try {
+      const loc = await resolveShiftLocation(sids, shiftMap);
+      if (!loc) {
+        renderScenariosPlaceholder("Could not determine shift location.");
+        return;
+      }
+      let payload = await fetchWeatherTemperatureClusters({ latitude: loc.lat, longitude: loc.lon });
+
+      if (!payload) {
+        renderScenariosPlaceholder("Creating temperature clusters for this location…");
+        await fetchPvgisTmy({ latitude: loc.lat, longitude: loc.lon });
+        await createWeatherTemperatureClusters({ latitude: loc.lat, longitude: loc.lon });
+        payload = await fetchWeatherTemperatureClusters({ latitude: loc.lat, longitude: loc.lon });
+      }
+
+      if (!payload) {
+        renderScenariosPlaceholder("No weather cluster data available for this location.");
+        return;
+      }
+      const clusters = parseClusters(payload);
+      if (!clusters.length) {
+        renderScenariosPlaceholder("No clusters returned for this location.");
+        return;
+      }
+      renderClusterScenarios(clusters);
+    } catch (err) {
+      renderScenariosPlaceholder(`Failed to load clusters: ${err?.message ?? "Unknown error"}`);
+    }
+  };
+
   updateTotalOcc();
 
   // ── Base run selection ──────────────────────────────────────────
+
+  const setOccupancyFromRun = (run) => {
+    if (!occupancySelect) return;
+    const id = text(run?.id);
+    const meta = resolvedNames[id] ?? {};
+    const feasOcc = toFiniteNumber(meta.predParams?.occupancy_percent) ?? 50;
+
+    const matchOption = [...occupancySelect.options].find((o) => Number(o.value) === feasOcc);
+    if (matchOption) {
+      occupancySelect.value = matchOption.value;
+    } else {
+      occupancySelect.value = "50";
+    }
+
+    if (occupancyNote) {
+      occupancyNote.textContent = `Default from feasibility evaluation: ${feasOcc}%. You can choose a more realistic value for the yearly analysis.`;
+      occupancyNote.hidden = false;
+    }
+  };
 
   const renderConfigSummary = (run) => {
     if (!configSummary || !run) { if (configSummary) configSummary.hidden = true; return; }
@@ -201,12 +388,19 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       param("Capacity", kwh != null ? `${Math.round(kwh)} kWh` : "—", true),
     ].join("");
     configSummary.hidden = false;
+
+    setOccupancyFromRun(run);
   };
 
   const handleRunChange = () => {
     const id = baseSelect?.value ?? "";
     const run = feasibleRuns.find((r) => text(r.id) === id);
     renderConfigSummary(run ?? null);
+    if (run) {
+      loadClustersForRun(run);
+    } else {
+      renderScenariosPlaceholder("Select a feasibility evaluation to load temperature scenarios.");
+    }
   };
 
   if (baseSelect) { baseSelect.addEventListener("change", handleRunChange); cleanups.push(() => baseSelect.removeEventListener("change", handleRunChange)); }
@@ -223,35 +417,45 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     e.preventDefault();
     setFeedback("");
 
+    const analysisName = text(nameInput?.value).trim();
+    if (!analysisName) { alert("Please enter a name for the yearly analysis."); nameInput?.focus(); return; }
+
     const runId = baseSelect?.value ?? "";
     const baseRun = feasibleRuns.find((r) => text(r.id) === runId);
-    if (!baseRun) { setFeedback("Select a base simulation."); return; }
+    if (!baseRun) { alert("Please select a feasibility evaluation."); baseSelect?.focus(); return; }
 
     const ip = baseRun.input_params ?? {};
     const shiftIds = resolveShiftIds(baseRun);
-    if (!shiftIds.length) { setFeedback("Base simulation has no shift IDs."); return; }
+    if (!shiftIds.length) { alert("The selected feasibility evaluation has no shift IDs."); return; }
 
     const busModelId = text(ip.bus_model_id ?? "").trim();
-    if (!busModelId) { setFeedback("Base simulation has no bus model."); return; }
+    if (!busModelId) { alert("The selected feasibility evaluation has no bus model."); return; }
 
     const optimizedPacks = resolveOptimizedPacks(baseRun.results?.battery_results ?? {});
-    if (optimizedPacks == null) { setFeedback("Could not determine the optimized pack count from the base simulation."); return; }
+    if (optimizedPacks == null) { alert("Could not determine the optimized pack count from the feasibility evaluation."); return; }
 
     const scenarios = readScenarios();
     for (let i = 0; i < scenarios.length; i++) {
       const sc = scenarios[i];
-      if (!sc.label) { setFeedback(`Scenario ${i + 1}: label is required.`); return; }
-      if (!Number.isFinite(sc.temperature)) { setFeedback(`Scenario ${i + 1}: invalid temperature.`); return; }
-      if (sc.occurrences < 0) { setFeedback(`Scenario ${i + 1}: occurrences cannot be negative.`); return; }
+      if (!sc.label) { alert(`Scenario ${i + 1}: label is required.`); return; }
+      if (!Number.isFinite(sc.temperature)) { alert(`Scenario ${i + 1}: invalid temperature.`); return; }
+      if (sc.occurrences < 0) { alert(`Scenario ${i + 1}: occurrences cannot be negative.`); return; }
     }
     const totalOcc = scenarios.reduce((s, sc) => s + sc.occurrences, 0);
-    if (totalOcc === 0) { setFeedback("Total occurrences cannot be zero."); return; }
+    if (totalOcc === 0) { alert("Total occurrences cannot be zero."); return; }
 
-    const meta = resolvedNames[text(baseRun.id)] ?? {};
-    const pp = meta.predParams ?? {};
+    const confirmMessage =
+      t("yearly_analysis.run_confirm") ||
+      "Do you want to run this yearly analysis?";
+    if (!confirm(confirmMessage)) return;
+
+    const chosenOccupancy = toFiniteNumber(occupancySelect?.value) ?? 50;
+
+    const saveMeta = resolvedNames[text(baseRun.id)] ?? {};
+    const pp = saveMeta.predParams ?? {};
     const basePredParams = {
       model_name: pp.model_name || DEFAULT_PREDICTION_MODEL_NAME,
-      occupancy_percent: pp.occupancy_percent ?? 50,
+      occupancy_percent: chosenOccupancy,
       auxiliary_heating_type: pp.auxiliary_heating_type || "default",
       quantiles: Array.isArray(pp.quantiles) && pp.quantiles.length ? pp.quantiles : DEFAULT_PREDICTION_QUANTILES,
     };
@@ -259,39 +463,9 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     const submitBtn = form?.querySelector('[type="submit"]');
     if (submitBtn) submitBtn.disabled = true;
 
-    const scenarioResults = [];
-
     try {
-      for (let i = 0; i < scenarios.length; i++) {
-        const sc = scenarios[i];
-        showProgress(`Prediction ${i + 1}/${scenarios.length}: ${sc.label} (${sc.temperature} °C) — ${optimizedPacks} packs…`);
-
-        try {
-          const predRuns = await createSinglePredictionRun({
-            shift_ids: shiftIds,
-            bus_model_id: busModelId,
-            prediction_params: { ...basePredParams, external_temp_celsius: sc.temperature },
-            num_battery_packs: optimizedPacks,
-          });
-          const predRun = predRuns[0] ?? null;
-          const kpis = extractPredictionOnlyKpis(predRun);
-          scenarioResults.push({ ...sc, kpis, error: null });
-        } catch (err) {
-          scenarioResults.push({ ...sc, kpis: null, error: err?.message ?? "Prediction failed" });
-        }
-      }
-
-      hideProgress();
-
-      const saveMeta = resolvedNames[text(baseRun.id)] ?? {};
-      const yearlyTotals = computeYearlyTotals(scenarioResults);
-
-      const analysis = saveAnalysis({
-        status: scenarioResults.every((sr) => !sr.error)
-          ? "completed"
-          : scenarioResults.every((sr) => sr.error)
-            ? "failed"
-            : "partial",
+      // 1) Build analysis metadata
+      const features = {
         config: {
           shift_ids: shiftIds,
           bus_model_id: busModelId,
@@ -302,22 +476,84 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
           auxiliary_heating_type: basePredParams.auxiliary_heating_type,
         },
         scenarios,
-        results: {
-          scenarioResults,
-          yearlyTotals,
-          baseOptimizationRunId: text(baseRun.id),
-          optimizedPacks,
-          baseFeasible: resolveElectrificationFeasible(baseRun),
-        },
         meta: {
           shiftNames: saveMeta.shiftNames ?? [],
           busModelName: saveMeta.modelLabel ?? busModelId,
           modeLabel: MODE_LABELS[ip.mode] ?? ip.mode ?? "—",
           sizingTemp: saveMeta.sizingTemp,
         },
+      };
+
+      // 2) Create the yearly analysis record on the backend FIRST
+      showProgress("Creating yearly analysis…");
+      const analysis = await createYearlyAnalysis({
+        name: analysisName,
+        optimization_run_id: text(baseRun.id) || null,
+        features,
       });
 
-      triggerPartialLoad("yearly-analysis-results", { analysisId: analysis.id });
+      const analysisId = text(analysis.id);
+
+      // 3) Run prediction runs, linked to the analysis via yearly_analysis_id
+      const scenarioResults = [];
+
+      for (let i = 0; i < scenarios.length; i++) {
+        const sc = scenarios[i];
+        showProgress(`Prediction ${i + 1}/${scenarios.length}: ${sc.label} (${sc.temperature} °C) — ${optimizedPacks} packs…`);
+
+        try {
+          const predRuns = await createSinglePredictionRun({
+            shift_ids: shiftIds,
+            bus_model_id: busModelId,
+            prediction_params: { ...basePredParams, external_temp_celsius: sc.temperature },
+            num_battery_packs: optimizedPacks,
+            yearly_analysis_id: analysisId,
+          });
+          const predRun = predRuns[0] ?? null;
+          const kpis = extractPredictionOnlyKpis(predRun);
+          const predRunId = predRun?.id ?? null;
+          scenarioResults.push({ ...sc, kpis, predRunId, error: null });
+        } catch (err) {
+          scenarioResults.push({ ...sc, kpis: null, error: err?.message ?? "Prediction failed" });
+        }
+      }
+
+      hideProgress();
+
+      // 4) Resolve nominal shift distance (reference/planned distance)
+      let nominalDailyDistanceKm = null;
+      for (const sid of shiftIds) {
+        const shift = shiftMap.get(sid);
+        if (shift) {
+          const d = extractShiftDistanceKm(shift);
+          if (d != null) { nominalDailyDistanceKm = (nominalDailyDistanceKm ?? 0) + d; }
+        }
+      }
+
+      // 5) Update the analysis with computed results
+      const yearlyTotals = computeYearlyTotals(scenarioResults);
+      const status = scenarioResults.every((sr) => !sr.error)
+        ? "completed"
+        : scenarioResults.every((sr) => sr.error)
+          ? "failed"
+          : "partial";
+
+      await updateYearlyAnalysis(analysisId, {
+        features: {
+          ...features,
+          results: {
+            scenarioResults,
+            yearlyTotals,
+            baseOptimizationRunId: text(baseRun.id),
+            optimizedPacks,
+            baseFeasible: resolveElectrificationFeasible(baseRun),
+            nominalDailyDistanceKm,
+          },
+          status,
+        },
+      });
+
+      triggerPartialLoad("yearly-analysis-results", { analysisId });
     } catch (err) {
       hideProgress();
       setFeedback(err?.message ?? "Yearly analysis failed.");
@@ -358,7 +594,6 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       // Resolve shift names (batch-fetch unique shift IDs)
       const shiftIdSet = new Set();
       for (const run of feasibleRuns) resolveShiftIds(run).forEach((id) => shiftIdSet.add(id));
-      const shiftMap = new Map();
       const shiftFetches = [...shiftIdSet].map(async (id) => {
         try { const s = await fetchShiftById(id); shiftMap.set(id, s); } catch { /* skip */ }
       });
@@ -404,12 +639,12 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         if (!feasibleRuns.length) {
           const o = document.createElement("option");
           o.value = ""; o.disabled = true; o.selected = true;
-          o.textContent = "No feasible simulations found";
+          o.textContent = "No feasible evaluations found";
           baseSelect.appendChild(o);
         } else {
           const placeholder = document.createElement("option");
           placeholder.value = ""; placeholder.disabled = true; placeholder.selected = true;
-          placeholder.textContent = "Select a simulation…";
+          placeholder.textContent = "Select a feasibility evaluation…";
           baseSelect.appendChild(placeholder);
 
           for (const run of feasibleRuns) {

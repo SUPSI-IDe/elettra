@@ -20,6 +20,7 @@ import { initializeAbout } from "./pages/About/about";
 import { initializeSettings } from "./pages/Account/settings";
 import { applyTranslations, getCurrentLang, I18N_CHANGE_EVENT } from "./i18n";
 import { isAuthenticated } from "./api/session";
+import { consumeWindowRouteState, normalizeRouteOptions } from "./events";
 
 const partials = import.meta.glob("./pages/**/*.html", {
   query: "?raw",
@@ -32,14 +33,7 @@ const isProtectedPartial = (slug) => Boolean(slug) && !PUBLIC_PARTIALS.has(slug)
 
 const buildHash = (slug, options = {}) => {
   if (!slug) return "";
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(options)) {
-    if (value != null && typeof value !== "function" && typeof value !== "object") {
-      params.set(key, value);
-    }
-  }
-  const qs = params.toString();
-  return qs ? `${slug}?${qs}` : slug;
+  return slug;
 };
 
 const parseHash = () => {
@@ -157,7 +151,7 @@ export const initializeNavigation = (root = document) => {
         cleanup = await initializeBuses(target, options);
         break;
       case "add-bus-model":
-        cleanup = initializeAddBusModel(target, options);
+        cleanup = await initializeAddBusModel(target, options);
         break;
       case "shifts":
         cleanup = await initializeShifts(target, options);
@@ -196,7 +190,7 @@ export const initializeNavigation = (root = document) => {
         cleanup = initializeYearlyAnalysisRuns(target, options);
         break;
       case "yearly-analysis-results":
-        cleanup = initializeYearlyAnalysisResults(target, options);
+        cleanup = await initializeYearlyAnalysisResults(target, options);
         break;
       case "about":
         cleanup = initializeAbout(target, options);
@@ -211,18 +205,19 @@ export const initializeNavigation = (root = document) => {
   const loadAndInitialize = (slug, options = {}, loaderOptions = {}) => {
     const resolvedSlug =
       isProtectedPartial(slug) && !isAuthenticated() ? "login" : slug;
+    const routeOptions = normalizeRouteOptions(options);
 
-    currentRoute = { slug: resolvedSlug, options };
+    currentRoute = { slug: resolvedSlug, options: routeOptions };
 
     const hashAction = loaderOptions.hashAction ?? "push";
     if (hashAction !== "none") {
-      const hash = buildHash(resolvedSlug, options);
+      const hash = buildHash(resolvedSlug, routeOptions);
       const method = hashAction === "replace" ? "replaceState" : "pushState";
-      history[method](null, "", `#${hash}`);
+      history[method]({ route: { slug: resolvedSlug, options: routeOptions } }, "", `#${hash}`);
     }
 
     return loadPartial(resolvedSlug, loaderOptions).then(() =>
-      initializePartial(resolvedSlug, container, options)
+      initializePartial(resolvedSlug, container, routeOptions)
     );
   };
 
@@ -262,12 +257,19 @@ export const initializeNavigation = (root = document) => {
   const authenticated = isAuthenticated();
   updateNavVisibility();
 
+  const fromHistory = history.state?.route?.slug
+    ? {
+        slug: history.state.route.slug,
+        options: normalizeRouteOptions(history.state.route.options ?? {}),
+      }
+    : null;
   const fromHash = parseHash();
+  const fromWindow = fromHash?.slug ? consumeWindowRouteState(fromHash.slug) : null;
   const defaultSlug = authenticated
     ? slugFrom(nav.querySelector("a[data-partial]"))
     : "login";
-  const initialSlug = fromHash?.slug || defaultSlug;
-  const initialOptions = fromHash?.options || {};
+  const initialSlug = fromHistory?.slug || fromHash?.slug || defaultSlug;
+  const initialOptions = fromHistory?.options || fromWindow || fromHash?.options || {};
   loadAndInitialize(initialSlug, initialOptions, { hashAction: "replace" });
 
   document.addEventListener("partial:request", (event) => {
@@ -283,11 +285,21 @@ export const initializeNavigation = (root = document) => {
     loadAndInitialize(slug, options);
   });
 
-  window.addEventListener("popstate", () => {
+  window.addEventListener("popstate", (event) => {
+    const fromHistoryState = event.state?.route?.slug
+      ? {
+          slug: event.state.route.slug,
+          options: normalizeRouteOptions(event.state.route.options ?? {}),
+        }
+      : null;
     const fromHash = parseHash();
-    if (fromHash?.slug) {
+    const windowRoute = fromHash?.slug ? consumeWindowRouteState(fromHash.slug) : null;
+    const targetRoute = fromHistoryState || (fromHash?.slug
+      ? { slug: fromHash.slug, options: windowRoute || fromHash.options || {} }
+      : null);
+    if (targetRoute?.slug) {
       updateNavVisibility();
-      loadAndInitialize(fromHash.slug, fromHash.options, { hashAction: "none" });
+      loadAndInitialize(targetRoute.slug, targetRoute.options, { hashAction: "none" });
     }
   });
 

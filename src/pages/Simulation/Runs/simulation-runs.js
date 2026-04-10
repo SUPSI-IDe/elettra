@@ -727,6 +727,7 @@ export const initializeSimulationRuns = async (
   const duplicateButton = section.querySelector(
     '[data-action="duplicate-simulation"]'
   );
+  const newButton = section.querySelector('[data-action="new-simulation"]');
   setFlashMessage(section, options.flashMessage ?? "");
   updateMainParametersTooltip(section);
 
@@ -909,6 +910,16 @@ export const initializeSimulationRuns = async (
     searchInput.addEventListener("input", applyFilter);
     cleanupHandlers.push(() =>
       searchInput.removeEventListener("input", applyFilter)
+    );
+  }
+
+  const handleNewSimulationClick = () => {
+    triggerPartialLoad("add-simulation");
+  };
+  if (newButton) {
+    newButton.addEventListener("click", handleNewSimulationClick);
+    cleanupHandlers.push(() =>
+      newButton.removeEventListener("click", handleNewSimulationClick)
     );
   }
 

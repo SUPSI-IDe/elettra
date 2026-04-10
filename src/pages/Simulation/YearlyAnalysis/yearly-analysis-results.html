@@ -14,6 +14,173 @@
   </header>
   <main class="ya-results-main">
     <p class="form-feedback" data-role="feedback" hidden></p>
-    <div data-role="results-content"></div>
+
+    <!-- Tabs -->
+    <div class="ya-tabs" role="tablist">
+      <button class="ya-tab active" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+      <button class="ya-tab" role="tab" aria-selected="false" data-tab="efficiency">Efficiency</button>
+      <button class="ya-tab" role="tab" aria-selected="false" data-tab="costs">Costs</button>
+      <button class="ya-tab" role="tab" aria-selected="false" data-tab="emissions">Emissions</button>
+    </div>
+
+    <!-- Tab panels -->
+    <div class="ya-tab-panels">
+      <div class="ya-tab-panel active" data-panel="overview" role="tabpanel">
+        <div data-role="overview-panel"></div>
+      </div>
+
+      <div class="ya-tab-panel" data-panel="efficiency" role="tabpanel" hidden>
+        <div data-role="efficiency-content"></div>
+
+        <!-- D3 chart slots (appended to, not via innerHTML) -->
+        <div class="ya-eff-charts-grid">
+          <div class="ya-res-section ya-eff-chart-section">
+            <h3 class="ya-res-section-title">Scenario efficiency by temperature</h3>
+            <div class="ya-chart-container" data-role="ya-eff-chart-1"></div>
+            <div class="ya-chart-legend" data-role="ya-eff-chart-1-legend"></div>
+          </div>
+          <div class="ya-res-section ya-eff-chart-section">
+            <h3 class="ya-res-section-title">Annual energy contribution by temperature scenario</h3>
+            <div class="ya-chart-container" data-role="ya-eff-chart-2"></div>
+            <div class="ya-chart-legend" data-role="ya-eff-chart-2-legend"></div>
+          </div>
+        </div>
+
+        <div data-role="efficiency-scenario-table"></div>
+      </div>
+
+      <div class="ya-tab-panel ya-costs-panel" data-panel="costs" role="tabpanel" hidden>
+        <!-- Left column: KPIs + sliders -->
+        <div class="ya-costs-stack ya-costs-stack--inputs">
+          <div class="ya-res-section ya-costs-kpis-section">
+            <h3 class="ya-res-section-title">Key financial metrics</h3>
+            <div class="ya-costs-kpi-grid" data-role="ya-costs-kpis"></div>
+          </div>
+          <div class="ya-res-section ya-cost-variables">
+            <div class="ya-cost-variables__grid">
+              <div class="ya-cost-variables__field">
+                <div class="ya-cost-variables__field-top">
+                  <span>Diesel cost (CHF / liter)</span>
+                  <output class="ya-cost-variables__value" data-role="ya-var-fuel-cost-value"></output>
+                </div>
+                <input class="ya-cost-variables__range" type="range" min="1" max="3" step="0.01" data-role="ya-var-fuel-cost" />
+                <div class="ya-cost-variables__range-scale"><span>1.00</span><span>3.00</span></div>
+                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-fuel-cost-reset">Reset</button></div>
+              </div>
+              <div class="ya-cost-variables__field">
+                <div class="ya-cost-variables__field-top">
+                  <span data-role="ya-var-diesel-maint-label">Diesel maintenance (CHF / km)</span>
+                  <output class="ya-cost-variables__value" data-role="ya-var-diesel-maint-value"></output>
+                </div>
+                <input class="ya-cost-variables__range" type="range" min="0.05" max="0.50" step="0.01" data-role="ya-var-diesel-maint" />
+                <div class="ya-cost-variables__range-scale"><span>0.05</span><span>0.50</span></div>
+                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-diesel-maint-reset">Reset</button></div>
+              </div>
+              <div class="ya-cost-variables__field">
+                <div class="ya-cost-variables__field-top">
+                  <span>Energy tariff (CHF / kWh)</span>
+                  <output class="ya-cost-variables__value" data-role="ya-var-energy-price-value"></output>
+                </div>
+                <input class="ya-cost-variables__range" type="range" min="0.05" max="0.60" step="0.01" data-role="ya-var-energy-price" />
+                <div class="ya-cost-variables__range-scale"><span>0.05</span><span>0.60</span></div>
+                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-energy-price-reset">Reset</button></div>
+              </div>
+              <div class="ya-cost-variables__field">
+                <div class="ya-cost-variables__field-top">
+                  <span data-role="ya-var-elec-maint-label">Electric maintenance (CHF / km)</span>
+                  <output class="ya-cost-variables__value" data-role="ya-var-elec-maint-value"></output>
+                </div>
+                <input class="ya-cost-variables__range" type="range" min="0.05" max="0.50" step="0.01" data-role="ya-var-elec-maint" />
+                <div class="ya-cost-variables__range-scale"><span>0.05</span><span>0.50</span></div>
+                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-elec-maint-reset">Reset</button></div>
+              </div>
+              <div class="ya-cost-variables__field">
+                <div class="ya-cost-variables__field-top">
+                  <span>Interest rate (%)</span>
+                  <output class="ya-cost-variables__value" data-role="ya-var-interest-value"></output>
+                </div>
+                <input class="ya-cost-variables__range" type="range" min="0.02" max="0.10" step="0.005" data-role="ya-var-interest" />
+                <div class="ya-cost-variables__range-scale"><span>2%</span><span>10%</span></div>
+                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-interest-reset">Reset</button></div>
+              </div>
+              <div class="ya-cost-variables__field">
+                <div class="ya-cost-variables__field-top">
+                  <span data-role="ya-var-diesel-eff-label">Diesel efficiency (l / km)</span>
+                  <output class="ya-cost-variables__value" data-role="ya-var-diesel-eff-value"></output>
+                </div>
+                <input class="ya-cost-variables__range" type="range" min="0.15" max="0.80" step="0.01" data-role="ya-var-diesel-eff" />
+                <div class="ya-cost-variables__range-scale"><span>0.15</span><span>0.80</span></div>
+                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-diesel-eff-reset">Reset</button></div>
+              </div>
+              <div class="ya-cost-variables__field">
+                <div class="ya-cost-variables__field-top">
+                  <span>Equivalent diesel bus (CHF)</span>
+                  <output class="ya-cost-variables__value" data-role="ya-var-diesel-capex-value"></output>
+                </div>
+                <input class="ya-cost-variables__range" type="range" min="200000" max="700000" step="10000" data-role="ya-var-diesel-capex" />
+                <div class="ya-cost-variables__range-scale"><span>200k</span><span>700k</span></div>
+                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-diesel-capex-reset">Reset</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Right column: charts -->
+        <div class="ya-costs-stack ya-costs-stack--charts">
+          <div class="ya-res-section ya-costs-bar-section">
+            <h3 class="ya-res-section-title">Annual cost comparison</h3>
+            <div class="ya-chart-container" data-role="ya-costs-bar-chart"></div>
+            <div class="ya-chart-legend" data-role="ya-costs-bar-legend"></div>
+          </div>
+          <div class="ya-res-section ya-costs-line-section">
+            <h3 class="ya-res-section-title">Projected cost trend</h3>
+            <div class="ya-chart-container" data-role="ya-costs-line-chart"></div>
+            <div class="ya-chart-legend" data-role="ya-costs-line-legend"></div>
+          </div>
+        </div>
+        <!-- Full-width: individual OPEX breakdowns + tables -->
+        <div class="ya-costs-opex-pair">
+          <div data-role="ya-costs-electric-opex"></div>
+          <div data-role="ya-costs-diesel-opex"></div>
+        </div>
+        <div data-role="ya-costs-opex-tables"></div>
+        <div data-role="ya-costs-scenario-table"></div>
+      </div>
+
+      <div class="ya-tab-panel ya-env-panel" data-panel="emissions" role="tabpanel" hidden>
+        <div data-role="emissions-content">
+          <!-- JS-rendered: header note + KPI cards -->
+          <div data-role="ya-env-kpis"></div>
+
+          <!-- Comparison table -->
+          <div data-role="ya-env-table"></div>
+
+          <!-- Chart grid: 3 charts -->
+          <div class="ya-env-chart-grid">
+            <div class="ya-res-section ya-env-chart-section ya-env-chart-section--prominent">
+              <h3 class="ya-res-section-title">Emissions saved</h3>
+              <div class="ya-chart-container" data-role="ya-env-histogram"></div>
+              <div class="ya-chart-legend" data-role="ya-env-histogram-legend"></div>
+            </div>
+            <div class="ya-res-section ya-env-chart-section">
+              <h3 class="ya-res-section-title">CO₂ lifecycle breakdown</h3>
+              <div class="ya-chart-container" data-role="ya-env-co2-phase"></div>
+              <div class="ya-chart-legend" data-role="ya-env-co2-phase-legend"></div>
+            </div>
+            <div class="ya-res-section ya-env-chart-section">
+              <h3 class="ya-res-section-title">Primary energy</h3>
+              <div class="ya-chart-container" data-role="ya-env-primary-energy"></div>
+              <div class="ya-chart-legend" data-role="ya-env-primary-energy-legend"></div>
+            </div>
+          </div>
+
+          <!-- Methodology note -->
+          <div data-role="ya-env-methodology"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ya-results-actions">
+      <button type="button" class="ya-btn-close" data-action="back">Close</button>
+    </div>
   </main>
 </section>

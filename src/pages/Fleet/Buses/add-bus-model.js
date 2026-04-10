@@ -219,7 +219,7 @@ const setupAutocomplete = ({
 
 /* ── Main initializer ───────────────────────────────────── */
 
-export const initializeAddBusModel = (root = document, options = {}) => {
+export const initializeAddBusModel = async (root = document, options = {}) => {
   const section = root.querySelector("section.add-bus-model");
   if (!section) {
     return null;
@@ -233,8 +233,17 @@ export const initializeAddBusModel = (root = document, options = {}) => {
     return null;
   }
 
-  const isEditMode = !!options.busModel;
-  const currentModel = options.busModel || {};
+  let currentModel = options.busModel || {};
+  if (!currentModel?.id && options.busModelId) {
+    try {
+      currentModel = await fetchBusModelById(options.busModelId);
+    } catch (error) {
+      console.error("Failed to load bus model for editing:", error);
+      currentModel = {};
+    }
+  }
+
+  const isEditMode = !!currentModel?.id;
 
   const feedback = form.querySelector('[data-role="feedback"]');
   const cancelButton = form.querySelector('[data-action="cancel"]');

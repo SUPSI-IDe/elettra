@@ -8,6 +8,7 @@ import {
 } from "../config/simulation-defaults";
 
 const SIMULATION_PATH = `${API_ROOT}/api/v1/simulation`;
+const YEARLY_ANALYSIS_PATH = `${API_ROOT}/api/v1/yearly-analysis`;
 const ECONOMIC_PATH = `${API_ROOT}/api/v1/economic`;
 
 const text = (value) =>
@@ -218,6 +219,7 @@ export const createSinglePredictionRun = async ({
   bus_model_id,
   prediction_params = {},
   num_battery_packs,
+  yearly_analysis_id = undefined,
 }) => {
   const busModel = await fetchBusModelById(bus_model_id);
   const specs = parseSpecs(busModel?.specs);
@@ -252,6 +254,7 @@ export const createSinglePredictionRun = async ({
     quantiles,
     num_battery_packs,
     contextual_parameters: contextualParameters,
+    yearly_analysis_id,
   });
 
   const ids = extractPredictionRunIds(payload);
@@ -276,6 +279,7 @@ export const createPredictionRuns = async ({
   quantiles,
   num_battery_packs,
   contextual_parameters,
+  yearly_analysis_id = undefined,
 } = {}) => {
   if (!Array.isArray(shift_ids) || !shift_ids.length) {
     throw new Error("At least one shift is required.");
@@ -303,6 +307,10 @@ export const createPredictionRuns = async ({
     body.contextual_parameters = contextual_parameters;
   }
 
+  if (yearly_analysis_id) {
+    body.yearly_analysis_id = yearly_analysis_id;
+  }
+
   const response = await fetch(`${SIMULATION_PATH}/prediction-runs/`, {
     method: "POST",
     headers,
@@ -319,12 +327,15 @@ export const createPredictionRuns = async ({
   return payload;
 };
 
-export const fetchPredictionRuns = async () => {
+export const fetchPredictionRuns = async ({ yearly_analysis_id } = {}) => {
   const headers = authHeaders();
-  const response = await fetch(`${SIMULATION_PATH}/prediction-runs/`, {
-    method: "GET",
-    headers,
-  });
+  const params = new URLSearchParams();
+  if (yearly_analysis_id) params.set("yearly_analysis_id", yearly_analysis_id);
+  const qs = params.toString();
+  const url = qs
+    ? `${SIMULATION_PATH}/prediction-runs/?${qs}`
+    : `${SIMULATION_PATH}/prediction-runs/`;
+  const response = await fetch(url, { method: "GET", headers });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
@@ -352,6 +363,30 @@ export const fetchPredictionRun = async (runId) => {
     throw new Error(typeof message === "string" ? message : JSON.stringify(message));
   }
   return payload;
+};
+
+export const deletePredictionRun = async (runId) => {
+  if (!runId) throw new Error("Missing prediction run ID.");
+  const headers = authHeaders();
+  const response = await fetch(
+    `${SIMULATION_PATH}/prediction-runs/${encodeURIComponent(runId)}`,
+    { method: "DELETE", headers },
+  );
+  if (response.status === 204 || response.status === 200) {
+    return { deleted: true };
+  }
+  if (response.status === 405) {
+    return { deleted: false, reason: "not_supported" };
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to delete prediction run.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return { deleted: true };
 };
 
 export const fetchPredictionRunPredictions = async (runId) => {
@@ -579,6 +614,106 @@ export const waitForOptimizationCompletion = async (runId) => {
 
 // ── Trip Statistics ──────────────────────────────────────────────────
 
+export const fetchPvgisTmy = async ({ latitude, longitude, download = false } = {}) => {
+  if (latitude == null || longitude == null) {
+    throw new Error("Latitude and longitude are required for PVGIS TMY.");
+  }
+  const headers = authHeaders();
+  const params = new URLSearchParams();
+  params.set("latitude", String(latitude));
+  params.set("longitude", String(longitude));
+  params.set("download", String(download));
+
+  const response = await fetch(
+    `${SIMULATION_PATH}/pvgis-tmy/?${params.toString()}`,
+    { method: "GET", headers }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to fetch PVGIS TMY data.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
+// ── Weather Temperature Clusters ─────────────────────────────────────
+
+export const fetchWeatherTemperatureClusters = async ({
+  latitude,
+  longitude,
+  k = 8,
+  startTime = "05:00",
+  endTime = "24:00",
+} = {}) => {
+  if (latitude == null || longitude == null) {
+    throw new Error("Latitude and longitude are required.");
+  }
+  const headers = authHeaders();
+  const params = new URLSearchParams();
+  params.set("latitude", String(latitude));
+  params.set("longitude", String(longitude));
+  params.set("k", String(k));
+  params.set("start_time", startTime);
+  params.set("end_time", endTime);
+
+  const response = await fetch(
+    `${SIMULATION_PATH}/weather-temperature-clusters/?${params.toString()}`,
+    { method: "GET", headers }
+  );
+  if (response.status === 404) {
+    return null;
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to fetch weather temperature clusters.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
+export const createWeatherTemperatureClusters = async ({
+  latitude,
+  longitude,
+  k = 8,
+  startTime = "05:00",
+  endTime = "24:00",
+} = {}) => {
+  if (latitude == null || longitude == null) {
+    throw new Error("Latitude and longitude are required.");
+  }
+  const headers = {
+    ...authHeaders(),
+    "Content-Type": "application/json",
+  };
+  const body = {
+    latitude,
+    longitude,
+    k,
+    start_time: startTime,
+    end_time: endTime,
+  };
+
+  const response = await fetch(
+    `${SIMULATION_PATH}/weather-temperature-clusters/`,
+    { method: "POST", headers, body: JSON.stringify(body) }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to create weather temperature clusters.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
 export const computeTripStatistics = async (tripIds = []) => {
   if (!Array.isArray(tripIds) || !tripIds.length) {
     throw new Error("At least one trip ID is required.");
@@ -603,4 +738,115 @@ export const computeTripStatistics = async (tripIds = []) => {
     throw new Error(typeof message === "string" ? message : JSON.stringify(message));
   }
   return payload;
+};
+
+// ── Yearly Analysis ──────────────────────────────────────────────────
+
+export const createYearlyAnalysis = async ({ name, optimization_run_id = null, features = {} } = {}) => {
+  if (!name) throw new Error("Yearly analysis name is required.");
+
+  const headers = {
+    ...authHeaders(),
+    "Content-Type": "application/json",
+  };
+
+  const body = { name, features };
+  if (optimization_run_id) body.optimization_run_id = optimization_run_id;
+
+  const response = await fetch(`${YEARLY_ANALYSIS_PATH}/`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to create yearly analysis.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
+export const fetchYearlyAnalyses = async ({ skip = 0, limit = 200, optimization_run_id = null } = {}) => {
+  const headers = authHeaders();
+  const params = new URLSearchParams();
+  params.set("skip", String(skip));
+  params.set("limit", String(limit));
+  if (optimization_run_id) params.set("optimization_run_id", optimization_run_id);
+
+  const response = await fetch(`${YEARLY_ANALYSIS_PATH}/?${params.toString()}`, {
+    method: "GET",
+    headers,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load yearly analyses.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
+export const fetchYearlyAnalysis = async (id) => {
+  if (!id) throw new Error("Missing yearly analysis ID.");
+  const headers = authHeaders();
+  const response = await fetch(
+    `${YEARLY_ANALYSIS_PATH}/${encodeURIComponent(id)}`,
+    { method: "GET", headers },
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load yearly analysis.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
+export const updateYearlyAnalysis = async (id, data = {}) => {
+  if (!id) throw new Error("Missing yearly analysis ID.");
+  const headers = {
+    ...authHeaders(),
+    "Content-Type": "application/json",
+  };
+  const response = await fetch(
+    `${YEARLY_ANALYSIS_PATH}/${encodeURIComponent(id)}`,
+    { method: "PATCH", headers, body: JSON.stringify(data) },
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to update yearly analysis.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
+export const deleteYearlyAnalysis = async (id) => {
+  if (!id) throw new Error("Missing yearly analysis ID.");
+  const headers = authHeaders();
+  const response = await fetch(
+    `${YEARLY_ANALYSIS_PATH}/${encodeURIComponent(id)}`,
+    { method: "DELETE", headers },
+  );
+  if (response.status === 204 || response.status === 200) {
+    return { deleted: true };
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to delete yearly analysis.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return { deleted: true };
 };
