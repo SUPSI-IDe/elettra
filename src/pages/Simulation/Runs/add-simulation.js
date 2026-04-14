@@ -31,6 +31,17 @@ import {
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
 
+const normalizeAuxiliaryHeatingTypeForForm = (value) => {
+  const heatingType = text(value).trim().toLowerCase();
+  if (!heatingType || heatingType === "default" || heatingType === "hp") {
+    return "default";
+  }
+  if (heatingType === "diesel" || heatingType === "ebus-dh") {
+    return "diesel";
+  }
+  return "default";
+};
+
 const shiftNameCollator = new Intl.Collator(undefined, {
   sensitivity: "base",
   numeric: true,
@@ -895,7 +906,9 @@ export const initializeAddSimulation = async (
 
     if (heatingType) {
       const heatingSelect = section.querySelector("#var-heating-type");
-      if (heatingSelect) heatingSelect.value = heatingType;
+      if (heatingSelect) {
+        heatingSelect.value = normalizeAuxiliaryHeatingTypeForForm(heatingType);
+      }
     }
 
     if (usableSocPercent != null) {

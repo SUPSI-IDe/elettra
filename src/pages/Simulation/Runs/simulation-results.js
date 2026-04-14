@@ -2952,6 +2952,7 @@ const HEATING_LABELS = {
   hp: "simulation.heating_hp",
   electric: "simulation.heating_electric",
   diesel: "simulation.heating_diesel",
+  "ebus-dh": "simulation.heating_diesel",
 };
 
 const formatTemperatureValue = (value) => {

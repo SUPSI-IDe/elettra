@@ -2091,11 +2091,6 @@ const renderOverviewPanel = (el, features, costState, emissionsState, busModelDa
     const yearlyDist = toFiniteNumber(yearlyTotals.distanceKm);
     const avgEpk = yearlyEnergy != null && yearlyDist > 0 ? yearlyEnergy / yearlyDist : null;
 
-    const nomDailyKm = toFiniteNumber(results.nominalDailyDistanceKm);
-    const validScen = scenarioResults.filter((sr) => !sr.error);
-    const totalOcc = validScen.reduce((s, sr) => s + (sr.occurrences ?? 0), 0);
-    const yearlyNominalDist = nomDailyKm != null && totalOcc > 0 ? nomDailyKm * totalOcc : null;
-
     const valid = scenarioResults.filter((sr) => !sr.error && sr.kpis?.energyPerKm != null);
     const epkValues = valid.map((sr) => sr.kpis.energyPerKm);
     const bestEpk = epkValues.length ? Math.min(...epkValues) : null;
@@ -2104,7 +2099,6 @@ const renderOverviewPanel = (el, features, costState, emissionsState, busModelDa
     const body = [
       overviewRowHtml("Base feasibility", `<span class="ya-overview-badge ${feasBadge}">${textContent(feasLabel)}</span>`, true),
       overviewRowHtml("Yearly energy", yearlyEnergy != null ? `${formatInt(yearlyEnergy)} kWh` : "—"),
-      overviewRowHtml("Yearly nominal distance", yearlyNominalDist != null ? `${formatInt(yearlyNominalDist)} km` : "—"),
       overviewRowHtml("Yearly simulated distance", yearlyDist != null ? `${formatInt(yearlyDist)} km` : "—"),
       overviewRowHtml("Avg. consumption / km", avgEpk != null ? `${formatFixed(avgEpk, 3)} kWh` : "—"),
       overviewRowHtml("Best scenario / km", bestEpk != null ? `${formatFixed(bestEpk, 3)} kWh` : "—"),

@@ -14,6 +14,17 @@ const ECONOMIC_PATH = `${API_ROOT}/api/v1/economic`;
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
 
+const normalizeAuxiliaryHeatingType = (value) => {
+  const heatingType = text(value).trim().toLowerCase();
+  if (!heatingType || heatingType === "default" || heatingType === "hp") {
+    return "default";
+  }
+  if (heatingType === "diesel" || heatingType === "ebus-dh") {
+    return "diesel";
+  }
+  return "default";
+};
+
 const toFiniteNumber = (value) => {
   if (value === "" || (typeof value === "string" && value.trim() === "")) return null;
   const numeric = Number(value);
@@ -189,8 +200,9 @@ const createPredictionRunVariants = async ({
       external_temp_celsius:
         prediction_params.external_temp_celsius ?? 15,
       occupancy_percent: occupancyPercent,
-      auxiliary_heating_type:
-        prediction_params.auxiliary_heating_type ?? "default",
+      auxiliary_heating_type: normalizeAuxiliaryHeatingType(
+        prediction_params.auxiliary_heating_type
+      ),
       quantiles,
       num_battery_packs: numBatteryPacks,
       contextual_parameters: contextualParameters,
@@ -249,8 +261,9 @@ export const createSinglePredictionRun = async ({
     model_name: modelName,
     external_temp_celsius: prediction_params.external_temp_celsius ?? 15,
     occupancy_percent: occupancyPercent,
-    auxiliary_heating_type:
-      prediction_params.auxiliary_heating_type ?? "default",
+    auxiliary_heating_type: normalizeAuxiliaryHeatingType(
+      prediction_params.auxiliary_heating_type
+    ),
     quantiles,
     num_battery_packs,
     contextual_parameters: contextualParameters,
@@ -299,7 +312,7 @@ export const createPredictionRuns = async ({
     model_name,
     external_temp_celsius: Number(external_temp_celsius),
     occupancy_percent: Number(occupancy_percent),
-    auxiliary_heating_type,
+    auxiliary_heating_type: normalizeAuxiliaryHeatingType(auxiliary_heating_type),
   };
   if (Array.isArray(quantiles) && quantiles.length) body.quantiles = quantiles;
   if (num_battery_packs != null) body.num_battery_packs = Number(num_battery_packs);

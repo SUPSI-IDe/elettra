@@ -379,6 +379,17 @@ const resolveHeatingType = (run = {}) =>
       run?.predictionParams?.auxiliary_heating_type
   ).trim();
 
+const normalizeHeatingTypeForPrefill = (value) => {
+  const heatingType = text(value).trim().toLowerCase();
+  if (!heatingType || heatingType === "default" || heatingType === "hp") {
+    return "default";
+  }
+  if (heatingType === "diesel" || heatingType === "ebus-dh") {
+    return "diesel";
+  }
+  return "default";
+};
+
 const resolveSocPercent = (value) => {
   const numericValue = toFiniteNumber(value);
   if (numericValue == null) return null;
@@ -968,7 +979,7 @@ export const initializeSimulationRuns = async (
         optimizationMode: resolveRunMode(run) || "battery_only",
         externalTempCelsius: resolveExternalTemp(run) ?? -5,
         occupancyPercent: resolveOccupancyPercent(run) ?? 50,
-        heatingType: resolveHeatingType(run) || "hp",
+        heatingType: normalizeHeatingTypeForPrefill(resolveHeatingType(run)),
         usableSocPercent: resolveUsableSocPercent(run),
         busModelId: resolveBusModelId(run),
         batteryCostPerKwh: resolveBatteryCostPerKwh(run),
