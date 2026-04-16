@@ -4,6 +4,7 @@ import { openPartialInNewTab, triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
 import {
   fetchYearlyAnalysis,
+  fetchYearlyAnalysisCosts,
   fetchOptimizationRun,
   fetchPredictionRun,
   fetchPredictionRuns,
@@ -209,6 +210,12 @@ const findClosestPointOnPath = (pathNode, pointer) => {
 /* ── Stacked bar chart: annual cost comparison ─────────────────── */
 
 const COST_STACK_LABELS = { vehicle: "CAPEX", energy: "OPEX usage", maintenance: "OPEX maintenance" };
+const hasDieselHeatingCosts = (cd) =>
+  (toFiniteNumber(cd?.electric?.dieselHeatingFuelOpex) ?? 0) > 0
+  || (toFiniteNumber(cd?.electric?.dieselHeatingMaintOpex) ?? 0) > 0;
+const getElectricCostLabel = (cd) =>
+  hasDieselHeatingCosts(cd) ? "E-bus (diesel heating)" : "E-bus";
+const getDieselCostLabel = () => "Diesel comparator";
 
 const renderYaCostsBar = (el, cd) => {
   if (!el) return;
@@ -216,9 +223,11 @@ const renderYaCostsBar = (el, cd) => {
   if (!cd) return;
 
   const yearlyKm = toFiniteNumber(cd.yearlyDistanceKm);
+  const dhFuel = toFiniteNumber(cd.electric.dieselHeatingFuelOpex) ?? 0;
+  const dhMaint = toFiniteNumber(cd.electric.dieselHeatingMaintOpex) ?? 0;
   const data = [
-    { category: "Electric", vehicle: cd.electric.capexAnnual, energy: cd.electric.energyOpex, maintenance: cd.electric.maintOpex },
-    { category: "Diesel", vehicle: cd.diesel.capexAnnual, energy: cd.diesel.fuelOpex, maintenance: cd.diesel.maintOpex },
+    { category: getElectricCostLabel(cd), vehicle: cd.electric.capexAnnual, energy: cd.electric.energyOpex + dhFuel, maintenance: cd.electric.maintOpex + dhMaint },
+    { category: getDieselCostLabel(), vehicle: cd.diesel.capexAnnual, energy: cd.diesel.fuelOpex, maintenance: cd.diesel.maintOpex },
   ];
 
   const margin = { top: 28, right: 24, bottom: 32, left: 72 };
@@ -315,7 +324,7 @@ const renderYaCostsBarLegend = (el) => {
 
 /* ── Line chart: projected cost trend ──────────────────────────── */
 
-const attachLineHover = ({ layer, lineData, lineGen, x, y, iW, iH, key, color }) => {
+const attachLineHover = ({ layer, lineData, lineGen, x, y, iW, iH, color, seriesLabel }) => {
   if (!lineData.length) return;
   layer.append("path").datum(lineData).attr("d", lineGen)
     .attr("fill", "none").attr("stroke", color).attr("stroke-width", 2.5);
@@ -338,7 +347,7 @@ const attachLineHover = ({ layer, lineData, lineGen, x, y, iW, iH, key, color })
     const cost = y.invert(closest.y);
     focus.attr("transform", `translate(${closest.x},${closest.y})`);
     tooltipText.selectAll("*").remove();
-    tooltipText.append("tspan").attr("x", 8).attr("y", 14).attr("font-weight", "700").text(key === "diesel" ? "Diesel" : "Electric");
+    tooltipText.append("tspan").attr("x", 8).attr("y", 14).attr("font-weight", "700").text(seriesLabel);
     tooltipText.append("tspan").attr("x", 8).attr("dy", "1.25em").text(`Year ${formatFixed(Math.round(yr), 0)}`);
     tooltipText.append("tspan").attr("x", 8).attr("dy", "1.25em").text(`CHF ${formatCHF(Math.round(cost))}`);
     const bbox = tooltipText.node().getBBox();
@@ -356,7 +365,7 @@ const attachLineHover = ({ layer, lineData, lineGen, x, y, iW, iH, key, color })
     .on("pointerleave", () => focus.style("display", "none"));
 };
 
-const renderYaCostsLine = (el, data) => {
+const renderYaCostsLine = (el, data, cd) => {
   if (!el) return;
   el.innerHTML = "";
   if (!Array.isArray(data) || data.length === 0) return;
@@ -376,16 +385,36 @@ const renderYaCostsLine = (el, data) => {
   g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxisWithUnit)).selectAll("text").attr("font-size", "10px");
   gridLines(g, y, iW);
 
-  attachLineHover({ layer: g.append("g"), lineData: data, lineGen: d3.line().x((d) => x(d.year)).y((d) => y(d.diesel)), x, y, iW, iH, key: "diesel", color: FUEL_COLORS.diesel });
-  attachLineHover({ layer: g.append("g"), lineData: data, lineGen: d3.line().x((d) => x(d.year)).y((d) => y(d.electric)), x, y, iW, iH, key: "electric", color: FUEL_COLORS.electric });
+  attachLineHover({
+    layer: g.append("g"),
+    lineData: data,
+    lineGen: d3.line().x((d) => x(d.year)).y((d) => y(d.diesel)),
+    x,
+    y,
+    iW,
+    iH,
+    color: FUEL_COLORS.diesel,
+    seriesLabel: getDieselCostLabel(),
+  });
+  attachLineHover({
+    layer: g.append("g"),
+    lineData: data,
+    lineGen: d3.line().x((d) => x(d.year)).y((d) => y(d.electric)),
+    x,
+    y,
+    iW,
+    iH,
+    color: FUEL_COLORS.electric,
+    seriesLabel: getElectricCostLabel(cd),
+  });
 
   el.appendChild(svg.node());
 };
 
-const renderYaCostsLineLegend = (el) => {
+const renderYaCostsLineLegend = (el, cd) => {
   if (!el) return;
   el.innerHTML = ["diesel", "electric"].map((key) =>
-    `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${FUEL_COLORS[key]}"></span>${key === "diesel" ? "Diesel" : "Electric"}</div>`
+    `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${FUEL_COLORS[key]}"></span>${key === "diesel" ? getDieselCostLabel() : getElectricCostLabel(cd)}</div>`
   ).join("");
 };
 
@@ -1051,6 +1080,173 @@ const computeYearlyCosts = (features, busModelData, overrides = {}) => {
   };
 };
 
+/* ── Bridge: map raw backend /costs response → existing cd structure ── */
+
+const opexItemCost = (items, name) => {
+  if (!Array.isArray(items)) return 0;
+  const lc = name.toLowerCase();
+  const entry = items.find((it) => (it.name ?? "").toLowerCase() === lc);
+  return toFiniteNumber(entry?.cost_chf_per_year) ?? 0;
+};
+
+const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, busModelData, { optimizedPacks, overrides } = {}) => {
+  const fn = (v) => toFiniteNumber(v);
+  const ov = (key) => overrides?.[key] != null ? toFiniteNumber(overrides[key]) : null;
+  const e = raw.ebus ?? {};
+  const d = raw.diesel_comparator ?? {};
+  const a = raw.assumptions ?? {};
+
+  /* ── Effective unit prices (slider overrides take precedence) ── */
+  const baseFuelPerL = fn(a.fuel_cost_per_l) ?? DEFAULT_FUEL_COST_PER_L;
+  const baseEnergyPerKwh = fn(a.energy_price_per_kwh) ?? DEFAULT_ENERGY_PRICE_PER_KWH;
+  const baseDieselEffLPerKm = fn(a.diesel_comparator_consumption_l_per_km) ?? 0;
+  const baseDieselMaintPerKm = fn(a.diesel_comparator_maint_cost_per_km_chf) ?? 0;
+  const baseElecMaintPerKm = fn(a.electric_maint_cost_per_km_chf) ?? 0;
+  const dhMaintFactor = fn(a.diesel_heating_maintenance_factor) ?? 0;
+
+  const fuelPerL = ov("fuelCostPerL") ?? baseFuelPerL;
+  const energyPerKwh = ov("energyPricePerKwh") ?? baseEnergyPerKwh;
+  const dieselEffLPerKm = ov("dieselEfficiency") ?? baseDieselEffLPerKm;
+  const dieselMaintPerKm = ov("dieselMaintCost") ?? baseDieselMaintPerKm;
+  const elecMaintPerKm = ov("electricMaintCost") ?? baseElecMaintPerKm;
+
+  const yDistKm = fn(a.yearly_distance_km ?? yearlyDistanceKm) ?? 0;
+  const yElecKwh = fn(a.yearly_electric_kwh ?? yearlyEnergyKwh) ?? 0;
+  const yDhLiters = fn(a.yearly_diesel_heating_liters) ?? 0;
+  const isDieselHeating = yDhLiters > 0;
+
+  /* ── OPEX: recalculate from physical quantities × unit prices ── */
+  const electricEnergyOpex = yElecKwh * energyPerKwh;
+  const electricMaintOpex = yDistKm * elecMaintPerKm;
+  const dhFuelOpex = yDhLiters * fuelPerL;
+  const dhMaintOpex = isDieselHeating ? electricMaintOpex * dhMaintFactor : 0;
+  const electricTotalOpex = electricEnergyOpex + electricMaintOpex + dhFuelOpex + dhMaintOpex;
+
+  const dieselFuelOpex = yDistKm * dieselEffLPerKm * fuelPerL;
+  const dieselMaintOpex = yDistKm * dieselMaintPerKm;
+  const dieselTotalOpex = dieselFuelOpex + dieselMaintOpex;
+
+  /* ── CAPEX: use backend if available, else compute from bus model ── */
+  const annualizationRate = ov("interestRate") ?? fn(a.interest_rate) ?? DEFAULT_OPEX_ANNUALIZATION_RATE;
+  const busLengthM = fn(busModelData?.bus_length_m);
+
+  const busCostChf = fn(busModelData?.cost) ?? 0;
+  const packCostChf = fn(busModelData?.battery_pack_cost) ?? 0;
+  const packs = fn(optimizedPacks) ?? 0;
+  const totalBatteryCostChf = packCostChf * packs;
+  const electricCapexUpfront = busCostChf + totalBatteryCostChf;
+  const busLifetime = fn(busModelData?.bus_lifetime) ?? DEFAULT_BUS_LIFETIME_YEARS;
+  const batteryLifetime = fn(busModelData?.battery_pack_lifetime) ?? DEFAULT_BATTERY_LIFETIME_YEARS;
+  const dieselBusLifetime = DEFAULT_DIESEL_BUS_LIFETIME_YEARS;
+
+  const batteryReplacementYears = computeReplacementYears(busLifetime, batteryLifetime);
+  const batteryReplacementPv = batteryReplacementYears.reduce((total, year) => {
+    if (annualizationRate <= 0) return total + totalBatteryCostChf;
+    return total + totalBatteryCostChf / Math.pow(1 + annualizationRate, year);
+  }, 0);
+  const electricCapexPv = electricCapexUpfront + batteryReplacementPv;
+
+  const electricCapexAnnual = computeEquivalentAnnualCost(electricCapexPv, annualizationRate, busLifetime);
+  const dieselCapexChf = ov("dieselCapex") ?? (busLengthM != null ? (getEquivalentDieselBusCapexForLength(busLengthM) ?? 0) : 0);
+  const dieselCapexAnnual = computeEquivalentAnnualCost(dieselCapexChf, annualizationRate, dieselBusLifetime);
+
+  const electricAnnual = electricCapexAnnual + electricTotalOpex;
+  const dieselAnnual = dieselCapexAnnual + dieselTotalOpex;
+  const annualSaving = dieselAnnual - electricAnnual;
+
+  /* ── Projected cost trend with replacements ────────────────── */
+  const electricBusReplYears = computeRecurringReplacementYears(busLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
+  const dieselBusReplYears = computeRecurringReplacementYears(dieselBusLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
+  const trendBatteryReplYears = computeBatteryReplacementYearsOverHorizon(busLifetime, batteryLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
+
+  const yearly = buildProjectedCostTrend({
+    horizonYears: PROJECTED_COST_TREND_HORIZON_YEARS,
+    dieselBusCapexChf: dieselCapexChf,
+    dieselAnnualOpex: dieselTotalOpex,
+    dieselBusReplacementCostByYear: dieselBusReplYears.reduce((acc, y) => { acc[y] = dieselCapexChf; return acc; }, {}),
+    electricBusCapexChf: electricCapexUpfront,
+    electricAnnualOpex: electricTotalOpex,
+    electricBusReplacementCostByYear: electricBusReplYears.reduce((acc, y) => { acc[y] = busCostChf; return acc; }, {}),
+    batteryReplacementCostByYear: trendBatteryReplYears.reduce((acc, y) => { acc[y] = (acc[y] ?? 0) + totalBatteryCostChf; return acc; }, {}),
+  });
+
+  /* ── Scenarios: recalculate costs from physical quantities ──── */
+  const scenarioCosts = (raw.scenarios ?? []).map((sc, i) => {
+    const dailyElKwh = fn(sc.daily_electric_kwh) ?? 0;
+    const dailyDist = fn(sc.daily_distance_km) ?? 0;
+    const annElKwh = fn(sc.annual_electric_kwh) ?? 0;
+    const annDist = fn(sc.annual_distance_km) ?? 0;
+    const dailyDhLiters = fn(sc.daily_diesel_heating_liters) ?? 0;
+    const annDhLiters = fn(sc.annual_diesel_heating_liters) ?? 0;
+    const annElecMaint = annDist * elecMaintPerKm;
+    return {
+      label: sc.label ?? `Scenario ${i + 1}`,
+      temperature: fn(sc.temperature_celsius) ?? 0,
+      occurrences: fn(sc.occurrences) ?? 0,
+      dailyEnergy: dailyElKwh,
+      dailyDrivetrain: 0,
+      dailyAuxiliary: 0,
+      dailyDistance: dailyDist,
+      energyPerKm: dailyDist > 0 ? dailyElKwh / dailyDist : null,
+      annualEnergy: annElKwh,
+      annualDistance: annDist,
+      annualEnergyCost: annElKwh * energyPerKwh,
+      annualElectricMaintCost: annElecMaint,
+      dailyDieselHeatingLiters: dailyDhLiters,
+      annualDieselHeatingLiters: annDhLiters,
+      annualDieselHeatingFuelCost: annDhLiters * fuelPerL,
+      annualDieselHeatingMaintCost: isDieselHeating ? annElecMaint * dhMaintFactor : 0,
+    };
+  });
+
+  return {
+    _fromBackend: true,
+    scenarioCosts,
+    assumptions: {
+      energyPricePerKwh: energyPerKwh,
+      fuelPricePerL: fuelPerL,
+      dieselEfficiencyLPerKm: dieselEffLPerKm,
+      dieselMaintPerKm: dieselMaintPerKm,
+      electricMaintPerKm: elecMaintPerKm,
+      dieselHeatingMaintenanceFactor: dhMaintFactor,
+      yearlyDieselHeatingLiters: yDhLiters,
+      yearlyDieselHeatingFuelKwh: fn(a.yearly_diesel_heating_fuel_kwh) ?? 0,
+    },
+    yearlyEnergyKwh: fn(a.yearly_electric_kwh ?? yearlyEnergyKwh) ?? 0,
+    yearlyDistanceKm: fn(a.yearly_distance_km ?? yearlyDistanceKm) ?? 0,
+    electric: {
+      energyOpex: electricEnergyOpex,
+      maintOpex: electricMaintOpex,
+      dieselHeatingFuelOpex: dhFuelOpex,
+      dieselHeatingMaintOpex: dhMaintOpex,
+      totalOpex: electricTotalOpex,
+      capex: electricCapexUpfront,
+      capexPv: electricCapexPv,
+      capexAnnual: electricCapexAnnual,
+      totalAnnual: electricAnnual,
+      busCost: busCostChf,
+      packCost: packCostChf,
+      packs,
+      totalBatteryCost: totalBatteryCostChf,
+      batteryReplacementPv,
+      batteryReplacementYears,
+      busLifetime,
+      batteryLifetime,
+    },
+    diesel: {
+      fuelOpex: dieselFuelOpex,
+      maintOpex: dieselMaintOpex,
+      totalOpex: dieselTotalOpex,
+      capex: dieselCapexChf,
+      capexAnnual: dieselCapexAnnual,
+      totalAnnual: dieselAnnual,
+    },
+    annualSaving,
+    breakEvenYear: computeBreakEvenYear(yearly),
+    yearly,
+  };
+};
+
 /* ── Costs rendering (into structured HTML panels) ─────────────── */
 
 const renderCostsKpis = (el, cd) => {
@@ -1064,10 +1260,6 @@ const renderCostsKpis = (el, cd) => {
     <div class="ya-costs-kpi-card">
       <span class="ya-costs-kpi-label">Annual saving</span>
       <span class="ya-costs-kpi-value ${savingCls}">CHF ${formatCHF(Math.round(cd.annualSaving))}</span>
-    </div>
-    <div class="ya-costs-kpi-card">
-      <span class="ya-costs-kpi-label">Break-even</span>
-      <span class="ya-costs-kpi-value">${cd.breakEvenYear != null ? `Year ${formatFixed(cd.breakEvenYear, 1)}` : "—"}</span>
     </div>
     <div class="ya-costs-kpi-card">
       <span class="ya-costs-kpi-label">Lifetime saving (${PROJECTED_COST_TREND_HORIZON_YEARS} yr)</span>
@@ -1084,33 +1276,54 @@ const renderElectricOpexBreakdown = (el, cd) => {
   const km = toFiniteNumber(cd.yearlyDistanceKm);
   const energyKm = km > 0 ? cd.electric.energyOpex / km : null;
   const maintKm = km > 0 ? cd.electric.maintOpex / km : null;
-  const totalUsageKm = km > 0 ? cd.electric.energyOpex / km : null;
-  const totalMaintKm = km > 0 ? cd.electric.maintOpex / km : null;
   const totalKm = km > 0 ? cd.electric.totalOpex / km : null;
   const avgKwhKm = cd.yearlyEnergyKwh > 0 && km > 0 ? cd.yearlyEnergyKwh / km : null;
 
-  const infoTip = `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">Weighted average across ${(cd.scenarioCosts ?? []).length} temperature clusters: ${formatInt(cd.yearlyEnergyKwh)} kWh / ${formatInt(km)} km = ${avgKwhKm != null ? formatFixed(avgKwhKm, 3) : "—"} kWh/km, at ${formatFixed(cd.assumptions.energyPricePerKwh, 2)} CHF/kWh.</span></span>`;
+  const nSc = (cd.scenarioCosts ?? []).length;
+  const energyTip = `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">Weighted average across ${nSc} temperature clusters: ${formatInt(cd.yearlyEnergyKwh)} kWh / ${formatInt(km)} km = ${avgKwhKm != null ? formatFixed(avgKwhKm, 3) : "—"} kWh/km, at ${formatFixed(cd.assumptions.energyPricePerKwh, 2)} CHF/kWh.</span></span>`;
+  const maintTip = `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${formatInt(km)} km × ${formatFixed(cd.assumptions.electricMaintPerKm, 4)} CHF/km.</span></span>`;
+
+  const dhFuel = toFiniteNumber(cd.electric.dieselHeatingFuelOpex) ?? 0;
+  const dhMaint = toFiniteNumber(cd.electric.dieselHeatingMaintOpex) ?? 0;
+  const showDh = dhFuel > 0 || dhMaint > 0;
+  const dhFuelKm = km > 0 && dhFuel > 0 ? dhFuel / km : null;
+  const dhMaintKm = km > 0 && dhMaint > 0 ? dhMaint / km : null;
+  const dhLiters = toFiniteNumber(cd.assumptions?.yearlyDieselHeatingLiters) ?? 0;
+  const dhMaintFactor = toFiniteNumber(cd.assumptions?.dieselHeatingMaintenanceFactor) ?? 0;
+
+  const dhFuelTip = showDh ? `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${formatFixed(dhLiters, 1)} liters × ${formatFixed(cd.assumptions.fuelPricePerL, 2)} CHF/l. Diesel used for auxiliary heating only.</span></span>` : "";
+  const dhMaintTip = showDh ? `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${formatFixed(cd.assumptions.electricMaintPerKm, 4)} CHF/km × ${dhMaintFactor} (surcharge factor) × ${formatInt(km)} km. Additional maintenance for the diesel heating system.</span></span>` : "";
+
+  const dhRows = showDh ? `
+            <tr>
+              <td>Diesel heating fuel</td>
+              <td>CHF ${formatCHF(Math.round(dhFuel))}</td>
+              <td>${dhFuelKm != null ? `(${formatFixed(dhFuelKm, 3)} CHF/km)` : "—"} ${dhFuelTip}</td>
+            </tr>
+            <tr>
+              <td>Diesel heating maintenance</td>
+              <td>CHF ${formatCHF(Math.round(dhMaint))}</td>
+              <td>${dhMaintKm != null ? `(${formatFixed(dhMaintKm, 3)} CHF/km)` : "—"} ${dhMaintTip}</td>
+            </tr>` : "";
 
   el.innerHTML = `
     <div class="ya-res-section">
-      <h3 class="ya-res-section-title">Electric OPEX breakdown</h3>
+      <h3 class="ya-res-section-title">E-bus OPEX breakdown</h3>
       <div class="ya-costs-table-wrap">
         <table class="ya-costs-table">
           <thead><tr><th>Component</th><th>Annual cost</th><th>Cost per km</th></tr></thead>
           <tbody>
             <tr>
-              <td>Maintenance</td>
-              <td>CHF ${formatCHF(Math.round(cd.electric.maintOpex))}</td>
-              <td>${maintKm != null ? `(${formatFixed(maintKm, 3)} CHF/km)` : "—"}</td>
+              <td>Electric energy</td>
+              <td>CHF ${formatCHF(Math.round(cd.electric.energyOpex))}</td>
+              <td>${energyKm != null ? `(${formatFixed(energyKm, 3)} CHF/km)` : "—"} ${energyTip}</td>
             </tr>
             <tr>
-              <td>Energy</td>
-              <td>CHF ${formatCHF(Math.round(cd.electric.energyOpex))}</td>
-              <td>${energyKm != null ? `(${formatFixed(energyKm, 3)} CHF/km)` : "—"} ${infoTip}</td>
-            </tr>
-            <tr class="ya-opex-summary"><td>Total OPEX usage</td><td>CHF ${formatCHF(Math.round(cd.electric.energyOpex))}</td><td>${totalUsageKm != null ? `<strong>(${formatFixed(totalUsageKm, 3)} CHF/km)</strong>` : "—"}</td></tr>
-            <tr class="ya-opex-summary"><td>Total OPEX maintenance</td><td>CHF ${formatCHF(Math.round(cd.electric.maintOpex))}</td><td>${totalMaintKm != null ? `<strong>(${formatFixed(totalMaintKm, 3)} CHF/km)</strong>` : "—"}</td></tr>
-            <tr class="ya-opex-summary"><td>Total OPEX</td><td>CHF ${formatCHF(Math.round(cd.electric.totalOpex))}</td><td>${totalKm != null ? `<strong>(${formatFixed(totalKm, 3)} CHF/km)</strong>` : "—"}</td></tr>
+              <td>Electric maintenance</td>
+              <td>CHF ${formatCHF(Math.round(cd.electric.maintOpex))}</td>
+              <td>${maintKm != null ? `(${formatFixed(maintKm, 3)} CHF/km)` : "—"} ${maintTip}</td>
+            </tr>${dhRows}
+            <tr class="ya-opex-summary"><td>Total E-bus OPEX</td><td><strong>CHF ${formatCHF(Math.round(cd.electric.totalOpex))}</strong></td><td>${totalKm != null ? `<strong>(${formatFixed(totalKm, 3)} CHF/km)</strong>` : "—"}</td></tr>
           </tbody>
         </table>
       </div>
@@ -1126,9 +1339,16 @@ const renderDieselOpexBreakdown = (el, cd) => {
   const totalMaintKm = km > 0 ? cd.diesel.maintOpex / km : null;
   const totalKm = km > 0 ? cd.diesel.totalOpex / km : null;
 
+  const dieselEff = cd.assumptions?.dieselEfficiencyLPerKm ?? 0;
+  const fuelPrice = cd.assumptions?.fuelPricePerL ?? 0;
+  const dieselMaintPerKm = cd.assumptions?.dieselMaintPerKm ?? 0;
+
+  const fuelTip = `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${formatInt(km)} km × ${formatFixed(dieselEff, 4)} l/km × ${formatFixed(fuelPrice, 2)} CHF/l. Full diesel drivetrain consumption.</span></span>`;
+  const maintTip = `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${formatInt(km)} km × ${formatFixed(dieselMaintPerKm, 4)} CHF/km.</span></span>`;
+
   el.innerHTML = `
     <div class="ya-res-section">
-      <h3 class="ya-res-section-title">Diesel OPEX breakdown</h3>
+      <h3 class="ya-res-section-title">Diesel comparator OPEX breakdown</h3>
       <div class="ya-costs-table-wrap">
         <table class="ya-costs-table">
           <thead><tr><th>Component</th><th>Annual cost</th><th>Cost per km</th></tr></thead>
@@ -1136,12 +1356,12 @@ const renderDieselOpexBreakdown = (el, cd) => {
             <tr>
               <td>Maintenance</td>
               <td>CHF ${formatCHF(Math.round(cd.diesel.maintOpex))}</td>
-              <td>${maintKm != null ? `(${formatFixed(maintKm, 3)} CHF/km)` : "—"}</td>
+              <td>${maintKm != null ? `(${formatFixed(maintKm, 3)} CHF/km)` : "—"} ${maintTip}</td>
             </tr>
             <tr>
               <td>Fuel</td>
               <td>CHF ${formatCHF(Math.round(cd.diesel.fuelOpex))}</td>
-              <td>${fuelKm != null ? `(${formatFixed(fuelKm, 3)} CHF/km)` : "—"}</td>
+              <td>${fuelKm != null ? `(${formatFixed(fuelKm, 3)} CHF/km)` : "—"} ${fuelTip}</td>
             </tr>
             <tr class="ya-opex-summary"><td>Total OPEX usage</td><td>CHF ${formatCHF(Math.round(cd.diesel.fuelOpex))}</td><td>${totalUsageKm != null ? `<strong>(${formatFixed(totalUsageKm, 3)} CHF/km)</strong>` : "—"}</td></tr>
             <tr class="ya-opex-summary"><td>Total OPEX maintenance</td><td>CHF ${formatCHF(Math.round(cd.diesel.maintOpex))}</td><td>${totalMaintKm != null ? `<strong>(${formatFixed(totalMaintKm, 3)} CHF/km)</strong>` : "—"}</td></tr>
@@ -1159,12 +1379,28 @@ const renderCostsOpexTables = (el, cd) => {
   const dieselPerKm = yearlyKm > 0 ? cd.diesel.totalAnnual / yearlyKm : null;
   const savingCls = cd.annualSaving > 0 ? "ya-costs-kpi-value--positive" : cd.annualSaving < 0 ? "ya-costs-kpi-value--negative" : "";
 
+  const dhFuel = toFiniteNumber(cd.electric.dieselHeatingFuelOpex) ?? 0;
+  const dhMaint = toFiniteNumber(cd.electric.dieselHeatingMaintOpex) ?? 0;
+  const showDh = dhFuel > 0 || dhMaint > 0;
+
+  const dhOpexRows = showDh ? `
+            <tr>
+              <td>Diesel heating fuel</td>
+              <td>CHF ${formatCHF(Math.round(dhFuel))}</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Diesel heating maintenance</td>
+              <td>CHF ${formatCHF(Math.round(dhMaint))}</td>
+              <td></td>
+            </tr>` : "";
+
   el.innerHTML = `
     <div class="ya-res-section">
       <h3 class="ya-res-section-title">Annual OPEX breakdown</h3>
       <div class="ya-costs-table-wrap">
         <table class="ya-costs-table">
-          <thead><tr><th>OPEX component</th><th>Electric</th><th>Diesel</th></tr></thead>
+          <thead><tr><th>OPEX component</th><th>E-bus</th><th>Diesel comparator</th></tr></thead>
           <tbody>
             <tr>
               <td>Energy / Fuel</td>
@@ -1175,7 +1411,7 @@ const renderCostsOpexTables = (el, cd) => {
               <td>Maintenance</td>
               <td>CHF ${formatCHF(Math.round(cd.electric.maintOpex))} <span class="ya-costs-detail">(${formatFixed(cd.assumptions.electricMaintPerKm, 3)} CHF/km)</span></td>
               <td>CHF ${formatCHF(Math.round(cd.diesel.maintOpex))} <span class="ya-costs-detail">(${formatFixed(cd.assumptions.dieselMaintPerKm, 3)} CHF/km)</span></td>
-            </tr>
+            </tr>${dhOpexRows}
             <tr class="ya-costs-saving-row">
               <td><strong>Total OPEX / year</strong></td>
               <td><strong>CHF ${formatCHF(Math.round(cd.electric.totalOpex))}</strong></td>
@@ -1189,7 +1425,7 @@ const renderCostsOpexTables = (el, cd) => {
       <h3 class="ya-res-section-title">Total annual cost comparison</h3>
       <div class="ya-costs-table-wrap">
         <table class="ya-costs-table">
-          <thead><tr><th>Metric</th><th>Electric</th><th>Diesel</th></tr></thead>
+          <thead><tr><th>Metric</th><th>E-bus</th><th>Diesel comparator</th></tr></thead>
           <tbody>
             <tr><td>Bus cost${cd.electric.totalBatteryCost > 0 ? " (excl. battery)" : ""}</td><td>CHF ${formatCHF(Math.round(cd.electric.busCost))}</td><td rowspan="${cd.electric.totalBatteryCost > 0 ? 3 : 2}" style="vertical-align:middle">CHF ${formatCHF(Math.round(cd.diesel.capex))}</td></tr>
             <tr><td>Battery (${cd.electric.packs} packs${cd.electric.packCost > 0 ? ` × CHF ${formatCHF(Math.round(cd.electric.packCost))}` : ""}, life ${cd.electric.batteryLifetime} yr)</td><td>${cd.electric.totalBatteryCost > 0 ? `CHF ${formatCHF(Math.round(cd.electric.totalBatteryCost))}` : `<span class="ya-costs-detail">included in bus cost</span>`}</td></tr>
@@ -1200,7 +1436,7 @@ const renderCostsOpexTables = (el, cd) => {
             <tr><td>OPEX / year</td><td>CHF ${formatCHF(Math.round(cd.electric.totalOpex))}</td><td>CHF ${formatCHF(Math.round(cd.diesel.totalOpex))}</td></tr>
             <tr><td>Total annual cost</td><td>CHF ${formatCHF(Math.round(cd.electric.totalAnnual))}</td><td>CHF ${formatCHF(Math.round(cd.diesel.totalAnnual))}</td></tr>
             <tr><td>Cost / km</td><td>${electricPerKm != null ? `${formatFixed(electricPerKm, 3)} CHF` : "—"}</td><td>${dieselPerKm != null ? `${formatFixed(dieselPerKm, 3)} CHF` : "—"}</td></tr>
-            <tr class="ya-costs-saving-row"><td>Annual saving (diesel − electric)</td><td colspan="2"><span class="${savingCls}">CHF ${formatCHF(Math.round(cd.annualSaving))}</span></td></tr>
+            <tr class="ya-costs-saving-row"><td>Annual saving (diesel comparator − e-bus)</td><td colspan="2"><span class="${savingCls}">CHF ${formatCHF(Math.round(cd.annualSaving))}</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -1213,20 +1449,34 @@ const renderCostsScenarioTable = (el, cd) => {
   if (!scenarios.length) { el.innerHTML = ""; return; }
 
   const yearlyKm = toFiniteNumber(cd.yearlyDistanceKm);
-  const headers = ["Scenario", "Temp (°C)", "Days/yr", "Energy/day (kWh)", "Aux./day (kWh)", "Simulated dist./day (km)", "kWh/km", "Annual energy (kWh)", "Annual energy cost (CHF)"];
-  const rows = scenarios.map((sc) =>
-    `<tr>
+  const showDh = scenarios.some((sc) =>
+    (toFiniteNumber(sc.annualDieselHeatingFuelCost) ?? 0) > 0 ||
+    (toFiniteNumber(sc.annualDieselHeatingMaintCost) ?? 0) > 0
+  );
+
+  const baseHeaders = ["Scenario", "Temp (°C)", "Days/yr", "Energy/day (kWh)", "Aux./day (kWh)", "Simulated dist./day (km)", "kWh/km", "Annual energy (kWh)", "Annual energy cost (CHF)"];
+  const dhHeaders = showDh ? ["DH fuel (CHF)", "DH maint. (CHF)"] : [];
+  const headers = [...baseHeaders, ...dhHeaders];
+
+  const rows = scenarios.map((sc) => {
+    const dhCells = showDh
+      ? `<td>${formatCHF(Math.round(toFiniteNumber(sc.annualDieselHeatingFuelCost) ?? 0))}</td><td>${formatCHF(Math.round(toFiniteNumber(sc.annualDieselHeatingMaintCost) ?? 0))}</td>`
+      : "";
+    return `<tr>
       <td>${textContent(sc.label)}</td><td>${formatFixed(sc.temperature, 1)}</td><td>${sc.occurrences}</td>
       <td>${formatFixed(sc.dailyEnergy, 1)}</td><td>${formatFixed(sc.dailyAuxiliary, 1)}</td>
       <td>${formatFixed(sc.dailyDistance, 1)}</td><td>${sc.energyPerKm != null ? formatFixed(sc.energyPerKm, 3) : "—"}</td>
-      <td>${formatInt(sc.annualEnergy)}</td><td>${formatCHF(Math.round(sc.annualEnergyCost))}</td>
-    </tr>`
-  ).join("");
+      <td>${formatInt(sc.annualEnergy)}</td><td>${formatCHF(Math.round(sc.annualEnergyCost))}</td>${dhCells}
+    </tr>`;
+  }).join("");
 
   const totalDays = scenarios.reduce((s, sc) => s + sc.occurrences, 0);
   const totalEnergy = scenarios.reduce((s, sc) => s + sc.annualEnergy, 0);
   const totalCost = scenarios.reduce((s, sc) => s + sc.annualEnergyCost, 0);
   const avgEpk = yearlyKm > 0 ? totalEnergy / yearlyKm : null;
+  const totalDhFuel = showDh ? scenarios.reduce((s, sc) => s + (toFiniteNumber(sc.annualDieselHeatingFuelCost) ?? 0), 0) : 0;
+  const totalDhMaint = showDh ? scenarios.reduce((s, sc) => s + (toFiniteNumber(sc.annualDieselHeatingMaintCost) ?? 0), 0) : 0;
+  const dhTotalCells = showDh ? `<td><strong>${formatCHF(Math.round(totalDhFuel))}</strong></td><td><strong>${formatCHF(Math.round(totalDhMaint))}</strong></td>` : "";
 
   el.innerHTML = `
     <div class="ya-res-section">
@@ -1239,7 +1489,7 @@ const renderCostsScenarioTable = (el, cd) => {
             <tr class="ya-costs-scenario-total">
               <td><strong>Total / Avg.</strong></td><td></td><td><strong>${totalDays}</strong></td>
               <td></td><td></td><td></td><td><strong>${avgEpk != null ? formatFixed(avgEpk, 3) : "—"}</strong></td>
-              <td><strong>${formatInt(totalEnergy)}</strong></td><td><strong>${formatCHF(Math.round(totalCost))}</strong></td>
+              <td><strong>${formatInt(totalEnergy)}</strong></td><td><strong>${formatCHF(Math.round(totalCost))}</strong></td>${dhTotalCells}
             </tr>
           </tbody>
         </table>
@@ -1251,8 +1501,8 @@ const refreshCostsPanelElements = (section, cd) => {
   renderCostsKpis(section.querySelector('[data-role="ya-costs-kpis"]'), cd);
   renderYaCostsBar(section.querySelector('[data-role="ya-costs-bar-chart"]'), cd);
   renderYaCostsBarLegend(section.querySelector('[data-role="ya-costs-bar-legend"]'));
-  renderYaCostsLine(section.querySelector('[data-role="ya-costs-line-chart"]'), cd?.yearly ?? []);
-  renderYaCostsLineLegend(section.querySelector('[data-role="ya-costs-line-legend"]'));
+  renderYaCostsLine(section.querySelector('[data-role="ya-costs-line-chart"]'), cd?.yearly ?? [], cd);
+  renderYaCostsLineLegend(section.querySelector('[data-role="ya-costs-line-legend"]'), cd);
   renderElectricOpexBreakdown(section.querySelector('[data-role="ya-costs-electric-opex"]'), cd);
   renderDieselOpexBreakdown(section.querySelector('[data-role="ya-costs-diesel-opex"]'), cd);
   renderCostsOpexTables(section.querySelector('[data-role="ya-costs-opex-tables"]'), cd);
@@ -1929,31 +2179,49 @@ const buildExportPayload = (features, effState, costState, emissionsState, busMo
     const cd = costState.costsData;
     const yearlyKm = toFiniteNumber(cd.yearlyDistanceKm);
 
+    const hasDH = (cd.electric.dieselHeatingFuelOpex ?? 0) > 0
+      || (cd.electric.dieselHeatingMaintOpex ?? 0) > 0;
+
+    const assumptions = {
+      energyPrice_CHFPerKwh: round(cd.assumptions.energyPricePerKwh, 3),
+      fuelPrice_CHFPerL: round(cd.assumptions.fuelPricePerL, 3),
+      electricMaintenanceCost_CHFPerKm: round(cd.assumptions.electricMaintPerKm, 4),
+      dieselComparator_efficiency_LPerKm: round(cd.assumptions.dieselEfficiencyLPerKm, 4),
+      dieselComparator_maintenanceCost_CHFPerKm: round(cd.assumptions.dieselMaintPerKm, 4),
+    };
+    if (hasDH) {
+      assumptions.dieselHeatingMaintenanceFactor = round(cd.assumptions.dieselHeatingMaintenanceFactor, 4);
+      assumptions.yearlyDieselHeating_liters = round(cd.assumptions.yearlyDieselHeatingLiters, 1);
+      assumptions.yearlyDieselHeatingFuel_kWh = round(cd.assumptions.yearlyDieselHeatingFuelKwh, 1);
+    }
+
+    const electricBranch = {
+      energyOPEX_CHF: round(cd.electric.energyOpex, 0),
+      maintenanceOPEX_CHF: round(cd.electric.maintOpex, 0),
+    };
+    if (hasDH) {
+      electricBranch.dieselHeatingFuelOPEX_CHF = round(cd.electric.dieselHeatingFuelOpex, 0);
+      electricBranch.dieselHeatingMaintOPEX_CHF = round(cd.electric.dieselHeatingMaintOpex, 0);
+    }
+    Object.assign(electricBranch, {
+      totalOPEX_CHF: round(cd.electric.totalOpex, 0),
+      busCost_CHF: round(cd.electric.busCost, 0),
+      batteryPacks: cd.electric.packs,
+      batteryPackCost_CHF: round(cd.electric.packCost, 0),
+      totalBatteryCost_CHF: round(cd.electric.totalBatteryCost, 0),
+      CAPEX_CHF: round(cd.electric.capex, 0),
+      CAPEXwithReplacements_CHF: round(cd.electric.capexPv, 0),
+      annualizedCAPEX_CHF: round(cd.electric.capexAnnual, 0),
+      totalAnnual_CHF: round(cd.electric.totalAnnual, 0),
+      costPerKm_CHF: yearlyKm > 0 ? round(cd.electric.totalAnnual / yearlyKm, 4) : null,
+      busLifetime_years: cd.electric.busLifetime,
+      batteryLifetime_years: cd.electric.batteryLifetime,
+      batteryReplacementYears: cd.electric.batteryReplacementYears ?? [],
+    });
+
     costs = {
-      assumptions: {
-        energyPrice_CHFPerKwh: round(cd.assumptions.energyPricePerKwh, 3),
-        fuelPrice_CHFPerL: round(cd.assumptions.fuelPricePerL, 3),
-        dieselEfficiency_LPerKm: round(cd.assumptions.dieselEfficiencyLPerKm, 4),
-        dieselMaintenanceCost_CHFPerKm: round(cd.assumptions.dieselMaintPerKm, 4),
-        electricMaintenanceCost_CHFPerKm: round(cd.assumptions.electricMaintPerKm, 4),
-      },
-      electric: {
-        energyOPEX_CHF: round(cd.electric.energyOpex, 0),
-        maintenanceOPEX_CHF: round(cd.electric.maintOpex, 0),
-        totalOPEX_CHF: round(cd.electric.totalOpex, 0),
-        busCost_CHF: round(cd.electric.busCost, 0),
-        batteryPacks: cd.electric.packs,
-        batteryPackCost_CHF: round(cd.electric.packCost, 0),
-        totalBatteryCost_CHF: round(cd.electric.totalBatteryCost, 0),
-        CAPEX_CHF: round(cd.electric.capex, 0),
-        CAPEXwithReplacements_CHF: round(cd.electric.capexPv, 0),
-        annualizedCAPEX_CHF: round(cd.electric.capexAnnual, 0),
-        totalAnnual_CHF: round(cd.electric.totalAnnual, 0),
-        costPerKm_CHF: yearlyKm > 0 ? round(cd.electric.totalAnnual / yearlyKm, 4) : null,
-        busLifetime_years: cd.electric.busLifetime,
-        batteryLifetime_years: cd.electric.batteryLifetime,
-        batteryReplacementYears: cd.electric.batteryReplacementYears ?? [],
-      },
+      assumptions,
+      electric: electricBranch,
       diesel: {
         fuelOPEX_CHF: round(cd.diesel.fuelOpex, 0),
         maintenanceOPEX_CHF: round(cd.diesel.maintOpex, 0),
@@ -1967,17 +2235,29 @@ const buildExportPayload = (features, effState, costState, emissionsState, busMo
       breakEvenYear: cd.breakEvenYear != null ? round(cd.breakEvenYear, 1) : null,
       yearlyEnergy_kWh: round(cd.yearlyEnergyKwh, 1),
       yearlyDistance_km: round(cd.yearlyDistanceKm, 1),
-      scenarioCosts: cd.scenarioCosts?.map((sc) => ({
-        label: sc.label,
-        temperature_C: sc.temperature,
-        daysPerYear: sc.occurrences,
-        dailyEnergy_kWh: round(sc.dailyEnergy, 1),
-        dailyDistance_km: round(sc.dailyDistance, 1),
-        energyPerKm_kWhPerKm: round(sc.energyPerKm, 4),
-        annualEnergy_kWh: round(sc.annualEnergy, 1),
-        annualDistance_km: round(sc.annualDistance, 1),
-        annualEnergyCost_CHF: round(sc.annualEnergyCost, 0),
-      })) ?? [],
+      scenarioCosts: cd.scenarioCosts?.map((sc) => {
+        const row = {
+          label: sc.label,
+          temperature_C: sc.temperature,
+          daysPerYear: sc.occurrences,
+          dailyEnergy_kWh: round(sc.dailyEnergy, 1),
+          dailyDistance_km: round(sc.dailyDistance, 1),
+          energyPerKm_kWhPerKm: round(sc.energyPerKm, 4),
+          annualEnergy_kWh: round(sc.annualEnergy, 1),
+          annualDistance_km: round(sc.annualDistance, 1),
+          annualEnergyCost_CHF: round(sc.annualEnergyCost, 0),
+        };
+        if (sc.annualElectricMaintCost != null) {
+          row.annualElectricMaintCost_CHF = round(sc.annualElectricMaintCost, 0);
+        }
+        if (hasDH) {
+          row.dailyDieselHeating_liters = round(sc.dailyDieselHeatingLiters, 2);
+          row.annualDieselHeating_liters = round(sc.annualDieselHeatingLiters, 1);
+          row.annualDieselHeatingFuelCost_CHF = round(sc.annualDieselHeatingFuelCost, 0);
+          row.annualDieselHeatingMaintCost_CHF = round(sc.annualDieselHeatingMaintCost, 0);
+        }
+        return row;
+      }) ?? [],
       projectedCostTrend: cd.yearly?.map((pt) => ({
         year: pt.year,
         electric_CHF: round(pt.electric, 0),
@@ -2247,6 +2527,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   if (!section) return null;
 
   const cleanups = [];
+  const pageTitleEl = section.querySelector('[data-role="page-title"]');
   const feedbackEl = section.querySelector('[data-role="feedback"]');
   const overviewPanel = section.querySelector('[data-role="overview-panel"]');
   const efficiencyContent = section.querySelector('[data-role="efficiency-content"]');
@@ -2271,6 +2552,13 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     return null;
   }
 
+  const analysisName = text(analysis.name).trim();
+  if (pageTitleEl) {
+    pageTitleEl.textContent = analysisName
+      ? `Yearly analysis results - ${analysisName}`
+      : "Yearly analysis results";
+  }
+
   const features = analysis.features ?? {};
   const scenarioResults = features.results?.scenarioResults ?? [];
   const yearlyTotals = features.results?.yearlyTotals ?? {};
@@ -2278,6 +2566,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   /* ── State objects for async data ────────────────────────── */
   const costState = { costsData: null, error: null, status: "idle" };
+  let backendCostsRaw = null;
   const costOverrides = {
     fuelCostPerL: null, energyPricePerKwh: null, interestRate: null,
     dieselEfficiency: null, dieselMaintCost: null, electricMaintCost: null,
@@ -2364,7 +2653,23 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   };
 
   const refreshCosts = () => {
-    computeCosts();
+    if (backendCostsRaw) {
+      try {
+        const yearlyDistKm = toFiniteNumber(yearlyTotals.distanceKm);
+        const yearlyEngKwh = toFiniteNumber(yearlyTotals.totalEnergyKwh);
+        const mapped = mapBackendCostsToLocal(backendCostsRaw, yearlyDistKm, yearlyEngKwh, busModelData, {
+          optimizedPacks: features.results?.optimizedPacks,
+          overrides: costOverrides,
+        });
+        costState.costsData = mapped;
+        costState.status = "done";
+      } catch (err) {
+        costState.status = "error";
+        costState.error = err?.message ?? "Cost recomputation failed.";
+      }
+    } else {
+      computeCosts();
+    }
     if (costState.costsData) {
       refreshCostsPanelElements(section, costState.costsData);
     }
@@ -2573,7 +2878,24 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   await loadDeps();
 
-  computeCosts();
+  /* Try backend yearly-analysis costs first; fall back to client-side */
+  const busLengthForCosts = toFiniteNumber(busModelData?.bus_length_m);
+  if (busLengthForCosts != null) {
+    try {
+      backendCostsRaw = await fetchYearlyAnalysisCosts(analysisId, { bus_length_m: busLengthForCosts });
+      const yearlyDistKm = toFiniteNumber(yearlyTotals.distanceKm);
+      const yearlyEngKwh = toFiniteNumber(yearlyTotals.totalEnergyKwh);
+      const mapped = mapBackendCostsToLocal(backendCostsRaw, yearlyDistKm, yearlyEngKwh, busModelData, { optimizedPacks: features.results?.optimizedPacks, overrides: {} });
+      costState.costsData = mapped;
+      costState.status = "done";
+    } catch (err) {
+      console.warn("[ya-results] Backend costs fetch failed, using client-side:", err);
+      computeCosts();
+    }
+  } else {
+    computeCosts();
+  }
+
   wireSliders();
   refreshActiveTab();
 

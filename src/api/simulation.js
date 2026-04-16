@@ -863,3 +863,26 @@ export const deleteYearlyAnalysis = async (id) => {
   }
   return { deleted: true };
 };
+
+export const fetchYearlyAnalysisCosts = async (id, params = {}) => {
+  if (!id) throw new Error("Missing yearly analysis ID.");
+  const headers = authHeaders();
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value != null && value !== "") query.set(key, String(value));
+  });
+  const qs = query.toString();
+  const response = await fetch(
+    `${YEARLY_ANALYSIS_PATH}/${encodeURIComponent(id)}/costs${qs ? `?${qs}` : ""}`,
+    { method: "GET", headers },
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load yearly analysis costs.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
