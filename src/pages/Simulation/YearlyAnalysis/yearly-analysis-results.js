@@ -5,6 +5,7 @@ import { textContent } from "../../../ui-helpers";
 import {
   fetchYearlyAnalysis,
   fetchYearlyAnalysisCosts,
+  fetchYearlyAnalysisEmissions,
   fetchOptimizationRun,
   fetchPredictionRun,
   fetchPredictionRuns,
@@ -1825,6 +1826,181 @@ const loadDieselHeatingEmissions = async (features, busModelData) => {
   };
 };
 
+const hasEmissionPhaseData = (indicator = {}) =>
+  LCA_PHASES.some((phase) => toFiniteNumber(indicator?.[phase.key]) != null);
+
+const resolveBackendEmissionChannel = (indicator, channelKey = null) => {
+  if (!channelKey) return indicator;
+  if (channelKey === "electric") {
+    return indicator?.electric ?? indicator?.ebusElectric ?? indicator?.ebus_electric;
+  }
+  if (channelKey === "dieselHeating") {
+    return indicator?.dieselHeating ?? indicator?.diesel_heating ?? indicator?.heating;
+  }
+  return indicator?.[channelKey];
+};
+
+const mapBackendEmissionIndicator = (indicator, channelKey = null) => {
+  const source = resolveBackendEmissionChannel(indicator, channelKey);
+  if (!source || (typeof source !== "object" && toFiniteNumber(source) == null)) {
+    return null;
+  }
+
+  const mapped = {};
+  const unit = text(source?.unit ?? indicator?.unit).trim();
+  if (unit) mapped.unit = unit;
+
+  let total = toFiniteNumber(source?.total ?? source);
+  for (const phase of LCA_PHASES) {
+    const val = toFiniteNumber(source?.[phase.key]);
+    if (val == null) continue;
+    mapped[phase.key] = val;
+  }
+
+  if (total == null) {
+    const phaseValues = LCA_PHASES
+      .map((phase) => toFiniteNumber(source?.[phase.key]))
+      .filter((value) => value != null);
+    if (phaseValues.length) {
+      total = phaseValues.reduce((sum, value) => sum + value, 0);
+    }
+  }
+
+  if (total != null) mapped.total = total;
+  return mapped.total != null ? mapped : null;
+};
+
+const mapBackendEmissionIndicators = (indicators = {}, channelKey = null) =>
+  Object.entries(indicators).reduce((acc, [key, indicator]) => {
+    const mapped = mapBackendEmissionIndicator(indicator, channelKey);
+    if (mapped) acc[key] = mapped;
+    return acc;
+  }, {});
+
+const mapBackendEmissionsToState = (rawEmissions, features, busModelData) => {
+  const assumptions = rawEmissions?.assumptions ?? {};
+  const ebusIndicators =
+    rawEmissions?.ebus ??
+    rawEmissions?.electric ??
+    rawEmissions?.ebus_emissions ??
+    {};
+  const dieselIndicators =
+    rawEmissions?.diesel_comparator ??
+    rawEmissions?.dieselComparator ??
+    rawEmissions?.diesel ??
+    rawEmissions?.comparator ??
+    {};
+
+  const yearlyDistanceKm = toFiniteNumber(
+    assumptions.yearlyDistanceKm ??
+    assumptions.yearly_distance_km ??
+    rawEmissions?.annualKm ??
+    rawEmissions?.annual_km
+  );
+  const yearlyElectricKwh = toFiniteNumber(
+    assumptions.yearlyElectricKwh ?? assumptions.yearly_electric_kwh
+  );
+  const yearlyDhLiters = toFiniteNumber(
+    assumptions.yearlyDieselHeatingLiters ?? assumptions.yearly_diesel_heating_liters
+  ) ?? 0;
+  const yearlyDhFuelKwh = toFiniteNumber(
+    assumptions.yearlyDieselHeatingFuelKwh ?? assumptions.yearly_diesel_heating_fuel_kwh
+  ) ?? 0;
+
+  const electricYearly = mapBackendEmissionIndicators(ebusIndicators);
+  if (!Object.keys(electricYearly).length) {
+    throw new Error("No yearly analysis emissions data available.");
+  }
+
+  const hasHeatingSplit = Object.values(ebusIndicators).some((indicator) =>
+    toFiniteNumber(resolveBackendEmissionChannel(indicator, "electric")) != null ||
+    toFiniteNumber(resolveBackendEmissionChannel(indicator, "dieselHeating")) != null
+  );
+  const isDieselHeating =
+    text(
+      assumptions.auxiliaryHeatingType ??
+      assumptions.auxiliary_heating_type ??
+      rawEmissions?.auxiliaryHeatingType ??
+      rawEmissions?.auxiliary_heating_type
+    ).trim().toLowerCase() === "diesel" ||
+    yearlyDhLiters > 0 ||
+    hasHeatingSplit;
+
+  const electricOnlyYearly = isDieselHeating
+    ? mapBackendEmissionIndicators(ebusIndicators, "electric")
+    : null;
+  const dieselHeatingYearly = isDieselHeating
+    ? mapBackendEmissionIndicators(ebusIndicators, "dieselHeating")
+    : null;
+  const dieselYearly = mapBackendEmissionIndicators(dieselIndicators);
+
+  const optimizedPacks = toFiniteNumber(features.results?.optimizedPacks);
+  const packSizeKwh = toFiniteNumber(busModelData?.battery_pack_size_kwh);
+  const busLengthM = toFiniteNumber(busModelData?.bus_length_m);
+  const busModelName =
+    busModelData?.name ??
+    busModelData?.model ??
+    features.meta?.busModelName ??
+    "";
+  const busLifetime = toFiniteNumber(busModelData?.bus_lifetime) ?? 12;
+  const packLifetime = toFiniteNumber(busModelData?.battery_pack_lifetime) ?? 8;
+
+  const electricConsumptionKwhPer100km =
+    yearlyElectricKwh != null && yearlyDistanceKm > 0
+      ? (yearlyElectricKwh / yearlyDistanceKm) * 100
+      : null;
+  const electricEnergyStoredKwh =
+    optimizedPacks != null && packSizeKwh != null
+      ? optimizedPacks * packSizeKwh
+      : null;
+  const batteryLifetimeReplacements =
+    busLifetime > 0 && packLifetime > 0
+      ? Math.max(0, Math.ceil(busLifetime / packLifetime) - 1)
+      : null;
+
+  return {
+    electricYearly,
+    electricOnlyYearly:
+      electricOnlyYearly && Object.keys(electricOnlyYearly).length
+        ? electricOnlyYearly
+        : null,
+    dieselHeatingYearly:
+      dieselHeatingYearly && Object.keys(dieselHeatingYearly).length
+        ? dieselHeatingYearly
+        : null,
+    dieselYearly:
+      dieselYearly && Object.keys(dieselYearly).length ? dieselYearly : null,
+    yearlyImpact: yearlyDistanceKm != null ? { yearly_distance_km: yearlyDistanceKm } : null,
+    yearlyDistanceKm,
+    isDieselHeating,
+    emissionsMetadata: isDieselHeating
+      ? {
+          auxiliaryHeatingType: "diesel",
+          yearlyDhLiters,
+          yearlyDhFuelKwh,
+          yearlyElectricKwh,
+          yearlyDistanceKm,
+          optimizedPacks,
+          busLengthM,
+          busModelName: text(busModelName).trim() || null,
+          electricConsumptionKwhPer100km,
+          electricEnergyStoredKwh,
+          batteryLifetimeReplacements,
+          lcaSize: inferLcaSize(busLengthM, busModelName),
+          electricLcaVehicleId: null,
+          electricLcaVehicleName: null,
+          electricLcaVehiclePowertrain: null,
+          dieselHeatingLifecyclePhases: null,
+          bevOverrides: { passengers: 1 },
+          electricInputsAppliedNote: null,
+          dieselHeatingContributionNote: null,
+          upstreamApiLimitationNote: null,
+          dhFuelFactorSource: null,
+        }
+      : null,
+  };
+};
+
 /* ── Emissions panel rendering ─────────────────────────────────── */
 
 const EMISSIONS_POLLUTANTS = [
@@ -1977,6 +2153,10 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
   const electricGwp = emState.electricYearly.gwp100a;
   const dieselGwp = emState.dieselYearly?.gwp100a;
   if (!electricGwp) return;
+  if (!hasEmissionPhaseData(electricGwp) && !hasEmissionPhaseData(dieselGwp)) {
+    el.innerHTML = `<p class="ya-status-msg">Lifecycle phase breakdown not available for this yearly-analysis emissions payload.</p>`;
+    return;
+  }
 
   const buildPhases = (gwp) =>
     LCA_PHASES.map((p) => ({
@@ -2330,20 +2510,16 @@ const renderEmissionsPanel = (sec, emState) => {
       Results should be interpreted as standardized comparative lifecycle-based indicators.
       For the yearly analysis, emissions are scaled proportionally to the aggregated yearly distance across all weather scenarios.`;
     const dhNote = isDH
-      ? ` For the diesel-heating e-bus case, the electric-side emissions are recomputed
-        using the actual diesel-case electric inputs (reduced electricity consumption,
-        adjusted battery sizing). Diesel heating emissions are derived from the
-        diesel comparator's fuel-phase lifecycle factors (direct combustion and energy
-        chain), scaled by the annual diesel heating liters. The E-bus total is the sum
-        of the electric-only and diesel-heating contributions.`
+      ? ` For the diesel-heating e-bus case, the yearly-analysis emissions endpoint
+        returns a mixed-case result composed of an electric-side contribution and a
+        diesel-heating contribution. The E-bus total shown here is the sum of those
+        two contributions.`
       : "";
     const caveatNote = isDH
       ? ` Methodological note: for the diesel-heating case, emissions are shown as the
         sum of an electric-side component and a diesel-heating component. This mixed-case
-        decomposition is correct and avoids double counting of heating. However, the
-        electric-side result is not generated through exactly the same upstream computation
-        path as the full e-bus case, so direct cross-case comparison of electric-side totals
-        should be interpreted as approximate.`
+        decomposition avoids double counting of heating and is displayed below as a
+        decomposition of the total E-bus result.`
       : "";
     methEl.innerHTML = `<div class="ya-env-methodology-note">
       <p>${baseNote}${dhNote}${caveatNote}</p>
@@ -3176,31 +3352,41 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   const loadEmissions = async () => {
     emissionsState.status = "loading";
+    emissionsState.error = null;
     refreshActiveTab();
     try {
-      const heatingType = features.energy_summary?.auxiliary_heating_type;
-      if (heatingType === "diesel") {
-        const r = await loadDieselHeatingEmissions(features, busModelData);
-        emissionsState.electricYearly = r.totalEbusYearly;
-        emissionsState.electricOnlyYearly = r.electricOnlyYearly;
-        emissionsState.dieselHeatingYearly = r.dieselHeatingYearly;
-        emissionsState.dieselYearly = r.dieselYearly;
-        emissionsState.yearlyImpact = r.yearlyImpact;
-        emissionsState.yearlyDistanceKm = r.yearlyDistanceKm;
-        emissionsState.isDieselHeating = true;
-        emissionsState.emissionsMetadata = r.metadata;
-      } else {
-        const r = await loadEmissionsForAnalysis(features, busModelData);
-        emissionsState.electricYearly = r.electricYearly;
-        emissionsState.dieselYearly = r.dieselYearly;
-        emissionsState.yearlyImpact = r.yearlyImpact;
-        emissionsState.yearlyDistanceKm = r.yearlyDistanceKm;
-        emissionsState.isDieselHeating = false;
+      const busLengthForEmissions = toFiniteNumber(busModelData?.bus_length_m);
+      if (busLengthForEmissions == null) {
+        throw new Error("Bus model length is missing, so yearly emissions cannot be loaded.");
       }
+      const backendEmissionsRaw = await fetchYearlyAnalysisEmissions(analysisId, {
+        bus_length_m: busLengthForEmissions,
+      });
+      const mapped = mapBackendEmissionsToState(
+        backendEmissionsRaw,
+        features,
+        busModelData,
+      );
+      emissionsState.electricYearly = mapped.electricYearly;
+      emissionsState.electricOnlyYearly = mapped.electricOnlyYearly;
+      emissionsState.dieselHeatingYearly = mapped.dieselHeatingYearly;
+      emissionsState.dieselYearly = mapped.dieselYearly;
+      emissionsState.yearlyImpact = mapped.yearlyImpact;
+      emissionsState.yearlyDistanceKm = mapped.yearlyDistanceKm;
+      emissionsState.isDieselHeating = mapped.isDieselHeating;
+      emissionsState.emissionsMetadata = mapped.emissionsMetadata;
       emissionsState.status = "done";
     } catch (err) {
       emissionsState.status = "error";
       emissionsState.error = err?.message ?? "Environmental data load failed.";
+      emissionsState.electricYearly = null;
+      emissionsState.electricOnlyYearly = null;
+      emissionsState.dieselHeatingYearly = null;
+      emissionsState.dieselYearly = null;
+      emissionsState.yearlyImpact = null;
+      emissionsState.yearlyDistanceKm = null;
+      emissionsState.isDieselHeating = false;
+      emissionsState.emissionsMetadata = null;
     }
     refreshActiveTab();
   };
