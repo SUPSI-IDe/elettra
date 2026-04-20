@@ -593,24 +593,28 @@ const renderYearlySummary = (summary) => {
     <div class="ya-summary-card__value">${value}</div>
     ${sub ? `<div class="ya-summary-card__sub">${sub}</div>` : ""}
   </div>`;
+  const efficiencySub = [
+    summary.minEfficiency != null ? textContent(`Best: ${formatFixed(summary.minEfficiency, 3)} kWh/km`) : null,
+    summary.maxEfficiency != null ? textContent(`Worst: ${formatFixed(summary.maxEfficiency, 3)} kWh/km`) : null,
+  ].filter(Boolean).join("<br>");
 
   const cards = [
-    card("Yearly nominal distance", summary.nomDist != null ? `${formatInt(summary.nomDist)} km` : "—"),
     card("Yearly simulated distance", summary.dist != null ? `${formatInt(summary.dist)} km` : "—"),
     card("Yearly energy", summary.energy != null ? `${formatInt(summary.energy)} kWh` : "—"),
     card("Yearly drivetrain energy", summary.drv != null ? `${formatInt(summary.drv)} kWh` : "—",
       summary.drvShare != null ? `${formatFixed(summary.drvShare, 1)}% of total` : null),
     card("Yearly auxiliary energy", summary.aux != null ? `${formatInt(summary.aux)} kWh` : "—",
       summary.auxShare != null ? `${formatFixed(summary.auxShare, 1)}% of total` : null),
-    card("Average yearly efficiency", summary.avgEfficiency != null ? `${formatFixed(summary.avgEfficiency, 3)} kWh/km` : "—"),
+    card(
+      "Average yearly efficiency",
+      summary.avgEfficiency != null ? `${formatFixed(summary.avgEfficiency, 3)} kWh/km` : "—",
+      efficiencySub || null,
+    ),
   ];
-
-  const distNote = `<p class="ya-distance-note">Nominal distance is the reference shift length. Simulated distance is the operational distance used by the prediction model.</p>`;
 
   return `<div class="ya-res-section">
     <h3 class="ya-res-section-title">Yearly aggregated summary</h3>
     <div class="ya-summary-cards">${cards.join("")}</div>
-    ${distNote}
   </div>`;
 };
 
@@ -2559,8 +2563,9 @@ const buildExportPayload = (features, effState, costState, emissionsState, busMo
       yearlyDrivetrainEnergy_kWh: round(s.drv, 1),
       yearlyAuxiliaryEnergy_kWh: round(s.aux, 1),
       yearlySimulatedDistance_km: round(s.dist, 1),
-      yearlyNominalDistance_km: round(s.nomDist, 1),
       averageEfficiency_kWhPerKm: round(s.avgEfficiency, 4),
+      bestCaseEfficiency_kWhPerKm: round(s.minEfficiency, 4),
+      worstCaseEfficiency_kWhPerKm: round(s.maxEfficiency, 4),
       auxiliaryShare_pct: round(s.auxShare, 1),
       drivetrainShare_pct: round(s.drvShare, 1),
     };
@@ -2827,7 +2832,7 @@ const downloadJson = (data, filename) => {
 
 /* ── Overview rendering ────────────────────────────────────────── */
 
-const renderOverviewPanel = (el, features, costState, emissionsState, busModelData = {}, { onDownload } = {}) => {
+const renderOverviewPanel = (el, features, effState, costState, emissionsState, busModelData = {}, { onDownload } = {}) => {
   if (!el) return;
 
   const cfg = features.config ?? {};
@@ -2835,6 +2840,7 @@ const renderOverviewPanel = (el, features, costState, emissionsState, busModelDa
   const results = features.results ?? {};
   const yearlyTotals = results.yearlyTotals ?? {};
   const scenarioResults = results.scenarioResults ?? [];
+  const efficiencySummary = effState?.summary ?? null;
   const columns = [];
 
   /* ── Column 1: Inputs ──────────────────────────────────────── */
@@ -2866,22 +2872,25 @@ const renderOverviewPanel = (el, features, costState, emissionsState, busModelDa
       : feasible === false ? "ya-overview-badge--err" : "ya-overview-badge--neutral";
     const feasLabel = feasible === true ? "Feasible" : feasible === false ? "Infeasible" : "—";
 
-    const yearlyEnergy = toFiniteNumber(yearlyTotals.totalEnergyKwh);
-    const yearlyDist = toFiniteNumber(yearlyTotals.distanceKm);
-    const avgEpk = yearlyEnergy != null && yearlyDist > 0 ? yearlyEnergy / yearlyDist : null;
+    const yearlyEnergy = toFiniteNumber(efficiencySummary?.energy ?? yearlyTotals.totalEnergyKwh);
+    const yearlyDist = toFiniteNumber(efficiencySummary?.dist ?? yearlyTotals.distanceKm);
+    const avgEpk = toFiniteNumber(efficiencySummary?.avgEfficiency)
+      ?? (yearlyEnergy != null && yearlyDist > 0 ? yearlyEnergy / yearlyDist : null);
 
     const valid = scenarioResults.filter((sr) => !sr.error && sr.kpis?.energyPerKm != null);
     const epkValues = valid.map((sr) => sr.kpis.energyPerKm);
-    const bestEpk = epkValues.length ? Math.min(...epkValues) : null;
-    const worstEpk = epkValues.length ? Math.max(...epkValues) : null;
+    const bestEpk = toFiniteNumber(efficiencySummary?.minEfficiency)
+      ?? (epkValues.length ? Math.min(...epkValues) : null);
+    const worstEpk = toFiniteNumber(efficiencySummary?.maxEfficiency)
+      ?? (epkValues.length ? Math.max(...epkValues) : null);
 
     const body = [
       overviewRowHtml("Base feasibility", `<span class="ya-overview-badge ${feasBadge}">${textContent(feasLabel)}</span>`, true),
       overviewRowHtml("Yearly energy", yearlyEnergy != null ? `${formatInt(yearlyEnergy)} kWh` : "—"),
       overviewRowHtml("Yearly simulated distance", yearlyDist != null ? `${formatInt(yearlyDist)} km` : "—"),
-      overviewRowHtml("Avg. consumption / km", avgEpk != null ? `${formatFixed(avgEpk, 3)} kWh` : "—"),
-      overviewRowHtml("Best scenario / km", bestEpk != null ? `${formatFixed(bestEpk, 3)} kWh` : "—"),
-      overviewRowHtml("Worst scenario / km", worstEpk != null ? `${formatFixed(worstEpk, 3)} kWh` : "—"),
+      overviewRowHtml("Avg. consumption / km", avgEpk != null ? `${formatFixed(avgEpk, 3)} kWh/km` : "—"),
+      overviewRowHtml("Best scenario / km", bestEpk != null ? `${formatFixed(bestEpk, 3)} kWh/km` : "—"),
+      overviewRowHtml("Worst scenario / km", worstEpk != null ? `${formatFixed(worstEpk, 3)} kWh/km` : "—"),
     ].join("");
 
     columns.push(overviewColShell("⚡", "Efficiency", body));
@@ -3109,10 +3118,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   const recomputeEfficiency = (scenarios) => {
     effState.enriched = enrichAllScenarios(scenarios);
-    effState.summary = computeYearlySummary(
-      effState.enriched, yearlyTotals,
-      toFiniteNumber(features.results?.nominalDailyDistanceKm),
-    );
+    effState.summary = computeYearlySummary(effState.enriched, yearlyTotals);
     effState.effByTemp = buildEfficiencyByTemp(effState.enriched);
     effState.annualContrib = buildAnnualContribution(effState.enriched);
   };
@@ -3176,7 +3182,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       refreshCostsPanelElements(section, costState.costsData);
     }
     if (renderedTabs.has("overview")) {
-      renderOverviewPanel(overviewPanel, features, costState, emissionsState, busModelData, overviewOpts);
+      renderOverviewPanel(overviewPanel, features, effState, costState, emissionsState, busModelData, overviewOpts);
     }
   };
 
@@ -3188,7 +3194,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   /* ── Tab renderers (lazy) ────────────────────────────────── */
   const TAB_RENDERERS = {
-    overview: () => renderOverviewPanel(overviewPanel, features, costState, emissionsState, busModelData, overviewOpts),
+    overview: () => renderOverviewPanel(overviewPanel, features, effState, costState, emissionsState, busModelData, overviewOpts),
     efficiency: () => renderEfficiency(),
     costs: () => {
       if (costState.status === "error") return;

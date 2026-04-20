@@ -84,21 +84,36 @@ export const enrichAllScenarios = (scenarioResults) =>
 
 /* ── Yearly aggregation ───────────────────────────────────────────── */
 
-export const computeYearlySummary = (enriched, yearlyTotals = {}, nominalDailyKm = null) => {
+export const computeYearlySummary = (enriched, yearlyTotals = {}) => {
   const validScenarios = enriched.filter((s) => s.derived);
   const totalOcc = validScenarios.reduce((s, sr) => s + (sr.occurrences ?? 0), 0);
+  const efficiencyValues = validScenarios
+    .map((sr) => fin(sr.derived?.efficiencyMedian))
+    .filter((value) => value != null);
 
   const energy = fin(yearlyTotals.totalEnergyKwh);
   const drv = fin(yearlyTotals.drivetrainEnergyKwh);
   const aux = fin(yearlyTotals.auxiliaryEnergyKwh);
   const dist = fin(yearlyTotals.distanceKm);
-  const nomDist = fin(nominalDailyKm) != null && totalOcc > 0 ? nominalDailyKm * totalOcc : null;
 
   const avgEfficiency = energy != null && dist != null && dist > 0 ? energy / dist : null;
+  const minEfficiency = efficiencyValues.length ? Math.min(...efficiencyValues) : null;
+  const maxEfficiency = efficiencyValues.length ? Math.max(...efficiencyValues) : null;
   const auxShare = energy != null && aux != null && energy > 0 ? (aux / energy) * 100 : null;
   const drvShare = energy != null && drv != null && energy > 0 ? (drv / energy) * 100 : null;
 
-  return { energy, drv, aux, dist, nomDist, avgEfficiency, auxShare, drvShare, totalOcc };
+  return {
+    energy,
+    drv,
+    aux,
+    dist,
+    avgEfficiency,
+    minEfficiency,
+    maxEfficiency,
+    auxShare,
+    drvShare,
+    totalOcc,
+  };
 };
 
 /* ── Yearly contribution shares ───────────────────────────────────── */
