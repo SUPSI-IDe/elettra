@@ -35,6 +35,7 @@ import {
   DIESEL_MAINT_BASE,
   ELECTRIC_MAINT_BASE,
 } from "../../../config/economic-defaults";
+import { getOptimizationRunName } from "../../../utils/optimization-run";
 import "./simulation-results.css";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
@@ -166,12 +167,7 @@ const firstText = (...values) => {
 };
 
 const resolveSimulationName = (optimizationRun = {}, options = {}) =>
-  firstText(
-    options?.simulationName,
-    optimizationRun?.input_params?.name,
-    optimizationRun?.inputParams?.name,
-    optimizationRun?.name
-  );
+  getOptimizationRunName(optimizationRun, options?.simulationName);
 
 const resolveOptimizationId = (optimizationRun = {}, options = {}) =>
   firstText(
@@ -7093,6 +7089,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     },
   };
 
+  const pageTitleEl = section.querySelector('[data-role="results-page-title"]');
   const simNameEl = section.querySelector('[data-role="sim-name"]');
   const busModelEl = section.querySelector('[data-role="sim-bus-model"]');
   const shiftTabsEl = section.querySelector('[data-role="shift-tabs"]');
@@ -7124,9 +7121,19 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const electricMaintenanceResetBtn = section.querySelector('[data-role="electric-var-maintenance-reset"]');
 
   const busModelName = options.busModelName || "";
+  const renderPageTitle = () => {
+    if (!pageTitleEl) return;
+    const baseTitle =
+      t("simulation.results_page_title") || "Feasibility evaluation results";
+    const simulationName = resolveSimulationName(loadedOptimizationRun, options);
+    pageTitleEl.textContent = simulationName
+      ? `${baseTitle} – ${simulationName}`
+      : baseTitle;
+  };
   const getResultsSubtitle = () =>
     firstText(options.simulationName, activeShiftName);
 
+  renderPageTitle();
   if (simNameEl) simNameEl.textContent = activeShiftName;
   if (busModelEl) busModelEl.textContent = busModelName;
   if (subtitleEl) {
@@ -7806,6 +7813,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       );
       loadedOptimizationRun = optimizationRun;
       options.simulationName = resolveSimulationName(optimizationRun, options);
+      renderPageTitle();
       const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
         ? optimizationRun.prediction_run_ids
         : [];

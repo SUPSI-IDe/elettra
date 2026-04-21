@@ -11,6 +11,10 @@ import { isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
 import { resolveModelFields, textContent } from "../../../ui-helpers";
+import {
+  getOptimizationRunDisplayName,
+  getOptimizationRunName,
+} from "../../../utils/optimization-run";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -266,13 +270,7 @@ const resolveShiftLabel = (run = {}) => {
   return "—";
 };
 
-const resolveRunName = (run = {}) =>
-  text(
-    run?.input_params?.name ??
-    run?.inputParams?.name ??
-    run?.name ??
-    ""
-  ).trim();
+const resolveRunName = (run = {}) => getOptimizationRunName(run);
 
 const resolveBusModelId = (run = {}) => {
   return text(
@@ -568,7 +566,7 @@ const getSortValue = (run = {}, key = "") => {
     case "bus_model":
       return resolveBusModelName(run) || resolveBusModelId(run) || "—";
     case "shift":
-      return resolveShiftLabel(run) || resolveRunName(run) || "—";
+      return getOptimizationRunDisplayName(run, resolveShiftLabel(run)) || "—";
     case "feasibility": {
       const feasible = resolveElectrificationFeasible(run);
       if (feasible === true) return "a_feasible";
@@ -667,8 +665,9 @@ const renderRows = (tbody, runs = []) => {
       const created = formatDate(resolveCreatedAt(run));
       const shiftIds = resolveShiftIds(run);
       const shiftTitle = shiftIds.length ? shiftIds.join(", ") : rowId;
-      const shiftName = resolveShiftLabel(run);
-      const shiftLabel = shiftName !== "—" ? shiftName : resolveRunName(run) || "—";
+      const shiftLabel = resolveShiftLabel(run);
+      const displayName =
+        getOptimizationRunDisplayName(run, shiftLabel) || "—";
       const busModelId = text(resolveBusModelId(run)).trim();
       const busModelName = text(resolveBusModelName(run)).trim();
       const busModelLabel = busModelName || busModelId || "—";
@@ -691,7 +690,7 @@ const renderRows = (tbody, runs = []) => {
           <td class="day" title="${textContent(busModelTooltip)}">${textContent(
             busModelLabel
           )}</td>
-          <td class="name" title="${textContent(shiftLabel || shiftTitle)}">${textContent(shiftLabel)}</td>
+          <td class="name" title="${textContent(displayName !== "—" ? displayName : shiftTitle)}">${textContent(displayName)}</td>
           <td class="main-parameters">${textContent(mainParameters)}</td>
           <td class="type">${textContent(mode)}</td>
           <td class="status">
@@ -975,6 +974,7 @@ export const initializeSimulationRuns = async (
 
     triggerPartialLoad("add-simulation", {
       prefill: {
+        name: resolveRunName(run),
         shiftIds: resolveShiftIds(run),
         optimizationMode: resolveRunMode(run) || "battery_only",
         externalTempCelsius: resolveExternalTemp(run) ?? -5,
@@ -1113,7 +1113,9 @@ export const initializeSimulationRuns = async (
       sel.innerHTML = `<option value="" disabled selected>${textContent(placeholder)}</option>`;
       allRuns.forEach((run) => {
         const id = text(run?.id);
-        const runName = resolveRunName(run) || resolveShiftLabel(run) || id.slice(0, 8);
+        const runName =
+          getOptimizationRunDisplayName(run, resolveShiftLabel(run)) ||
+          id.slice(0, 8);
         const bus = resolveBusModelName(run) || "—";
         const created = formatDate(resolveCreatedAt(run));
         const label = `${runName} — ${bus} — ${created}`;

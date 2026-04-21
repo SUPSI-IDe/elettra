@@ -12,6 +12,7 @@ import {
   DEFAULT_PREDICTION_MODEL_NAME,
   DEFAULT_PREDICTION_QUANTILES,
 } from "../../../config/simulation-defaults";
+import { normalizeOptimizationRunName } from "../../../utils/optimization-run";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -99,6 +100,7 @@ export const initializeSimulationDetail = async (
   const resultsSection = section.querySelector('[data-role="results"]');
   const resultsContent = section.querySelector('[data-role="results-content"]');
   const simNameEl = section.querySelector('[data-role="sim-name"]');
+  const nameInput = section.querySelector("#simulation-detail-name");
 
   const simulationName = options.simulationName ?? "";
   const shiftIds = Array.isArray(options.shiftIds) ? options.shiftIds : [];
@@ -107,6 +109,9 @@ export const initializeSimulationDetail = async (
   if (simNameEl) {
     simNameEl.textContent =
       simulationName || t("simulation.new_simulation") || "New Simulation";
+  }
+  if (nameInput) {
+    nameInput.value = normalizeOptimizationRunName(simulationName);
   }
 
   const handleBack = () => {
@@ -136,9 +141,20 @@ export const initializeSimulationDetail = async (
     setFeedback(section, "");
 
     const formData = new FormData(form);
+    const name = normalizeOptimizationRunName(formData.get("name"));
     const externalTemp = Number(formData.get("external_temp_celsius") ?? 15);
     const occupancy = Number(formData.get("occupancy_percent") ?? 50);
     const heatingType = (formData.get("auxiliary_heating_type") ?? "default").trim();
+
+    if (nameInput) {
+      nameInput.value = name;
+    }
+
+    if (!name) {
+      alert(t("simulation.name_required") || "Name is required.");
+      nameInput?.focus();
+      return;
+    }
 
     if (!busModelId) {
       setFeedback(
@@ -159,6 +175,7 @@ export const initializeSimulationDetail = async (
 
     try {
       const result = await createOptimizationRun({
+        name,
         shift_ids: shiftIds,
         bus_model_id: busModelId,
         prediction_params: {

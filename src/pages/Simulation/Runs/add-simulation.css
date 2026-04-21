@@ -43,6 +43,19 @@
   gap: 0.2rem;
 }
 
+.add-simulation #simulation-name {
+  width: 100%;
+}
+
+.add-simulation #simulation-name[aria-invalid="true"] {
+  border-color: var(--error-color);
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.12);
+}
+
+.add-simulation [data-role="name-feedback"] {
+  min-height: 0;
+}
+
 /* ── Compact row grids ───────────────────────────────────────────── */
 
 .add-simulation .compact-row {

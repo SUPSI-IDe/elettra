@@ -6,6 +6,7 @@ import {
   DEFAULT_PREDICTION_QUANTILES,
   GREYBOX_PARAMS,
 } from "../config/simulation-defaults";
+import { normalizeOptimizationRunName } from "../utils/optimization-run";
 
 const SIMULATION_PATH = `${API_ROOT}/api/v1/simulation`;
 const YEARLY_ANALYSIS_PATH = `${API_ROOT}/api/v1/yearly-analysis`;
@@ -485,7 +486,15 @@ export const createOptimizationRun = async (params = {}) => {
     pack_count_override: pack_count_override ?? null,
   });
 
-  const { prediction_params: _discarded, ...restWithoutPrediction } = rest;
+  const normalizedRest = { ...rest };
+  const normalizedName = normalizeOptimizationRunName(normalizedRest.name);
+  if (normalizedName) {
+    normalizedRest.name = normalizedName;
+  } else {
+    delete normalizedRest.name;
+  }
+
+  const { prediction_params: _discarded, ...restWithoutPrediction } = normalizedRest;
   const body = {
     shift_ids,
     prediction_run_ids: predictionRunIds,

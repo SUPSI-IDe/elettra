@@ -27,6 +27,7 @@ import {
   DEFAULT_PREDICTION_MODEL_NAME,
   DEFAULT_PREDICTION_QUANTILES,
 } from "../../../config/simulation-defaults";
+import { normalizeOptimizationRunName } from "../../../utils/optimization-run";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -531,6 +532,8 @@ export const initializeAddSimulation = async (
   const shiftFilter = section.querySelector("#sim-shift-filter");
   const modeSelect = section.querySelector("#var-optimization-mode");
   const busModelOverride = section.querySelector("#var-bus-model-override");
+  const nameInput = section.querySelector("#simulation-name");
+  const nameFeedback = section.querySelector('[data-role="name-feedback"]');
 
   const progressOverlay = section.querySelector(
     '[data-role="simulation-progress"]'
@@ -568,6 +571,33 @@ export const initializeAddSimulation = async (
   let currentStops = [];
   let selectedShiftIds = new Set();
   let sortState = { ...DEFAULT_SHIFT_SORT };
+
+  const setNameFeedback = (message) => {
+    if (!nameFeedback) return;
+    if (message) {
+      nameFeedback.textContent = message;
+      nameFeedback.dataset.tone = "error";
+      nameFeedback.hidden = false;
+    } else {
+      nameFeedback.textContent = "";
+      nameFeedback.hidden = true;
+      delete nameFeedback.dataset.tone;
+    }
+  };
+
+  const clearNameValidation = () => {
+    if (nameInput) {
+      nameInput.removeAttribute("aria-invalid");
+    }
+    setNameFeedback("");
+  };
+
+  const setNameValidationError = (message) => {
+    if (nameInput) {
+      nameInput.setAttribute("aria-invalid", "true");
+    }
+    setNameFeedback(message);
+  };
 
   const hydrateShiftDistances = (shifts = []) => {
     const pendingShifts = shifts.filter(
@@ -868,7 +898,14 @@ export const initializeAddSimulation = async (
       batteryCostPerKwh,
       batterySizingMode,
       chargingStations,
+      name,
     } = prefill;
+
+    const normalizedName = normalizeOptimizationRunName(name);
+    if (normalizedName && nameInput) {
+      nameInput.value = normalizedName;
+      clearNameValidation();
+    }
 
     const normalizedShiftIds = (
       Array.isArray(shiftIds) && shiftIds.length ? shiftIds : [shiftId]
@@ -965,6 +1002,24 @@ export const initializeAddSimulation = async (
     shiftFilter.addEventListener("input", renderCurrentView);
     cleanupHandlers.push(() =>
       shiftFilter.removeEventListener("input", renderCurrentView)
+    );
+  }
+
+  const handleNameInput = () => {
+    if (!nameInput) return;
+    if (normalizeOptimizationRunName(nameInput.value)) {
+      clearNameValidation();
+      return;
+    }
+
+    nameInput.removeAttribute("aria-invalid");
+    setNameFeedback("");
+  };
+
+  if (nameInput) {
+    nameInput.addEventListener("input", handleNameInput);
+    cleanupHandlers.push(() =>
+      nameInput.removeEventListener("input", handleNameInput)
     );
   }
 
@@ -1071,6 +1126,22 @@ export const initializeAddSimulation = async (
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFeedback(section, "");
+    clearNameValidation();
+
+    const formData = new FormData(form);
+    const name = normalizeOptimizationRunName(formData.get("name"));
+
+    if (nameInput) {
+      nameInput.value = name;
+    }
+
+    if (!name) {
+      const message = t("simulation.name_required") || "Name is required.";
+      setNameValidationError(message);
+      alert(message);
+      nameInput?.focus();
+      return;
+    }
 
     const selectedShiftIds = getSelectedShiftIds();
 
@@ -1082,7 +1153,6 @@ export const initializeAddSimulation = async (
       return;
     }
 
-    const formData = new FormData(form);
     const optimizationMode = text(
       formData.get("optimization_mode") ?? ""
     ).trim();
@@ -1129,6 +1199,7 @@ export const initializeAddSimulation = async (
     }
 
     const payload = {
+      name,
       mode: optimizationMode,
       shift_ids: selectedShiftIds,
       bus_model_id: busModelId,

@@ -28,6 +28,28 @@
         hidden
       ></p>
 
+      <div class="form-group">
+        <label for="simulation-name">
+          <span data-i18n="simulation.field_name">Name</span>
+          <span class="required-mark">*</span>
+        </label>
+        <input
+          type="text"
+          id="simulation-name"
+          name="name"
+          required
+          aria-describedby="simulation-name-feedback"
+        />
+        <p
+          class="form-feedback"
+          id="simulation-name-feedback"
+          data-role="name-feedback"
+          role="alert"
+          aria-live="polite"
+          hidden
+        ></p>
+      </div>
+
       <div class="form-group shift-selection">
         <label>
           <span data-i18n="simulation.field_shifts">Shift</span>
