@@ -1,4 +1,8 @@
 import { fetchElevationByTripId, fetchStopsByTripId } from "../../../api";
+import { t } from "../../../i18n";
+
+const previewMessage = (key, type = "empty") =>
+  `<div class="trip-preview-inline__${type}">${t(key)}</div>`;
 
 // Cache to avoid refetching the same trip data
 const previewCache = new Map();
@@ -20,10 +24,10 @@ const createPreviewContent = () => {
     <div class="trip-preview-inline">
       <div class="trip-preview-inline__content">
         <div class="trip-preview-inline__map" data-role="map">
-          <div class="trip-preview-inline__loading">Loading map...</div>
+          <div class="trip-preview-inline__loading">${t("trip_preview.loading_map")}</div>
         </div>
         <div class="trip-preview-inline__elevation" data-role="elevation">
-          <div class="trip-preview-inline__loading">Loading elevation...</div>
+          <div class="trip-preview-inline__loading">${t("trip_preview.loading_elevation")}</div>
         </div>
       </div>
     </div>
@@ -42,7 +46,7 @@ const renderMap = async (container, elevationData, stops) => {
     : [];
   
   if (coordinates.length === 0) {
-    container.innerHTML = '<div class="trip-preview-inline__empty">No route data available</div>';
+    container.innerHTML = previewMessage("trip_preview.no_route_data");
     return;
   }
   
@@ -55,7 +59,7 @@ const renderMap = async (container, elevationData, stops) => {
       console.log("[TripPreview] Leaflet loaded successfully");
     } catch (e) {
       console.error("[TripPreview] Failed to load Leaflet:", e);
-      container.innerHTML = '<div class="trip-preview-inline__empty">Failed to load map library</div>';
+      container.innerHTML = previewMessage("trip_preview.failed_map_library");
       return;
     }
   }
@@ -127,7 +131,7 @@ const renderMap = async (container, elevationData, stops) => {
     console.log("[TripPreview] Map rendered successfully");
   } catch (e) {
     console.error("[TripPreview] Error rendering map:", e);
-    container.innerHTML = '<div class="trip-preview-inline__empty">Failed to render map</div>';
+    container.innerHTML = previewMessage("trip_preview.failed_render_map");
   }
 };
 
@@ -136,7 +140,7 @@ const renderElevation = (container, elevationData) => {
   const records = elevationData?.records || elevationData;
   
   if (!records || !Array.isArray(records) || records.length === 0) {
-    container.innerHTML = '<div class="trip-preview-inline__empty">No elevation data available</div>';
+    container.innerHTML = previewMessage("trip_preview.no_elevation_data");
     return;
   }
   
@@ -256,8 +260,8 @@ const loadTripPreview = async (trip, routeId, previewRow) => {
   
   if (!tripDbId) {
     console.warn("[TripPreview] No trip database ID found", trip);
-    mapContainer.innerHTML = '<div class="trip-preview-inline__empty">No trip ID available</div>';
-    elevationContainer.innerHTML = '<div class="trip-preview-inline__empty">No trip ID available</div>';
+    mapContainer.innerHTML = previewMessage("trip_preview.no_trip_id");
+    elevationContainer.innerHTML = previewMessage("trip_preview.no_trip_id");
     return;
   }
   
@@ -272,8 +276,8 @@ const loadTripPreview = async (trip, routeId, previewRow) => {
   }
   
   // Show loading state
-  mapContainer.innerHTML = '<div class="trip-preview-inline__loading">Loading map...</div>';
-  elevationContainer.innerHTML = '<div class="trip-preview-inline__loading">Loading elevation...</div>';
+  mapContainer.innerHTML = previewMessage("trip_preview.loading_map", "loading");
+  elevationContainer.innerHTML = previewMessage("trip_preview.loading_elevation", "loading");
   
   try {
     let stops = [];
@@ -310,8 +314,8 @@ const loadTripPreview = async (trip, routeId, previewRow) => {
   } catch (error) {
     console.error("[TripPreview] Failed to load trip preview:", error);
     if (currentTripId === tripDbId && currentPreviewRow) {
-      mapContainer.innerHTML = '<div class="trip-preview-inline__empty">Failed to load map</div>';
-      elevationContainer.innerHTML = '<div class="trip-preview-inline__empty">Failed to load elevation</div>';
+      mapContainer.innerHTML = previewMessage("trip_preview.failed_map");
+      elevationContainer.innerHTML = previewMessage("trip_preview.failed_elevation");
     }
   }
 };

@@ -3,6 +3,7 @@ import { triggerPartialLoad } from "../../events";
 import { setCurrentUserId, setCurrentAgencyId, clearDataCache } from "../../store";
 import { fetchCurrentUser, fetchAgencyById } from "../../api/user";
 import { markSessionActive } from "../../api/session";
+import { t } from "../../i18n";
 
 // Token persistence
 const persistTokens = ({ access_token = "", token_type = "" } = {}) => {
@@ -122,7 +123,7 @@ const handleLogin = async (form, feedback) => {
   const remember = formData.get("remember") === "on";
 
   if (!email || !password) {
-    showFeedback(feedback, "Please enter your email and password.", "error");
+    showFeedback(feedback, t("login.email_password_required"), "error");
     return;
   }
 
@@ -144,7 +145,7 @@ const handleLogin = async (form, feedback) => {
     // Clear any cached data from previous user to prevent data leakage
     clearDataCache();
 
-    showFeedback(feedback, "Login successful! Redirecting...", "success");
+    showFeedback(feedback, t("login.success"), "success");
 
     // Load user details
     await loadUserDetails(email);
@@ -161,7 +162,7 @@ const handleLogin = async (form, feedback) => {
 
   } catch (error) {
     console.error("Login failed:", error);
-    showFeedback(feedback, error.message || "Login failed. Please check your credentials.", "error");
+    showFeedback(feedback, error.message || t("login.error"), "error");
   } finally {
     setLoading(form, false);
   }

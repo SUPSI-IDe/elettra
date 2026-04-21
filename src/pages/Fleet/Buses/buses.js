@@ -177,7 +177,7 @@ export const initializeBuses = async (root = document, options = {}) => {
     initializeModelControls(section, cleanupHandlers);
   } catch (error) {
     console.error("Failed to load bus models", error);
-    renderErrorRow(modelsTbody, error?.message ?? "Unable to load bus models.");
+    renderErrorRow(modelsTbody, error?.message ?? t("buses.unable_to_load_models"));
   }
 
   return () => {

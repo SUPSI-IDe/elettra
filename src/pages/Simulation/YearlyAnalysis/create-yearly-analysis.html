@@ -2,9 +2,9 @@
   <header class="page-header">
     <div class="header-with-close">
       <div class="title-container">
-        <h1>Create yearly analysis</h1>
+        <h1 data-i18n="yearly_analysis.create_title">Create yearly analysis</h1>
       </div>
-      <button type="button" class="close-button" data-action="cancel" aria-label="Close">
+      <button type="button" class="close-button" data-action="cancel" aria-label="Close" data-i18n-aria-label="common.close">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
@@ -13,7 +13,7 @@
     </div>
   </header>
   <main>
-    <p class="ya-create-description">
+    <p class="ya-create-description" data-i18n="yearly_analysis.create_description">
       Select a feasibility evaluation as the base configuration. Temperature
       scenarios are loaded from the location's weather clustering data.
       They are shown here as read-only cluster data and used as-is when the
@@ -25,15 +25,16 @@
       <p class="form-feedback" data-role="feedback" role="status" aria-live="polite" hidden></p>
 
       <fieldset class="ya-base-section">
-        <legend>Analysis name <span class="required-mark">*</span></legend>
+        <legend><span data-i18n="yearly_analysis.analysis_name">Analysis name</span> <span class="required-mark">*</span></legend>
         <div class="form-group">
-          <label for="ya-analysis-name">Name</label>
+          <label for="ya-analysis-name" data-i18n="simulation.field_name">Name</label>
           <input
             id="ya-analysis-name"
             name="name"
             type="text"
             maxlength="120"
             placeholder="Enter yearly analysis name"
+            data-i18n-placeholder="yearly_analysis.name_placeholder"
             required
           />
         </div>
@@ -41,11 +42,11 @@
 
       <!-- Feasibility evaluation selector -->
       <fieldset class="ya-base-section">
-        <legend>Feasibility evaluation <span class="required-mark">*</span></legend>
+        <legend><span data-i18n="yearly_analysis.base_evaluation">Feasibility evaluation</span> <span class="required-mark">*</span></legend>
         <div class="form-group">
-          <label for="ya-base-run">Select a feasible evaluation</label>
+          <label for="ya-base-run" data-i18n="yearly_analysis.select_feasible_evaluation">Select a feasible evaluation</label>
           <select id="ya-base-run" data-role="base-run-select">
-            <option value="" disabled selected>Loading evaluations…</option>
+            <option value="" disabled selected data-i18n="yearly_analysis.loading_evaluations">Loading evaluations…</option>
           </select>
         </div>
         <div class="ya-config-summary" data-role="config-summary" hidden></div>
@@ -53,9 +54,9 @@
 
       <!-- Prediction parameters -->
       <fieldset class="ya-base-section">
-        <legend>Prediction parameters</legend>
+        <legend data-i18n="yearly_analysis.prediction_parameters">Prediction parameters</legend>
         <div class="form-group">
-          <label for="ya-occupancy">Occupancy (%)</label>
+          <label for="ya-occupancy" data-i18n="yearly_analysis.occupancy_percent">Occupancy (%)</label>
           <select id="ya-occupancy" data-role="occupancy-select">
             <option value="0">0%</option>
             <option value="10">10%</option>
@@ -77,40 +78,40 @@
 
       <!-- Temperature scenarios -->
       <fieldset class="ya-scenarios-section">
-        <legend>Temperature scenarios</legend>
+        <legend data-i18n="yearly_analysis.temperature_scenarios">Temperature scenarios</legend>
         <div class="ya-scenarios-table-wrapper">
           <table class="ya-scenarios-table">
             <thead>
               <tr>
-                <th aria-label="Temperature color"></th>
-                <th>Daily avg. temperature (°C) (05:00-24:00)</th>
-                <th>Occurrences (days/year)</th>
+                <th aria-label="Temperature color" data-i18n-aria-label="yearly_analysis.temperature_color"></th>
+                <th data-i18n="yearly_analysis.daily_avg_temperature">Daily avg. temperature (°C) (05:00-24:00)</th>
+                <th data-i18n="yearly_analysis.occurrences_days_year">Occurrences (days/year)</th>
               </tr>
             </thead>
             <tbody data-role="scenarios-body">
-              <tr><td colspan="3" class="ya-scenarios-placeholder">Select a feasibility evaluation to load temperature scenarios.</td></tr>
+              <tr><td colspan="3" class="ya-scenarios-placeholder" data-i18n="yearly_analysis.select_evaluation_for_scenarios">Select a feasibility evaluation to load temperature scenarios.</td></tr>
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="2" class="ya-total-label">Total occurrences</td>
+                <td colspan="2" class="ya-total-label" data-i18n="yearly_analysis.total_occurrences">Total occurrences</td>
                 <td class="ya-total-value" data-role="total-occurrences">0</td>
               </tr>
             </tfoot>
           </table>
         </div>
-        <p class="ya-occurrences-warning" data-role="occurrences-warning" hidden>Total occurrences do not sum to 365 days.</p>
+        <p class="ya-occurrences-warning" data-role="occurrences-warning" data-i18n="yearly_analysis.occurrences_warning" hidden>Total occurrences do not sum to 365 days.</p>
       </fieldset>
 
       <div class="form-actions">
-        <button type="button" data-action="cancel">Cancel</button>
-        <button type="submit">Run yearly analysis</button>
+        <button type="button" data-action="cancel" data-i18n="common.cancel">Cancel</button>
+        <button type="submit" data-i18n="yearly_analysis.run">Run yearly analysis</button>
       </div>
 
       <div class="simulation-progress" data-role="simulation-progress" hidden>
         <div class="simulation-progress__overlay">
           <div class="simulation-progress__content">
             <div class="simulation-progress__spinner"></div>
-            <p class="simulation-progress__message" data-role="progress-message">Running predictions…</p>
+            <p class="simulation-progress__message" data-role="progress-message" data-i18n="yearly_analysis.running_predictions">Running predictions…</p>
           </div>
         </div>
       </div>

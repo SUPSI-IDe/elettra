@@ -1,6 +1,7 @@
 import { registerUser } from "../../api/auth";
 import { fetchAgencies } from "../../api/gtfs";
 import { triggerPartialLoad } from "../../events";
+import { t } from "../../i18n";
 
 // Cache for agencies
 let agenciesCache = null;
@@ -45,7 +46,7 @@ const renderAgencyDropdown = (list, agencies, onSelect) => {
   if (agencies.length === 0) {
     const li = document.createElement("li");
     li.className = "autocomplete-item autocomplete-empty";
-    li.textContent = "No agencies found";
+    li.textContent = t("register.no_agencies");
     list.appendChild(li);
     return;
   }
@@ -56,7 +57,7 @@ const renderAgencyDropdown = (list, agencies, onSelect) => {
     // Use 'id' (UUID) for company_id, and agency_name for display
     li.dataset.agencyId = agency.id || ""; // UUID for registration
     li.dataset.agencyName = agency.agency_name || "";
-    li.textContent = agency.agency_name || "Unknown Agency";
+    li.textContent = agency.agency_name || t("register.unknown_agency");
     li.addEventListener("click", () => onSelect(agency));
     list.appendChild(li);
   });
@@ -107,27 +108,27 @@ const handleRegister = async (form, feedback) => {
 
   // Validation
   if (!firstName || !lastName) {
-    showFeedback(feedback, "Please enter your first and last name.", "error");
+    showFeedback(feedback, t("register.name_required"), "error");
     return;
   }
 
   if (!email || !password) {
-    showFeedback(feedback, "Please enter your email and password.", "error");
+    showFeedback(feedback, t("register.email_password_required"), "error");
     return;
   }
 
   if (!companyId) {
-    showFeedback(feedback, "Please select a company/agency from the list.", "error");
+    showFeedback(feedback, t("register.company_required"), "error");
     return;
   }
 
   if (password !== confirmPassword) {
-    showFeedback(feedback, "Passwords do not match.", "error");
+    showFeedback(feedback, t("register.passwords_mismatch"), "error");
     return;
   }
 
   if (password.length < 8) {
-    showFeedback(feedback, "Password must be at least 8 characters.", "error");
+    showFeedback(feedback, t("register.password_too_short"), "error");
     return;
   }
 
@@ -147,7 +148,7 @@ const handleRegister = async (form, feedback) => {
 
     showFeedback(
       feedback,
-      "Account created successfully! Redirecting to login...",
+      t("register.success"),
       "success"
     );
 
@@ -159,7 +160,7 @@ const handleRegister = async (form, feedback) => {
     console.error("Registration failed:", error);
     showFeedback(
       feedback,
-      error.message || "Registration failed. Please try again.",
+      error.message || t("register.error"),
       "error"
     );
   } finally {

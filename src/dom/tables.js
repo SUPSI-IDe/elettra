@@ -1,4 +1,5 @@
 import { resolveModelFields, textContent } from "../ui-helpers";
+import { t } from "../i18n";
 
 const formatCostKchf = (value) => {
   if (value === null || value === undefined || value === "") {
@@ -37,14 +38,14 @@ export const renderLoadingRow = (tbody) => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="model" colspan="9">Loading…</td>
+            <td class="model" colspan="9">${textContent(t("common.loading"))}</td>
         </tr>
     `;
 };
 
 export const renderErrorRow = (
   tbody,
-  message = "Unable to load bus models."
+  message = t("buses.unable_to_load_models")
 ) => {
   if (!tbody) {
     return;
@@ -67,7 +68,7 @@ export const renderModels = (tbody, models = []) => {
     tbody.innerHTML = `
             <tr>
                 <td class="checkbox"></td>
-                <td class="model" colspan="9">No bus models found.</td>
+                <td class="model" colspan="9">${textContent(t("buses.no_models"))}</td>
             </tr>
         `;
     return;
@@ -88,7 +89,7 @@ export const renderModels = (tbody, models = []) => {
 
       return `
                 <tr data-id="${String(raw?.id ?? "")}">
-                    <td class="checkbox"><input type="checkbox" aria-label="Select bus model"></td>
+                    <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("buses.select_bus_model"))}"></td>
                     <td class="name">${name}</td>
                     <td class="manufacturer">${manufacturer}</td>
                     <td class="model">${modelType}</td>
@@ -114,7 +115,7 @@ export const renderBusesList = (tbody, buses = [], modelsById = {}) => {
     tbody.innerHTML = `
             <tr>
                 <td class="checkbox"></td>
-                <td class="name" colspan="3">No buses found.</td>
+                <td class="name" colspan="3">${textContent(t("buses.no_buses"))}</td>
             </tr>
         `;
     return;
@@ -130,7 +131,7 @@ export const renderBusesList = (tbody, buses = [], modelsById = {}) => {
 
       return `
                 <tr data-id="${String(bus?.id ?? "")}">
-                    <td class="checkbox"><input type="checkbox" aria-label="Select bus"></td>
+                    <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("buses.select_bus"))}"></td>
                     <td class="name">${textContent(bus?.name ?? "")}</td>
                     <td class="model">${textContent(modelName)}</td>
                     <td class="description">${textContent(description)}</td>
@@ -150,14 +151,14 @@ export const renderBusesLoadingRow = (tbody) => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="name" colspan="3">Loading…</td>
+            <td class="name" colspan="3">${textContent(t("common.loading"))}</td>
         </tr>
     `;
 };
 
 export const renderBusesErrorRow = (
   tbody,
-  message = "Unable to load buses."
+  message = t("buses.unable_to_load_buses")
 ) => {
   if (!tbody) {
     return;

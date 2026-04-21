@@ -30,3 +30,10 @@ export const MODE_LABELS = {
   charging_only: "Charging",
   joint: "Joint",
 };
+
+export const MODE_LABEL_KEYS = {
+  battery_only: "simulation.mode_battery_only",
+  charging_only: "simulation.mode_charging",
+  charging: "simulation.mode_charging",
+  joint: "simulation.mode_joint",
+};

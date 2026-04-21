@@ -41,7 +41,7 @@ export const renderTripsLoading = (tbody) => {
 
   tbody.innerHTML = `
         <tr>
-            <td class="time" colspan="4">Loading…</td>
+            <td class="time" colspan="4">${textContent(t("common.loading"))}</td>
         </tr>
     `;
 };
@@ -73,7 +73,7 @@ export const renderShiftTrips = (tbody, trips = []) => {
                       start && end ? `${start} – ${end}` : start || end || "—"
                     )}</td>
                     <td class="actions">
-                        <button type="button" data-action="remove-trip">Remove</button>
+                        <button type="button" data-action="remove-trip">${textContent(t("shifts.remove_trip"))}</button>
                     </td>
                 </tr>
             `;
@@ -139,7 +139,7 @@ export const renderScheduledTrips = ({
                       startStop && endStop ? `${startStop} – ${endStop}` : startStop || endStop || "—"
                     )}</td>
                     <td class="actions">
-                        <button type="button" data-action="add-trip">Add</button>
+                        <button type="button" data-action="add-trip">${textContent(t("shifts.add_trip"))}</button>
                     </td>
                 </tr>
             `;
@@ -212,7 +212,7 @@ export const renderBusOptions = (select, buses = [], modelsById = {}) => {
   }
 
   const options = [
-    '<option value="">Select a bus model</option>',
+    `<option value="">${textContent(t("shifts.placeholder_bus_model"))}</option>`,
     ...modelOptions,
   ].join("");
 
@@ -225,7 +225,7 @@ export const renderDepotOptions = (select, depots = []) => {
   }
 
   const options = [
-    '<option value="">Select a depot</option>',
+    `<option value="">${textContent(t("shifts.select_depot"))}</option>`,
     ...depots
       .filter((depot) => depot && depot.id)
       .map(
@@ -250,8 +250,11 @@ export const populateDayOptions = (select, days = []) => {
       const value = typeof day === "string" ? day : day.id || day.value;
       const label =
         typeof day === "string" ? day : day.name || day.label || day.id || "";
+      const dayKey = typeof value === "string" ? `simulation.day_${value.toLowerCase()}` : "";
+      const translatedLabel =
+        dayKey && t(dayKey) !== dayKey ? t(dayKey) : label;
       return `<option value="${textContent(value)}">${textContent(
-        label
+        translatedLabel
       )}</option>`;
     }),
   ].join("");

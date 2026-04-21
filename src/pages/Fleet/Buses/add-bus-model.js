@@ -12,6 +12,7 @@ import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { writeFlash, addOwnedBus } from "../../../store";
 import { toggleFormDisabled, updateFeedback } from "../../../ui-helpers";
+import { t } from "../../../i18n";
 
 const generateBusNameFromModel = (modelName = "Bus") => {
   return `${modelName.trim().replace(/\s+/g, "_")}_01`;
@@ -87,7 +88,7 @@ const renderDropdownItems = (listEl, items, nameKey, onSelect) => {
   if (items.length === 0) {
     const li = document.createElement("li");
     li.className = "autocomplete-item autocomplete-empty";
-    li.textContent = "No results found";
+    li.textContent = t("buses.no_results");
     listEl.appendChild(li);
     return;
   }
@@ -96,7 +97,7 @@ const renderDropdownItems = (listEl, items, nameKey, onSelect) => {
     li.className = "autocomplete-item";
     li.dataset.itemId = item.id || "";
     li.dataset.itemName = item[nameKey] || "";
-    li.textContent = item[nameKey] || "Unknown";
+    li.textContent = item[nameKey] || t("buses.unknown");
     li.addEventListener("click", () => onSelect(item));
     listEl.appendChild(li);
   });
@@ -286,7 +287,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     if (modelIdInput) modelIdInput.value = "";
     if (modelInput) {
       modelInput.disabled = true;
-      modelInput.placeholder = "Select a model…";
+      modelInput.placeholder = t("buses.placeholder_model");
     }
     isOtherManufacturer = false;
     selectedManufacturerId = null;
@@ -360,8 +361,8 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
           modelInput.value = "";
           modelInput.disabled = false;
           modelInput.placeholder = isOtherManufacturer
-            ? "Type a model name…"
-            : "Select a model…";
+            ? t("buses.placeholder_type_model")
+            : t("buses.placeholder_model");
         }
         if (modelIdInput) modelIdInput.value = "";
         if (modelAutocomplete) modelAutocomplete.reset();
@@ -374,7 +375,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       if (modelInput) {
         modelInput.value = "";
         modelInput.disabled = true;
-        modelInput.placeholder = "Select a model…";
+        modelInput.placeholder = t("buses.placeholder_model");
       }
       if (modelIdInput) modelIdInput.value = "";
       isOtherManufacturer = false;
@@ -407,7 +408,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
   /* ── Edit mode pre-fill ── */
   if (isEditMode) {
     if (header) {
-      header.textContent = "Edit bus model";
+      header.textContent = t("buses.edit_model");
     }
 
     const nameInput = form.querySelector("#name");
@@ -522,7 +523,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       "";
 
     if (!name) {
-      updateFeedback(feedback, "Name is required.", "error");
+      updateFeedback(feedback, t("buses.name_required"), "error");
       return;
     }
 
@@ -531,48 +532,48 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       isOtherManufacturer && customManufacturer ? customManufacturer : manufacturer;
 
     if (!manufacturerToSend) {
-      updateFeedback(feedback, "Manufacturer is required.", "error");
+      updateFeedback(feedback, t("buses.manufacturer_required"), "error");
       return;
     }
 
     if (isOtherManufacturer && !customManufacturer) {
       updateFeedback(
         feedback,
-        "Please enter a custom manufacturer name.",
+        t("buses.custom_manufacturer_required"),
         "error"
       );
       return;
     }
 
     if (!resolvedModel) {
-      updateFeedback(feedback, "Model is required.", "error");
+      updateFeedback(feedback, t("buses.model_required"), "error");
       return;
     }
 
     const requiredSpecs = [
-      { key: "cost", label: "Cost (CHF)" },
-      { key: "bus_length_m", label: "Bus length (m)" },
-      { key: "max_passengers", label: "Max passengers" },
-      { key: "empty_weight_kg", label: "Empty weight (kg)" },
-      { key: "max_battery_packs", label: "Max battery packs" },
-      { key: "min_battery_packs", label: "Min battery packs" },
-      { key: "battery_pack_size_kwh", label: "Battery pack size (kWh)" },
-      { key: "battery_pack_cost_chf", label: "Battery pack cost (CHF)" },
-      { key: "max_charging_power_kw", label: "Max charging power (kW)" },
-      { key: "battery_pack_weight_kg", label: "Battery pack weight (kg)" },
-      { key: "battery_pack_lifetime", label: "Battery pack lifetime (years)" },
-      { key: "bus_lifetime", label: "Bus lifetime (years)" },
+      { key: "cost", label: t("buses.field_cost") },
+      { key: "bus_length_m", label: t("buses.field_bus_length") },
+      { key: "max_passengers", label: t("buses.field_max_passengers") },
+      { key: "empty_weight_kg", label: t("buses.field_empty_weight") },
+      { key: "max_battery_packs", label: t("buses.field_max_battery_packs") },
+      { key: "min_battery_packs", label: t("buses.field_min_battery_packs") },
+      { key: "battery_pack_size_kwh", label: t("buses.field_battery_pack_size") },
+      { key: "battery_pack_cost_chf", label: t("buses.field_battery_pack_cost") },
+      { key: "max_charging_power_kw", label: t("buses.field_max_charging_power") },
+      { key: "battery_pack_weight_kg", label: t("buses.field_battery_pack_weight") },
+      { key: "battery_pack_lifetime", label: t("buses.field_battery_pack_lifetime") },
+      { key: "bus_lifetime", label: t("buses.field_bus_lifetime") },
     ];
 
     for (const { key, label } of requiredSpecs) {
       if (specs[key] == null || isNaN(specs[key])) {
-        updateFeedback(feedback, `${label} is required.`, "error");
+        updateFeedback(feedback, t("buses.spec_required", { label }), "error");
         return;
       }
     }
 
     toggleFormDisabled(form, true);
-    updateFeedback(feedback, isEditMode ? "Updating…" : "Saving…", "info");
+    updateFeedback(feedback, isEditMode ? t("buses.updating") : t("buses.saving"), "info");
 
     try {
       const userId = await resolveUserId();
@@ -591,7 +592,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
           specs: mergedSpecs,
           userId,
         });
-        writeFlash("Bus model updated.");
+        writeFlash(t("buses.model_updated"));
       } else {
         const createdModel = await createBusModel({
           name,
@@ -610,7 +611,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
             const createdBus = await createBus({
               name: busName,
               busModelId,
-              description: `Auto-created bus for model: ${name}`,
+              description: t("buses.auto_created_bus_description", { name }),
               specs: {},
               userId,
             });
@@ -625,7 +626,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
           }
         }
 
-        writeFlash("Bus model added (with associated bus).");
+        writeFlash(t("buses.model_added"));
       }
 
       triggerPartialLoad("buses");
@@ -640,8 +641,8 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
         feedback,
         error?.message ??
           (isEditMode
-            ? "Unable to update bus model."
-            : "Unable to save bus model."),
+            ? t("buses.unable_to_update_model")
+            : t("buses.unable_to_save_model")),
         "error"
       );
     } finally {

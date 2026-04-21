@@ -63,7 +63,7 @@ const renderLoading = (tbody) => {
     `;
 };
 
-const renderError = (tbody, message = "Unable to load shifts.") => {
+const renderError = (tbody, message = t("shifts.unable_to_load")) => {
   if (!tbody) {
     return;
   }
@@ -316,7 +316,7 @@ const renderRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
 
       return `
                 <tr data-id="${rowId}" data-name="${rowName}" data-bus="${rowBus}">
-                    <td class="checkbox"><input type="checkbox" aria-label="Select shift" ${
+                    <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("shifts.select_shift"))}" ${
                       isSelected ? "checked" : ""
                     }></td>
 
@@ -716,7 +716,7 @@ export const initializeShifts = async (root = document, options = {}) => {
       hydrateShiftDistances(allShifts);
     } catch (error) {
       console.error("Failed to load shifts", error);
-      renderError(tbody, error?.message ?? "Unable to load shifts.");
+      renderError(tbody, error?.message ?? t("shifts.unable_to_load"));
     }
   };
 

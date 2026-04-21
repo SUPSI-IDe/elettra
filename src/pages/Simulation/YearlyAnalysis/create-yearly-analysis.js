@@ -23,10 +23,16 @@ import {
 import {
   computeYearlyTotals,
   MODE_LABELS,
+  MODE_LABEL_KEYS,
 } from "./yearly-analysis-store";
 import { extractShiftDistanceKm } from "../../../utils/shift-distance";
 
 const text = (v) => (v === null || v === undefined ? "" : String(v));
+
+const modeLabel = (mode) => {
+  const key = MODE_LABEL_KEYS[mode];
+  return key ? t(key) : MODE_LABELS[mode] ?? mode ?? "—";
+};
 
 const toFiniteNumber = (v) => {
   if (v === "" || (typeof v === "string" && v.trim() === "")) return null;
@@ -235,7 +241,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     scenarioRows = [...clusters]
       .sort((a, b) => a.temperature - b.temperature)
       .map((cluster, index) => ({
-        label: text(cluster.label || `Cluster ${index + 1}`).trim(),
+        label: text(cluster.label || t("yearly_analysis.cluster_label", { index: index + 1 })).trim(),
         temperature: Number.isFinite(cluster.temperature) ? cluster.temperature : 0,
         occurrences: Number.isFinite(cluster.occurrences) ? cluster.occurrences : 0,
       }));
@@ -251,7 +257,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
             class="ya-scenarios-swatch"
             style="background-color: ${temperatureColor};"
             title="${textContent(`${formatScenarioValue(scenario.temperature, 1)} °C`)}"
-            aria-label="${textContent(`${formatScenarioValue(scenario.temperature, 1)} degrees Celsius`)}"
+            aria-label="${textContent(t("yearly_analysis.temperature_degrees_celsius", { value: formatScenarioValue(scenario.temperature, 1) }))}"
           ></span>
         </td>
         <td class="ya-scenarios-number">${formatScenarioValue(scenario.temperature, 1)}</td>
@@ -269,7 +275,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       const temp = toFiniteNumber(c.centroid_daily_avg_temp ?? c.centroid ?? c.centroid_temperature ?? c.temperature);
       const occ = toFiniteNumber(c.occurrences ?? c.count ?? c.n_days);
       return {
-        label: text(c.label || c.name || `Cluster ${i + 1}`),
+        label: text(c.label || c.name || t("yearly_analysis.cluster_label", { index: i + 1 })),
         temperature: temp != null ? Math.round(temp * 10) / 10 : 0,
         occurrences: occ != null ? Math.round(occ) : 0,
       };
@@ -306,37 +312,37 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
   const loadClustersForRun = async (run) => {
     const sids = resolveShiftIds(run);
     if (!sids.length) {
-      renderScenariosPlaceholder("Feasibility evaluation has no shifts — cannot load clusters.");
+      renderScenariosPlaceholder(t("yearly_analysis.no_shifts_for_clusters"));
       return;
     }
-    renderScenariosPlaceholder("Loading temperature clusters…");
+    renderScenariosPlaceholder(t("yearly_analysis.loading_temperature_clusters"));
     try {
       const loc = await resolveShiftLocation(sids, shiftMap);
       if (!loc) {
-        renderScenariosPlaceholder("Could not determine shift location.");
+        renderScenariosPlaceholder(t("yearly_analysis.no_shift_location"));
         return;
       }
       let payload = await fetchWeatherTemperatureClusters({ latitude: loc.lat, longitude: loc.lon });
 
       if (!payload) {
-        renderScenariosPlaceholder("Creating temperature clusters for this location…");
+        renderScenariosPlaceholder(t("yearly_analysis.creating_temperature_clusters"));
         await fetchPvgisTmy({ latitude: loc.lat, longitude: loc.lon });
         await createWeatherTemperatureClusters({ latitude: loc.lat, longitude: loc.lon });
         payload = await fetchWeatherTemperatureClusters({ latitude: loc.lat, longitude: loc.lon });
       }
 
       if (!payload) {
-        renderScenariosPlaceholder("No weather cluster data available for this location.");
+        renderScenariosPlaceholder(t("yearly_analysis.no_weather_cluster_data"));
         return;
       }
       const clusters = parseClusters(payload);
       if (!clusters.length) {
-        renderScenariosPlaceholder("No clusters returned for this location.");
+        renderScenariosPlaceholder(t("yearly_analysis.no_clusters_returned"));
         return;
       }
       renderClusterScenarios(clusters);
     } catch (err) {
-      renderScenariosPlaceholder(`Failed to load clusters: ${err?.message ?? "Unknown error"}`);
+      renderScenariosPlaceholder(t("yearly_analysis.failed_load_clusters", { message: err?.message ?? t("buses.unknown") }));
     }
   };
 
@@ -358,7 +364,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     }
 
     if (occupancyNote) {
-      occupancyNote.textContent = `Default from feasibility evaluation: ${feasOcc}%. You can choose a more realistic value for the yearly analysis.`;
+      occupancyNote.textContent = t("yearly_analysis.default_occupancy_note", { occupancy: feasOcc });
       occupancyNote.hidden = false;
     }
   };
@@ -380,12 +386,12 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       `<div class="ya-config-param"><span class="ya-config-param-label">${textContent(label)}</span><span class="ya-config-param-value${highlight ? " ya-highlight" : ""}">${textContent(String(value))}</span></div>`;
 
     configSummary.innerHTML = [
-      param("Shift", shiftLabel),
-      param("Bus model", modelLabel),
-      param("Mode", MODE_LABELS[mode] ?? mode),
-      param("Sizing temp.", sizingTemp != null ? `${sizingTemp} °C` : "—", true),
-      param("Packs", packs ?? "—", true),
-      param("Capacity", kwh != null ? `${Math.round(kwh)} kWh` : "—", true),
+      param(t("yearly_analysis.summary_shift"), shiftLabel),
+      param(t("simulation.field_bus_model"), modelLabel),
+      param(t("yearly_analysis.col_mode"), modeLabel(mode)),
+      param(t("yearly_analysis.sizing_temperature"), sizingTemp != null ? `${sizingTemp} °C` : "—", true),
+      param(t("yearly_analysis.packs"), packs ?? "—", true),
+      param(t("yearly_analysis.capacity"), kwh != null ? `${Math.round(kwh)} kWh` : "—", true),
     ].join("");
     configSummary.hidden = false;
 
@@ -399,7 +405,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     if (run) {
       loadClustersForRun(run);
     } else {
-      renderScenariosPlaceholder("Select a feasibility evaluation to load temperature scenarios.");
+      renderScenariosPlaceholder(t("yearly_analysis.select_evaluation_for_scenarios"));
     }
   };
 
@@ -418,35 +424,33 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     setFeedback("");
 
     const analysisName = text(nameInput?.value).trim();
-    if (!analysisName) { alert("Please enter a name for the yearly analysis."); nameInput?.focus(); return; }
+    if (!analysisName) { alert(t("yearly_analysis.enter_name")); nameInput?.focus(); return; }
 
     const runId = baseSelect?.value ?? "";
     const baseRun = feasibleRuns.find((r) => text(r.id) === runId);
-    if (!baseRun) { alert("Please select a feasibility evaluation."); baseSelect?.focus(); return; }
+    if (!baseRun) { alert(t("yearly_analysis.select_feasibility")); baseSelect?.focus(); return; }
 
     const ip = baseRun.input_params ?? {};
     const shiftIds = resolveShiftIds(baseRun);
-    if (!shiftIds.length) { alert("The selected feasibility evaluation has no shift IDs."); return; }
+    if (!shiftIds.length) { alert(t("yearly_analysis.no_shift_ids")); return; }
 
     const busModelId = text(ip.bus_model_id ?? "").trim();
-    if (!busModelId) { alert("The selected feasibility evaluation has no bus model."); return; }
+    if (!busModelId) { alert(t("yearly_analysis.no_bus_model")); return; }
 
     const optimizedPacks = resolveOptimizedPacks(baseRun.results?.battery_results ?? {});
-    if (optimizedPacks == null) { alert("Could not determine the optimized pack count from the feasibility evaluation."); return; }
+    if (optimizedPacks == null) { alert(t("yearly_analysis.no_optimized_pack_count")); return; }
 
     const scenarios = readScenarios();
     for (let i = 0; i < scenarios.length; i++) {
       const sc = scenarios[i];
-      if (!sc.label) { alert(`Scenario ${i + 1}: label is required.`); return; }
-      if (!Number.isFinite(sc.temperature)) { alert(`Scenario ${i + 1}: invalid temperature.`); return; }
-      if (sc.occurrences < 0) { alert(`Scenario ${i + 1}: occurrences cannot be negative.`); return; }
+      if (!sc.label) { alert(t("yearly_analysis.scenario_label_required", { index: i + 1 })); return; }
+      if (!Number.isFinite(sc.temperature)) { alert(t("yearly_analysis.scenario_temperature_invalid", { index: i + 1 })); return; }
+      if (sc.occurrences < 0) { alert(t("yearly_analysis.scenario_occurrences_negative", { index: i + 1 })); return; }
     }
     const totalOcc = scenarios.reduce((s, sc) => s + sc.occurrences, 0);
-    if (totalOcc === 0) { alert("Total occurrences cannot be zero."); return; }
+    if (totalOcc === 0) { alert(t("yearly_analysis.total_occurrences_zero")); return; }
 
-    const confirmMessage =
-      t("yearly_analysis.run_confirm") ||
-      "Do you want to run this yearly analysis?";
+    const confirmMessage = t("yearly_analysis.run_confirm");
     if (!confirm(confirmMessage)) return;
 
     const chosenOccupancy = toFiniteNumber(occupancySelect?.value) ?? 50;
@@ -479,13 +483,13 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         meta: {
           shiftNames: saveMeta.shiftNames ?? [],
           busModelName: saveMeta.modelLabel ?? busModelId,
-          modeLabel: MODE_LABELS[ip.mode] ?? ip.mode ?? "—",
+          modeLabel: modeLabel(ip.mode),
           sizingTemp: saveMeta.sizingTemp,
         },
       };
 
       // 2) Create the yearly analysis record on the backend FIRST
-      showProgress("Creating yearly analysis…");
+      showProgress(t("yearly_analysis.creating_analysis"));
       const analysis = await createYearlyAnalysis({
         name: analysisName,
         optimization_run_id: text(baseRun.id) || null,
@@ -499,7 +503,13 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
 
       for (let i = 0; i < scenarios.length; i++) {
         const sc = scenarios[i];
-        showProgress(`Prediction ${i + 1}/${scenarios.length}: ${sc.label} (${sc.temperature} °C) — ${optimizedPacks} packs…`);
+        showProgress(t("yearly_analysis.prediction_progress", {
+          current: i + 1,
+          total: scenarios.length,
+          label: sc.label,
+          temperature: sc.temperature,
+          packs: optimizedPacks,
+        }));
 
         try {
           const predRuns = await createSinglePredictionRun({
@@ -514,7 +524,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
           const predRunId = predRun?.id ?? null;
           scenarioResults.push({ ...sc, kpis, predRunId, error: null });
         } catch (err) {
-          scenarioResults.push({ ...sc, kpis: null, error: err?.message ?? "Prediction failed" });
+          scenarioResults.push({ ...sc, kpis: null, error: err?.message ?? t("yearly_analysis.prediction_failed") });
         }
       }
 
@@ -556,7 +566,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       triggerPartialLoad("yearly-analysis-results", { analysisId });
     } catch (err) {
       hideProgress();
-      setFeedback(err?.message ?? "Yearly analysis failed.");
+      setFeedback(err?.message ?? t("yearly_analysis.failed"));
     } finally {
       if (submitBtn) submitBtn.disabled = false;
     }
@@ -639,12 +649,12 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         if (!feasibleRuns.length) {
           const o = document.createElement("option");
           o.value = ""; o.disabled = true; o.selected = true;
-          o.textContent = "No feasible evaluations found";
+          o.textContent = t("yearly_analysis.no_feasible_evaluations");
           baseSelect.appendChild(o);
         } else {
           const placeholder = document.createElement("option");
           placeholder.value = ""; placeholder.disabled = true; placeholder.selected = true;
-          placeholder.textContent = "Select a feasibility evaluation…";
+          placeholder.textContent = t("yearly_analysis.select_evaluation_placeholder");
           baseSelect.appendChild(placeholder);
 
           for (const run of feasibleRuns) {
@@ -659,7 +669,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
               date,
               meta.shiftLabel,
               meta.modelLabel,
-              packs != null ? `${packs} packs` : "",
+              packs != null ? t("yearly_analysis.packs_value", { count: packs }) : "",
               kwh != null ? `${Math.round(kwh)} kWh` : "",
               meta.sizingTemp != null ? `@ ${meta.sizingTemp} °C` : "",
             ].filter(Boolean).join(" · ");
@@ -672,7 +682,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         }
       }
     } catch (err) {
-      setFeedback(err?.message ?? "Failed to load simulations.");
+      setFeedback(err?.message ?? t("yearly_analysis.failed_load_simulations"));
     }
   }
 

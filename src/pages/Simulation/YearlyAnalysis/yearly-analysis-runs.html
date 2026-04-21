@@ -1,41 +1,42 @@
 <section class="yearly-analysis-runs">
   <header class="page-header">
     <div class="title-container">
-      <h1>Yearly analyses</h1>
+      <h1 data-i18n="nav.yearly_analyses">Yearly analyses</h1>
     </div>
   </header>
   <p class="flash-message" data-role="flash" role="status" aria-live="polite" hidden></p>
   <main class="ya-runs-main">
     <div class="ya-runs-actions">
-      <label class="sr-only" for="ya-filter">Filter yearly analyses</label>
+      <label class="sr-only" for="ya-filter" data-i18n="yearly_analysis.filter_label">Filter yearly analyses</label>
       <input
         id="ya-filter"
         class="ya-runs-search"
         type="search"
         placeholder="Search yearly analyses"
+        data-i18n-placeholder="yearly_analysis.search_placeholder"
       />
-      <button type="button" class="ya-new-btn" data-action="new-analysis">New</button>
-      <button type="button" data-action="delete-selected">Delete</button>
+      <button type="button" class="ya-new-btn" data-action="new-analysis" data-i18n="simulation.new_list_action">New</button>
+      <button type="button" data-action="delete-selected" data-i18n="common.delete">Delete</button>
     </div>
-    <p class="ya-loading" data-role="loading" hidden>Loading analyses…</p>
+    <p class="ya-loading" data-role="loading" data-i18n="yearly_analysis.loading_analyses" hidden>Loading analyses…</p>
     <div class="ya-runs-table-wrap">
       <table class="ya-runs-table">
-        <caption class="sr-only">Yearly analyses</caption>
+        <caption class="sr-only" data-i18n="nav.yearly_analyses">Yearly analyses</caption>
         <thead>
           <tr>
-            <th class="checkbox"><input type="checkbox" data-role="select-all" aria-label="Select all" /></th>
-            <th>Created</th>
-            <th>Name</th>
-            <th>Shift(s)</th>
-            <th>Mode</th>
-            <th>Scenarios</th>
-            <th>Status</th>
-            <th>Results</th>
+            <th class="checkbox"><input type="checkbox" data-role="select-all" aria-label="Select all" data-i18n-aria-label="yearly_analysis.select_all" /></th>
+            <th data-i18n="simulation.col_created">Created</th>
+            <th data-i18n="simulation.field_name">Name</th>
+            <th data-i18n="yearly_analysis.col_shifts">Shift(s)</th>
+            <th data-i18n="yearly_analysis.col_mode">Mode</th>
+            <th data-i18n="yearly_analysis.col_scenarios">Scenarios</th>
+            <th data-i18n="simulation.col_status">Status</th>
+            <th data-i18n="simulation.col_results">Results</th>
           </tr>
         </thead>
         <tbody data-role="ya-runs-body"></tbody>
       </table>
     </div>
-    <p class="ya-runs-empty" data-role="empty-message" hidden>No yearly analyses yet. Create one to get started.</p>
+    <p class="ya-runs-empty" data-role="empty-message" data-i18n="yearly_analysis.no_analyses" hidden>No yearly analyses yet. Create one to get started.</p>
   </main>
 </section>

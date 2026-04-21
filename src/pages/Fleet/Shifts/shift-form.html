@@ -153,7 +153,7 @@
             </div>
             <div class="table-wrapper">
               <table>
-                <caption class="sr-only">
+                <caption class="sr-only" data-i18n="shifts.scheduled_trips_caption">
                   Scheduled trips available to add to the shift
                 </caption>
                 <thead>
@@ -185,7 +185,7 @@
             </div>
             <div class="table-wrapper">
               <table>
-                <caption class="sr-only">
+                <caption class="sr-only" data-i18n="shifts.trips_caption">
                   Trips included in the shift
                 </caption>
                 <thead>
@@ -207,12 +207,13 @@
           </section>
         </div>
 
-        <section class="shift-timeline-section" aria-label="Shift Timeline">
+      <section class="shift-timeline-section" aria-label="Shift Timeline" data-i18n-aria-label="shifts.timeline_section_label">
           <div 
             class="timeline shift-form-timeline" 
             data-role="shift-timeline" 
             role="img" 
             aria-label="Shift timeline chart"
+            data-i18n-aria-label="shifts.timeline_chart_label"
           >
             <p class="timeline__placeholder" data-i18n="shifts.timeline_placeholder">Add trips to visualize the shift timeline.</p>
           </div>
@@ -226,7 +227,7 @@
         <div class="shift-progress__overlay">
           <div class="shift-progress__content">
             <div class="shift-progress__spinner"></div>
-            <p class="shift-progress__message" data-role="shift-progress-message">
+            <p class="shift-progress__message" data-role="shift-progress-message" data-i18n="shifts.saving_shift">
               Saving shift...
             </p>
           </div>

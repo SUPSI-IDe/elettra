@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { t } from "../../../i18n";
 
 /**
  * Renders the shift visualization (Marey Chart).
@@ -10,7 +11,7 @@ export function renderShiftVisualization(containerSelector, data) {
     container.html(''); // Clear previous content
 
     if (!data || data.length === 0) {
-        container.append('p').text('No data available for visualization.');
+        container.append('p').text(t("shifts.no_visualization_data"));
         return;
     }
 

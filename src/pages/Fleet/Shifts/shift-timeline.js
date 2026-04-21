@@ -1,4 +1,5 @@
 import { textContent } from "../../../ui-helpers";
+import { t } from "../../../i18n";
 import { text, parseTimeToMinutes, formatMinutes } from "./shift-utils";
 
 const ensureD3 = (() => {
@@ -34,7 +35,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
   }
 
   if (!Array.isArray(trips) || trips.length === 0) {
-    ensurePlaceholder(container, "Add trips to visualize the shift timeline.");
+    ensurePlaceholder(container, t("shifts.timeline_placeholder"));
     return;
   }
 
@@ -84,7 +85,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
   if (!stops.length) {
     ensurePlaceholder(
       container,
-      "Insufficient stop information to render timeline."
+      t("shifts.insufficient_stops")
     );
     return;
   }
@@ -93,7 +94,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
   try {
     d3 = await ensureD3();
   } catch (error) {
-    ensurePlaceholder(container, "Unable to load visualization library.");
+    ensurePlaceholder(container, t("shifts.unable_to_load_library"));
     return;
   }
 

@@ -25,6 +25,7 @@ import {
   computeTimeBounds,
 } from "./shift-utils";
 import { renderTimeline } from "./shift-timeline";
+import { t } from "../../../i18n";
 
 const isDepotTrip = (trip = {}) => {
   if (
@@ -123,7 +124,7 @@ export const initializeVisualizeShift = async (
       const cell = document.createElement("td");
       cell.colSpan = 3;
       cell.className = "empty";
-      cell.textContent = "No trips available.";
+      cell.textContent = t("shifts.no_trips_available");
       row.append(cell);
       tripsBody.append(row);
       if (tripsEmpty) {
@@ -176,7 +177,7 @@ export const initializeVisualizeShift = async (
     const endTime =
       state.endTime || (latest !== null ? formatMinutes(latest) : "");
 
-    setFieldText("name", state.name || "Untitled shift");
+    setFieldText("name", state.name || t("shifts.untitled_shift"));
     setFieldText("bus-name", state.busModelName);
     setFieldText("daily-distance", formatDistanceKm(state.dailyDistanceKm));
     setFieldText("start-time", startTime);
@@ -205,7 +206,7 @@ export const initializeVisualizeShift = async (
 
 
   if (!state.trips.length && options.shiftId) {
-    ensurePlaceholder(timelineContainer, "Loading shift timeline…");
+    ensurePlaceholder(timelineContainer, t("shifts.loading_timeline"));
     try {
       const shift = await fetchShiftById(options.shiftId);
       state.name = state.name || text(shift?.name ?? "");
@@ -377,7 +378,7 @@ export const initializeVisualizeShift = async (
       console.error("Unable to load shift for visualization", error);
       ensurePlaceholder(
         timelineContainer,
-        error?.message ?? "Unable to load shift timeline."
+        error?.message ?? t("shifts.unable_to_load_timeline")
       );
     }
   }

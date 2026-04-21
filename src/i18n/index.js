@@ -42,6 +42,16 @@ export const applyTranslations = (lang) => {
     const key = el.getAttribute("data-i18n-aria-label");
     if (dict[key]) el.setAttribute("aria-label", dict[key]);
   });
+
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-title");
+    if (dict[key]) el.setAttribute("title", dict[key]);
+  });
+
+  document.querySelectorAll("[data-i18n-alt]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-alt");
+    if (dict[key]) el.setAttribute("alt", dict[key]);
+  });
 };
 
 const updateLanguageSelector = (lang) => {

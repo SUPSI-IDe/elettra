@@ -24,7 +24,7 @@ const renderRows = (tbody, depots = []) => {
     tbody.innerHTML = `
             <tr>
                 <td class="checkbox"></td>
-                <td class="id" colspan="3">No custom stops found.</td>
+                <td class="id" colspan="3">${t("custom_stops.no_stops_found")}</td>
             </tr>
         `;
     return;
@@ -34,10 +34,10 @@ const renderRows = (tbody, depots = []) => {
     .map(
       (depot = {}) => `
                 <tr data-id="${text(depot?.id)}">
-                    <td class="checkbox"><input type="checkbox" aria-label="Select custom stop"></td>
+                    <td class="checkbox"><input type="checkbox" aria-label="${t("custom_stops.select_stop")}"></td>
 
                     <td class="name">${text(depot?.name)}</td>
-                    <td class="type">Depot</td>
+                    <td class="type">${t("custom_stops.type_depot")}</td>
                     <td class="address">${text(depot?.address)}</td>
                 </tr>
             `
@@ -55,12 +55,12 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
         <tr>
             <td class="checkbox"></td>
-            <td class="id" colspan="3">Loading…</td>
+            <td class="id" colspan="3">${t("common.loading")}</td>
         </tr>
     `;
 };
 
-const renderError = (tbody, message = "Unable to load custom stops.") => {
+const renderError = (tbody, message = t("custom_stops.unable_to_load")) => {
   if (!tbody) {
     return;
   }
@@ -164,7 +164,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
       applyFilter();
     } catch (error) {
       console.error("Failed to load custom stops", error);
-      renderError(tbody, error?.message ?? "Unable to load custom stops.");
+      renderError(tbody, error?.message ?? t("custom_stops.unable_to_load"));
     }
   };
 

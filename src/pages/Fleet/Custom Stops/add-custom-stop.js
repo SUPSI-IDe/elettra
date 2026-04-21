@@ -6,6 +6,7 @@ import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { toggleFormDisabled, updateFeedback } from "../../../ui-helpers";
 import { getUserAgencyCentroidSync, getUserAgencyCentroid, DEFAULT_LOCATION } from "../../../config/company-locations";
+import { t } from "../../../i18n";
 
 const parseCoordinate = (value) => {
   if (typeof value !== "string") {
@@ -67,7 +68,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   if (isEditMode) {
     const header = section.querySelector("header h1");
     if (header) {
-      header.textContent = "Edit Custom Stop";
+      header.textContent = t("custom_stops.edit_title");
     }
 
     // Pre-fill form
@@ -266,11 +267,11 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
       toDepotPayload(formData);
 
     if (!name || !address) {
-      updateFeedback(feedback, "Name and address are required.", "error");
+      updateFeedback(feedback, t("custom_stops.name_address_required"), "error");
       return;
     }
 
-    updateFeedback(feedback, isEditMode ? "Updating…" : "Saving…", "info");
+    updateFeedback(feedback, isEditMode ? t("custom_stops.updating") : t("custom_stops.saving"), "info");
     toggleFormDisabled(form, true);
 
     try {
@@ -285,7 +286,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
           features,
           userId,
         });
-        updateFeedback(feedback, "Custom stop updated.", "success");
+        updateFeedback(feedback, t("custom_stops.updated"), "success");
       } else {
         await createDepot({
           name,
@@ -295,12 +296,12 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
           features,
           userId,
         });
-        updateFeedback(feedback, "Custom stop added.", "success");
+        updateFeedback(feedback, t("custom_stops.added"), "success");
       }
 
       triggerPartialLoad("custom-stops", {
         flashMessage:
-          isEditMode ? "Custom stop updated." : "Custom stop added.",
+          isEditMode ? t("custom_stops.updated") : t("custom_stops.added"),
       });
     } catch (error) {
       console.error(
@@ -313,8 +314,8 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
         feedback,
         error?.message ??
           (isEditMode ?
-            "Unable to update custom stop."
-          : "Unable to create custom stop."),
+            t("custom_stops.unable_to_update")
+          : t("custom_stops.unable_to_create")),
         "error"
       );
     } finally {

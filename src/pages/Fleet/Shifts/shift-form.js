@@ -365,11 +365,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const submitButton = form.querySelector('button[type="submit"]');
 
   if (title) {
-    title.textContent = isEditMode ? "Edit Shift" : "Add Shift";
+    title.textContent = isEditMode ? t("shifts.edit_shift") : t("shifts.add_shift");
   }
 
   if (submitButton) {
-    submitButton.textContent = isEditMode ? "Update shift" : "Save shift";
+    submitButton.textContent = isEditMode ? t("shifts.update_shift") : t("shifts.save_shift");
   }
 
   section.dataset.mode = isEditMode ? "edit" : "create";
@@ -485,8 +485,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       scheduledTripsEmpty,
       eligibleTrips.length > 0,
       currentTrips.length > 0 ?
-        (t("shifts.no_valid_trips_to_add") || "No trips can be added with the current depot time limits.")
-      : (t("shifts.no_trips_match") || "No trips match the current filters.")
+        t("shifts.no_valid_trips_to_add")
+      : t("shifts.no_trips_match")
     );
 
     return eligibleTrips;
@@ -1159,7 +1159,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       renderBusOptions(busSelect, [], {});
       updateFeedback(
         feedback,
-        error?.message ?? "Unable to load buses.",
+        error?.message ?? t("shifts.unable_to_load_buses"),
         "error"
       );
     }
@@ -1199,7 +1199,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       renderDepotOptions(endDepotSelect, []);
       updateFeedback(
         feedback,
-        error?.message ?? "Unable to load depots.",
+        error?.message ?? t("shifts.unable_to_load_depots"),
         "error"
       );
     }
@@ -1230,7 +1230,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       routesById = renderRouteOptions(lineSelect, []);
       updateFeedback(
         feedback,
-        error?.message ?? "Unable to load routes.",
+        error?.message ?? t("shifts.unable_to_load_routes"),
         "error"
       );
     }
@@ -1259,10 +1259,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     const day = daySelect.value;
 
     if (!routeId || !day) {
-      resetScheduledTrips(
-        t("shifts.select_line_and_day") ||
-          "Select a line and day to view available trips."
-      );
+      resetScheduledTrips(t("shifts.select_line_and_day"));
       return;
     }
 
@@ -1329,7 +1326,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       syncSelectedTripsWithCurrent();
     } catch (error) {
       console.error("Failed to load trips", error);
-      resetScheduledTrips(error?.message ?? "Unable to load trips.");
+      resetScheduledTrips(error?.message ?? t("shifts.unable_to_load_trips"));
     }
   };
 
@@ -1409,22 +1406,20 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     });
 
     if (!name || !busId) {
-      updateFeedback(feedback, "Shift name and bus model are required.", "error");
+      updateFeedback(feedback, t("shifts.name_bus_required"), "error");
       return;
     }
 
     if (!Array.isArray(tripIds) || tripIds.length === 0) {
-      updateFeedback(feedback, "Add at least one trip to the shift.", "error");
+      updateFeedback(feedback, t("shifts.add_at_least_one_trip"), "error");
       return;
     }
 
     toggleFormDisabled(form, true);
-    updateFeedback(feedback, isEditMode ? "Updating…" : "Saving…", "info");
+    updateFeedback(feedback, isEditMode ? t("shifts.updating") : t("shifts.saving"), "info");
 
     try {
-      showProgress(
-        t("shifts.saving_shift") || (isEditMode ? "Saving shift..." : "Creating shift...")
-      );
+      showProgress(isEditMode ? t("shifts.saving_shift") : t("shifts.creating_shift"));
 
       // Build the complete trip IDs array, including auxiliary depot trips
       let allTripIds = [...tripIds];
@@ -1457,12 +1452,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
           // Use the database UUID (id field), not the GTFS trip_id
           updateFeedback(
             feedback,
-            t("shifts.fetching_stops_first") || "Fetching stops for first trip...",
+            t("shifts.fetching_stops_first"),
             "info"
           );
-          showProgress(
-            t("shifts.fetching_stops_first") || "Fetching stops for first trip..."
-          );
+          showProgress(t("shifts.fetching_stops_first"));
           const firstTripDbId = firstTrip?.id || resolveTripPk(firstTrip);
           console.debug("[SHIFT] First trip DB ID:", firstTripDbId, "from trip:", { id: firstTrip?.id, trip_id: firstTrip?.trip_id });
           const firstTripEdges = await fetchTripStopEdges(firstTripDbId);
@@ -1497,8 +1490,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
                 feedback,
                 t("shifts.depot_departure_warning", {
                   message: auxError.message,
-                }) ||
-                  `Warning: Could not create depot departure trip: ${auxError.message}`,
+                }),
                 "error"
               );
               // Continue without the auxiliary trip - the shift will still be created
@@ -1519,12 +1511,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
           // Use the database UUID (id field), not the GTFS trip_id
           updateFeedback(
             feedback,
-            t("shifts.fetching_stops_last") || "Fetching stops for last trip...",
+            t("shifts.fetching_stops_last"),
             "info"
           );
-          showProgress(
-            t("shifts.fetching_stops_last") || "Fetching stops for last trip..."
-          );
+          showProgress(t("shifts.fetching_stops_last"));
           const lastTripDbId = lastTrip?.id || resolveTripPk(lastTrip);
           console.debug("[SHIFT] Last trip DB ID:", lastTripDbId, "from trip:", { id: lastTrip?.id, trip_id: lastTrip?.trip_id });
           const lastTripEdges = await fetchTripStopEdges(lastTripDbId);
@@ -1559,8 +1549,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
                 feedback,
                 t("shifts.depot_return_warning", {
                   message: auxError.message,
-                }) ||
-                  `Warning: Could not create depot return trip: ${auxError.message}`,
+                }),
                 "error"
               );
               // Continue without the auxiliary trip - the shift will still be created
@@ -1574,21 +1563,21 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       updateFeedback(
         feedback,
         isEditMode
-          ? t("shifts.saving_shift") || "Saving shift..."
-          : t("shifts.creating_shift") || "Creating shift...",
+          ? t("shifts.saving_shift")
+          : t("shifts.creating_shift"),
         "info"
       );
       showProgress(
         isEditMode
-          ? t("shifts.saving_shift") || "Saving shift..."
-          : t("shifts.creating_shift") || "Creating shift..."
+          ? t("shifts.saving_shift")
+          : t("shifts.creating_shift")
       );
 
       if (isEditMode) {
         await updateShift(shiftId, { name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId });
-        updateFeedback(feedback, t("shifts.shift_updated") || "Shift updated.", "success");
+        updateFeedback(feedback, t("shifts.shift_updated"), "success");
         triggerPartialLoad("shifts", {
-          flashMessage: t("shifts.shift_updated") || "Shift updated.",
+          flashMessage: t("shifts.shift_updated"),
         });
         return;
       }
@@ -1627,19 +1616,18 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         }
       } catch (weatherErr) {
         console.warn("[SHIFT][PVGIS] PVGIS/clustering failed (non-blocking):", weatherErr);
-        weatherDataWarning = weatherErr.message || "Unknown error";
+        weatherDataWarning = weatherErr.message || t("common.unknown_error");
       }
 
       if (weatherDataWarning) {
         const msg =
-          t("shifts.weather_data_warning", { message: weatherDataWarning }) ||
-          `Shift created, but weather data setup failed: ${weatherDataWarning}`;
+          t("shifts.weather_data_warning", { message: weatherDataWarning });
         updateFeedback(feedback, msg, "error");
         triggerPartialLoad("shifts", { flashMessage: msg, flashType: "error" });
       } else {
-        updateFeedback(feedback, t("shifts.shift_created") || "Shift created.", "success");
+        updateFeedback(feedback, t("shifts.shift_created"), "success");
         triggerPartialLoad("shifts", {
-          flashMessage: t("shifts.shift_created") || "Shift created.",
+          flashMessage: t("shifts.shift_created"),
         });
       }
     } catch (error) {
@@ -1652,8 +1640,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         feedback,
         error?.message ??
           (isEditMode
-            ? t("shifts.unable_to_update") || "Unable to update shift."
-            : t("shifts.unable_to_save") || "Unable to save shift."),
+            ? t("shifts.unable_to_update")
+            : t("shifts.unable_to_save")),
         "error"
       );
     } finally {
@@ -1873,12 +1861,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     form.removeEventListener("submit", handleSubmit);
   });
 
-  updateEmptyState(shiftTripsEmpty, false, "No trips added to this shift yet.");
+  updateEmptyState(shiftTripsEmpty, false, t("shifts.no_trips_added"));
   updateEmptyState(
     scheduledTripsEmpty,
     false,
-    t("shifts.select_line_and_day") ||
-      "Select a line and day to view available trips."
+    t("shifts.select_line_and_day")
   );
   if (addAllTripsButton instanceof HTMLButtonElement) {
     addAllTripsButton.disabled = true;
@@ -1958,7 +1945,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         nameInput.setSelectionRange(length, length);
       }
     } else {
-      updateFeedback(feedback, "Unable to load shift for editing.", "error");
+      updateFeedback(feedback, t("shifts.unable_to_load_for_edit"), "error");
       toggleFormDisabled(form, false);
       if (submitButton) {
         submitButton.disabled = true;

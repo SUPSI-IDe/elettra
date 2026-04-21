@@ -2,7 +2,7 @@ import "./yearly-analysis-runs.css";
 import { triggerPartialLoad } from "../../../events";
 import { t } from "../../../i18n";
 import { textContent } from "../../../ui-helpers";
-import { MODE_LABELS } from "./yearly-analysis-store";
+import { MODE_LABELS, MODE_LABEL_KEYS } from "./yearly-analysis-store";
 import {
   fetchYearlyAnalyses,
   deleteYearlyAnalysis,
@@ -13,6 +13,17 @@ import { isAuthenticated } from "../../../api/session";
 
 const text = (v) => (v === null || v === undefined ? "" : String(v));
 
+const modeLabel = (mode, fallback = "") => {
+  const key = MODE_LABEL_KEYS[mode];
+  return key ? t(key) : fallback || MODE_LABELS[mode] || mode || "—";
+};
+
+const statusLabel = (status) => {
+  const key = `yearly_analysis.status_${text(status).toLowerCase()}`;
+  const translated = t(key);
+  return translated === key ? status || "—" : translated;
+};
+
 const formatDate = (iso) => {
   if (!iso) return "—";
   try { return new Date(iso).toLocaleString(); } catch { return "—"; }
@@ -22,7 +33,7 @@ const scenariosSummary = (scenarios = []) => {
   if (!scenarios.length) return "—";
   const temps = scenarios.map((s) => `${s.temperature}°C`).join(", ");
   const total = scenarios.reduce((sum, s) => sum + (s.occurrences ?? 0), 0);
-  return `${temps} (${total}d)`;
+  return `${temps} (${total}${t("yearly_analysis.days_short")})`;
 };
 
 const buildAnalysisName = (a) => {
@@ -74,20 +85,20 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
           const f = a.features ?? {};
           const meta = f.meta ?? {};
           const shifts = (meta.shiftNames ?? []).join(", ") || "—";
-          const mode = meta.modeLabel ?? MODE_LABELS[f.config?.mode] ?? "—";
+          const mode = modeLabel(f.config?.mode, meta.modeLabel);
           const status = f.status ?? "—";
           const statusCls = { completed: "completed", partial: "partial", failed: "failed" }[status] ?? "";
           const scenarios = f.scenarios ?? [];
           return `<tr data-id="${textContent(id)}">
-            <td class="checkbox"><input type="checkbox" /></td>
+            <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("yearly_analysis.select_analysis"))}" /></td>
             <td>${textContent(formatDate(a.created_at))}</td>
             <td>${textContent(a.name || "—")}</td>
             <td title="${textContent(shifts)}">${textContent(shifts)}</td>
             <td>${textContent(mode)}</td>
             <td>${textContent(scenariosSummary(scenarios))}</td>
-            <td><span class="ya-status-badge ${statusCls}">${textContent(status)}</span></td>
+            <td><span class="ya-status-badge ${statusCls}">${textContent(statusLabel(status))}</span></td>
             <td class="ya-actions-cell">
-              <a class="ya-results-link" data-action="view-results" data-id="${textContent(id)}">View</a>
+              <a class="ya-results-link" data-action="view-results" data-id="${textContent(id)}">${textContent(t("common.view"))}</a>
             </td>
           </tr>`;
         })
@@ -103,7 +114,7 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
           const features = analysis.features ?? {};
           const meta = features.meta ?? {};
           const shifts = (meta.shiftNames ?? []).join(", ");
-          const mode = meta.modeLabel ?? MODE_LABELS[features.config?.mode] ?? "";
+          const mode = modeLabel(features.config?.mode, meta.modeLabel);
           const status = features.status ?? "";
           return [
             analysis.name,
@@ -134,7 +145,7 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
     } catch (err) {
       analyses = [];
       if (flashEl) {
-        flashEl.textContent = err?.message ?? "Failed to load yearly analyses.";
+        flashEl.textContent = err?.message ?? t("yearly_analysis.failed_load");
         flashEl.hidden = false;
       }
     } finally {
@@ -190,12 +201,9 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
     const checked = tbody?.querySelectorAll("tr:has(input:checked)") ?? [];
     if (!checked.length) return;
 
-    const confirmMessage =
-      (t("yearly_analysis.delete_confirm") ||
-        "Delete {count} yearly analysis(es)?").replace(
-        "{count}",
-        checked.length
-      );
+    const confirmMessage = t("yearly_analysis.delete_confirm", {
+      count: checked.length,
+    });
     if (!confirm(confirmMessage)) return;
 
     for (const row of checked) {
