@@ -183,7 +183,7 @@ const buildYearlyDistanceSliderRange = (distanceKm) => {
   const base = toFiniteNumber(distanceKm);
   if (base == null || base <= 0) return null;
   const boundStep = base >= 10000 ? 1000 : base >= 1000 ? 100 : 10;
-  const min = Math.max(1, Math.floor((base * 0.5) / boundStep) * boundStep);
+  const min = base;
   const max = Math.max(min + 1, Math.ceil((base * 1.5) / boundStep) * boundStep);
   return { min, max, step: 1, format: formatInt };
 };
