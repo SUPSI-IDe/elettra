@@ -40,7 +40,13 @@
             <div class="ya-chart-legend" data-role="ya-eff-chart-1-legend"></div>
           </div>
           <div class="ya-res-section ya-eff-chart-section">
-            <h3 class="ya-res-section-title" data-i18n="yearly_analysis.annual_energy_by_temperature_title">Annual energy contribution by temperature scenario</h3>
+            <div class="ya-res-section-header">
+              <h3 class="ya-res-section-title" data-i18n="yearly_analysis.annual_energy_by_temperature_title">Annual energy contribution by temperature scenario</h3>
+              <div class="ya-chart-unit-toggle" data-role="ya-eff-chart-2-unit-toggle" role="group" aria-label="Energy unit" data-i18n-aria-label="yearly_analysis.energy_unit_toggle_label">
+                <button type="button" class="ya-chart-unit-button active" data-unit-mode="yearly" aria-pressed="true" data-i18n="yearly_analysis.energy_unit_year">kWh/year</button>
+                <button type="button" class="ya-chart-unit-button" data-unit-mode="daily" aria-pressed="false" data-i18n="yearly_analysis.energy_unit_day">kWh/day</button>
+              </div>
+            </div>
             <div class="ya-chart-container" data-role="ya-eff-chart-2"></div>
             <div class="ya-chart-legend" data-role="ya-eff-chart-2-legend"></div>
           </div>

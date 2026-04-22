@@ -71,6 +71,49 @@
 
 .ya-res-section { border: 1px solid var(--border-light); border-radius: 6px; padding: 0.65rem 0.85rem; margin-bottom: var(--spacing-md); }
 .ya-res-section-title { color: var(--brand-teal); font-size: 0.92rem; font-weight: 700; margin: 0 0 0.5rem; }
+.ya-res-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.ya-res-section-header .ya-res-section-title { margin: 0; }
+.ya-chart-unit-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+}
+.ya-chart-unit-button {
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0.28rem 0.5rem;
+  white-space: nowrap;
+}
+.ya-chart-unit-button:hover { color: var(--text-main); }
+.ya-chart-unit-button.active {
+  background: #fff;
+  color: var(--brand-teal);
+  box-shadow: 0 1px 2px rgba(15, 60, 60, 0.14);
+}
+
+@media (max-width: 560px) {
+  .ya-res-section-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .ya-chart-unit-toggle { margin-left: auto; }
+}
 
 /* ── Scenario results table ────────────────────────────────────── */
 

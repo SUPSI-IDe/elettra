@@ -766,50 +766,101 @@ const renderEfficiencyByTempChart = (el, legendEl, data) => {
 
 const CONTRIB_COLORS = { drivetrain: "#6fbeec", auxiliary: "#f5a623", errorBar: "#333" };
 
-const renderAnnualContributionChart = (el, legendEl, data) => {
+const normalizeAnnualContributionMode = (mode) => (mode === "daily" ? "daily" : "yearly");
+
+const getAnnualContributionConfig = (mode) => {
+  const normalizedMode = normalizeAnnualContributionMode(mode);
+  const isDaily = normalizedMode === "daily";
+  return {
+    mode: normalizedMode,
+    axisLabel: t(isDaily ? "yearly_analysis.energy_axis_day" : "yearly_analysis.energy_axis_year"),
+    unitLabel: t(isDaily ? "yearly_analysis.energy_unit_day" : "yearly_analysis.energy_unit_year"),
+    fields: isDaily
+      ? { drv: "dailyDrv", aux: "dailyAux", total: "dailyTotal", q05: "dailyQ05", q50: "dailyQ50", q95: "dailyQ95" }
+      : { drv: "yearlyDrv", aux: "yearlyAux", total: "yearlyTotal", q05: "yearlyQ05", q50: "yearlyQ50", q95: "yearlyQ95" },
+  };
+};
+
+const formatContributionValue = (value, mode) =>
+  normalizeAnnualContributionMode(mode) === "daily" ? formatFixed(value, 1) : formatInt(value);
+
+const formatContributionTick = (value, mode) => {
+  const n = toFiniteNumber(value);
+  if (n == null) return "";
+  if (Math.abs(n) >= 1000) {
+    const scaled = n / 1000;
+    const digits = normalizeAnnualContributionMode(mode) === "daily" && Math.abs(scaled) < 10 ? 1 : 0;
+    return `${scaled.toFixed(digits)}k`;
+  }
+  if (normalizeAnnualContributionMode(mode) === "daily" && Math.abs(n) > 0 && Math.abs(n) < 10) {
+    return n.toFixed(1);
+  }
+  return n.toFixed(0);
+};
+
+const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
   if (!el) return;
   el.innerHTML = "";
   if (legendEl) legendEl.innerHTML = "";
   if (!data || !data.length) return;
 
+  const config = getAnnualContributionConfig(mode);
+  const readValue = (item, field, fallback = 0) => {
+    const value = toFiniteNumber(item?.[config.fields[field]]);
+    return value != null ? value : fallback;
+  };
+
   const margin = { top: 16, right: 24, bottom: 54, left: 64 };
   const W = 560, H = 300;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
-  const svg = svgBase(W, H, t("yearly_analysis.chart_aria_annual_energy"));
+  const svg = svgBase(W, H, t("yearly_analysis.chart_aria_annual_energy_unit", { unit: config.unitLabel }));
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   const labels = data.map((d) => `${d.temperature}°C`);
   const xBand = d3.scaleBand().domain(labels).range([0, iW]).padding(0.3);
 
-  const allMaxes = data.map((d) => Math.max(d.yearlyTotal, d.yearlyQ95 ?? 0));
+  const allMaxes = data.map((d) => Math.max(readValue(d, "total"), readValue(d, "q95", 0)));
   const yMax = d3.max(allMaxes) * 1.12 || 1;
   const y = d3.scaleLinear().domain([0, yMax]).nice().range([iH, 0]);
 
   g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(xBand)).selectAll("text").attr("font-size", "10px").attr("text-anchor", "end").attr("transform", "rotate(-30)");
-  g.append("g").call(d3.axisLeft(y).ticks(6).tickFormat((d) => d >= 1000 ? `${(d / 1000).toFixed(0)}k` : d.toFixed(0))).selectAll("text").attr("font-size", "10px");
-  g.append("text").attr("transform", "rotate(-90)").attr("y", -52).attr("x", -iH / 2).attr("text-anchor", "middle").attr("font-size", "10px").attr("fill", "#666").text("kWh / year");
+  g.append("g").call(d3.axisLeft(y).ticks(6).tickFormat((d) => formatContributionTick(d, config.mode))).selectAll("text").attr("font-size", "10px");
+  g.append("text").attr("transform", "rotate(-90)").attr("y", -52).attr("x", -iH / 2).attr("text-anchor", "middle").attr("font-size", "10px").attr("fill", "#666").text(config.axisLabel);
 
   gridLines(g, y, iW, 6);
 
-  const stackKeys = ["yearlyDrv", "yearlyAux"];
-  const stackData = data.map((d, i) => ({ index: i, label: labels[i], yearlyDrv: d.yearlyDrv, yearlyAux: d.yearlyAux }));
+  const stackKeys = ["drivetrain", "auxiliary"];
+  const stackData = data.map((d, i) => ({
+    index: i,
+    label: labels[i],
+    drivetrain: readValue(d, "drv"),
+    auxiliary: readValue(d, "aux"),
+  }));
   const stacked = d3.stack().keys(stackKeys)(stackData);
-  const stackColors = { yearlyDrv: CONTRIB_COLORS.drivetrain, yearlyAux: CONTRIB_COLORS.auxiliary };
+  const stackColors = { drivetrain: CONTRIB_COLORS.drivetrain, auxiliary: CONTRIB_COLORS.auxiliary };
 
   let tooltipGroup, tooltipBg, tooltipText;
 
   const showTooltip = (d, idx) => {
     const item = data[idx];
+    const drv = readValue(item, "drv");
+    const aux = readValue(item, "aux");
+    const total = readValue(item, "total");
+    const q05 = readValue(item, "q05", null);
+    const q50 = readValue(item, "q50", null);
+    const q95 = readValue(item, "q95", null);
     tooltipText.selectAll("*").remove();
     const lines = [
       `${item.label} (${item.temperature}°C)`,
-      t("yearly_analysis.tooltip_days_year", { value: item.occurrences }),
-      t("yearly_analysis.tooltip_drivetrain_year", { value: formatInt(item.yearlyDrv) }),
-      t("yearly_analysis.tooltip_auxiliary_year", { value: formatInt(item.yearlyAux) }),
-      t("yearly_analysis.tooltip_total_year", { value: formatInt(item.yearlyTotal) }),
+      t("yearly_analysis.tooltip_days_year", { value: formatInt(item.occurrences) }),
+      t("yearly_analysis.tooltip_drivetrain_energy", { value: formatContributionValue(drv, config.mode), unit: config.unitLabel }),
+      t("yearly_analysis.tooltip_auxiliary_energy", { value: formatContributionValue(aux, config.mode), unit: config.unitLabel }),
+      t("yearly_analysis.tooltip_total_energy", { value: formatContributionValue(total, config.mode), unit: config.unitLabel }),
     ];
-    if (item.yearlyQ50 != null) lines.push(`Q05/Q50/Q95: ${formatInt(item.yearlyQ05 ?? 0)} / ${formatInt(item.yearlyQ50)} / ${formatInt(item.yearlyQ95 ?? 0)}`);
+    if (q50 != null) {
+      lines.push(`Q05/Q50/Q95: ${formatContributionValue(q05, config.mode)} / ${formatContributionValue(q50, config.mode)} / ${formatContributionValue(q95, config.mode)} ${config.unitLabel}`);
+    }
 
     lines.forEach((txt, i) => {
       tooltipText.append("tspan").attr("x", 8).attr("dy", i === 0 ? 14 : 13).attr("font-weight", i === 0 ? "600" : "400").attr("fill", "#1c1c1c").text(txt);
@@ -820,7 +871,7 @@ const renderAnnualContributionChart = (el, legendEl, data) => {
     tooltipBg.attr("width", tw).attr("height", th);
 
     const barCX = xBand(labels[idx]) + xBand.bandwidth() / 2;
-    let tx = barCX + 10, ty = y(item.yearlyTotal) - th / 2;
+    let tx = barCX + 10, ty = y(total) - th / 2;
     if (tx + tw > iW) tx = barCX - tw - 10;
     if (ty < 0) ty = 4;
     if (ty + th > iH) ty = iH - th;
@@ -841,15 +892,18 @@ const renderAnnualContributionChart = (el, legendEl, data) => {
       .on("pointerleave", function () { d3.select(this).attr("opacity", 1); hideTooltip(); });
   });
 
-  const hasErrBars = data.some((d) => d.yearlyQ05 != null && d.yearlyQ95 != null);
+  const hasErrBars = data.some((d) => readValue(d, "q05", null) != null && readValue(d, "q95", null) != null);
   if (hasErrBars) {
     data.forEach((d, i) => {
-      if (d.yearlyQ05 == null || d.yearlyQ95 == null) return;
       const cx = xBand(labels[i]) + xBand.bandwidth() / 2;
-      const center = d.yearlyQ50 ?? d.yearlyTotal;
-      g.append("line").attr("x1", cx).attr("x2", cx).attr("y1", y(d.yearlyQ05)).attr("y2", y(d.yearlyQ95)).attr("stroke", CONTRIB_COLORS.errorBar).attr("stroke-width", 1.2);
-      g.append("line").attr("x1", cx - 4).attr("x2", cx + 4).attr("y1", y(d.yearlyQ05)).attr("y2", y(d.yearlyQ05)).attr("stroke", CONTRIB_COLORS.errorBar).attr("stroke-width", 1.2);
-      g.append("line").attr("x1", cx - 4).attr("x2", cx + 4).attr("y1", y(d.yearlyQ95)).attr("y2", y(d.yearlyQ95)).attr("stroke", CONTRIB_COLORS.errorBar).attr("stroke-width", 1.2);
+      const q05 = readValue(d, "q05", null);
+      const q50 = readValue(d, "q50", null);
+      const q95 = readValue(d, "q95", null);
+      if (q05 == null || q95 == null) return;
+      const center = q50 ?? readValue(d, "total");
+      g.append("line").attr("x1", cx).attr("x2", cx).attr("y1", y(q05)).attr("y2", y(q95)).attr("stroke", CONTRIB_COLORS.errorBar).attr("stroke-width", 1.2);
+      g.append("line").attr("x1", cx - 4).attr("x2", cx + 4).attr("y1", y(q05)).attr("y2", y(q05)).attr("stroke", CONTRIB_COLORS.errorBar).attr("stroke-width", 1.2);
+      g.append("line").attr("x1", cx - 4).attr("x2", cx + 4).attr("y1", y(q95)).attr("y2", y(q95)).attr("stroke", CONTRIB_COLORS.errorBar).attr("stroke-width", 1.2);
       g.append("circle").attr("cx", cx).attr("cy", y(center)).attr("r", 2.5).attr("fill", CONTRIB_COLORS.errorBar);
     });
   }
@@ -861,8 +915,8 @@ const renderAnnualContributionChart = (el, legendEl, data) => {
   el.appendChild(svg.node());
 
   if (legendEl) {
-    let html = `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${CONTRIB_COLORS.drivetrain}"></span>${textContent(t("simulation.predictions_consumption_drivetrain"))}</div>`;
-    html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${CONTRIB_COLORS.auxiliary}"></span>${textContent(t("simulation.predictions_consumption_auxiliary"))}</div>`;
+    let html = `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${CONTRIB_COLORS.drivetrain}"></span>${textContent(`${t("simulation.predictions_consumption_drivetrain")} (${config.unitLabel})`)}</div>`;
+    html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${CONTRIB_COLORS.auxiliary}"></span>${textContent(`${t("simulation.predictions_consumption_auxiliary")} (${config.unitLabel})`)}</div>`;
     if (hasErrBars) html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${CONTRIB_COLORS.errorBar}"></span>${textContent(t("yearly_analysis.q05_q95_range"))}</div>`;
     legendEl.innerHTML = html;
   }
@@ -3107,7 +3161,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const overviewOpts = { onDownload: handleDownload };
 
   /* ── Efficiency state (mutable — recomputed after quantile backfill) */
-  const effState = { enriched: null, summary: null, effByTemp: null, annualContrib: null };
+  const effState = { enriched: null, summary: null, effByTemp: null, annualContrib: null, annualContributionMode: "yearly" };
 
   const recomputeEfficiency = (scenarios) => {
     effState.enriched = enrichAllScenarios(scenarios);
@@ -3121,7 +3175,26 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const effChart1Legend = section.querySelector('[data-role="ya-eff-chart-1-legend"]');
   const effChart2El = section.querySelector('[data-role="ya-eff-chart-2"]');
   const effChart2Legend = section.querySelector('[data-role="ya-eff-chart-2-legend"]');
+  const effChart2UnitToggle = section.querySelector('[data-role="ya-eff-chart-2-unit-toggle"]');
   const scenarioTableEl = section.querySelector('[data-role="efficiency-scenario-table"]');
+
+  const updateAnnualContributionToggle = () => {
+    if (!effChart2UnitToggle) return;
+    effChart2UnitToggle.querySelectorAll("[data-unit-mode]").forEach((btn) => {
+      const isActive = btn.dataset.unitMode === effState.annualContributionMode;
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-pressed", String(isActive));
+    });
+  };
+
+  const renderAnnualContribution = () => {
+    updateAnnualContributionToggle();
+    try {
+      renderAnnualContributionChart(effChart2El, effChart2Legend, effState.annualContrib, effState.annualContributionMode);
+    } catch (e) {
+      console.error("[YA-Eff] Chart 2 error:", e);
+    }
+  };
 
   const renderEfficiency = () => {
     if (!efficiencyContent) return;
@@ -3132,9 +3205,22 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     ].join("");
 
     try { renderEfficiencyByTempChart(effChart1El, effChart1Legend, effState.effByTemp); } catch (e) { console.error("[YA-Eff] Chart 1 error:", e); }
-    try { renderAnnualContributionChart(effChart2El, effChart2Legend, effState.annualContrib); } catch (e) { console.error("[YA-Eff] Chart 2 error:", e); }
+    renderAnnualContribution();
     if (scenarioTableEl) scenarioTableEl.innerHTML = renderScenarioTable(effState.enriched);
   };
+
+  if (effChart2UnitToggle) {
+    const unitToggleHandler = (event) => {
+      const btn = event.target.closest("[data-unit-mode]");
+      if (!btn || !effChart2UnitToggle.contains(btn)) return;
+      const nextMode = normalizeAnnualContributionMode(btn.dataset.unitMode);
+      if (nextMode === effState.annualContributionMode) return;
+      effState.annualContributionMode = nextMode;
+      renderAnnualContribution();
+    };
+    effChart2UnitToggle.addEventListener("click", unitToggleHandler);
+    cleanups.push(() => effChart2UnitToggle.removeEventListener("click", unitToggleHandler));
+  }
 
   /* ── Cost computation with slider overrides ────────────── */
   const computeCosts = () => {
