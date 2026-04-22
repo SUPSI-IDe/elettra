@@ -169,12 +169,23 @@ const applyYaSliderRange = (input, range) => {
   if (!input || !range) return;
   input.min = String(range.min);
   input.max = String(range.max);
+  if (range.step != null) input.step = String(range.step);
+  const format = typeof range.format === "function" ? range.format : (value) => String(value);
   const scaleEl = input.closest(".ya-cost-variables__field")?.querySelector(".ya-cost-variables__range-scale");
   if (scaleEl) {
     const spans = scaleEl.querySelectorAll("span");
-    if (spans[0]) spans[0].textContent = String(range.min);
-    if (spans[1]) spans[1].textContent = String(range.max);
+    if (spans[0]) spans[0].textContent = format(range.min);
+    if (spans[1]) spans[1].textContent = format(range.max);
   }
+};
+
+const buildYearlyDistanceSliderRange = (distanceKm) => {
+  const base = toFiniteNumber(distanceKm);
+  if (base == null || base <= 0) return null;
+  const boundStep = base >= 10000 ? 1000 : base >= 1000 ? 100 : 10;
+  const min = Math.max(1, Math.floor((base * 0.5) / boundStep) * boundStep);
+  const max = Math.max(min + 1, Math.ceil((base * 1.5) / boundStep) * boundStep);
+  return { min, max, step: 1, format: formatInt };
 };
 
 const svgBase = (w, h, ariaLabel) =>
@@ -1046,8 +1057,14 @@ const computeYearlyCosts = (features, busModelData, overrides = {}) => {
   const dieselMaintPerKm = ov("dieselMaintCost") ?? (busLengthM != null ? getDieselMaintenanceCostForLength(busLengthM) : null);
   const electricMaintPerKm = ov("electricMaintCost") ?? (busLengthM != null ? getElectricMaintenanceCostForLength(busLengthM) : null);
 
-  const yearlyEnergyKwh = toFiniteNumber(yearlyTotals.totalEnergyKwh);
-  const yearlyDistanceKm = toFiniteNumber(yearlyTotals.distanceKm);
+  const baseYearlyEnergyKwh = toFiniteNumber(yearlyTotals.totalEnergyKwh);
+  const baseYearlyDistanceKm = toFiniteNumber(yearlyTotals.distanceKm);
+  const yearlyDistanceKm = ov("yearlyDistanceKm") ?? baseYearlyDistanceKm;
+  const distanceScale =
+    baseYearlyDistanceKm != null && baseYearlyDistanceKm > 0 && yearlyDistanceKm != null
+      ? yearlyDistanceKm / baseYearlyDistanceKm
+      : 1;
+  const yearlyEnergyKwh = baseYearlyEnergyKwh != null ? baseYearlyEnergyKwh * distanceScale : null;
 
   if (yearlyEnergyKwh == null || yearlyEnergyKwh <= 0) return null;
   if (busLengthM == null) return null;
@@ -1055,10 +1072,10 @@ const computeYearlyCosts = (features, busModelData, overrides = {}) => {
   const scenarioCosts = scenarioResults
     .filter((sr) => !sr.error && sr.kpis)
     .map((sr) => {
-      const dailyEnergy = toFiniteNumber(sr.kpis.totalEnergyKwh) ?? 0;
-      const dailyDrivetrain = toFiniteNumber(sr.kpis.drivetrainEnergyKwh) ?? 0;
-      const dailyAuxiliary = toFiniteNumber(sr.kpis.auxiliaryEnergyKwh) ?? 0;
-      const dailyDistance = toFiniteNumber(sr.kpis.distanceKm) ?? 0;
+      const dailyEnergy = (toFiniteNumber(sr.kpis.totalEnergyKwh) ?? 0) * distanceScale;
+      const dailyDrivetrain = (toFiniteNumber(sr.kpis.drivetrainEnergyKwh) ?? 0) * distanceScale;
+      const dailyAuxiliary = (toFiniteNumber(sr.kpis.auxiliaryEnergyKwh) ?? 0) * distanceScale;
+      const dailyDistance = (toFiniteNumber(sr.kpis.distanceKm) ?? 0) * distanceScale;
       const annualEnergy = dailyEnergy * sr.occurrences;
       const annualDistance = dailyDistance * sr.occurrences;
       const annualEnergyCost = annualEnergy * energyPricePerKwh;
@@ -1190,9 +1207,12 @@ const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, busModel
   const dieselMaintPerKm = ov("dieselMaintCost") ?? baseDieselMaintPerKm;
   const elecMaintPerKm = ov("electricMaintCost") ?? baseElecMaintPerKm;
 
-  const yDistKm = fn(a.yearly_distance_km ?? yearlyDistanceKm) ?? 0;
-  const yElecKwh = fn(a.yearly_electric_kwh ?? yearlyEnergyKwh) ?? 0;
-  const yDhLiters = fn(a.yearly_diesel_heating_liters) ?? 0;
+  const baseYDistKm = fn(yearlyDistanceKm ?? a.yearly_distance_km) ?? 0;
+  const yDistKm = ov("yearlyDistanceKm") ?? baseYDistKm;
+  const distanceScale = baseYDistKm > 0 ? yDistKm / baseYDistKm : 1;
+  const yElecKwh = (fn(yearlyEnergyKwh ?? a.yearly_electric_kwh) ?? 0) * distanceScale;
+  const yDhLiters = (fn(a.yearly_diesel_heating_liters) ?? 0) * distanceScale;
+  const yDhFuelKwh = (fn(a.yearly_diesel_heating_fuel_kwh) ?? 0) * distanceScale;
   const isDieselHeating = yDhLiters > 0;
 
   /* ── OPEX: recalculate from physical quantities × unit prices ── */
@@ -1252,12 +1272,12 @@ const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, busModel
 
   /* ── Scenarios: recalculate costs from physical quantities ──── */
   const scenarioCosts = (raw.scenarios ?? []).map((sc, i) => {
-    const dailyElKwh = fn(sc.daily_electric_kwh) ?? 0;
-    const dailyDist = fn(sc.daily_distance_km) ?? 0;
-    const annElKwh = fn(sc.annual_electric_kwh) ?? 0;
-    const annDist = fn(sc.annual_distance_km) ?? 0;
-    const dailyDhLiters = fn(sc.daily_diesel_heating_liters) ?? 0;
-    const annDhLiters = fn(sc.annual_diesel_heating_liters) ?? 0;
+    const dailyElKwh = (fn(sc.daily_electric_kwh) ?? 0) * distanceScale;
+    const dailyDist = (fn(sc.daily_distance_km) ?? 0) * distanceScale;
+    const annElKwh = (fn(sc.annual_electric_kwh) ?? 0) * distanceScale;
+    const annDist = (fn(sc.annual_distance_km) ?? 0) * distanceScale;
+    const dailyDhLiters = (fn(sc.daily_diesel_heating_liters) ?? 0) * distanceScale;
+    const annDhLiters = (fn(sc.annual_diesel_heating_liters) ?? 0) * distanceScale;
     const annElecMaint = annDist * elecMaintPerKm;
     return {
       label: sc.label ?? `Scenario ${i + 1}`,
@@ -1290,10 +1310,10 @@ const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, busModel
       electricMaintPerKm: elecMaintPerKm,
       dieselHeatingMaintenanceFactor: dhMaintFactor,
       yearlyDieselHeatingLiters: yDhLiters,
-      yearlyDieselHeatingFuelKwh: fn(a.yearly_diesel_heating_fuel_kwh) ?? 0,
+      yearlyDieselHeatingFuelKwh: yDhFuelKwh,
     },
-    yearlyEnergyKwh: fn(a.yearly_electric_kwh ?? yearlyEnergyKwh) ?? 0,
-    yearlyDistanceKm: fn(a.yearly_distance_km ?? yearlyDistanceKm) ?? 0,
+    yearlyEnergyKwh: yElecKwh,
+    yearlyDistanceKm: yDistKm,
     electric: {
       energyOpex: electricEnergyOpex,
       maintOpex: electricMaintOpex,
@@ -3124,7 +3144,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const costOverrides = {
     fuelCostPerL: null, energyPricePerKwh: null, interestRate: null,
     dieselEfficiency: null, dieselMaintCost: null, electricMaintCost: null,
-    dieselCapex: null,
+    dieselCapex: null, yearlyDistanceKm: null,
   };
   const emissionsState = {
     status: "idle", electricYearly: null, electricOnlyYearly: null,
@@ -3363,6 +3383,10 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     const dieselCapexValueEl = q("ya-var-diesel-capex-value");
     const dieselCapexReset = q("ya-var-diesel-capex-reset");
 
+    const yearlyDistanceInput = q("ya-var-yearly-distance");
+    const yearlyDistanceValueEl = q("ya-var-yearly-distance-value");
+    const yearlyDistanceReset = q("ya-var-yearly-distance-reset");
+
     applyYaSliderRange(dieselEffInput, busDefaults.diesel_consumption_l_per_km);
     applyYaSliderRange(dieselMaintInput, busDefaults.diesel_maintenance_chf_per_km);
     applyYaSliderRange(elecMaintInput, busDefaults.electric_maintenance_chf_per_km);
@@ -3374,12 +3398,24 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     const defaultDieselMaint = busLengthM != null ? getDieselMaintenanceCostForLength(busLengthM) : busDefaults.diesel_maintenance_chf_per_km.default;
     const defaultElecMaint = busLengthM != null ? getElectricMaintenanceCostForLength(busLengthM) : busDefaults.electric_maintenance_chf_per_km.default;
     const defaultDieselCapex = getEquivalentDieselBusCapexForLength(busLengthM) ?? 350000;
+    const defaultYearlyDistance =
+      toFiniteNumber(yearlyTotals.distanceKm) ?? toFiniteNumber(costState.costsData?.yearlyDistanceKm);
+
+    applyYaSliderRange(yearlyDistanceInput, buildYearlyDistanceSliderRange(defaultYearlyDistance));
 
     const syncSlider = (input, valueEl, value, fmt) => {
       if (!input) return;
-      input.value = value;
-      setRangeProgress(input, value);
-      if (valueEl) valueEl.textContent = fmt(value);
+      const numericValue = toFiniteNumber(value);
+      if (numericValue == null) {
+        input.disabled = true;
+        setRangeProgress(input, null);
+        if (valueEl) valueEl.textContent = "—";
+        return;
+      }
+      input.disabled = false;
+      input.value = numericValue;
+      setRangeProgress(input, numericValue);
+      if (valueEl) valueEl.textContent = fmt(numericValue);
     };
 
     const syncAll = () => {
@@ -3390,6 +3426,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       syncSlider(dieselMaintInput, dieselMaintValueEl, costOverrides.dieselMaintCost ?? defaultDieselMaint, (v) => formatFixed(v, 3));
       syncSlider(elecMaintInput, elecMaintValueEl, costOverrides.electricMaintCost ?? defaultElecMaint, (v) => formatFixed(v, 3));
       syncSlider(dieselCapexInput, dieselCapexValueEl, costOverrides.dieselCapex ?? defaultDieselCapex, (v) => `${Math.round(v / 1000)}k`);
+      syncSlider(yearlyDistanceInput, yearlyDistanceValueEl, costOverrides.yearlyDistanceKm ?? defaultYearlyDistance, (v) => formatInt(v));
     };
 
     syncAll();
@@ -3397,7 +3434,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     const onSlider = (input, valueEl, overrideKey, fmt) => {
       if (!input) return;
       const handler = () => {
-        const v = Number(input.value);
+        const v = toFiniteNumber(input.value);
+        if (v == null) return;
         costOverrides[overrideKey] = v;
         setRangeProgress(input, v);
         if (valueEl) valueEl.textContent = fmt(v);
@@ -3414,6 +3452,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     onSlider(dieselMaintInput, dieselMaintValueEl, "dieselMaintCost", (v) => formatFixed(v, 3));
     onSlider(elecMaintInput, elecMaintValueEl, "electricMaintCost", (v) => formatFixed(v, 3));
     onSlider(dieselCapexInput, dieselCapexValueEl, "dieselCapex", (v) => `${Math.round(v / 1000)}k`);
+    onSlider(yearlyDistanceInput, yearlyDistanceValueEl, "yearlyDistanceKm", (v) => formatInt(v));
 
     const onReset = (btn, overrideKey, defaultVal, syncFn) => {
       if (!btn) return;
@@ -3433,6 +3472,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     onReset(dieselMaintReset, "dieselMaintCost", defaultDieselMaint, syncAll);
     onReset(elecMaintReset, "electricMaintCost", defaultElecMaint, syncAll);
     onReset(dieselCapexReset, "dieselCapex", defaultDieselCapex, syncAll);
+    onReset(yearlyDistanceReset, "yearlyDistanceKm", defaultYearlyDistance, syncAll);
   };
 
   const loadEmissions = async () => {
