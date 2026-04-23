@@ -1807,16 +1807,13 @@ const renderOpexInputsTable = (el, state, options = {}) => {
 };
 
 const renderEfficiencyPredictionSummary = (costInputs) => {
-  const predictedShiftConsumption = costInputs?.predictedShiftConsumptionKwh;
-  const predictedShiftDistanceKm = costInputs?.predictedShiftDistanceKm;
-  const predictedShiftConsumptionPerKm =
-    predictedShiftDistanceKm != null &&
-    predictedShiftDistanceKm > 0 &&
-    predictedShiftConsumption != null
-      ? predictedShiftConsumption / predictedShiftDistanceKm
-      : null;
+  const predictedShiftConsumption = toFiniteNumber(
+    costInputs?.predictedShiftConsumptionMedianKwh
+  );
+  const predictedShiftConsumptionPerKmMedianKwh =
+    toFiniteNumber(costInputs?.predictedShiftConsumptionPerKmMedianKwh);
 
-  const rows = [
+  const items = [
     [
       t("simulation.costs_input_prediction_consumption") ||
         "Prediction consumption per shift (kWh)",
@@ -1827,24 +1824,25 @@ const renderEfficiencyPredictionSummary = (costInputs) => {
         "simulation.costs_input_prediction_consumption_per_km",
         "Prediction consumption per km (kWh/km)"
       ),
-      predictedShiftConsumptionPerKm == null
+      predictedShiftConsumptionPerKmMedianKwh == null
         ? "—"
-        : formatFixed(predictedShiftConsumptionPerKm, 3),
+        : formatFixed(predictedShiftConsumptionPerKmMedianKwh, 3),
     ],
   ];
 
   return `
     <div class="efficiency-summary-table-wrap">
-      <table class="efficiency-summary-table">
-        <tbody>
-          ${rows
-            .map(
-              ([label, value]) =>
-                `<tr><th scope="row">${textContent(label)}</th><td>${textContent(value)}</td></tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
+      <div class="efficiency-summary-grid">
+        ${items
+          .map(
+            ([label, value]) => `
+              <div class="efficiency-summary-item">
+                <span class="efficiency-summary-item__label">${textContent(label)}</span>
+                <span class="efficiency-summary-item__value">${textContent(value)}</span>
+              </div>`
+          )
+          .join("")}
+      </div>
     </div>`;
 };
 
@@ -2856,23 +2854,7 @@ const applyUsableSocWindow = (nominalKwh, usableSocFraction) => {
   return usable == null ? nominal : nominal * usable;
 };
 
-const buildUsableSocCapacityNoteHtml = (inputParams = {}) => {
-  const minSoc = normalizeSocFraction(inputParams?.min_soc);
-  const maxSoc = normalizeSocFraction(inputParams?.max_soc);
-  const usableSoc = resolveUsableSocFraction(inputParams);
-  if (minSoc == null || maxSoc == null || usableSoc == null) return "";
-
-  return `<p class="efficiency-table-note">${textContent(
-    t("simulation.opt_usable_soc_capacity_note", {
-      min_soc: formatPct(minSoc),
-      max_soc: formatPct(maxSoc),
-      usable_soc: formatPct(usableSoc),
-    }) ||
-      `Usable kWh values apply the SoC window (${formatPct(minSoc)}-${formatPct(
-        maxSoc
-      )}, ${formatPct(usableSoc)} of nominal). Pack counts remain physical.`
-  )}</p>`;
-};
+const buildUsableSocCapacityNoteHtml = () => "";
 
 const buildUsableSocTooltip = ({
   inputParams = {},
@@ -3010,36 +2992,6 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
 
   const usableSocFraction = resolveUsableSocFraction(inputParams);
   const usableSocNoteHtml = buildUsableSocCapacityNoteHtml(inputParams);
-  const solverStatus = results.solver_status ?? "—";
-  const badgeCls = SOLVER_STATUS_CLASS[solverStatus] ?? "efficiency-badge--neutral";
-  const electrificationFeasible = results.electrification_feasible;
-  const feasibilityBadgeCls = electrificationFeasible === true
-    ? "efficiency-badge--ok"
-    : electrificationFeasible === false
-      ? "efficiency-badge--err"
-      : "efficiency-badge--neutral";
-
-  const kpis = [
-    { label: t("simulation.opt_solver_status") || "Solver Status", value: `<span class="efficiency-badge ${badgeCls}">${textContent(solverStatus)}</span>`, raw: true },
-    {
-      label: t("simulation.opt_feasibility") || "Electrification Feasibility",
-      value: `<span class="efficiency-badge ${feasibilityBadgeCls}">${textContent(
-        electrificationFeasible === true
-          ? (t("simulation.feasibility_feasible") || "Feasible")
-          : electrificationFeasible === false
-            ? (t("simulation.feasibility_infeasible") || "Infeasible")
-            : "—"
-      )}</span>`,
-      raw: true,
-    },
-    { label: t("simulation.opt_solve_time") || "Solve Time (s)", value: formatFixed(results.solve_time_seconds, 2) },
-  ];
-
-  const kpisHtml = kpis.map(({ label, value, raw }) => `
-    <div class="efficiency-param">
-      <span class="efficiency-param-label">${textContent(label)}</span>
-      <span class="efficiency-param-value">${raw ? value : textContent(value)}</span>
-    </div>`).join("");
 
   const electSummary = results.electrification_summary ?? {};
   let electrificationSummaryHtml = "";
@@ -3167,7 +3119,6 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
       }
       return `
       <tr>
-        <td>${textContent(b.shift_name ?? "—")}</td>
         <td class="efficiency-td-num efficiency-td-highlight">${textContent(String(b.optimized_packs ?? "—"))}</td>
         <td class="efficiency-td-num efficiency-td-highlight">${optimizedUsableKwh == null ? "—" : formatFixed(optimizedUsableKwh, 0)}</td>
         <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
@@ -3186,7 +3137,6 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
         <table class="efficiency-table">
           <thead>
             <tr>
-              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_shift") || "Shift")}</th>
               <th>${textContent(t("simulation.opt_col_opt_packs") || "Optimized Packs")}</th>
               <th>${usableSocInfoLabelHtml(
                 t("simulation.opt_col_opt_usable_kwh") || "Optimized usable (kWh)",
@@ -3203,74 +3153,12 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
       </div>`;
   }
 
-  const installedChargers = results.installed_chargers ?? {};
-  const inputChargingStations = Array.isArray(inputParams?.charging_stations)
-    ? inputParams.charging_stations
-    : [];
-  const inputStationsByStopId = new Map(
-    inputChargingStations
-      .filter((station) => station?.stop_id)
-      .map((station) => [String(station.stop_id), station])
-  );
-  const chargerEntries = Object.entries(installedChargers);
-  let chargersHtml = "";
-  if (chargerEntries.length) {
-    const rows = chargerEntries.map(([stopId, info]) => {
-      const slots = info?.num_slots ?? info?.slots ?? "—";
-      const matchingInputStation = inputStationsByStopId.get(String(stopId));
-      const directPowerPerPlug = [
-        info?.max_power_per_slot_kw,
-        info?.power_per_slot_kw,
-        matchingInputStation?.max_power_per_slot_kw,
-        matchingInputStation?.power_per_slot_kw,
-      ].find((value) => Number.isFinite(Number(value)));
-      const resolvedPower =
-        directPowerPerPlug ??
-        (() => {
-          const totalPower = [
-            info?.max_total_power_kw,
-            info?.total_power_kw,
-            info?.max_power_kw,
-            matchingInputStation?.max_total_power_kw,
-          ].find((value) => Number.isFinite(Number(value)));
-          const numericSlots = Number(slots);
-          if (Number.isFinite(Number(totalPower)) && Number.isFinite(numericSlots) && numericSlots > 0) {
-            return Number(totalPower) / numericSlots;
-          }
-          return "—";
-        })();
-      return `
-        <tr>
-          <td>${textContent(info?.stop_name ?? stopId.slice(0, 8) + "…")}</td>
-          <td class="efficiency-td-num">${textContent(String(slots))}</td>
-          <td class="efficiency-td-num">${formatFixed(resolvedPower, 0)}</td>
-        </tr>`;
-    }).join("");
-
-    chargersHtml = `
-      <h4 class="efficiency-subsection-title">${textContent(t("simulation.opt_installed_chargers") || "Installed Chargers")}</h4>
-      <div class="efficiency-table-wrap">
-        <table class="efficiency-table">
-          <thead>
-            <tr>
-              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_stop") || "Stop")}</th>
-              <th>${textContent(t("simulation.opt_col_slots") || "Slots")}</th>
-              <th>${textContent(t("simulation.cs_power_per_plug") || "kW / plug")}</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-  }
-
   return `
     <div class="efficiency-section">
       <h3 class="efficiency-section-title">${textContent(t("simulation.opt_section_title") || "Optimization Results")}</h3>
-      <div class="efficiency-params-grid">${kpisHtml}</div>
       ${usableSocNoteHtml}
       ${electrificationSummaryHtml}
       ${batteryTableHtml}
-      ${chargersHtml}
     </div>`;
 };
 
@@ -3328,6 +3216,14 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
     const s = run?.summary ?? {};
     const packs = toFiniteNumber(cp.num_battery_packs);
     const batteryCapacityKwh = toFiniteNumber(cp.battery_capacity_kwh);
+    const totalConsumptionMedianKwh = readPredictionTotalQuantileValue(s, {
+      kind: "absolute",
+      quantileKey: "q50",
+    });
+    const consumptionPerKmMedianKwh = readPredictionTotalQuantileValue(s, {
+      kind: "per_km",
+      quantileKey: "q50",
+    });
     const matchedBus = filteredPerBus.find((entry) => {
       const entryPacks = toFiniteNumber(entry?.optimized_packs ?? entry?.num_battery_packs);
       return entryPacks != null && entryPacks === packs;
@@ -3339,7 +3235,9 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
       totalWeightKg: toFiniteNumber(cp.total_weight_kg),
       totalDistanceKm: toFiniteNumber(s.total_distance_km),
       totalConsumptionKwh: toFiniteNumber(s.total_consumption_kwh),
+      totalConsumptionMedianKwh,
       consumptionPerKmKwh: toFiniteNumber(s.consumption_per_km_kwh),
+      consumptionPerKmMedianKwh,
       totalDrivetrainKwh: toFiniteNumber(s.total_drivetrain_kwh),
       totalAuxiliaryKwh: toFiniteNumber(s.total_auxiliary_kwh),
       minSocKwh:
@@ -3353,8 +3251,10 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
 
   if (!optimizedPackSet.size) {
     const bestRow = rows.reduce((best, row) => {
-      if (row.consumptionPerKmKwh == null) return best;
-      if (!best || row.consumptionPerKmKwh < best.consumptionPerKmKwh) return row;
+      if (row.consumptionPerKmMedianKwh == null) return best;
+      if (!best || row.consumptionPerKmMedianKwh < best.consumptionPerKmMedianKwh) {
+        return row;
+      }
       return best;
     }, null);
     if (bestRow?.numBatteryPacks != null) {
@@ -3421,6 +3321,26 @@ const readPredictionQuantiles = (summary = {}, candidateKeys = []) => {
 const hasPredictionQuantiles = (quantiles = {}) =>
   PREDICTION_QUANTILE_KEYS.some((key) => quantiles?.[key] != null);
 
+const readPredictionTotalQuantiles = (
+  summary = {},
+  { kind = "absolute" } = {}
+) =>
+  readPredictionQuantiles(
+    summary,
+    kind === "per_km"
+      ? [
+          "consumption_per_km_kwh_quantiles",
+          "total_consumption_per_km_kwh_quantiles",
+          "total_per_km_kwh_quantiles",
+        ]
+      : ["quantiles", "total_quantiles", "consumption_quantiles"]
+  );
+
+const readPredictionTotalQuantileValue = (
+  summary = {},
+  { kind = "absolute", quantileKey = "q50" } = {}
+) => toFiniteNumber(readPredictionTotalQuantiles(summary, { kind })?.[quantileKey]);
+
 const subtractPredictionQuantiles = (total = {}, drivetrain = {}) =>
   Object.fromEntries(
     PREDICTION_QUANTILE_KEYS.map((key) => {
@@ -3437,16 +3357,9 @@ const subtractPredictionQuantiles = (total = {}, drivetrain = {}) =>
 
 const buildPredictionQuantileRows = (summary = {}, kind = "absolute") => {
   const isPerKm = kind === "per_km";
-  const totalQuantiles = readPredictionQuantiles(
-    summary,
-    isPerKm
-      ? [
-          "consumption_per_km_kwh_quantiles",
-          "total_consumption_per_km_kwh_quantiles",
-          "total_per_km_kwh_quantiles",
-        ]
-      : ["quantiles", "total_quantiles", "consumption_quantiles"]
-  );
+  const totalQuantiles = readPredictionTotalQuantiles(summary, {
+    kind: isPerKm ? "per_km" : "absolute",
+  });
   const drivetrainQuantiles = readPredictionQuantiles(
     summary,
     isPerKm ? ["drivetrain_per_km_kwh_quantiles"] : ["drivetrain_quantiles"]
@@ -3588,16 +3501,7 @@ const buildPredictionOverviewData = (
     .map((run, index) => {
       const summary = run?.summary ?? {};
       const packs = toFiniteNumber(run?.contextual_parameters?.num_battery_packs);
-      const totalQuantiles = readPredictionQuantiles(
-        summary,
-        kind === "per_km"
-          ? [
-              "consumption_per_km_kwh_quantiles",
-              "total_consumption_per_km_kwh_quantiles",
-              "total_per_km_kwh_quantiles",
-            ]
-          : ["quantiles", "total_quantiles", "consumption_quantiles"]
-      );
+      const totalQuantiles = readPredictionTotalQuantiles(summary, { kind });
 
       return {
         scenarioLabel:
@@ -4236,7 +4140,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
   el.innerHTML = "";
 
   const data = rows.filter(
-    (row) => row.numBatteryPacks != null && row.consumptionPerKmKwh != null
+    (row) => row.numBatteryPacks != null && row.consumptionPerKmMedianKwh != null
   );
   if (!data.length) {
     el.innerHTML = chartEmptyStateHtml();
@@ -4251,8 +4155,8 @@ const renderEfficiencyCurveChart = (el, rows) => {
 
   const minX = d3.min(data, (d) => d.numBatteryPacks);
   const maxX = d3.max(data, (d) => d.numBatteryPacks);
-  const minY = d3.min(data, (d) => d.consumptionPerKmKwh);
-  const maxY = d3.max(data, (d) => d.consumptionPerKmKwh);
+  const minY = d3.min(data, (d) => d.consumptionPerKmMedianKwh);
+  const maxY = d3.max(data, (d) => d.consumptionPerKmMedianKwh);
   const yPadding = Math.max(((maxY ?? 0) - (minY ?? 0)) * 0.15, 0.02);
 
   const svg = svgBase(
@@ -4315,7 +4219,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
   const line = d3
     .line()
     .x((d) => x(d.numBatteryPacks))
-    .y((d) => y(d.consumptionPerKmKwh))
+    .y((d) => y(d.consumptionPerKmMedianKwh))
     .curve(d3.curveMonotoneX);
 
   g.append("path")
@@ -4329,7 +4233,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
     .data(data)
     .join("circle")
     .attr("cx", (d) => x(d.numBatteryPacks))
-    .attr("cy", (d) => y(d.consumptionPerKmKwh))
+    .attr("cy", (d) => y(d.consumptionPerKmMedianKwh))
     .attr("r", (d) => (d.isOptimized ? 5.5 : 4))
     .attr("fill", (d) => (d.isOptimized ? "#abe828" : "#00639a"))
     .attr("stroke", "#fff")
@@ -4340,7 +4244,10 @@ const renderEfficiencyCurveChart = (el, rows) => {
         .text(
           [
             `${d.numBatteryPacks} ${t("simulation.unit_packs") || "packs"}`,
-            `${formatFixed(d.consumptionPerKmKwh, 3)} ${t("simulation.efficiency_col_per_km") || "kWh / km"}`,
+            `${t("simulation.predictions_col_q50") || "Q50"}: ${formatFixed(
+              d.consumptionPerKmMedianKwh,
+              3
+            )} ${t("simulation.efficiency_col_per_km") || "kWh / km"}`,
             `${t("simulation.efficiency_col_capacity") || "Capacity (kWh)"}: ${formatFixed(d.batteryCapacityKwh, 0)} kWh`,
             `${t("simulation.efficiency_col_weight") || "Weight (kg)"}: ${formatFixed(d.totalWeightKg, 0)} kg`,
             `${t("simulation.opt_col_sessions") || "Charging Sessions"}: ${formatFixed(d.numChargingSessions, 0)}`,
@@ -4352,7 +4259,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
     .data(data.filter((d) => d.isOptimized))
     .join("text")
     .attr("x", (d) => x(d.numBatteryPacks))
-    .attr("y", (d) => y(d.consumptionPerKmKwh) - 12)
+    .attr("y", (d) => y(d.consumptionPerKmMedianKwh) - 12)
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("font-weight", "600")
@@ -4920,24 +4827,35 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         ]
       : []),
     { label: t("simulation.var_optimization_mode") || "Mode", value: modeLabel(ip.mode ?? "") },
-    { label: t("simulation.efficiency_min_soc") || "Min SoC", value: formatPct(ip.min_soc ?? 0.4) },
-    { label: t("simulation.efficiency_max_soc") || "Max SoC", value: formatPct(ip.max_soc ?? 0.9) },
+    {
+      label:
+        translateOr("simulation.efficiency_soc_range", "Min / Max SoC"),
+      value: `${formatPct(ip.min_soc ?? 0.4)} / ${formatPct(ip.max_soc ?? 0.9)}`,
+    },
     {
       label: t("simulation.overview_single_pack_capacity") || "Single pack capacity",
       value: singlePackCapacityKwh == null ? "—" : `${formatFixed(singlePackCapacityKwh, 0)} kWh`,
     },
     { label: t("simulation.efficiency_soh") || "State of Health", value: formatPct(ip.state_of_health ?? 1.0) },
-    { label: t("simulation.var_external_temp") || "Temperature (°C)", value: firstRun.external_temp_celsius != null ? `${firstRun.external_temp_celsius} °C` : "—" },
-    { label: t("simulation.var_occupancy") || "Occupancy (%)", value: firstRun.occupancy_percent != null ? `${firstRun.occupancy_percent}%` : "—" },
     {
-      label: t("simulation.var_heating_type") || "Heating Type",
+      label:
+        translateOr("simulation.efficiency_external_temp_short", "External temperature"),
+      value: firstRun.external_temp_celsius != null ? `${firstRun.external_temp_celsius} °C` : "—",
+    },
+    {
+      label:
+        translateOr("simulation.efficiency_occupancy_short", "Average passengers"),
+      value: firstRun.occupancy_percent != null ? `${firstRun.occupancy_percent}%` : "—",
+    },
+    {
+      label:
+        translateOr("simulation.efficiency_heating_type_short", "Heating type"),
       value: textContent(
         t(HEATING_LABELS[firstRun.auxiliary_heating_type]) ??
           firstRun.auxiliary_heating_type ??
           "—"
       ),
     },
-    { label: t("simulation.efficiency_quantile") || "Quantile", value: textContent(ip.quantile_consumption ?? "mean") },
   ];
 
   const conditionsHtml = conditions.map(({ label, value }) => `
@@ -4992,15 +4910,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     chartCards.push(`
         <div class="chart-section efficiency-chart-card">
           <div class="efficiency-chart-copy">
-            <h4>${textContent(t("simulation.efficiency_curve_title") || "Energy efficiency by battery configuration")}</h4>
-            <p>${textContent(t("simulation.efficiency_curve_subtitle") || "Lower kWh / km indicates a more efficient setup.")}</p>
-          </div>
-          <div class="chart-container efficiency-chart-container" data-role="efficiency-curve-chart"></div>
-        </div>`);
-
-    chartCards.push(`
-        <div class="chart-section efficiency-chart-card">
-          <div class="efficiency-chart-copy">
             <h4>${textContent(t("simulation.efficiency_energy_breakdown_title") || "Energy consumption breakdown")}</h4>
             <p>${textContent(t("simulation.efficiency_energy_breakdown_subtitle") || "Compare drivetrain and auxiliary demand for each battery-pack scenario.")}</p>
           </div>
@@ -5037,11 +4946,15 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         </div>`);
   }
 
+  const chartGridClass =
+    chartCards.length === 2
+      ? "efficiency-chart-grid efficiency-chart-grid--two"
+      : "efficiency-chart-grid";
   const chartsHtml = chartCards.length > 0
     ? `
     <div class="efficiency-section">
       <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_graphical_analysis") || "Graphical analysis")}</h3>
-      <div class="efficiency-chart-grid">
+      <div class="${chartGridClass}">
         ${chartCards.join("")}
       </div>
     </div>`
@@ -5077,10 +4990,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       </div>
     </details>`;
 
-  renderEfficiencyCurveChart(
-    el.querySelector('[data-role="efficiency-curve-chart"]'),
-    predictionData
-  );
   renderEfficiencyEnergySplitChart(
     el.querySelector('[data-role="efficiency-energy-chart"]'),
     predictionData
@@ -5245,8 +5154,14 @@ const selectCostPredictionRun = (predictionRuns = [], batteryResults = {}, optio
   }
 
   return [...candidateRuns].reduce((best, run) => {
-    const bestValue = toFiniteNumber(best?.summary?.consumption_per_km_kwh);
-    const candidateValue = toFiniteNumber(run?.summary?.consumption_per_km_kwh);
+    const bestValue = readPredictionTotalQuantileValue(best?.summary, {
+      kind: "per_km",
+      quantileKey: "q50",
+    });
+    const candidateValue = readPredictionTotalQuantileValue(run?.summary, {
+      kind: "per_km",
+      quantileKey: "q50",
+    });
     if (candidateValue == null) return best;
     if (bestValue == null || candidateValue < bestValue) return run;
     return best;
@@ -5365,6 +5280,13 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
     options
   );
   const predictionSummary = selectedPredictionRun?.summary ?? {};
+  const predictionTotalConsumptionQuantiles = readPredictionTotalQuantiles(
+    predictionSummary
+  );
+  const predictionConsumptionPerKmQuantiles = readPredictionTotalQuantiles(
+    predictionSummary,
+    { kind: "per_km" }
+  );
   const predictionContext = selectedPredictionRun?.contextual_parameters ?? {};
   const shiftId =
     String(options.shiftId ?? inputParams?.shift_ids?.[0] ?? "").trim();
@@ -5503,6 +5425,12 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
       yearlyDistanceKm: annualization.yearlyDistanceKm,
       predictedShiftDistanceKm: annualization.predictedShiftDistanceKm,
       predictedShiftConsumptionKwh: annualization.predictedShiftConsumptionKwh,
+      predictedShiftConsumptionMedianKwh: toFiniteNumber(
+        predictionTotalConsumptionQuantiles?.q50
+      ),
+      predictedShiftConsumptionPerKmMedianKwh: toFiniteNumber(
+        predictionConsumptionPerKmQuantiles?.q50
+      ),
       annualizationFactor: annualization.factor,
       opexAnnualizationRate: interestRate,
       annualConsumptionKwh,

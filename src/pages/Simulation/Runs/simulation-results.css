@@ -1045,8 +1045,8 @@
 
 .efficiency-params-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--spacing-sm) var(--spacing-md);
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--spacing-sm);
 }
 
 .efficiency-param {
@@ -1075,21 +1075,22 @@
   border-top: 1px solid var(--border-light);
 }
 
-.efficiency-summary-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.83rem;
+.efficiency-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
 }
 
-.efficiency-summary-table th,
-.efficiency-summary-table td {
+.efficiency-summary-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
   padding: 0.65rem 0.8rem;
   border-bottom: 1px solid var(--border-light);
 }
 
-.efficiency-summary-table th {
-  width: 70%;
-  text-align: left;
+.efficiency-summary-item__label {
   color: var(--text-secondary);
   font-size: 0.75rem;
   font-weight: 700;
@@ -1097,9 +1098,10 @@
   letter-spacing: 0.03em;
 }
 
-.efficiency-summary-table td {
+.efficiency-summary-item__value {
   text-align: right;
   color: var(--text-main);
+  font-size: 0.83rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -1109,6 +1111,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--spacing-md);
   min-width: 0;
+}
+
+.efficiency-chart-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .efficiency-chart-card {
@@ -1523,6 +1529,10 @@
 }
 
 @media (max-width: 900px) {
+  .efficiency-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
   .efficiency-chart-grid {
     grid-template-columns: 1fr;
   }
