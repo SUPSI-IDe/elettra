@@ -3610,13 +3610,31 @@ const buildPredictionOverviewData = (
     })
     .filter((item) => item.q05 != null || item.q50 != null || item.q95 != null);
 
-const renderPredictionOverviewLegend = (el) => {
+const resolvePredictionOverviewSeriesKeys = (data = []) =>
+  PREDICTION_QUANTILE_KEYS.filter((key) =>
+    (Array.isArray(data) ? data : []).some((row) => toFiniteNumber(row?.[key]) != null)
+  );
+
+const renderPredictionOverviewLegend = (
+  el,
+  { seriesKeys = PREDICTION_QUANTILE_KEYS, extraItems = [] } = {}
+) => {
   if (!el) return;
-  el.innerHTML = PREDICTION_QUANTILE_KEYS.map(
-    (key) => `
+  const items = [
+    ...(Array.isArray(seriesKeys) ? seriesKeys : []).map((key) => ({
+      label: key.toUpperCase(),
+      color: PREDICTION_QUANTILE_SERIES_COLORS[key],
+    })),
+    ...((Array.isArray(extraItems) ? extraItems : []).filter(
+      (item) => item?.label && item?.color
+    )),
+  ];
+
+  el.innerHTML = items.map(
+    (item) => `
       <div class="chart-legend-item">
-        <span class="chart-legend-swatch" style="background:${PREDICTION_QUANTILE_SERIES_COLORS[key]}"></span>
-        ${textContent(key.toUpperCase())}
+        <span class="chart-legend-swatch" style="background:${item.color}"></span>
+        ${textContent(item.label)}
       </div>`
   ).join("");
 };
@@ -3629,22 +3647,37 @@ const renderPredictionOverviewChart = (
     ariaLabel = "Total consumption quantiles across simulations",
     yAxisLabel = "Total consumption",
     decimals = 1,
+    markers = [],
   } = {}
 ) => {
   if (!el) return;
   el.innerHTML = "";
 
-  if (!Array.isArray(data) || !data.length) {
-    el.innerHTML = chartEmptyStateHtml();
-    return;
-  }
-
-  const values = data.flatMap((row) =>
+  const chartData = Array.isArray(data) ? data : [];
+  const chartMarkers = (Array.isArray(markers) ? markers : [])
+    .map((marker) => ({
+      ...marker,
+      value: toFiniteNumber(marker?.value),
+    }))
+    .filter((marker) => marker.value != null);
+  const quantileValues = chartData.flatMap((row) =>
     PREDICTION_QUANTILE_KEYS.map((key) => toFiniteNumber(row?.[key])).filter(
       (value) => value != null
     )
   );
-  if (!values.length) {
+  const markerValues = chartMarkers
+    .map((marker) => toFiniteNumber(marker?.value))
+    .filter((value) => value != null);
+  const values = [...quantileValues, ...markerValues];
+  const xDomain = [
+    ...new Set(
+      [...chartData.map((row) => row?.scenarioLabel), ...chartMarkers.map((marker) => marker?.scenarioLabel)]
+        .map((label) => (label == null ? "" : String(label)))
+        .filter(Boolean)
+    ),
+  ];
+
+  if (!xDomain.length || !values.length) {
     el.innerHTML = chartEmptyStateHtml();
     return;
   }
@@ -3666,7 +3699,7 @@ const renderPredictionOverviewChart = (
 
   const x = d3
     .scalePoint()
-    .domain(data.map((row) => row.scenarioLabel))
+    .domain(xDomain)
     .range([0, iW])
     .padding(0.5);
   const y = d3
@@ -3710,7 +3743,7 @@ const renderPredictionOverviewChart = (
     .text(yAxisLabel);
 
   PREDICTION_QUANTILE_KEYS.forEach((key) => {
-    const seriesData = data.filter((row) => toFiniteNumber(row?.[key]) != null);
+    const seriesData = chartData.filter((row) => toFiniteNumber(row?.[key]) != null);
     if (!seriesData.length) return;
 
     const line = d3
@@ -3746,6 +3779,45 @@ const renderPredictionOverviewChart = (
           );
       });
   });
+
+  if (chartMarkers.length) {
+    const markerSymbol = d3.symbol().type(d3.symbolDiamond).size(120);
+
+    g.selectAll(".predictions-overview-marker-guide")
+      .data(chartMarkers)
+      .join("line")
+      .attr("x1", (marker) => x(marker.scenarioLabel))
+      .attr("x2", (marker) => x(marker.scenarioLabel))
+      .attr("y1", iH)
+      .attr("y2", (marker) => y(marker.value))
+      .attr("stroke", (marker) => marker.color ?? OPTIMIZATION_BATTERY_COLORS.optimized)
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "4,4")
+      .attr("opacity", 0.35);
+
+    g.selectAll(".predictions-overview-marker")
+      .data(chartMarkers)
+      .join("path")
+      .attr(
+        "transform",
+        (marker) => `translate(${x(marker.scenarioLabel)},${y(marker.value)})`
+      )
+      .attr("d", markerSymbol)
+      .attr("fill", (marker) => marker.color ?? OPTIMIZATION_BATTERY_COLORS.optimized)
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 1.5)
+      .each(function addTooltip(marker) {
+        d3.select(this)
+          .append("title")
+          .text(
+            [
+              marker.scenarioTitle ?? marker.scenarioLabel,
+              `${marker.label}: ${formatFixed(marker.value, decimals)} ${unit}`,
+              ...((Array.isArray(marker.tooltipLines) ? marker.tooltipLines : []).filter(Boolean)),
+            ].join("\n")
+          );
+      });
+  }
 
   el.appendChild(svg.node());
 };
@@ -3885,17 +3957,7 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
   }
 
   const predictionRuns = Array.isArray(state.predictionRuns) ? state.predictionRuns : [];
-  const shiftMatchedRuns = predictionRuns.filter((run) =>
-    matchesPredictionRunShift(run, viewOptions)
-  );
-  const scopedRuns = shiftMatchedRuns.length ? shiftMatchedRuns : predictionRuns;
-  const sortedRuns = [...scopedRuns].sort(
-    (a, b) =>
-      (toFiniteNumber(a?.contextual_parameters?.num_battery_packs) ??
-        Number.MAX_SAFE_INTEGER) -
-      (toFiniteNumber(b?.contextual_parameters?.num_battery_packs) ??
-        Number.MAX_SAFE_INTEGER)
-  );
+  const sortedRuns = scopePredictionRunsByShift(predictionRuns, viewOptions);
 
   if (!sortedRuns.length) {
     el.innerHTML = `<div class="efficiency-section"><p class="efficiency-state-msg">${textContent(
@@ -4128,7 +4190,10 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
     }
   );
   renderPredictionOverviewLegend(
-    el.querySelector("[data-predictions-overview-legend]")
+    el.querySelector("[data-predictions-overview-legend]"),
+    {
+      seriesKeys: resolvePredictionOverviewSeriesKeys(overviewData),
+    }
   );
   renderPredictionOverviewChart(
     el.querySelector("[data-predictions-overview-per-km-chart]"),
@@ -4147,7 +4212,10 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
     }
   );
   renderPredictionOverviewLegend(
-    el.querySelector("[data-predictions-overview-per-km-legend]")
+    el.querySelector("[data-predictions-overview-per-km-legend]"),
+    {
+      seriesKeys: resolvePredictionOverviewSeriesKeys(overviewPerKmData),
+    }
   );
 
   chartPlans.forEach((plan) => {
@@ -4706,6 +4774,109 @@ const resolveSinglePackCapacityKwh = (predictionRun = {}, batteryResults = {}, v
   return null;
 };
 
+const resolveOptimizedBatteryCoverageMarker = (
+  predictionRuns = [],
+  batteryResults = {},
+  inputParams = {},
+  viewOptions = {}
+) => {
+  const scopedRuns = scopePredictionRunsByShift(predictionRuns, viewOptions);
+  const batteryEntries = Object.entries(batteryResults ?? {})
+    .filter(([shiftKey, result]) => matchesSelectedShift(result, shiftKey, viewOptions))
+    .map(([, result]) => result);
+  const optimizedPacksValues = batteryEntries
+    .map((entry) => toFiniteNumber(entry?.optimized_packs))
+    .filter((value) => value != null);
+  const optimizedPacks = optimizedPacksValues.length ? d3.max(optimizedPacksValues) : null;
+  const matchedRun =
+    optimizedPacks == null
+      ? null
+      : scopedRuns.find(
+          (run) =>
+            toFiniteNumber(run?.contextual_parameters?.num_battery_packs) ===
+            optimizedPacks
+        ) ?? null;
+  const matchedRunIndex = matchedRun ? scopedRuns.indexOf(matchedRun) : -1;
+
+  let optimizedNominalKwh = batteryEntries
+    .map((entry) => toFiniteNumber(entry?.optimized_kwh))
+    .filter((value) => value != null);
+  optimizedNominalKwh = optimizedNominalKwh.length ? d3.max(optimizedNominalKwh) : null;
+
+  if (optimizedNominalKwh == null) {
+    optimizedNominalKwh = toFiniteNumber(
+      matchedRun?.contextual_parameters?.battery_capacity_kwh
+    );
+  }
+
+  if (optimizedNominalKwh == null && optimizedPacks != null) {
+    const singlePackCapacityKwh = resolveSinglePackCapacityKwh(
+      matchedRun ?? scopedRuns[0] ?? {},
+      batteryResults,
+      viewOptions
+    );
+    optimizedNominalKwh =
+      singlePackCapacityKwh != null ? singlePackCapacityKwh * optimizedPacks : null;
+  }
+
+  const optimizedCoveredKwh =
+    applyUsableSocWindow(optimizedNominalKwh, resolveUsableSocFraction(inputParams)) ??
+    optimizedNominalKwh;
+
+  if (optimizedCoveredKwh == null) {
+    return null;
+  }
+
+  const scenarioLabel =
+    optimizedPacks != null
+      ? formatFixed(optimizedPacks, 0)
+      : (t("simulation.chart_label_optimized") || "Optimized");
+  const scenarioTitle =
+    matchedRun && matchedRunIndex >= 0
+      ? buildPredictionScenarioTitle(matchedRun, matchedRunIndex)
+      : optimizedPacks != null
+        ? translateOr(
+            "simulation.predictions_scenario_title",
+            `Scenario ${formatFixed(optimizedPacks, 0)} packs`,
+            { packs: formatFixed(optimizedPacks, 0) }
+          )
+        : (t("simulation.chart_label_optimized") || "Optimized");
+  const tooltipLines = [];
+
+  if (optimizedPacks != null) {
+    tooltipLines.push(
+      `${t("simulation.opt_col_opt_packs") || "Optimized Packs"}: ${formatFixed(
+        optimizedPacks,
+        0
+      )}`
+    );
+  }
+  if (
+    optimizedNominalKwh != null &&
+    Math.abs(optimizedCoveredKwh - optimizedNominalKwh) > 1e-9
+  ) {
+    tooltipLines.push(
+      `${t("simulation.opt_col_opt_nominal_kwh") || "Optimized nominal (kWh)"}: ${formatFixed(
+        optimizedNominalKwh,
+        1
+      )} kWh`
+    );
+  }
+
+  return {
+    scenarioLabel,
+    scenarioTitle,
+    value: optimizedCoveredKwh,
+    label:
+      translateOr(
+        "simulation.efficiency_coverage_legend",
+        "Optimized battery-covered energy"
+      ),
+    color: OPTIMIZATION_BATTERY_COLORS.optimized,
+    tooltipLines,
+  };
+};
+
 const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (!el) return;
 
@@ -4724,9 +4895,13 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   }
 
   const { optimizationRun, predictionRuns } = state;
+  const scopedPredictionRuns = scopePredictionRunsByShift(
+    predictionRuns,
+    viewOptions
+  );
   const ip = optimizationRun?.input_params ?? {};
   const results = optimizationRun?.results ?? {};
-  const firstRun = predictionRuns?.[0] ?? {};
+  const firstRun = scopedPredictionRuns[0] ?? predictionRuns?.[0] ?? {};
   const perBusSummary = results.per_bus_summary ?? [];
   const batteryResults = results.battery_results ?? {};
   const singlePackCapacityKwh = resolveSinglePackCapacityKwh(
@@ -4782,13 +4957,23 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   });
 
   const predictionData = buildUnifiedPredictionData(
-    predictionRuns,
+    scopedPredictionRuns,
     perBusSummary,
     batteryResults,
     {
       ...viewOptions,
       inputParams: ip,
     }
+  );
+  const consumptionOverviewData = buildPredictionOverviewData(
+    scopedPredictionRuns,
+    { kind: "absolute" }
+  );
+  const optimizedCoverageMarker = resolveOptimizedBatteryCoverageMarker(
+    scopedPredictionRuns,
+    batteryResults,
+    ip,
+    viewOptions
   );
   const unifiedRows = buildUnifiedPredictionRows(predictionData);
   const hasPerBus = perBusSummary.length > 0;
@@ -4820,7 +5005,35 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
             <p>${textContent(t("simulation.efficiency_energy_breakdown_subtitle") || "Compare drivetrain and auxiliary demand for each battery-pack scenario.")}</p>
           </div>
           <div class="chart-container efficiency-chart-container" data-role="efficiency-energy-chart"></div>
-          <div class="chart-legend efficiency-chart-legend" data-role="efficiency-energy-legend"></div>
+      <div class="chart-legend efficiency-chart-legend" data-role="efficiency-energy-legend"></div>
+        </div>`);
+  }
+
+  if (consumptionOverviewData.length || optimizedCoverageMarker) {
+    chartCards.unshift(`
+        <div class="chart-section efficiency-chart-card">
+          <div class="efficiency-chart-copy">
+            <h4>${textContent(
+              translateOr(
+                "simulation.efficiency_consumption_coverage_title",
+                "Consumption quantiles and battery-covered energy"
+              )
+            )}</h4>
+            <p>${textContent(
+              translateOr(
+                "simulation.efficiency_consumption_coverage_subtitle",
+                "Compare simulated total-consumption quantiles with the energy available from the optimized battery-pack setup."
+              )
+            )}</p>
+          </div>
+          <div
+            class="chart-container efficiency-chart-container"
+            data-role="efficiency-consumption-coverage-chart"
+          ></div>
+          <div
+            class="chart-legend efficiency-chart-legend"
+            data-role="efficiency-consumption-coverage-legend"
+          ></div>
         </div>`);
   }
 
@@ -4874,6 +5087,34 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   );
   renderEfficiencyEnergyLegend(
     el.querySelector('[data-role="efficiency-energy-legend"]')
+  );
+  renderPredictionOverviewChart(
+    el.querySelector('[data-role="efficiency-consumption-coverage-chart"]'),
+    consumptionOverviewData,
+    {
+      unit: "kWh",
+      ariaLabel: translateOr(
+        "simulation.chart_aria_consumption_coverage",
+        "Consumption quantiles and battery-covered energy chart"
+      ),
+      yAxisLabel: t("simulation.axis_energy_kwh") || "kWh",
+      decimals: 1,
+      markers: optimizedCoverageMarker ? [optimizedCoverageMarker] : [],
+    }
+  );
+  renderPredictionOverviewLegend(
+    el.querySelector('[data-role="efficiency-consumption-coverage-legend"]'),
+    {
+      seriesKeys: resolvePredictionOverviewSeriesKeys(consumptionOverviewData),
+      extraItems: optimizedCoverageMarker
+        ? [
+            {
+              label: optimizedCoverageMarker.label,
+              color: optimizedCoverageMarker.color,
+            },
+          ]
+        : [],
+    }
   );
 };
 
@@ -4969,6 +5210,22 @@ const matchesPredictionRunShift = (predictionRun = {}, options = {}) => {
   }
 
   return false;
+};
+
+const scopePredictionRunsByShift = (predictionRuns = [], options = {}) => {
+  const runs = Array.isArray(predictionRuns) ? predictionRuns : [];
+  const shiftMatchedRuns = runs.filter((run) =>
+    matchesPredictionRunShift(run, options)
+  );
+  const scopedRuns = shiftMatchedRuns.length ? shiftMatchedRuns : runs;
+
+  return [...scopedRuns].sort(
+    (a, b) =>
+      (toFiniteNumber(a?.contextual_parameters?.num_battery_packs) ??
+        Number.MAX_SAFE_INTEGER) -
+      (toFiniteNumber(b?.contextual_parameters?.num_battery_packs) ??
+        Number.MAX_SAFE_INTEGER)
+  );
 };
 
 const selectCostPredictionRun = (predictionRuns = [], batteryResults = {}, options = {}) => {
