@@ -51,6 +51,13 @@ export const translations = {
     "common.loading": "Loading…",
     "common.unknown_error": "Unknown error",
 
+    // Pagination
+    "pagination.page_size_label": "Rows per page",
+    "pagination.previous": "Previous",
+    "pagination.next": "Next",
+    "pagination.showing_range": "Showing {start}–{end} of {total}",
+    "pagination.empty": "No results",
+
     // Simulation – Management
     "simulation.intro": "Create and manage your feasibility evaluations",
     "simulation.make_simulation": "Create feasibility evaluation",
@@ -1179,6 +1186,13 @@ export const translations = {
     "common.loading": "Laden…",
     "common.unknown_error": "Unbekannter Fehler",
 
+    // Pagination
+    "pagination.page_size_label": "Zeilen pro Seite",
+    "pagination.previous": "Zurück",
+    "pagination.next": "Weiter",
+    "pagination.showing_range": "Zeige {start}–{end} von {total}",
+    "pagination.empty": "Keine Ergebnisse",
+
     // Simulation – Management
     "simulation.intro": "Machbarkeitsbewertungen erstellen und verwalten",
     "simulation.make_simulation": "Machbarkeitsbewertung erstellen",
@@ -2303,6 +2317,13 @@ export const translations = {
     "common.loading": "Chargement…",
     "common.unknown_error": "Erreur inconnue",
 
+    // Pagination
+    "pagination.page_size_label": "Lignes par page",
+    "pagination.previous": "Précédent",
+    "pagination.next": "Suivant",
+    "pagination.showing_range": "Affichage de {start}–{end} sur {total}",
+    "pagination.empty": "Aucun résultat",
+
     // Simulation – Management
     "simulation.intro": "Créer et gérer vos évaluations de faisabilité",
     "simulation.make_simulation": "Créer une évaluation de faisabilité",
@@ -3426,6 +3447,13 @@ export const translations = {
     "common.optional": "(opzionale)",
     "common.loading": "Caricamento…",
     "common.unknown_error": "Errore sconosciuto",
+
+    // Pagination
+    "pagination.page_size_label": "Righe per pagina",
+    "pagination.previous": "Precedente",
+    "pagination.next": "Successivo",
+    "pagination.showing_range": "Mostro {start}–{end} di {total}",
+    "pagination.empty": "Nessun risultato",
 
     // Simulation – Management
     "simulation.intro": "Crea e gestisci le tue valutazioni di fattibilità",

@@ -6,7 +6,7 @@ import {
   createWeatherTemperatureClusters,
   fetchBuses,
   fetchBusById,
-  fetchBusModels,
+  fetchAllBusModels,
   fetchDepots,
   fetchPvgisTmy,
   fetchRoutes,
@@ -1120,19 +1120,20 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
   const loadBuses = async () => {
     try {
-      const [payload, modelsPayload, userId] = await Promise.all([
+      const userId = await resolveUserId().catch(() => null);
+      if (!userId) {
+        throw new Error("Unable to resolve current user.");
+      }
+      const [payload, models] = await Promise.all([
         fetchBuses({ skip: 0, limit: 1000 }),
-        fetchBusModels({ skip: 0, limit: 1000 }),
-        resolveUserId().catch(() => null),
+        // Bus models are paginated server-side — page through them with
+        // the dedicated helper rather than requesting an oversized page.
+        fetchAllBusModels({ userId: userId || "" }),
       ]);
 
       const buses =
         Array.isArray(payload) ? payload : (
           (payload?.items ?? payload?.results ?? [])
-        );
-      const models =
-        Array.isArray(modelsPayload) ? modelsPayload : (
-          (modelsPayload?.items ?? modelsPayload?.results ?? [])
         );
 
       const filteredBuses =
@@ -1142,7 +1143,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
       const filteredModels =
         userId && Array.isArray(models) ?
-          models.filter((model) => model?.user_id === userId)
+          models.filter((model) => text(model?.user_id) === userId)
         : (models ?? []);
 
       const modelsById = (filteredModels ?? []).reduce((acc, model) => {

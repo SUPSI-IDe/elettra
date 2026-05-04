@@ -1,11 +1,75 @@
 import { authHeaders, API_ROOT } from "./client";
+import {
+  buildPaginationParams,
+  fetchAllPages,
+  normalizePaginatedResponse,
+} from "./pagination";
 
 const AGENCIES_PATH = `${API_ROOT}/api/v1/agency/agencies/`;
 const GTFS_ROUTES_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-routes/`;
 const GTFS_ROUTES_BY_AGENCY_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-routes/by-agency/`;
 const GTFS_DAYS_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-days/`;
 const GTFS_TRIPS_BY_ROUTE_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-trips/by-route/`;
+const GTFS_STOPS_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-stops/`;
 const GTFS_STOPS_BY_TRIP_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-stops/by-trip/`;
+
+/**
+ * Fetch a page of GTFS stops.
+ *
+ * Returns the standard paginated envelope of `GtfsStopsListItemRead`
+ * items (id, stop_id, stop_code, stop_name, stop_lat, stop_lon).  When
+ * the full stop record is required, call `fetchGtfsStopById`.
+ *
+ * @param {{ skip?: number, limit?: 20 | 50 | 100 }} [params]
+ */
+export const fetchGtfsStops = async ({ skip = 0, limit = 20 } = {}) => {
+  const headers = authHeaders();
+  const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
+    skip,
+    limit
+  );
+  const query = new URLSearchParams();
+  query.set("skip", String(normalizedSkip));
+  query.set("limit", String(normalizedLimit));
+  const response = await fetch(`${GTFS_STOPS_PATH}?${query.toString()}`, {
+    method: "GET",
+    headers,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load stops.";
+    throw new Error(message);
+  }
+  return normalizePaginatedResponse(payload, normalizedSkip, normalizedLimit);
+};
+
+/**
+ * Iterate through every GTFS stop page and concatenate the results.
+ */
+export const fetchAllGtfsStops = () =>
+  fetchAllPages((params) => fetchGtfsStops(params));
+
+/**
+ * Fetch the full record for a single GTFS stop (by primary key).
+ */
+export const fetchGtfsStopById = async (stopPk) => {
+  if (!stopPk) {
+    throw new Error("Missing stopPk");
+  }
+  const headers = authHeaders();
+  const response = await fetch(
+    `${GTFS_STOPS_PATH}${encodeURIComponent(stopPk)}`,
+    { method: "GET", headers }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load stop.";
+    throw new Error(message);
+  }
+  return payload;
+};
 
 export const fetchAgencies = async ({ skip = 0, limit = 500 } = {}) => {
   const params = new URLSearchParams();

@@ -1,8 +1,8 @@
 import { t } from "../../../i18n";
 import "./add-simulation.css";
 import {
-  fetchBusModels,
-  fetchShifts,
+  fetchAllBusModels,
+  fetchAllShifts,
   fetchBuses,
   fetchStopsByTripId,
 } from "../../../api";
@@ -11,7 +11,7 @@ import {
   waitForOptimizationCompletion,
 } from "../../../api/simulation";
 import { fetchShiftById } from "../../../api/shifts";
-import { isAuthenticated } from "../../../api/session";
+import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveModelFields } from "../../../ui-helpers";
@@ -781,25 +781,24 @@ export const initializeAddSimulation = async (
   // ── Load initial data ────────────────────────────────────────────
   if (isAuthenticated()) {
     try {
-      const [shiftsPayload, busesPayload, modelsPayload] = await Promise.all([
-        fetchShifts({ skip: 0, limit: 1000 }),
+      // Shifts and bus models are paginated server-side — page through
+      // them with their dedicated helpers (max page size 100) instead
+      // of issuing a single request with limit=1000.
+      const currentUserId = text(
+        (await resolveUserId().catch(() => "")) || getCurrentUserId()
+      ).trim();
+      if (!currentUserId) {
+        throw new Error("Unable to resolve current user.");
+      }
+      const [shifts, busesPayload, models] = await Promise.all([
+        fetchAllShifts(),
         fetchBuses({ skip: 0, limit: 1000 }),
-        fetchBusModels({ skip: 0, limit: 1000 }),
+        fetchAllBusModels({ userId: currentUserId }),
       ]);
-
-      const shifts = Array.isArray(shiftsPayload)
-        ? shiftsPayload
-        : (shiftsPayload?.items ?? shiftsPayload?.results ?? []);
 
       const buses = Array.isArray(busesPayload)
         ? busesPayload
         : (busesPayload?.items ?? busesPayload?.results ?? []);
-
-      const models = Array.isArray(modelsPayload)
-        ? modelsPayload
-        : (modelsPayload?.items ?? modelsPayload?.results ?? []);
-
-      const currentUserId = getCurrentUserId() ?? "";
 
       const userBuses =
         currentUserId && Array.isArray(buses)
@@ -808,7 +807,7 @@ export const initializeAddSimulation = async (
 
       const userModels =
         currentUserId && Array.isArray(models)
-          ? models.filter((m) => m?.user_id === currentUserId)
+          ? models.filter((m) => text(m?.user_id) === currentUserId)
           : (models ?? []);
 
       const modelsById = Object.fromEntries(

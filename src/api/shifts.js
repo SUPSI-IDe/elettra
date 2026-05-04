@@ -1,17 +1,36 @@
 import { authHeaders, API_ROOT } from "./client";
+import {
+  buildPaginationParams,
+  fetchAllPages,
+  normalizePaginatedResponse,
+} from "./pagination";
 
 const SHIFTS_PATH = `${API_ROOT}/api/v1/user/shifts/`;
 
+/**
+ * Fetch a page of the current user's shifts.
+ *
+ * The list endpoint returns the lightweight `ShiftListItemRead` schema
+ * (id, name, bus_id, trip_count) wrapped in the standard paginated
+ * envelope.  When the full structure (trips/stops) is needed, call
+ * `fetchShiftById`.  Existing `bus_id`/`user_id` filters are preserved.
+ *
+ * @param {{ skip?: number, limit?: 20 | 50 | 100, busId?: string, userId?: string }} [params]
+ */
 export const fetchShifts = async ({
   skip = 0,
-  limit = 100,
+  limit = 20,
   busId = "",
   userId = "",
 } = {}) => {
   const headers = authHeaders();
+  const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
+    skip,
+    limit
+  );
   const params = new URLSearchParams();
-  params.set("skip", String(skip));
-  params.set("limit", String(limit));
+  params.set("skip", String(normalizedSkip));
+  params.set("limit", String(normalizedLimit));
   if (busId) {
     params.set("bus_id", busId);
   }
@@ -28,8 +47,16 @@ export const fetchShifts = async ({
       payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load shifts.";
     throw new Error(message);
   }
-  return payload;
+  return normalizePaginatedResponse(payload, normalizedSkip, normalizedLimit);
 };
+
+/**
+ * Fetch every shift accessible to the current user by iterating through
+ * all pages of `fetchShifts`.  Optional filters (`busId`, `userId`) are
+ * forwarded to each page request.
+ */
+export const fetchAllShifts = ({ busId = "", userId = "" } = {}) =>
+  fetchAllPages((params) => fetchShifts({ ...params, busId, userId }));
 
 export const fetchShiftById = async (shiftId) => {
   if (!shiftId) {

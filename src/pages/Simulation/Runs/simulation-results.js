@@ -1810,8 +1810,9 @@ const renderEfficiencyPredictionSummary = (costInputs) => {
   const predictedShiftConsumption = toFiniteNumber(
     costInputs?.predictedShiftConsumptionMedianKwh
   );
-  const predictedShiftConsumptionPerKmMedianKwh =
-    toFiniteNumber(costInputs?.predictedShiftConsumptionPerKmMedianKwh);
+  const predictedShiftConsumptionPerKm = toFiniteNumber(
+    costInputs?.predictedShiftConsumptionPerKmMedianKwh
+  );
 
   const items = [
     [
@@ -1824,9 +1825,9 @@ const renderEfficiencyPredictionSummary = (costInputs) => {
         "simulation.costs_input_prediction_consumption_per_km",
         "Prediction consumption per km (kWh/km)"
       ),
-      predictedShiftConsumptionPerKmMedianKwh == null
+      predictedShiftConsumptionPerKm == null
         ? "—"
-        : formatFixed(predictedShiftConsumptionPerKmMedianKwh, 3),
+        : formatFixed(predictedShiftConsumptionPerKm, 3),
     ],
   ];
 
@@ -2998,6 +2999,8 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
   if (electSummary.status === "infeasible" && electSummary.message) {
     const infeasibleBuses = Array.isArray(electSummary.infeasible_buses) ? electSummary.infeasible_buses : [];
     const predictedShiftConsumptionKwh = toOptionalFiniteNumber(
+      viewOptions?.predictedShiftConsumptionMedianKwh ??
+      viewOptions?.costInputs?.predictedShiftConsumptionMedianKwh ??
       viewOptions?.predictedShiftConsumptionKwh ??
       viewOptions?.costInputs?.predictedShiftConsumptionKwh
     );
@@ -4869,10 +4872,18 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
 
   const optimizationHtml = buildOptimizationResultsHtml(results, ip, {
     ...viewOptions,
+    predictedShiftConsumptionMedianKwh:
+      toOptionalFiniteNumber(viewOptions?.costInputs?.predictedShiftConsumptionMedianKwh) ??
+      readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
+        kind: "absolute",
+        quantileKey: "q50",
+      }) ??
+      toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh),
     predictedShiftConsumptionKwh:
       toOptionalFiniteNumber(viewOptions?.costInputs?.predictedShiftConsumptionKwh) ??
       toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh),
   });
+  const isFeasible = results.electrification_feasible !== false;
 
   const predictionData = buildUnifiedPredictionData(
     scopedPredictionRuns,
@@ -4967,6 +4978,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       ${predictionSummaryHtml}
     </div>
     ${optimizationHtml}
+    ${isFeasible ? `
     ${chartsHtml}
     <details class="efficiency-section efficiency-collapsible">
       <summary class="efficiency-section-title efficiency-collapsible__toggle">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</summary>
@@ -4988,7 +5000,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           <tbody>${tableBody}</tbody>
         </table>
       </div>
-    </details>`;
+    </details>` : ""}`;
 
   renderEfficiencyEnergySplitChart(
     el.querySelector('[data-role="efficiency-energy-chart"]'),
@@ -5425,6 +5437,9 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
       yearlyDistanceKm: annualization.yearlyDistanceKm,
       predictedShiftDistanceKm: annualization.predictedShiftDistanceKm,
       predictedShiftConsumptionKwh: annualization.predictedShiftConsumptionKwh,
+      predictedShiftConsumptionPerKmKwh: toFiniteNumber(
+        predictionSummary?.consumption_per_km_kwh
+      ),
       predictedShiftConsumptionMedianKwh: toFiniteNumber(
         predictionTotalConsumptionQuantiles?.q50
       ),
@@ -5724,12 +5739,18 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
       resolveUsableSocFraction(ip)
     );
 
-    const predictedConsumption = cState.costInputs?.predictedShiftConsumptionKwh;
+    const predictedConsumption = firstFiniteValue(
+      cState.costInputs?.predictedShiftConsumptionMedianKwh,
+      cState.costInputs?.predictedShiftConsumptionKwh
+    );
     const predictedDistance = cState.costInputs?.predictedShiftDistanceKm;
-    const consumptionPerKm =
+    const consumptionPerKm = firstFiniteValue(
+      cState.costInputs?.predictedShiftConsumptionPerKmMedianKwh,
+      cState.costInputs?.predictedShiftConsumptionPerKmKwh,
       predictedDistance > 0 && predictedConsumption != null
         ? predictedConsumption / predictedDistance
-        : null;
+        : null
+    );
 
     const body = [
       overviewRowHtml(

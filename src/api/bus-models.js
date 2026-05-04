@@ -1,13 +1,36 @@
 import { authHeaders, API_ROOT } from "./client";
+import {
+  buildPaginationParams,
+  fetchAllPages,
+  normalizePaginatedResponse,
+} from "./pagination";
 
 const BUS_MODELS_PATH = `${API_ROOT}/api/v1/user/bus-models/`;
 
-export const fetchBusModels = async ({ skip = 0, limit = 100 } = {}) => {
+/**
+ * Fetch a page of the current user's bus models.
+ *
+ * The list endpoint returns the lightweight `BusesModelsListItemRead`
+ * schema (id, name, user_id, manufacturer, description) wrapped in the
+ * standard paginated envelope.  Callers that need the full record
+ * (including specs) must call `fetchBusModelById`.
+ *
+ * @param {{ skip?: number, limit?: 20 | 50 | 100, userId?: string }} [params]
+ */
+export const fetchBusModels = async ({ skip = 0, limit = 20, userId = "" } = {}) => {
   const headers = authHeaders();
+  const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
+    skip,
+    limit
+  );
 
-  const url = `${BUS_MODELS_PATH}?skip=${encodeURIComponent(
-    String(skip)
-  )}&limit=${encodeURIComponent(String(limit))}`;
+  const params = new URLSearchParams();
+  params.set("skip", String(normalizedSkip));
+  params.set("limit", String(normalizedLimit));
+  if (userId) {
+    params.set("user_id", userId);
+  }
+  const url = `${BUS_MODELS_PATH}?${params.toString()}`;
 
   const response = await fetch(url, { method: "GET", headers });
   const payload = await response.json().catch(() => null);
@@ -20,8 +43,16 @@ export const fetchBusModels = async ({ skip = 0, limit = 100 } = {}) => {
     throw new Error(message);
   }
 
-  return payload;
+  return normalizePaginatedResponse(payload, normalizedSkip, normalizedLimit);
 };
+
+/**
+ * Fetch every bus model owned by the current user by iterating through
+ * all pages of `fetchBusModels`.  Use only when the caller really needs
+ * every row (e.g. to build a lookup map for selectors).
+ */
+export const fetchAllBusModels = ({ userId = "" } = {}) =>
+  fetchAllPages((params) => fetchBusModels({ ...params, userId }));
 
 export const fetchBusModelById = async (modelId) => {
   if (!modelId) {

@@ -5,7 +5,7 @@ import {
   fetchStopsByTripId,
   fetchDepotById,
   fetchBusById,
-  fetchBusModels,
+  fetchBusModelById,
 } from "../../../api";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveModelFields } from "../../../ui-helpers";
@@ -237,14 +237,9 @@ export const initializeVisualizeShift = async (
       }
       if (!resolvedBusModelName && resolvedBusModelId) {
         try {
-          const modelsPayload = await fetchBusModels({ skip: 0, limit: 1000 });
-          const models =
-            Array.isArray(modelsPayload) ? modelsPayload : (
-              (modelsPayload?.items ?? modelsPayload?.results ?? [])
-            );
-          const model = (models ?? []).find(
-            (item) => String(item?.id) === String(resolvedBusModelId)
-          );
+          // Fetch the specific bus model by id rather than downloading
+          // the entire (now paginated) list.
+          const model = await fetchBusModelById(resolvedBusModelId);
           const resolved = resolveModelFields(model);
           resolvedBusModelName = resolved.model || resolvedBusName;
         } catch (error) {

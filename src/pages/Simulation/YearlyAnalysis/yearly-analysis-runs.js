@@ -5,11 +5,14 @@ import { textContent } from "../../../ui-helpers";
 import { MODE_LABELS, MODE_LABEL_KEYS } from "./yearly-analysis-store";
 import {
   fetchYearlyAnalyses,
+  fetchYearlyAnalysis,
   deleteYearlyAnalysis,
   fetchPredictionRuns,
   deletePredictionRun,
 } from "../../../api/simulation";
 import { isAuthenticated } from "../../../api/session";
+import { installPaginationControl } from "../../../dom/pagination";
+import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 
 const text = (v) => (v === null || v === undefined ? "" : String(v));
 
@@ -57,9 +60,31 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
   const selectAllCb = section.querySelector('[data-role="select-all"]');
   const loadingEl = section.querySelector('[data-role="loading"]');
   const searchInput = section.querySelector("#ya-filter");
+  const paginationContainer = section.querySelector(
+    '[data-role="ya-runs-pagination"]'
+  );
 
   let analyses = [];
   let filteredAnalyses = [];
+  const featuresCache = new Map();
+
+  // ── Pagination state ──────────────────────────────────────────────
+  let skip = 0;
+  let limit = DEFAULT_PAGE_SIZE;
+  const pagination = installPaginationControl(paginationContainer, {
+    onPageChange: (nextSkip) => {
+      skip = Math.max(0, nextSkip);
+      void loadAnalyses();
+    },
+    onPageSizeChange: (nextLimit) => {
+      limit = nextLimit;
+      skip = 0;
+      void loadAnalyses();
+    },
+  });
+  if (pagination) {
+    cleanups.push(() => pagination.destroy());
+  }
 
   if (options.flashMessage && flashEl) {
     flashEl.textContent = options.flashMessage;
@@ -132,16 +157,42 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
     renderRows();
   };
 
+  // The yearly-analysis list endpoint returns lightweight items
+  // (id, optimization_run_id, name, created_at) and no longer includes
+  // `features`.  Hydrate features via the detail endpoint for the
+  // visible page so the existing table cells (mode, shift names,
+  // scenarios, status) keep working.
+  const hydrateFeatures = async (rows) => {
+    const targets = rows.filter(
+      (row) => row?.id && !row?.features && !featuresCache.has(text(row.id))
+    );
+    if (!targets.length) return;
+    await Promise.allSettled(
+      targets.map(async (row) => {
+        const id = text(row.id);
+        try {
+          const detail = await fetchYearlyAnalysis(id);
+          featuresCache.set(id, detail);
+          if (detail && typeof detail === "object") {
+            Object.assign(row, detail);
+          }
+        } catch (error) {
+          console.warn(`Failed to load yearly analysis ${id}`, error);
+          featuresCache.set(id, null);
+        }
+      })
+    );
+  };
+
   // ── Load from API ──────────────────────────────────────────────
 
   const loadAnalyses = async () => {
     if (loadingEl) loadingEl.hidden = false;
+    pagination?.setBusy(true);
     try {
-      const payload = await fetchYearlyAnalyses();
-      analyses = Array.isArray(payload) ? payload : (payload?.items ?? payload?.results ?? []);
-      analyses.sort((a, b) =>
-        new Date(b?.created_at ?? 0).getTime() - new Date(a?.created_at ?? 0).getTime()
-      );
+      const envelope = await fetchYearlyAnalyses({ skip, limit });
+      analyses = Array.isArray(envelope?.items) ? envelope.items : [];
+      pagination?.update(envelope);
     } catch (err) {
       analyses = [];
       if (flashEl) {
@@ -150,8 +201,14 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
       }
     } finally {
       if (loadingEl) loadingEl.hidden = true;
+      pagination?.setBusy(false);
     }
 
+    // Render lightweight rows immediately, then hydrate features so
+    // mode/shift/scenario/status columns populate without blocking the
+    // initial paint.
+    applyFilter();
+    await hydrateFeatures(analyses);
     applyFilter();
   };
 

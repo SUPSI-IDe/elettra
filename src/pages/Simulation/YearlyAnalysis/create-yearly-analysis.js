@@ -1,9 +1,10 @@
 import "./create-yearly-analysis.css";
 import { t } from "../../../i18n";
-import { fetchBusModels } from "../../../api";
+import { fetchAllBusModels } from "../../../api";
 import {
   createSinglePredictionRun,
-  fetchOptimizationRuns,
+  fetchAllOptimizationRuns,
+  fetchOptimizationRun,
   fetchPredictionRun,
   fetchPvgisTmy,
   fetchWeatherTemperatureClusters,
@@ -103,44 +104,6 @@ const resolveBusModelId = (run = {}) =>
       run?.busModelId ??
       ""
   ).trim();
-
-const resolveRunUserId = (run = {}) =>
-  text(
-    run?.user_id ??
-      run?.userId ??
-      run?.owner_user_id ??
-      run?.ownerUserId ??
-      run?.created_by_id ??
-      run?.createdById ??
-      run?.created_by?.id ??
-      run?.createdBy?.id ??
-      run?.input_params?.user_id ??
-      run?.inputParams?.user_id ??
-      ""
-  ).trim();
-
-const resolveResourceUserId = (resource = {}) =>
-  text(
-    resource?.user_id ??
-      resource?.userId ??
-      resource?.owner_user_id ??
-      resource?.ownerUserId ??
-      resource?.created_by_id ??
-      resource?.createdById ??
-      resource?.created_by?.id ??
-      resource?.createdBy?.id ??
-      ""
-  ).trim();
-
-const runBelongsToCurrentUser = (run, currentUserId, modelsById = {}) => {
-  if (!currentUserId) return false;
-
-  const runUserId = resolveRunUserId(run);
-  if (runUserId) return runUserId === currentUserId;
-
-  const busModelId = resolveBusModelId(run);
-  return Boolean(busModelId && modelsById[busModelId]);
-};
 
 const readQuantiles = (summary, candidateKeys) => {
   const src = candidateKeys.find((k) => {
@@ -578,24 +541,50 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
 
   if (isAuthenticated()) {
     try {
-      const [runsPayload, modelsPayload] = await Promise.all([
-        fetchOptimizationRuns(),
-        fetchBusModels({ skip: 0, limit: 1000 }),
+      // Both endpoints are paginated server-side now — page through them
+      // with their dedicated helpers instead of requesting limit=1000.
+      const currentUserId = text(await resolveUserId().catch(() => "")).trim();
+      if (!currentUserId) {
+        throw new Error("Unable to resolve current user.");
+      }
+      const [allRuns, models] = await Promise.all([
+        fetchAllOptimizationRuns(),
+        fetchAllBusModels({ userId: currentUserId }),
       ]);
 
-      const allRuns = Array.isArray(runsPayload) ? runsPayload : (runsPayload?.items ?? runsPayload?.results ?? []);
-      const models = Array.isArray(modelsPayload) ? modelsPayload : (modelsPayload?.items ?? modelsPayload?.results ?? []);
-      const currentUserId = text(await resolveUserId().catch(() => "")).trim();
       const userModels =
         currentUserId && Array.isArray(models)
-          ? models.filter((m) => resolveResourceUserId(m) === currentUserId)
-          : [];
+          ? models.filter((m) => text(m?.user_id) === currentUserId)
+          : (models ?? []);
       const modelsById = Object.fromEntries(userModels.filter((m) => m?.id).map((m) => [text(m.id), m]));
 
-      feasibleRuns = allRuns.filter((run) => {
-        if (!runBelongsToCurrentUser(run, currentUserId, modelsById)) return false;
+      // First pass: cheap server-side filter using fields available on
+      // the lightweight list response (status, electrification_feasible).
+      const candidateRuns = allRuns.filter((run) => {
+        const runUserId = text(run?.user_id ?? run?.userId ?? "").trim();
+        if (currentUserId && runUserId && runUserId !== currentUserId) return false;
         const status = text(run?.status ?? "").trim().toLowerCase();
         if (status !== "completed" && status !== "done") return false;
+        return run?.electrification_feasible === true;
+      });
+
+      // Second pass: hydrate each candidate run's heavy detail (results
+      // / input_params) only after the cheap filter, then keep the runs
+      // that actually have battery results we can build sizing from.
+      const candidateDetails = await Promise.all(
+        candidateRuns.map(async (run) => {
+          if (run?.results && run?.input_params) return run;
+          try {
+            const detail = await fetchOptimizationRun(text(run.id));
+            return detail ? { ...run, ...detail } : run;
+          } catch (error) {
+            console.warn(`Failed to load detail for run ${run?.id}`, error);
+            return run;
+          }
+        })
+      );
+
+      feasibleRuns = candidateDetails.filter((run) => {
         if (resolveElectrificationFeasible(run) !== true) return false;
         if (resolveOptimizedPacks(run?.results?.battery_results ?? {}) == null) return false;
         return true;

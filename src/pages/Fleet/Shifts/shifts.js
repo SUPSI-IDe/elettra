@@ -5,13 +5,15 @@ import {
   deleteShift,
   fetchShiftById,
   fetchShifts,
-  fetchBuses,
-  fetchBusModels,
+  fetchBusById,
+  fetchAllBusModels,
   fetchStopsByTripId,
 } from "../../../api";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { bindSelectAll } from "../../../dom/tables";
+import { installPaginationControl } from "../../../dom/pagination";
+import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveModelFields } from "../../../ui-helpers";
 import {
@@ -153,7 +155,11 @@ const normalizeTimeLabel = (value) => {
 const readStructure = (shift = {}) =>
   Array.isArray(shift?.structure) ? shift.structure : [];
 
-const resolveTripCount = (shift = {}) => readStructure(shift).length;
+const resolveTripCount = (shift = {}) => {
+  if (Number.isFinite(shift?.trip_count)) return Number(shift.trip_count);
+  if (Number.isFinite(shift?.tripCount)) return Number(shift.tripCount);
+  return readStructure(shift).length;
+};
 
 const formatRouteLabel = (tripCount) => {
   if (!tripCount) {
@@ -398,8 +404,33 @@ export const initializeShifts = async (root = document, options = {}) => {
   let allShifts = [];
   let sortState = { ...DEFAULT_SORT };
   const tripStopsCache = new Map();
+  const shiftDetailCache = new Map();
   const pendingTimeResolutions = new Set();
   const pendingDistanceResolutions = new Set();
+  const busesCache = new Map();
+  let modelsByIdCache = null;
+  let cachedUserId = "";
+
+  // ── Pagination state ──────────────────────────────────────────────
+  let skip = 0;
+  let limit = DEFAULT_PAGE_SIZE;
+  const paginationContainer = section.querySelector(
+    '[data-role="shifts-pagination"]'
+  );
+  const pagination = installPaginationControl(paginationContainer, {
+    onPageChange: (nextSkip) => {
+      skip = Math.max(0, nextSkip);
+      void loadShifts();
+    },
+    onPageSizeChange: (nextLimit) => {
+      limit = nextLimit;
+      skip = 0;
+      void loadShifts();
+    },
+  });
+  if (pagination) {
+    cleanupHandlers.push(() => pagination.destroy());
+  }
 
   const fetchTripStopsCached = async (tripId) => {
     const cacheKey = text(tripId).trim();
@@ -427,7 +458,35 @@ export const initializeShifts = async (root = document, options = {}) => {
     return tripStopsCache.get(cacheKey);
   };
 
+  // Load full shift detail (including `structure`) on demand.  The list
+  // endpoint now returns lightweight items without `structure`, so any
+  // computation that needs trip details must hydrate via this helper.
+  const fetchShiftDetailCached = async (shiftId) => {
+    const cacheKey = text(shiftId).trim();
+    if (!cacheKey) return null;
+    if (!shiftDetailCache.has(cacheKey)) {
+      const pending = fetchShiftById(cacheKey).catch((error) => {
+        shiftDetailCache.delete(cacheKey);
+        throw error;
+      });
+      shiftDetailCache.set(cacheKey, pending);
+    }
+    return shiftDetailCache.get(cacheKey);
+  };
+
+  const ensureShiftStructure = async (shift = {}) => {
+    if (Array.isArray(shift?.structure) && shift.structure.length) {
+      return shift;
+    }
+    const detail = await fetchShiftDetailCached(shift?.id);
+    if (detail && Array.isArray(detail.structure)) {
+      shift.structure = detail.structure;
+    }
+    return shift;
+  };
+
   const resolveShiftTimesFromStops = async (shift = {}) => {
+    await ensureShiftStructure(shift);
     const structure = readStructure(shift);
     if (!structure.length) {
       return null;
@@ -616,83 +675,106 @@ export const initializeShifts = async (root = document, options = {}) => {
     });
   };
 
+  const ensureLookupCaches = async (userId) => {
+    // Bus models are paginated — page through with the dedicated helper
+    // (max page size 100) so we get every model the user owns without
+    // breaking the new pagination contract.
+    if (!modelsByIdCache) {
+      try {
+        const allModels = await fetchAllBusModels({ userId });
+        const userModels = userId
+          ? allModels.filter((model) => text(model?.user_id) === userId)
+          : allModels;
+        modelsByIdCache = userModels.reduce((acc, model) => {
+          if (model?.id) acc[text(model.id)] = model;
+          return acc;
+        }, {});
+      } catch (error) {
+        console.warn("Failed to load bus models for shifts lookup", error);
+        modelsByIdCache = {};
+      }
+    }
+    return modelsByIdCache;
+  };
+
+  const ensureBusInfoForIds = async (busIds = []) => {
+    const missing = busIds
+      .map((id) => text(id).trim())
+      .filter((id) => id && !busesCache.has(id));
+    if (!missing.length) return;
+    // Fetch each bus only once; reuse the cache across pages.
+    await Promise.allSettled(
+      missing.map(async (id) => {
+        try {
+          const bus = await fetchBusById(id);
+          busesCache.set(id, bus);
+        } catch (error) {
+          console.warn(`Failed to load bus ${id}`, error);
+          busesCache.set(id, null);
+        }
+      })
+    );
+  };
+
   const loadShifts = async () => {
     renderLoading(tbody);
+    pagination?.setBusy(true);
 
-    // Check if user is authenticated before making API calls
     if (!isAuthenticated()) {
       const authMessage = t("shifts.login_required") || "Please login to view your shifts.";
       renderError(tbody, authMessage);
+      pagination?.setBusy(false);
       return;
     }
 
     try {
-      const [shiftsPayload, busesPayload, modelsPayload, userId] = await Promise.all([
-        fetchShifts({ skip: 0, limit: 100 }),
-        fetchBuses({ skip: 0, limit: 1000 }),
-        fetchBusModels({ skip: 0, limit: 1000 }),
-        resolveUserId().catch(() => null),
-      ]);
+      if (!cachedUserId) {
+        cachedUserId = text(
+          (await resolveUserId().catch(() => null)) ??
+            getCurrentUserId() ??
+            ""
+        ).trim();
+      }
+      const currentUserId = cachedUserId;
+      if (!currentUserId) {
+        throw new Error("Unable to resolve current user.");
+      }
 
-      const shifts =
-        Array.isArray(shiftsPayload) ? shiftsPayload : (
-          (shiftsPayload?.items ?? shiftsPayload?.results ?? [])
-        );
+      const envelope = await fetchShifts({ skip, limit });
+      const items = Array.isArray(envelope?.items) ? envelope.items : [];
 
-      const buses =
-        Array.isArray(busesPayload) ? busesPayload : (
-          (busesPayload?.items ?? busesPayload?.results ?? [])
-        );
+      const modelsById = await ensureLookupCaches(currentUserId);
 
-      const models =
-        Array.isArray(modelsPayload) ? modelsPayload : (
-          (modelsPayload?.items ?? modelsPayload?.results ?? [])
-        );
+      const busIds = [
+        ...new Set(
+          items
+            .map((shift) =>
+              text(
+                shift?.bus?.id ?? shift?.bus_id ?? shift?.busId ?? ""
+              ).trim()
+            )
+            .filter(Boolean)
+        ),
+      ];
+      await ensureBusInfoForIds(busIds);
 
-      const currentUserId = userId ?? getCurrentUserId() ?? "";
-
-      // Filter buses by user_id to ensure data isolation between users
-      const userBuses =
-        currentUserId && Array.isArray(buses) ?
-          buses.filter((bus) => bus?.user_id === currentUserId)
-        : (buses ?? []);
-
-      const userModels =
-        currentUserId && Array.isArray(models) ?
-          models.filter((model) => model?.user_id === currentUserId)
-        : (models ?? []);
-
-      const modelsById = (userModels ?? []).reduce((acc, model) => {
-        if (model?.id) {
-          acc[text(model.id)] = model;
-        }
-        return acc;
-      }, {});
-
-      // Note: The /api/v1/user/shifts/ endpoint is already user-scoped by the backend
-      // (filters by authenticated user via JWT token), so no client-side filtering is needed.
-      // The API response does not include user_id field.
-      const userShifts = Array.isArray(shifts) ? shifts : [];
-
-      const busMap = new Map(
-        userBuses.map((bus) => {
-          const modelId = text(bus?.bus_model_id ?? "");
-          const resolved = resolveModelFields(modelsById[modelId]);
-          const modelLabel = resolved.model || "";
-          return [text(bus.id), modelLabel];
-        })
-      );
-
+      // The /api/v1/user/shifts/ endpoint is user-scoped server-side, so
+      // additional client-side filtering is not required.
       allShifts = sortShiftsByName(
-        (Array.isArray(userShifts) ? userShifts : []).map((shift) => {
+        items.map((shift) => {
           const busId = text(
             shift?.bus?.id ?? shift?.bus_id ?? shift?.busId ?? ""
           );
-          const modelId = text(
+          const directModelId = text(
             shift?.bus?.bus_model_id ?? shift?.bus_model_id ?? shift?.busModelId ?? ""
           );
-          const modelFromShift = resolveModelFields(modelsById[modelId]).model;
-          const modelLabel = busMap.get(busId) || modelFromShift || "";
+          const bus = busId ? busesCache.get(busId) : null;
+          const resolvedModelId =
+            directModelId || text(bus?.bus_model_id ?? "");
+          const modelFromBus = resolveModelFields(
+            modelsById[resolvedModelId]
+          ).model;
+          const modelLabel = modelFromBus || shift?.bus_model_name || "";
           const tripCount = resolveTripCount(shift);
           const resolvedTimes = resolveShiftTimes(shift);
           const dailyDistanceKm = extractShiftDistanceKm(shift);
@@ -712,11 +794,14 @@ export const initializeShifts = async (root = document, options = {}) => {
         })
       );
       renderCurrentView();
+      pagination?.update(envelope);
       hydrateShiftTimes(allShifts);
       hydrateShiftDistances(allShifts);
     } catch (error) {
       console.error("Failed to load shifts", error);
       renderError(tbody, error?.message ?? t("shifts.unable_to_load"));
+    } finally {
+      pagination?.setBusy(false);
     }
   };
 

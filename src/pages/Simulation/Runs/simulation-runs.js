@@ -1,14 +1,18 @@
 import { t } from "../../../i18n";
 import "./simulation-runs.css";
-import { fetchBusModels } from "../../../api";
+import { fetchAllBusModels, fetchBusModelById } from "../../../api";
 import {
+  fetchAllOptimizationRuns,
   fetchOptimizationRuns,
+  fetchOptimizationRun,
   deleteOptimizationRun,
   fetchPredictionRun,
 } from "../../../api/simulation";
 import { fetchShiftById } from "../../../api/shifts";
-import { isAuthenticated } from "../../../api/session";
+import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
+import { installPaginationControl } from "../../../dom/pagination";
+import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { triggerPartialLoad } from "../../../events";
 import { resolveModelFields, textContent } from "../../../ui-helpers";
 import {
@@ -105,6 +109,12 @@ const renderEmpty = (tbody) => {
 };
 
 const resolveElectrificationFeasible = (run = {}) => {
+  // The new list endpoint exposes `electrification_feasible` directly on
+  // the run; the legacy detail-only path under `results` is kept as a
+  // fallback for cached / hydrated runs.
+  const topLevel = run?.electrification_feasible;
+  if (topLevel === true) return true;
+  if (topLevel === false) return false;
   const direct = run?.results?.electrification_feasible;
   if (direct === true) return true;
   if (direct === false) return false;
@@ -487,8 +497,13 @@ const formatMainParameters = (run = {}) => {
 };
 
 const resolveObjectiveValue = (run = {}) => {
+  // The new list endpoint exposes `objective_value` at the top level,
+  // alongside the legacy `results.objective_value` available via the
+  // detail endpoint.
   const directValue = toFiniteNumber(
-    run?.objective_value ?? run?.objectiveValue ?? run?.results?.objective_value
+    run?.objective_value ??
+      run?.objectiveValue ??
+      run?.results?.objective_value
   );
   if (directValue != null) return directValue;
 
@@ -559,14 +574,14 @@ const compareTexts = (left, right) =>
 
 const getSortValue = (run = {}, key = "") => {
   switch (key) {
+    case "name":
+      return getOptimizationRunDisplayName(run, resolveShiftLabel(run)) || "—";
     case "created_at": {
       const timestamp = Date.parse(resolveCreatedAt(run));
       return Number.isNaN(timestamp) ? null : timestamp;
     }
     case "bus_model":
       return resolveBusModelName(run) || resolveBusModelId(run) || "—";
-    case "shift":
-      return getOptimizationRunDisplayName(run, resolveShiftLabel(run)) || "—";
     case "feasibility": {
       const feasible = resolveElectrificationFeasible(run);
       if (feasible === true) return "a_feasible";
@@ -686,11 +701,11 @@ const renderRows = (tbody, runs = []) => {
           <td class="checkbox">
             <input type="checkbox" aria-label="${textContent(t("simulation.select_run") || "Select run")}" />
           </td>
+          <td class="name" title="${textContent(displayName !== "—" ? displayName : shiftTitle)}">${textContent(displayName)}</td>
           <td class="actions">${textContent(created)}</td>
           <td class="day" title="${textContent(busModelTooltip)}">${textContent(
             busModelLabel
           )}</td>
-          <td class="name" title="${textContent(displayName !== "—" ? displayName : shiftTitle)}">${textContent(displayName)}</td>
           <td class="main-parameters">${textContent(mainParameters)}</td>
           <td class="type">${textContent(mode)}</td>
           <td class="status">
@@ -747,7 +762,52 @@ export const initializeSimulationRuns = async (
   let sortState = { ...DEFAULT_SORT };
   const shiftMetaCache = new Map();
   const predictionRunCache = new Map();
+  const runDetailCache = new Map();
+  const busModelDetailCache = new Map();
   let busModelsById = {};
+  let cachedUserId = "";
+
+  // Bus model detail (with specs) fetched on demand.  The list endpoint
+  // does not include specs, so views that need them (results,
+  // comparison) hydrate via this helper.
+  const ensureBusModelDetail = async (modelId) => {
+    const id = text(modelId).trim();
+    if (!id) return null;
+    if (busModelDetailCache.has(id)) return busModelDetailCache.get(id);
+    try {
+      const detail = await fetchBusModelById(id);
+      busModelDetailCache.set(id, detail);
+      // Refresh the cached lookup so existing helpers picking up
+      // `busModelsById[modelId]` see specs/manufacturer when available.
+      if (detail) busModelsById[id] = detail;
+      return detail;
+    } catch (error) {
+      console.warn(`Failed to load bus model detail ${id}`, error);
+      busModelDetailCache.set(id, null);
+      return null;
+    }
+  };
+
+  // ── Pagination state ──────────────────────────────────────────────
+  let skip = 0;
+  let limit = DEFAULT_PAGE_SIZE;
+  const paginationContainer = section.querySelector(
+    '[data-role="simulation-runs-pagination"]'
+  );
+  const pagination = installPaginationControl(paginationContainer, {
+    onPageChange: (nextSkip) => {
+      skip = Math.max(0, nextSkip);
+      void loadRunsAndPopulate();
+    },
+    onPageSizeChange: (nextLimit) => {
+      limit = nextLimit;
+      skip = 0;
+      void loadRunsAndPopulate();
+    },
+  });
+  if (pagination) {
+    cleanupHandlers.push(() => pagination.destroy());
+  }
 
   const hydrateRunModelNamesFromId = (runs = []) => {
     runs.forEach((run) => {
@@ -811,6 +871,40 @@ export const initializeSimulationRuns = async (
     });
   };
 
+  // Lazily fetch the heavyweight detail record (`input_params`,
+  // `results`, …) for runs in the visible page.  The list endpoint now
+  // returns lightweight `OptimizationRunListItemRead` items so detail
+  // is required to recover legacy fields used by the table (e.g. main
+  // parameters extracted from prediction runs, shift ids, …).
+  const hydrateRunDetails = async (runs = []) => {
+    const targets = runs.filter((run) => {
+      const id = text(run?.id).trim();
+      if (!id || runDetailCache.has(id)) return false;
+      // Skip the detail fetch when the legacy fields already exist; this
+      // happens when the same run object has previously been hydrated.
+      return !run?.input_params && !run?.shift_ids && !run?.prediction_run_ids;
+    });
+    if (!targets.length) return;
+    await Promise.allSettled(
+      targets.map(async (run) => {
+        const id = text(run.id);
+        try {
+          const detail = await fetchOptimizationRun(id);
+          runDetailCache.set(id, detail);
+          if (detail && typeof detail === "object") {
+            // Merge detail-only fields onto the original list item so
+            // existing helpers (resolveShiftIds, resolveExternalTemp,
+            // resolveChargingStations, …) keep working unchanged.
+            Object.assign(run, detail);
+          }
+        } catch (error) {
+          console.warn(`Failed to load detail for optimization run ${id}`, error);
+          runDetailCache.set(id, null);
+        }
+      })
+    );
+  };
+
   const enrichPredictionRunParameters = async (runs = []) => {
     const predictionRunIdsToResolve = [
       ...new Set(
@@ -871,35 +965,85 @@ export const initializeSimulationRuns = async (
 
   const loadRuns = async () => {
     renderLoading(tbody);
+    pagination?.setBusy(true);
 
     if (!isAuthenticated()) {
       const authMessage =
         t("simulation.login_required") ||
         "Please login to view your simulations.";
       renderError(tbody, authMessage);
+      pagination?.setBusy(false);
       return;
     }
 
     try {
-      if (!Object.keys(busModelsById).length) {
-        const modelsPayload = await fetchBusModels({ skip: 0, limit: 1000 });
-        const models = Array.isArray(modelsPayload)
-          ? modelsPayload
-          : (modelsPayload?.items ?? modelsPayload?.results ?? []);
+      if (!cachedUserId) {
+        cachedUserId = text(await resolveUserId().catch(() => "")).trim();
+      }
+      const currentUserId = cachedUserId;
+      if (!currentUserId) {
+        throw new Error("Unable to resolve current user.");
+      }
 
+      if (!Object.keys(busModelsById).length) {
+        // Bus models are paginated — page through them once and cache.
+        const allModels = await fetchAllBusModels({ userId: currentUserId });
+        const userModels = currentUserId
+          ? allModels.filter((m) => text(m?.user_id) === currentUserId)
+          : allModels;
         busModelsById = Object.fromEntries(
-          (models ?? []).filter((m) => m?.id).map((m) => [text(m.id), m])
+          userModels.filter((m) => m?.id).map((m) => [text(m.id), m])
         );
       }
 
-      const runsPayload = await fetchOptimizationRuns();
-      const rawRuns = Array.isArray(runsPayload)
-        ? runsPayload
-        : (runsPayload?.items ?? runsPayload?.results ?? []);
+      const envelope = await fetchOptimizationRuns({ skip, limit });
+      const items = Array.isArray(envelope?.items) ? envelope.items : [];
+      const hasForeignRuns = currentUserId && items.some((run) => {
+        const runUserId = text(run?.user_id ?? run?.userId).trim();
+        return runUserId && runUserId !== currentUserId;
+      });
+
+      let pageEnvelope = envelope;
+      let visibleItems = currentUserId
+        ? items.filter((run) => {
+            const runUserId = text(run?.user_id ?? run?.userId).trim();
+            return !runUserId || runUserId === currentUserId;
+          })
+        : items;
+
+      if (hasForeignRuns) {
+        // Backend should scope optimization runs, but if an environment
+        // returns unscoped pages, filtering only the current page would
+        // corrupt pagination. Page through valid backend pages, filter
+        // locally, and paginate the owned result in the UI.
+        const ownedRuns = (await fetchAllOptimizationRuns()).filter((run) => {
+          const runUserId = text(run?.user_id ?? run?.userId).trim();
+          return !currentUserId || !runUserId || runUserId === currentUserId;
+        });
+        visibleItems = ownedRuns.slice(skip, skip + limit);
+        pageEnvelope = {
+          items: visibleItems,
+          total: ownedRuns.length,
+          skip,
+          limit,
+          count: visibleItems.length,
+          has_next: skip + limit < ownedRuns.length,
+          has_previous: skip > 0,
+        };
+      }
 
       const dismissed = getDismissedIds();
-      allRuns = rawRuns.filter((r) => !dismissed.has(text(r?.id)));
+      allRuns = visibleItems.filter((r) => !dismissed.has(text(r?.id)));
 
+      hydrateRunModelNamesFromId(allRuns);
+
+      // Render lightweight rows immediately, then hydrate heavy detail
+      // (input_params, prediction runs, shift names) for the visible
+      // page in parallel.
+      applyFilter();
+      pagination?.update(pageEnvelope);
+
+      await hydrateRunDetails(allRuns);
       hydrateRunModelNamesFromId(allRuns);
       await enrichShiftNames(allRuns);
       await enrichPredictionRunParameters(allRuns);
@@ -913,6 +1057,8 @@ export const initializeSimulationRuns = async (
           t("simulation.failed_load_runs") ??
           "Unable to load simulation runs."
       );
+    } finally {
+      pagination?.setBusy(false);
     }
   };
 
@@ -958,7 +1104,7 @@ export const initializeSimulationRuns = async (
     table.querySelector("thead")?.removeEventListener("click", handleSortClick)
   );
 
-  const handleDuplicateClick = () => {
+  const handleDuplicateClick = async () => {
     const ids = getSelectedIdsFrom(table);
     if (ids.length !== 1) {
       setFlashMessage(
@@ -971,6 +1117,21 @@ export const initializeSimulationRuns = async (
 
     const run = allRuns.find((r) => text(r?.id) === ids[0]);
     if (!run) return;
+
+    // The list endpoint is lightweight and does not include
+    // `input_params`/`results`; if the detail has not been hydrated yet
+    // for this row, fetch it now so the duplicate prefill carries over
+    // the original simulation parameters.
+    if (!run?.input_params) {
+      try {
+        const detail = await fetchOptimizationRun(text(run.id));
+        if (detail && typeof detail === "object") {
+          Object.assign(run, detail);
+        }
+      } catch (error) {
+        console.warn("Failed to load detail for duplication", error);
+      }
+    }
 
     triggerPartialLoad("add-simulation", {
       prefill: {
@@ -1049,7 +1210,7 @@ export const initializeSimulationRuns = async (
     );
   }
 
-  const handleResultsClick = (event) => {
+  const handleResultsClick = async (event) => {
     const link = event.target.closest('[data-action="view-results"]');
     if (!link) return;
     event.preventDefault();
@@ -1057,7 +1218,9 @@ export const initializeSimulationRuns = async (
     if (!runId) return;
     const run = allRuns.find((r) => text(r?.id) === runId);
     const modelId = text(resolveBusModelId(run)).trim();
-    const busModel = busModelsById?.[modelId] ?? {};
+    // Fetch the bus model detail (with specs) since the list response
+    // is lightweight and may not include them yet.
+    const busModel = (await ensureBusModelDetail(modelId)) ?? busModelsById?.[modelId] ?? {};
     const specs = (() => {
       const raw = busModel?.specs;
       if (!raw) return {};
@@ -1133,7 +1296,7 @@ export const initializeSimulationRuns = async (
     populateCompareSelects();
   };
 
-  const handleCompareClick = () => {
+  const handleCompareClick = async () => {
     const idA = compareSelectA?.value;
     const idB = compareSelectB?.value;
     if (!idA || !idB) return;
@@ -1144,6 +1307,15 @@ export const initializeSimulationRuns = async (
     const runA = allRuns.find((r) => text(r?.id) === idA);
     const runB = allRuns.find((r) => text(r?.id) === idB);
     if (!runA || !runB) return;
+
+    // Pre-fetch bus model details (with specs) before building the
+    // payload — the list response is lightweight and may not include
+    // specs.
+    const modelIds = [
+      text(resolveBusModelId(runA)).trim(),
+      text(resolveBusModelId(runB)).trim(),
+    ].filter(Boolean);
+    await Promise.all(modelIds.map((id) => ensureBusModelDetail(id)));
 
     const buildOptions = (run) => {
       const modelId = text(resolveBusModelId(run)).trim();

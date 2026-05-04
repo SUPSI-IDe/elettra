@@ -1,4 +1,5 @@
 export * from "./client";
+export * from "./pagination";
 export * from "./auth";
 export * from "./user";
 export * from "./buses";

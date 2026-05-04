@@ -1,6 +1,11 @@
 import { authHeaders, API_ROOT } from "./client";
 import { fetchBusModelById } from "./bus-models";
 import {
+  buildPaginationParams,
+  fetchAllPages,
+  normalizePaginatedResponse,
+} from "./pagination";
+import {
   DEFAULT_PASSENGER_WEIGHT_KG,
   DEFAULT_PREDICTION_MODEL_NAME,
   DEFAULT_PREDICTION_QUANTILES,
@@ -553,12 +558,33 @@ export const createOptimizationRun = async (params = {}) => {
   return payload;
 };
 
-export const fetchOptimizationRuns = async () => {
+/**
+ * Fetch a page of optimization (feasibility evaluation) runs.
+ *
+ * Returns the standard paginated envelope of `OptimizationRunListItemRead`
+ * items (id, user_id, bus_model_id, name, mode, status, created_at,
+ * completed_at, electrification_feasible, solver_status, objective_value).
+ * When the full record (including `input_params` or `results`) is needed
+ * the caller should use `fetchOptimizationRun`.
+ *
+ * @param {{ skip?: number, limit?: 20 | 50 | 100 }} [params]
+ */
+export const fetchOptimizationRuns = async ({ skip = 0, limit = 20 } = {}) => {
   const headers = authHeaders();
-  const response = await fetch(`${SIMULATION_PATH}/optimization-runs/`, {
-    method: "GET",
-    headers,
-  });
+  const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
+    skip,
+    limit
+  );
+  const query = new URLSearchParams();
+  query.set("skip", String(normalizedSkip));
+  query.set("limit", String(normalizedLimit));
+  const response = await fetch(
+    `${SIMULATION_PATH}/optimization-runs/?${query.toString()}`,
+    {
+      method: "GET",
+      headers,
+    }
+  );
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
@@ -567,8 +593,16 @@ export const fetchOptimizationRuns = async () => {
       "Unable to load optimization runs.";
     throw new Error(typeof message === "string" ? message : JSON.stringify(message));
   }
-  return payload;
+  return normalizePaginatedResponse(payload, normalizedSkip, normalizedLimit);
 };
+
+/**
+ * Fetch every optimization run available to the current user by paging
+ * through `fetchOptimizationRuns`.  Use only when the entire list is
+ * actually needed (e.g. selectors building lookup maps).
+ */
+export const fetchAllOptimizationRuns = () =>
+  fetchAllPages((params) => fetchOptimizationRuns(params));
 
 export const deleteOptimizationRun = async (runId) => {
   if (!runId) throw new Error("Missing runId");
@@ -791,11 +825,29 @@ export const createYearlyAnalysis = async ({ name, optimization_run_id = null, f
   return payload;
 };
 
-export const fetchYearlyAnalyses = async ({ skip = 0, limit = 200, optimization_run_id = null } = {}) => {
+/**
+ * Fetch a page of yearly analyses.
+ *
+ * Returns the standard paginated envelope of `YearlyAnalysisListItemRead`
+ * items (id, optimization_run_id, name, created_at).  When the full
+ * record (including `features`) is needed call `fetchYearlyAnalysis`.
+ * The `optimization_run_id` filter is preserved.
+ *
+ * @param {{ skip?: number, limit?: 20 | 50 | 100, optimization_run_id?: string | null }} [params]
+ */
+export const fetchYearlyAnalyses = async ({
+  skip = 0,
+  limit = 20,
+  optimization_run_id = null,
+} = {}) => {
   const headers = authHeaders();
+  const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
+    skip,
+    limit
+  );
   const params = new URLSearchParams();
-  params.set("skip", String(skip));
-  params.set("limit", String(limit));
+  params.set("skip", String(normalizedSkip));
+  params.set("limit", String(normalizedLimit));
   if (optimization_run_id) params.set("optimization_run_id", optimization_run_id);
 
   const response = await fetch(`${YEARLY_ANALYSIS_PATH}/?${params.toString()}`, {
@@ -810,8 +862,18 @@ export const fetchYearlyAnalyses = async ({ skip = 0, limit = 200, optimization_
       "Unable to load yearly analyses.";
     throw new Error(typeof message === "string" ? message : JSON.stringify(message));
   }
-  return payload;
+  return normalizePaginatedResponse(payload, normalizedSkip, normalizedLimit);
 };
+
+/**
+ * Fetch every yearly analysis available to the current user (optionally
+ * filtered by optimization_run_id) by iterating through the paginated
+ * `fetchYearlyAnalyses` endpoint.
+ */
+export const fetchAllYearlyAnalyses = ({ optimization_run_id = null } = {}) =>
+  fetchAllPages((params) =>
+    fetchYearlyAnalyses({ ...params, optimization_run_id })
+  );
 
 export const fetchYearlyAnalysis = async (id) => {
   if (!id) throw new Error("Missing yearly analysis ID.");

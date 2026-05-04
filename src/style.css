@@ -1406,3 +1406,68 @@ table input[type="checkbox"] {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Pagination controls (paginated list pages) ────────────────────── */
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  margin-top: var(--spacing-sm);
+  border-top: 1px solid rgba(15, 60, 60, 0.08);
+  font-size: 0.875rem;
+  color: var(--dark-blue);
+}
+
+.pagination-controls[hidden] {
+  display: none;
+}
+
+.pagination-controls .pagination-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs, 0.5rem);
+}
+
+.pagination-controls .pagination-page-size select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgba(15, 60, 60, 0.18);
+  border-radius: 4px;
+  background-color: #fff;
+  color: var(--dark-blue);
+  font: inherit;
+}
+
+.pagination-controls .pagination-range {
+  flex: 1 1 auto;
+  text-align: center;
+  color: var(--dark-blue);
+}
+
+.pagination-controls .pagination-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pagination-controls .pagination-buttons button {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid rgba(15, 60, 60, 0.18);
+  border-radius: 4px;
+  background-color: #fff;
+  color: var(--dark-blue);
+  cursor: pointer;
+  font: inherit;
+}
+
+.pagination-controls .pagination-buttons button:hover:not(:disabled) {
+  background-color: var(--brand-teal-bg);
+}
+
+.pagination-controls .pagination-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

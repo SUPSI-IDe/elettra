@@ -86,6 +86,12 @@
                 data-i18n-aria-label="simulation.select_all"
               />
             </th>
+            <th class="name" scope="col" data-sort-key="name" aria-sort="none">
+              <button type="button" class="sort-button" data-sort-key="name">
+                <span data-i18n="simulation.field_name">Name</span>
+                <span class="sort-arrow" aria-hidden="true">↕</span>
+              </button>
+            </th>
             <th class="actions" scope="col" data-sort-key="created_at" aria-sort="descending">
               <button type="button" class="sort-button" data-sort-key="created_at">
                 <span data-i18n="simulation.col_created">Created</span>
@@ -95,12 +101,6 @@
             <th class="day" scope="col" data-sort-key="bus_model" aria-sort="none">
               <button type="button" class="sort-button" data-sort-key="bus_model">
                 <span data-i18n="simulation.field_bus_model">Bus model</span>
-                <span class="sort-arrow" aria-hidden="true">↕</span>
-              </button>
-            </th>
-            <th class="name" scope="col" data-sort-key="shift" aria-sort="none">
-              <button type="button" class="sort-button" data-sort-key="shift">
-                <span data-i18n="simulation.field_shifts">Shift</span>
                 <span class="sort-arrow" aria-hidden="true">↕</span>
               </button>
             </th>
@@ -135,6 +135,7 @@
         </thead>
         <tbody data-role="simulation-runs-body"></tbody>
       </table>
+      <div class="simulation-runs-pagination" data-role="simulation-runs-pagination"></div>
     </div>
   </main>
 </section>

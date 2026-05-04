@@ -2,9 +2,11 @@ import { t } from "../../../i18n";
 import "./buses.css";
 import {
   deleteBusModel,
+  fetchAllBusModels,
   fetchBusModels,
+  fetchBusModelById,
 } from "../../../api";
-import { isAuthenticated } from "../../../api/session";
+import { isAuthenticated, resolveUserId } from "../../../api/session";
 import {
   cacheCollections,
   getCurrentUserId,
@@ -18,7 +20,11 @@ import {
   renderLoadingRow,
   renderModels,
 } from "../../../dom/tables";
+import { installPaginationControl } from "../../../dom/pagination";
+import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { triggerPartialLoad } from "../../../events";
+
+const text = (value) => (value === null || value === undefined ? "" : String(value));
 
 const getSelectedIdsFrom = (container) =>
   Array.from(
@@ -87,10 +93,22 @@ const initializeModelControls = (section, cleanupHandlers) => {
         return;
       }
       const id = selectedIds[0];
-      const current = getModelsById()[id] ?? null;
+      const cached = getModelsById()[id] ?? null;
 
-      if (current) {
-        triggerPartialLoad("add-bus-model", { busModel: current });
+      // The list endpoint is lightweight — fetch full specs before
+      // handing the bus model off to the edit form so existing values
+      // show up correctly.
+      let busModel = cached;
+      if (!cached?.specs) {
+        try {
+          busModel = await fetchBusModelById(id);
+        } catch (error) {
+          console.error("Failed to load bus model detail", error);
+        }
+      }
+
+      if (busModel) {
+        triggerPartialLoad("add-bus-model", { busModel });
       }
     }
   };
@@ -133,52 +151,146 @@ export const initializeBuses = async (root = document, options = {}) => {
     });
   }
 
-  renderLoadingRow(modelsTbody);
+  // ── Pagination state ──────────────────────────────────────────────
+  let skip = 0;
+  let limit = DEFAULT_PAGE_SIZE;
+  let pendingHydrationToken = 0;
+  const specsCache = new Map();
+  let cachedUserId = "";
 
-  // Check if user is authenticated before making API calls
-  if (!isAuthenticated()) {
-    const authMessage = t("buses.login_required") || "Please login to view your fleet data.";
-    renderErrorRow(modelsTbody, authMessage);
-    return () => {
-      cleanupHandlers.forEach((handler) => handler());
-    };
+  const paginationContainer = section.querySelector(
+    '[data-role="bus-models-pagination"]'
+  );
+  const pagination = installPaginationControl(paginationContainer, {
+    onPageChange: (nextSkip) => {
+      skip = Math.max(0, nextSkip);
+      void load();
+    },
+    onPageSizeChange: (nextLimit) => {
+      limit = nextLimit;
+      skip = 0;
+      void load();
+    },
+  });
+  if (pagination) {
+    cleanupHandlers.push(() => pagination.destroy());
   }
 
-  try {
-    const modelsPayload = await fetchBusModels({ skip: 0, limit: 100 });
+  // ── Hydrate specs for the visible rows ────────────────────────────
+  // The list endpoint only returns lightweight items; we lazily fetch
+  // each model's full specs so the existing table columns (size, cost,
+  // battery pack, etc.) keep working without re-downloading everything.
+  const hydrateSpecs = async (models, token) => {
+    const targets = models.filter((model) => model?.id && !model?.specs);
+    await Promise.allSettled(
+      targets.map(async (model) => {
+        const id = text(model.id);
+        if (!id) return;
+        try {
+          let detail = specsCache.get(id);
+          if (!detail) {
+            detail = await fetchBusModelById(id);
+            specsCache.set(id, detail);
+          }
+          if (token !== pendingHydrationToken) return;
+          Object.assign(model, detail);
+        } catch (error) {
+          console.warn(`Failed to load detail for bus model ${id}`, error);
+        }
+      })
+    );
+    if (token === pendingHydrationToken) {
+      renderModels(modelsTbody, models);
+      bindSelectAll(modelsHeaderCheckbox, modelsTable);
+    }
+  };
 
-    const models =
-      Array.isArray(modelsPayload) ? modelsPayload : (
-        (modelsPayload?.items ?? modelsPayload?.results ?? [])
-      );
+  const load = async () => {
+    renderLoadingRow(modelsTbody);
+    pagination?.setBusy(true);
 
-    const currentUserId = getCurrentUserId() ?? "";
+    if (!isAuthenticated()) {
+      const authMessage =
+        t("buses.login_required") || "Please login to view your fleet data.";
+      renderErrorRow(modelsTbody, authMessage);
+      pagination?.setBusy(false);
+      return;
+    }
 
-    // Filter bus models by user_id to ensure data isolation between users
-    const userModels =
-      currentUserId && Array.isArray(models) ?
-        models.filter((model) => model?.user_id === currentUserId)
-      : (models ?? []);
+    try {
+      if (!cachedUserId) {
+        cachedUserId = text(
+          (await resolveUserId().catch(() => "")) || getCurrentUserId()
+        ).trim();
+      }
 
-    const sortedModels = Array.isArray(userModels) ?
-      [...userModels].sort((a, b) => {
+      const currentUserId = cachedUserId;
+      if (!currentUserId) {
+        throw new Error("Unable to resolve current user.");
+      }
+      const envelope = await fetchBusModels({
+        skip,
+        limit,
+        userId: currentUserId,
+      });
+      const items = Array.isArray(envelope?.items) ? envelope.items : [];
+
+      const pageItems =
+        currentUserId && items.length
+          ? items.filter((model) => text(model?.user_id) === currentUserId)
+          : items;
+
+      let pageEnvelope = envelope;
+      let visibleModels = pageItems;
+
+      if (currentUserId && pageItems.length !== items.length) {
+        // Some environments still return unscoped pages even when user_id
+        // is sent. If we filter only the current backend page, the user can
+        // see too few owned models. Page through with valid page sizes,
+        // filter locally, then paginate the filtered result in the UI.
+        const ownedModels = (await fetchAllBusModels({ userId: currentUserId }))
+          .filter((model) => text(model?.user_id) === currentUserId);
+        visibleModels = ownedModels.slice(skip, skip + limit);
+        pageEnvelope = {
+          items: visibleModels,
+          total: ownedModels.length,
+          skip,
+          limit,
+          count: visibleModels.length,
+          has_next: skip + limit < ownedModels.length,
+          has_previous: skip > 0,
+        };
+      }
+
+      const sortedModels = [...visibleModels].sort((a, b) => {
         const left = String(a?.name ?? "").toLocaleLowerCase();
         const right = String(b?.name ?? "").toLocaleLowerCase();
         return left.localeCompare(right);
-      })
-    : [];
+      });
 
-    cacheCollections({ models: sortedModels, buses: [], owned: [] });
+      cacheCollections({ models: sortedModels, buses: [], owned: [] });
 
-    renderModels(modelsTbody, sortedModels);
+      renderModels(modelsTbody, sortedModels);
+      bindSelectAll(modelsHeaderCheckbox, modelsTable);
+      initializeModelControls(section, cleanupHandlers);
 
-    bindSelectAll(modelsHeaderCheckbox, modelsTable);
+      pagination?.update(pageEnvelope);
 
-    initializeModelControls(section, cleanupHandlers);
-  } catch (error) {
-    console.error("Failed to load bus models", error);
-    renderErrorRow(modelsTbody, error?.message ?? t("buses.unable_to_load_models"));
-  }
+      pendingHydrationToken += 1;
+      const token = pendingHydrationToken;
+      void hydrateSpecs(sortedModels, token);
+    } catch (error) {
+      console.error("Failed to load bus models", error);
+      renderErrorRow(
+        modelsTbody,
+        error?.message ?? t("buses.unable_to_load_models")
+      );
+    } finally {
+      pagination?.setBusy(false);
+    }
+  };
+
+  await load();
 
   return () => {
     cleanupHandlers.forEach((handler) => handler());
