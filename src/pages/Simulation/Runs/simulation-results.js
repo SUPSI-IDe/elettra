@@ -104,6 +104,16 @@ const FUEL_COLORS = {
 };
 const COST_COLORS = { vehicle: "#4f86c6", energy: "#d4881f", maintenance: "#5f8f2f" };
 const COST_ANNUALIZATION_FACTOR = 52;
+const MOBITOOL_URL = "https://www.i14y.admin.ch/en/catalog/dataservices/171b09a4-5b5f-4577-8921-3af7fc6eee39/description";
+const MOBITOOL_LINK_HTML = `<a href="${MOBITOOL_URL}" target="_blank" rel="noopener noreferrer">Mobitool</a>`;
+const linkifyMobitoolHtml = (value) =>
+  (value === null || value === undefined ? "" : String(value)).replace(/Mobitool/g, MOBITOOL_LINK_HTML);
+const linkifyMobitoolElement = (el) => {
+  if (!el || el.querySelector(`a[href="${MOBITOOL_URL}"]`)) return;
+  const currentHtml = el.innerHTML;
+  if (!currentHtml || !currentHtml.includes("Mobitool")) return;
+  el.innerHTML = linkifyMobitoolHtml(currentHtml);
+};
 
 
 const LCA_INDICATORS = [
@@ -5931,7 +5941,6 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
         { key: "gwp100a", label: "CO₂", i18n: "simulation.env_kpi_co2", unit: "t/yr", divisor: 1e6 },
         { key: "nox", label: "NOx", i18n: "simulation.env_kpi_nox", unit: "kg/yr", divisor: 1e6 },
         { key: "pm10", label: "PM₁₀", i18n: "simulation.env_kpi_pm10", unit: "kg/yr", divisor: 1e6 },
-        { key: "primaryEnergyNonRenewable", label: "Non-ren. energy", i18n: "simulation.env_kpi_penr", unit: "MJ/yr", divisor: 1 },
       ];
 
       const body = emissionDefs
@@ -6075,7 +6084,6 @@ const ENV_KPI_DEFS = [
   { key: "gwp100a", label: "CO₂", i18n: "simulation.env_kpi_co2", unit: "t/year", divisor: 1e6 },
   { key: "nox", label: "NOx", i18n: "simulation.env_kpi_nox", unit: "kg/year", divisor: 1e6 },
   { key: "pm10", label: "PM₁₀", i18n: "simulation.env_kpi_pm10", unit: "kg/year", divisor: 1e6 },
-  { key: "primaryEnergyNonRenewable", label: "Non-renewable primary energy", i18n: "simulation.env_kpi_penr", unit: "MJ/year", divisor: 1 },
 ];
 
 const renderEnvKpiCards = (el, emState) => {
@@ -6099,15 +6107,6 @@ const renderEnvKpiCards = (el, emState) => {
       let eDisplay = eRaw / def.divisor;
       let dDisplay = dRaw != null ? dRaw / def.divisor : null;
       let unitLabel = def.unit;
-
-      if (def.key === "primaryEnergyNonRenewable") {
-        const peak = Math.max(eDisplay, dDisplay ?? 0);
-        if (peak > 1e6) {
-          eDisplay /= 1e3;
-          dDisplay = dDisplay != null ? dDisplay / 1e3 : null;
-          unitLabel = "GJ/year";
-        }
-      }
 
       const absDiff = dDisplay != null ? dDisplay - eDisplay : null;
       const pctChange = dRaw != null && dRaw !== 0
@@ -6150,15 +6149,12 @@ const renderEnvKpiCards = (el, emState) => {
     .join("");
 };
 
-/* ── Environmental page: Enhanced recap table with energy rows ─ */
+/* ── Environmental page: recap table ─────────────────────────── */
 
 const ENV_TABLE_ROWS = [
   { key: "gwp100a", label: "CO₂ emissions", i18n: "simulation.env_table_co2", unit: "t/year", perKmUnit: "g/km", divisor: 1e6, decimals: 0, perKmDecimals: 0, rowTone: "green" },
   { key: "nox", label: "NOx emissions", i18n: "simulation.env_table_nox", unit: "kg/year", perKmUnit: "mg/km", divisor: 1e6, decimals: 0, perKmDecimals: 0, rowTone: "green" },
   { key: "pm10", label: "PM₁₀ emissions", i18n: "simulation.env_table_pm10", unit: "kg/year", perKmUnit: "mg/km", divisor: 1e6, decimals: 0, perKmDecimals: 0, rowTone: "amber" },
-  { key: "primaryEnergyNonRenewable", label: "Non-renewable primary energy", i18n: "simulation.env_table_penr", unit: "MJ/year", perKmUnit: "MJ/km", divisor: 1, decimals: 0, perKmDecimals: 2, rowTone: "green" },
-  { key: "_renewablePrimaryEnergy", label: "Renewable primary energy", i18n: "simulation.env_table_per", unit: "MJ/year", perKmUnit: "MJ/km", divisor: 1, decimals: 0, perKmDecimals: 2, computed: true, rowTone: "neutral" },
-  { key: "primaryEnergy", label: "Total primary energy", i18n: "simulation.env_table_pe_total", unit: "MJ/year", perKmUnit: "MJ/km", divisor: 1, decimals: 0, perKmDecimals: 2, rowTone: "muted" },
 ];
 
 const renderEnvRecapTable = (el, emState) => {
@@ -6183,14 +6179,7 @@ const renderEnvRecapTable = (el, emState) => {
   const yearlySubLabel = t("simulation.env_table_subhead_yearly") || "yearly";
   const perKmSubLabel = t("simulation.env_table_subhead_per_km") || "per km";
 
-  const resolveValue = (yearly, def) => {
-    if (def.key === "_renewablePrimaryEnergy") {
-      const peTotal = toFiniteNumber(yearly?.primaryEnergy?.total) ?? 0;
-      const peNr = toFiniteNumber(yearly?.primaryEnergyNonRenewable?.total) ?? 0;
-      return Math.max(0, peTotal - peNr);
-    }
-    return toFiniteNumber(yearly?.[def.key]?.total) ?? 0;
-  };
+  const resolveValue = (yearly, def) => toFiniteNumber(yearly?.[def.key]?.total) ?? 0;
 
   const visibleDefs = ENV_TABLE_ROWS.filter((def) => {
     if (def.key === "_renewablePrimaryEnergy") return electricY.primaryEnergy?.total != null;
@@ -7199,8 +7188,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       '[data-role="env-mission-bar"], [data-role="env-kpi-cards"], ' +
       '[data-role="emissions-recap-table"], [data-role="emissions-histogram"], ' +
       '[data-role="emissions-histogram-legend"], [data-role="emissions-co2-phase"], ' +
-      '[data-role="emissions-co2-phase-legend"], [data-role="emissions-primary-energy"], ' +
-      '[data-role="emissions-primary-energy-legend"]'
+      '[data-role="emissions-co2-phase-legend"]'
     );
     if (emissionsState.status === "loading") {
       dynamicSlots.forEach((el) => {
@@ -7223,7 +7211,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     try { renderEmissionsHistogram(sec.querySelector('[data-role="emissions-histogram"]'), sec.querySelector('[data-role="emissions-histogram-legend"]'), emissionsState); } catch (e) { console.error("[Emissions] renderEmissionsHistogram failed:", e); }
     try { renderEnvRecapTable(sec.querySelector('[data-role="emissions-recap-table"]'), emissionsState); } catch (e) { console.error("[Emissions] renderEnvRecapTable failed:", e); }
     try { renderCo2PhaseBreakdown(sec.querySelector('[data-role="emissions-co2-phase"]'), sec.querySelector('[data-role="emissions-co2-phase-legend"]'), emissionsState); } catch (e) { console.error("[Emissions] renderCo2PhaseBreakdown failed:", e); }
-    try { renderPrimaryEnergy(sec.querySelector('[data-role="emissions-primary-energy"]'), sec.querySelector('[data-role="emissions-primary-energy-legend"]'), emissionsState); } catch (e) { console.error("[Emissions] renderPrimaryEnergy failed:", e); }
+    linkifyMobitoolElement(panel.querySelector(".env-page__subtitle"));
+    linkifyMobitoolElement(panel.querySelector('[data-role="env-methodology-note"] p'));
   };
 
   const refreshEmissionsTab = () => {

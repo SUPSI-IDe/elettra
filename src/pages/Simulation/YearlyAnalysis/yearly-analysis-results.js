@@ -87,6 +87,10 @@ const feasibilityBadge = (v) => {
   return `<span class="ya-badge ya-badge--neutral">—</span>`;
 };
 
+const MOBITOOL_URL = "https://www.i14y.admin.ch/en/catalog/dataservices/171b09a4-5b5f-4577-8921-3af7fc6eee39/description";
+const MOBITOOL_LINK_HTML = `<a href="${MOBITOOL_URL}" target="_blank" rel="noopener noreferrer">Mobitool</a>`;
+const linkifyMobitoolHtml = (value) => text(value).replace(/Mobitool/g, MOBITOOL_LINK_HTML);
+
 /* ── Overview helpers ──────────────────────────────────────────── */
 
 const overviewRowHtml = (label, value, raw = false) =>
@@ -2160,8 +2164,8 @@ const EMISSIONS_POLLUTANTS = [
   { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
 ];
 
-const DIESEL_BAR_COLOR = "#7f8c8d";
-const ELECTRIC_BAR_COLOR = "#2980b9";
+const DIESEL_BAR_COLOR = "#c0392b";
+const ELECTRIC_BAR_COLOR = "#27ae60";
 const DH_BAR_COLOR = "#e67e22";
 const CO2_PHASE_DIVISOR = 1e6;
 const ENERGY_COLORS = { renewable: "#27ae60", nonRenewable: "#e67e22" };
@@ -2176,7 +2180,7 @@ const inferUnitDivisor = (indicator, fallbackDivisor = CO2_PHASE_DIVISOR) => {
   return fallbackDivisor;
 };
 const getEmissionsTotalLabel = (emState) =>
-  emState?.isDieselHeating ? t("yearly_analysis.ebus_total_diesel_heating") : t("yearly_analysis.ebus");
+  emState?.isDieselHeating ? t("yearly_analysis.ebus_diesel_heating") : t("yearly_analysis.ebus");
 const getEmissionsElectricLabel = (emState) =>
   emState?.isDieselHeating ? t("yearly_analysis.electric_diesel_heating") : t("yearly_analysis.ebus");
 
@@ -2184,15 +2188,12 @@ const ENV_KPI_DEFS = [
   { key: "gwp100a", i18n: "yearly_analysis.env_kpi_co2_equiv", label: "CO₂ equiv.", unit: "t/yr", divisor: 1e6 },
   { key: "nox", i18n: "simulation.env_kpi_nox", label: "NOx", unit: "kg/yr", divisor: 1e6 },
   { key: "pm10", i18n: "simulation.env_kpi_pm10", label: "PM₁₀", unit: "kg/yr", divisor: 1e6 },
-  { key: "primaryEnergyNonRenewable", i18n: "yearly_analysis.env_kpi_non_renewable_energy", label: "Non-ren. primary energy", unit: "GJ/yr", divisor: 1e3 },
 ];
 
 const ENV_TABLE_ROWS = [
   { key: "gwp100a", i18n: "yearly_analysis.env_kpi_co2_equiv", label: "CO₂ equivalent", unit: "t/yr", divisor: 1e6, decimals: 1, perKmUnit: "g/km" },
   { key: "nox", i18n: "simulation.env_kpi_nox", label: "NOx", unit: "kg/yr", divisor: 1e6, decimals: 1, perKmUnit: "mg/km" },
   { key: "pm10", i18n: "simulation.env_kpi_pm10", label: "PM₁₀", unit: "kg/yr", divisor: 1e6, decimals: 2, perKmUnit: "mg/km" },
-  { key: "primaryEnergyNonRenewable", i18n: "yearly_analysis.env_kpi_non_renewable_energy", label: "Non-renewable primary energy", unit: "GJ/yr", divisor: 1e3, decimals: 0, perKmUnit: "MJ/km" },
-  { key: "primaryEnergy", i18n: "simulation.env_table_pe_total", label: "Total primary energy", unit: "GJ/yr", divisor: 1e3, decimals: 0, perKmUnit: "MJ/km" },
 ];
 
 /* ── Emissions: D3 chart renderers ────────────────────────────── */
@@ -2242,13 +2243,13 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
   }
   if (!data.length) return;
 
-  const labelWidth = 120;
-  const subBarHeight = 14;
+  const labelWidth = 108;
+  const subBarHeight = 16;
   const subBarGap = 3;
   const groupHeight = hasDiesel ? subBarHeight * 2 + subBarGap : subBarHeight;
-  const groupGap = 24;
-  const margin = { top: 12, right: 140, bottom: 28, left: labelWidth };
-  const W = 560;
+  const groupGap = 22;
+  const margin = { top: 12, right: 112, bottom: 28, left: labelWidth };
+  const W = 620;
   const chartHeight = margin.top + margin.bottom + data.length * groupHeight + (data.length - 1) * groupGap;
   const allValues = data.flatMap((d) => hasDiesel ? [d.electric, d.diesel] : [d.electric]);
   const maxVal = d3.max(allValues) * 1.15 || 1;
@@ -2277,23 +2278,23 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
       svg.append("rect")
         .attr("x", margin.left).attr("y", yBase)
         .attr("width", Math.max(0, x(item.diesel))).attr("height", subBarHeight)
-        .attr("rx", 3).attr("fill", DIESEL_BAR_COLOR).attr("opacity", 0.6)
-        .append("title").text(`${t("simulation.label_diesel")}: ${formatFixed(item.diesel, 2)} ${item.unitLabel}`);
+        .attr("rx", 3).attr("fill", DIESEL_BAR_COLOR).attr("opacity", 0.78)
+        .append("title").text(`${t("simulation.label_diesel")}: ${formatFixed(item.diesel, 1)} ${item.unitLabel}`);
       svg.append("text")
         .attr("x", margin.left + Math.max(0, x(item.diesel)) + 4).attr("y", yBase + subBarHeight / 2)
         .attr("dy", "0.35em").attr("font-size", "9px").attr("fill", "#888")
-        .text(formatFixed(item.diesel, 2));
+        .text(formatFixed(item.diesel, 1));
     }
     const electricY2 = hasDiesel ? yBase + subBarHeight + subBarGap : yBase;
     svg.append("rect")
       .attr("x", margin.left).attr("y", electricY2)
       .attr("width", Math.max(0, x(item.electric))).attr("height", subBarHeight)
-      .attr("rx", 3).attr("fill", ELECTRIC_BAR_COLOR).attr("opacity", 0.85)
-      .append("title").text(`${totalLabel}: ${formatFixed(item.electric, 2)} ${item.unitLabel}`);
+      .attr("rx", 3).attr("fill", ELECTRIC_BAR_COLOR).attr("opacity", 0.9)
+      .append("title").text(`${totalLabel}: ${formatFixed(item.electric, 1)} ${item.unitLabel}`);
     svg.append("text")
       .attr("x", margin.left + Math.max(0, x(item.electric)) + 4).attr("y", electricY2 + subBarHeight / 2)
       .attr("dy", "0.35em").attr("font-size", "9px").attr("fill", "#333")
-      .text(formatFixed(item.electric, 2));
+      .text(formatFixed(item.electric, 1));
 
     if (hasDiesel) {
       const savedPositive = item.saved > 0;
@@ -2306,21 +2307,21 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
       svg.append("text")
         .attr("x", W - margin.right + 10).attr("y", yBase + groupHeight / 2 + 8)
         .attr("dy", "0.35em").attr("font-size", "9px").attr("fill", "#888")
-        .text(`${savedPositive ? "−" : "+"}${formatFixed(Math.abs(item.saved), 2)} ${item.unitLabel}`);
+        .text(`${savedPositive ? "−" : "+"}${formatFixed(Math.abs(item.saved), 1)} ${item.unitLabel}`);
     }
   });
 
   svg.append("g")
     .attr("transform", `translate(${margin.left},${chartHeight - margin.bottom})`)
-    .call(d3.axisBottom(x).ticks(4).tickFormat((d) => formatFixed(d, 0)))
+    .call(d3.axisBottom(x).ticks(4).tickFormat((d) => formatFixed(d, 1)))
     .selectAll("text").attr("font-size", "9px");
 
   el.appendChild(svg.node());
 
   if (legendEl) {
     let html = "";
-    if (hasDiesel) html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${DIESEL_BAR_COLOR};opacity:0.6"></span>${textContent(t("simulation.emissions_toggle_diesel"))}</div>`;
-    html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${ELECTRIC_BAR_COLOR};opacity:0.85"></span>${textContent(totalLabel)}</div>`;
+    if (hasDiesel) html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${DIESEL_BAR_COLOR};opacity:0.78"></span>${textContent(t("simulation.emissions_toggle_diesel"))}</div>`;
+    html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${ELECTRIC_BAR_COLOR};opacity:0.9"></span>${textContent(totalLabel)}</div>`;
     legendEl.innerHTML = html;
   }
 };
@@ -2332,6 +2333,30 @@ const adaptiveDecimals = (v) => {
   if (abs >= 1) return 1;
   if (abs >= 0.01) return 2;
   return 3;
+};
+
+const setYaCo2PhaseTitle = (chartEl, showLifecycleInfo = false) => {
+  const titleEl = chartEl?.closest(".ya-env-chart-section")?.querySelector(".ya-res-section-title");
+  if (!titleEl) return;
+  const baseTitle = textContent(t("simulation.emissions_co2_phase_title"));
+  if (!showLifecycleInfo) {
+    titleEl.textContent = baseTitle;
+    return;
+  }
+  const tooltipText = textContent(t("yearly_analysis.lifecycle_phases_exclude_dh"));
+  titleEl.innerHTML = `${baseTitle}<span class="ya-info-icon" tabindex="0" aria-label="${tooltipText}">i<span class="ya-info-tooltip">${linkifyMobitoolHtml(tooltipText)}</span></span>`;
+};
+
+const getYaCo2BreakdownLabelFontSize = (labels = []) => {
+  const longestLength = labels.reduce(
+    (maxLength, label) => Math.max(maxLength, text(label).trim().length),
+    0
+  );
+  const length = longestLength;
+  if (length > 24) return 8.5;
+  if (length > 18) return 9;
+  if (length > 12) return 10;
+  return 11;
 };
 
 const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
@@ -2400,21 +2425,33 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
 
   const maxTotal = Math.max(...bars.map((b) => b.total)) * 1.15 || 1;
   const totalDecimals = adaptiveDecimals(maxTotal);
-  const barHeight = 36, barGap = 16, labelWidth = 140;
-  const margin = { top: 12, right: 80, bottom: 28, left: labelWidth };
-  const W = 580;
-  const chartHeight = margin.top + margin.bottom + bars.length * barHeight + (bars.length - 1) * barGap;
+  const barHeight = 42;
+  const barGap = 14;
+  const labelWidth = emState.isDieselHeating ? 124 : 108;
+  const margin = { top: 12, right: 68, bottom: 28, left: labelWidth };
+  const W = 600;
+  const contentHeight = bars.length * barHeight + (bars.length - 1) * barGap;
+  const minChartHeight = 188;
+  const extraVerticalSpace = Math.max(0, minChartHeight - (margin.top + margin.bottom + contentHeight));
+  const layoutMargin = {
+    ...margin,
+    top: margin.top + extraVerticalSpace / 2,
+    bottom: margin.bottom + extraVerticalSpace / 2,
+  };
+  const chartHeight = layoutMargin.top + layoutMargin.bottom + contentHeight;
 
   const svg = svgBase(W, chartHeight, t("simulation.chart_aria_co2_phase"));
-  const iW = W - margin.left - margin.right;
+  const iW = W - layoutMargin.left - layoutMargin.right;
   const x = d3.scaleLinear().domain([0, maxTotal]).nice().range([0, iW]);
+  const labelFontSize = `${getYaCo2BreakdownLabelFontSize(bars.map((bar) => bar.label))}px`;
 
   bars.forEach((bar, i) => {
-    const y = margin.top + i * (barHeight + barGap);
+    const y = layoutMargin.top + i * (barHeight + barGap);
     svg.append("text")
-      .attr("x", margin.left - 8).attr("y", y + barHeight / 2)
+      .attr("x", layoutMargin.left - 8).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#333")
+      .attr("font-size", labelFontSize)
+      .attr("font-weight", "600").attr("fill", "#333")
       .text(bar.label);
     let xOff = 0;
     const dec = adaptiveDecimals(bar.total);
@@ -2423,7 +2460,7 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
       if (w > 0.5) {
         const pct = bar.total > 0 ? Math.round((phase.value / bar.total) * 100) : 0;
         svg.append("rect")
-          .attr("x", margin.left + xOff).attr("y", y)
+          .attr("x", layoutMargin.left + xOff).attr("y", y)
           .attr("width", w).attr("height", barHeight)
           .attr("fill", phase.color).attr("rx", xOff === 0 ? 3 : 0)
           .style("cursor", "pointer")
@@ -2437,7 +2474,7 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
       if (w > 0.5) {
         const pct = bar.total > 0 ? Math.round((bar.dhValue / bar.total) * 100) : 0;
         svg.append("rect")
-          .attr("x", margin.left + xOff).attr("y", y)
+          .attr("x", layoutMargin.left + xOff).attr("y", y)
           .attr("width", w).attr("height", barHeight)
           .attr("fill", DH_BAR_COLOR).attr("rx", 0)
           .attr("stroke", "#fff").attr("stroke-width", 1)
@@ -2448,33 +2485,17 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
       }
     }
     svg.append("text")
-      .attr("x", margin.left + xOff + 6).attr("y", y + barHeight / 2)
+      .attr("x", layoutMargin.left + xOff + 6).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("font-size", "10px").attr("fill", "#666")
       .text(`${formatFixed(bar.total, dec)} ${unitLabel}`);
   });
 
   svg.append("g")
-    .attr("transform", `translate(${margin.left},${chartHeight - margin.bottom})`)
+    .attr("transform", `translate(${layoutMargin.left},${chartHeight - layoutMargin.bottom})`)
     .call(d3.axisBottom(x).ticks(5).tickFormat((d) => formatFixed(d, totalDecimals)))
     .selectAll("text").attr("font-size", "9px");
 
   el.appendChild(svg.node());
-
-  if (hasDhSegment) {
-    const note = document.createElement("p");
-    note.className = "ya-env-methodology-note";
-    note.style.cssText = "font-size:0.82em;color:#555;margin:6px 0 0";
-    note.textContent = textContent(t("yearly_analysis.lifecycle_phases_exclude_dh"));
-    el.appendChild(note);
-  }
-
-  if (lcb?.diesel_comparator?.name) {
-    const refNote = document.createElement("p");
-    refNote.style.cssText = "font-size:0.78em;color:#888;margin:4px 0 0";
-    const sizeTxt = lcb.diesel_comparator.lca_size ? ` (${lcb.diesel_comparator.size} → ${lcb.diesel_comparator.lca_size})` : "";
-    refNote.textContent = `${t("yearly_analysis.diesel_comparator_ref")}: ${lcb.diesel_comparator.name}${sizeTxt}`;
-    el.appendChild(refNote);
-  }
 
   if (legendEl) {
     let html = LCA_PHASES.map((p) => `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${p.color}"></span>${textContent(t(p.i18n))}</div>`).join("");
@@ -2611,12 +2632,11 @@ const renderEmissionsPanel = (sec, emState) => {
   const histLegEl = panel.querySelector('[data-role="ya-env-histogram-legend"]');
   const co2El = panel.querySelector('[data-role="ya-env-co2-phase"]');
   const co2LegEl = panel.querySelector('[data-role="ya-env-co2-phase-legend"]');
-  const peEl = panel.querySelector('[data-role="ya-env-primary-energy"]');
-  const peLegEl = panel.querySelector('[data-role="ya-env-primary-energy-legend"]');
   const methEl = panel.querySelector('[data-role="ya-env-methodology"]');
+  setYaCo2PhaseTitle(co2El, emState?.status === "done" && !!emState?.isDieselHeating);
 
   const clearAll = () => {
-    [kpisEl, tableEl, histEl, histLegEl, co2El, co2LegEl, peEl, peLegEl, methEl]
+    [kpisEl, tableEl, histEl, histLegEl, co2El, co2LegEl, methEl]
       .forEach((e) => { if (e) e.innerHTML = ""; });
   };
 
@@ -2648,20 +2668,20 @@ const renderEmissionsPanel = (sec, emState) => {
     emState.yearlyDistanceKm ?? emState.yearlyImpact?.yearly_distance_km
   );
 
-  /* Header + mission bar + KPI cards */
-  const compLabel = isDH ? t("yearly_analysis.ebus_diesel_heating_vs_diesel") : t("yearly_analysis.electric_vs_diesel");
-  const missionItems = [
-    yearlyDistKm ? `<div class="ya-env-mission-item"><span class="ya-env-mission-item__label">${textContent(t("yearly_analysis.annual_distance_label"))}</span><span class="ya-env-mission-item__value">${formatInt(yearlyDistKm)} km</span></div>` : "",
-    hasDiesel ? `<div class="ya-env-mission-item"><span class="ya-env-mission-item__label">${textContent(t("yearly_analysis.comparison_label"))}</span><span class="ya-env-mission-item__value">${textContent(compLabel)}</span></div>` : "",
-  ].filter(Boolean).join("");
-  const statusCue = isDH
-    ? `<div class="ya-env-methodology-note" style="margin:12px 0 0">
-        <p><strong>${textContent(t("yearly_analysis.robust_comparison"))}</strong> ${textContent(t("yearly_analysis.robust_comparison_text"))}
-        <strong>${textContent(t("yearly_analysis.indicative_split"))}</strong> ${textContent(t("yearly_analysis.indicative_split_text"))}</p>
-      </div>`
+  /* Header + KPI cards */
+  const headerSubject = textContent(
+    isDH
+      ? (t("yearly_analysis.ebus_with_diesel_heating_against_diesel") || "e-bus with diesel heating against diesel")
+      : (t("yearly_analysis.ebus_against_diesel") || "e-bus against diesel")
+  );
+  const headerDistance = yearlyDistKm != null
+    ? ` (${textContent(t("yearly_analysis.annual_distance_label_compact") || "annual distance:")} ${formatInt(yearlyDistKm)} km)`
     : "";
+  const headerTitle = `${textContent(t("simulation.env_page_title"))}: ${headerSubject}${headerDistance}`;
 
-  const KPI_KEYS = ["gwp100a", "nox", "pm10", "primaryEnergyNonRenewable"];
+  const KPI_KEYS = ["gwp100a", "nox", "pm10"];
+  const ebusKpiLabel = t("yearly_analysis.ebus") || ebusLabel;
+  const dieselKpiLabel = t("simulation.label_diesel");
   let kpiCards;
   if (structured?.indicators?.length) {
     kpiCards = KPI_KEYS
@@ -2676,13 +2696,14 @@ const renderEmissionsPanel = (sec, emState) => {
         const dispUnit = ind.display_unit || ind.unit || "";
         const dec = INDICATOR_DISPLAY_DECIMALS[ind.key] ?? 1;
         return `<div class="ya-env-kpi-card ya-env-kpi-card--${tone}">
-          <p class="ya-env-kpi-card__title">${textContent(ind.label || ind.key)} <span style="text-transform:none">(${dispUnit})</span></p>
-          <div class="ya-env-kpi-card__values">
-            <span class="ya-env-kpi-card__val-label">${ebusLabel}</span>
-            <span class="ya-env-kpi-card__val-num">${formatFixed(eVal, dec)}</span>
-            ${dVal != null ? `<span class="ya-env-kpi-card__val-label">${textContent(t("simulation.label_diesel"))}</span><span class="ya-env-kpi-card__val-num">${formatFixed(dVal, dec)}</span>` : ""}
+          <div class="ya-env-kpi-card__line">
+            <span class="ya-env-kpi-card__title">${textContent(ind.label || ind.key)} (${textContent(dispUnit)}):</span>
+            <span class="ya-env-kpi-card__values">
+              <span class="ya-env-kpi-card__metric"><span class="ya-env-kpi-card__val-label">${textContent(ebusKpiLabel)}</span><span class="ya-env-kpi-card__val-num">${formatFixed(eVal, dec)}</span></span>
+              ${dVal != null ? `<span class="ya-env-kpi-card__metric"><span class="ya-env-kpi-card__val-label">${textContent(dieselKpiLabel)}</span><span class="ya-env-kpi-card__val-num">${formatFixed(dVal, dec)}</span></span>` : ""}
+              ${dir ? `<span class="ya-env-kpi-card__delta ya-env-kpi-card__delta--${tone}">${dir.arrow} ${formatFixed(dir.percent, 0)}%</span>` : ""}
+            </span>
           </div>
-          ${dir ? `<div class="ya-env-kpi-card__delta"><span class="ya-env-kpi-card__badge ya-env-kpi-card__badge--${tone}">${dir.arrow} ${formatFixed(dir.percent, 0)}%</span></div>` : ""}
         </div>`;
       }).join("");
   } else {
@@ -2697,13 +2718,14 @@ const renderEmissionsPanel = (sec, emState) => {
         const pctChange = dRaw != null && dRaw !== 0 ? ((dRaw - eRaw) / Math.abs(dRaw)) * 100 : null;
         const tone = pctChange != null && pctChange > 0 ? "positive" : pctChange != null && pctChange < 0 ? "negative" : "neutral";
         return `<div class="ya-env-kpi-card ya-env-kpi-card--${tone}">
-          <p class="ya-env-kpi-card__title">${textContent(t(def.i18n))} <span style="text-transform:none">(${def.unit})</span></p>
-          <div class="ya-env-kpi-card__values">
-            <span class="ya-env-kpi-card__val-label">${ebusLabel}</span>
-            <span class="ya-env-kpi-card__val-num">${formatFixed(eVal, 1)}</span>
-            ${dVal != null ? `<span class="ya-env-kpi-card__val-label">${textContent(t("simulation.label_diesel"))}</span><span class="ya-env-kpi-card__val-num">${formatFixed(dVal, 1)}</span>` : ""}
+          <div class="ya-env-kpi-card__line">
+            <span class="ya-env-kpi-card__title">${textContent(t(def.i18n))} (${textContent(def.unit)}):</span>
+            <span class="ya-env-kpi-card__values">
+              <span class="ya-env-kpi-card__metric"><span class="ya-env-kpi-card__val-label">${textContent(ebusKpiLabel)}</span><span class="ya-env-kpi-card__val-num">${formatFixed(eVal, 1)}</span></span>
+              ${dVal != null ? `<span class="ya-env-kpi-card__metric"><span class="ya-env-kpi-card__val-label">${textContent(dieselKpiLabel)}</span><span class="ya-env-kpi-card__val-num">${formatFixed(dVal, 1)}</span></span>` : ""}
+              ${pctChange != null ? `<span class="ya-env-kpi-card__delta ya-env-kpi-card__delta--${tone}">${pctChange > 0 ? "↓" : "↑"} ${formatFixed(Math.abs(pctChange), 0)}%</span>` : ""}
+            </span>
           </div>
-          ${pctChange != null ? `<div class="ya-env-kpi-card__delta"><span class="ya-env-kpi-card__badge ya-env-kpi-card__badge--${tone}">${pctChange > 0 ? "↓" : "↑"} ${formatFixed(Math.abs(pctChange), 0)}%</span></div>` : ""}
         </div>`;
       }).join("");
   }
@@ -2711,23 +2733,23 @@ const renderEmissionsPanel = (sec, emState) => {
   if (kpisEl) {
     kpisEl.innerHTML = `
       <div class="ya-env-header">
-        <h2>${textContent(t("simulation.env_page_title"))}</h2>
-        <p>${t("yearly_analysis.env_page_subtitle")}</p>
+        <h2>${headerTitle}</h2>
+        <p>${linkifyMobitoolHtml(textContent(t("yearly_analysis.env_page_subtitle")))}</p>
       </div>
-      ${missionItems ? `<div class="ya-env-mission-bar">${missionItems}</div>` : ""}
-      ${statusCue}
       <div class="ya-env-kpi-row">${kpiCards}</div>`;
   }
 
   /* Comparison tables */
-  const TABLE_KEYS = ["gwp100a", "nox", "pm10", "primaryEnergyNonRenewable", "primaryEnergy"];
+  const TABLE_KEYS = ["gwp100a", "nox", "pm10"];
+  const yearlyTableTitle = textContent(t("yearly_analysis.yearly_indicator_comparison"));
+  const perKmTableTitle = textContent(t("yearly_analysis.normalized_indicators_per_km"));
   let yearlyTableRows, yearlyTableHeaders, perKmTableRows, perKmTableHeaders;
 
   if (structured?.indicators?.length) {
     const tableInds = TABLE_KEYS.map((k) => indicatorByKey(structured.indicators, k)).filter(Boolean);
     yearlyTableHeaders = hasDiesel
-      ? `<th>${textContent(t("simulation.emissions_table_indicator"))}</th><th>${textContent(ebusLabel)}</th><th>${textContent(t("simulation.label_diesel"))}</th><th>${textContent(t("yearly_analysis.delta_vs_diesel"))}</th><th>${textContent(t("yearly_analysis.change_vs_diesel"))}</th>`
-      : `<th>${textContent(t("simulation.emissions_table_indicator"))}</th><th>${textContent(ebusLabel)}</th>`;
+      ? `<th class="ya-env-table__section-title">${yearlyTableTitle}</th><th>${textContent(ebusLabel)}</th><th>${textContent(t("simulation.label_diesel"))}</th><th>${textContent(t("yearly_analysis.delta_vs_diesel"))}</th><th>${textContent(t("yearly_analysis.change_vs_diesel"))}</th>`
+      : `<th class="ya-env-table__section-title">${yearlyTableTitle}</th><th>${textContent(ebusLabel)}</th>`;
     yearlyTableRows = tableInds.map((ind) => {
       const div = displayDivisor(ind.unit, ind.display_unit) || 1;
       const dec = INDICATOR_DISPLAY_DECIMALS[ind.key] ?? 1;
@@ -2747,8 +2769,8 @@ const renderEmissionsPanel = (sec, emState) => {
     }).join("");
 
     perKmTableHeaders = hasDiesel
-      ? `<th>${textContent(t("simulation.emissions_table_indicator"))}</th><th>${textContent(ebusLabel)}</th><th>${textContent(t("simulation.label_diesel"))}</th>`
-      : `<th>${textContent(t("simulation.emissions_table_indicator"))}</th><th>${textContent(ebusLabel)}</th>`;
+      ? `<th class="ya-env-table__section-title">${perKmTableTitle}</th><th>${textContent(ebusLabel)}</th><th>${textContent(t("simulation.label_diesel"))}</th>`
+      : `<th class="ya-env-table__section-title">${perKmTableTitle}</th><th>${textContent(ebusLabel)}</th>`;
     perKmTableRows = tableInds
       .filter((ind) => ind.normalized_ebus_per_km != null)
       .map((ind) => {
@@ -2776,8 +2798,8 @@ const renderEmissionsPanel = (sec, emState) => {
         return { row, yearlyElectric, yearlyDiesel, perKmElectric, perKmDiesel, diff, pct, changeCls };
       });
     yearlyTableHeaders = hasDiesel
-      ? `<th>${textContent(t("simulation.emissions_table_indicator"))}</th><th>${textContent(ebusLabel)}</th><th>${textContent(t("simulation.label_diesel"))}</th><th>${textContent(t("yearly_analysis.delta_vs_diesel"))}</th><th>${textContent(t("yearly_analysis.change_vs_diesel"))}</th>`
-      : `<th>${textContent(t("simulation.emissions_table_indicator"))}</th><th>${textContent(ebusLabel)}</th>`;
+      ? `<th class="ya-env-table__section-title">${yearlyTableTitle}</th><th>${textContent(ebusLabel)}</th><th>${textContent(t("simulation.label_diesel"))}</th><th>${textContent(t("yearly_analysis.delta_vs_diesel"))}</th><th>${textContent(t("yearly_analysis.change_vs_diesel"))}</th>`
+      : `<th class="ya-env-table__section-title">${yearlyTableTitle}</th><th>${textContent(ebusLabel)}</th>`;
     yearlyTableRows = comparisonRows.map(({ row, yearlyElectric, yearlyDiesel, diff, pct, changeCls }) => `
         <tr>
           <td>${textContent(t(row.i18n))} (${row.unit})</td>
@@ -2787,8 +2809,8 @@ const renderEmissionsPanel = (sec, emState) => {
           ${hasDiesel ? `<td class="${changeCls}">${pct != null ? `${pct > 0 ? "↓" : "↑"} ${formatFixed(Math.abs(pct), 0)}%` : "—"}</td>` : ""}
         </tr>`).join("");
     perKmTableHeaders = hasDiesel
-      ? `<th>${textContent(t("simulation.emissions_table_indicator"))}</th><th>${textContent(ebusLabel)}</th><th>${textContent(t("simulation.label_diesel"))}</th>`
-      : `<th>${textContent(t("simulation.emissions_table_indicator"))}</th><th>${textContent(ebusLabel)}</th>`;
+      ? `<th class="ya-env-table__section-title">${perKmTableTitle}</th><th>${textContent(ebusLabel)}</th><th>${textContent(t("simulation.label_diesel"))}</th>`
+      : `<th class="ya-env-table__section-title">${perKmTableTitle}</th><th>${textContent(ebusLabel)}</th>`;
     perKmTableRows = yearlyDistKm
       ? comparisonRows.map(({ row, perKmElectric, perKmDiesel }) => `
         <tr>
@@ -2807,7 +2829,9 @@ const renderEmissionsPanel = (sec, emState) => {
     const mcdKwhPer100km = toFiniteNumber(mcd.electric_kwh_per_100km);
     const mcdDhLiters = toFiniteNumber(mcd.yearly_diesel_heating_liters);
     const mcdIndicators = mcd.indicators ?? {};
-    const MCD_KEYS = ["gwp100a", "nox", "pm10", "primaryEnergyNonRenewable", "primaryEnergy"];
+    const MCD_KEYS = ["gwp100a", "nox", "pm10"];
+    const mcdTooltipText = `${textContent(t("yearly_analysis.mixed_case_description"))} ${textContent(t("yearly_analysis.electric_side"))}: ${mcdYearlyKwh ? `${formatInt(mcdYearlyKwh)} kWh/yr` : "—"} (${mcdKwhPer100km ? `${formatFixed(mcdKwhPer100km, 1)} kWh/100km` : "—"}) · ${textContent(t("yearly_analysis.diesel_heating_label"))} ${mcdDhLiters ? `${formatFixed(mcdDhLiters, 1)} l/yr` : "0 l/yr"}`;
+    const mcdInfoTip = `<span class="ya-info-icon" tabindex="0" aria-label="${textContent(mcdTooltipText)}">i<span class="ya-info-tooltip">${textContent(mcdTooltipText)}</span></span>`;
     const mcdRows = MCD_KEYS.map((key) => {
       const mi = mcdIndicators[key];
       if (!mi) return "";
@@ -2826,15 +2850,8 @@ const renderEmissionsPanel = (sec, emState) => {
       </tr>`;
     }).filter(Boolean).join("");
     dhBreakdownHtml = `<div class="ya-res-section" style="margin-top:16px">
-      <h3 class="ya-res-section-title">${textContent(t("yearly_analysis.mixed_case_decomposition"))}</h3>
-      <p style="font-size:0.85em;color:#555;margin-bottom:8px">
-        ${textContent(t("yearly_analysis.mixed_case_description"))}
-        ${mcdYearlyKwh ? `${formatInt(mcdYearlyKwh)} kWh/yr` : "—"}
-        (${mcdKwhPer100km ? `${formatFixed(mcdKwhPer100km, 1)} kWh/100km` : "—"}).
-        ${textContent(t("yearly_analysis.diesel_heating_label"))} ${mcdDhLiters ? `${formatFixed(mcdDhLiters, 1)} l/yr` : "0 l/yr"}.
-      </p>
       <div class="ya-env-table-wrap"><table class="ya-env-table">
-        <thead><tr><th>${textContent(t("simulation.emissions_table_indicator"))}</th><th>${textContent(t("yearly_analysis.electric_side"))}</th><th>${textContent(t("yearly_analysis.diesel_heating"))}</th><th>${textContent(t("yearly_analysis.ebus_total_diesel_heating"))}</th></tr></thead>
+        <thead><tr><th class="ya-env-table__section-title">${textContent(t("yearly_analysis.mixed_case_decomposition"))}${mcdInfoTip}</th><th>${textContent(t("yearly_analysis.electric_side"))}</th><th>${textContent(t("yearly_analysis.diesel_heating"))}</th><th>${textContent(t("yearly_analysis.ebus_total_diesel_heating"))}</th></tr></thead>
         <tbody>${mcdRows}</tbody>
       </table></div>
     </div>`;
@@ -2844,12 +2861,10 @@ const renderEmissionsPanel = (sec, emState) => {
     const hasPerKm = perKmTableRows && perKmTableRows.length > 0;
     const perKmTableHtml = hasPerKm
       ? `<div class="ya-res-section">
-      <h3 class="ya-res-section-title">${textContent(t("yearly_analysis.normalized_indicators_per_km"))}</h3>
       <div class="ya-env-table-wrap"><table class="ya-env-table"><thead><tr>${perKmTableHeaders}</tr></thead><tbody>${perKmTableRows}</tbody></table></div>
     </div>`
       : "";
     tableEl.innerHTML = `<div class="ya-res-section">
-      <h3 class="ya-res-section-title">${textContent(t("yearly_analysis.yearly_indicator_comparison"))}</h3>
       <div class="ya-env-table-wrap"><table class="ya-env-table"><thead><tr>${yearlyTableHeaders}</tr></thead><tbody>${yearlyTableRows}</tbody></table></div>
     </div>${dhBreakdownHtml}${perKmTableHtml}`;
   }
@@ -2857,15 +2872,14 @@ const renderEmissionsPanel = (sec, emState) => {
   /* Charts */
   try { renderYaEmissionsHistogram(histEl, histLegEl, emState); } catch (e) { console.error("[YA-Emissions] Histogram error:", e); }
   try { renderYaCo2PhaseBreakdown(co2El, co2LegEl, emState); } catch (e) { console.error("[YA-Emissions] CO₂ phase error:", e); }
-  try { renderYaPrimaryEnergy(peEl, peLegEl, emState); } catch (e) { console.error("[YA-Emissions] Primary energy error:", e); }
 
   /* Methodology note */
   if (methEl) {
     const lcaMethod = assumptions.lca_phase_method || "";
-    const baseNote = t("yearly_analysis.env_methodology_base_note");
-    const dhNote = isDH ? ` ${t("yearly_analysis.env_methodology_diesel_heating_note")}` : "";
-    const caveatNote = isDH ? ` ${t("yearly_analysis.env_methodology_diesel_heating_caveat")}` : "";
-    const methodNote = lcaMethod ? ` ${t("yearly_analysis.env_methodology_lca_method", { method: lcaMethod })}` : "";
+    const baseNote = linkifyMobitoolHtml(textContent(t("yearly_analysis.env_methodology_base_note")));
+    const dhNote = isDH ? ` ${textContent(t("yearly_analysis.env_methodology_diesel_heating_note"))}` : "";
+    const caveatNote = isDH ? ` ${textContent(t("yearly_analysis.env_methodology_diesel_heating_caveat"))}` : "";
+    const methodNote = lcaMethod ? ` ${textContent(t("yearly_analysis.env_methodology_lca_method", { method: lcaMethod }))}` : "";
     methEl.innerHTML = `<div class="ya-env-methodology-note">
       <p>${baseNote}${dhNote}${caveatNote}${methodNote}</p>
     </div>`;
@@ -3282,7 +3296,6 @@ const renderOverviewPanel = (el, features, effState, costState, emissionsState, 
         { key: "gwp100a", i18n: "simulation.env_kpi_co2", label: "CO₂", unit: "t/yr", divisor: 1e6 },
         { key: "nox", i18n: "simulation.env_kpi_nox", label: "NOx", unit: "kg/yr", divisor: 1e6 },
         { key: "pm10", i18n: "simulation.env_kpi_pm10", label: "PM₁₀", unit: "kg/yr", divisor: 1e6 },
-        { key: "primaryEnergyNonRenewable", i18n: "yearly_analysis.env_kpi_non_renewable_energy_short", label: "Non-ren. energy", unit: "MJ/yr", divisor: 1 },
       ];
 
       const body = emissionDefs
@@ -3298,8 +3311,8 @@ const renderOverviewPanel = (el, features, effState, costState, emissionsState, 
               : "ya-overview-highlight--neutral";
 
           const valueStr = pctStr
-            ? `${formatFixed(eVal, 0)} <span class="ya-overview-highlight ${toneCls}">${textContent(pctStr)}</span>`
-            : `${formatFixed(eVal, 0)}`;
+            ? `${formatFixed(eVal, 1)} <span class="ya-overview-highlight ${toneCls}">${textContent(pctStr)}</span>`
+            : `${formatFixed(eVal, 1)}`;
 
           return overviewRowHtml(`${t(def.i18n)} (${def.unit})`, valueStr, true);
         })
