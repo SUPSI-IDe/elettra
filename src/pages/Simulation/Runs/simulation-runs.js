@@ -49,22 +49,6 @@ const ALLOWED_USABLE_SOC_PERCENTS = new Set([
 /** @deprecated Runs are now persisted server-side; kept for backward compat with callers. */
 export const saveRunIds = () => {};
 
-const DISMISSED_KEY = "elettra_dismissed_runs";
-
-const getDismissedIds = () => {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]"));
-  } catch {
-    return new Set();
-  }
-};
-
-const addDismissedIds = (ids = []) => {
-  const current = getDismissedIds();
-  ids.forEach((id) => current.add(id));
-  localStorage.setItem(DISMISSED_KEY, JSON.stringify([...current]));
-};
-
 const setFlashMessage = (section, message) => {
   const flashElement = section.querySelector('[data-role="flash"]');
   if (!flashElement) return;
@@ -1032,8 +1016,7 @@ export const initializeSimulationRuns = async (
         };
       }
 
-      const dismissed = getDismissedIds();
-      allRuns = visibleItems.filter((r) => !dismissed.has(text(r?.id)));
+      allRuns = visibleItems;
 
       hydrateRunModelNamesFromId(allRuns);
 
@@ -1189,18 +1172,25 @@ export const initializeSimulationRuns = async (
       }
     }
 
-    if (notSupported.length) {
-      addDismissedIds(notSupported);
+    if (deletedIds.size) {
+      allRuns = allRuns.filter((r) => !deletedIds.has(text(r?.id)));
+      applyFilter();
+      populateCompareSelects();
+    } else if (notSupported.length || serverFailed) {
+      setFlashMessage(
+        section,
+        t("simulation.delete_not_supported") ||
+          "These simulations could not be deleted. They remain visible."
+      );
+      await loadRunsAndPopulate();
+      return;
     }
 
-    allRuns = allRuns.filter((r) => !ids.includes(text(r?.id)));
-    applyFilter();
-    populateCompareSelects();
-
+    const removedCount = deletedIds.size;
     setFlashMessage(
       section,
-      t("simulation.removed", { count: ids.length }) ||
-        `${ids.length} simulation(s) removed.`
+      t("simulation.removed", { count: removedCount }) ||
+        `${removedCount} simulation(s) removed.`
     );
   };
   if (deleteButton) {
