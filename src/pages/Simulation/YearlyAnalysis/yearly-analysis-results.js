@@ -192,6 +192,24 @@ const buildYearlyDistanceSliderRange = (distanceKm) => {
   return { min, max, step: 1, format: formatInt };
 };
 
+const formatKmPerYear = (distanceKm) =>
+  distanceKm != null ? `${formatInt(distanceKm)} km/year` : "—";
+
+const syncYaRangeInput = (input, valueEl, value, fmt) => {
+  if (!input) return;
+  const numericValue = toFiniteNumber(value);
+  if (numericValue == null) {
+    input.disabled = true;
+    setRangeProgress(input, null);
+    if (valueEl) valueEl.textContent = "—";
+    return;
+  }
+  input.disabled = false;
+  input.value = numericValue;
+  setRangeProgress(input, numericValue);
+  if (valueEl) valueEl.textContent = fmt(numericValue);
+};
+
 const svgBase = (w, h, ariaLabel) =>
   d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("role", "img").attr("aria-label", ariaLabel);
 
@@ -2156,6 +2174,233 @@ const INDICATOR_DISPLAY_DECIMALS = {
   primaryEnergy: 0,
 };
 
+const scaleEmissionIndicatorYearly = (indicator, scale) => {
+  if (!indicator || typeof indicator !== "object") return indicator;
+  const scaled = { ...indicator };
+  for (const phase of [...LCA_PHASES, { key: "total" }]) {
+    const value = toFiniteNumber(indicator[phase.key]);
+    if (value != null) scaled[phase.key] = value * scale;
+  }
+  return scaled;
+};
+
+const scaleEmissionIndicatorMap = (indicators, scale) => {
+  if (!indicators || typeof indicators !== "object") return indicators;
+  return Object.entries(indicators).reduce((acc, [key, indicator]) => {
+    acc[key] = scaleEmissionIndicatorYearly(indicator, scale);
+    return acc;
+  }, {});
+};
+
+const scaleStructuredIndicatorEntry = (indicator, scale) => {
+  if (!indicator || typeof indicator !== "object") return indicator;
+  const scaled = { ...indicator };
+  [
+    "ebus_total",
+    "diesel_comparator",
+    "delta_vs_diesel",
+    "ebus_display",
+    "diesel_display",
+    "saved_display",
+    "saved",
+    "electric_side",
+    "diesel_heating",
+    "total",
+  ].forEach((key) => {
+    const value = toFiniteNumber(indicator[key]);
+    if (value != null) scaled[key] = value * scale;
+  });
+  return scaled;
+};
+
+const scaleLifecyclePhases = (phases, scale) => {
+  if (!phases || typeof phases !== "object") return phases;
+  const scaled = { ...phases };
+  for (const phase of LCA_PHASES) {
+    const value = toFiniteNumber(phases[phase.key]);
+    if (value != null) scaled[phase.key] = value * scale;
+  }
+  return scaled;
+};
+
+const scaleStructuredLifecycleBreakdown = (breakdown, scale) => {
+  if (!breakdown || typeof breakdown !== "object") return breakdown;
+  const scaled = { ...breakdown };
+  if (breakdown.ebus) {
+    scaled.ebus = { ...breakdown.ebus };
+    if (breakdown.ebus.phases) {
+      scaled.ebus.phases = scaleLifecyclePhases(breakdown.ebus.phases, scale);
+    }
+    const ebusDh = toFiniteNumber(breakdown.ebus.diesel_heating);
+    if (ebusDh != null) scaled.ebus.diesel_heating = ebusDh * scale;
+    const ebusTotal = toFiniteNumber(breakdown.ebus.total);
+    if (ebusTotal != null) scaled.ebus.total = ebusTotal * scale;
+  }
+  if (breakdown.diesel_comparator) {
+    scaled.diesel_comparator = { ...breakdown.diesel_comparator };
+    if (breakdown.diesel_comparator.phases) {
+      scaled.diesel_comparator.phases = scaleLifecyclePhases(breakdown.diesel_comparator.phases, scale);
+    }
+    const dieselTotal = toFiniteNumber(breakdown.diesel_comparator.total);
+    if (dieselTotal != null) scaled.diesel_comparator.total = dieselTotal * scale;
+  }
+  return scaled;
+};
+
+const scaleStructuredPrimaryEnergyBreakdown = (breakdown, scale) => {
+  if (!breakdown || typeof breakdown !== "object") return breakdown;
+  const scaleBucket = (bucket) => {
+    if (!bucket || typeof bucket !== "object") return bucket;
+    const scaled = { ...bucket };
+    ["renewable", "non_renewable", "total"].forEach((key) => {
+      const value = toFiniteNumber(bucket[key]);
+      if (value != null) scaled[key] = value * scale;
+    });
+    return scaled;
+  };
+  return {
+    ...breakdown,
+    ebus: scaleBucket(breakdown.ebus),
+    diesel_comparator: scaleBucket(breakdown.diesel_comparator),
+  };
+};
+
+const scaleStructuredMixedCaseDecomposition = (mixedCase, scale) => {
+  if (!mixedCase || typeof mixedCase !== "object") return mixedCase;
+  const scaled = { ...mixedCase };
+  const yearlyElectricKwh = toFiniteNumber(mixedCase.yearly_electric_kwh);
+  if (yearlyElectricKwh != null) scaled.yearly_electric_kwh = yearlyElectricKwh * scale;
+  const yearlyDhLiters = toFiniteNumber(mixedCase.yearly_diesel_heating_liters);
+  if (yearlyDhLiters != null) scaled.yearly_diesel_heating_liters = yearlyDhLiters * scale;
+  const yearlyDhFuelKwh = toFiniteNumber(mixedCase.yearly_diesel_heating_fuel_kwh);
+  if (yearlyDhFuelKwh != null) scaled.yearly_diesel_heating_fuel_kwh = yearlyDhFuelKwh * scale;
+  if (mixedCase.indicators && typeof mixedCase.indicators === "object") {
+    scaled.indicators = Object.entries(mixedCase.indicators).reduce((acc, [key, indicator]) => {
+      acc[key] = scaleStructuredIndicatorEntry(indicator, scale);
+      return acc;
+    }, {});
+  }
+  return scaled;
+};
+
+const scaleEmissionsAssumptions = (assumptions, scale, selectedDistanceKm) => {
+  if (!assumptions || typeof assumptions !== "object") return assumptions;
+  const scaled = { ...assumptions };
+  if (selectedDistanceKm != null) {
+    scaled.yearlyDistanceKm = selectedDistanceKm;
+    scaled.yearly_distance_km = selectedDistanceKm;
+  }
+
+  const yearlyElectricKwh = toFiniteNumber(
+    assumptions.yearlyElectricKwh ?? assumptions.yearly_electric_kwh
+  );
+  if (yearlyElectricKwh != null) {
+    const scaledValue = yearlyElectricKwh * scale;
+    scaled.yearlyElectricKwh = scaledValue;
+    scaled.yearly_electric_kwh = scaledValue;
+  }
+
+  const yearlyDhLiters = toFiniteNumber(
+    assumptions.yearlyDieselHeatingLiters ?? assumptions.yearly_diesel_heating_liters
+  );
+  if (yearlyDhLiters != null) {
+    const scaledValue = yearlyDhLiters * scale;
+    scaled.yearlyDieselHeatingLiters = scaledValue;
+    scaled.yearly_diesel_heating_liters = scaledValue;
+  }
+
+  const yearlyDhFuelKwh = toFiniteNumber(
+    assumptions.yearlyDieselHeatingFuelKwh ?? assumptions.yearly_diesel_heating_fuel_kwh
+  );
+  if (yearlyDhFuelKwh != null) {
+    const scaledValue = yearlyDhFuelKwh * scale;
+    scaled.yearlyDieselHeatingFuelKwh = scaledValue;
+    scaled.yearly_diesel_heating_fuel_kwh = scaledValue;
+  }
+
+  return scaled;
+};
+
+const scaleEmissionsMetadata = (metadata, scale, selectedDistanceKm) => {
+  if (!metadata || typeof metadata !== "object") return metadata;
+  const scaled = { ...metadata };
+  if (selectedDistanceKm != null) scaled.yearlyDistanceKm = selectedDistanceKm;
+  ["yearlyDhLiters", "yearlyDhFuelKwh", "yearlyElectricKwh"].forEach((key) => {
+    const value = toFiniteNumber(metadata[key]);
+    if (value != null) scaled[key] = value * scale;
+  });
+  return scaled;
+};
+
+const scaleStructuredEmissions = (structured, scale, selectedDistanceKm) => {
+  if (!structured || typeof structured !== "object") return structured;
+  const scaled = { ...structured };
+  if (Array.isArray(structured.indicators)) {
+    scaled.indicators = structured.indicators.map((indicator) =>
+      scaleStructuredIndicatorEntry(indicator, scale)
+    );
+  }
+  if (structured.savings?.items) {
+    scaled.savings = {
+      ...structured.savings,
+      items: structured.savings.items.map((item) =>
+        scaleStructuredIndicatorEntry(item, scale)
+      ),
+    };
+  }
+  if (structured.lifecycleBreakdown) {
+    scaled.lifecycleBreakdown = scaleStructuredLifecycleBreakdown(
+      structured.lifecycleBreakdown,
+      scale
+    );
+  }
+  if (structured.primaryEnergyBreakdown) {
+    scaled.primaryEnergyBreakdown = scaleStructuredPrimaryEnergyBreakdown(
+      structured.primaryEnergyBreakdown,
+      scale
+    );
+  }
+  if (structured.mixedCaseDecomposition) {
+    scaled.mixedCaseDecomposition = scaleStructuredMixedCaseDecomposition(
+      structured.mixedCaseDecomposition,
+      scale
+    );
+  }
+  if (structured.assumptions) {
+    scaled.assumptions = scaleEmissionsAssumptions(
+      structured.assumptions,
+      scale,
+      selectedDistanceKm
+    );
+  }
+  return scaled;
+};
+
+const deriveScaledEmissionsState = (emState, baseDistanceKm, selectedDistanceKm) => {
+  if (!emState || emState.status !== "done" || !emState.electricYearly) return emState;
+
+  const baseKm = toFiniteNumber(
+    baseDistanceKm ?? emState.yearlyDistanceKm ?? emState.yearlyImpact?.yearly_distance_km
+  );
+  const selectedKm = toFiniteNumber(selectedDistanceKm ?? baseKm);
+  if (baseKm == null || baseKm <= 0 || selectedKm == null || selectedKm <= 0) return emState;
+
+  const scale = selectedKm / baseKm;
+  return {
+    ...emState,
+    electricYearly: scaleEmissionIndicatorMap(emState.electricYearly, scale),
+    electricOnlyYearly: scaleEmissionIndicatorMap(emState.electricOnlyYearly, scale),
+    dieselHeatingYearly: scaleEmissionIndicatorMap(emState.dieselHeatingYearly, scale),
+    dieselYearly: scaleEmissionIndicatorMap(emState.dieselYearly, scale),
+    yearlyImpact: emState.yearlyImpact
+      ? { ...emState.yearlyImpact, yearly_distance_km: selectedKm }
+      : { yearly_distance_km: selectedKm },
+    yearlyDistanceKm: selectedKm,
+    emissionsMetadata: scaleEmissionsMetadata(emState.emissionsMetadata, scale, selectedKm),
+    structured: scaleStructuredEmissions(emState.structured, scale, selectedKm),
+  };
+};
+
 /* ── Emissions panel rendering ─────────────────────────────────── */
 
 const EMISSIONS_POLLUTANTS = [
@@ -2626,6 +2871,8 @@ const renderYaPrimaryEnergy = (el, legendEl, emState) => {
 const renderEmissionsPanel = (sec, emState) => {
   const panel = sec.closest('[data-panel="emissions"]') ?? sec;
 
+  const headerEl = panel.querySelector('[data-role="ya-env-header"]');
+  const controlsEl = panel.querySelector('[data-role="ya-env-controls"]');
   const kpisEl = panel.querySelector('[data-role="ya-env-kpis"]');
   const tableEl = panel.querySelector('[data-role="ya-env-table"]');
   const histEl = panel.querySelector('[data-role="ya-env-histogram"]');
@@ -2636,8 +2883,9 @@ const renderEmissionsPanel = (sec, emState) => {
   setYaCo2PhaseTitle(co2El, emState?.status === "done" && !!emState?.isDieselHeating);
 
   const clearAll = () => {
-    [kpisEl, tableEl, histEl, histLegEl, co2El, co2LegEl, methEl]
+    [headerEl, kpisEl, tableEl, histEl, histLegEl, co2El, co2LegEl, methEl]
       .forEach((e) => { if (e) e.innerHTML = ""; });
+    if (controlsEl) controlsEl.hidden = true;
   };
 
   if (emState.status === "loading") {
@@ -2675,7 +2923,7 @@ const renderEmissionsPanel = (sec, emState) => {
       : (t("yearly_analysis.ebus_against_diesel") || "e-bus against diesel")
   );
   const headerDistance = yearlyDistKm != null
-    ? ` (${textContent(t("yearly_analysis.annual_distance_label_compact") || "annual distance:")} ${formatInt(yearlyDistKm)} km)`
+    ? ` (${textContent(t("yearly_analysis.annual_distance_label_compact") || "annual distance:")} ${formatKmPerYear(yearlyDistKm)})`
     : "";
   const headerTitle = `${textContent(t("simulation.env_page_title"))}: ${headerSubject}${headerDistance}`;
 
@@ -2730,13 +2978,15 @@ const renderEmissionsPanel = (sec, emState) => {
       }).join("");
   }
 
-  if (kpisEl) {
-    kpisEl.innerHTML = `
+  if (headerEl) {
+    headerEl.innerHTML = `
       <div class="ya-env-header">
         <h2>${headerTitle}</h2>
         <p>${linkifyMobitoolHtml(textContent(t("yearly_analysis.env_page_subtitle")))}</p>
-      </div>
-      <div class="ya-env-kpi-row">${kpiCards}</div>`;
+      </div>`;
+  }
+  if (kpisEl) {
+    kpisEl.innerHTML = `<div class="ya-env-kpi-row">${kpiCards}</div>`;
   }
 
   /* Comparison tables */
@@ -3434,10 +3684,12 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     dieselEfficiency: null, dieselMaintCost: null, electricMaintCost: null,
     dieselCapex: null, yearlyDistanceKm: null,
   };
+  const emissionsOverrides = { yearlyDistanceKm: null };
   const emissionsState = {
     status: "idle", electricYearly: null, electricOnlyYearly: null,
     dieselHeatingYearly: null, dieselYearly: null, yearlyImpact: null,
-    isDieselHeating: false, emissionsMetadata: null, error: null,
+    yearlyDistanceKm: null, structured: null, isDieselHeating: false,
+    emissionsMetadata: null, error: null,
   };
   const renderedTabs = new Set();
 
@@ -3462,7 +3714,14 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   /* ── Download handler (captures live state) ──────────────── */
   const handleDownload = () => {
-    const payload = buildExportPayload(features, effState, costState, emissionsState, busModelData, analysisId);
+    const payload = buildExportPayload(
+      features,
+      effState,
+      costState,
+      getDisplayedEmissionsState(),
+      busModelData,
+      analysisId,
+    );
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     downloadJson(payload, `yearly-analysis-${timestamp}.json`);
   };
@@ -3569,7 +3828,15 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       refreshCostsPanelElements(section, costState.costsData);
     }
     if (renderedTabs.has("overview")) {
-      renderOverviewPanel(overviewPanel, features, effState, costState, emissionsState, busModelData, overviewOpts);
+      renderOverviewPanel(
+        overviewPanel,
+        features,
+        effState,
+        costState,
+        getDisplayedEmissionsState(),
+        busModelData,
+        overviewOpts,
+      );
     }
   };
 
@@ -3579,15 +3846,44 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     costRefreshTimer = setTimeout(refreshCosts, COST_VARIABLE_DEBOUNCE_MS);
   };
 
+  const getBaseEmissionsYearlyDistanceKm = () =>
+    toFiniteNumber(yearlyTotals.distanceKm) ??
+    toFiniteNumber(emissionsState.yearlyDistanceKm) ??
+    toFiniteNumber(emissionsState.yearlyImpact?.yearly_distance_km);
+
+  const getSelectedEmissionsYearlyDistanceKm = () =>
+    toFiniteNumber(emissionsOverrides.yearlyDistanceKm) ??
+    getBaseEmissionsYearlyDistanceKm();
+
+  const getDisplayedEmissionsState = () =>
+    deriveScaledEmissionsState(
+      emissionsState,
+      getBaseEmissionsYearlyDistanceKm(),
+      getSelectedEmissionsYearlyDistanceKm(),
+    );
+
   /* ── Tab renderers (lazy) ────────────────────────────────── */
   const TAB_RENDERERS = {
-    overview: () => renderOverviewPanel(overviewPanel, features, effState, costState, emissionsState, busModelData, overviewOpts),
+    overview: () => renderOverviewPanel(
+      overviewPanel,
+      features,
+      effState,
+      costState,
+      getDisplayedEmissionsState(),
+      busModelData,
+      overviewOpts,
+    ),
     efficiency: () => renderEfficiency(),
     costs: () => {
       if (costState.status === "error") return;
       refreshCostsPanelElements(section, costState.costsData);
     },
-    emissions: () => renderEmissionsPanel(emissionsContent, emissionsState),
+    emissions: () => renderEmissionsPanel(emissionsContent, getDisplayedEmissionsState()),
+  };
+
+  const refreshDerivedEmissionsViews = () => {
+    if (renderedTabs.has("emissions")) TAB_RENDERERS.emissions();
+    if (renderedTabs.has("overview")) TAB_RENDERERS.overview();
   };
 
   /* ── Tab click handler ───────────────────────────────────── */
@@ -3691,30 +3987,15 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
     applyYaSliderRange(yearlyDistanceInput, buildYearlyDistanceSliderRange(defaultYearlyDistance));
 
-    const syncSlider = (input, valueEl, value, fmt) => {
-      if (!input) return;
-      const numericValue = toFiniteNumber(value);
-      if (numericValue == null) {
-        input.disabled = true;
-        setRangeProgress(input, null);
-        if (valueEl) valueEl.textContent = "—";
-        return;
-      }
-      input.disabled = false;
-      input.value = numericValue;
-      setRangeProgress(input, numericValue);
-      if (valueEl) valueEl.textContent = fmt(numericValue);
-    };
-
     const syncAll = () => {
-      syncSlider(fuelInput, fuelValueEl, costOverrides.fuelCostPerL ?? defaultFuel, (v) => formatFixed(v, 2));
-      syncSlider(energyInput, energyValueEl, costOverrides.energyPricePerKwh ?? defaultEnergy, (v) => formatFixed(v, 2));
-      syncSlider(interestInput, interestValueEl, costOverrides.interestRate ?? defaultInterest, (v) => `${(v * 100).toFixed(1)}%`);
-      syncSlider(dieselEffInput, dieselEffValueEl, costOverrides.dieselEfficiency ?? defaultDieselEff, (v) => formatFixed(v, 3));
-      syncSlider(dieselMaintInput, dieselMaintValueEl, costOverrides.dieselMaintCost ?? defaultDieselMaint, (v) => formatFixed(v, 3));
-      syncSlider(elecMaintInput, elecMaintValueEl, costOverrides.electricMaintCost ?? defaultElecMaint, (v) => formatFixed(v, 3));
-      syncSlider(dieselCapexInput, dieselCapexValueEl, costOverrides.dieselCapex ?? defaultDieselCapex, (v) => `${Math.round(v / 1000)}k`);
-      syncSlider(yearlyDistanceInput, yearlyDistanceValueEl, costOverrides.yearlyDistanceKm ?? defaultYearlyDistance, (v) => formatInt(v));
+      syncYaRangeInput(fuelInput, fuelValueEl, costOverrides.fuelCostPerL ?? defaultFuel, (v) => formatFixed(v, 2));
+      syncYaRangeInput(energyInput, energyValueEl, costOverrides.energyPricePerKwh ?? defaultEnergy, (v) => formatFixed(v, 2));
+      syncYaRangeInput(interestInput, interestValueEl, costOverrides.interestRate ?? defaultInterest, (v) => `${(v * 100).toFixed(1)}%`);
+      syncYaRangeInput(dieselEffInput, dieselEffValueEl, costOverrides.dieselEfficiency ?? defaultDieselEff, (v) => formatFixed(v, 3));
+      syncYaRangeInput(dieselMaintInput, dieselMaintValueEl, costOverrides.dieselMaintCost ?? defaultDieselMaint, (v) => formatFixed(v, 3));
+      syncYaRangeInput(elecMaintInput, elecMaintValueEl, costOverrides.electricMaintCost ?? defaultElecMaint, (v) => formatFixed(v, 3));
+      syncYaRangeInput(dieselCapexInput, dieselCapexValueEl, costOverrides.dieselCapex ?? defaultDieselCapex, (v) => `${Math.round(v / 1000)}k`);
+      syncYaRangeInput(yearlyDistanceInput, yearlyDistanceValueEl, costOverrides.yearlyDistanceKm ?? defaultYearlyDistance, (v) => formatInt(v));
     };
 
     syncAll();
@@ -3763,9 +4044,62 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     onReset(yearlyDistanceReset, "yearlyDistanceKm", defaultYearlyDistance, syncAll);
   };
 
+  const wireEmissionsDistanceSlider = () => {
+    const q = (role) => section.querySelector(`[data-role="${role}"]`);
+    const controlsEl = q("ya-env-controls");
+    const yearlyDistanceInput = q("ya-env-yearly-distance");
+    const yearlyDistanceReset = q("ya-env-yearly-distance-reset");
+
+    const syncControl = () => {
+      const baseYearlyDistanceKm = getBaseEmissionsYearlyDistanceKm();
+      applyYaSliderRange(
+        yearlyDistanceInput,
+        buildYearlyDistanceSliderRange(baseYearlyDistanceKm),
+      );
+      syncYaRangeInput(
+        yearlyDistanceInput,
+        null,
+        getSelectedEmissionsYearlyDistanceKm(),
+        () => "",
+      );
+      if (yearlyDistanceInput) yearlyDistanceInput.disabled = emissionsState.status !== "done";
+      if (yearlyDistanceReset) yearlyDistanceReset.disabled = emissionsState.status !== "done";
+      if (controlsEl) {
+        controlsEl.hidden = emissionsState.status !== "done" || baseYearlyDistanceKm == null;
+      }
+    };
+
+    syncControl();
+
+    if (yearlyDistanceInput) {
+      const handler = () => {
+        const value = toFiniteNumber(yearlyDistanceInput.value);
+        if (value == null) return;
+        emissionsOverrides.yearlyDistanceKm = value;
+        setRangeProgress(yearlyDistanceInput, value);
+        refreshDerivedEmissionsViews();
+      };
+      yearlyDistanceInput.addEventListener("input", handler);
+      cleanups.push(() => yearlyDistanceInput.removeEventListener("input", handler));
+    }
+
+    if (yearlyDistanceReset) {
+      const handler = () => {
+        emissionsOverrides.yearlyDistanceKm = null;
+        syncControl();
+        refreshDerivedEmissionsViews();
+      };
+      yearlyDistanceReset.addEventListener("click", handler);
+      cleanups.push(() => yearlyDistanceReset.removeEventListener("click", handler));
+    }
+
+    return syncControl;
+  };
+
   const loadEmissions = async () => {
     emissionsState.status = "loading";
     emissionsState.error = null;
+    syncEmissionsDistanceControl();
     refreshActiveTab();
     try {
       const busLengthForEmissions = toFiniteNumber(busModelData?.bus_length_m);
@@ -3804,7 +4138,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       emissionsState.emissionsMetadata = null;
       emissionsState.structured = null;
     }
-    refreshActiveTab();
+    syncEmissionsDistanceControl();
+    refreshDerivedEmissionsViews();
   };
 
   const refreshActiveTab = () => {
@@ -3839,6 +4174,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   }
 
   wireSliders();
+  const syncEmissionsDistanceControl = wireEmissionsDistanceSlider();
   refreshActiveTab();
 
   /* Backfill quantiles from prediction runs (best-effort, async) */

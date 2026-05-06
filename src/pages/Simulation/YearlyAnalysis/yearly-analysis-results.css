@@ -859,13 +859,68 @@
 
 /* ── Emissions chart grid ────────────────────────────────────── */
 
+.ya-env-headline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 520px);
+  gap: var(--spacing-md);
+  align-items: start;
+  margin-bottom: var(--spacing-md);
+}
+
 .ya-env-panel .ya-env-header {
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 0;
 }
 .ya-env-panel .ya-env-header h2 { font-size: 1.15rem; font-weight: 700; margin: 0; }
 .ya-env-panel .ya-env-header p { font-size: 0.82rem; color: var(--text-secondary); margin: 0.3rem 0 0; }
 .ya-env-panel .ya-env-header a { color: var(--link, #1a73e8); text-decoration: none; }
 .ya-env-panel .ya-env-header a:hover { text-decoration: underline; }
+
+.ya-env-controls {
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+}
+
+.ya-env-controls .ya-cost-variables__grid {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: none;
+}
+
+.ya-env-controls .ya-cost-variables__field {
+  gap: 0.22rem;
+  font-size: 0.84rem;
+}
+
+.ya-env-controls .ya-cost-variables__field-top span {
+  font-weight: 600;
+}
+
+.ya-env-controls .ya-cost-variables__range {
+  height: 0.76rem;
+}
+
+.ya-env-controls .ya-cost-variables__range::-webkit-slider-thumb {
+  width: 1.02rem;
+  height: 1.02rem;
+}
+
+.ya-env-controls .ya-cost-variables__range::-moz-range-thumb {
+  width: 1.02rem;
+  height: 1.02rem;
+}
+
+.ya-env-controls .ya-cost-variables__range-scale {
+  font-size: 0.68rem;
+}
+
+.ya-env-controls .ya-cost-variables__actions {
+  justify-content: flex-start;
+}
+
+@media (max-width: 1080px) {
+  .ya-env-headline {
+    grid-template-columns: 1fr;
+  }
+}
 
 .ya-env-mission-bar {
   display: flex;
