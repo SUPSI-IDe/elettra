@@ -48,6 +48,17 @@ const modeLabel = (mode, fallback = "") => {
   return key ? t(key) : fallback || MODE_LABELS[mode] || mode || "—";
 };
 
+const translateOr = (key, fallback, params = {}) => {
+  const translated = t(key, params);
+  return translated === key ? fallback : translated;
+};
+
+const quantileHelpText = () =>
+  translateOr(
+    "yearly_analysis.quantile_help",
+    "Q50 is the median prediction. Q05 is a low-demand estimate and Q95 is a high-demand estimate. Q05-Q95 shows the central prediction spread across simulations; wider intervals indicate higher uncertainty."
+  );
+
 const heatingLabel = (value) => {
   const normalized = text(value).trim().toLowerCase();
   const key = {
@@ -3769,6 +3780,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       renderConfig(features),
       renderBatterySizing(features, analysis.optimization_run_id),
       renderYearlySummary(effState.summary),
+      `<p class="ya-sizing-note">${textContent(quantileHelpText())}</p>`,
     ].join("");
 
     try { renderEfficiencyByTempChart(effChart1El, effChart1Legend, effState.effByTemp); } catch (e) { console.error("[YA-Eff] Chart 1 error:", e); }

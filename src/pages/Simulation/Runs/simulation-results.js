@@ -7,6 +7,7 @@ import {
   fetchEconomicDefaults,
   fetchOptimizationRun,
   fetchPredictionRun,
+  fetchPredictionRunPredictions,
 } from "../../../api/simulation";
 import { fetchBusModelById } from "../../../api/bus-models";
 import {
@@ -14,6 +15,7 @@ import {
   fetchShiftInfo,
   fetchShiftYearlyDistance,
 } from "../../../api/shifts";
+import { fetchStopsByTripId } from "../../../api/gtfs";
 import {
   fetchShiftYearlyImpact,
   fetchLcaVehicles,
@@ -254,6 +256,61 @@ const resolveShiftWeekday = (shift = {}) => {
 const resolveShiftDisplayName = (shift = {}, fallback = "") =>
   firstText(shift?.name, shift?.shift_name, shift?.shiftName, fallback) || "—";
 
+const resolveStopName = (...candidates) =>
+  firstText(
+    ...candidates.flatMap((candidate) => [
+      candidate && typeof candidate !== "object" ? candidate : null,
+      candidate?.stop_name,
+      candidate?.stopName,
+      candidate?.name,
+      candidate?.label,
+    ])
+  ).trim();
+
+const buildTripStopLookup = (shift = {}) => {
+  const lookup = new Map();
+  const structure = Array.isArray(shift?.structure) ? shift.structure : [];
+
+  structure.forEach((item = {}) => {
+    const trip = item?.trip ?? item;
+    const startStop = resolveStopName(
+      trip?.start_stop_name,
+      trip?.startStopName,
+      trip?.start_stop,
+      trip?.startStop,
+      item?.start_stop_name,
+      item?.startStopName,
+      item?.start_stop,
+      item?.startStop
+    );
+    const endStop = resolveStopName(
+      trip?.end_stop_name,
+      trip?.endStopName,
+      trip?.end_stop,
+      trip?.endStop,
+      item?.end_stop_name,
+      item?.endStopName,
+      item?.end_stop,
+      item?.endStop
+    );
+
+    if (!startStop && !endStop) return;
+
+    [
+      item?.trip_id,
+      item?.tripId,
+      trip?.id,
+      trip?.trip_id,
+      trip?.tripId,
+    ]
+      .map((id) => firstText(id).trim())
+      .filter(Boolean)
+      .forEach((id) => lookup.set(id, { startStop, endStop }));
+  });
+
+  return lookup;
+};
+
 const resolveShiftPresentation = async (shiftId, fallbackName = "") => {
   if (!shiftId) {
     return { shiftName: fallbackName || "—", lineLabel: "—", weekdayLabel: "—" };
@@ -271,10 +328,19 @@ const resolveShiftPresentation = async (shiftId, fallbackName = "") => {
     }
   }
 
+  if (shift && !Array.isArray(shift?.structure)) {
+    try {
+      shift = { ...shift, ...(await fetchShiftById(shiftId)) };
+    } catch (detailError) {
+      console.warn("[elettra] Unable to load shift details for trip stops:", detailError);
+    }
+  }
+
   return {
     shiftName: resolveShiftDisplayName(shift, fallbackName),
     lineLabel: resolveShiftLineLabel(shift),
     weekdayLabel: resolveShiftWeekday(shift),
+    tripStopLookup: buildTripStopLookup(shift),
   };
 };
 
@@ -313,6 +379,7 @@ const resolveShiftTabs = async (
         shiftName: fallbackShiftName || fallbackShiftId,
         lineLabel: "—",
         weekdayLabel: "—",
+        tripStopLookup: new Map(),
       },
     ];
   }
@@ -331,6 +398,7 @@ const resolveShiftTabs = async (
     shiftName: presentations[index]?.shiftName || fallbackShiftName || id,
     lineLabel: presentations[index]?.lineLabel || "—",
     weekdayLabel: presentations[index]?.weekdayLabel || "—",
+    tripStopLookup: presentations[index]?.tripStopLookup ?? new Map(),
   }));
 };
 
@@ -381,6 +449,12 @@ const translateOr = (key, fallback, params = {}) => {
   const translated = t(key, params);
   return translated === key ? fallback : translated;
 };
+
+const quantileHelpText = () =>
+  translateOr(
+    "simulation.quantile_help",
+    "Q50 is the median prediction. Q05 is a low-demand estimate and Q95 is a high-demand estimate. Q05-Q95 shows the central prediction spread across simulations; wider intervals indicate higher uncertainty."
+  );
 
 const normalizeFuelCostPerL = (value) =>
   toFiniteNumber(value) != null && Number(value) > 0
@@ -794,6 +868,19 @@ const sumOpexItems = (items = []) =>
 const resolveOptimizedPackCount = (batteryResults = {}) => {
   const optimizedPacks = Object.values(batteryResults ?? {})
     .map((result) => toFiniteNumber(result?.optimized_packs))
+    .filter((value) => value != null);
+
+  if (!optimizedPacks.length) return null;
+  return d3.max(optimizedPacks);
+};
+
+const resolveOptimizedPackCountForView = (batteryResults = {}, viewOptions = {}) => {
+  const entries = Object.entries(batteryResults ?? {});
+  const scopedEntries = entries.filter(([shiftKey, result]) =>
+    matchesSelectedShift(result, shiftKey, viewOptions)
+  );
+  const optimizedPacks = (scopedEntries.length ? scopedEntries : entries)
+    .map(([, result]) => toFiniteNumber(result?.optimized_packs))
     .filter((value) => value != null);
 
   if (!optimizedPacks.length) return null;
@@ -3233,9 +3320,17 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
       kind: "absolute",
       quantileKey: "q50",
     });
+    const totalConsumptionQ95Kwh = readPredictionTotalQuantileValue(s, {
+      kind: "absolute",
+      quantileKey: "q95",
+    });
     const consumptionPerKmMedianKwh = readPredictionTotalQuantileValue(s, {
       kind: "per_km",
       quantileKey: "q50",
+    });
+    const consumptionPerKmQ95Kwh = readPredictionTotalQuantileValue(s, {
+      kind: "per_km",
+      quantileKey: "q95",
     });
     const matchedBus = filteredPerBus.find((entry) => {
       const entryPacks = toFiniteNumber(entry?.optimized_packs ?? entry?.num_battery_packs);
@@ -3249,8 +3344,10 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
       totalDistanceKm: toFiniteNumber(s.total_distance_km),
       totalConsumptionKwh: toFiniteNumber(s.total_consumption_kwh),
       totalConsumptionMedianKwh,
+      totalConsumptionQ95Kwh,
       consumptionPerKmKwh: toFiniteNumber(s.consumption_per_km_kwh),
       consumptionPerKmMedianKwh,
+      consumptionPerKmQ95Kwh,
       totalDrivetrainKwh: toFiniteNumber(s.total_drivetrain_kwh),
       totalAuxiliaryKwh: toFiniteNumber(s.total_auxiliary_kwh),
       minSocKwh:
@@ -3282,7 +3379,10 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
   }));
 };
 
-const buildUnifiedPredictionRows = (rows) =>
+const formatOptionalFixed = (val, dec = 1) =>
+  val === null || val === undefined ? "—" : formatFixed(val, dec);
+
+const buildUnifiedPredictionRows = (rows, { includePerBus = false } = {}) =>
   rows.map((row) => `
       <tr>
         <td class="efficiency-td-num">${textContent(String(row.numBatteryPacks ?? "—"))}</td>
@@ -3291,10 +3391,16 @@ const buildUnifiedPredictionRows = (rows) =>
         <td class="efficiency-td-num">${formatFixed(row.totalDistanceKm, 1)}</td>
         <td class="efficiency-td-num">${formatFixed(row.totalConsumptionKwh, 1)}</td>
         <td class="efficiency-td-num efficiency-td-highlight">${formatFixed(row.consumptionPerKmKwh, 3)}</td>
+        <td class="efficiency-td-num">${formatOptionalFixed(row.totalConsumptionMedianKwh, 1)}</td>
+        <td class="efficiency-td-num">${formatOptionalFixed(row.totalConsumptionQ95Kwh, 1)}</td>
+        <td class="efficiency-td-num">${formatOptionalFixed(row.consumptionPerKmMedianKwh, 3)}</td>
+        <td class="efficiency-td-num">${formatOptionalFixed(row.consumptionPerKmQ95Kwh, 3)}</td>
         <td class="efficiency-td-num">${formatFixed(row.totalDrivetrainKwh, 1)}</td>
         <td class="efficiency-td-num">${formatFixed(row.totalAuxiliaryKwh, 1)}</td>
-        <td class="efficiency-td-num">${formatFixed(row.minSocKwh, 0)}</td>
-        <td class="efficiency-td-num">${formatFixed(row.maxSocKwh, 0)}</td>
+        ${includePerBus
+          ? `<td class="efficiency-td-num">${formatFixed(row.minSocKwh, 0)}</td>
+        <td class="efficiency-td-num">${formatFixed(row.maxSocKwh, 0)}</td>`
+          : ""}
       </tr>`)
     .join("");
 
@@ -3531,6 +3637,616 @@ const resolvePredictionOverviewSeriesKeys = (data = []) =>
   PREDICTION_QUANTILE_KEYS.filter((key) =>
     (Array.isArray(data) ? data : []).some((row) => toFiniteNumber(row?.[key]) != null)
   );
+
+const TRIP_PREDICTION_CACHE = new Map();
+const TRIP_STOP_LOOKUP_CACHE = new Map();
+const TRIP_STOP_EDGES_CACHE = new Map();
+
+const extractTripPredictionRows = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  return [
+    payload.items,
+    payload.predictions,
+    payload.data,
+    payload.results,
+  ].find(Array.isArray) ?? [];
+};
+
+const readTripQuantileValue = (row = {}, quantileKey = "q50") => {
+  const quantiles =
+    row?.quantiles && typeof row.quantiles === "object" && !Array.isArray(row.quantiles)
+      ? row.quantiles
+      : {};
+  const aliases = {
+    q05: ["q05", "0.05", "0.050", "5", "p05", "P05"],
+    q50: ["q50", "0.5", "0.50", "0.500", "50", "p50", "P50"],
+    q95: ["q95", "0.95", "0.950", "95", "p95", "P95"],
+  };
+
+  for (const key of aliases[quantileKey] ?? [quantileKey]) {
+    const value = toOptionalFiniteNumber(quantiles?.[key] ?? row?.[key]);
+    if (value != null) return value;
+  }
+  return null;
+};
+
+const tripPredictionLabel = (row = {}, index = 0) => {
+  const sequence = toFiniteNumber(
+    row?.sequence_number ?? row?.sequence ?? row?.trip_sequence ?? row?.trip_index
+  );
+  if (sequence != null) return formatFixed(sequence, 0);
+  const tripId = firstText(row?.trip_id, row?.tripId, row?.id).trim();
+  return tripId ? tripId.slice(0, 8) : String(index + 1);
+};
+
+const extractStopRows = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  return [
+    payload.items,
+    payload.stops,
+    payload.stop_times,
+    payload.stopTimes,
+    payload.data,
+    payload.results,
+  ].find(Array.isArray) ?? [];
+};
+
+const stopSequenceValue = (stop = {}, fallback = 0) =>
+  toFiniteNumber(stop?.stop_sequence ?? stop?.stopSequence ?? stop?.sequence) ?? fallback;
+
+const fetchTripStopEdgesCached = async (tripId) => {
+  const id = firstText(tripId).trim();
+  if (!id) return null;
+  if (TRIP_STOP_EDGES_CACHE.has(id)) return TRIP_STOP_EDGES_CACHE.get(id);
+
+  const promise = fetchStopsByTripId(id)
+    .then((payload) => {
+      const stops = extractStopRows(payload)
+        .map((stop, index) => ({ stop, index }))
+        .sort((a, b) =>
+          stopSequenceValue(a.stop, a.index) - stopSequenceValue(b.stop, b.index)
+        )
+        .map(({ stop }) => stop);
+      const firstStop = stops[0] ?? null;
+      const lastStop = stops[stops.length - 1] ?? null;
+
+      return {
+        startStop: resolveStopName(firstStop),
+        endStop: resolveStopName(lastStop),
+      };
+    })
+    .catch((error) => {
+      console.warn("[elettra] Unable to load trip stops for uncertainty tooltip:", error);
+      return null;
+    });
+
+  TRIP_STOP_EDGES_CACHE.set(id, promise);
+  return promise;
+};
+
+const buildTripStopLookupForRows = async (rows = [], baseLookup = new Map()) => {
+  const lookup = new Map(baseLookup instanceof Map ? baseLookup : []);
+  const tripIds = [
+    ...new Set(
+      (Array.isArray(rows) ? rows : [])
+        .map((row) => firstText(row?.trip_id, row?.tripId).trim())
+        .filter(Boolean)
+    ),
+  ].filter((id) => {
+    const existing = lookup.get(id);
+    return !existing?.startStop || !existing?.endStop;
+  });
+
+  await Promise.all(
+    tripIds.map(async (tripId) => {
+      const edges = await fetchTripStopEdgesCached(tripId);
+      if (edges?.startStop || edges?.endStop) {
+        lookup.set(tripId, {
+          ...lookup.get(tripId),
+          ...edges,
+        });
+      }
+    })
+  );
+
+  return lookup;
+};
+
+const resolveTripStopInfo = (row = {}, tripStopLookup = new Map()) => {
+  const tripId = firstText(row?.trip_id, row?.tripId, row?.id).trim();
+  const lookupEntry = tripId && tripStopLookup instanceof Map
+    ? tripStopLookup.get(tripId)
+    : null;
+
+  return {
+    startStop: resolveStopName(
+      row?.start_stop_name,
+      row?.startStopName,
+      row?.start_stop,
+      row?.startStop,
+      row?.origin_stop_name,
+      row?.originStopName,
+      row?.origin_stop,
+      row?.originStop,
+      lookupEntry?.startStop
+    ),
+    endStop: resolveStopName(
+      row?.end_stop_name,
+      row?.endStopName,
+      row?.end_stop,
+      row?.endStop,
+      row?.destination_stop_name,
+      row?.destinationStopName,
+      row?.destination_stop,
+      row?.destinationStop,
+      lookupEntry?.endStop
+    ),
+  };
+};
+
+const formatTripTooltipTitle = (row = {}) => {
+  if (row.startStop && row.endStop) {
+    return `${translateOr("simulation.trip_uncertainty_trip", "Trip")}: ${row.startStop} -> ${row.endStop}`;
+  }
+  if (row.startStop || row.endStop) {
+    return `${translateOr("simulation.trip_uncertainty_trip", "Trip")}: ${row.startStop || "—"} -> ${row.endStop || "—"}`;
+  }
+  return `${translateOr("simulation.trip_uncertainty_trip", "Trip")}: ${row.label}`;
+};
+
+const normalizeTripPredictionRow = (row = {}, index = 0, tripStopLookup = new Map()) => {
+  const q50 = readTripQuantileValue(row, "q50");
+  const median = q50 ?? toOptionalFiniteNumber(row?.prediction_median_kwh);
+  const { startStop, endStop } = resolveTripStopInfo(row, tripStopLookup);
+
+  return {
+    index: index + 1,
+    label: tripPredictionLabel(row, index),
+    tripId: firstText(row?.trip_id, row?.tripId, row?.id).trim(),
+    startStop,
+    endStop,
+    q05: readTripQuantileValue(row, "q05"),
+    q50,
+    q95: readTripQuantileValue(row, "q95"),
+    median,
+    medianSource: q50 != null ? "q50" : row?.prediction_median_kwh != null ? "prediction_median_kwh" : null,
+    drivetrainKwh: toOptionalFiniteNumber(row?.drivetrain_kwh),
+    auxiliaryKwh: toOptionalFiniteNumber(row?.auxiliary_kwh),
+    massSensitivityKwhPerKwhBatt: toOptionalFiniteNumber(row?.mass_sensitivity_kwh_per_kwh_batt),
+  };
+};
+
+const buildTripUncertaintyChartData = (rows = [], tripStopLookup = new Map()) =>
+  (Array.isArray(rows) ? rows : [])
+    .map((row, index) => normalizeTripPredictionRow(row, index, tripStopLookup))
+    .filter(
+      (row) =>
+        row.q05 != null ||
+        row.q50 != null ||
+        row.q95 != null ||
+        row.median != null
+    );
+
+const tripUncertaintyEmptyHtml = (message) =>
+  `<p class="efficiency-chart-empty predictions-trip-empty">${textContent(message)}</p>`;
+
+const renderTripUncertaintyLegend = (
+  el,
+  { hasBand = false, hasMedian = false } = {}
+) => {
+  if (!el) return;
+  const items = [
+    ...(hasBand
+      ? [{
+          label: translateOr("simulation.trip_uncertainty_spread", "Q05-Q95 spread"),
+          color: "rgba(0, 99, 154, 0.18)",
+        }]
+      : []),
+    ...(hasMedian
+      ? [{
+          label: translateOr("simulation.trip_uncertainty_median", "Q50 / median"),
+          color: PREDICTION_QUANTILE_SERIES_COLORS.q50,
+        }]
+      : []),
+  ];
+
+  el.innerHTML = items
+    .map(
+      (item) => `
+        <div class="chart-legend-item">
+          <span class="chart-legend-swatch" style="background:${item.color}"></span>
+          ${textContent(item.label)}
+        </div>`
+    )
+    .join("");
+};
+
+const renderTripUncertaintyChart = (el, rows = [], { tripStopLookup = new Map() } = {}) => {
+  if (!el) return;
+  el.innerHTML = "";
+
+  const data = buildTripUncertaintyChartData(rows, tripStopLookup);
+  if (!data.length) {
+    el.innerHTML = tripUncertaintyEmptyHtml(
+      translateOr(
+        "simulation.trip_uncertainty_empty",
+        "Trip-level stochastic data is available, but no Q05/Q50/Q95 or median values could be plotted."
+      )
+    );
+    renderTripUncertaintyLegend(
+      el.parentElement?.querySelector("[data-trip-uncertainty-legend]")
+    );
+    return;
+  }
+
+  const values = data.flatMap((row) =>
+    [row.q05, row.q50, row.q95, row.median].filter((value) => value != null)
+  );
+  if (!values.length) {
+    el.innerHTML = chartEmptyStateHtml();
+    renderTripUncertaintyLegend(
+      el.parentElement?.querySelector("[data-trip-uncertainty-legend]")
+    );
+    return;
+  }
+
+  const hasBand = data.some((row) => row.q05 != null && row.q95 != null);
+  const hasMedian = data.some((row) => row.median != null);
+  const margin = { top: 20, right: 20, bottom: 48, left: 64 };
+  const W = 680;
+  const H = 260;
+  const iW = W - margin.left - margin.right;
+  const iH = H - margin.top - margin.bottom;
+  const svg = svgBase(
+    W,
+    H,
+    translateOr(
+      "simulation.trip_uncertainty_aria",
+      "Trip-level prediction spread chart"
+    )
+  );
+  const g = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+  const x = d3
+    .scalePoint()
+    .domain(data.map((row) => row.label))
+    .range([0, iW])
+    .padding(0.5);
+  const maxValue = d3.max(values) ?? 0;
+  const y = d3
+    .scaleLinear()
+    .domain([0, maxValue * 1.12 || 1])
+    .nice()
+    .range([iH, 0]);
+
+  gridLines(g, y, iW);
+
+  g.append("g")
+    .attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(x).tickValues(data.length > 16 ? data.filter((_, index) => index % Math.ceil(data.length / 12) === 0).map((row) => row.label) : data.map((row) => row.label)))
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(5).tickFormat((value) => d3.format(".3~s")(value)))
+    .selectAll("text")
+    .attr("font-size", "10px");
+
+  g.append("text")
+    .attr("x", iW / 2)
+    .attr("y", iH + 38)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("fill", "#666")
+    .text(translateOr("simulation.trip_uncertainty_x_axis", "Trip sequence"));
+
+  g.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -iH / 2)
+    .attr("y", -46)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "10px")
+    .attr("fill", "#666")
+    .text(t("simulation.axis_energy_kwh") || "kWh");
+
+  if (hasBand) {
+    const bandData = data.filter((row) => row.q05 != null && row.q95 != null);
+    const area = d3
+      .area()
+      .x((row) => x(row.label))
+      .y0((row) => y(row.q05))
+      .y1((row) => y(row.q95))
+      .defined((row) => row.q05 != null && row.q95 != null)
+      .curve(d3.curveMonotoneX);
+
+    g.append("path")
+      .datum(bandData)
+      .attr("d", area)
+      .attr("fill", "rgba(0, 99, 154, 0.18)");
+  }
+
+  const medianData = data.filter((row) => row.median != null);
+  if (medianData.length) {
+    const medianLine = d3
+      .line()
+      .x((row) => x(row.label))
+      .y((row) => y(row.median))
+      .curve(d3.curveMonotoneX);
+    g.append("path")
+      .datum(medianData)
+      .attr("d", medianLine)
+      .attr("fill", "none")
+      .attr("stroke", PREDICTION_QUANTILE_SERIES_COLORS.q50)
+      .attr("stroke-width", 2.5);
+  }
+
+  g.selectAll(".trip-uncertainty-dot")
+    .data(medianData)
+    .join("circle")
+    .attr("cx", (row) => x(row.label))
+    .attr("cy", (row) => y(row.median))
+    .attr("r", 3.5)
+    .attr("fill", PREDICTION_QUANTILE_SERIES_COLORS.q50)
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 1.2)
+    .each(function addTooltip(row) {
+      const lines = [
+        formatTripTooltipTitle(row),
+        row.q05 != null ? `Q05: ${formatFixed(row.q05, 1)} kWh` : null,
+        row.q50 != null
+          ? `Q50: ${formatFixed(row.q50, 1)} kWh`
+          : row.median != null
+            ? `${translateOr("simulation.trip_uncertainty_median", "Median")}: ${formatFixed(row.median, 1)} kWh`
+            : null,
+        row.q95 != null ? `Q95: ${formatFixed(row.q95, 1)} kWh` : null,
+        row.drivetrainKwh != null ? `Drivetrain: ${formatFixed(row.drivetrainKwh, 1)} kWh` : null,
+        row.auxiliaryKwh != null ? `Auxiliary: ${formatFixed(row.auxiliaryKwh, 1)} kWh` : null,
+        row.massSensitivityKwhPerKwhBatt != null
+          ? `Mass sensitivity: ${formatFixed(row.massSensitivityKwhPerKwhBatt, 4)} kWh/kWh batt`
+          : null,
+      ].filter(Boolean);
+      d3.select(this).append("title").text(lines.join("\n"));
+    });
+
+  el.appendChild(svg.node());
+  renderTripUncertaintyLegend(el.parentElement?.querySelector("[data-trip-uncertainty-legend]"), {
+    hasBand,
+    hasMedian,
+  });
+};
+
+const fetchTripPredictionsCached = (runId) => {
+  const id = firstText(runId).trim();
+  if (!id) return Promise.reject(new Error("Missing prediction run id"));
+  const cached = TRIP_PREDICTION_CACHE.get(id);
+  if (cached?.status === "loaded") return Promise.resolve(cached.rows);
+  if (cached?.status === "loading") return cached.promise;
+  if (cached?.status === "error") return Promise.reject(cached.error);
+
+  const promise = fetchPredictionRunPredictions(id)
+    .then((payload) => {
+      const rows = extractTripPredictionRows(payload);
+      TRIP_PREDICTION_CACHE.set(id, { status: "loaded", rows });
+      return rows;
+    })
+    .catch((error) => {
+      TRIP_PREDICTION_CACHE.set(id, { status: "error", error });
+      throw error;
+    });
+  TRIP_PREDICTION_CACHE.set(id, { status: "loading", promise });
+  return promise;
+};
+
+const renderTripUncertaintyLoading = (container) => {
+  const chartEl = container?.querySelector("[data-trip-uncertainty-chart]");
+  const legendEl = container?.querySelector("[data-trip-uncertainty-legend]");
+  if (chartEl) {
+    chartEl.innerHTML = tripUncertaintyEmptyHtml(
+      translateOr(
+        "simulation.trip_uncertainty_loading",
+        "Loading trip-level stochastic data…"
+      )
+    );
+  }
+  if (legendEl) legendEl.innerHTML = "";
+};
+
+const renderTripUncertaintyUnavailable = (container) => {
+  const chartEl = container?.querySelector("[data-trip-uncertainty-chart]");
+  const legendEl = container?.querySelector("[data-trip-uncertainty-legend]");
+  if (chartEl) {
+    chartEl.innerHTML = tripUncertaintyEmptyHtml(
+      translateOr(
+        "simulation.trip_uncertainty_unavailable",
+        "Trip-level stochastic data is not available for this prediction run."
+      )
+    );
+  }
+  if (legendEl) legendEl.innerHTML = "";
+};
+
+const loadTripUncertaintySection = async (detailsEl) => {
+  const runId = firstText(detailsEl?.dataset?.tripPredictionsRunId).trim();
+  if (!runId || detailsEl?.dataset?.tripPredictionsLoaded === "true") return;
+  const container = detailsEl.querySelector("[data-trip-uncertainty-content]");
+  renderTripUncertaintyLoading(container);
+
+  try {
+    const rows = await fetchTripPredictionsCached(runId);
+    const tripStopLookup = await buildTripStopLookupForRows(
+      rows,
+      TRIP_STOP_LOOKUP_CACHE.get(runId) ?? new Map()
+    );
+    TRIP_STOP_LOOKUP_CACHE.set(runId, tripStopLookup);
+    if (!detailsEl.isConnected) return;
+    renderTripUncertaintyChart(
+      container?.querySelector("[data-trip-uncertainty-chart]"),
+      rows,
+      { tripStopLookup }
+    );
+    detailsEl.dataset.tripPredictionsLoaded = "true";
+  } catch {
+    if (!detailsEl.isConnected) return;
+    renderTripUncertaintyUnavailable(container);
+  }
+};
+
+const installTripUncertaintyLoaders = (el) => {
+  el.querySelectorAll("details[data-trip-predictions-run-id]").forEach((detailsEl) => {
+    const handleToggle = () => {
+      if (detailsEl.open) {
+        loadTripUncertaintySection(detailsEl);
+      }
+    };
+    detailsEl.addEventListener("toggle", handleToggle);
+    if (detailsEl.open) handleToggle();
+  });
+};
+
+const renderTripUncertaintySection = (run = {}, { tripStopLookup = new Map() } = {}) => {
+  const runId = firstText(run?.id, run?.prediction_run_id, run?.predictionRunId).trim();
+  if (!runId) {
+    return `
+      <section class="predictions-card-section predictions-trip-section">
+        <div class="predictions-card-section__header">
+          <h4>${textContent(translateOr("simulation.trip_uncertainty_title", "Trip-level uncertainty"))}</h4>
+        </div>
+        ${tripUncertaintyEmptyHtml(
+          translateOr(
+            "simulation.trip_uncertainty_missing_run",
+            "Trip-level stochastic data is not available because the prediction run id is missing."
+          )
+        )}
+      </section>`;
+  }
+
+  TRIP_STOP_LOOKUP_CACHE.set(runId, tripStopLookup);
+
+  return `
+    <details class="predictions-trip-section" data-trip-predictions-run-id="${escapeAttr(runId)}">
+      <summary class="predictions-trip-summary">${textContent(
+        translateOr("simulation.trip_uncertainty_title", "Trip-level uncertainty")
+      )}</summary>
+      <div class="predictions-trip-content" data-trip-uncertainty-content>
+        <p class="predictions-overview__copy">${textContent(
+          translateOr(
+            "simulation.trip_uncertainty_help",
+            "Q50 shows the median predicted trip consumption. Q05-Q95 shows the prediction spread across simulations."
+          )
+        )}</p>
+        <div
+          class="chart-container predictions-chart-container predictions-trip-chart"
+          data-trip-uncertainty-chart
+        >
+          ${tripUncertaintyEmptyHtml(
+            translateOr(
+              "simulation.trip_uncertainty_open_to_load",
+              "Open this section to load trip-level stochastic data."
+            )
+          )}
+        </div>
+        <div
+          class="chart-legend predictions-chart-legend"
+          data-trip-uncertainty-legend
+        ></div>
+      </div>
+    </details>`;
+};
+
+const computeBatteryAdequacyStatus = ({
+  usableEnergyKwh,
+  q50DemandKwh,
+  q95DemandKwh,
+} = {}) => {
+  const usableEnergy = toOptionalFiniteNumber(usableEnergyKwh);
+  const q50Demand = toOptionalFiniteNumber(q50DemandKwh);
+  const q95Demand = toOptionalFiniteNumber(q95DemandKwh);
+
+  return {
+    usableEnergy,
+    q50Demand,
+    q95Demand,
+    canEvaluateEnergy: usableEnergy != null,
+    canEvaluateQuantiles: q50Demand != null && q95Demand != null,
+    q50Covered: usableEnergy != null && q50Demand != null ? usableEnergy >= q50Demand : null,
+    q95Covered: usableEnergy != null && q95Demand != null ? usableEnergy >= q95Demand : null,
+  };
+};
+
+const renderBatteryAdequacyPanel = (status = {}) => {
+  const title = translateOr(
+    "simulation.battery_adequacy_title",
+    "Battery adequacy check"
+  );
+  const note = translateOr(
+    "simulation.battery_adequacy_note",
+    "This is a quantile-based adequacy indicator, not a true exceedance probability."
+  );
+
+  if (!status.canEvaluateEnergy) {
+    return `
+      <div class="efficiency-adequacy-panel">
+        <h5>${textContent(title)}</h5>
+        <p>${textContent(
+          translateOr(
+            "simulation.battery_adequacy_missing_energy",
+            "Battery adequacy cannot be evaluated because usable battery energy is unavailable."
+          )
+        )}</p>
+        <p class="efficiency-adequacy-note">${textContent(note)}</p>
+      </div>`;
+  }
+
+  if (!status.canEvaluateQuantiles) {
+    return `
+      <div class="efficiency-adequacy-panel">
+        <h5>${textContent(title)}</h5>
+        <p>${textContent(
+          translateOr(
+            "simulation.battery_adequacy_missing_quantiles",
+            "Battery adequacy cannot be evaluated because quantiles are unavailable."
+          )
+        )}</p>
+        <p class="efficiency-adequacy-note">${textContent(note)}</p>
+      </div>`;
+  }
+
+  const q50Label = status.q50Covered
+    ? translateOr(
+        "simulation.battery_adequacy_q50_covered",
+        "covered"
+      )
+    : translateOr(
+        "simulation.battery_adequacy_q50_above",
+        "above usable energy"
+      );
+  const q95Label = status.q95Covered
+    ? translateOr(
+        "simulation.battery_adequacy_q95_covered",
+        "within usable battery energy"
+      )
+    : translateOr(
+        "simulation.battery_adequacy_q95_above",
+        "above usable energy"
+      );
+
+  return `
+    <div class="efficiency-adequacy-panel">
+      <h5>${textContent(title)}</h5>
+      <div class="efficiency-adequacy-grid">
+        <span>${textContent(translateOr("simulation.battery_adequacy_usable", "Usable energy"))}</span>
+        <strong>${textContent(formatFixed(status.usableEnergy, 1))} kWh</strong>
+        <span>${textContent(translateOr("simulation.battery_adequacy_q50", "Q50 demand"))}</span>
+        <strong>${textContent(formatFixed(status.q50Demand, 1))} kWh <span class="efficiency-badge ${status.q50Covered ? "efficiency-badge--ok" : "efficiency-badge--err"}">${textContent(q50Label)}</span></strong>
+        <span>${textContent(translateOr("simulation.battery_adequacy_q95", "Q95 demand"))}</span>
+        <strong>${textContent(formatFixed(status.q95Demand, 1))} kWh <span class="efficiency-badge ${status.q95Covered ? "efficiency-badge--ok" : "efficiency-badge--err"}">${textContent(q95Label)}</span></strong>
+      </div>
+      <p class="efficiency-adequacy-note">${textContent(note)}</p>
+    </div>`;
+};
 
 const renderPredictionOverviewLegend = (
   el,
@@ -3875,6 +4591,10 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
 
   const predictionRuns = Array.isArray(state.predictionRuns) ? state.predictionRuns : [];
   const sortedRuns = scopePredictionRunsByShift(predictionRuns, viewOptions);
+  const optimizedPacks = resolveOptimizedPackCountForView(
+    state.optimizationRun?.results?.battery_results ?? {},
+    viewOptions
+  );
 
   if (!sortedRuns.length) {
     el.innerHTML = `<div class="efficiency-section"><p class="efficiency-state-msg">${textContent(
@@ -3892,11 +4612,22 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
   const overviewPerKmData = buildPredictionOverviewData(sortedRuns, {
     kind: "per_km",
   });
+  const optimizedScenarioRuns =
+    optimizedPacks == null
+      ? []
+      : sortedRuns.filter((run) => {
+          const runPacks = toFiniteNumber(run?.contextual_parameters?.num_battery_packs);
+          return runPacks != null && runPacks === optimizedPacks;
+        });
+  const cardRuns = optimizedScenarioRuns.length ? optimizedScenarioRuns : sortedRuns;
 
-  const cardsHtml = sortedRuns
+  const cardsHtml = cardRuns
     .map((run, index) => {
       const summary = run?.summary ?? {};
       const contextualParameters = run?.contextual_parameters ?? {};
+      const runPacks = toFiniteNumber(contextualParameters?.num_battery_packs);
+      const showTripUncertainty =
+        optimizedPacks != null && runPacks != null && runPacks === optimizedPacks;
       const absoluteRows = buildPredictionQuantileRows(summary, "absolute");
       const perKmRows = buildPredictionQuantileRows(summary, "per_km");
       const usesDerivedAuxiliary = [...absoluteRows, ...perKmRows].some(
@@ -4020,6 +4751,9 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
           <div class="predictions-card-grid">
             ${sections.join("")}
           </div>
+          ${showTripUncertainty ? renderTripUncertaintySection(run, {
+            tripStopLookup: viewOptions?.tripStopLookup,
+          }) : ""}
         </article>`;
     })
     .join("");
@@ -4046,6 +4780,7 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
             "This view keeps only total consumption and shows how Q05, Q50, and Q95 move across the prediction scenarios."
           )
         )}</p>
+        <p class="predictions-overview__copy">${textContent(quantileHelpText())}</p>
         <div
           class="chart-container predictions-overview__chart"
           data-predictions-overview-chart
@@ -4072,6 +4807,7 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
             "This view keeps only total consumption normalized by distance and shows how Q05, Q50, and Q95 move across the prediction scenarios."
           )
         )}</p>
+        <p class="predictions-overview__copy">${textContent(quantileHelpText())}</p>
         <div
           class="chart-container predictions-overview__chart"
           data-predictions-overview-per-km-chart
@@ -4146,6 +4882,7 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
       plan.rows
     );
   });
+  installTripUncertaintyLoaders(el);
 };
 
 const renderEfficiencyCurveChart = (el, rows) => {
@@ -4914,11 +5651,27 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     ip,
     viewOptions
   );
-  const unifiedRows = buildUnifiedPredictionRows(predictionData);
+  const adequacyScenario = optimizedCoverageMarker
+    ? consumptionOverviewData.find(
+        (item) => item?.scenarioLabel === optimizedCoverageMarker.scenarioLabel
+      ) ?? null
+    : null;
+  const batteryAdequacyHtml = optimizedCoverageMarker
+    ? renderBatteryAdequacyPanel(
+        computeBatteryAdequacyStatus({
+          usableEnergyKwh: optimizedCoverageMarker.value,
+          q50DemandKwh: adequacyScenario?.q50,
+          q95DemandKwh: adequacyScenario?.q95,
+        })
+      )
+    : "";
   const hasPerBus = perBusSummary.length > 0;
+  const unifiedRows = buildUnifiedPredictionRows(predictionData, {
+    includePerBus: hasPerBus,
+  });
 
   const tableBody = predictionData.length === 0
-    ? `<tr><td colspan="${hasPerBus ? 10 : 8}" class="efficiency-no-data">${textContent(t("simulation.efficiency_no_predictions") || "No prediction data available.")}</td></tr>`
+    ? `<tr><td colspan="${hasPerBus ? 14 : 12}" class="efficiency-no-data">${textContent(t("simulation.efficiency_no_predictions") || "No prediction data available.")}</td></tr>`
     : unifiedRows;
 
   const perBusHeaders = hasPerBus ? `
@@ -4955,11 +5708,13 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
                 "Compare simulated total-consumption quantiles with the energy available from the optimized battery-pack setup."
               )
             )}</p>
+            <p>${textContent(quantileHelpText())}</p>
           </div>
           <div
             class="chart-container efficiency-chart-container"
             data-role="efficiency-consumption-coverage-chart"
           ></div>
+          ${batteryAdequacyHtml}
           <div
             class="chart-legend efficiency-chart-legend"
             data-role="efficiency-consumption-coverage-legend"
@@ -4981,16 +5736,9 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     </div>`
     : "";
 
-  el.innerHTML = `
-    <div class="efficiency-section">
-      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
-      <div class="efficiency-params-grid">${conditionsHtml}</div>
-      ${predictionSummaryHtml}
-    </div>
-    ${optimizationHtml}
-    ${isFeasible ? `
-    ${chartsHtml}
-    <details class="efficiency-section efficiency-collapsible">
+  const predictionTableHtml = isFeasible || predictionData.length > 0
+    ? `
+    <details class="efficiency-section efficiency-collapsible" open>
       <summary class="efficiency-section-title efficiency-collapsible__toggle">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</summary>
       <div class="efficiency-table-wrap">
         <table class="efficiency-table">
@@ -5002,6 +5750,10 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
               <th>${textContent(t("simulation.efficiency_col_distance") || "Distance (km)")}</th>
               <th>${textContent(t("simulation.efficiency_col_total_energy") || "Total Energy (kWh)")}</th>
               <th>${textContent(t("simulation.efficiency_col_per_km") || "kWh / km")}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_total_q50", "Total Q50 (kWh)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_total_q95", "Total Q95 (kWh)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_specific_q50", "Specific Q50 (kWh/km)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_specific_q95", "Specific Q95 (kWh/km)"))}</th>
               <th>${textContent(t("simulation.efficiency_col_drivetrain") || "Drivetrain (kWh)")}</th>
               <th>${textContent(t("simulation.efficiency_col_auxiliary") || "Auxiliary (kWh)")}</th>
               ${perBusHeaders}
@@ -5010,7 +5762,18 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           <tbody>${tableBody}</tbody>
         </table>
       </div>
-    </details>` : ""}`;
+    </details>`
+    : "";
+
+  el.innerHTML = `
+    <div class="efficiency-section">
+      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
+      <div class="efficiency-params-grid">${conditionsHtml}</div>
+      ${predictionSummaryHtml}
+    </div>
+    ${optimizationHtml}
+    ${isFeasible ? chartsHtml : ""}
+    ${predictionTableHtml}`;
 
   renderEfficiencyEnergySplitChart(
     el.querySelector('[data-role="efficiency-energy-chart"]'),
@@ -7172,12 +7935,15 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const refreshPredictionsTab = () => {
     if (!renderedTabs.has("predictions")) return;
+    const activeShift =
+      availableShiftTabs.find((shift) => shift.id === activeShiftId) ?? null;
     renderPredictionsPanel(
       section.querySelector('[data-role="predictions-panel"]'),
       efficiencyState,
       {
         selectedShiftId: activeShiftId,
         selectedShiftName: activeShiftName,
+        tripStopLookup: activeShift?.tripStopLookup,
       }
     );
   };
@@ -7265,12 +8031,15 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       );
     },
     predictions: (sec) => {
+      const activeShift =
+        availableShiftTabs.find((shift) => shift.id === activeShiftId) ?? null;
       renderPredictionsPanel(
         sec.querySelector('[data-role="predictions-panel"]'),
         efficiencyState,
         {
           selectedShiftId: activeShiftId,
           selectedShiftName: activeShiftName,
+          tripStopLookup: activeShift?.tripStopLookup,
         }
       );
     },
