@@ -30,6 +30,25 @@ const partials = import.meta.glob("./pages/**/*.html", {
 const slugFrom = (node) => node?.dataset.partial?.trim() || "";
 const PUBLIC_PARTIALS = new Set(["landing", "login", "register", "about"]);
 const isProtectedPartial = (slug) => Boolean(slug) && !PUBLIC_PARTIALS.has(slug);
+const SHELL_SECTION_BY_SLUG = {
+  about: "about",
+  settings: "settings",
+  buses: "buses",
+  "add-bus-model": "buses",
+  "custom-stops": "custom-stops",
+  "add-custom-stop": "custom-stops",
+  shifts: "shifts",
+  "shift-form": "shifts",
+  "visualize-shift": "shifts",
+  "simulation-runs": "simulation-runs",
+  "add-simulation": "simulation-runs",
+  "simulation-detail": "simulation-runs",
+  "simulation-results": "simulation-runs",
+  "simulation-comparison": "simulation-runs",
+  "yearly-analysis-runs": "yearly-analysis-runs",
+  "create-yearly-analysis": "yearly-analysis-runs",
+  "yearly-analysis-results": "yearly-analysis-runs",
+};
 
 const buildHash = (slug, options = {}) => {
   if (!slug) return "";
@@ -106,6 +125,10 @@ const createPartialLoader = (render, onBeforeLoad) => {
 export const initializeNavigation = (root = document) => {
   const container = root.querySelector(".layout-article");
   const nav = root.querySelector("nav");
+  const navLinks = Array.from(root.querySelectorAll('nav a[data-partial]'));
+  const aboutBtn = root.querySelector(".about-btn[data-partial]");
+  const footerAboutLink = root.querySelector(".footer-about-link[data-partial]");
+  const userSection = root.querySelector(".user-section");
 
   if (!container || !nav) {
     return;
@@ -126,6 +149,40 @@ export const initializeNavigation = (root = document) => {
   };
 
   const loadPartial = createPartialLoader(renderInto(container), runCleanup);
+
+  const resolveShellSection = (slug = "") => SHELL_SECTION_BY_SLUG[slug] || "";
+
+  const updateShellActiveState = (slug = "") => {
+    const activeSection = resolveShellSection(slug);
+
+    navLinks.forEach((link) => {
+      const isActive = slugFrom(link) === activeSection;
+      link.classList.toggle("is-active", isActive);
+      if (isActive) {
+        link.setAttribute("aria-current", "page");
+      } else {
+        link.removeAttribute("aria-current");
+      }
+    });
+
+    if (aboutBtn) {
+      aboutBtn.classList.toggle("is-active", activeSection === "about");
+    }
+
+    if (footerAboutLink) {
+      const isActive = activeSection === "about";
+      footerAboutLink.classList.toggle("is-active", isActive);
+      if (isActive) {
+        footerAboutLink.setAttribute("aria-current", "page");
+      } else {
+        footerAboutLink.removeAttribute("aria-current");
+      }
+    }
+
+    if (userSection) {
+      userSection.classList.toggle("is-active", activeSection === "settings");
+    }
+  };
 
   const initializePartial = async (slug, target, options = {}) => {
     if (!slug || !target) {
@@ -208,6 +265,8 @@ export const initializeNavigation = (root = document) => {
     const routeOptions = normalizeRouteOptions(options);
 
     currentRoute = { slug: resolvedSlug, options: routeOptions };
+    updateNavVisibility();
+    updateShellActiveState(resolvedSlug);
 
     const hashAction = loaderOptions.hashAction ?? "push";
     if (hashAction !== "none") {
@@ -238,14 +297,12 @@ export const initializeNavigation = (root = document) => {
     loadAndInitialize(slug);
   });
 
-  const aboutBtn = root.querySelector(".about-btn[data-partial]");
   if (aboutBtn) {
     aboutBtn.addEventListener("click", () => {
       loadAndInitialize(slugFrom(aboutBtn));
     });
   }
 
-  const footerAboutLink = root.querySelector(".footer-about-link[data-partial]");
   if (footerAboutLink) {
     footerAboutLink.addEventListener("click", (event) => {
       event.preventDefault();

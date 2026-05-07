@@ -10,10 +10,6 @@
   overflow-y: auto;
 }
 
-.add-bus-model h1 {
-  color: var(--dark-blue);
-}
-
 .add-bus-model form {
   max-width: none;
 }
@@ -42,10 +38,10 @@
 
 .add-bus-model .bus-model-intro-card {
   border: 1px solid var(--border-light);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   padding: var(--spacing-md) var(--spacing-lg);
-  background: #ffffff;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .add-bus-model .bus-model-kicker {
@@ -59,16 +55,18 @@
 
 .add-bus-model .bus-model-intro-copy h2 {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--dark-blue);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-main);
 }
 
 .add-bus-model .bus-model-intro-copy p:last-child {
   margin: 0;
   max-width: 60ch;
   color: var(--text-secondary);
-  font-size: 0.92rem;
+  font-size: var(--font-size-md);
+  line-height: 1.5;
 }
 
 .add-bus-model .bus-model-panels {
@@ -79,9 +77,10 @@
 
 .add-bus-model .bus-model-panel {
   border: 1px solid var(--border-light);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   padding: var(--spacing-lg);
-  background: #ffffff;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .add-bus-model .bus-model-panel--wide {
@@ -96,15 +95,17 @@
 
 .add-bus-model .bus-model-panel-header h3 {
   margin: 0 0 0.2rem;
-  font-size: 0.98rem;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
   color: var(--text-main);
+  line-height: 1.35;
 }
 
 .add-bus-model .bus-model-panel-header p {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--font-size-md);
   color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 .add-bus-model .bus-model-grid {
@@ -145,8 +146,8 @@
 .add-bus-model textarea {
   padding: 0.65rem 0.8rem;
   border: 1px solid var(--border-medium);
-  border-radius: 8px;
-  background: #ffffff;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
 }
 
 .add-bus-model textarea {

@@ -30,24 +30,16 @@
 }
 
 .about-title {
-  font-size: 2.25rem;
-  font-weight: 700;
-  margin: 0 0 0.35rem 0;
-  letter-spacing: -0.02em;
-  color: var(--dark-blue);
+  margin: 0;
 }
 
 .about-tagline {
-  font-size: 1.1rem;
-  font-weight: 400;
-  color: var(--text-secondary);
-  margin: 0 0 1.25rem 0;
+  margin: var(--spacing-xs) 0 1.25rem 0;
 }
 
 .about-description {
-  font-size: 0.95rem;
+  font-size: var(--font-size-lg);
   line-height: 1.7;
-  color: var(--text-secondary);
   margin: 0 0 1.25rem 0;
 }
 
@@ -72,16 +64,14 @@
   margin-bottom: 2rem;
 }
 
-.about-section h2 {
+.about-section .section-title {
   font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--dark-blue);
   margin: 0 0 1.25rem 0;
   position: relative;
   display: inline-block;
 }
 
-.about-section h2::after {
+.about-section .section-title::after {
   content: "";
   position: absolute;
   left: 25%;
@@ -109,9 +99,10 @@
   align-items: center;
   gap: 0.35rem;
   padding: 1.25rem 1.5rem;
-  background: #ffffff;
+  background: var(--color-surface);
   border: 1px solid var(--border-light);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
   min-width: 160px;
   max-width: 200px;
   flex: 1;
@@ -124,7 +115,7 @@
 
 .about-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
 }
 
 .about-card-logo {
@@ -149,7 +140,7 @@
 }
 
 .about-card-full {
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
   line-height: 1.4;
 }
@@ -169,21 +160,21 @@
 }
 
 .about-privacy {
-  background: #ffffff;
+  background: var(--color-surface);
   border: 1px solid var(--border-light);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
   padding: 1.5rem;
   text-align: center;
 }
 
-.about-privacy h2 {
+.about-privacy .section-title {
   margin-bottom: 0.75rem;
 }
 
 .about-privacy p {
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
   line-height: 1.6;
-  color: var(--text-secondary);
   margin: 0 0 1rem 0;
 }
 
@@ -197,7 +188,7 @@
   text-decoration: none;
   padding: 0.5rem 1rem;
   border: 1px solid var(--brand-teal);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
@@ -213,10 +204,6 @@
 @media (max-width: 640px) {
   .about-hero {
     padding: 2rem 1rem;
-  }
-
-  .about-title {
-    font-size: 1.75rem;
   }
 
   .about-cards {

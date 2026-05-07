@@ -211,9 +211,10 @@
 }
 
 .compare-section h2 {
-  font-size: 1rem;
+  font-size: var(--font-size-xl);
   font-weight: 600;
-  color: var(--dark-blue);
+  color: var(--text-main);
+  line-height: 1.35;
   margin-bottom: var(--spacing-md);
 }
 
@@ -233,9 +234,11 @@
 }
 
 .compare-select-group label {
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .compare-select-group select {
@@ -248,8 +251,8 @@
 }
 
 .compare-vs {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--font-size-md);
+  font-weight: 600;
   color: var(--text-secondary);
   padding-bottom: 0.45rem;
 }

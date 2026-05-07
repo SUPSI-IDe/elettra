@@ -6,11 +6,11 @@
 }
 
 .settings-card {
-  background: #ffffff;
+  background: var(--color-surface);
   border: 1px solid var(--border-light);
-  border-radius: 14px;
+  border-radius: var(--radius-2xl);
   padding: var(--spacing-lg);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-lg);
 }
 
 .settings-card-header {
@@ -19,14 +19,15 @@
 
 .settings-card-header h2 {
   margin: 0 0 0.35rem;
-  font-size: 1.15rem;
+  font-size: var(--font-size-xl);
   color: var(--text-main);
+  line-height: 1.35;
 }
 
 .settings-card-header p {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.92rem;
+  font-size: var(--font-size-md);
+  line-height: 1.5;
 }
 
 .settings-grid {

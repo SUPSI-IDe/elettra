@@ -1,7 +1,3 @@
-.simulation-results-page h1 {
-  color: var(--dark-blue);
-}
-
 .simulation-results-page .breadcrumb {
   font-size: 0.9rem;
   color: var(--text-secondary);
@@ -195,9 +191,10 @@
 }
 
 .chart-section h2 {
-  font-size: 0.85rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--text-main);
+  line-height: 1.35;
   margin-bottom: var(--spacing-sm);
 }
 
@@ -398,8 +395,7 @@
 
 .costs-assumption-note {
   margin: 0 0 var(--spacing-md);
-  font-size: 0.78rem;
-  color: var(--text-secondary);
+  font-size: var(--font-size-md);
 }
 
 .investment-table {
@@ -545,16 +541,18 @@
 .costs-inputs-section-title {
   margin: 0;
   padding: 0.8rem 0.95rem 0.35rem;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--dark-blue);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.35;
 }
 
 .costs-inputs-note {
   margin: 0;
   padding: 0 0.95rem 0.8rem;
-  font-size: 0.77rem;
+  font-size: var(--font-size-md);
   color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 .costs-inputs-table {
@@ -715,15 +713,16 @@
 }
 
 .sim-data-header h2 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--dark-blue);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.35;
 }
 
 .sim-data-subtitle {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+  font-size: var(--font-size-md);
   margin-top: 0.2rem;
+  line-height: 1.5;
 }
 
 .sim-data-columns {
@@ -737,12 +736,13 @@
 }
 
 .sim-data-col h3 {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
   color: var(--text-main);
   margin-bottom: var(--spacing-md);
   padding-bottom: var(--spacing-xs);
   border-bottom: 1px solid var(--border-light);
+  line-height: 1.35;
 }
 
 [data-role="investment-content"] {
@@ -767,16 +767,19 @@
 }
 
 .sim-data-field-label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: capitalize;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .sim-data-field-value {
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
   color: var(--text-main);
   margin-top: 0.1rem;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .sim-data-field-value a {
@@ -1035,12 +1038,13 @@
 }
 
 .efficiency-section-title {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--dark-blue);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-main);
   margin-bottom: var(--spacing-md);
   padding-bottom: var(--spacing-xs);
   border-bottom: 1px solid var(--border-light);
+  line-height: 1.35;
 }
 
 .efficiency-params-grid {
@@ -1056,17 +1060,18 @@
 }
 
 .efficiency-param-label {
-  font-size: 0.72rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .efficiency-param-value {
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
   color: var(--text-main);
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .efficiency-summary-table-wrap {
@@ -1092,16 +1097,16 @@
 
 .efficiency-summary-item__label {
   color: var(--text-secondary);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .efficiency-summary-item__value {
   text-align: right;
   color: var(--text-main);
-  font-size: 0.83rem;
+  font-size: var(--font-size-md);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -1263,19 +1268,20 @@
 .efficiency-table-note {
   margin: 0.75rem 0 0;
   color: var(--text-secondary);
-  font-size: 0.82rem;
-  line-height: 1.45;
+  font-size: var(--font-size-md);
+  line-height: 1.5;
 }
 
 /* Optimization subsection title */
 
 .efficiency-subsection-title {
-  font-size: 0.78rem;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--text-main);
   margin: var(--spacing-md) 0 var(--spacing-sm);
   padding-top: var(--spacing-sm);
   border-top: 1px dashed var(--border-light);
+  line-height: 1.35;
 }
 
 /* Left-aligned text header for Shift column */
@@ -1631,16 +1637,17 @@
 }
 
 .env-page__title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--dark-blue);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--text-main);
   margin: 0 0 0.2rem;
+  line-height: 1.35;
 }
 
 .env-page__subtitle {
   margin: 0;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
 }
 
 .env-page__subtitle a {
@@ -1670,12 +1677,17 @@
 
 .env-mission-item__label {
   color: var(--text-secondary);
+  font-size: var(--font-size-sm);
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .env-mission-item__value {
   color: var(--text-main);
-  font-weight: 700;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Main KPI cards row */
@@ -1806,17 +1818,18 @@
 /* Section titles and subtitles */
 
 .env-section-title {
-  font-size: 0.92rem;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
   color: var(--text-main);
   margin: 0 0 0.15rem;
+  line-height: 1.35;
 }
 
 .env-section-subtitle {
-  font-size: 0.78rem;
+  font-size: var(--font-size-md);
   color: var(--text-secondary);
   margin: 0 0 var(--spacing-sm);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 /* Table section */

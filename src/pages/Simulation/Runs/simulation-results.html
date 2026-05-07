@@ -2,7 +2,7 @@
   <header class="page-header">
     <div class="header-with-close">
       <div class="title-container">
-        <h1 data-i18n="simulation.results_page_title" data-role="results-page-title">Feasibility evaluation results</h1>
+        <h1 class="page-title" data-i18n="simulation.results_page_title" data-role="results-page-title">Feasibility evaluation results</h1>
         <div class="results-shift-tabs" data-role="shift-tabs" hidden></div>
       </div>
       <button
@@ -67,7 +67,7 @@
       <div class="tab-panel" data-panel="costs" role="tabpanel" hidden>
         <div class="costs-primary-stack costs-primary-stack--inputs">
           <div class="chart-section costs-kpis-section">
-            <h2 data-i18n="simulation.results_costs_kpis_title">Key financial metrics</h2>
+            <h2 class="card-title" data-i18n="simulation.results_costs_kpis_title">Key financial metrics</h2>
             <div class="costs-kpi-grid" data-role="costs-kpis"></div>
           </div>
           <div class="chart-section results-cost-variables">
@@ -276,25 +276,25 @@
         </div>
         <div class="costs-primary-stack costs-primary-stack--charts">
           <div class="chart-section costs-annual-section">
-            <h2 data-i18n="simulation.results_tco_title">Annual cost comparison</h2>
-            <p class="costs-assumption-note" data-role="costs-assumption" data-i18n="simulation.costs_assumption_weekly_once">
+            <h2 class="card-title" data-i18n="simulation.results_tco_title">Annual cost comparison</h2>
+            <p class="costs-assumption-note helper-text" data-role="costs-assumption" data-i18n="simulation.costs_assumption_weekly_once">
               Current economic comparison assumes `weekly_once` recurrence.
             </p>
             <div class="chart-container" data-role="costs-bar-chart"></div>
             <div class="chart-legend" data-role="costs-legend"></div>
           </div>
           <div class="chart-section costs-trend-section">
-            <h2 data-i18n="simulation.results_costs_trend">Projected cost trend</h2>
+            <h2 class="card-title" data-i18n="simulation.results_costs_trend">Projected cost trend</h2>
             <div class="chart-container" data-role="costs-line-chart"></div>
             <div class="chart-legend" data-role="costs-line-legend"></div>
           </div>
         </div>
         <div class="chart-section costs-electric-opex-section">
-          <h2 data-i18n="simulation.costs_input_section_electric">Electric OPEX breakdown</h2>
+          <h2 class="card-title" data-i18n="simulation.costs_input_section_electric">Electric OPEX breakdown</h2>
           <div data-role="costs-electric-opex"></div>
         </div>
         <div class="chart-section costs-diesel-opex-section">
-          <h2 data-i18n="simulation.costs_input_section_diesel">Diesel OPEX breakdown</h2>
+          <h2 class="card-title" data-i18n="simulation.costs_input_section_diesel">Diesel OPEX breakdown</h2>
           <div data-role="costs-diesel-opex"></div>
         </div>
       </div>
@@ -312,8 +312,8 @@
 
           <!-- 1. Page title -->
           <div class="env-page__header">
-            <h2 class="env-page__title" data-i18n="simulation.env_page_title">Environmental comparison</h2>
-            <p class="env-page__subtitle" data-i18n-html="simulation.env_page_subtitle">Lifecycle-based indicators derived from the <a href="https://www.i14y.admin.ch/en/catalog/dataservices/171b09a4-5b5f-4577-8921-3af7fc6eee39/description" target="_blank" rel="noopener noreferrer">official Swiss Mobitool methodology</a>.</p>
+            <h2 class="env-page__title section-title" data-i18n="simulation.env_page_title">Environmental comparison</h2>
+            <p class="env-page__subtitle helper-text" data-i18n-html="simulation.env_page_subtitle">Lifecycle-based indicators derived from the <a href="https://www.i14y.admin.ch/en/catalog/dataservices/171b09a4-5b5f-4577-8921-3af7fc6eee39/description" target="_blank" rel="noopener noreferrer">official Swiss Mobitool methodology</a>.</p>
           </div>
 
           <!-- 2. Mission summary row -->
@@ -324,24 +324,24 @@
 
           <!-- 4. Comparison table -->
           <div class="chart-section env-table-section">
-            <h3 class="env-section-title" data-i18n="simulation.env_table_title">Environmental indicator comparison</h3>
-            <p class="env-section-subtitle" data-i18n="simulation.env_table_subtitle">Lifecycle environmental indicators for both technologies.</p>
+            <h3 class="env-section-title card-title" data-i18n="simulation.env_table_title">Environmental indicator comparison</h3>
+            <p class="env-section-subtitle helper-text" data-i18n="simulation.env_table_subtitle">Lifecycle environmental indicators for both technologies.</p>
             <div data-role="emissions-recap-table"></div>
           </div>
 
           <div class="env-chart-grid">
             <!-- 5. Chart A — Emissions saved -->
             <div class="chart-section env-chart-section env-chart-section--prominent">
-              <h3 class="env-section-title" data-i18n="simulation.emissions_saved_title">Emissions saved</h3>
-              <p class="env-section-subtitle" data-i18n="simulation.env_emissions_saved_subtitle">Annual reduction achieved by the electric bus relative to the diesel bus.</p>
+              <h3 class="env-section-title card-title" data-i18n="simulation.emissions_saved_title">Emissions saved</h3>
+              <p class="env-section-subtitle helper-text" data-i18n="simulation.env_emissions_saved_subtitle">Annual reduction achieved by the electric bus relative to the diesel bus.</p>
               <div class="chart-container" data-role="emissions-histogram"></div>
               <div class="chart-legend" data-role="emissions-histogram-legend"></div>
             </div>
 
             <!-- 6. Chart B — CO₂ lifecycle breakdown -->
             <div class="chart-section env-chart-section">
-              <h3 class="env-section-title" data-i18n="simulation.emissions_co2_phase_title">CO₂ lifecycle breakdown</h3>
-              <p class="env-section-subtitle" data-i18n="simulation.env_co2_phase_subtitle">Contribution of lifecycle components to total CO₂ emissions for the two technologies.</p>
+              <h3 class="env-section-title card-title" data-i18n="simulation.emissions_co2_phase_title">CO₂ lifecycle breakdown</h3>
+              <p class="env-section-subtitle helper-text" data-i18n="simulation.env_co2_phase_subtitle">Contribution of lifecycle components to total CO₂ emissions for the two technologies.</p>
               <div class="chart-container" data-role="emissions-co2-phase"></div>
               <div class="chart-legend" data-role="emissions-co2-phase-legend"></div>
             </div>
@@ -376,8 +376,8 @@
       <div class="sim-data-panel">
         <div class="sim-data-header">
           <div>
-            <h2 data-i18n="simulation.results_sim_data">Feasibility evaluation data</h2>
-            <p class="sim-data-subtitle" data-role="sim-data-subtitle"></p>
+            <h2 class="section-title" data-i18n="simulation.results_sim_data">Feasibility evaluation data</h2>
+            <p class="sim-data-subtitle helper-text" data-role="sim-data-subtitle"></p>
           </div>
           <button
             type="button"
@@ -395,15 +395,15 @@
 
         <div class="sim-data-columns">
           <div class="sim-data-col">
-            <h3 data-i18n="simulation.results_general_info">General information</h3>
+            <h3 class="card-title" data-i18n="simulation.results_general_info">General information</h3>
             <div class="sim-data-fields" data-role="general-info"></div>
           </div>
           <div class="sim-data-col">
-            <h3 data-i18n="simulation.results_bus_info">Bus information</h3>
+            <h3 class="card-title" data-i18n="simulation.results_bus_info">Bus information</h3>
             <div class="sim-data-fields" data-role="bus-info"></div>
           </div>
           <div class="sim-data-col">
-            <h3 data-i18n="simulation.results_charging_info">Charging station information</h3>
+            <h3 class="card-title" data-i18n="simulation.results_charging_info">Charging station information</h3>
             <div class="sim-data-fields" data-role="charging-info"></div>
           </div>
         </div>

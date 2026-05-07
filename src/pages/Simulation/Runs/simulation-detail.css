@@ -1,10 +1,4 @@
-.simulation-detail h1 {
-  color: var(--dark-blue);
-}
-
 .simulation-detail .breadcrumb {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
@@ -36,9 +30,10 @@
 }
 
 .simulation-detail .custom-variables-section legend {
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--text-main);
+  line-height: 1.35;
   padding: 0 var(--spacing-xs);
 }
 
@@ -73,9 +68,10 @@
 }
 
 .simulation-results h2 {
-  font-size: 1.1rem;
+  font-size: var(--font-size-xl);
   font-weight: 600;
   color: var(--text-main);
+  line-height: 1.35;
   margin-bottom: var(--spacing-md);
 }
 
@@ -92,15 +88,18 @@
 }
 
 .result-label {
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  text-transform: capitalize;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .result-value {
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--text-main);
+  font-variant-numeric: tabular-nums;
 }
 
 .result-card {
@@ -120,8 +119,8 @@
 }
 
 .result-shift {
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: var(--font-size-md);
+  font-weight: 600;
   color: var(--text-main);
   font-family: monospace;
 }

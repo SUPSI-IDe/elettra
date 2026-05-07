@@ -1,6 +1,6 @@
 <section class="visualize-shift" aria-labelledby="visualize-shift-heading">
-  <header class="visualize-shift__header header-with-close">
-    <h1 id="visualize-shift-heading" data-i18n="shifts.visualize_title">Visualize shift</h1>
+  <header class="visualize-shift__header header-with-close page-header">
+    <h1 id="visualize-shift-heading" class="page-title" data-i18n="shifts.visualize_title">Visualize shift</h1>
     <button
       type="button"
       data-action="close"
@@ -17,23 +17,23 @@
         <header class="shift-summary__header">
           <h2 id="shift-summary-heading" data-field="name" data-i18n="shifts.field_shift_name">Shift name</h2>
           <p class="shift-summary__bus" hidden>
-            <span class="shift-summary__bus-label" data-i18n="shifts.bus_model_label">Bus model:</span>
-            <span data-field="bus-name"></span>
+            <span class="shift-summary__bus-label meta-label" data-i18n="shifts.bus_model_label">Bus model:</span>
+            <span class="meta-value" data-field="bus-name"></span>
           </p>
           <p class="shift-summary__distance">
             <span
-              class="shift-summary__distance-label"
+              class="shift-summary__distance-label meta-label"
               data-i18n="shifts.daily_distance_label"
               >Daily distance:</span
             >
-            <span data-field="daily-distance">—</span>
+            <span class="meta-value" data-field="daily-distance">—</span>
           </p>
         </header>
         <section
           class="shift-summary__block"
           aria-labelledby="shift-start-heading"
         >
-          <h3 id="shift-start-heading" data-i18n="shifts.start_heading">Start</h3>
+          <h3 id="shift-start-heading" class="card-title" data-i18n="shifts.start_heading">Start</h3>
           <dl class="shift-summary__details">
             <div>
               <dt data-i18n="shifts.label_time">Time</dt>
@@ -70,7 +70,7 @@
           class="shift-summary__block"
           aria-labelledby="shift-end-heading"
         >
-          <h3 id="shift-end-heading" data-i18n="shifts.return_heading">Return</h3>
+          <h3 id="shift-end-heading" class="card-title" data-i18n="shifts.return_heading">Return</h3>
           <dl class="shift-summary__details">
             <div>
               <dt data-i18n="shifts.label_time">Time</dt>
@@ -88,7 +88,7 @@
         aria-labelledby="shift-visualization-heading"
       >
         <header class="shift-visualization__header">
-          <h2 id="shift-visualization-heading" data-i18n="shifts.timeline_heading">Timeline</h2>
+          <h2 id="shift-visualization-heading" class="section-title" data-i18n="shifts.timeline_heading">Timeline</h2>
         </header>
         <div
           class="timeline"
