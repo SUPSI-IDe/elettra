@@ -460,6 +460,33 @@ nav .nav-links a:hover {
   background-color: #e0e0e0;
 }
 
+.table-controls .list-primary-action {
+  background-color: var(--brand-teal);
+  color: #fff;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.table-controls .list-primary-action:hover {
+  background-color: var(--brand-teal-dark);
+}
+
+.buses .table-controls,
+.custom-stops .table-controls,
+.shifts .table-controls {
+  flex-wrap: wrap;
+}
+
+.buses .table-controls .actions,
+.custom-stops .table-controls .actions,
+.shifts .table-controls .actions {
+  flex-wrap: wrap;
+}
+
 .table-controls button.active {
   background-color: var(--action-blue);
   color: white;

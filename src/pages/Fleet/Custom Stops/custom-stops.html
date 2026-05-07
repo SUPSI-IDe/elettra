@@ -3,14 +3,6 @@
     <div class="title-container">
       <h1 data-i18n="nav.custom_stops">Custom Stops</h1>
     </div>
-    <button
-      type="button"
-      class="header-action-btn green"
-      data-action="add-custom-stop"
-      data-i18n="custom_stops.add_custom_stop"
-    >
-      Add Custom Stop
-    </button>
   </header>
   <p
     class="flash-message"
@@ -32,18 +24,28 @@
       />
       <button
         type="button"
-        data-action="delete-selected-stops"
-        data-i18n="common.delete"
+        class="list-primary-action"
+        data-action="add-custom-stop"
+        data-i18n="custom_stops.add_custom_stop"
       >
-        Delete
+        Add Custom Stop
       </button>
-      <button
-        type="button"
-        data-action="edit-selected-stops"
-        data-i18n="common.edit"
-      >
-        Edit
-      </button>
+      <div class="actions">
+        <button
+          type="button"
+          data-action="delete-selected-stops"
+          data-i18n="common.delete"
+        >
+          Delete
+        </button>
+        <button
+          type="button"
+          data-action="edit-selected-stops"
+          data-i18n="common.edit"
+        >
+          Edit
+        </button>
+      </div>
     </div>
     <div class="custom-stop-table">
       <table>

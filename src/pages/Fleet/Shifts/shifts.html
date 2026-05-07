@@ -3,14 +3,6 @@
     <div class="title-container">
       <h1 data-i18n="nav.shifts">Shifts</h1>
     </div>
-    <button
-      type="button"
-      class="header-action-btn green"
-      data-action="add-shift"
-      data-i18n="shifts.add_shift"
-    >
-      Add Shift
-    </button>
   </header>
   <p
     class="flash-message"
@@ -30,25 +22,35 @@
       />
       <button
         type="button"
-        data-action="delete-selected-shifts"
-        data-i18n="common.delete"
+        class="list-primary-action"
+        data-action="add-shift"
+        data-i18n="shifts.add_shift"
       >
-        Delete
+        Add Shift
       </button>
-      <button
-        type="button"
-        data-action="duplicate-selected-shifts"
-        data-i18n="shifts.duplicate"
-      >
-        Duplicate
-      </button>
-      <button
-        type="button"
-        data-action="edit-selected-shifts"
-        data-i18n="common.edit"
-      >
-        Edit
-      </button>
+      <div class="actions">
+        <button
+          type="button"
+          data-action="delete-selected-shifts"
+          data-i18n="common.delete"
+        >
+          Delete
+        </button>
+        <button
+          type="button"
+          data-action="duplicate-selected-shifts"
+          data-i18n="shifts.duplicate"
+        >
+          Duplicate
+        </button>
+        <button
+          type="button"
+          data-action="edit-selected-shifts"
+          data-i18n="common.edit"
+        >
+          Edit
+        </button>
+      </div>
     </div>
     <div class="shifts-table">
       <table>
