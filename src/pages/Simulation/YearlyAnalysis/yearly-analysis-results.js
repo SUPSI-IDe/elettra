@@ -56,7 +56,25 @@ const translateOr = (key, fallback, params = {}) => {
 const quantileHelpText = () =>
   translateOr(
     "yearly_analysis.quantile_help",
-    "Q50 is the median prediction. Q05 is a low-demand estimate and Q95 is a high-demand estimate. Q05-Q95 shows the central prediction spread across simulations; wider intervals indicate higher uncertainty."
+    "Q50 is the median scenario prediction. Q05 is a low-demand estimate and Q95 is a high-demand estimate. Q05-Q95 shows the prediction spread across simulations; wider intervals indicate higher uncertainty."
+  );
+
+const efficiencyTemperatureHelpText = () =>
+  translateOr(
+    "yearly_analysis.efficiency_temperature_uncertainty_help",
+    "Q50 is the median scenario efficiency. The Q05-Q95 band shows the prediction spread across simulations for each temperature scenario."
+  );
+
+const annualContributionHelpText = () =>
+  translateOr(
+    "yearly_analysis.annual_contribution_uncertainty_help",
+    "Yearly-scaled Q05/Q50/Q95 values are obtained by weighting temperature scenarios by their annual occurrence. This is a scenario-weighted prediction-spread envelope, not a true annual exceedance probability."
+  );
+
+const scenarioTableUncertaintyHelpText = () =>
+  translateOr(
+    "yearly_analysis.scenario_table_uncertainty_help",
+    "The uncertainty column reports Q50 with the Q05-Q95 spread for specific consumption in each temperature scenario."
   );
 
 const heatingLabel = (value) => {
@@ -617,7 +635,12 @@ const renderScenarioTable = (enriched = []) => {
     t("yearly_analysis.scenario"), t("yearly_analysis.temp_celsius"), t("yearly_analysis.days_year"),
     t("yearly_analysis.total_energy_kwh"), t("yearly_analysis.drivetrain_kwh"), t("yearly_analysis.auxiliary_kwh"),
     t("yearly_analysis.simulated_distance_km"), t("simulation.efficiency_col_per_km"),
-    ...(anyUncertainty ? [t("yearly_analysis.efficiency_uncertainty")] : []),
+    ...(anyUncertainty
+      ? [translateOr(
+          "yearly_analysis.efficiency_uncertainty",
+          "Specific Q50 (Q05-Q95)"
+        )]
+      : []),
   ];
   const headerHtml = headers.map((h) => `<th>${textContent(h)}</th>`).join("");
 
@@ -646,7 +669,204 @@ const renderScenarioTable = (enriched = []) => {
 
   return `<div class="ya-res-section">
     <h3 class="ya-res-section-title">${textContent(t("yearly_analysis.scenario_results"))}</h3>
+    ${anyUncertainty
+      ? `<p class="ya-sizing-note">${textContent(scenarioTableUncertaintyHelpText())}</p>`
+      : ""}
     <div class="ya-res-table-wrap"><table class="ya-res-table"><thead><tr>${headerHtml}</tr></thead><tbody>${rows}</tbody></table></div>
+  </div>`;
+};
+
+const buildCriticalUncertaintyScenarios = (annualContrib = []) => {
+  const rows = (Array.isArray(annualContrib) ? annualContrib : [])
+    .map((row) => {
+      const dailyQ05 = toFiniteNumber(row.dailyQ05);
+      const dailyQ95 = toFiniteNumber(row.dailyQ95);
+      const yearlyQ05 = toFiniteNumber(row.yearlyQ05);
+      const yearlyQ50 = toFiniteNumber(row.yearlyQ50);
+      const yearlyQ95 = toFiniteNumber(row.yearlyQ95);
+      const dailySpread =
+        dailyQ05 != null && dailyQ95 != null ? dailyQ95 - dailyQ05 : null;
+      const yearlySpread =
+        yearlyQ05 != null && yearlyQ95 != null ? yearlyQ95 - yearlyQ05 : null;
+
+      return {
+        label: row.label,
+        temperature: toFiniteNumber(row.temperature),
+        occurrences: toFiniteNumber(row.occurrences),
+        dailyQ05,
+        dailyQ95,
+        yearlyQ05,
+        yearlyQ50,
+        yearlyQ95,
+        dailySpread,
+        yearlySpread,
+      };
+    });
+
+  const maxBy = (items, key) =>
+    items.reduce((best, item) => {
+      const value = toFiniteNumber(item?.[key]);
+      if (value == null) return best;
+      const bestValue = toFiniteNumber(best?.[key]);
+      return bestValue == null || value > bestValue ? item : best;
+    }, null);
+
+  return {
+    highestQ95: maxBy(rows, "yearlyQ95"),
+    widestSpread: maxBy(rows, "dailySpread"),
+    largestWeightedSpread: maxBy(rows, "yearlySpread"),
+  };
+};
+
+const scenarioDescriptor = (row = {}) => {
+  const parts = [
+    row.temperature != null ? `${formatFixed(row.temperature, 1)} °C` : text(row.label),
+    row.occurrences != null ? `${formatInt(row.occurrences)} ${translateOr("yearly_analysis.days_per_year_short", "days/year")}` : null,
+  ].filter(Boolean);
+  return parts.join(" · ");
+};
+
+const temperatureDescriptor = (row = {}) =>
+  row.temperature != null ? `${formatFixed(row.temperature, 1)} °C` : text(row.label);
+
+const renderCriticalUncertaintyScenarios = (annualContrib = []) => {
+  const critical = buildCriticalUncertaintyScenarios(annualContrib);
+  const items = [];
+
+  if (critical.highestQ95) {
+    items.push({
+      label: translateOr("yearly_analysis.critical_highest_q95", "Highest Q95 energy scenario"),
+      value: `${formatInt(critical.highestQ95.yearlyQ95)} kWh/year`,
+      detail: `${temperatureDescriptor(critical.highestQ95)} · Yearly Q95: ${formatInt(critical.highestQ95.yearlyQ95)} kWh/year`,
+    });
+  }
+
+  if (critical.widestSpread) {
+    items.push({
+      label: translateOr("yearly_analysis.critical_widest_spread", "Widest prediction spread"),
+      value: `${formatFixed(critical.widestSpread.dailySpread, 1)} kWh/day`,
+      detail: `${scenarioDescriptor(critical.widestSpread)} · Q05-Q95: ${formatFixed(critical.widestSpread.dailyQ05, 1)}-${formatFixed(critical.widestSpread.dailyQ95, 1)} kWh/day`,
+    });
+  }
+
+  if (critical.largestWeightedSpread) {
+    items.push({
+      label: translateOr("yearly_analysis.critical_weighted_spread", "Largest yearly prediction spread"),
+      value: `${formatInt(critical.largestWeightedSpread.yearlySpread)} kWh/year`,
+      detail: `${temperatureDescriptor(critical.largestWeightedSpread)} · Yearly Q05-Q95: ${formatInt(critical.largestWeightedSpread.yearlyQ05)}-${formatInt(critical.largestWeightedSpread.yearlyQ95)} kWh/year`,
+    });
+  }
+
+  const bodyHtml = items.length
+    ? `<div class="ya-critical-grid">${items.map((item) => `
+        <div class="ya-critical-item">
+          <span class="ya-critical-item__label">${textContent(item.label)}</span>
+          <strong class="ya-critical-item__value">${textContent(item.value)}</strong>
+          <span class="ya-critical-item__detail">${textContent(item.detail)}</span>
+        </div>`
+      ).join("")}</div>`
+    : `<p class="ya-critical-empty">${textContent(
+        translateOr(
+          "yearly_analysis.critical_uncertainty_empty",
+          "No Q05/Q50/Q95 scenario uncertainty is available for this analysis."
+        )
+      )}</p>`;
+
+  return `<div class="ya-res-section ya-critical-panel">
+    <h3 class="ya-res-section-title">${textContent(
+      translateOr("yearly_analysis.critical_uncertainty_title", "Critical uncertainty scenarios")
+    )}</h3>
+    <p class="ya-sizing-note">${textContent(
+      translateOr(
+        "yearly_analysis.critical_uncertainty_help",
+        "Highlights use the same scenario-weighted Q05/Q50/Q95 values shown by the annual energy chart. Yearly spread means yearly Q95 minus yearly Q05, not a true annual exceedance probability."
+      )
+    )}</p>
+    ${bodyHtml}
+  </div>`;
+};
+
+const buildYearlyUncertaintySummary = (annualContrib = []) => {
+  const rows = (Array.isArray(annualContrib) ? annualContrib : []).map((row) => ({
+    q05: toFiniteNumber(row?.yearlyQ05),
+    q50: toFiniteNumber(row?.yearlyQ50),
+    q95: toFiniteNumber(row?.yearlyQ95),
+  }));
+  const completeRows = rows.filter(
+    (row) => row.q05 != null && row.q50 != null && row.q95 != null
+  );
+
+  if (!rows.length || completeRows.length !== rows.length) return null;
+
+  const q05 = completeRows.reduce((sum, row) => sum + row.q05, 0);
+  const q50 = completeRows.reduce((sum, row) => sum + row.q50, 0);
+  const q95 = completeRows.reduce((sum, row) => sum + row.q95, 0);
+  const spread = q95 - q05;
+  const relativeSpread = q50 > 0 ? (spread / q50) * 100 : null;
+
+  return {
+    q05,
+    q50,
+    q95,
+    spread,
+    relativeSpread,
+  };
+};
+
+const renderYearlyUncertaintySummary = (annualContrib = []) => {
+  if (!Array.isArray(annualContrib) || !annualContrib.length) return "";
+
+  const summary = buildYearlyUncertaintySummary(annualContrib);
+  const bodyHtml = summary
+    ? `<div class="ya-uncertainty-summary-grid">
+        <div class="ya-uncertainty-summary-item">
+          <span class="ya-uncertainty-summary-item__label">${textContent(
+            translateOr("yearly_analysis.yearly_uncertainty_q50", "Scenario-weighted Q50 annual energy")
+          )}</span>
+          <strong class="ya-uncertainty-summary-item__value">${textContent(formatInt(summary.q50))} kWh/year</strong>
+          <span class="ya-uncertainty-summary-item__detail">${textContent(
+            translateOr("yearly_analysis.yearly_uncertainty_q50_detail", "Median estimate from stochastic simulations")
+          )}</span>
+        </div>
+        <div class="ya-uncertainty-summary-item">
+          <span class="ya-uncertainty-summary-item__label">${textContent(
+            translateOr("yearly_analysis.yearly_uncertainty_envelope", "Scenario-weighted Q05-Q95 envelope")
+          )}</span>
+          <strong class="ya-uncertainty-summary-item__value">${textContent(formatInt(summary.q05))}-${textContent(formatInt(summary.q95))} kWh/year</strong>
+        </div>
+        <div class="ya-uncertainty-summary-item">
+          <span class="ya-uncertainty-summary-item__label">${textContent(
+            translateOr("yearly_analysis.yearly_uncertainty_spread", "Prediction spread")
+          )}</span>
+          <strong class="ya-uncertainty-summary-item__value">${textContent(formatInt(summary.spread))} kWh/year</strong>
+        </div>
+        ${summary.relativeSpread != null
+          ? `<div class="ya-uncertainty-summary-item">
+              <span class="ya-uncertainty-summary-item__label">${textContent(
+                translateOr("yearly_analysis.yearly_uncertainty_relative_spread", "Relative spread")
+              )}</span>
+              <strong class="ya-uncertainty-summary-item__value">${textContent(formatFixed(summary.relativeSpread, 1))}% of Q50</strong>
+            </div>`
+          : ""}
+      </div>`
+    : `<p class="ya-critical-empty">${textContent(
+        translateOr(
+          "yearly_analysis.yearly_uncertainty_empty",
+          "Yearly uncertainty summary is unavailable because scenario quantiles are missing."
+        )
+      )}</p>`;
+
+  return `<div class="ya-res-section ya-yearly-uncertainty-summary">
+    <h3 class="ya-res-section-title">${textContent(
+      translateOr("yearly_analysis.yearly_uncertainty_title", "Yearly uncertainty summary")
+    )}</h3>
+    <p class="ya-sizing-note">${textContent(
+      translateOr(
+        "yearly_analysis.yearly_uncertainty_help",
+        "Scenario-weighted annual estimate based on temperature-scenario Q05/Q50/Q95 values. This is a scenario-weighted prediction-spread envelope, not a true annual exceedance probability."
+      )
+    )}</p>
+    ${bodyHtml}
   </div>`;
 };
 
@@ -665,13 +885,16 @@ const renderYearlySummary = (summary) => {
 
   const cards = [
     card(t("yearly_analysis.yearly_simulated_distance"), summary.dist != null ? `${formatInt(summary.dist)} km` : "—"),
-    card(t("yearly_analysis.yearly_energy"), summary.energy != null ? `${formatInt(summary.energy)} kWh` : "—"),
-    card(t("yearly_analysis.yearly_drivetrain_energy"), summary.drv != null ? `${formatInt(summary.drv)} kWh` : "—",
+    card(
+      translateOr("yearly_analysis.point_estimate_yearly_energy", "Yearly energy (point estimate)"),
+      summary.energy != null ? `${formatInt(summary.energy)} kWh` : "—"
+    ),
+    card(translateOr("yearly_analysis.point_estimate_drivetrain_energy", "Point-estimate drivetrain energy"), summary.drv != null ? `${formatInt(summary.drv)} kWh` : "—",
       summary.drvShare != null ? t("yearly_analysis.percent_of_total", { value: formatFixed(summary.drvShare, 1) }) : null),
-    card(t("yearly_analysis.yearly_auxiliary_energy"), summary.aux != null ? `${formatInt(summary.aux)} kWh` : "—",
+    card(translateOr("yearly_analysis.point_estimate_auxiliary_energy", "Point-estimate auxiliary energy"), summary.aux != null ? `${formatInt(summary.aux)} kWh` : "—",
       summary.auxShare != null ? t("yearly_analysis.percent_of_total", { value: formatFixed(summary.auxShare, 1) }) : null),
     card(
-      t("yearly_analysis.average_yearly_efficiency"),
+      translateOr("yearly_analysis.point_estimate_average_yearly_efficiency", "Point-estimate average yearly efficiency"),
       summary.avgEfficiency != null ? `${formatFixed(summary.avgEfficiency, 3)} kWh/km` : "—",
       efficiencySub || null,
     ),
@@ -680,6 +903,12 @@ const renderYearlySummary = (summary) => {
   return `<div class="ya-res-section">
     <h3 class="ya-res-section-title">${textContent(t("yearly_analysis.yearly_aggregated_summary"))}</h3>
     <div class="ya-summary-cards">${cards.join("")}</div>
+    <p class="ya-sizing-note ya-summary-transition-note">${textContent(
+      translateOr(
+        "yearly_analysis.point_estimate_vs_uncertainty_note",
+        "The yearly aggregated summary reports point estimates. The uncertainty summary reports scenario-weighted quantiles from stochastic simulations, so the point estimate and Q50 median may differ."
+      )
+    )}</p>
   </div>`;
 };
 
@@ -842,6 +1071,11 @@ const formatContributionTick = (value, mode) => {
   return n.toFixed(0);
 };
 
+const contributionPointLabel = (mode) =>
+  normalizeAnnualContributionMode(mode) === "daily"
+    ? translateOr("yearly_analysis.tooltip_point_estimate_daily", "Point estimate")
+    : translateOr("yearly_analysis.tooltip_point_estimate_yearly", "Scenario-weighted point estimate");
+
 const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
   if (!el) return;
   el.innerHTML = "";
@@ -895,15 +1129,19 @@ const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
     const q50 = readValue(item, "q50", null);
     const q95 = readValue(item, "q95", null);
     tooltipText.selectAll("*").remove();
+    const pointLabel = contributionPointLabel(config.mode);
     const lines = [
       `${item.label} (${item.temperature}°C)`,
       t("yearly_analysis.tooltip_days_year", { value: formatInt(item.occurrences) }),
-      t("yearly_analysis.tooltip_drivetrain_energy", { value: formatContributionValue(drv, config.mode), unit: config.unitLabel }),
-      t("yearly_analysis.tooltip_auxiliary_energy", { value: formatContributionValue(aux, config.mode), unit: config.unitLabel }),
-      t("yearly_analysis.tooltip_total_energy", { value: formatContributionValue(total, config.mode), unit: config.unitLabel }),
+      `${pointLabel} total: ${formatContributionValue(total, config.mode)} ${config.unitLabel}`,
+      `${pointLabel} drivetrain: ${formatContributionValue(drv, config.mode)} ${config.unitLabel}`,
+      `${pointLabel} auxiliary: ${formatContributionValue(aux, config.mode)} ${config.unitLabel}`,
     ];
     if (q50 != null) {
-      lines.push(`Q05/Q50/Q95: ${formatContributionValue(q05, config.mode)} / ${formatContributionValue(q50, config.mode)} / ${formatContributionValue(q95, config.mode)} ${config.unitLabel}`);
+      lines.push(`Q50 median: ${formatContributionValue(q50, config.mode)} ${config.unitLabel}`);
+    }
+    if (q05 != null && q95 != null) {
+      lines.push(`Q05-Q95 prediction spread: ${formatContributionValue(q05, config.mode)}-${formatContributionValue(q95, config.mode)} ${config.unitLabel}`);
     }
 
     lines.forEach((txt, i) => {
@@ -3755,6 +3993,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const effChart2Legend = section.querySelector('[data-role="ya-eff-chart-2-legend"]');
   const effChart2UnitToggle = section.querySelector('[data-role="ya-eff-chart-2-unit-toggle"]');
   const scenarioTableEl = section.querySelector('[data-role="efficiency-scenario-table"]');
+  const effChart1NoteEl = section.querySelector('[data-role="ya-eff-chart-1-note"]');
+  const effChart2NoteEl = section.querySelector('[data-role="ya-eff-chart-2-note"]');
 
   const updateAnnualContributionToggle = () => {
     if (!effChart2UnitToggle) return;
@@ -3780,12 +4020,20 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       renderConfig(features),
       renderBatterySizing(features, analysis.optimization_run_id),
       renderYearlySummary(effState.summary),
+      renderYearlyUncertaintySummary(effState.annualContrib),
       `<p class="ya-sizing-note">${textContent(quantileHelpText())}</p>`,
     ].join("");
+    if (effChart1NoteEl) effChart1NoteEl.textContent = efficiencyTemperatureHelpText();
+    if (effChart2NoteEl) effChart2NoteEl.textContent = annualContributionHelpText();
 
     try { renderEfficiencyByTempChart(effChart1El, effChart1Legend, effState.effByTemp); } catch (e) { console.error("[YA-Eff] Chart 1 error:", e); }
     renderAnnualContribution();
-    if (scenarioTableEl) scenarioTableEl.innerHTML = renderScenarioTable(effState.enriched);
+    if (scenarioTableEl) {
+      scenarioTableEl.innerHTML = [
+        renderCriticalUncertaintyScenarios(effState.annualContrib),
+        renderScenarioTable(effState.enriched),
+      ].join("");
+    }
   };
 
   if (effChart2UnitToggle) {
