@@ -49,6 +49,27 @@ const ALLOWED_USABLE_SOC_PERCENTS = new Set([
 /** @deprecated Runs are now persisted server-side; kept for backward compat with callers. */
 export const saveRunIds = () => {};
 
+const DISMISSED_RUNS_KEY = "elettra_dismissed_runs";
+
+const getDismissedRunIds = () => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(DISMISSED_RUNS_KEY) ?? "[]"));
+  } catch {
+    return new Set();
+  }
+};
+
+const addDismissedRunIds = (ids = []) => {
+  const current = getDismissedRunIds();
+  ids.forEach((id) => {
+    const normalized = text(id).trim();
+    if (normalized) {
+      current.add(normalized);
+    }
+  });
+  localStorage.setItem(DISMISSED_RUNS_KEY, JSON.stringify([...current]));
+};
+
 const setFlashMessage = (section, message) => {
   const flashElement = section.querySelector('[data-role="flash"]');
   if (!flashElement) return;
@@ -65,9 +86,9 @@ const setFlashMessage = (section, message) => {
 const renderLoading = (tbody) => {
   if (!tbody) return;
   tbody.innerHTML = `
-    <tr>
+    <tr class="table-state-row">
       <td class="checkbox"></td>
-      <td colspan="8">${textContent(t("common.loading") || "Loading…")}</td>
+      <td class="table-state-cell table-empty" colspan="8">${textContent(t("common.loading") || "Loading…")}</td>
     </tr>`;
 };
 
@@ -77,18 +98,18 @@ const renderError = (
 ) => {
   if (!tbody) return;
   tbody.innerHTML = `
-    <tr>
+    <tr class="table-state-row">
       <td class="checkbox"></td>
-      <td colspan="8">${textContent(message)}</td>
+      <td class="table-state-cell table-empty" colspan="8">${textContent(message)}</td>
     </tr>`;
 };
 
 const renderEmpty = (tbody) => {
   if (!tbody) return;
   tbody.innerHTML = `
-    <tr>
+    <tr class="table-state-row">
       <td class="checkbox"></td>
-      <td colspan="8" data-i18n="simulation.no_runs">No simulation runs found.</td>
+      <td class="table-state-cell table-empty" colspan="8" data-i18n="simulation.no_runs">No simulation runs found.</td>
     </tr>`;
 };
 
@@ -678,7 +699,7 @@ const renderRows = (tbody, runs = []) => {
       const feasibilityLabel = formatFeasibilityLabel(feasible);
       const feasibilityCls = feasibilityBadgeClass(feasible);
 
-      const resultsLink = `<a class="results-link" href="#" data-action="view-results" data-run-id="${rowId}">${t("simulation.col_results") || "Results"}</a>`;
+      const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${rowId}">${t("simulation.col_results") || "Results"}</a>`;
 
       return `
         <tr data-id="${rowId}">
@@ -965,6 +986,7 @@ export const initializeSimulationRuns = async (
         cachedUserId = text(await resolveUserId().catch(() => "")).trim();
       }
       const currentUserId = cachedUserId;
+      const dismissedRunIds = getDismissedRunIds();
       if (!currentUserId) {
         throw new Error("Unable to resolve current user.");
       }
@@ -994,6 +1016,9 @@ export const initializeSimulationRuns = async (
             return !runUserId || runUserId === currentUserId;
           })
         : items;
+      visibleItems = visibleItems.filter(
+        (run) => !dismissedRunIds.has(text(run?.id).trim())
+      );
 
       if (hasForeignRuns) {
         // Backend should scope optimization runs, but if an environment
@@ -1002,7 +1027,10 @@ export const initializeSimulationRuns = async (
         // locally, and paginate the owned result in the UI.
         const ownedRuns = (await fetchAllOptimizationRuns()).filter((run) => {
           const runUserId = text(run?.user_id ?? run?.userId).trim();
-          return !currentUserId || !runUserId || runUserId === currentUserId;
+          return (
+            (!currentUserId || !runUserId || runUserId === currentUserId) &&
+            !dismissedRunIds.has(text(run?.id).trim())
+          );
         });
         visibleItems = ownedRuns.slice(skip, skip + limit);
         pageEnvelope = {
@@ -1155,28 +1183,37 @@ export const initializeSimulationRuns = async (
     if (!confirm(msg)) return;
 
     const deletedIds = new Set();
+    const dismissedIds = new Set();
     let serverFailed = 0;
-    const notSupported = [];
 
     for (const id of ids) {
       try {
         const result = await deleteOptimizationRun(id);
         if (result.deleted) {
           deletedIds.add(id);
+        } else if (result.reason === "not_supported") {
+          dismissedIds.add(id);
         } else {
-          notSupported.push(id);
+          serverFailed++;
         }
       } catch {
         serverFailed++;
-        notSupported.push(id);
       }
     }
 
-    if (deletedIds.size) {
-      allRuns = allRuns.filter((r) => !deletedIds.has(text(r?.id)));
+    const removedIds = new Set([...deletedIds, ...dismissedIds]);
+
+    if (dismissedIds.size) {
+      addDismissedRunIds([...dismissedIds]);
+    }
+
+    if (removedIds.size) {
+      allRuns = allRuns.filter((r) => !removedIds.has(text(r?.id)));
       applyFilter();
       populateCompareSelects();
-    } else if (notSupported.length || serverFailed) {
+    }
+
+    if (!removedIds.size && serverFailed) {
       setFlashMessage(
         section,
         t("simulation.delete_not_supported") ||
@@ -1186,7 +1223,16 @@ export const initializeSimulationRuns = async (
       return;
     }
 
-    const removedCount = deletedIds.size;
+    if (serverFailed) {
+      setFlashMessage(
+        section,
+        `${removedIds.size} simulation(s) removed. ${serverFailed} could not be deleted.`
+      );
+      await loadRunsAndPopulate();
+      return;
+    }
+
+    const removedCount = removedIds.size;
     setFlashMessage(
       section,
       t("simulation.removed", { count: removedCount }) ||
