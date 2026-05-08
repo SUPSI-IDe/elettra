@@ -36,9 +36,9 @@ export const renderLoadingRow = (tbody) => {
   }
 
   tbody.innerHTML = `
-        <tr>
+        <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="model" colspan="9">${textContent(t("common.loading"))}</td>
+            <td class="model table-state-cell table-empty" colspan="9">${textContent(t("common.loading"))}</td>
         </tr>
     `;
 };
@@ -52,9 +52,9 @@ export const renderErrorRow = (
   }
 
   tbody.innerHTML = `
-        <tr>
+        <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="model" colspan="9">${textContent(message)}</td>
+            <td class="model table-state-cell table-empty" colspan="9">${textContent(message)}</td>
         </tr>
     `;
 };
@@ -66,9 +66,9 @@ export const renderModels = (tbody, models = []) => {
 
   if (!Array.isArray(models) || models.length === 0) {
     tbody.innerHTML = `
-            <tr>
+            <tr class="table-state-row">
                 <td class="checkbox"></td>
-                <td class="model" colspan="9">${textContent(t("buses.no_models"))}</td>
+                <td class="model table-state-cell table-empty" colspan="9">${textContent(t("buses.no_models"))}</td>
             </tr>
         `;
     return;
@@ -113,9 +113,9 @@ export const renderBusesList = (tbody, buses = [], modelsById = {}) => {
 
   if (!Array.isArray(buses) || buses.length === 0) {
     tbody.innerHTML = `
-            <tr>
+            <tr class="table-state-row">
                 <td class="checkbox"></td>
-                <td class="name" colspan="3">${textContent(t("buses.no_buses"))}</td>
+                <td class="name table-state-cell table-empty" colspan="3">${textContent(t("buses.no_buses"))}</td>
             </tr>
         `;
     return;
@@ -149,9 +149,9 @@ export const renderBusesLoadingRow = (tbody) => {
   }
 
   tbody.innerHTML = `
-        <tr>
+        <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="name" colspan="3">${textContent(t("common.loading"))}</td>
+            <td class="name table-state-cell table-empty" colspan="3">${textContent(t("common.loading"))}</td>
         </tr>
     `;
 };
@@ -165,11 +165,32 @@ export const renderBusesErrorRow = (
   }
 
   tbody.innerHTML = `
-        <tr>
+        <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="name" colspan="3">${textContent(message)}</td>
+            <td class="name table-state-cell table-empty" colspan="3">${textContent(message)}</td>
         </tr>
     `;
+};
+
+const syncSelectionActionState = (button, selectedCount) => {
+  if (!button) {
+    return;
+  }
+
+  button.classList.remove("active");
+
+  const requiresSingleSelection =
+    button.classList.contains("requires-single-selection");
+  const requiresSelection =
+    requiresSingleSelection || button.classList.contains("requires-selection");
+
+  if (!requiresSelection) {
+    return;
+  }
+
+  button.disabled = requiresSingleSelection
+    ? selectedCount !== 1
+    : selectedCount < 1;
 };
 
 export const updateActionButtons = (table) => {
@@ -180,7 +201,7 @@ export const updateActionButtons = (table) => {
   const checkboxes = Array.from(
     table.querySelectorAll('tbody input[type="checkbox"]')
   );
-  const hasSelection = checkboxes.some((input) => input.checked);
+  const selectedCount = checkboxes.filter((input) => input.checked).length;
 
   // Find the closest section that contains both the table and its controls
   // For buses page: .bus-models or .buses-list sections
@@ -196,11 +217,7 @@ export const updateActionButtons = (table) => {
   );
 
   buttons.forEach((button) => {
-    if (hasSelection) {
-      button.classList.add("active");
-    } else {
-      button.classList.remove("active");
-    }
+    syncSelectionActionState(button, selectedCount);
   });
 };
 

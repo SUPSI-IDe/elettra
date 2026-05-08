@@ -56,9 +56,9 @@ const renderLoading = (tbody) => {
   }
 
   tbody.innerHTML = `
-        <tr>
+        <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="id" colspan="7">${textContent(
+            <td class="id table-state-cell table-empty" colspan="7">${textContent(
               t("common.loading") || "Loading…"
             )}</td>
         </tr>
@@ -71,9 +71,9 @@ const renderError = (tbody, message = t("shifts.unable_to_load")) => {
   }
 
   tbody.innerHTML = `
-        <tr>
+        <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="id" colspan="7">${textContent(message)}</td>
+            <td class="id table-state-cell table-empty" colspan="7">${textContent(message)}</td>
         </tr>
     `;
 };
@@ -84,9 +84,9 @@ const renderEmpty = (tbody) => {
   }
 
   tbody.innerHTML = `
-        <tr>
+        <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="id" colspan="7">${textContent(
+            <td class="id table-state-cell table-empty" colspan="7">${textContent(
               t("shifts.no_shifts_found") || "No shifts found."
             )}</td>
         </tr>

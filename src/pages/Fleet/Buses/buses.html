@@ -30,6 +30,7 @@
         <div class="actions">
           <button
             type="button"
+            class="list-danger-action requires-selection"
             data-action="delete-selected-models"
             data-i18n="common.delete"
           >
@@ -37,6 +38,7 @@
           </button>
           <button
             type="button"
+            class="list-secondary-action requires-single-selection"
             data-action="edit-selected-model"
             data-i18n="common.edit"
           >
@@ -44,7 +46,7 @@
           </button>
         </div>
       </div>
-      <table>
+      <table class="table-standard table-selectable">
         <thead>
           <tr>
             <th class="checkbox">

@@ -10,32 +10,14 @@
 }
 
 .simulation-runs .table-controls {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
   margin-bottom: var(--spacing-md);
-}
-
-.simulation-runs .simulation-new-btn {
-  background-color: var(--brand-teal);
-  color: #fff;
-  padding: 0.45rem 1rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-}
-
-.simulation-runs .simulation-new-btn:hover {
-  background-color: var(--brand-teal-dark);
 }
 
 .simulation-runs .simulation-actions {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+  flex-wrap: wrap;
   margin-left: auto;
 }
 

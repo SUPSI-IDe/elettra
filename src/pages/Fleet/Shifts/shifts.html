@@ -31,6 +31,7 @@
       <div class="actions">
         <button
           type="button"
+          class="list-danger-action requires-selection"
           data-action="delete-selected-shifts"
           data-i18n="common.delete"
         >
@@ -38,6 +39,7 @@
         </button>
         <button
           type="button"
+          class="list-secondary-action requires-selection"
           data-action="duplicate-selected-shifts"
           data-i18n="shifts.duplicate"
         >
@@ -45,6 +47,7 @@
         </button>
         <button
           type="button"
+          class="list-secondary-action requires-single-selection"
           data-action="edit-selected-shifts"
           data-i18n="common.edit"
         >
@@ -53,7 +56,7 @@
       </div>
     </div>
     <div class="shifts-table">
-      <table>
+      <table class="table-standard table-selectable">
         <caption class="sr-only" data-i18n="shifts.caption">
           Current shifts
         </caption>

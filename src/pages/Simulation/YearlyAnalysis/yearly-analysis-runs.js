@@ -13,6 +13,7 @@ import {
 import { isAuthenticated } from "../../../api/session";
 import { installPaginationControl } from "../../../dom/pagination";
 import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
+import { bindSelectAll } from "../../../dom/tables";
 
 const text = (v) => (v === null || v === undefined ? "" : String(v));
 
@@ -55,6 +56,7 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
 
   const cleanups = [];
   const tbody = section.querySelector('[data-role="ya-runs-body"]');
+  const table = section.querySelector("table");
   const emptyMsg = section.querySelector('[data-role="empty-message"]');
   const flashEl = section.querySelector('[data-role="flash"]');
   const selectAllCb = section.querySelector('[data-role="select-all"]');
@@ -99,6 +101,9 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
     if (!filteredAnalyses.length) {
       if (tbody) tbody.innerHTML = "";
       if (emptyMsg) emptyMsg.hidden = false;
+      if (selectAllCb && table) {
+        bindSelectAll(selectAllCb, table);
+      }
       return;
     }
     if (emptyMsg) emptyMsg.hidden = true;
@@ -123,11 +128,15 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
             <td>${textContent(scenariosSummary(scenarios))}</td>
             <td><span class="ya-status-badge ${statusCls}">${textContent(statusLabel(status))}</span></td>
             <td class="ya-actions-cell">
-              <a class="ya-results-link" data-action="view-results" data-id="${textContent(id)}">${textContent(t("common.view"))}</a>
+              <a class="ya-results-link table-action-link" data-action="view-results" data-id="${textContent(id)}">${textContent(t("common.view"))}</a>
             </td>
           </tr>`;
         })
         .join("");
+    }
+
+    if (selectAllCb && table) {
+      bindSelectAll(selectAllCb, table);
     }
   };
 
@@ -278,15 +287,6 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
   };
   section.querySelector('[data-action="delete-selected"]')?.addEventListener("click", handleDeleteSelected);
   cleanups.push(() => section.querySelector('[data-action="delete-selected"]')?.removeEventListener("click", handleDeleteSelected));
-
-  if (selectAllCb) {
-    const handleSelectAll = () => {
-      const boxes = tbody?.querySelectorAll('input[type="checkbox"]') ?? [];
-      boxes.forEach((cb) => { cb.checked = selectAllCb.checked; });
-    };
-    selectAllCb.addEventListener("change", handleSelectAll);
-    cleanups.push(() => selectAllCb.removeEventListener("change", handleSelectAll));
-  }
 
   if (isAuthenticated()) {
     loadAnalyses();

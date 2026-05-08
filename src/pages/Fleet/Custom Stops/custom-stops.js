@@ -22,9 +22,9 @@ const renderRows = (tbody, depots = []) => {
 
   if (!Array.isArray(depots) || depots.length === 0) {
     tbody.innerHTML = `
-            <tr>
+            <tr class="table-state-row">
                 <td class="checkbox"></td>
-                <td class="id" colspan="3">${t("custom_stops.no_stops_found")}</td>
+                <td class="id table-state-cell table-empty" colspan="3">${t("custom_stops.no_stops_found")}</td>
             </tr>
         `;
     return;
@@ -53,9 +53,9 @@ const renderLoading = (tbody) => {
   }
 
   tbody.innerHTML = `
-        <tr>
+        <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="id" colspan="3">${t("common.loading")}</td>
+            <td class="id table-state-cell table-empty" colspan="3">${t("common.loading")}</td>
         </tr>
     `;
 };
@@ -66,9 +66,9 @@ const renderError = (tbody, message = t("custom_stops.unable_to_load")) => {
   }
 
   tbody.innerHTML = `
-        <tr>
+        <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="id" colspan="3">${text(message)}</td>
+            <td class="id table-state-cell table-empty" colspan="3">${text(message)}</td>
         </tr>
     `;
 };

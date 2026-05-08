@@ -27,6 +27,12 @@
   --color-danger: #d32f2f;
   --color-focus-ring: rgba(142, 229, 227, 0.35);
   --color-focus-ring-strong: rgba(74, 157, 166, 0.32);
+  --color-row-hover-bg: #f7fafc;
+  --color-row-selected-bg: rgba(15, 60, 60, 0.08);
+  --color-row-selected-hover-bg: rgba(15, 60, 60, 0.12);
+  --color-disabled-bg: #f3f5f7;
+  --color-disabled-border: #d6dee3;
+  --color-disabled-text: #7f8b96;
 
   --font-family-base: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-size-xs: 0.6875rem;
@@ -595,14 +601,16 @@ nav .nav-links a[aria-current="page"]:hover {
 
 .table-controls {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
   align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
 }
 
 .table-controls input,
 .table-controls select {
-  flex: 1;
+  flex: 1 1 18rem;
+  min-width: min(100%, 14rem);
   padding: 0.5rem;
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-sm);
@@ -622,17 +630,25 @@ nav .nav-links a[aria-current="page"]:hover {
 
 .table-controls .actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 .table-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
   padding: 0.5rem 1rem;
-  border: 1px solid transparent;
-  background-color: var(--base-gray);
-  color: var(--dark-gray);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-medium);
+  background-color: var(--color-surface);
+  color: var(--text-main);
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: var(--font-size-md);
+  font-weight: 500;
+  line-height: 1.2;
   white-space: nowrap;
   transition:
     background-color 0.2s ease,
@@ -642,52 +658,96 @@ nav .nav-links a[aria-current="page"]:hover {
 
 .table-controls button:hover {
   background-color: var(--bg-hover);
+  border-color: var(--dark-gray);
 }
 
-.list-primary-action,
-.btn-primary {
+button.list-primary-action,
+button.list-secondary-action,
+button.list-danger-action,
+button.btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--spacing-xs);
+  padding: 0.45rem 1rem;
   border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: var(--font-size-md);
+  font-weight: 600;
   line-height: 1.2;
 }
 
-.table-controls .list-primary-action {
+button.list-primary-action {
   background-color: var(--brand-teal);
   color: var(--color-surface);
-  padding: 0.45rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
   cursor: pointer;
   border-color: var(--brand-teal);
 }
 
-.table-controls .list-primary-action:hover {
+button.list-primary-action:hover:not(:disabled) {
   background-color: var(--brand-teal-dark);
   border-color: var(--brand-teal-dark);
+  color: var(--color-surface);
 }
 
-.buses .table-controls,
-.custom-stops .table-controls,
-.shifts .table-controls {
-  flex-wrap: wrap;
+button.list-primary-action:focus-visible {
+  color: var(--color-surface);
 }
 
-.buses .table-controls .actions,
-.custom-stops .table-controls .actions,
-.shifts .table-controls .actions {
-  flex-wrap: wrap;
+button.list-secondary-action {
+  background-color: var(--color-surface);
+  color: var(--text-main);
+  border-color: var(--border-medium);
 }
 
-.table-controls button.active {
-  background-color: var(--action-blue);
-  color: white;
+button.list-secondary-action:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  border-color: var(--dark-gray);
 }
 
-.table-controls button.active:hover {
-  background-color: #5ab0e0;
+button.list-danger-action {
+  background-color: rgba(211, 47, 47, 0.06);
+  color: var(--danger);
+  border-color: rgba(211, 47, 47, 0.18);
+}
+
+button.list-danger-action:hover:not(:disabled) {
+  background-color: rgba(211, 47, 47, 0.12);
+  border-color: rgba(211, 47, 47, 0.32);
+}
+
+.table-controls button:focus-visible,
+table td button:focus-visible,
+.table-action-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.table-controls button:disabled,
+.list-primary-action:disabled,
+.list-secondary-action:disabled,
+.list-danger-action:disabled,
+table td button:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.compare-btn:disabled {
+  background-color: var(--color-disabled-bg);
+  border-color: var(--color-disabled-border);
+  color: var(--color-disabled-text);
+  opacity: 1;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.table-controls button:disabled:hover,
+.list-primary-action:disabled:hover,
+.list-secondary-action:disabled:hover,
+.list-danger-action:disabled:hover,
+table td button:disabled:hover,
+.compare-btn:disabled:hover {
+  background-color: var(--color-disabled-bg);
+  border-color: var(--color-disabled-border);
+  color: var(--color-disabled-text);
 }
 
 table,
@@ -760,6 +820,11 @@ table td button:hover,
   border-color: var(--dark-gray);
 }
 
+table td button:focus-visible,
+.table-standard td button:focus-visible {
+  outline: none;
+}
+
 table tbody tr:hover,
 .table-standard tbody tr:hover {
   background-color: var(--bg-subtle);
@@ -767,6 +832,70 @@ table tbody tr:hover,
 
 table input[type="checkbox"] {
   cursor: pointer;
+  accent-color: var(--brand-teal);
+}
+
+.table-selectable tbody tr > td {
+  transition:
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.table-selectable tbody tr:hover > td {
+  background-color: var(--color-row-hover-bg);
+}
+
+.table-selectable tbody tr:has(input[type="checkbox"]:checked) > td {
+  background-color: var(--color-row-selected-bg);
+}
+
+.table-selectable tbody tr:has(input[type="checkbox"]:checked):hover > td {
+  background-color: var(--color-row-selected-hover-bg);
+}
+
+.table-selectable tbody tr:has(input[type="checkbox"]:checked) > td.checkbox {
+  box-shadow: inset 3px 0 0 0 var(--brand-teal);
+}
+
+.table-state-row > td,
+.table-selectable tbody tr.table-state-row:hover > td,
+.table-selectable tbody tr.table-state-row:has(input[type="checkbox"]:checked) > td {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.table-state-cell,
+.table-empty {
+  padding-top: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.table-empty-message {
+  margin: 0;
+  padding: var(--spacing-xl) 0;
+  text-align: center;
+}
+
+.table-action-link {
+  color: var(--dark-blue);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.table-action-link:hover {
+  color: #004499;
+}
+
+.table-action-link.disabled,
+.table-action-link[aria-disabled="true"] {
+  color: var(--color-disabled-text);
+  text-decoration: none;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .sr-only {
@@ -914,6 +1043,11 @@ table input[type="checkbox"] {
 .btn-primary:hover {
   background-color: var(--brand-teal-dark);
   border-color: var(--brand-teal-dark);
+  color: var(--color-surface);
+}
+
+.btn-primary:focus-visible {
+  color: var(--color-surface);
 }
 
 .btn-secondary {

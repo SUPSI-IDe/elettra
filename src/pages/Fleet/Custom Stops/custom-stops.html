@@ -33,6 +33,7 @@
       <div class="actions">
         <button
           type="button"
+          class="list-danger-action requires-selection"
           data-action="delete-selected-stops"
           data-i18n="common.delete"
         >
@@ -40,6 +41,7 @@
         </button>
         <button
           type="button"
+          class="list-secondary-action requires-single-selection"
           data-action="edit-selected-stops"
           data-i18n="common.edit"
         >
@@ -48,7 +50,7 @@
       </div>
     </div>
     <div class="custom-stop-table">
-      <table>
+      <table class="table-standard table-selectable">
         <thead>
           <tr>
             <th class="checkbox">

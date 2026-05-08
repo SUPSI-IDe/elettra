@@ -47,10 +47,10 @@
         placeholder="Search simulations"
         data-i18n-placeholder="simulation.search_placeholder"
       />
-      <div class="simulation-actions">
+      <div class="simulation-actions actions">
         <button
           type="button"
-          class="simulation-new-btn"
+          class="simulation-new-btn list-primary-action"
           data-action="new-simulation"
           data-i18n="simulation.new_list_action"
         >
@@ -58,6 +58,7 @@
         </button>
         <button
           type="button"
+          class="list-secondary-action requires-single-selection"
           data-action="duplicate-simulation"
           data-i18n="simulation.duplicate"
         >
@@ -65,6 +66,7 @@
         </button>
         <button
           type="button"
+          class="list-danger-action requires-selection"
           data-action="delete-selected-simulations"
           data-i18n="common.delete"
         >
@@ -73,7 +75,7 @@
       </div>
     </div>
     <div class="simulation-runs-table">
-      <table>
+      <table class="table-standard table-selectable">
         <caption class="sr-only" data-i18n="simulation.caption">
           Simulation runs
         </caption>

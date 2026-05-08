@@ -6,7 +6,7 @@
   </header>
   <p class="flash-message" data-role="flash" role="status" aria-live="polite" hidden></p>
   <main class="ya-runs-main">
-    <div class="ya-runs-actions">
+    <div class="ya-runs-actions table-controls">
       <label class="sr-only" for="ya-filter" data-i18n="yearly_analysis.filter_label">Filter yearly analyses</label>
       <input
         id="ya-filter"
@@ -15,12 +15,12 @@
         placeholder="Search yearly analyses"
         data-i18n-placeholder="yearly_analysis.search_placeholder"
       />
-      <button type="button" class="ya-new-btn" data-action="new-analysis" data-i18n="simulation.new_list_action">New</button>
-      <button type="button" data-action="delete-selected" data-i18n="common.delete">Delete</button>
+      <button type="button" class="ya-new-btn list-primary-action" data-action="new-analysis" data-i18n="simulation.new_list_action">New</button>
+      <button type="button" class="list-danger-action requires-selection" data-action="delete-selected" data-i18n="common.delete">Delete</button>
     </div>
-    <p class="ya-loading" data-role="loading" data-i18n="yearly_analysis.loading_analyses" hidden>Loading analyses…</p>
+    <p class="ya-loading helper-text" data-role="loading" data-i18n="yearly_analysis.loading_analyses" hidden>Loading analyses…</p>
     <div class="ya-runs-table-wrap">
-      <table class="ya-runs-table">
+      <table class="ya-runs-table table-standard table-selectable">
         <caption class="sr-only" data-i18n="nav.yearly_analyses">Yearly analyses</caption>
         <thead>
           <tr>
@@ -38,6 +38,6 @@
       </table>
     </div>
     <div class="ya-runs-pagination" data-role="ya-runs-pagination"></div>
-    <p class="ya-runs-empty" data-role="empty-message" data-i18n="yearly_analysis.no_analyses" hidden>No yearly analyses yet. Create one to get started.</p>
+    <p class="ya-runs-empty helper-text table-empty-message" data-role="empty-message" data-i18n="yearly_analysis.no_analyses" hidden>No yearly analyses yet. Create one to get started.</p>
   </main>
 </section>
