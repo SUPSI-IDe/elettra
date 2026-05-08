@@ -767,7 +767,7 @@
 .ya-env-kpi-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--spacing-md);
+  gap: var(--spacing-lg);
   margin-bottom: var(--spacing-md);
   align-items: stretch;
 }
@@ -778,10 +778,10 @@
 .ya-env-kpi-card {
   border: 1px solid var(--border-light);
   border-radius: 10px;
-  padding: 0.7rem 0.95rem;
+  padding: 0.85rem 1rem;
   background: #fff;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   min-height: 0;
   transition: box-shadow 0.15s;
 }
@@ -794,27 +794,32 @@
 
 .ya-env-kpi-card__line {
   display: flex;
-  align-items: center;
-  gap: 0.45rem;
+  align-items: flex-start;
+  gap: 0.4rem;
+  flex-wrap: wrap;
   width: 100%;
   min-width: 0;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .ya-env-kpi-card__title {
+  flex: 1 1 100%;
   font-size: 0.94rem;
   font-weight: 700;
   color: var(--text-main);
   margin: 0;
-  white-space: nowrap;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .ya-env-kpi-card__values {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  margin-left: auto;
+  gap: 0.45rem 0.8rem;
+  width: 100%;
+  margin-left: 0;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .ya-env-kpi-card__metric {
@@ -843,6 +848,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
+  margin-left: auto;
   font-size: 0.94rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -856,18 +862,8 @@
 .ya-env-kpi-card__abs-diff { font-size: 0.74rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
 @media (max-width: 1180px) {
-  .ya-env-kpi-card {
-    align-items: stretch;
-  }
-
-  .ya-env-kpi-card__line {
-    flex-wrap: wrap;
-    white-space: normal;
-  }
-
   .ya-env-kpi-card__values {
-    margin-left: 0;
-    flex-wrap: wrap;
+    gap: 0.35rem 0.65rem;
   }
 }
 
