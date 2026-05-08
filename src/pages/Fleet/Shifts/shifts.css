@@ -554,9 +554,21 @@
   stroke-dasharray: 3 3;
 }
 
-.timeline__axis text {
-  font-size: 0.85rem;
-  fill: var(--text-label);
+.timeline__grid--vertical line {
+  stroke: rgba(15, 60, 60, 0.08);
+  stroke-dasharray: 2 6;
+}
+
+.timeline__axis--x text {
+  font-size: 0.78rem;
+  fill: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline__stop-label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-family: inherit;
 }
 
 .timeline__trip-line {

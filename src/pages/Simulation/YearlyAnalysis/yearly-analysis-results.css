@@ -638,9 +638,9 @@
 .ya-chart-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem 0.9rem;
-  padding: 0.35rem 0.2rem;
-  font-size: 0.72rem;
+  gap: 0.45rem 1rem;
+  padding: 0.35rem 0.2rem 0;
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
 
@@ -648,6 +648,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  line-height: 1.4;
 }
 
 .ya-chart-legend-swatch {
@@ -1057,15 +1058,16 @@
 .ya-chart-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  gap: 0.45rem 1rem;
   margin-top: 0.5rem;
-  padding: 0 0.2rem;
+  padding: 0.1rem 0.2rem 0;
 }
 .ya-chart-legend-item {
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
   color: var(--text-secondary);
 }
 .ya-chart-legend-swatch {

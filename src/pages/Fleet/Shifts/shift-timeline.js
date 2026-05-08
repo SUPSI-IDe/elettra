@@ -29,6 +29,39 @@ const ensurePlaceholder = (container, message) => {
   container.append(paragraph);
 };
 
+const AXIS_BASE_INTERVAL_MINUTES = 10;
+const AXIS_TICK_INTERVAL_OPTIONS = [10, 15, 20, 30, 60, 120, 180, 240];
+
+const roundDownToInterval = (value, interval = AXIS_BASE_INTERVAL_MINUTES) =>
+  Math.max(0, Math.floor(value / interval) * interval);
+
+const roundUpToInterval = (value, interval = AXIS_BASE_INTERVAL_MINUTES) =>
+  Math.ceil(value / interval) * interval;
+
+const chooseVisibleTickInterval = (minutesSpan, chartWidth) => {
+  const maxVisibleTicks = Math.max(4, Math.floor(chartWidth / 88));
+  return (
+    AXIS_TICK_INTERVAL_OPTIONS.find(
+      (interval) => minutesSpan / interval <= maxVisibleTicks
+    ) ?? AXIS_TICK_INTERVAL_OPTIONS[AXIS_TICK_INTERVAL_OPTIONS.length - 1]
+  );
+};
+
+const buildTickMinutes = (d3, start, end, interval) => {
+  const ticks = d3
+    .range(start, end + interval, interval)
+    .filter((minute) => minute >= start && minute <= end);
+
+  if (!ticks.length || ticks[0] !== start) {
+    ticks.unshift(start);
+  }
+  if (ticks[ticks.length - 1] !== end) {
+    ticks.push(end);
+  }
+
+  return [...new Set(ticks)];
+};
+
 export const renderTimeline = async (container, trips = [], options = {}) => {
   if (!container) {
     return;
@@ -157,17 +190,11 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     endMinutes = startMinutes + 60;
   }
 
-  const tickInterval = 10;
-  const roundDownToInterval = (value) =>
-    Math.max(0, Math.floor(value / tickInterval) * tickInterval);
-  const roundUpToInterval = (value) =>
-    Math.ceil(value / tickInterval) * tickInterval;
-
   const axisStart = roundDownToInterval(startMinutes);
   const axisEnd =
     roundUpToInterval(endMinutes) > axisStart
       ? roundUpToInterval(endMinutes)
-      : axisStart + tickInterval;
+      : axisStart + AXIS_BASE_INTERVAL_MINUTES;
 
   const xScale = d3
     .scaleLinear()
@@ -219,7 +246,16 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .attr("y1", (stop) => yScale(stop))
     .attr("y2", (stop) => yScale(stop));
 
-  const tickMinutes = d3.range(axisStart, axisEnd + 1, tickInterval);
+  const visibleTickInterval = chooseVisibleTickInterval(
+    axisEnd - axisStart,
+    innerWidth
+  );
+  const tickMinutes = buildTickMinutes(
+    d3,
+    axisStart,
+    axisEnd,
+    visibleTickInterval
+  );
   const vertical = root
     .append("g")
     .attr("class", "timeline__grid timeline__grid--vertical");
@@ -236,15 +272,22 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .append("g")
     .attr("class", "timeline__axis timeline__axis--x")
     .attr("transform", `translate(0,${innerHeight})`);
+  const rotateTickLabels = innerWidth / tickMinutes.length < 78;
+  const tickLabelY = rotateTickLabels ? 18 : 10;
   xAxis
     .selectAll("text")
     .data(tickMinutes)
     .join("text")
     .attr("x", (minute) => xScale(minute))
-    .attr("y", 12)
-    .attr("text-anchor", "end")
-    .attr("dominant-baseline", "middle")
-    .attr("transform", (minute) => `rotate(-90,${xScale(minute)},12)`)
+    .attr("y", tickLabelY)
+    .attr("text-anchor", rotateTickLabels ? "end" : "middle")
+    .attr("dominant-baseline", rotateTickLabels ? "middle" : "hanging")
+    .attr("transform", (minute) => {
+      if (!rotateTickLabels) {
+        return null;
+      }
+      return `rotate(-45,${xScale(minute)},${tickLabelY})`;
+    })
     .text((minute) => formatMinutes(minute));
 
   const yAxis = root
@@ -259,15 +302,13 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .attr("width", margin.left - 16)
     .attr("height", rowHeight)
     .append("xhtml:div")
+    .attr("class", "timeline__stop-label")
     .style("height", "100%")
     .style("display", "flex")
     .style("align-items", "center")
     .style("justify-content", "flex-end")
     .style("text-align", "right")
-    .style("font-size", "0.85rem")
     .style("line-height", "1.2")
-    .style("color", "#334")
-    .style("font-family", "inherit")
     .text((stop) => textContent(stop));
 
   const serieGroup = root.append("g").attr("class", "timeline__series");
