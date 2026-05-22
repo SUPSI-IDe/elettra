@@ -86,6 +86,21 @@
   --badge-neutral-bg: #eef2f6;
   --badge-neutral-text: #65727d;
 
+  --color-positive: #2e7d32;
+  --color-positive-strong: #1e8449;
+  --color-positive-muted: rgba(46, 125, 50, 0.12);
+  --color-negative-strong: #c62828;
+  --color-negative-muted: rgba(211, 47, 47, 0.1);
+  --color-neutral-accent: #95a5a6;
+  --color-chart-track: #d7e1e8;
+  --color-tooltip-bg: #1e293b;
+  --color-sim-a: #1a6fa0;
+  --color-sim-a-bg: rgba(111, 190, 236, 0.14);
+  --color-sim-b: #4a7a0a;
+  --color-sim-b-bg: rgba(171, 232, 40, 0.14);
+  --panel-padding: var(--space-lg);
+  --panel-radius: var(--radius-xl);
+
   /* Legacy aliases kept for the current pages */
   --spacing-xs: var(--space-xs);
   --spacing-sm: var(--space-sm);
@@ -594,9 +609,10 @@ nav .nav-links a {
   min-height: 2.75rem;
   padding: 0.65rem 0.9rem 0.65rem 1rem;
   color: var(--color-sidebar-text);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: 500;
   line-height: 1.35;
+  letter-spacing: 0.01em;
   border-radius: var(--radius-lg);
   box-shadow: inset 0 0 0 1px transparent;
   transition:
