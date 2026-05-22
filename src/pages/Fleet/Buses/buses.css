@@ -1,5 +1,4 @@
 .buses-content {
-  padding: var(--spacing-sm);
   overflow-y: auto;
 }
 
@@ -187,6 +186,14 @@
 
 .add-bus-model .form-actions {
   margin-top: 0;
+}
+
+.bus-models {
+  overflow-x: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .bus-models table {

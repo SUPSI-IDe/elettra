@@ -25,8 +25,10 @@
 
 .simulation-detail .custom-variables-section {
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
   padding: var(--spacing-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .simulation-detail .custom-variables-section legend {
@@ -123,33 +125,4 @@
   font-weight: 600;
   color: var(--text-main);
   font-family: monospace;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 0.2rem 0.6rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: capitalize;
-}
-
-.status-badge.pending {
-  background-color: #fff3cd;
-  color: #856404;
-}
-
-.status-badge.running {
-  background-color: #cce5ff;
-  color: #004085;
-}
-
-.status-badge.completed {
-  background-color: #d4edda;
-  color: #155724;
-}
-
-.status-badge.failed {
-  background-color: #f8d7da;
-  color: #721c24;
 }

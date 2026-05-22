@@ -303,11 +303,15 @@
 }
 
 .shifts-main {
-  padding: var(--spacing-sm);
+  overflow-y: auto;
 }
 
 .shifts-table {
   overflow-x: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .shifts-table table {

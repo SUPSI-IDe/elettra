@@ -1,5 +1,11 @@
 .yearly-analysis-results [hidden] { display: none !important; }
-.ya-results-main { padding: var(--spacing-sm); overflow-y: auto; }
+.ya-results-main {
+  padding: var(--layout-content-padding);
+  overflow-y: auto;
+  max-width: var(--layout-content-max-width);
+  margin-inline: auto;
+  width: 100%;
+}
 
 /* ── Tabs ──────────────────────────────────────────────────────── */
 
