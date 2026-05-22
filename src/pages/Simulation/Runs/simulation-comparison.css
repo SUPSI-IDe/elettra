@@ -1,5 +1,8 @@
 .comparison-main {
-  padding: var(--spacing-lg);
+  padding: var(--layout-content-padding);
+  max-width: var(--layout-content-max-width);
+  margin-inline: auto;
+  width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;

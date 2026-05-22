@@ -1,5 +1,4 @@
 .ya-runs-main {
-  padding: var(--spacing-sm);
   overflow-y: auto;
 }
 
@@ -13,6 +12,10 @@
 
 .ya-runs-table-wrap {
   overflow-x: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .ya-runs-table {
@@ -21,17 +24,17 @@
 }
 
 .ya-runs-table th {
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 0.45rem 0.55rem;
+  padding: 0.55rem 0.65rem;
   text-align: left;
   white-space: nowrap;
 }
 
 .ya-runs-table td {
-  padding: 0.4rem 0.55rem;
+  padding: 0.5rem 0.65rem;
   vertical-align: middle;
 }
 
@@ -41,32 +44,8 @@
   text-align: center;
 }
 
-.ya-runs-table .ya-status-badge {
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 9999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.ya-status-badge.completed {
-  background: #d4edda;
-  color: #155724;
-}
-
-.ya-status-badge.partial {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.ya-status-badge.failed {
-  background: #f8d7da;
-  color: #721c24;
-}
-
 .ya-runs-table .ya-results-link {
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
 }
 
 .ya-actions-cell {

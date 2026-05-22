@@ -11,10 +11,13 @@
 }
 
 .results-main {
-  padding: var(--spacing-lg);
+  padding: var(--layout-content-padding);
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
+  max-width: var(--layout-content-max-width);
+  margin-inline: auto;
+  width: 100%;
 }
 
 .results-toolbar {
@@ -36,15 +39,18 @@
 }
 
 .results-shift-tab {
-  border: 1px solid var(--border-medium, #c9d3dc);
-  background: #fff;
+  border: 1px solid var(--color-border-dim);
+  background: var(--color-surface);
   color: var(--text-secondary);
   border-radius: 999px;
   padding: 0.35rem 0.85rem;
-  font-size: 0.78rem;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
 .results-shift-tab:hover {
@@ -54,7 +60,7 @@
 
 .results-shift-tab.active {
   background: var(--brand-teal);
-  color: #fff;
+  color: var(--color-surface);
   border-color: var(--brand-teal);
 }
 
