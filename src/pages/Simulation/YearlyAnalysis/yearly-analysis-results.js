@@ -53,6 +53,23 @@ const translateOr = (key, fallback, params = {}) => {
   return translated === key ? fallback : translated;
 };
 
+const ENV_INDICATOR_LABEL_KEYS = {
+  gwp100a: "yearly_analysis.env_kpi_co2_equiv",
+  co2: "yearly_analysis.env_kpi_co2_equiv",
+  nox: "simulation.env_kpi_nox",
+  pm10: "simulation.env_kpi_pm10",
+};
+
+const resolveEnvIndicatorLabel = (ind) => {
+  const key = ind?.key ?? ind?.indicator;
+  const i18nKey = ENV_INDICATOR_LABEL_KEYS[key];
+  if (i18nKey) {
+    const translated = t(i18nKey);
+    if (translated !== i18nKey) return translated;
+  }
+  return ind?.label || key || "—";
+};
+
 const quantileHelpText = () =>
   translateOr(
     "yearly_analysis.quantile_help",
@@ -156,10 +173,14 @@ const formatBatterySummary = (busModelData, optimizedPacks) => {
   const packs = toFiniteNumber(optimizedPacks);
   if (packSizeKwh != null && packs != null) {
     const totalCapacityKwh = packSizeKwh * packs;
-    return `${formatCompactNumber(packSizeKwh)} kWh/pack x ${formatCompactNumber(packs, 0)} = ${formatCompactNumber(totalCapacityKwh)} kWh`;
+    return t("yearly_analysis.battery_capacity_summary", {
+      packSize: formatCompactNumber(packSizeKwh),
+      packs: formatCompactNumber(packs, 0),
+      total: formatCompactNumber(totalCapacityKwh),
+    });
   }
-  if (packSizeKwh != null) return `${formatCompactNumber(packSizeKwh)} kWh/pack`;
-  if (packs != null) return `${formatCompactNumber(packs, 0)} packs`;
+  if (packSizeKwh != null) return t("yearly_analysis.battery_pack_only", { packSize: formatCompactNumber(packSizeKwh) });
+  if (packs != null) return t("yearly_analysis.packs_value", { count: formatCompactNumber(packs, 0) });
   return "—";
 };
 
@@ -222,7 +243,7 @@ const buildYearlyDistanceSliderRange = (distanceKm) => {
 };
 
 const formatKmPerYear = (distanceKm) =>
-  distanceKm != null ? `${formatInt(distanceKm)} km/year` : "—";
+  distanceKm != null ? t("simulation.km_per_year_value", { value: formatInt(distanceKm) }) : "—";
 
 const syncYaRangeInput = (input, valueEl, value, fmt) => {
   if (!input) return;
@@ -331,7 +352,7 @@ const renderYaCostsBar = (el, cd) => {
   g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x)).selectAll("text").attr("font-size", "11px");
   g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(formatKChfAxis)).selectAll("text").attr("font-size", "11px");
   g.append("text").attr("transform", "rotate(-90)").attr("y", -54).attr("x", -iH / 2)
-    .attr("text-anchor", "middle").attr("font-size", "11px").attr("fill", "#666").text("kCHF / year");
+    .attr("text-anchor", "middle").attr("font-size", "11px").attr("fill", "#666").text(t("simulation.axis_cost_kchf_per_year"));
 
   let tooltipGroup, tooltipBg, tooltipText;
 
@@ -339,7 +360,9 @@ const renderYaCostsBar = (el, cd) => {
     const segVal = Math.max(0, (d[1] ?? 0) - (d[0] ?? 0));
     const totalVal = COST_STACK_KEYS.reduce((s, k) => s + (d.data[k] ?? 0), 0);
     const pct = totalVal > 0 ? ((segVal / totalVal) * 100).toFixed(0) : "0";
-    const perKm = yearlyKm > 0 ? ` · ${formatFixed(segVal / yearlyKm, 3)} CHF/km` : "";
+    const perKm = yearlyKm > 0
+      ? t("yearly_analysis.cost_per_km_segment", { value: formatFixed(segVal / yearlyKm, 3) })
+      : "";
 
     tooltipText.selectAll("*").remove();
     tooltipText.append("tspan")
@@ -385,7 +408,8 @@ const renderYaCostsBar = (el, cd) => {
     label.append("tspan").attr("x", x(d.category) + x.bandwidth() / 2).text(formatKChfLabel(total));
     if (perKm) {
       label.append("tspan").attr("x", x(d.category) + x.bandwidth() / 2)
-        .attr("dy", "1.1em").attr("font-size", "10px").attr("font-weight", "500").text(`(${perKm} CHF/km)`);
+        .attr("dy", "1.1em").attr("font-size", "10px").attr("font-weight", "500")
+        .text(t("yearly_analysis.cost_per_km_bar_suffix", { value: perKm }));
     }
   });
 
@@ -737,7 +761,10 @@ const renderCriticalUncertaintyScenarios = (annualContrib = []) => {
     items.push({
       label: translateOr("yearly_analysis.critical_highest_q95", "Highest Q95 energy scenario"),
       value: `${formatInt(critical.highestQ95.yearlyQ95)} kWh/year`,
-      detail: `${temperatureDescriptor(critical.highestQ95)} · Yearly Q95: ${formatInt(critical.highestQ95.yearlyQ95)} kWh/year`,
+      detail: t("yearly_analysis.critical_detail_yearly_q95", {
+        temperature: temperatureDescriptor(critical.highestQ95),
+        value: formatInt(critical.highestQ95.yearlyQ95),
+      }),
     });
   }
 
@@ -745,7 +772,11 @@ const renderCriticalUncertaintyScenarios = (annualContrib = []) => {
     items.push({
       label: translateOr("yearly_analysis.critical_widest_spread", "Widest prediction spread"),
       value: `${formatFixed(critical.widestSpread.dailySpread, 1)} kWh/day`,
-      detail: `${scenarioDescriptor(critical.widestSpread)} · Q05-Q95: ${formatFixed(critical.widestSpread.dailyQ05, 1)}-${formatFixed(critical.widestSpread.dailyQ95, 1)} kWh/day`,
+      detail: t("yearly_analysis.critical_detail_daily_q05_q95", {
+        scenario: scenarioDescriptor(critical.widestSpread),
+        low: formatFixed(critical.widestSpread.dailyQ05, 1),
+        high: formatFixed(critical.widestSpread.dailyQ95, 1),
+      }),
     });
   }
 
@@ -753,7 +784,11 @@ const renderCriticalUncertaintyScenarios = (annualContrib = []) => {
     items.push({
       label: translateOr("yearly_analysis.critical_weighted_spread", "Largest yearly prediction spread"),
       value: `${formatInt(critical.largestWeightedSpread.yearlySpread)} kWh/year`,
-      detail: `${temperatureDescriptor(critical.largestWeightedSpread)} · Yearly Q05-Q95: ${formatInt(critical.largestWeightedSpread.yearlyQ05)}-${formatInt(critical.largestWeightedSpread.yearlyQ95)} kWh/year`,
+      detail: t("yearly_analysis.critical_detail_yearly_q05_q95", {
+        temperature: temperatureDescriptor(critical.largestWeightedSpread),
+        low: formatInt(critical.largestWeightedSpread.yearlyQ05),
+        high: formatInt(critical.largestWeightedSpread.yearlyQ95),
+      }),
     });
   }
 
@@ -845,7 +880,7 @@ const renderYearlyUncertaintySummary = (annualContrib = []) => {
               <span class="ya-uncertainty-summary-item__label">${textContent(
                 translateOr("yearly_analysis.yearly_uncertainty_relative_spread", "Relative spread")
               )}</span>
-              <strong class="ya-uncertainty-summary-item__value">${textContent(formatFixed(summary.relativeSpread, 1))}% of Q50</strong>
+              <strong class="ya-uncertainty-summary-item__value">${textContent(t("yearly_analysis.relative_spread_of_q50", { value: formatFixed(summary.relativeSpread, 1) }))}</strong>
             </div>`
           : ""}
       </div>`
@@ -939,7 +974,7 @@ const renderEfficiencyByTempChart = (el, legendEl, data) => {
 
   g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x).ticks(data.length).tickFormat((d) => `${d}°C`)).selectAll("text").attr("font-size", "10px");
   g.append("g").call(d3.axisLeft(y).ticks(6).tickFormat((d) => d.toFixed(2))).selectAll("text").attr("font-size", "10px");
-  g.append("text").attr("transform", "rotate(-90)").attr("y", -44).attr("x", -iH / 2).attr("text-anchor", "middle").attr("font-size", "10px").attr("fill", "#666").text("kWh/km");
+  g.append("text").attr("transform", "rotate(-90)").attr("y", -44).attr("x", -iH / 2).attr("text-anchor", "middle").attr("font-size", "10px").attr("fill", "#666").text(t("yearly_analysis.axis_kwh_km"));
 
   gridLines(g, y, iW, 6);
 
@@ -988,7 +1023,12 @@ const renderEfficiencyByTempChart = (el, legendEl, data) => {
       t("yearly_analysis.tooltip_days_year", { value: d.occurrences }),
       t("yearly_analysis.tooltip_efficiency", { value: d.efficiency != null ? d.efficiency.toFixed(3) : "—" }),
     ];
-    if (d.q05 != null) lines.push(`Q05–Q95: ${d.q05.toFixed(3)}–${(d.q95 ?? 0).toFixed(3)}`);
+    if (d.q05 != null) {
+      lines.push(t("yearly_analysis.tooltip_q05_q95_band", {
+        low: d.q05.toFixed(3),
+        high: (d.q95 ?? 0).toFixed(3),
+      }));
+    }
     if (d.auxPerKm != null) lines.push(t("yearly_analysis.tooltip_auxiliary", { value: d.auxPerKm.toFixed(3) }));
     if (d.drvPerKm != null) lines.push(t("yearly_analysis.tooltip_drivetrain", { value: d.drvPerKm.toFixed(3) }));
     if (d.distanceKm != null) lines.push(t("yearly_analysis.tooltip_distance", { value: d.distanceKm.toFixed(1) }));
@@ -1133,15 +1173,34 @@ const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
     const lines = [
       `${item.label} (${item.temperature}°C)`,
       t("yearly_analysis.tooltip_days_year", { value: formatInt(item.occurrences) }),
-      `${pointLabel} total: ${formatContributionValue(total, config.mode)} ${config.unitLabel}`,
-      `${pointLabel} drivetrain: ${formatContributionValue(drv, config.mode)} ${config.unitLabel}`,
-      `${pointLabel} auxiliary: ${formatContributionValue(aux, config.mode)} ${config.unitLabel}`,
+      t("yearly_analysis.tooltip_contribution_total", {
+        label: pointLabel,
+        value: formatContributionValue(total, config.mode),
+        unit: config.unitLabel,
+      }),
+      t("yearly_analysis.tooltip_contribution_drivetrain", {
+        label: pointLabel,
+        value: formatContributionValue(drv, config.mode),
+        unit: config.unitLabel,
+      }),
+      t("yearly_analysis.tooltip_contribution_auxiliary", {
+        label: pointLabel,
+        value: formatContributionValue(aux, config.mode),
+        unit: config.unitLabel,
+      }),
     ];
     if (q50 != null) {
-      lines.push(`Q50 median: ${formatContributionValue(q50, config.mode)} ${config.unitLabel}`);
+      lines.push(t("yearly_analysis.tooltip_q50_median", {
+        value: formatContributionValue(q50, config.mode),
+        unit: config.unitLabel,
+      }));
     }
     if (q05 != null && q95 != null) {
-      lines.push(`Q05-Q95 prediction spread: ${formatContributionValue(q05, config.mode)}-${formatContributionValue(q95, config.mode)} ${config.unitLabel}`);
+      lines.push(t("yearly_analysis.tooltip_prediction_spread", {
+        low: formatContributionValue(q05, config.mode),
+        high: formatContributionValue(q95, config.mode),
+        unit: config.unitLabel,
+      }));
     }
 
     lines.forEach((txt, i) => {
@@ -1551,7 +1610,7 @@ const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, busModel
     const annDhLiters = (fn(sc.annual_diesel_heating_liters) ?? 0) * distanceScale;
     const annElecMaint = annDist * elecMaintPerKm;
     return {
-      label: sc.label ?? `Scenario ${i + 1}`,
+      label: sc.label ?? t("yearly_analysis.scenario_fallback", { index: i + 1 }),
       temperature: fn(sc.temperature_celsius) ?? 0,
       occurrences: fn(sc.occurrences) ?? 0,
       dailyEnergy: dailyElKwh,
@@ -2710,7 +2769,7 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
       .filter((it) => CHART_KEYS.has(it.key))
       .map((it) => ({
         key: it.key,
-        label: it.label || it.key,
+        label: resolveEnvIndicatorLabel(it),
         color: COLORS[it.key] || "#888",
         unitLabel: it.unit || "",
         electric: toFiniteNumber(it.ebus_display) ?? 0,
@@ -3194,7 +3253,7 @@ const renderEmissionsPanel = (sec, emState) => {
         const dec = INDICATOR_DISPLAY_DECIMALS[ind.key] ?? 1;
         return `<div class="ya-env-kpi-card ya-env-kpi-card--${tone}">
           <div class="ya-env-kpi-card__line">
-            <span class="ya-env-kpi-card__title">${textContent(ind.label || ind.key)} (${textContent(dispUnit)}):</span>
+            <span class="ya-env-kpi-card__title">${textContent(resolveEnvIndicatorLabel(ind))} (${textContent(dispUnit)}):</span>
             <span class="ya-env-kpi-card__values">
               <span class="ya-env-kpi-card__metric"><span class="ya-env-kpi-card__val-label">${textContent(ebusKpiLabel)}</span><span class="ya-env-kpi-card__val-num">${formatFixed(eVal, dec)}</span></span>
               ${dVal != null ? `<span class="ya-env-kpi-card__metric"><span class="ya-env-kpi-card__val-label">${textContent(dieselKpiLabel)}</span><span class="ya-env-kpi-card__val-num">${formatFixed(dVal, dec)}</span></span>` : ""}
@@ -3259,7 +3318,7 @@ const renderEmissionsPanel = (sec, emState) => {
       const dir = getComparisonDirection(ind);
       const changeCls = dir?.kind === "reduction" ? "ya-env-reduction--positive" : dir?.kind === "increase" ? "ya-env-reduction--negative" : "";
       return `<tr>
-        <td>${textContent(ind.label || ind.key)} (${dispUnit})</td>
+        <td>${textContent(resolveEnvIndicatorLabel(ind))} (${dispUnit})</td>
         <td>${formatFixed(eVal, dec)}</td>
         ${hasDiesel ? `<td>${dVal != null ? formatFixed(dVal, dec) : "—"}</td>` : ""}
         ${hasDiesel ? `<td>${diff != null ? formatFixed(diff, dec) : "—"}</td>` : ""}
@@ -3275,7 +3334,7 @@ const renderEmissionsPanel = (sec, emState) => {
       .map((ind) => {
         const normUnit = ind.normalized_unit || "";
         return `<tr>
-          <td>${textContent(ind.label || ind.key)} (${normUnit})</td>
+          <td>${textContent(resolveEnvIndicatorLabel(ind))} (${normUnit})</td>
           <td>${formatFixed(ind.normalized_ebus_per_km, 1)}</td>
           ${hasDiesel ? `<td>${ind.normalized_diesel_per_km != null ? formatFixed(ind.normalized_diesel_per_km, 1) : "—"}</td>` : ""}
         </tr>`;
@@ -3342,7 +3401,7 @@ const renderEmissionsPanel = (sec, emState) => {
       const dhVal = (toFiniteNumber(mi.diesel_heating) ?? 0) / div;
       const totVal = (toFiniteNumber(mi.total) ?? 0) / div;
       return `<tr>
-        <td>${textContent(ind?.label || key)} (${dispUnit})</td>
+        <td>${textContent(resolveEnvIndicatorLabel(ind ?? { key }))} (${dispUnit})</td>
         <td>${formatFixed(elVal, dec)}</td>
         <td>${formatFixed(dhVal, dec)}</td>
         <td><strong>${formatFixed(totVal, dec)}</strong></td>

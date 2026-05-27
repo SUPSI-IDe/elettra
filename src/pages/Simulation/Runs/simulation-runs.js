@@ -109,7 +109,7 @@ const renderEmpty = (tbody) => {
   tbody.innerHTML = `
     <tr class="table-state-row">
       <td class="checkbox"></td>
-      <td class="table-state-cell table-empty" colspan="8" data-i18n="simulation.no_runs">No simulation runs found.</td>
+      <td class="table-state-cell table-empty" colspan="8">${textContent(t("simulation.no_runs"))}</td>
     </tr>`;
 };
 
@@ -1226,7 +1226,11 @@ export const initializeSimulationRuns = async (
     if (serverFailed) {
       setFlashMessage(
         section,
-        `${removedIds.size} simulation(s) removed. ${serverFailed} could not be deleted.`
+        t("simulation.delete_partial_success", {
+          removed: removedIds.size,
+          failed: serverFailed,
+        }) ||
+          `${removedIds.size} simulation(s) removed. ${serverFailed} could not be deleted.`
       );
       await loadRunsAndPopulate();
       return;

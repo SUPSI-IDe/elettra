@@ -165,7 +165,11 @@ export const renderRouteOptions = (select, routes = []) => {
         const id = String(route.id);
         const shortName = text(route?.route_short_name ?? "");
         const longName = text(route?.route_long_name ?? "");
-        const label = shortName || longName || `Route ${id}`;
+        const label =
+          shortName ||
+          longName ||
+          t("shifts.route_fallback", { id }) ||
+          `Route ${id}`;
         const displayLabel = `${linePrefix} ${label}`;
         if (seenLabels.has(displayLabel)) {
           return null;
@@ -228,12 +232,13 @@ export const renderDepotOptions = (select, depots = []) => {
     `<option value="">${textContent(t("shifts.select_depot"))}</option>`,
     ...depots
       .filter((depot) => depot && depot.id)
-      .map(
-        (depot) =>
-          `<option value="${text(depot.id)}">${textContent(
-            depot?.name ?? depot?.label ?? `Depot ${depot.id}`
-          )}</option>`
-      ),
+      .map((depot) => {
+        const fallbackLabel =
+          t("shifts.depot_fallback", { id: depot.id }) ||
+          `Depot ${depot.id}`;
+        const label = depot?.name ?? depot?.label ?? fallbackLabel;
+        return `<option value="${text(depot.id)}">${textContent(label)}</option>`;
+      }),
   ].join("");
 
   select.innerHTML = options;

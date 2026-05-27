@@ -48,6 +48,14 @@ export const applyTranslations = (lang) => {
     if (dict[key]) el.setAttribute("title", dict[key]);
   });
 
+  const titleEl = document.querySelector("title[data-i18n-title]");
+  if (titleEl) {
+    const key = titleEl.getAttribute("data-i18n-title");
+    if (dict[key]) titleEl.textContent = dict[key];
+  } else if (dict["common.app_title"]) {
+    document.title = dict["common.app_title"];
+  }
+
   document.querySelectorAll("[data-i18n-alt]").forEach((el) => {
     const key = el.getAttribute("data-i18n-alt");
     if (dict[key]) el.setAttribute("alt", dict[key]);
