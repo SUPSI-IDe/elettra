@@ -458,7 +458,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
           if (manufacturerIdInput) {
             manufacturerIdInput.value = otherItem?.id ?? "";
           }
-          manufacturerInput.value = otherItem?.name || "Other manufacturer";
+          manufacturerInput.value = otherItem?.name || t("buses.other_manufacturer");
           showCustomManufacturer(storedManufacturer);
         } catch (err) {
           // If detection fails, fall back to showing stored manufacturer in the main input.

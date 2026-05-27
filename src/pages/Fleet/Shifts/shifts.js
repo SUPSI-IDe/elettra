@@ -343,7 +343,7 @@ const renderRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
                       shift?._resolved_route_label ?? "—"
                     )}</td>
                     <td class="actions">
-                        <button type="button" data-action="visualize-shift">Visualize shift</button>
+                        <button type="button" data-action="visualize-shift">${textContent(t("shifts.visualize"))}</button>
                     </td>
                 </tr>
             `;
@@ -899,7 +899,7 @@ export const initializeShifts = async (root = document, options = {}) => {
     try {
       for (const id of ids) {
         const shift = await fetchShiftById(id);
-        const name = `${text(shift?.name) || "Untitled shift"} (copy)`.trim();
+        const name = `${text(shift?.name) || t("shifts.untitled_shift")} ${t("shifts.copy_suffix")}`.trim();
         const busId = shift?.bus_id ?? shift?.busId ?? "";
         const tripIds = readTripIds(shift);
 

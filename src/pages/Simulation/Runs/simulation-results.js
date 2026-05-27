@@ -702,7 +702,9 @@ const buildChargingStationRows = (optimizationRun = {}) => {
       return {
         stopId,
         stopName,
-        status: installedStation ? "Installed" : "Configured",
+        status: installedStation
+          ? t("simulation.costs_input_station_installed")
+          : t("simulation.costs_input_station_configured"),
         slots: resolveStationSlots(installedStation, inputStation),
         powerPerSlotKw: resolveStationPowerPerSlotKw(installedStation, inputStation),
         totalPowerKw: resolveStationTotalPowerKw(installedStation, inputStation),
@@ -1317,7 +1319,7 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
     {
       hidden: lifetimeSaving == null,
       label:
-        t("simulation.costs_kpi_lifetime_saving") ||
+        t("simulation.costs_kpi_lifetime_saving", { years: horizonYears }) ||
         `${horizonYears}-yr savings`,
       value:
         lifetimeSaving != null
@@ -1330,7 +1332,7 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
             ? "negative"
             : "",
       tooltip:
-        t("simulation.kpi_tip_lifetime_saving") ||
+        t("simulation.kpi_tip_lifetime_saving", { years: horizonYears }) ||
         `Cumulative savings over the ${horizonYears}-year horizon, incl. replacements.`,
     },
     {
@@ -1351,7 +1353,7 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
       value: roi != null ? `${formatFixed(roi, 0)}%` : "—",
       tone: roi != null && roi > 0 ? "positive" : roi != null && roi < 0 ? "negative" : "",
       tooltip:
-        t("simulation.kpi_tip_roi") ||
+        t("simulation.kpi_tip_roi", { years: horizonYears }) ||
         `${horizonYears}-year savings ÷ upfront CAPEX difference.`,
     },
   ];
@@ -1749,7 +1751,8 @@ const buildInvestmentNoteHtml = (state, options = {}) => {
   return `<p class="investment-table__note">${textContent(
     translateOr(
       "simulation.inv_battery_only_note",
-      `Battery-only optimization does not optimize charging infrastructure cost. A default assumption of CHF ${formatCHF(infrastructure.defaultSlotCostChf)} per plug is shown for reference and is not included in the total investment.`
+      `Battery-only optimization does not optimize charging infrastructure cost. A default assumption of CHF ${formatCHF(infrastructure.defaultSlotCostChf)} per plug is shown for reference and is not included in the total investment.`,
+      { cost: formatCHF(infrastructure.defaultSlotCostChf) }
     )
   )}</p>`;
 };
@@ -3995,17 +3998,29 @@ const renderTripUncertaintyChart = (el, rows = [], { tripStopLookup = new Map() 
     .each(function addTooltip(row) {
       const lines = [
         formatTripTooltipTitle(row),
-        row.q05 != null ? `Q05: ${formatFixed(row.q05, 1)} kWh` : null,
+        row.q05 != null
+          ? translateOr("simulation.trip_uncertainty_tooltip_q05", "Q05: {value} kWh", { value: formatFixed(row.q05, 1) })
+          : null,
         row.q50 != null
-          ? `Q50: ${formatFixed(row.q50, 1)} kWh`
+          ? translateOr("simulation.trip_uncertainty_tooltip_q50", "Q50: {value} kWh", { value: formatFixed(row.q50, 1) })
           : row.median != null
             ? `${translateOr("simulation.trip_uncertainty_median", "Median")}: ${formatFixed(row.median, 1)} kWh`
             : null,
-        row.q95 != null ? `Q95: ${formatFixed(row.q95, 1)} kWh` : null,
-        row.drivetrainKwh != null ? `Drivetrain: ${formatFixed(row.drivetrainKwh, 1)} kWh` : null,
-        row.auxiliaryKwh != null ? `Auxiliary: ${formatFixed(row.auxiliaryKwh, 1)} kWh` : null,
+        row.q95 != null
+          ? translateOr("simulation.trip_uncertainty_tooltip_q95", "Q95: {value} kWh", { value: formatFixed(row.q95, 1) })
+          : null,
+        row.drivetrainKwh != null
+          ? translateOr("simulation.trip_uncertainty_tooltip_drivetrain", "Drivetrain: {value} kWh", { value: formatFixed(row.drivetrainKwh, 1) })
+          : null,
+        row.auxiliaryKwh != null
+          ? translateOr("simulation.trip_uncertainty_tooltip_auxiliary", "Auxiliary: {value} kWh", { value: formatFixed(row.auxiliaryKwh, 1) })
+          : null,
         row.massSensitivityKwhPerKwhBatt != null
-          ? `Mass sensitivity: ${formatFixed(row.massSensitivityKwhPerKwhBatt, 4)} kWh/kWh batt`
+          ? translateOr(
+              "simulation.trip_uncertainty_tooltip_mass_sensitivity",
+              "Mass sensitivity: {value} kWh/kWh batt",
+              { value: formatFixed(row.massSensitivityKwhPerKwhBatt, 4) }
+            )
           : null,
       ].filter(Boolean);
       d3.select(this).append("title").text(lines.join("\n"));
@@ -6823,8 +6838,11 @@ const renderEnvMissionBar = (el, emState, pageOptions = {}) => {
   const shiftName = pageOptions.shiftName || yi?.shift_name || "—";
   const busSize = yi?.bus_model_size || yi?.lca_vehicle?.lca_size || pageOptions.busModelData?.bus_length_m || "—";
   const yearlyKm = toFiniteNumber(yi?.yearly_distance_km);
-  const yearlyKmStr = yearlyKm != null ? `${formatFixed(yearlyKm, 0)} km/year` : "—";
-  const comparisonType = `${t("simulation.emissions_toggle_electric") || "Electric"} vs ${t("simulation.emissions_toggle_diesel") || "Diesel"}`;
+  const yearlyKmStr = yearlyKm != null ? t("simulation.km_per_year_value", { value: formatFixed(yearlyKm, 0) }) : "—";
+  const comparisonType = t("simulation.env_comparison_vs", {
+    electric: t("simulation.emissions_toggle_electric") || "Electric",
+    diesel: t("simulation.emissions_toggle_diesel") || "Diesel",
+  });
 
   const items = [
     { label: t("simulation.env_mission_line") || "Mission", value: shiftName },

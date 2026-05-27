@@ -1,4 +1,10 @@
 import * as d3 from "d3";
+import { t } from "../../../i18n";
+
+const tr = (key, fallback, params = {}) => {
+  const value = t(key, params);
+  return value !== key ? value : fallback;
+};
 
 const FUEL_COLORS = { diesel: "#c0392b", electric: "#2e7d32" };
 const COST_COLORS = { vehicle: "#4f86c6", usage: "#d4881f", maintenance: "#5f8f2f" };
@@ -21,13 +27,15 @@ const PRIMARY_ENERGY_COLORS = {
 };
 
 const PHASE_KEYS = [
-  { key: "production", label: "Production" },
-  { key: "maintenance", label: "Maintenance" },
-  { key: "use", label: "Use phase" },
-  { key: "operation", label: "Operation" },
-  { key: "infrastructure", label: "Infrastructure" },
-  { key: "endOfLife", label: "End of life" },
+  { key: "production", i18n: "simulation.emissions_phase_production" },
+  { key: "maintenance", i18n: "simulation.emissions_phase_maintenance" },
+  { key: "use", i18n: "simulation.emissions_phase_use" },
+  { key: "operation", i18n: "simulation.emissions_phase_operation" },
+  { key: "infrastructure", i18n: "simulation.emissions_phase_infrastructure" },
+  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life" },
 ];
+
+const phaseLabel = (phase) => tr(phase.i18n, phase.key);
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -152,7 +160,14 @@ export const renderEfficiencyByTemperatureChart = (el, legendEl, data = []) => {
   const xExtent = d3.extent(chartData, (d) => d.temperature);
   const yMax = d3.max(chartData, (d) => d.efficiency) * 1.12 || 1;
 
-  const svg = svgBase(width, height, "Scenario efficiency by temperature");
+  const svg = svgBase(
+    width,
+    height,
+    tr(
+      "yearly_analysis.chart_aria_efficiency_temperature",
+      "Scenario efficiency by temperature chart"
+    )
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
   const x = d3
     .scaleLinear()
@@ -178,7 +193,7 @@ export const renderEfficiencyByTemperatureChart = (el, legendEl, data = []) => {
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("fill", "#666")
-    .text("kWh/km");
+    .text(tr("yearly_analysis.axis_kwh_km", "kWh/km"));
 
   const line = d3
     .line()
@@ -214,10 +229,10 @@ export const renderEfficiencyByTemperatureChart = (el, legendEl, data = []) => {
         {
           title: `${d.label} (${formatFixed(d.temperature, 1)}°C)`,
           lines: [
-            `Days/year: ${formatInt(d.occurrences)}`,
-            `Electric energy: ${formatFixed(d.electricEnergyKwh, 1)} kWh`,
-            `Distance: ${formatFixed(d.distanceKm, 1)} km`,
-            `Efficiency: ${formatFixed(d.efficiency, 3)} kWh/km`,
+            tr("yearly_analysis.tooltip_days_year", "Days/year: {value}", { value: formatInt(d.occurrences) }),
+            tr("yearly_analysis.chart_tooltip_electric_energy", "Electric energy: {value} kWh", { value: formatFixed(d.electricEnergyKwh, 1) }),
+            tr("yearly_analysis.tooltip_distance", "Distance: {value} km", { value: formatFixed(d.distanceKm, 1) }),
+            tr("yearly_analysis.tooltip_efficiency", "Efficiency: {value} kWh/km", { value: formatFixed(d.efficiency, 3) }),
           ],
         },
         tx,
@@ -229,7 +244,12 @@ export const renderEfficiencyByTemperatureChart = (el, legendEl, data = []) => {
     });
 
   el.appendChild(svg.node());
-  setLegend(legendEl, [{ label: "Electric efficiency", color: EFF_COLORS.efficiency }]);
+  setLegend(legendEl, [
+    {
+      label: tr("yearly_analysis.legend_electric_efficiency", "Electric efficiency"),
+      color: EFF_COLORS.efficiency,
+    },
+  ]);
 };
 
 export const renderScenarioContributionChart = (el, legendEl, data = []) => {
@@ -259,7 +279,14 @@ export const renderScenarioContributionChart = (el, legendEl, data = []) => {
     ? d3.scaleLinear().domain([0, maxDiesel * 1.12]).nice().range([innerHeight, 0])
     : null;
 
-  const svg = svgBase(width, height, "Scenario energy contribution by temperature");
+  const svg = svgBase(
+    width,
+    height,
+    tr(
+      "yearly_analysis.chart_aria_annual_energy",
+      "Annual energy contribution by temperature scenario chart"
+    )
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
   addGridLines(g, yEnergy, innerWidth, 6);
 
@@ -281,7 +308,7 @@ export const renderScenarioContributionChart = (el, legendEl, data = []) => {
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("fill", "#666")
-    .text("Electric kWh");
+    .text(tr("yearly_analysis.axis_electric_kwh", "Electric kWh"));
 
   if (hasDieselHeating) {
     g.append("g")
@@ -294,7 +321,7 @@ export const renderScenarioContributionChart = (el, legendEl, data = []) => {
       .attr("text-anchor", "middle")
       .attr("font-size", "10px")
       .attr("fill", "#666")
-      .text("Diesel heating liters");
+      .text(tr("yearly_analysis.diesel_heating_liters", "Diesel heating liters"));
   }
 
   const tooltipLayer = g.append("g").style("display", "none");
@@ -318,11 +345,11 @@ export const renderScenarioContributionChart = (el, legendEl, data = []) => {
         {
           title: `${d.label} (${formatFixed(d.temperature, 1)}°C)`,
           lines: [
-            `Days/year: ${formatInt(d.occurrences)}`,
-            `Electric contribution: ${formatInt(d.electricAnnualKwh)} kWh`,
+            tr("yearly_analysis.tooltip_days_year", "Days/year: {value}", { value: formatInt(d.occurrences) }),
+            tr("yearly_analysis.chart_tooltip_electric_contribution", "Electric contribution: {value} kWh", { value: formatInt(d.electricAnnualKwh) }),
             hasDieselHeating
-              ? `Diesel heating: ${formatFixed(d.dieselHeatingAnnualLiters, 1)} L`
-              : `Distance: ${formatFixed(d.distanceKm, 1)} km`,
+              ? tr("yearly_analysis.chart_tooltip_diesel_heating", "Diesel heating: {value} L", { value: formatFixed(d.dieselHeatingAnnualLiters, 1) })
+              : tr("yearly_analysis.tooltip_distance", "Distance: {value} km", { value: formatFixed(d.distanceKm, 1) }),
           ],
         },
         tx,
@@ -358,9 +385,14 @@ export const renderScenarioContributionChart = (el, legendEl, data = []) => {
 
   el.appendChild(svg.node());
   setLegend(legendEl, [
-    { label: "Electric energy", color: EFF_COLORS.energy },
+    { label: tr("yearly_analysis.electric_energy", "Electric energy"), color: EFF_COLORS.energy },
     ...(hasDieselHeating
-      ? [{ label: "Diesel heating liters", color: EFF_COLORS.dieselHeating }]
+      ? [
+          {
+            label: tr("yearly_analysis.diesel_heating_liters", "Diesel heating liters"),
+            color: EFF_COLORS.dieselHeating,
+          },
+        ]
       : []),
   ]);
 };
@@ -371,7 +403,7 @@ export const renderCostComparisonBar = (el, legendEl, data) => {
 
   const chartData = [
     {
-      category: "E-bus",
+      category: tr("yearly_analysis.ebus", "E-bus"),
       vehicle: toFiniteNumber(data.ebusCapexAnnual) ?? 0,
       usage: (toFiniteNumber(data.ebusEnergy) ?? 0) + (toFiniteNumber(data.ebusDieselHeatingFuel) ?? 0),
       maintenance:
@@ -379,7 +411,7 @@ export const renderCostComparisonBar = (el, legendEl, data) => {
         (toFiniteNumber(data.ebusDieselHeatingMaintenance) ?? 0),
     },
     {
-      category: "Diesel comparator",
+      category: tr("yearly_analysis.diesel_comparator", "Diesel comparator"),
       vehicle: toFiniteNumber(data.dieselCapexAnnual) ?? 0,
       usage: toFiniteNumber(data.dieselFuel) ?? 0,
       maintenance: toFiniteNumber(data.dieselMaintenance) ?? 0,
@@ -391,7 +423,11 @@ export const renderCostComparisonBar = (el, legendEl, data) => {
   const margin = { top: 22, right: 20, bottom: 36, left: 72 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
-  const svg = svgBase(width, height, "Annual cost comparison");
+  const svg = svgBase(
+    width,
+    height,
+    tr("yearly_analysis.total_annual_cost_comparison", "Total annual cost comparison")
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
   const x = d3.scaleBand().domain(chartData.map((d) => d.category)).range([0, innerWidth]).padding(0.34);
   const y = d3
@@ -417,7 +453,7 @@ export const renderCostComparisonBar = (el, legendEl, data) => {
     .attr("text-anchor", "middle")
     .attr("font-size", "10px")
     .attr("fill", "#666")
-    .text("CHF / year");
+    .text(tr("yearly_analysis.axis_chf_year", "CHF / year"));
 
   const layers = d3.stack().keys(["vehicle", "usage", "maintenance"])(chartData);
   layers.forEach((layer) => {
@@ -440,9 +476,18 @@ export const renderCostComparisonBar = (el, legendEl, data) => {
 
   el.appendChild(svg.node());
   setLegend(legendEl, [
-    { label: "CAPEX annualized", color: COST_COLORS.vehicle },
-    { label: "OPEX usage", color: COST_COLORS.usage },
-    { label: "OPEX maintenance", color: COST_COLORS.maintenance },
+    {
+      label: tr("simulation.cost_stack_capex_annualized", "CAPEX annualized"),
+      color: COST_COLORS.vehicle,
+    },
+    {
+      label: tr("simulation.cost_stack_opex_usage", "OPEX usage"),
+      color: COST_COLORS.usage,
+    },
+    {
+      label: tr("simulation.cost_stack_opex_maintenance", "OPEX maintenance"),
+      color: COST_COLORS.maintenance,
+    },
   ]);
 };
 
@@ -496,7 +541,11 @@ export const renderProjectedCostTrend = (el, legendEl, data) => {
   const margin = { top: 18, right: 22, bottom: 34, left: 72 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
-  const svg = svgBase(width, height, "Projected cumulative cost trend");
+  const svg = svgBase(
+    width,
+    height,
+    tr("simulation.chart_aria_cost_trend", "Projected cumulative cost trend chart")
+  );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
   const x = d3
     .scaleLinear()
@@ -540,8 +589,14 @@ export const renderProjectedCostTrend = (el, legendEl, data) => {
 
   el.appendChild(svg.node());
   setLegend(legendEl, [
-    { label: "E-bus cumulative cost", color: FUEL_COLORS.electric },
-    { label: "Diesel comparator cumulative cost", color: FUEL_COLORS.diesel },
+    {
+      label: tr("yearly_analysis.cumulative_cost_ebus", "E-bus cumulative cost"),
+      color: FUEL_COLORS.electric,
+    },
+    {
+      label: tr("yearly_analysis.cumulative_cost_diesel", "Diesel comparator cumulative cost"),
+      color: FUEL_COLORS.diesel,
+    },
   ]);
 };
 
@@ -559,7 +614,11 @@ export const renderEmissionsHistogram = (el, legendEl, data = []) => {
   const values = data.flatMap((item) => [item.ebusTotal, item.dieselComparatorTotal].filter((value) => value != null));
   const max = d3.max(values) * 1.1 || 1;
 
-  const svg = svgBase(width, height, "Emissions comparison");
+  const svg = svgBase(
+    width,
+    height,
+    tr("yearly_analysis.chart_aria_emissions_saved", "Emissions saved horizontal bar chart")
+  );
   const x = d3.scaleLinear().domain([0, max]).nice().range([0, innerWidth]);
 
   data.forEach((item, index) => {
@@ -615,8 +674,11 @@ export const renderEmissionsHistogram = (el, legendEl, data = []) => {
 
   el.appendChild(svg.node());
   setLegend(legendEl, [
-    { label: "Diesel comparator", color: FUEL_COLORS.diesel },
-    { label: "E-bus", color: FUEL_COLORS.electric },
+    {
+      label: tr("yearly_analysis.diesel_comparator", "Diesel comparator"),
+      color: FUEL_COLORS.diesel,
+    },
+    { label: tr("yearly_analysis.ebus", "E-bus"), color: FUEL_COLORS.electric },
   ]);
 };
 
@@ -634,8 +696,8 @@ export const renderCo2PhaseBreakdown = (el, legendEl, co2Data) => {
   if (!el || !co2Data?.ebus || !co2Data?.dieselComparator) return;
 
   const bars = [
-    { label: "E-bus", indicator: co2Data.ebus },
-    { label: "Diesel", indicator: co2Data.dieselComparator },
+    { label: tr("yearly_analysis.ebus", "E-bus"), indicator: co2Data.ebus },
+    { label: tr("simulation.label_diesel", "Diesel"), indicator: co2Data.dieselComparator },
   ];
 
   const width = 520;
@@ -648,7 +710,11 @@ export const renderCo2PhaseBreakdown = (el, legendEl, co2Data) => {
     PHASE_KEYS.reduce((sum, phase) => sum + (readPhaseTotal(bar.indicator, phase.key) ?? 0), 0)
   );
   const x = d3.scaleLinear().domain([0, d3.max(totals) * 1.12 || 1]).nice().range([0, innerWidth]);
-  const svg = svgBase(width, height, "CO2 lifecycle phase breakdown");
+  const svg = svgBase(
+    width,
+    height,
+    tr("simulation.chart_aria_co2_phase", "CO₂ lifecycle phase breakdown chart")
+  );
 
   bars.forEach((bar, index) => {
     const y = margin.top + index * 48;
@@ -693,7 +759,7 @@ export const renderCo2PhaseBreakdown = (el, legendEl, co2Data) => {
   setLegend(
     legendEl,
     PHASE_KEYS.map((phase) => ({
-      label: phase.label,
+      label: phaseLabel(phase),
       color: PHASE_COLORS[phase.key] ?? "#95a5a6",
     }))
   );
@@ -704,9 +770,13 @@ export const renderPrimaryEnergyChart = (el, legendEl, energyData) => {
   if (!el || !energyData?.ebusTotal || !energyData?.dieselComparatorTotal) return;
 
   const bars = [
-    { label: "E-bus", total: energyData.ebusTotal, nonRenewable: energyData.ebusNonRenewable ?? 0 },
     {
-      label: "Diesel",
+      label: tr("yearly_analysis.ebus", "E-bus"),
+      total: energyData.ebusTotal,
+      nonRenewable: energyData.ebusNonRenewable ?? 0,
+    },
+    {
+      label: tr("simulation.label_diesel", "Diesel"),
       total: energyData.dieselComparatorTotal,
       nonRenewable: energyData.dieselComparatorNonRenewable ?? 0,
     },
@@ -721,7 +791,11 @@ export const renderPrimaryEnergyChart = (el, legendEl, energyData) => {
     .domain([0, d3.max(bars, (bar) => bar.total) * 1.12 || 1])
     .nice()
     .range([0, innerWidth]);
-  const svg = svgBase(width, height, "Primary energy comparison");
+  const svg = svgBase(
+    width,
+    height,
+    tr("simulation.chart_aria_primary_energy", "Primary energy consumption chart")
+  );
 
   bars.forEach((bar, index) => {
     const y = margin.top + index * 48;
@@ -767,7 +841,13 @@ export const renderPrimaryEnergyChart = (el, legendEl, energyData) => {
 
   el.appendChild(svg.node());
   setLegend(legendEl, [
-    { label: "Renewable", color: PRIMARY_ENERGY_COLORS.renewable },
-    { label: "Non-renewable", color: PRIMARY_ENERGY_COLORS.nonRenewable },
+    {
+      label: tr("simulation.emissions_energy_renewable", "Renewable"),
+      color: PRIMARY_ENERGY_COLORS.renewable,
+    },
+    {
+      label: tr("simulation.emissions_energy_non_renewable", "Non-renewable"),
+      color: PRIMARY_ENERGY_COLORS.nonRenewable,
+    },
   ]);
 };
