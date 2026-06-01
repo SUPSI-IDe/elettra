@@ -5554,6 +5554,68 @@ const resolveOptimizedBatteryCoverageMarker = (
 const MARGIN_ADEQUATE_PCT = 0.15;
 const MARGIN_TIGHT_PCT = 0.05;
 
+const resolveBatteryMarginPresentation = ({ marginKwh, marginPct } = {}) => {
+  if (marginKwh == null) return null;
+
+  let marginLabel = "";
+  let marginClass = "";
+  if (marginPct != null) {
+    if (marginPct < 0) {
+      marginLabel = translateOr(
+        "simulation.sensitivity_margin_exceeds",
+        "Demand exceeds usable energy"
+      );
+      marginClass = "efficiency-sensitivity-card__margin-danger";
+    } else if (marginPct < MARGIN_TIGHT_PCT) {
+      marginLabel = translateOr("simulation.sensitivity_margin_very_tight", "Very tight");
+      marginClass = "efficiency-sensitivity-card__margin-danger";
+    } else if (marginPct < MARGIN_ADEQUATE_PCT) {
+      marginLabel = translateOr("simulation.sensitivity_margin_tight", "Tight");
+      marginClass = "efficiency-sensitivity-card__margin-tight";
+    } else {
+      marginLabel = translateOr("simulation.sensitivity_margin_adequate", "Adequate");
+      marginClass = "efficiency-sensitivity-card__margin-ok";
+    }
+  } else {
+    marginLabel =
+      marginKwh < 0
+        ? translateOr(
+            "simulation.sensitivity_margin_exceeds",
+            "Demand exceeds usable energy"
+          )
+        : translateOr("simulation.sensitivity_margin_adequate", "Adequate");
+    marginClass =
+      marginKwh < 0
+        ? "efficiency-sensitivity-card__margin-danger"
+        : "efficiency-sensitivity-card__margin-ok";
+  }
+
+  return { marginLabel, marginClass };
+};
+
+const formatBatteryMarginSummary = ({ marginKwh, marginPct } = {}) => {
+  const presentation = resolveBatteryMarginPresentation({ marginKwh, marginPct });
+  if (!presentation) return null;
+
+  const pctStr =
+    marginPct != null ? ` (${(marginPct * 100).toFixed(1)}%)` : "";
+
+  return {
+    text: `${formatFixed(marginKwh, 1)} kWh${pctStr} \u2014 ${presentation.marginLabel}`,
+    marginClass: presentation.marginClass,
+  };
+};
+
+const overviewMarginToneClass = (marginClass = "") => {
+  if (marginClass === "efficiency-sensitivity-card__margin-ok") {
+    return "overview-highlight--positive";
+  }
+  if (marginClass === "efficiency-sensitivity-card__margin-danger") {
+    return "overview-highlight--negative";
+  }
+  return "overview-highlight--neutral";
+};
+
 const resolveSensitivityFeasibilityCardData = (
   results,
   ip,
@@ -5609,6 +5671,17 @@ const resolveSensitivityFeasibilityCardData = (
     maxPhysicalPacks != null &&
     optimizedPacks >= maxPhysicalPacks;
 
+  const chargingStations = Array.isArray(ip?.charging_stations)
+    ? ip.charging_stations
+    : [];
+  const chargingStationsCount = chargingStations.length > 0
+    ? chargingStations.length
+    : null;
+
+  const yearlyDistanceKm = toOptionalFiniteNumber(
+    viewOptions?.costInputs?.yearlyDistanceKm
+  );
+
   return {
     feasibility,
     mode,
@@ -5625,6 +5698,8 @@ const resolveSensitivityFeasibilityCardData = (
     marginKwh,
     marginPct,
     atPhysicalLimit,
+    chargingStationsCount,
+    yearlyDistanceKm,
   };
 };
 
@@ -5637,30 +5712,12 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
     ? (t("simulation.feasibility_feasible") || "Feasible")
     : (t("simulation.feasibility_infeasible") || "Infeasible");
 
-  let marginLabel = "";
-  let marginClass = "";
-  if (data.marginPct != null) {
-    if (data.marginPct < 0) {
-      marginLabel = translateOr("simulation.sensitivity_margin_exceeds", "Demand exceeds usable energy");
-      marginClass = "efficiency-sensitivity-card__margin-danger";
-    } else if (data.marginPct < MARGIN_TIGHT_PCT) {
-      marginLabel = translateOr("simulation.sensitivity_margin_very_tight", "Very tight");
-      marginClass = "efficiency-sensitivity-card__margin-danger";
-    } else if (data.marginPct < MARGIN_ADEQUATE_PCT) {
-      marginLabel = translateOr("simulation.sensitivity_margin_tight", "Tight");
-      marginClass = "efficiency-sensitivity-card__margin-tight";
-    } else {
-      marginLabel = translateOr("simulation.sensitivity_margin_adequate", "Adequate");
-      marginClass = "efficiency-sensitivity-card__margin-ok";
-    }
-  } else if (data.marginKwh != null) {
-    marginLabel = data.marginKwh < 0
-      ? translateOr("simulation.sensitivity_margin_exceeds", "Demand exceeds usable energy")
-      : translateOr("simulation.sensitivity_margin_adequate", "Adequate");
-    marginClass = data.marginKwh < 0
-      ? "efficiency-sensitivity-card__margin-danger"
-      : "efficiency-sensitivity-card__margin-ok";
-  }
+  const marginPresentation = resolveBatteryMarginPresentation({
+    marginKwh: data.marginKwh,
+    marginPct: data.marginPct,
+  });
+  const marginLabel = marginPresentation?.marginLabel ?? "";
+  const marginClass = marginPresentation?.marginClass ?? "";
 
   const energyRows = [];
 
@@ -5749,6 +5806,35 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
 
   if (data.optimizedPacks != null) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.sensitivity_driver_opt_packs", "Optimized packs"))}: ${textContent(String(data.optimizedPacks))}</span>`);
+  }
+
+  if (data.chargingStationsCount != null) {
+    const chargingChipLabel =
+      data.chargingStationsCount === 1
+        ? translateOr(
+            "simulation.sensitivity_driver_charging_available_one",
+            "Charging available: 1 station"
+          )
+        : translateOr(
+            "simulation.sensitivity_driver_charging_available_count",
+            "Charging available: {count} stations",
+            { count: formatFixed(data.chargingStationsCount, 0) }
+          );
+    drivers.push(
+      `<span class="efficiency-sensitivity-card__chip">${textContent(chargingChipLabel)}</span>`
+    );
+  }
+
+  if (data.yearlyDistanceKm != null) {
+    drivers.push(
+      `<span class="efficiency-sensitivity-card__chip">${textContent(
+        translateOr(
+          "simulation.sensitivity_driver_annual_distance",
+          "Annual distance: {distance} km",
+          { distance: formatFixed(data.yearlyDistanceKm, 0) }
+        )
+      )}</span>`
+    );
   }
 
   const driversHtml = drivers.length
@@ -6769,6 +6855,23 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
         : null
     );
 
+    const overviewOptimizedUsableKwh = applyUsableSocWindow(
+      optimizedKwh,
+      resolveUsableSocFraction(ip)
+    );
+    const overviewQ50DemandKwh = toOptionalFiniteNumber(predictedConsumption);
+    let overviewMarginKwh = null;
+    let overviewMarginPct = null;
+    if (overviewOptimizedUsableKwh != null && overviewQ50DemandKwh != null) {
+      overviewMarginKwh = overviewOptimizedUsableKwh - overviewQ50DemandKwh;
+      overviewMarginPct =
+        overviewQ50DemandKwh > 0 ? overviewMarginKwh / overviewQ50DemandKwh : null;
+    }
+    const overviewMarginSummary = formatBatteryMarginSummary({
+      marginKwh: overviewMarginKwh,
+      marginPct: overviewMarginPct,
+    });
+
     const body = [
       overviewRowHtml(
         t("simulation.opt_feasibility") || "Feasibility",
@@ -6808,6 +6911,17 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
         t("simulation.overview_consumption_km") || "Consumption / km",
         consumptionPerKm != null ? `${formatFixed(consumptionPerKm, 3)} kWh` : "—"
       ),
+      ...(overviewMarginSummary
+        ? [
+            overviewRowHtml(
+              translateOr("simulation.sensitivity_margin", "Battery margin"),
+              `<span class="overview-highlight ${overviewMarginToneClass(
+                overviewMarginSummary.marginClass
+              )}">${textContent(overviewMarginSummary.text)}</span>`,
+              true
+            ),
+          ]
+        : []),
     ].join("");
 
     columns.push(overviewColShell("⚡", t("simulation.tab_efficiency") || "Efficiency", body));
