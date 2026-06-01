@@ -5549,6 +5549,227 @@ const resolveOptimizedBatteryCoverageMarker = (
   };
 };
 
+/* ── Sensitivity / Feasibility Insight Card ──────────────── */
+
+const MARGIN_ADEQUATE_PCT = 0.15;
+const MARGIN_TIGHT_PCT = 0.05;
+
+const resolveSensitivityFeasibilityCardData = (
+  results,
+  ip,
+  firstRun,
+  viewOptions,
+  { optimizedCoverageMarker = null, adequacyScenario = null } = {}
+) => {
+  const feasibility = results?.electrification_feasible;
+  if (feasibility === null || feasibility === undefined) return null;
+
+  const batteryResults = results?.battery_results ?? {};
+  const batteryEntries = Object.entries(batteryResults).filter(
+    ([shiftKey, result]) => matchesSelectedShift(result, shiftKey, viewOptions)
+  );
+  const batteryEntry = batteryEntries[0]?.[1] ?? Object.values(batteryResults)[0] ?? null;
+  if (!batteryEntry) return null;
+
+  const mode = ip?.mode ?? "";
+  const optimizedPacks = toOptionalFiniteNumber(batteryEntry?.optimized_packs);
+  const optimizedNominalKwh = toOptionalFiniteNumber(batteryEntry?.optimized_kwh);
+  const usableSocFraction = resolveUsableSocFraction(ip);
+  const optimizedUsableKwh =
+    toOptionalFiniteNumber(optimizedCoverageMarker?.value) ??
+    applyUsableSocWindow(optimizedNominalKwh, usableSocFraction);
+  const maxPhysicalPacks = toOptionalFiniteNumber(batteryEntry?.max_physical_packs);
+
+  const externalTempCelsius = toOptionalFiniteNumber(firstRun?.external_temp_celsius);
+  const heatingType = firstRun?.auxiliary_heating_type ?? null;
+  const occupancyPercent = toOptionalFiniteNumber(firstRun?.occupancy_percent);
+
+  const q50DemandKwh =
+    toOptionalFiniteNumber(adequacyScenario?.q50) ??
+    readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
+      kind: "absolute",
+      quantileKey: "q50",
+    });
+  const q95DemandKwh =
+    toOptionalFiniteNumber(adequacyScenario?.q95) ??
+    readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
+      kind: "absolute",
+      quantileKey: "q95",
+    });
+
+  let marginKwh = null;
+  let marginPct = null;
+  if (optimizedUsableKwh != null && q50DemandKwh != null) {
+    marginKwh = optimizedUsableKwh - q50DemandKwh;
+    marginPct = q50DemandKwh > 0 ? marginKwh / q50DemandKwh : null;
+  }
+
+  const atPhysicalLimit =
+    optimizedPacks != null &&
+    maxPhysicalPacks != null &&
+    optimizedPacks >= maxPhysicalPacks;
+
+  return {
+    feasibility,
+    mode,
+    optimizedPacks,
+    optimizedNominalKwh,
+    usableSocFraction,
+    optimizedUsableKwh,
+    maxPhysicalPacks,
+    externalTempCelsius,
+    heatingType,
+    occupancyPercent,
+    q50DemandKwh,
+    q95DemandKwh,
+    marginKwh,
+    marginPct,
+    atPhysicalLimit,
+  };
+};
+
+const buildSensitivityFeasibilityCardHtml = (data) => {
+  if (!data) return "";
+
+  const isFeasible = data.feasibility !== false;
+  const feasBadgeClass = isFeasible ? "efficiency-badge--ok" : "efficiency-badge--err";
+  const feasLabel = isFeasible
+    ? (t("simulation.feasibility_feasible") || "Feasible")
+    : (t("simulation.feasibility_infeasible") || "Infeasible");
+
+  let marginLabel = "";
+  let marginClass = "";
+  if (data.marginPct != null) {
+    if (data.marginPct < 0) {
+      marginLabel = translateOr("simulation.sensitivity_margin_exceeds", "Demand exceeds usable energy");
+      marginClass = "efficiency-sensitivity-card__margin-danger";
+    } else if (data.marginPct < MARGIN_TIGHT_PCT) {
+      marginLabel = translateOr("simulation.sensitivity_margin_very_tight", "Very tight");
+      marginClass = "efficiency-sensitivity-card__margin-danger";
+    } else if (data.marginPct < MARGIN_ADEQUATE_PCT) {
+      marginLabel = translateOr("simulation.sensitivity_margin_tight", "Tight");
+      marginClass = "efficiency-sensitivity-card__margin-tight";
+    } else {
+      marginLabel = translateOr("simulation.sensitivity_margin_adequate", "Adequate");
+      marginClass = "efficiency-sensitivity-card__margin-ok";
+    }
+  } else if (data.marginKwh != null) {
+    marginLabel = data.marginKwh < 0
+      ? translateOr("simulation.sensitivity_margin_exceeds", "Demand exceeds usable energy")
+      : translateOr("simulation.sensitivity_margin_adequate", "Adequate");
+    marginClass = data.marginKwh < 0
+      ? "efficiency-sensitivity-card__margin-danger"
+      : "efficiency-sensitivity-card__margin-ok";
+  }
+
+  const energyRows = [];
+
+  if (data.optimizedUsableKwh != null) {
+    energyRows.push(`
+      <div class="efficiency-sensitivity-card__row">
+        <span>${textContent(translateOr("simulation.sensitivity_usable_energy", "Usable energy"))}</span>
+        <strong>${textContent(formatFixed(data.optimizedUsableKwh, 1))} kWh</strong>
+      </div>`);
+  }
+
+  if (data.q50DemandKwh != null) {
+    energyRows.push(`
+      <div class="efficiency-sensitivity-card__row">
+        <span>${textContent(translateOr("simulation.sensitivity_median_demand", "Median demand (Q50)"))}</span>
+        <strong>${textContent(formatFixed(data.q50DemandKwh, 1))} kWh</strong>
+      </div>`);
+  }
+
+  if (data.q95DemandKwh != null) {
+    energyRows.push(`
+      <div class="efficiency-sensitivity-card__row">
+        <span>${textContent(translateOr("simulation.sensitivity_q95_demand", "Q95 demand"))}</span>
+        <strong>${textContent(formatFixed(data.q95DemandKwh, 1))} kWh</strong>
+      </div>`);
+  }
+
+  if (data.marginKwh != null) {
+    const pctStr = data.marginPct != null
+      ? ` (${(data.marginPct * 100).toFixed(1)}%)`
+      : "";
+    energyRows.push(`
+      <div class="efficiency-sensitivity-card__row">
+        <span>${textContent(translateOr("simulation.sensitivity_margin", "Battery margin"))}</span>
+        <strong class="${marginClass}">${textContent(formatFixed(data.marginKwh, 1))} kWh${textContent(pctStr)} \u2014 ${textContent(marginLabel)}</strong>
+      </div>`);
+  }
+
+  const warningRows = [];
+
+  if (
+    data.q95DemandKwh != null &&
+    data.optimizedUsableKwh != null &&
+    data.q95DemandKwh > data.optimizedUsableKwh
+  ) {
+    warningRows.push(`
+      <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-tight">
+        \u26a0 ${textContent(translateOr("simulation.sensitivity_q95_exceeds", "Q95 demand exceeds usable energy."))}
+      </div>`);
+  }
+
+  if (data.atPhysicalLimit) {
+    warningRows.push(`
+      <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-danger">
+        \u26a0 ${textContent(translateOr("simulation.sensitivity_physical_limit_warning", "Optimized pack count reaches the physical pack limit."))}
+      </div>`);
+  }
+
+  const bodyRows = [...energyRows, ...warningRows];
+  const bodyHtml = bodyRows.length
+    ? `<div class="efficiency-sensitivity-card__body">${bodyRows.join("")}</div>`
+    : "";
+
+  const drivers = [];
+
+  if (data.mode) {
+    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(t("simulation.var_optimization_mode") || "Mode")}: ${textContent(modeLabel(data.mode))}</span>`);
+  }
+
+  if (data.usableSocFraction != null) {
+    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.sensitivity_driver_usable_soc", "Usable SoC"))}: ${textContent(formatPct(data.usableSocFraction))}</span>`);
+  }
+
+  if (data.externalTempCelsius != null) {
+    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_external_temp_short", "External temperature"))}: ${textContent(String(data.externalTempCelsius))} \u00b0C</span>`);
+  }
+
+  if (data.heatingType) {
+    const htLabel = t(HEATING_LABELS[data.heatingType]) ?? data.heatingType;
+    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_heating_type_short", "Heating type"))}: ${textContent(htLabel)}</span>`);
+  }
+
+  if (data.occupancyPercent != null) {
+    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_occupancy_short", "Occupancy"))}: ${textContent(String(data.occupancyPercent))}%</span>`);
+  }
+
+  if (data.optimizedPacks != null) {
+    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.sensitivity_driver_opt_packs", "Optimized packs"))}: ${textContent(String(data.optimizedPacks))}</span>`);
+  }
+
+  const driversHtml = drivers.length
+    ? `<div class="efficiency-sensitivity-card__drivers">
+        <span class="efficiency-sensitivity-card__drivers-label">${textContent(translateOr("simulation.sensitivity_drivers_label", "Sensitivity drivers"))}</span>
+        <div class="efficiency-sensitivity-card__chips">${drivers.join("")}</div>
+      </div>`
+    : "";
+
+  return `
+  <div class="efficiency-sensitivity-card">
+    <div class="efficiency-sensitivity-card__header">
+      <span class="efficiency-sensitivity-card__title">${textContent(translateOr("simulation.sensitivity_card_title", "Sensitivity / Feasibility Insight"))}</span>
+      <span class="efficiency-badge ${feasBadgeClass}">${textContent(feasLabel)}</span>
+    </div>
+    ${bodyHtml}
+    ${driversHtml}
+    <p class="efficiency-sensitivity-card__disclaimer">${textContent(translateOr("simulation.sensitivity_disclaimer", "Indicative summary only. The detailed tables and charts below are the source of truth."))}</p>
+  </div>`;
+};
+
 const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (!el) return;
 
@@ -5780,7 +6001,15 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     </details>`
     : "";
 
+  const sensitivityFeasibilityCardHtml = buildSensitivityFeasibilityCardHtml(
+    resolveSensitivityFeasibilityCardData(results, ip, firstRun, viewOptions, {
+      optimizedCoverageMarker,
+      adequacyScenario,
+    })
+  );
+
   el.innerHTML = `
+    ${sensitivityFeasibilityCardHtml}
     <div class="efficiency-section">
       <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
       <div class="efficiency-params-grid">${conditionsHtml}</div>

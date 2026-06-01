@@ -1024,6 +1024,116 @@
   text-align: center;
 }
 
+/* ── Sensitivity / Feasibility Insight Card ───────────────────── */
+
+.efficiency-sensitivity-card {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--color-background-alt, #f5f7fa);
+  padding: 0.85rem 1rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.efficiency-sensitivity-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.efficiency-sensitivity-card__title {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.efficiency-sensitivity-card__body {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--spacing-sm);
+}
+
+.efficiency-sensitivity-card__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  font-size: 0.83rem;
+  padding: 0.22rem 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.efficiency-sensitivity-card__row:last-child {
+  border-bottom: none;
+}
+
+.efficiency-sensitivity-card__row > span {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.efficiency-sensitivity-card__row > strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+  font-weight: 600;
+  text-align: right;
+}
+
+.efficiency-sensitivity-card__drivers {
+  margin-top: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.efficiency-sensitivity-card__drivers-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+}
+
+.efficiency-sensitivity-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.4rem;
+}
+
+.efficiency-sensitivity-card__chip {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-dim);
+  background: var(--color-surface);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.efficiency-sensitivity-card__disclaimer {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.efficiency-sensitivity-card__margin-ok {
+  color: #3d7a00 !important;
+}
+
+.efficiency-sensitivity-card__margin-tight {
+  color: #b95d0a !important;
+}
+
+.efficiency-sensitivity-card__margin-danger {
+  color: #c0392b !important;
+}
+
 /* ── Efficiency tab full-width panel ──────────────────────────── */
 
 .tab-panel--full {
