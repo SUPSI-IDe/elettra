@@ -3208,7 +3208,11 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
       const overLimit = reqPacks != null && maxPacks != null && reqPacks > maxPacks;
       const bOpen = overLimit ? "<strong>" : "";
       const bClose = overLimit ? "</strong>" : "";
-      const optimizedKwh = toOptionalFiniteNumber(b.optimized_kwh);
+      const optimizedKwh = resolveOptimizedInstalledNominalKwh({
+        batteryEntry: b,
+        batteryResults,
+        viewOptions,
+      });
       const optimizedUsableKwh = applyUsableSocWindow(
         optimizedKwh,
         usableSocFraction
@@ -5446,6 +5450,52 @@ const resolveSinglePackCapacityKwh = (predictionRun = {}, batteryResults = {}, v
   return null;
 };
 
+const resolveOptimizedInstalledNominalKwh = ({
+  batteryEntry = {},
+  matchedRun = null,
+  scopedRuns = [],
+  batteryResults = {},
+  viewOptions = {},
+} = {}) => {
+  const optimizedPacks = toOptionalFiniteNumber(batteryEntry?.optimized_packs);
+  const matchedRunCapacity = toOptionalFiniteNumber(
+    matchedRun?.contextual_parameters?.battery_capacity_kwh
+  );
+  const matchedRunPacks = toOptionalFiniteNumber(
+    matchedRun?.contextual_parameters?.num_battery_packs
+  );
+  if (
+    optimizedPacks != null &&
+    matchedRunCapacity != null &&
+    matchedRunPacks === optimizedPacks
+  ) {
+    return matchedRunCapacity;
+  }
+
+  const maxPhysicalKwh = toOptionalFiniteNumber(batteryEntry?.max_physical_kwh);
+  const maxPhysicalPacks = toOptionalFiniteNumber(batteryEntry?.max_physical_packs);
+  if (
+    optimizedPacks != null &&
+    maxPhysicalKwh != null &&
+    maxPhysicalPacks === optimizedPacks
+  ) {
+    return maxPhysicalKwh;
+  }
+
+  if (optimizedPacks != null) {
+    const singlePackCapacityKwh = resolveSinglePackCapacityKwh(
+      matchedRun ?? scopedRuns[0] ?? {},
+      batteryResults,
+      viewOptions
+    );
+    if (singlePackCapacityKwh != null) {
+      return singlePackCapacityKwh * optimizedPacks;
+    }
+  }
+
+  return toOptionalFiniteNumber(batteryEntry?.optimized_kwh);
+};
+
 const resolveOptimizedBatteryCoverageMarker = (
   predictionRuns = [],
   batteryResults = {},
@@ -5460,6 +5510,10 @@ const resolveOptimizedBatteryCoverageMarker = (
     .map((entry) => toFiniteNumber(entry?.optimized_packs))
     .filter((value) => value != null);
   const optimizedPacks = optimizedPacksValues.length ? d3.max(optimizedPacksValues) : null;
+  const batteryEntryForOptimized =
+    batteryEntries.find(
+      (entry) => toFiniteNumber(entry?.optimized_packs) === optimizedPacks
+    ) ?? batteryEntries[0] ?? {};
   const matchedRun =
     optimizedPacks == null
       ? null
@@ -5470,26 +5524,13 @@ const resolveOptimizedBatteryCoverageMarker = (
         ) ?? null;
   const matchedRunIndex = matchedRun ? scopedRuns.indexOf(matchedRun) : -1;
 
-  let optimizedNominalKwh = batteryEntries
-    .map((entry) => toFiniteNumber(entry?.optimized_kwh))
-    .filter((value) => value != null);
-  optimizedNominalKwh = optimizedNominalKwh.length ? d3.max(optimizedNominalKwh) : null;
-
-  if (optimizedNominalKwh == null) {
-    optimizedNominalKwh = toFiniteNumber(
-      matchedRun?.contextual_parameters?.battery_capacity_kwh
-    );
-  }
-
-  if (optimizedNominalKwh == null && optimizedPacks != null) {
-    const singlePackCapacityKwh = resolveSinglePackCapacityKwh(
-      matchedRun ?? scopedRuns[0] ?? {},
-      batteryResults,
-      viewOptions
-    );
-    optimizedNominalKwh =
-      singlePackCapacityKwh != null ? singlePackCapacityKwh * optimizedPacks : null;
-  }
+  const optimizedNominalKwh = resolveOptimizedInstalledNominalKwh({
+    batteryEntry: batteryEntryForOptimized,
+    matchedRun,
+    scopedRuns,
+    batteryResults,
+    viewOptions,
+  });
 
   const optimizedCoveredKwh =
     applyUsableSocWindow(optimizedNominalKwh, resolveUsableSocFraction(inputParams)) ??
@@ -5539,6 +5580,7 @@ const resolveOptimizedBatteryCoverageMarker = (
     scenarioLabel,
     scenarioTitle,
     value: optimizedCoveredKwh,
+    nominalKwh: optimizedNominalKwh,
     label:
       translateOr(
         "simulation.efficiency_coverage_legend",
@@ -5635,7 +5677,13 @@ const resolveSensitivityFeasibilityCardData = (
 
   const mode = ip?.mode ?? "";
   const optimizedPacks = toOptionalFiniteNumber(batteryEntry?.optimized_packs);
-  const optimizedNominalKwh = toOptionalFiniteNumber(batteryEntry?.optimized_kwh);
+  const optimizedNominalKwh =
+    toOptionalFiniteNumber(optimizedCoverageMarker?.nominalKwh) ??
+    resolveOptimizedInstalledNominalKwh({
+      batteryEntry,
+      batteryResults,
+      viewOptions,
+    });
   const usableSocFraction = resolveUsableSocFraction(ip);
   const optimizedUsableKwh =
     toOptionalFiniteNumber(optimizedCoverageMarker?.value) ??
