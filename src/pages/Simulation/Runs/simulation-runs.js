@@ -49,27 +49,6 @@ const ALLOWED_USABLE_SOC_PERCENTS = new Set([
 /** @deprecated Runs are now persisted server-side; kept for backward compat with callers. */
 export const saveRunIds = () => {};
 
-const DISMISSED_RUNS_KEY = "elettra_dismissed_runs";
-
-const getDismissedRunIds = () => {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(DISMISSED_RUNS_KEY) ?? "[]"));
-  } catch {
-    return new Set();
-  }
-};
-
-const addDismissedRunIds = (ids = []) => {
-  const current = getDismissedRunIds();
-  ids.forEach((id) => {
-    const normalized = text(id).trim();
-    if (normalized) {
-      current.add(normalized);
-    }
-  });
-  localStorage.setItem(DISMISSED_RUNS_KEY, JSON.stringify([...current]));
-};
-
 const setFlashMessage = (section, message) => {
   const flashElement = section.querySelector('[data-role="flash"]');
   if (!flashElement) return;
@@ -986,7 +965,6 @@ export const initializeSimulationRuns = async (
         cachedUserId = text(await resolveUserId().catch(() => "")).trim();
       }
       const currentUserId = cachedUserId;
-      const dismissedRunIds = getDismissedRunIds();
       if (!currentUserId) {
         throw new Error("Unable to resolve current user.");
       }
@@ -1016,9 +994,6 @@ export const initializeSimulationRuns = async (
             return !runUserId || runUserId === currentUserId;
           })
         : items;
-      visibleItems = visibleItems.filter(
-        (run) => !dismissedRunIds.has(text(run?.id).trim())
-      );
 
       if (hasForeignRuns) {
         // Backend should scope optimization runs, but if an environment
@@ -1028,8 +1003,7 @@ export const initializeSimulationRuns = async (
         const ownedRuns = (await fetchAllOptimizationRuns()).filter((run) => {
           const runUserId = text(run?.user_id ?? run?.userId).trim();
           return (
-            (!currentUserId || !runUserId || runUserId === currentUserId) &&
-            !dismissedRunIds.has(text(run?.id).trim())
+            !currentUserId || !runUserId || runUserId === currentUserId
           );
         });
         visibleItems = ownedRuns.slice(skip, skip + limit);
@@ -1183,7 +1157,6 @@ export const initializeSimulationRuns = async (
     if (!confirm(msg)) return;
 
     const deletedIds = new Set();
-    const dismissedIds = new Set();
     let serverFailed = 0;
 
     for (const id of ids) {
@@ -1191,8 +1164,6 @@ export const initializeSimulationRuns = async (
         const result = await deleteOptimizationRun(id);
         if (result.deleted) {
           deletedIds.add(id);
-        } else if (result.reason === "not_supported") {
-          dismissedIds.add(id);
         } else {
           serverFailed++;
         }
@@ -1201,11 +1172,7 @@ export const initializeSimulationRuns = async (
       }
     }
 
-    const removedIds = new Set([...deletedIds, ...dismissedIds]);
-
-    if (dismissedIds.size) {
-      addDismissedRunIds([...dismissedIds]);
-    }
+    const removedIds = deletedIds;
 
     if (removedIds.size) {
       allRuns = allRuns.filter((r) => !removedIds.has(text(r?.id)));

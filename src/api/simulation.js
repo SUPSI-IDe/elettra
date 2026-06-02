@@ -12,6 +12,7 @@ import {
   GREYBOX_PARAMS,
 } from "../config/simulation-defaults";
 import { normalizeOptimizationRunName } from "../utils/optimization-run";
+import { readDeleteResponse } from "./delete-response";
 
 const SIMULATION_PATH = `${API_ROOT}/api/v1/simulation`;
 const YEARLY_ANALYSIS_PATH = `${API_ROOT}/api/v1/yearly-analysis`;
@@ -611,18 +612,7 @@ export const deleteOptimizationRun = async (runId) => {
     `${SIMULATION_PATH}/optimization-runs/${encodeURIComponent(runId)}`,
     { method: "DELETE", headers }
   );
-  if (response.status === 405) {
-    return { deleted: false, reason: "not_supported" };
-  }
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    const message =
-      payload?.detail?.[0]?.msg ??
-      payload?.detail ??
-      "Unable to delete optimization run.";
-    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
-  }
-  return { deleted: true };
+  return readDeleteResponse(response, "Unable to delete optimization run.");
 };
 
 export const fetchOptimizationRun = async (runId) => {
