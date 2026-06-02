@@ -21,6 +21,29 @@ const ECONOMIC_PATH = `${API_ROOT}/api/v1/economic`;
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
 
+const parseJsonBody = (rawBody) => {
+  if (!rawBody) return null;
+  try {
+    return JSON.parse(rawBody);
+  } catch {
+    return null;
+  }
+};
+
+const formatErrorMessage = (response, rawBody, fallbackMessage) => {
+  let payload = null;
+  payload = parseJsonBody(rawBody);
+
+  const message = (
+    payload?.detail?.[0]?.msg ??
+    payload?.detail ??
+    rawBody.trim()
+  ) ||
+    fallbackMessage;
+  const normalized = typeof message === "string" ? message : JSON.stringify(message);
+  return `${fallbackMessage} (HTTP ${response.status})${normalized ? `: ${normalized}` : ""}`;
+};
+
 const normalizeAuxiliaryHeatingType = (value) => {
   const heatingType = text(value).trim().toLowerCase();
   if (!heatingType || heatingType === "default" || heatingType === "hp") {
@@ -336,13 +359,10 @@ export const createPredictionRuns = async ({
     headers,
     body: JSON.stringify(body),
   });
-  const payload = await response.json().catch(() => null);
+  const rawBody = await response.text().catch(() => "");
+  const payload = parseJsonBody(rawBody);
   if (!response.ok) {
-    const message =
-      payload?.detail?.[0]?.msg ??
-      payload?.detail ??
-      "Unable to create prediction runs.";
-    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+    throw new Error(formatErrorMessage(response, rawBody, "Unable to create prediction runs."));
   }
   return payload;
 };
@@ -541,18 +561,15 @@ export const createOptimizationRun = async (params = {}) => {
     throw new Error("Network error creating optimization run: " + networkErr.message);
   }
 
-  const payload = await response.json().catch(() => null);
+  const rawBody = await response.text().catch(() => "");
+  const payload = parseJsonBody(rawBody);
   console.info(
     "[elettra] POST /optimization-runs/ status:", response.status,
     "payload:", JSON.stringify(payload)
   );
 
   if (!response.ok) {
-    const message =
-      payload?.detail?.[0]?.msg ??
-      payload?.detail ??
-      "Unable to create optimization run.";
-    const errorStr = typeof message === "string" ? message : JSON.stringify(message);
+    const errorStr = formatErrorMessage(response, rawBody, "Unable to create optimization run.");
     console.error("[elettra] optimization-runs error:", errorStr);
     throw new Error(errorStr);
   }
