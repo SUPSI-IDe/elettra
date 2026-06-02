@@ -3096,7 +3096,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
 
   const electSummary = results.electrification_summary ?? {};
   let electrificationSummaryHtml = "";
-  if (electSummary.status === "infeasible" && electSummary.message) {
+  if (electSummary.status === "infeasible") {
     const infeasibleBuses = Array.isArray(electSummary.infeasible_buses) ? electSummary.infeasible_buses : [];
     const predictedShiftConsumptionKwh = toOptionalFiniteNumber(
       viewOptions?.predictedShiftConsumptionMedianKwh ??
@@ -3179,13 +3179,12 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
         </table>
       </div>` : "";
 
-    electrificationSummaryHtml = `
+    electrificationSummaryHtml = detailTableHtml
+      ? `
       <div class="efficiency-infeasibility-notice">
-        <p class="efficiency-infeasibility-msg"><strong>${textContent(
-          t("simulation.electrification_infeasible_title") || "Electrification not feasible"
-        )}:</strong> ${textContent(electSummary.message)}</p>
         ${detailTableHtml}
-      </div>`;
+      </div>`
+      : "";
   }
 
   const batteryResults = results.battery_results ?? {};
@@ -8215,9 +8214,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const renderInfeasibleNotice = (container) => {
     if (!container) return;
-    const summary = loadedOptimizationRun?.results?.electrification_summary;
     const msg =
-      summary?.message ||
       (t("simulation.infeasible_notice") ||
         "The optimization determined that electrification is not feasible for this configuration. Cost and emission data cannot be computed.");
 

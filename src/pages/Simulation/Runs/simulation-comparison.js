@@ -1905,9 +1905,9 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
 
   const renderInfeasibleNotice = (el, run) => {
     if (!el) return;
-    const summary = run?.results?.electrification_summary;
-    const msg = summary?.message ||
-      (t("simulation.infeasible_notice") || "The optimization determined that electrification is not feasible for this configuration.");
+    const msg =
+      t("simulation.infeasible_notice") ||
+      "The optimization determined that electrification is not feasible for this configuration.";
     el.innerHTML = `
       <div class="infeasibility-tab-notice">
         <div class="infeasibility-tab-notice__icon">⚠</div>
@@ -1937,7 +1937,6 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
 
     const results = run.results ?? {};
     const feasible = results.electrification_feasible;
-    const summary = results.electrification_summary ?? {};
     const batteryResults = results.battery_results ?? {};
     const batteryEntries = Object.entries(batteryResults);
 
@@ -1964,14 +1963,6 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
         <span class="efficiency-param-value">${textContent(formatFixed(results.solve_time_seconds, 2))}</span>
       </div>
     </div>`;
-
-    if (summary.status === "infeasible" && summary.message) {
-      socHtml += `<div class="efficiency-infeasibility-notice">
-        <p class="efficiency-infeasibility-msg"><strong>${textContent(
-          t("simulation.electrification_infeasible_title") || "Electrification not feasible"
-        )}:</strong> ${textContent(summary.message)}</p>
-      </div>`;
-    }
 
     if (batteryEntries.length) {
       const uniqueByShift = [];
