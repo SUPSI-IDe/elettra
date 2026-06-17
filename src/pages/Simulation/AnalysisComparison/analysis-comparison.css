@@ -1,0 +1,220 @@
+.analysis-comparison [hidden] { display: none !important; }
+
+.ac-main {
+  padding: var(--layout-content-padding);
+  overflow-y: auto;
+  max-width: var(--layout-content-max-width);
+  margin-inline: auto;
+  width: 100%;
+}
+
+.ac-subtitle {
+  margin: 0.25rem 0 0;
+}
+
+/* ── Selectors ─────────────────────────────────────────────────── */
+
+.ac-selectors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.ac-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ac-selector-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.ac-select {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-sm);
+}
+
+.ac-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  min-height: 1.5rem;
+}
+
+.ac-meta:empty {
+  display: none;
+}
+
+.ac-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.3rem 1.2rem;
+}
+
+.ac-meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: var(--font-size-sm);
+  padding: 0.15rem 0;
+}
+
+.ac-meta-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.ac-meta-value {
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ── Difference note / warning ─────────────────────────────────── */
+
+.ac-diff-note {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 0 0 var(--spacing-md);
+}
+
+.ac-warning {
+  margin: var(--spacing-sm) 0 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 166, 35, 0.12);
+  border: 1px solid var(--color-warning);
+  color: var(--text-main);
+  font-size: var(--font-size-sm);
+}
+
+.ac-section-note {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  padding: var(--spacing-md);
+}
+
+.ac-subhead {
+  margin-top: var(--spacing-md);
+  font-size: var(--font-size-md);
+}
+
+/* ── Executive KPIs ────────────────────────────────────────────── */
+
+.ac-executive {
+  margin: var(--spacing-lg) 0;
+}
+
+.ac-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.ac-kpi-card {
+  border: 1px solid var(--color-border-dim);
+  border-radius: var(--panel-radius);
+  padding: var(--spacing-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ac-kpi-title {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.ac-kpi-values {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.ac-kpi-ab {
+  font-size: var(--font-size-sm);
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.ac-kpi-ab em {
+  font-style: normal;
+  color: var(--text-secondary);
+  margin-right: 0.35rem;
+  font-weight: 600;
+}
+
+.ac-kpi-diff {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ac-kpi-diff small {
+  font-weight: 500;
+  font-size: var(--font-size-xs);
+}
+
+/* ── Difference tones ──────────────────────────────────────────── */
+
+.ac-diff--up { color: var(--color-danger); }
+.ac-diff--down { color: var(--color-success); }
+.ac-diff--neutral { color: var(--text-secondary); }
+
+/* ── Comparison table ──────────────────────────────────────────── */
+
+.ac-table td:not(:first-child),
+.ac-table th:not(:first-child) {
+  text-align: right;
+}
+
+/* ── Export ────────────────────────────────────────────────────── */
+
+.ac-export-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.ac-export-btn {
+  background-color: var(--brand-teal);
+  color: var(--color-surface);
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--brand-teal);
+  transition: background-color var(--transition-fast);
+}
+
+.ac-export-btn:hover { background-color: var(--brand-teal-dark); }
+
+.ac-download-actions {
+  margin-top: var(--spacing-lg);
+}
+
+@media (max-width: 640px) {
+  .ac-selectors {
+    grid-template-columns: 1fr;
+  }
+}
