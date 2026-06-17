@@ -13,6 +13,7 @@ import { initializeSimulationComparison } from "./pages/Simulation/Runs/simulati
 import { initializeCreateYearlyAnalysis } from "./pages/Simulation/YearlyAnalysis/create-yearly-analysis";
 import { initializeYearlyAnalysisRuns } from "./pages/Simulation/YearlyAnalysis/yearly-analysis-runs";
 import { initializeYearlyAnalysisResults } from "./pages/Simulation/YearlyAnalysis/yearly-analysis-results";
+import { initializeAnalysisComparison } from "./pages/Simulation/AnalysisComparison/analysis-comparison";
 import { initializeLogin } from "./pages/Auth/login";
 import { initializeLanding } from "./pages/Auth/landing";
 import { initializeRegister } from "./pages/Auth/register";
@@ -48,6 +49,7 @@ const SHELL_SECTION_BY_SLUG = {
   "yearly-analysis-runs": "yearly-analysis-runs",
   "create-yearly-analysis": "yearly-analysis-runs",
   "yearly-analysis-results": "yearly-analysis-runs",
+  "analysis-comparison": "analysis-comparison",
 };
 
 const buildHash = (slug, options = {}) => {
@@ -248,6 +250,9 @@ export const initializeNavigation = (root = document) => {
         break;
       case "yearly-analysis-results":
         cleanup = await initializeYearlyAnalysisResults(target, options);
+        break;
+      case "analysis-comparison":
+        cleanup = initializeAnalysisComparison(target, options);
         break;
       case "about":
         cleanup = initializeAbout(target, options);

@@ -1,0 +1,83 @@
+<section class="analysis-comparison">
+  <header class="page-header">
+    <div class="title-container">
+      <h1 class="page-title" data-i18n="analysisComparison.title">Analysis comparison</h1>
+      <p class="ac-subtitle helper-text" data-i18n="analysisComparison.subtitle">Compare two saved yearly analyses side by side.</p>
+    </div>
+  </header>
+
+  <main class="ac-main">
+    <p class="form-feedback" data-role="feedback" role="status" aria-live="polite" hidden></p>
+
+    <!-- Selectors -->
+    <div class="ac-selectors">
+      <div class="ac-selector">
+        <label class="ac-selector-label" for="ac-select-a" data-i18n="analysisComparison.selectAnalysisA">Analysis A</label>
+        <select id="ac-select-a" class="ac-select" data-role="select-a"></select>
+        <div class="ac-meta" data-role="meta-a"></div>
+      </div>
+      <div class="ac-selector">
+        <label class="ac-selector-label" for="ac-select-b" data-i18n="analysisComparison.selectAnalysisB">Analysis B</label>
+        <select id="ac-select-b" class="ac-select" data-role="select-b"></select>
+        <div class="ac-meta" data-role="meta-b"></div>
+      </div>
+    </div>
+
+    <p class="ac-loading helper-text" data-role="loading" data-i18n="common.loading" hidden>Loading…</p>
+    <p class="ac-empty helper-text" data-role="empty" data-i18n="analysisComparison.selectPrompt" hidden>Select an analysis for both A and B to start the comparison.</p>
+
+    <!-- Comparison body -->
+    <div class="ac-comparison" data-role="comparison" hidden>
+      <p class="ac-diff-note" data-role="diff-note" data-i18n="analysisComparison.differenceDefinition">Difference is calculated as Analysis B − Analysis A.</p>
+
+      <!-- Compatibility summary -->
+      <section class="ya-res-section ac-compat" data-role="compatibility"></section>
+
+      <!-- Executive comparison -->
+      <section class="ac-executive">
+        <h2 class="ya-res-section-title" data-i18n="analysisComparison.executiveComparison">Executive comparison</h2>
+        <div class="ac-kpi-grid" data-role="executive"></div>
+      </section>
+
+      <!-- Tabs -->
+      <div class="ya-tabs" role="tablist">
+        <button class="ya-tab active" role="tab" aria-selected="true" data-tab="overview" data-i18n="analysisComparison.overview">Overview</button>
+        <button class="ya-tab" role="tab" aria-selected="false" data-tab="efficiency" data-i18n="analysisComparison.efficiency">Efficiency</button>
+        <button class="ya-tab" role="tab" aria-selected="false" data-tab="cost" data-i18n="analysisComparison.cost">Cost</button>
+        <button class="ya-tab" role="tab" aria-selected="false" data-tab="emissions" data-i18n="analysisComparison.emissions">Emissions</button>
+        <button class="ya-tab" role="tab" aria-selected="false" data-tab="details" data-i18n="analysisComparison.detailsExport">Details / Export</button>
+      </div>
+
+      <div class="ya-tab-panels">
+        <div class="ya-tab-panel active" data-panel="overview" role="tabpanel">
+          <div data-role="panel-overview"></div>
+        </div>
+        <div class="ya-tab-panel" data-panel="efficiency" role="tabpanel" hidden>
+          <div data-role="panel-efficiency"></div>
+        </div>
+        <div class="ya-tab-panel" data-panel="cost" role="tabpanel" hidden>
+          <div data-role="panel-cost"></div>
+        </div>
+        <div class="ya-tab-panel" data-panel="emissions" role="tabpanel" hidden>
+          <div data-role="panel-emissions"></div>
+        </div>
+        <div class="ya-tab-panel" data-panel="details" role="tabpanel" hidden>
+          <div data-role="panel-details"></div>
+          <div class="ac-export-actions">
+            <button type="button" class="ac-export-btn" data-action="export-csv" data-i18n="analysisComparison.exportCsv">Export CSV</button>
+            <button type="button" class="ac-export-btn" data-action="export-json" data-i18n="analysisComparison.exportJson">Export JSON</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ya-overview-actions ac-download-actions">
+        <button type="button" class="ya-btn ya-btn--download" data-action="export-json">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 1v9m0 0L5 7m3 3 3-3M2 12v1.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span data-i18n="analysisComparison.downloadJson">Download JSON</span>
+        </button>
+      </div>
+    </div>
+  </main>
+</section>

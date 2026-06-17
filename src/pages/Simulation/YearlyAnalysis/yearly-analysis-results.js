@@ -1369,7 +1369,7 @@ const computeBreakEvenYear = (yearlyData) => {
  * weighted by its occurrence (days/year). This is the core advantage of the
  * yearly analysis over a single worst-case simulation.
  */
-const computeYearlyCosts = (features, busModelData, overrides = {}) => {
+export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
   const results = features.results ?? {};
   const yearlyTotals = results.yearlyTotals ?? {};
   const scenarioResults = results.scenarioResults ?? [];
@@ -1516,7 +1516,7 @@ const opexItemCost = (items, name) => {
   return toFiniteNumber(entry?.cost_chf_per_year) ?? 0;
 };
 
-const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, busModelData, { optimizedPacks, overrides } = {}) => {
+export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, busModelData, { optimizedPacks, overrides } = {}) => {
   const fn = (v) => toFiniteNumber(v);
   const ov = (key) => overrides?.[key] != null ? toFiniteNumber(overrides[key]) : null;
   const e = raw.ebus ?? {};
@@ -3919,7 +3919,7 @@ const renderOverviewPanel = (el, features, effState, costState, emissionsState, 
 
 /* ── Bus model data helpers ────────────────────────────────────── */
 
-const parseBusModelSpecs = (busModel) => {
+export const parseBusModelSpecs = (busModel) => {
   if (!busModel) return {};
   let specs = busModel.specs;
   if (typeof specs === "string") {
