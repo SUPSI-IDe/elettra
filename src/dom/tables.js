@@ -1,4 +1,8 @@
-import { resolveModelFields, textContent } from "../ui-helpers";
+import {
+  resolveBusModelDisplayName,
+  resolveModelFields,
+  textContent,
+} from "../ui-helpers";
 import { t } from "../i18n";
 import { inferVehicleCategoryFromSpecs } from "../config/vehicle-categories";
 
@@ -128,8 +132,8 @@ export const renderBusesList = (tbody, buses = [], modelsById = {}) => {
   const rows = buses
     .map((bus = {}) => {
       const model = modelsById[bus?.bus_model_id];
-      const { model: modelName, description: modelDescription } =
-        resolveModelFields(model);
+      const { description: modelDescription } = resolveModelFields(model);
+      const modelName = resolveBusModelDisplayName(model);
       const description =
         bus?.description ?? bus?.specs?.description ?? modelDescription ?? "";
 

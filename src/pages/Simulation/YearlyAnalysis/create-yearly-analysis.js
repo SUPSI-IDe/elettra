@@ -16,7 +16,7 @@ import { fetchShiftById } from "../../../api/shifts";
 import { fetchStopsByTripId } from "../../../api/gtfs";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
-import { textContent, resolveModelFields } from "../../../ui-helpers";
+import { textContent, resolveBusModelDisplayName } from "../../../ui-helpers";
 import {
   DEFAULT_PREDICTION_MODEL_NAME,
   DEFAULT_PREDICTION_QUANTILES,
@@ -342,7 +342,6 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     const kwh = resolveOptimizedKwh(br, meta.packSizeKwh);
     const mode = ip.mode ?? "—";
     const shiftLabel = meta.shiftLabel ?? "—";
-    const modelLabel = meta.modelLabel ?? "—";
     const sizingTemp = meta.sizingTemp;
 
     const param = (label, value, highlight = false) =>
@@ -350,7 +349,6 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
 
     configSummary.innerHTML = [
       param(t("yearly_analysis.summary_shift"), shiftLabel),
-      param(t("simulation.field_bus_model"), modelLabel),
       param(t("yearly_analysis.col_mode"), modeLabel(mode)),
       param(t("yearly_analysis.sizing_temperature"), sizingTemp != null ? `${sizingTemp} °C` : "—", true),
       param(t("yearly_analysis.packs"), packs ?? "—", true),
@@ -625,8 +623,9 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         const shiftLabel = shiftNames.length ? shiftNames.join(", ") : sids.map((s) => s.slice(0, 8)).join(", ");
         const bmId = resolveBusModelId(run);
         const bm = modelsById[bmId];
-        const bmResolved = bm ? resolveModelFields(bm) : {};
-        const modelLabel = [bmResolved.manufacturer, bmResolved.model].filter(Boolean).join(" – ") || bmId.slice(0, 8);
+        const modelLabel = bm
+          ? resolveBusModelDisplayName(bm) || bmId.slice(0, 8)
+          : bmId.slice(0, 8);
         const packSizeKwh = toFiniteNumber(bm?.specs?.battery_pack_size_kwh ?? (typeof bm?.specs === "string" ? JSON.parse(bm.specs)?.battery_pack_size_kwh : null));
         const predParams = predParamsMap.get(id) ?? {};
         resolvedNames[id] = { shiftLabel, shiftNames, modelLabel, packSizeKwh, predParams, sizingTemp: predParams.external_temp_celsius ?? null };
@@ -657,7 +656,6 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
             const label = [
               date,
               meta.shiftLabel,
-              meta.modelLabel,
               packs != null ? t("yearly_analysis.packs_value", { count: packs }) : "",
               kwh != null ? `${Math.round(kwh)} kWh` : "",
               meta.sizingTemp != null ? `@ ${meta.sizingTemp} °C` : "",

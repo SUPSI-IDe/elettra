@@ -54,7 +54,6 @@ const FAKE_GENERAL_INFO = {
 
 const FAKE_BUS_INFO = {
   bus_name: "—",
-  manufacturer: "—",
   cost_chf: "—",
   bus_length_m: "—",
   max_passengers: "—",
@@ -83,7 +82,6 @@ const generalLabels = () => ({
 });
 const busLabels = () => ({
   bus_name: t("simulation.bus_name") || "Bus name",
-  manufacturer: t("simulation.bus_manufacturer") || "Manufacturer",
   cost_chf: t("simulation.bus_cost") || "Cost (CHF)",
   bus_length_m: t("simulation.bus_length_m_label") || "Bus length (m)",
   max_passengers:
@@ -541,9 +539,6 @@ const hasValue = (value) => value !== null && value !== undefined && value !== "
 
 const mergeBusModelData = (current = {}, specs = {}, busModel = {}) => ({
   ...current,
-  manufacturer: hasValue(current?.manufacturer)
-    ? current.manufacturer
-    : (busModel?.manufacturer ?? busModel?.manufacturer_name ?? ""),
   cost: hasValue(current?.cost) ? current.cost : (specs?.cost ?? ""),
   bus_length_m: hasValue(current?.bus_length_m)
     ? current.bus_length_m
@@ -8549,7 +8544,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     const busInfo = {
       ...FAKE_BUS_INFO,
       bus_name: busModelName,
-      ...(bmd.manufacturer ? { manufacturer: bmd.manufacturer } : {}),
       ...(bmd.cost != null && bmd.cost !== "" ? { cost_chf: formatCHF(bmd.cost) } : {}),
       ...(bmd.bus_length_m != null && bmd.bus_length_m !== "" ? { bus_length_m: bmd.bus_length_m } : {}),
       ...(bmd.max_passengers != null && bmd.max_passengers !== "" ? { max_passengers: bmd.max_passengers } : {}),

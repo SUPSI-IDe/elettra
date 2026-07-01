@@ -153,23 +153,6 @@
   min-height: 7rem;
 }
 
-.add-bus-model .manufacturer-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  align-items: flex-start;
-}
-
-.add-bus-model .manufacturer-row .autocomplete-wrapper {
-  min-width: 0;
-  width: 100%;
-}
-
-.add-bus-model .manufacturer-row .custom-manufacturer {
-  min-width: 0;
-  width: 100%;
-}
-
 .add-bus-model .form-group input:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -301,7 +284,6 @@
     padding: var(--spacing-md);
   }
 
-  .add-bus-model .manufacturer-row,
   .add-bus-model .bus-model-form-footer {
     grid-template-columns: 1fr;
     display: grid;

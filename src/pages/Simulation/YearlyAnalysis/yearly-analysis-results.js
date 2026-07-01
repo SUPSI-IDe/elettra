@@ -615,7 +615,6 @@ const renderConfig = (features) => {
   const meta = features.meta ?? {};
   const items = [
     { label: t("yearly_analysis.col_shifts"), value: (meta.shiftNames ?? []).join(", ") || "—" },
-    { label: t("simulation.field_bus_model"), value: meta.busModelName ?? "—" },
     { label: t("yearly_analysis.col_mode"), value: modeLabel(cfg.mode, meta.modeLabel) },
     { label: t("yearly_analysis.occupancy"), value: cfg.occupancy_percent != null ? `${cfg.occupancy_percent}%` : "—" },
     { label: t("yearly_analysis.heating"), value: heatingLabel(cfg.auxiliary_heating_type) },
@@ -3767,7 +3766,6 @@ const renderOverviewPanel = (el, features, effState, costState, emissionsState, 
     const body = [
       overviewRowHtml(t("yearly_analysis.base_evaluation"), simulationLink, true),
       overviewRowHtml(t("yearly_analysis.col_shifts"), buildShiftLink(features), true),
-      overviewRowHtml(t("simulation.field_bus_model"), meta.busModelName ?? "—"),
       overviewRowHtml(t("yearly_analysis.col_mode"), modeLabel(cfg.mode, meta.modeLabel)),
       overviewRowHtml(t("yearly_analysis.occupancy"), cfg.occupancy_percent != null ? `${cfg.occupancy_percent}%` : "—"),
       overviewRowHtml(t("yearly_analysis.heating"), heatingLabel(cfg.auxiliary_heating_type)),
@@ -3936,7 +3934,6 @@ export const parseBusModelSpecs = (busModel) => {
     battery_pack_lifetime: toFiniteNumber(specs.battery_pack_lifetime ?? specs.battery_pack_lifetime_years ?? busModel.battery_pack_lifetime_years),
     name: busModel.name ?? "",
     model: busModel.model ?? "",
-    manufacturer: busModel.manufacturer ?? "",
   };
 };
 

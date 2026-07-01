@@ -15,7 +15,7 @@ import { bindSelectAll } from "../../../dom/tables";
 import { installPaginationControl } from "../../../dom/pagination";
 import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { triggerPartialLoad } from "../../../events";
-import { textContent, resolveModelFields } from "../../../ui-helpers";
+import { textContent, resolveBusModelDisplayName } from "../../../ui-helpers";
 import {
   extractShiftDistanceKm,
   formatDistanceKm,
@@ -771,9 +771,9 @@ export const initializeShifts = async (root = document, options = {}) => {
           const bus = busId ? busesCache.get(busId) : null;
           const resolvedModelId =
             directModelId || text(bus?.bus_model_id ?? "");
-          const modelFromBus = resolveModelFields(
+          const modelFromBus = resolveBusModelDisplayName(
             modelsById[resolvedModelId]
-          ).model;
+          );
           const modelLabel = modelFromBus || shift?.bus_model_name || "";
           const tripCount = resolveTripCount(shift);
           const resolvedTimes = resolveShiftTimes(shift);

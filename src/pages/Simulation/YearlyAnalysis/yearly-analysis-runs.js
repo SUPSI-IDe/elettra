@@ -45,9 +45,8 @@ const buildAnalysisName = (a) => {
   const f = a.features ?? {};
   const meta = f.meta ?? {};
   const shifts = (meta.shiftNames ?? []).join(", ");
-  const model = meta.busModelName ?? "";
   const date = a.created_at ? new Date(a.created_at).toLocaleDateString() : "";
-  return [shifts, model, date].filter(Boolean).join(" · ") || text(a.id).slice(0, 8);
+  return [shifts, date].filter(Boolean).join(" · ") || text(a.id).slice(0, 8);
 };
 
 export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
