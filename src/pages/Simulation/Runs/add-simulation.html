@@ -264,6 +264,41 @@
           </div>
         </div>
       </div>
+
+      <div class="usable-soc-warning" data-role="usable-soc-warning" hidden>
+        <div
+          class="usable-soc-warning__dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="usable-soc-warning-title"
+          aria-describedby="usable-soc-warning-body"
+        >
+          <h2
+            class="usable-soc-warning__title"
+            id="usable-soc-warning-title"
+            data-i18n="simulation.usable_soc_warning_title"
+          >
+            Aggressive usable SoC assumption
+          </h2>
+          <p
+            class="usable-soc-warning__body"
+            id="usable-soc-warning-body"
+            data-i18n="simulation.usable_soc_warning_body"
+          >
+            Warning: this is a very aggressive usable SoC assumption. Selecting 90–100% means that the simulation may use almost the full nominal battery capacity, for example down to very low SoC or up to 100%. This can be risky for real battery operation and may reduce battery lifetime. Please use this value only if you intentionally want to test an extreme scenario.
+          </p>
+          <div class="usable-soc-warning__actions">
+            <button
+              type="button"
+              class="usable-soc-warning__confirm"
+              data-role="usable-soc-warning-confirm"
+              data-i18n="simulation.usable_soc_warning_confirm"
+            >
+              I understand
+            </button>
+          </div>
+        </div>
+      </div>
     </form>
   </main>
 </section>

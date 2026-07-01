@@ -72,9 +72,16 @@ const DEFAULT_SHIFT_SORT = {
 };
 
 const DEFAULT_USABLE_SOC_PERCENT = 50;
+const RISKY_USABLE_SOC_PERCENT = 90;
 const ALLOWED_USABLE_SOC_PERCENTS = new Set([
   100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
 ]);
+
+const isRiskyUsableSocPercent = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= RISKY_USABLE_SOC_PERCENT;
+};
+
 const resolveSocBounds = (usableSocPercent) => {
   const parsedPercent = Number(usableSocPercent);
   const percent = ALLOWED_USABLE_SOC_PERCENTS.has(parsedPercent)
@@ -535,8 +542,15 @@ export const initializeAddSimulation = async (
   const shiftFilter = section.querySelector("#sim-shift-filter");
   const modeSelect = section.querySelector("#var-optimization-mode");
   const busModelOverride = section.querySelector("#var-bus-model-override");
+  const usableSocSelect = section.querySelector("#var-usable-soc-percent");
   const nameInput = section.querySelector("#simulation-name");
   const nameFeedback = section.querySelector('[data-role="name-feedback"]');
+  const usableSocWarning = section.querySelector(
+    '[data-role="usable-soc-warning"]'
+  );
+  const usableSocWarningConfirm = section.querySelector(
+    '[data-role="usable-soc-warning-confirm"]'
+  );
 
   const progressOverlay = section.querySelector(
     '[data-role="simulation-progress"]'
@@ -574,6 +588,40 @@ export const initializeAddSimulation = async (
   let currentStops = [];
   let selectedShiftIds = new Set();
   let sortState = { ...DEFAULT_SHIFT_SORT };
+  let usableSocWasRisky = isRiskyUsableSocPercent(usableSocSelect?.value);
+  let warningReturnFocus = null;
+
+  const closeUsableSocWarning = () => {
+    if (!usableSocWarning) return;
+    usableSocWarning.hidden = true;
+    if (warningReturnFocus && typeof warningReturnFocus.focus === "function") {
+      warningReturnFocus.focus();
+    }
+    warningReturnFocus = null;
+  };
+
+  const showUsableSocWarning = () => {
+    if (!usableSocWarning) return;
+    warningReturnFocus = document.activeElement;
+    usableSocWarning.hidden = false;
+    usableSocWarningConfirm?.focus();
+  };
+
+  const handleUsableSocWarningKeydown = (event) => {
+    if (usableSocWarning?.hidden) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeUsableSocWarning();
+    }
+  };
+
+  const handleUsableSocChange = () => {
+    const isRisky = isRiskyUsableSocPercent(usableSocSelect?.value);
+    if (isRisky && !usableSocWasRisky) {
+      showUsableSocWarning();
+    }
+    usableSocWasRisky = isRisky;
+  };
 
   const setNameFeedback = (message) => {
     if (!nameFeedback) return;
@@ -948,7 +996,10 @@ export const initializeAddSimulation = async (
 
     if (usableSocPercent != null) {
       const usableSocInput = section.querySelector("#var-usable-soc-percent");
-      if (usableSocInput) usableSocInput.value = String(usableSocPercent);
+      if (usableSocInput) {
+        usableSocInput.value = String(usableSocPercent);
+        usableSocWasRisky = isRiskyUsableSocPercent(usableSocInput.value);
+      }
     }
 
     refreshBusModelOverride();
@@ -1020,6 +1071,28 @@ export const initializeAddSimulation = async (
       nameInput.removeEventListener("input", handleNameInput)
     );
   }
+
+  if (usableSocSelect) {
+    usableSocSelect.addEventListener("change", handleUsableSocChange);
+    cleanupHandlers.push(() =>
+      usableSocSelect.removeEventListener("change", handleUsableSocChange)
+    );
+  }
+
+  if (usableSocWarningConfirm) {
+    usableSocWarningConfirm.addEventListener("click", closeUsableSocWarning);
+    cleanupHandlers.push(() =>
+      usableSocWarningConfirm.removeEventListener(
+        "click",
+        closeUsableSocWarning
+      )
+    );
+  }
+
+  document.addEventListener("keydown", handleUsableSocWarningKeydown);
+  cleanupHandlers.push(() =>
+    document.removeEventListener("keydown", handleUsableSocWarningKeydown)
+  );
 
   // ── Shift checkbox & mode change → rebuild stops ─────────────────
   const handleSelectionChange = (event) => {
