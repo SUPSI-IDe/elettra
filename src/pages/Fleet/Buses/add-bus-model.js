@@ -3,16 +3,24 @@ import {
   createBusModel,
   updateBusModel,
   createBus,
-  fetchBusManufacturers,
-  fetchBusModelsByManufacturer,
+  fetchBusModelById,
 } from "../../../api";
+import { fetchLcaVehicles } from "../../../api/environmental";
 import { getBusModelDefaultsForLength } from "../../../config/bus-model-defaults";
 import { AUXILIARY_CONSUMPTION_KW_DEFAULTS } from "../../../config/auxiliary-consumption-defaults";
+import {
+  buildVehicleCategorySpecs,
+  getCuratedLcaVehicle,
+  getVehicleCategoryByKey,
+  inferVehicleCategoryFromSpecs,
+} from "../../../config/vehicle-categories";
 import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { writeFlash, addOwnedBus } from "../../../store";
 import { toggleFormDisabled, updateFeedback } from "../../../ui-helpers";
-import { t } from "../../../i18n";
+import { I18N_CHANGE_EVENT, t } from "../../../i18n";
+
+const GENERIC_MANUFACTURER = "Generic";
 
 const generateBusNameFromModel = (modelName = "Bus") => {
   return `${modelName.trim().replace(/\s+/g, "_")}_01`;
@@ -53,9 +61,9 @@ const SPEC_FIELDS = [
 
 const toBusModelPayload = (formData) => {
   const name = formData.get("name")?.toString().trim();
-  const manufacturer = formData.get("manufacturer")?.toString().trim() ?? "";
-  const model = formData.get("model")?.toString().trim() ?? "";
   const description = formData.get("description")?.toString().trim() ?? "";
+  const vehicleReferenceKey =
+    formData.get("vehicle_reference_key")?.toString().trim() ?? "";
 
   const specs = {};
   for (const field of SPEC_FIELDS) {
@@ -65,157 +73,7 @@ const toBusModelPayload = (formData) => {
     }
   }
 
-  return { name, manufacturer, model, description, specs };
-};
-
-/* ── Autocomplete helpers ───────────────────────────────── */
-
-const normalizeList = (data) =>
-  Array.isArray(data) ? data : data?.items || data?.results || [];
-
-const filterItems = (items, searchTerm, nameKey = "name") => {
-  if (!searchTerm || searchTerm.length < 1) {
-    return items.slice(0, 20);
-  }
-  const term = searchTerm.toLowerCase();
-  return items
-    .filter((item) => (item[nameKey] || "").toLowerCase().includes(term))
-    .slice(0, 20);
-};
-
-const renderDropdownItems = (listEl, items, nameKey, onSelect) => {
-  listEl.innerHTML = "";
-  if (items.length === 0) {
-    const li = document.createElement("li");
-    li.className = "autocomplete-item autocomplete-empty";
-    li.textContent = t("buses.no_results");
-    listEl.appendChild(li);
-    return;
-  }
-  items.forEach((item) => {
-    const li = document.createElement("li");
-    li.className = "autocomplete-item";
-    li.dataset.itemId = item.id || "";
-    li.dataset.itemName = item[nameKey] || "";
-    li.textContent = item[nameKey] || t("buses.unknown");
-    li.addEventListener("click", () => onSelect(item));
-    listEl.appendChild(li);
-  });
-};
-
-/**
- * Generic autocomplete wiring for an input + hidden-id + dropdown.
- * Returns { reset(), setItems() } so the caller can force a reload.
- */
-const setupAutocomplete = ({
-  input,
-  hiddenInput,
-  dropdown,
-  list,
-  loadItems,
-  nameKey = "name",
-  onSelect,
-  canOpen = () => true,
-  shouldClearOnBlur = () => !hiddenInput.value && !!input.value,
-  onClear,
-}) => {
-  let allItems = [];
-  let selectedIndex = -1;
-  let loaded = false;
-
-  const show = () => {
-    dropdown.hidden = false;
-  };
-  const hide = () => {
-    dropdown.hidden = true;
-    selectedIndex = -1;
-  };
-
-  const update = (searchTerm) => {
-    const filtered = filterItems(allItems, searchTerm, nameKey);
-    renderDropdownItems(list, filtered, nameKey, (item) => {
-      input.value = item[nameKey] || "";
-      hiddenInput.value = item.id || "";
-      hide();
-      if (onSelect) onSelect(item);
-    });
-    show();
-  };
-
-  const ensureLoaded = async () => {
-    if (!loaded) {
-      allItems = await loadItems();
-      loaded = true;
-    }
-  };
-
-  const highlightItem = (index) => {
-    const items = list.querySelectorAll(
-      ".autocomplete-item:not(.autocomplete-empty)"
-    );
-    items.forEach((el, i) => el.classList.toggle("highlighted", i === index));
-  };
-
-  input.addEventListener("focus", async () => {
-    if (!canOpen()) return;
-    await ensureLoaded();
-    update(input.value);
-  });
-
-  input.addEventListener("input", () => {
-    hiddenInput.value = "";
-    if (!canOpen()) return;
-    update(input.value);
-  });
-
-  input.addEventListener("blur", () => {
-    setTimeout(() => {
-      hide();
-      if (shouldClearOnBlur()) {
-        input.value = "";
-        if (onClear) onClear();
-      }
-    }, 200);
-  });
-
-  input.addEventListener("keydown", (event) => {
-    if (!canOpen()) return;
-    const items = list.querySelectorAll(
-      ".autocomplete-item:not(.autocomplete-empty)"
-    );
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
-      highlightItem(selectedIndex);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      selectedIndex = Math.max(selectedIndex - 1, 0);
-      highlightItem(selectedIndex);
-    } else if (event.key === "Enter" && selectedIndex >= 0) {
-      event.preventDefault();
-      const el = items[selectedIndex];
-      if (el) {
-        const item = { id: el.dataset.itemId, [nameKey]: el.dataset.itemName };
-        input.value = item[nameKey] || "";
-        hiddenInput.value = item.id || "";
-        hide();
-        if (onSelect) onSelect(item);
-      }
-    } else if (event.key === "Escape") {
-      hide();
-    }
-  });
-
-  return {
-    reset: () => {
-      allItems = [];
-      loaded = false;
-    },
-    setItems: (items) => {
-      allItems = items;
-      loaded = true;
-    },
-  };
+  return { name, description, vehicleReferenceKey, specs };
 };
 
 /* ── Main initializer ───────────────────────────────────── */
@@ -249,161 +107,100 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
   const feedback = form.querySelector('[data-role="feedback"]');
   const cancelButton = form.querySelector('[data-action="cancel"]');
   const closeButton = section.querySelector('[data-action="close"]');
-
-  /* ── Manufacturer autocomplete elements ── */
-  const manufacturerInput = form.querySelector("#manufacturer");
-  const manufacturerIdInput = form.querySelector("#manufacturer-id");
-  const customManufacturerInput = form.querySelector("#custom_manufacturer");
-  const manufacturerDropdown = form.querySelector(
-    '[data-role="manufacturer-dropdown"]'
+  const nameInput = form.querySelector("#name");
+  const descriptionInput = form.querySelector("#description");
+  const vehicleCategorySelect = form.querySelector("#vehicle_reference_key");
+  const vehicleCategoryInfo = form.querySelector(
+    '[data-role="vehicle-category-info"]'
   );
-  const manufacturerListEl = form.querySelector(
-    '[data-role="manufacturer-list"]'
-  );
+  const costInfo = form.querySelector('[data-role="cost-info"]');
+  const busLengthInput = form.querySelector("#bus_length_m");
+  const passengerCapacityInput = form.querySelector("#max_passengers");
+  let selectedVehicleCategory = null;
 
-  /* ── Model autocomplete elements ── */
-  const modelInput = form.querySelector("#model");
-  const modelIdInput = form.querySelector("#model-id");
-  const modelDropdown = form.querySelector('[data-role="model-dropdown"]');
-  const modelListEl = form.querySelector('[data-role="model-list"]');
-
-  let isOtherManufacturer = false;
-  let selectedManufacturerId = null;
-
-  const hideCustomManufacturer = () => {
-    if (!customManufacturerInput) return;
-    customManufacturerInput.hidden = true;
-    customManufacturerInput.value = "";
-  };
-
-  const showCustomManufacturer = (value = "") => {
-    if (!customManufacturerInput) return;
-    customManufacturerInput.hidden = false;
-    customManufacturerInput.value = value;
-  };
-
-  const resetModel = () => {
-    if (modelInput) modelInput.value = "";
-    if (modelIdInput) modelIdInput.value = "";
-    if (modelInput) {
-      modelInput.disabled = true;
-      modelInput.placeholder = t("buses.placeholder_model");
-    }
-    isOtherManufacturer = false;
-    selectedManufacturerId = null;
-  };
-
-  /* ── Model autocomplete (set up first so manufacturer onSelect can reference it) ── */
-  let modelAutocomplete = null;
-  if (modelInput && modelIdInput && modelDropdown && modelListEl) {
-    modelAutocomplete = setupAutocomplete({
-      input: modelInput,
-      hiddenInput: modelIdInput,
-      dropdown: modelDropdown,
-      list: modelListEl,
-      nameKey: "name",
-      loadItems: async () => {
-        if (isOtherManufacturer || !selectedManufacturerId) return [];
-        try {
-          const data = await fetchBusModelsByManufacturer(
-            selectedManufacturerId
-          );
-          return normalizeList(data);
-        } catch (err) {
-          console.error("Failed to load models for manufacturer:", err);
-          return [];
-        }
-      },
-      canOpen: () => !isOtherManufacturer && !!selectedManufacturerId,
-      shouldClearOnBlur: () =>
-        !isOtherManufacturer && !modelIdInput.value && !!modelInput.value,
-      onSelect: () => {},
-    });
-  }
-
-  /* ── Manufacturer autocomplete ── */
-  if (
-    manufacturerInput &&
-    manufacturerIdInput &&
-    manufacturerDropdown &&
-    manufacturerListEl
-  ) {
-    setupAutocomplete({
-      input: manufacturerInput,
-      hiddenInput: manufacturerIdInput,
-      dropdown: manufacturerDropdown,
-      list: manufacturerListEl,
-      nameKey: "name",
-      loadItems: async () => {
-        try {
-          const data = await fetchBusManufacturers();
-          return normalizeList(data);
-        } catch (err) {
-          console.error("Failed to load bus manufacturers:", err);
-          return [];
-        }
-      },
-      shouldClearOnBlur: () =>
-        !manufacturerIdInput.value && !!manufacturerInput.value,
-      onClear: () => resetModel(),
-      onSelect: (item) => {
-        selectedManufacturerId = item.id;
-        const itemName = (item.name || "").toLowerCase();
-        isOtherManufacturer = itemName.includes("other");
-
-        if (isOtherManufacturer) {
-          showCustomManufacturer();
-        } else {
-          hideCustomManufacturer();
-        }
-
-        if (modelInput) {
-          modelInput.value = "";
-          modelInput.disabled = false;
-          modelInput.placeholder = isOtherManufacturer
-            ? t("buses.placeholder_type_model")
-            : t("buses.placeholder_model");
-        }
-        if (modelIdInput) modelIdInput.value = "";
-        if (modelAutocomplete) modelAutocomplete.reset();
-      },
+  let curatedLcaVehicles = [];
+  const curatedLcaVehiclesReady = fetchLcaVehicles()
+    .then((data) => {
+      curatedLcaVehicles = Array.isArray(data)
+        ? data
+        : data?.items || data?.results || [];
+      return curatedLcaVehicles;
+    })
+    .catch((error) => {
+      console.warn("Failed to load curated LCA vehicles:", error);
+      return [];
     });
 
-    // When user types in manufacturer, reset model (selection invalidated)
-    const handleManufacturerInput = () => {
-      hideCustomManufacturer();
-      if (modelInput) {
-        modelInput.value = "";
-        modelInput.disabled = true;
-        modelInput.placeholder = t("buses.placeholder_model");
-      }
-      if (modelIdInput) modelIdInput.value = "";
-      isOtherManufacturer = false;
-      selectedManufacturerId = null;
-      if (modelAutocomplete) modelAutocomplete.reset();
-    };
-    manufacturerInput.addEventListener("input", handleManufacturerInput);
-    cleanupHandlers.push(() =>
-      manufacturerInput.removeEventListener("input", handleManufacturerInput)
-    );
-  }
+  const applyVehicleCategory = (
+    category,
+    { preserveEditableValues = false } = {}
+  ) => {
+    if (!category) return;
 
-  /* ── Bus-length change → pre-fill defaults ── */
-  const busLengthSelect = form.querySelector("#bus_length_m");
-  if (busLengthSelect) {
-    const handleLengthChange = () => {
-      const defaults = getBusModelDefaultsForLength(busLengthSelect.value);
-      if (!defaults) return;
+    const defaults = getBusModelDefaultsForLength(category.defaultSpecLength);
+    if (defaults) {
       for (const [field, value] of Object.entries(defaults)) {
         const el = form.querySelector(`#${field}`);
-        if (el) el.value = value;
+        if (!el) continue;
+        if (preserveEditableValues && el.value !== "") continue;
+        el.value = value;
       }
+    }
+
+    if (busLengthInput) {
+      busLengthInput.value = category.lengthM;
+    }
+
+    if (
+      passengerCapacityInput &&
+      (!preserveEditableValues || passengerCapacityInput.value === "")
+    ) {
+      passengerCapacityInput.value = category.defaultPassengerCapacity;
+    }
+  };
+
+  const updateVehicleCategoryTooltip = (category) => {
+    if (!vehicleCategoryInfo) return;
+    const text = category?.tooltipI18nKey
+      ? t(category.tooltipI18nKey)
+      : t("buses.vehicle_category_tooltip_default");
+    vehicleCategoryInfo.dataset.tooltip = text;
+    vehicleCategoryInfo.setAttribute("aria-label", text);
+    vehicleCategoryInfo.setAttribute("title", text);
+  };
+
+  const updateCostTooltip = () => {
+    if (!costInfo) return;
+    const text = t("buses.cost_tooltip");
+    costInfo.dataset.tooltip = text;
+    costInfo.setAttribute("aria-label", text);
+    costInfo.setAttribute("title", text);
+  };
+
+  if (vehicleCategorySelect) {
+    const handleVehicleCategoryChange = () => {
+      const category = getVehicleCategoryByKey(vehicleCategorySelect.value);
+      selectedVehicleCategory = category;
+      applyVehicleCategory(category);
+      updateVehicleCategoryTooltip(category);
     };
-    busLengthSelect.addEventListener("change", handleLengthChange);
+    vehicleCategorySelect.addEventListener("change", handleVehicleCategoryChange);
     cleanupHandlers.push(() =>
-      busLengthSelect.removeEventListener("change", handleLengthChange)
+      vehicleCategorySelect.removeEventListener("change", handleVehicleCategoryChange)
     );
   }
+
+  updateVehicleCategoryTooltip(null);
+  updateCostTooltip();
+
+  const handleI18nChange = () => {
+    updateVehicleCategoryTooltip(selectedVehicleCategory);
+    updateCostTooltip();
+  };
+  document.addEventListener(I18N_CHANGE_EVENT, handleI18nChange);
+  cleanupHandlers.push(() => {
+    document.removeEventListener(I18N_CHANGE_EVENT, handleI18nChange);
+  });
 
   /* ── Edit mode pre-fill ── */
   if (isEditMode) {
@@ -411,70 +208,11 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       header.textContent = t("buses.edit_model");
     }
 
-    const nameInput = form.querySelector("#name");
-    const descriptionInput = form.querySelector("#description");
     const specs = parseSpecs(currentModel.specs);
+    const category = inferVehicleCategoryFromSpecs(specs);
 
     if (nameInput)
       nameInput.value = currentModel.name || currentModel.model || "";
-    if (manufacturerInput) {
-      manufacturerInput.value = currentModel.manufacturer || "";
-      if (manufacturerIdInput) {
-        manufacturerIdInput.value =
-          currentModel.manufacturer_id || currentModel.manufacturer || "";
-      }
-    }
-
-    // If the stored manufacturer is custom (not in the manufacturers list),
-    // show it in the custom box while selecting "Other manufacturer".
-    if (manufacturerInput && customManufacturerInput) {
-      const storedManufacturer = (currentModel.manufacturer || "").trim();
-      (async () => {
-        try {
-          const manufacturers = normalizeList(await fetchBusManufacturers());
-          const names = new Set(
-            manufacturers
-              .map((m) => (m?.name || "").toString().trim().toLowerCase())
-              .filter(Boolean)
-          );
-          const otherItem = manufacturers.find((m) =>
-            (m?.name || "").toString().toLowerCase().includes("other")
-          );
-
-          if (!storedManufacturer) {
-            hideCustomManufacturer();
-            return;
-          }
-
-          const isInList = names.has(storedManufacturer.toLowerCase());
-          if (isInList) {
-            hideCustomManufacturer();
-            return;
-          }
-
-          // Custom manufacturer: switch UI to "Other" and show stored value.
-          isOtherManufacturer = true;
-          selectedManufacturerId = otherItem?.id ?? null;
-          if (manufacturerIdInput) {
-            manufacturerIdInput.value = otherItem?.id ?? "";
-          }
-          manufacturerInput.value = otherItem?.name || t("buses.other_manufacturer");
-          showCustomManufacturer(storedManufacturer);
-        } catch (err) {
-          // If detection fails, fall back to showing stored manufacturer in the main input.
-          hideCustomManufacturer();
-        }
-      })();
-    }
-    const modelValue = specs.model_type || "";
-    if (modelInput && modelValue) {
-      modelInput.value = modelValue;
-      modelInput.disabled = true;
-      if (modelIdInput) {
-        modelIdInput.value =
-          currentModel.model_id || currentModel.model || "";
-      }
-    }
     if (descriptionInput)
       descriptionInput.value = currentModel.description || "";
 
@@ -483,6 +221,13 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       if (input && specs?.[field] != null) {
         input.value = specs[field];
       }
+    }
+
+    if (category && vehicleCategorySelect) {
+      selectedVehicleCategory = category;
+      vehicleCategorySelect.value = category.key;
+      applyVehicleCategory(category, { preserveEditableValues: true });
+      updateVehicleCategoryTooltip(category);
     }
   }
 
@@ -512,48 +257,25 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     event.preventDefault();
 
     const formData = new FormData(form);
-    const { name, manufacturer, model, description, specs } =
+    const { name, description, vehicleReferenceKey, specs } =
       toBusModelPayload(formData);
     const currentSpecs = parseSpecs(currentModel.specs);
-    const resolvedModel =
-      model?.trim() ||
-      modelInput?.value?.toString().trim() ||
-      currentSpecs.model_type ||
-      currentModel.model ||
-      "";
+    const category = getVehicleCategoryByKey(vehicleReferenceKey);
 
     if (!name) {
       updateFeedback(feedback, t("buses.name_required"), "error");
       return;
     }
 
-    const customManufacturer = customManufacturerInput?.value?.toString().trim();
-    const manufacturerToSend =
-      isOtherManufacturer && customManufacturer ? customManufacturer : manufacturer;
-
-    if (!manufacturerToSend) {
-      updateFeedback(feedback, t("buses.manufacturer_required"), "error");
-      return;
-    }
-
-    if (isOtherManufacturer && !customManufacturer) {
-      updateFeedback(
-        feedback,
-        t("buses.custom_manufacturer_required"),
-        "error"
-      );
-      return;
-    }
-
-    if (!resolvedModel) {
-      updateFeedback(feedback, t("buses.model_required"), "error");
+    if (!category) {
+      updateFeedback(feedback, t("buses.vehicle_category_required"), "error");
       return;
     }
 
     const requiredSpecs = [
       { key: "cost", label: t("buses.field_cost") },
       { key: "bus_length_m", label: t("buses.field_bus_length") },
-      { key: "max_passengers", label: t("buses.field_max_passengers") },
+      { key: "max_passengers", label: t("buses.field_passenger_capacity") },
       { key: "empty_weight_kg", label: t("buses.field_empty_weight") },
       { key: "max_battery_packs", label: t("buses.field_max_battery_packs") },
       { key: "min_battery_packs", label: t("buses.field_min_battery_packs") },
@@ -577,17 +299,28 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
 
     try {
       const userId = await resolveUserId();
-      const mergedSpecs = { ...specs };
-      if (resolvedModel) {
-        mergedSpecs.model_type = resolvedModel;
-      }
+      await curatedLcaVehiclesReady;
+      const lcaVehicle = getCuratedLcaVehicle(curatedLcaVehicles, category);
+      const categorySpecs = buildVehicleCategorySpecs(
+        category,
+        specs.max_passengers,
+        lcaVehicle
+      );
+      const mergedSpecs = {
+        ...currentSpecs,
+        ...specs,
+        ...categorySpecs,
+        model_type: category.label,
+      };
       mergedSpecs.auxiliary_consumption_kw = AUXILIARY_CONSUMPTION_KW_DEFAULTS;
+      const manufacturerToSend = GENERIC_MANUFACTURER;
+      const modelToSend = category.label;
 
       if (isEditMode) {
         await updateBusModel(currentModel.id, {
           name,
           manufacturer: manufacturerToSend,
-          model: resolvedModel,
+          model: modelToSend,
           description,
           specs: mergedSpecs,
           userId,
@@ -597,13 +330,13 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
         const createdModel = await createBusModel({
           name,
           manufacturer: manufacturerToSend,
-          model: resolvedModel,
+          model: modelToSend,
           description,
           specs: mergedSpecs,
           userId,
         });
 
-        const busName = generateBusNameFromModel(name, manufacturer);
+        const busName = generateBusNameFromModel(name);
         const busModelId = createdModel?.id;
 
         if (busModelId) {
