@@ -8,7 +8,7 @@ import {
   fetchBusModelById,
 } from "../../../api";
 import { triggerPartialLoad } from "../../../events";
-import { textContent, resolveModelFields } from "../../../ui-helpers";
+import { textContent, resolveBusModelDisplayName } from "../../../ui-helpers";
 import {
   extractShiftDistanceKm,
   formatDistanceKm,
@@ -240,8 +240,8 @@ export const initializeVisualizeShift = async (
           // Fetch the specific bus model by id rather than downloading
           // the entire (now paginated) list.
           const model = await fetchBusModelById(resolvedBusModelId);
-          const resolved = resolveModelFields(model);
-          resolvedBusModelName = resolved.model || resolvedBusName;
+          resolvedBusModelName =
+            resolveBusModelDisplayName(model) || resolvedBusName;
         } catch (error) {
           console.warn("Failed to fetch bus model", error);
         }

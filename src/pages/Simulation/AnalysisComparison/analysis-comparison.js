@@ -316,7 +316,6 @@ const renderMetaCard = (model) => {
   const rows = [
     [t("simulation.field_name"), model.name],
     [t("simulation.col_created"), formatDate(model.createdAt)],
-    [t("simulation.field_bus_model"), model.busModelName ?? "—"],
     [t("yearly_analysis.col_mode"), model.mode ?? "—"],
     [t("yearly_analysis.col_shifts"), model.shiftNames.join(", ") || "—"],
     [

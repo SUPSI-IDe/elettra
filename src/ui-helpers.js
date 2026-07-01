@@ -1,5 +1,20 @@
+import { inferVehicleCategoryFromSpecs } from "./config/vehicle-categories";
+
 export const textContent = (value) =>
     value === null || value === undefined ? '' : String(value);
+
+const parseSpecs = (specs) => {
+    if (!specs) return {};
+    if (typeof specs === 'string') {
+        try {
+            const parsed = JSON.parse(specs);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+    return typeof specs === 'object' ? specs : {};
+};
 
 export const resolveModelFields = (item = {}) => {
     const model =
@@ -8,11 +23,6 @@ export const resolveModelFields = (item = {}) => {
         item.model_name ??
         item.title ??
         '';
-    const manufacturer =
-        item.manufacturer ??
-        item.manufacturer_name ??
-        item.brand ??
-        '';
     const description =
         item.description ??
         item.notes ??
@@ -20,9 +30,23 @@ export const resolveModelFields = (item = {}) => {
         '';
     return {
         model: textContent(model),
-        manufacturer: textContent(manufacturer),
         description: textContent(description),
     };
+};
+
+export const resolveBusModelDisplayName = (item = {}) => {
+    if (!item) return '';
+    const specs = parseSpecs(item.specs);
+    const category = inferVehicleCategoryFromSpecs(specs);
+    const value =
+        category?.label ??
+        specs.model_type ??
+        item.model ??
+        item.model_name ??
+        item.name ??
+        item.title ??
+        '';
+    return textContent(value);
 };
 
 export const toggleFormDisabled = (form, disabled) => {
@@ -53,5 +77,3 @@ export const updateFeedback = (node, message = '', tone = 'info') => {
     node.hidden = false;
     node.dataset.tone = tone;
 };
-
-

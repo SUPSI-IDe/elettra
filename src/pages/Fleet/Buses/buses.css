@@ -153,26 +153,74 @@
   min-height: 7rem;
 }
 
-.add-bus-model .manufacturer-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  align-items: flex-start;
-}
-
-.add-bus-model .manufacturer-row .autocomplete-wrapper {
-  min-width: 0;
-  width: 100%;
-}
-
-.add-bus-model .manufacturer-row .custom-manufacturer {
-  min-width: 0;
-  width: 100%;
-}
-
 .add-bus-model .form-group input:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.add-bus-model .form-group input[readonly] {
+  background: var(--color-background);
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+.add-bus-model .vehicle-category-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  position: relative;
+}
+
+.add-bus-model .vehicle-category-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0;
+  border: 1px solid var(--action-blue);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--action-blue);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.add-bus-model .vehicle-category-info::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.45rem);
+  z-index: 20;
+  width: min(20rem, 70vw);
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--text-main);
+  color: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  text-align: left;
+  transform: translate(-50%, -0.2rem);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.add-bus-model .vehicle-category-info:hover::after,
+.add-bus-model .vehicle-category-info:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.add-bus-model .vehicle-category-info:focus-visible {
+  outline: 2px solid var(--action-blue);
+  outline-offset: 2px;
 }
 
 .add-bus-model .bus-model-form-footer {
@@ -206,7 +254,7 @@
 .bus-models th,
 .bus-models td {
   text-align: center;
-  width: calc((100% - 2.5rem) / 9);
+  width: calc((100% - 2.5rem) / 8);
 }
 
 .bus-models th.checkbox,
@@ -236,7 +284,6 @@
     padding: var(--spacing-md);
   }
 
-  .add-bus-model .manufacturer-row,
   .add-bus-model .bus-model-form-footer {
     grid-template-columns: 1fr;
     display: grid;

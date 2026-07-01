@@ -1,4 +1,4 @@
-import { resolveModelFields, textContent } from "../../../ui-helpers";
+import { resolveBusModelDisplayName, textContent } from "../../../ui-helpers";
 import { t } from "../../../i18n";
 import {
   text,
@@ -204,8 +204,7 @@ export const renderBusOptions = (select, buses = [], modelsById = {}) => {
 
   for (const [modelId, model] of Object.entries(modelsById)) {
     if (!modelId) continue;
-    const resolved = resolveModelFields(model);
-    const label = resolved.model;
+    const label = resolveBusModelDisplayName(model);
     if (!label) continue;
 
     const bus = busByModelId[modelId];

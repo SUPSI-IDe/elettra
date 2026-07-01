@@ -150,9 +150,6 @@ const parseBusModelSpecs = (specs) => {
 
 const mergeBusModelData = (current = {}, specs = {}, busModel = {}) => ({
   ...current,
-  manufacturer: hasValue(current?.manufacturer)
-    ? current.manufacturer
-    : (busModel?.manufacturer ?? busModel?.manufacturer_name ?? ""),
   cost: hasValue(current?.cost) ? current.cost : (specs?.cost ?? ""),
   bus_length_m: hasValue(current?.bus_length_m)
     ? current.bus_length_m

@@ -14,7 +14,10 @@ import { fetchShiftById } from "../../../api/shifts";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { triggerPartialLoad } from "../../../events";
-import { textContent, resolveModelFields } from "../../../ui-helpers";
+import {
+  textContent,
+  resolveBusModelDisplayName,
+} from "../../../ui-helpers";
 import {
   extractShiftDistanceKm,
   extractShiftYearlyDistanceKm,
@@ -690,10 +693,7 @@ export const initializeAddSimulation = async (
     for (const model of allUserModels) {
       if (!model?.id) continue;
       const modelId = text(model.id);
-      const resolved = resolveModelFields(model);
-      const label =
-        [resolved.manufacturer, resolved.model].filter(Boolean).join(" – ") ||
-        modelId;
+      const label = resolveBusModelDisplayName(model) || modelId;
       const opt = document.createElement("option");
       opt.value = modelId;
       opt.textContent = label;
@@ -825,8 +825,7 @@ export const initializeAddSimulation = async (
           .filter((b) => b?.id)
           .map((bus) => {
             const modelId = text(bus?.bus_model_id ?? "");
-            const resolved = resolveModelFields(modelsById[modelId]);
-            return [text(bus.id), resolved.model || ""];
+            return [text(bus.id), resolveBusModelDisplayName(modelsById[modelId])];
           })
       );
 
@@ -844,9 +843,9 @@ export const initializeAddSimulation = async (
           const resolvedModelId =
             directModelId || busToModelIdMap.get(busId) || "";
           const modelFromBus = busModelMap.get(busId) || "";
-          const modelFromDirect = resolveModelFields(
+          const modelFromDirect = resolveBusModelDisplayName(
             modelsById[resolvedModelId]
-          ).model;
+          );
           const busModelName =
             modelFromBus || modelFromDirect || shift?.bus_model_name || "";
           const dailyDistanceKm = extractShiftDistanceKm(shift);

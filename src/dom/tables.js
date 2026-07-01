@@ -1,5 +1,10 @@
-import { resolveModelFields, textContent } from "../ui-helpers";
+import {
+  resolveBusModelDisplayName,
+  resolveModelFields,
+  textContent,
+} from "../ui-helpers";
 import { t } from "../i18n";
+import { inferVehicleCategoryFromSpecs } from "../config/vehicle-categories";
 
 const formatCostKchf = (value) => {
   if (value === null || value === undefined || value === "") {
@@ -38,7 +43,7 @@ export const renderLoadingRow = (tbody) => {
   tbody.innerHTML = `
         <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="model table-state-cell table-empty" colspan="9">${textContent(t("common.loading"))}</td>
+            <td class="model table-state-cell table-empty" colspan="8">${textContent(t("common.loading"))}</td>
         </tr>
     `;
 };
@@ -54,7 +59,7 @@ export const renderErrorRow = (
   tbody.innerHTML = `
         <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="model table-state-cell table-empty" colspan="9">${textContent(message)}</td>
+            <td class="model table-state-cell table-empty" colspan="8">${textContent(message)}</td>
         </tr>
     `;
 };
@@ -68,7 +73,7 @@ export const renderModels = (tbody, models = []) => {
     tbody.innerHTML = `
             <tr class="table-state-row">
                 <td class="checkbox"></td>
-                <td class="model table-state-cell table-empty" colspan="9">${textContent(t("buses.no_models"))}</td>
+                <td class="model table-state-cell table-empty" colspan="8">${textContent(t("buses.no_models"))}</td>
             </tr>
         `;
     return;
@@ -76,14 +81,18 @@ export const renderModels = (tbody, models = []) => {
 
   const rows = models
     .map((raw) => {
-      const { manufacturer } = resolveModelFields(raw);
       const specs = parseSpecs(raw?.specs);
+      const vehicleCategory = inferVehicleCategoryFromSpecs(specs);
       const name = textContent(raw?.name ?? "");
-      const modelType = textContent(specs?.model_type ?? "");
+      const categoryLabel = textContent(
+        vehicleCategory?.label ?? specs?.model_type ?? raw?.model ?? ""
+      );
       const size = textContent(specs?.bus_length_m ?? "");
       const cost = formatCostKchf(specs?.cost ?? "");
       const lifetime = textContent(specs?.bus_lifetime ?? "");
-      const maxPassengers = textContent(specs?.max_passengers ?? "");
+      const maxPassengers = textContent(
+        specs?.passenger_capacity ?? specs?.max_passengers ?? ""
+      );
       const batteryPackSize = textContent(specs?.battery_pack_size_kwh ?? "");
       const maxCharging = textContent(specs?.max_charging_power_kw ?? "");
 
@@ -91,8 +100,7 @@ export const renderModels = (tbody, models = []) => {
                 <tr data-id="${String(raw?.id ?? "")}">
                     <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("buses.select_bus_model"))}"></td>
                     <td class="name">${name}</td>
-                    <td class="manufacturer">${manufacturer}</td>
-                    <td class="model">${modelType}</td>
+                    <td class="model">${categoryLabel}</td>
                     <td class="size">${size}</td>
                     <td class="cost">${cost}</td>
                     <td class="lifetime">${lifetime}</td>
@@ -124,8 +132,8 @@ export const renderBusesList = (tbody, buses = [], modelsById = {}) => {
   const rows = buses
     .map((bus = {}) => {
       const model = modelsById[bus?.bus_model_id];
-      const { model: modelName, description: modelDescription } =
-        resolveModelFields(model);
+      const { description: modelDescription } = resolveModelFields(model);
+      const modelName = resolveBusModelDisplayName(model);
       const description =
         bus?.description ?? bus?.specs?.description ?? modelDescription ?? "";
 

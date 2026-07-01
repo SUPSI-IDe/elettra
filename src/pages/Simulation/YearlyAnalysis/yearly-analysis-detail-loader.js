@@ -87,7 +87,6 @@ const normalizeBusModel = (busModel = {}) => {
     id: text(busModel.id).trim(),
     name: text(busModel.name).trim(),
     model: text(busModel.model).trim(),
-    manufacturer: text(busModel.manufacturer).trim(),
     busLengthM: toFiniteNumber(specs.bus_length_m ?? busModel.bus_length_m),
     batteryPackSizeKwh: toFiniteNumber(
       specs.battery_pack_size_kwh ?? busModel.battery_pack_size_kwh

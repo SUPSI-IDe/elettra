@@ -14,7 +14,7 @@ import { bindSelectAll } from "../../../dom/tables";
 import { installPaginationControl } from "../../../dom/pagination";
 import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { triggerPartialLoad } from "../../../events";
-import { resolveModelFields, textContent } from "../../../ui-helpers";
+import { resolveBusModelDisplayName, textContent } from "../../../ui-helpers";
 import {
   getOptimizationRunDisplayName,
   getOptimizationRunName,
@@ -762,7 +762,7 @@ export const initializeSimulationRuns = async (
       const detail = await fetchBusModelById(id);
       busModelDetailCache.set(id, detail);
       // Refresh the cached lookup so existing helpers picking up
-      // `busModelsById[modelId]` see specs/manufacturer when available.
+      // `busModelsById[modelId]` see specs when available.
       if (detail) busModelsById[id] = detail;
       return detail;
     } catch (error) {
@@ -808,7 +808,7 @@ export const initializeSimulationRuns = async (
       if (currentName && !looksLikeUuid(currentName)) {
         return;
       }
-      const modelName = text(resolveModelFields(model).model).trim();
+      const modelName = text(resolveBusModelDisplayName(model)).trim();
       if (modelName) {
         run._resolved_bus_model_name = modelName;
       }
@@ -1250,7 +1250,6 @@ export const initializeSimulationRuns = async (
       heatingType: run?.auxiliary_heating_type ?? run?.auxiliaryHeatingType,
       numBatteryPacks: run?.num_battery_packs ?? run?.numBatteryPacks,
       busModelData: {
-        manufacturer: busModel?.manufacturer ?? busModel?.manufacturer_name ?? "",
         cost: specs?.cost ?? "",
         bus_length_m: specs?.bus_length_m ?? "",
         max_passengers: specs?.max_passengers ?? "",
@@ -1347,7 +1346,6 @@ export const initializeSimulationRuns = async (
         heatingType: run?.auxiliary_heating_type ?? run?.auxiliaryHeatingType,
         numBatteryPacks: run?.num_battery_packs ?? run?.numBatteryPacks,
         busModelData: {
-          manufacturer: busModel?.manufacturer ?? busModel?.manufacturer_name ?? "",
           cost: specs?.cost ?? "",
           bus_length_m: specs?.bus_length_m ?? "",
           max_passengers: specs?.max_passengers ?? "",
