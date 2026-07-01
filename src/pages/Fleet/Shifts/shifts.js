@@ -21,6 +21,7 @@ import {
   formatDistanceKm,
   resolveShiftDailyDistanceKm,
 } from "../../../utils/shift-distance";
+import { buildDuplicateShiftPayload } from "./shift-utils";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -359,16 +360,6 @@ const getSelectedIdsFrom = (table) =>
   )
     .map((input) => input.closest("tr")?.dataset?.id)
     .filter(Boolean);
-
-const readTripIds = (shift = {}) => {
-  const structure = Array.isArray(shift?.structure) ? shift.structure : [];
-  if (structure.length === 0) {
-    return [];
-  }
-  return structure
-    .map((item = {}) => item?.trip_id ?? item?.tripId ?? "")
-    .filter((value) => typeof value === "string" && value.length > 0);
-};
 
 export const initializeShifts = async (root = document, options = {}) => {
   const section = root.querySelector("section.shifts");
@@ -890,18 +881,20 @@ export const initializeShifts = async (root = document, options = {}) => {
   const handleDuplicateClick = async () => {
     const ids = getSelectedIdsFrom(table);
     if (!ids.length) {
-      console.error("Select at least one shift to duplicate.");
+      setFlashMessage(section, t("shifts.select_min_duplicate"));
       return;
     }
 
+    setFlashMessage(section, "");
     duplicateButton.disabled = true;
 
     try {
       for (const id of ids) {
         const shift = await fetchShiftById(id);
-        const name = `${text(shift?.name) || t("shifts.untitled_shift")} ${t("shifts.copy_suffix")}`.trim();
-        const busId = shift?.bus_id ?? shift?.busId ?? "";
-        const tripIds = readTripIds(shift);
+        const { name, busId, tripIds } = buildDuplicateShiftPayload(shift, {
+          copySuffix: t("shifts.copy_suffix"),
+          untitledLabel: t("shifts.untitled_shift"),
+        });
 
         await createShift({
           name,
@@ -909,10 +902,14 @@ export const initializeShifts = async (root = document, options = {}) => {
           tripIds,
         });
       }
-      console.log("Shift(s) duplicated.");
       await loadShifts();
+      setFlashMessage(section, t("shifts.duplicated"));
     } catch (error) {
       console.error("Failed to duplicate shift(s)", error);
+      setFlashMessage(
+        section,
+        error?.message ?? t("shifts.unable_to_duplicate")
+      );
     } finally {
       duplicateButton.disabled = false;
     }

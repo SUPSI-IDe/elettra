@@ -337,6 +337,49 @@ export const readShiftTripsFromStructure = (shift = {}) => {
     .filter(Boolean);
 };
 
+// Build the payload used to duplicate a shift.
+//
+// The shift detail (GET /shifts/{id}) exposes its trips through `structure`,
+// where each item's `trip_id` is the trip's database UUID (the value the
+// create endpoint expects in `trip_ids`).  Items are ordered here by
+// `sequence_number` so the copy preserves the original trip order even if the
+// API returns the structure unsorted.  `busId` uses the same fallbacks as the
+// create/edit form so nested `bus` payloads are handled too.
+export const buildDuplicateShiftPayload = (
+  shift = {},
+  { copySuffix = "", untitledLabel = "" } = {}
+) => {
+  const baseName = text(shift?.name).trim() || untitledLabel;
+  const name = `${baseName} ${copySuffix}`.trim();
+
+  const busId = firstAvailable(
+    shift?.bus_id,
+    shift?.busId,
+    shift?.bus?.id,
+    shift?.bus?.bus_id
+  );
+
+  const structure = Array.isArray(shift?.structure) ? shift.structure : [];
+  const tripIds = structure
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => {
+      const leftSeq = Number(left.item?.sequence_number);
+      const rightSeq = Number(right.item?.sequence_number);
+      const leftHas = Number.isFinite(leftSeq);
+      const rightHas = Number.isFinite(rightSeq);
+      if (leftHas && rightHas && leftSeq !== rightSeq) {
+        return leftSeq - rightSeq;
+      }
+      if (leftHas && !rightHas) return -1;
+      if (!leftHas && rightHas) return 1;
+      return left.index - right.index;
+    })
+    .map(({ item = {} }) => text(item?.trip_id ?? item?.tripId ?? "").trim())
+    .filter((value) => value.length > 0);
+
+  return { name, busId, tripIds };
+};
+
 export const DAYS_OF_WEEK = [
   { value: "monday", label: "Monday" },
   { value: "tuesday", label: "Tuesday" },
