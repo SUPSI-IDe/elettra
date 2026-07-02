@@ -38,6 +38,10 @@ import {
   getElectricMaintenanceCostForLength,
   getBusParameterDefaults,
 } from "../../../config/economic-defaults";
+import {
+  buildDiscountedProjectedCostTrend,
+  computeEquivalentAnnualCost,
+} from "../../../utils/economic-costs";
 
 /* ── Shared helpers ────────────────────────────────────────────── */
 
@@ -1284,13 +1288,6 @@ const inferLcaSize = (busLengthM, busModelName) => {
   return null;
 };
 
-const computeEquivalentAnnualCost = (principal, rate, lifetimeYears) => {
-  if (principal <= 0) return 0;
-  if (rate <= 0) return principal / lifetimeYears;
-  const growth = Math.pow(1 + rate, lifetimeYears);
-  return principal * ((rate * growth) / (growth - 1));
-};
-
 const computeReplacementYears = (busLifetimeYears, batteryLifetimeYears) => {
   const busLifetime = toFiniteNumber(busLifetimeYears);
   const batteryLifetime = toFiniteNumber(batteryLifetimeYears);
@@ -1322,30 +1319,6 @@ const computeBatteryReplacementYearsOverHorizon = (busLifetime, batteryLifetime,
     busStart = busEnd;
   }
   return years;
-};
-
-const buildProjectedCostTrend = ({
-  horizonYears, dieselBusCapexChf, dieselAnnualOpex, dieselBusReplacementCostByYear,
-  electricBusCapexChf, electricAnnualOpex, electricBusReplacementCostByYear, batteryReplacementCostByYear,
-}) => {
-  const yearly = [];
-  let dieselReplacementCarry = 0;
-  let electricReplacementCarry = 0;
-  if (electricBusCapexChf > 0 || dieselBusCapexChf > 0) {
-    yearly.push({ year: 0, diesel: dieselBusCapexChf, electric: electricBusCapexChf });
-  }
-  for (let year = 1; year <= horizonYears; year += 1) {
-    const dieselRC = year < horizonYears ? (dieselBusReplacementCostByYear[year] ?? 0) : 0;
-    const electricRC = year < horizonYears
-      ? (electricBusReplacementCostByYear[year] ?? 0) + (batteryReplacementCostByYear[year] ?? 0) : 0;
-    const dPre = dieselBusCapexChf + dieselAnnualOpex * year + dieselReplacementCarry;
-    const ePre = electricBusCapexChf + electricAnnualOpex * year + electricReplacementCarry;
-    if (dieselRC > 0 || electricRC > 0) yearly.push({ year, diesel: dPre, electric: ePre });
-    dieselReplacementCarry += dieselRC;
-    electricReplacementCarry += electricRC;
-    yearly.push({ year, diesel: dPre + dieselRC, electric: ePre + electricRC });
-  }
-  return yearly;
 };
 
 const computeBreakEvenYear = (yearlyData) => {
@@ -1465,8 +1438,9 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
   const dieselBusReplYears = computeRecurringReplacementYears(dieselBusLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
   const trendBatteryReplYears = computeBatteryReplacementYearsOverHorizon(busLifetime, batteryLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
 
-  const yearly = buildProjectedCostTrend({
+  const yearly = buildDiscountedProjectedCostTrend({
     horizonYears: PROJECTED_COST_TREND_HORIZON_YEARS,
+    discountRate: annualizationRate,
     dieselBusCapexChf: dieselCapexChf,
     dieselAnnualOpex: dieselTotalOpex,
     dieselBusReplacementCostByYear: dieselBusReplYears.reduce((a, y) => { a[y] = dieselCapexChf; return a; }, {}),
@@ -1583,13 +1557,14 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
   const dieselAnnual = dieselCapexAnnual + dieselTotalOpex;
   const annualSaving = dieselAnnual - electricAnnual;
 
-  /* ── Projected cost trend with replacements ────────────────── */
+  /* ── Projected discounted cost trend with replacements ─────── */
   const electricBusReplYears = computeRecurringReplacementYears(busLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
   const dieselBusReplYears = computeRecurringReplacementYears(dieselBusLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
   const trendBatteryReplYears = computeBatteryReplacementYearsOverHorizon(busLifetime, batteryLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
 
-  const yearly = buildProjectedCostTrend({
+  const yearly = buildDiscountedProjectedCostTrend({
     horizonYears: PROJECTED_COST_TREND_HORIZON_YEARS,
+    discountRate: annualizationRate,
     dieselBusCapexChf: dieselCapexChf,
     dieselAnnualOpex: dieselTotalOpex,
     dieselBusReplacementCostByYear: dieselBusReplYears.reduce((acc, y) => { acc[y] = dieselCapexChf; return acc; }, {}),

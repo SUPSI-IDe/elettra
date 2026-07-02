@@ -544,7 +544,7 @@ export const renderProjectedCostTrend = (el, legendEl, data) => {
   const svg = svgBase(
     width,
     height,
-    tr("simulation.chart_aria_cost_trend", "Projected cumulative cost trend chart")
+    tr("simulation.chart_aria_cost_trend", "Projected cumulative present-value cost trend chart")
   );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
   const x = d3
@@ -590,11 +590,11 @@ export const renderProjectedCostTrend = (el, legendEl, data) => {
   el.appendChild(svg.node());
   setLegend(legendEl, [
     {
-      label: tr("yearly_analysis.cumulative_cost_ebus", "E-bus cumulative cost"),
+      label: tr("yearly_analysis.cumulative_cost_ebus", "E-bus cumulative present-value cost"),
       color: FUEL_COLORS.electric,
     },
     {
-      label: tr("yearly_analysis.cumulative_cost_diesel", "Diesel comparator cumulative cost"),
+      label: tr("yearly_analysis.cumulative_cost_diesel", "Diesel comparator cumulative present-value cost"),
       color: FUEL_COLORS.diesel,
     },
   ]);
