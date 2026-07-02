@@ -544,6 +544,48 @@
 .ya-info-icon:hover .ya-info-tooltip,
 .ya-info-icon:focus .ya-info-tooltip { display: block; }
 
+.costs-title-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(0, 99, 154, 0.12);
+  color: var(--primary, #00639a);
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-style: italic;
+  cursor: help;
+  position: relative;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.costs-title-tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: -8px;
+  width: 320px;
+  max-width: min(320px, 75vw);
+  padding: 8px 10px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  font-size: 0.72rem;
+  font-weight: 400;
+  font-style: normal;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  white-space: normal;
+  z-index: 100;
+}
+
+.costs-title-info:hover .costs-title-tooltip,
+.costs-title-info:focus .costs-title-tooltip { display: block; }
+
 @media (max-width: 980px) {
   .ya-costs-panel { grid-template-columns: 1fr; }
 }

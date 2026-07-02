@@ -25,6 +25,7 @@ import {
 import {
   buildDiscountedProjectedCostTrend as buildProjectedCostTrendYearlySeries,
   computeEquivalentAnnualCost,
+  computeScheduleResidualValue,
 } from "../../../utils/economic-costs";
 import "./simulation-comparison.css";
 
@@ -354,8 +355,10 @@ const computeRecurringReplacementYears = (lifetimeYears, horizonYears) => {
   const lt = toFiniteNumber(lifetimeYears);
   const hz = toFiniteNumber(horizonYears);
   if (lt == null || lt <= 0 || hz == null || hz <= 0) return [];
+  // Exclusive of the horizon: a replacement exactly at the horizon belongs to
+  // the next lifecycle and is not charged in this discounted lifecycle view.
   const years = [];
-  for (let y = lt; y <= hz; y += lt) years.push(y);
+  for (let y = lt; y < hz; y += lt) years.push(y);
   return years;
 };
 
@@ -462,7 +465,6 @@ const buildCostsChartData = (comparison, opts = {}) => {
   if (!comparison) return null;
 
   const eacData = buildEquivalentAnnualCostData(comparison, opts);
-  const horizonYears = PROJECTED_COST_TREND_HORIZON_YEARS;
   const electricAnnualOpex = eacData.annualOpex.electric;
   const dieselAnnualOpex = eacData.annualOpex.diesel;
   const electricBusCapexChf = eacData.upfrontCapex.electric;
@@ -474,6 +476,8 @@ const buildCostsChartData = (comparison, opts = {}) => {
   const electricBusLifetime = resolveBusLifetimeYears(opts);
   const dieselBusLifetime =
     eacData.dieselBusLifetime ?? resolveDieselBusLifetimeYears();
+  // Default horizon = e-bus lifespan (discounted lifecycle view).
+  const horizonYears = electricBusLifetime;
   const electricBusReplacementYears = computeRecurringReplacementYears(
     electricBusLifetime,
     horizonYears
@@ -512,19 +516,42 @@ const buildCostsChartData = (comparison, opts = {}) => {
     {}
   );
 
+  // Residual value credited at the horizon for assets still holding useful life.
+  const dieselResidualValue = computeScheduleResidualValue({
+    purchaseCost: dieselBusCapexChf,
+    lifetimeYears: dieselBusLifetime,
+    purchaseYears: [0, ...dieselBusReplacementYears],
+    horizonYears,
+  });
+  const electricResidualValue =
+    computeScheduleResidualValue({
+      purchaseCost: electricVehicleReplacementCost,
+      lifetimeYears: electricBusLifetime,
+      purchaseYears: [0, ...electricBusReplacementYears],
+      horizonYears,
+    }) +
+    computeScheduleResidualValue({
+      purchaseCost: batteryReplacementCost,
+      lifetimeYears: resolveBatteryLifetimeYears(opts),
+      purchaseYears: [0, ...batteryReplacementYears],
+      horizonYears,
+    });
+
   const yearly = buildProjectedCostTrendYearlySeries({
     horizonYears,
     discountRate: eacData.annualizationRate,
     dieselBusCapexChf,
     dieselAnnualOpex,
     dieselBusReplacementCostByYear,
+    dieselResidualValue,
     electricBusCapexChf,
     electricAnnualOpex,
     electricBusReplacementCostByYear,
     batteryReplacementCostByYear,
+    electricResidualValue,
   });
 
-  return { tco: eacData.tco, yearly };
+  return { tco: eacData.tco, yearly, horizonYears, lifecycle: yearly.lifecycle };
 };
 
 /* ── Data loading per simulation ──────────────────────────────── */
@@ -725,7 +752,14 @@ const loadSimulationCosts = async (simOptions, economicDefaults = {}) => {
   if (comparison) {
     const chartData = buildCostsChartData(comparison, opts);
     if (chartData?.tco?.length) {
-      return { tco: chartData.tco, yearly: chartData.yearly ?? [], optimizationRun, predictionRuns };
+      return {
+        tco: chartData.tco,
+        yearly: chartData.yearly ?? [],
+        horizonYears: chartData.horizonYears,
+        lifecycle: chartData.lifecycle,
+        optimizationRun,
+        predictionRuns,
+      };
     }
   }
 
@@ -747,9 +781,10 @@ const loadSimulationCosts = async (simOptions, economicDefaults = {}) => {
   ];
 
   const electricUpfront = electricCapex?.totalCapexChf ?? 0;
+  const fallbackHorizon = Math.max(1, Math.floor(busLifetime ?? PROJECTED_COST_TREND_HORIZON_YEARS));
   const yearly = [
     { year: 0, diesel: dieselCapexChf, electric: electricUpfront },
-    ...Array.from({ length: PROJECTED_COST_TREND_HORIZON_YEARS }, (_, i) => ({
+    ...Array.from({ length: fallbackHorizon }, (_, i) => ({
       year: i + 1,
       diesel: dieselCapexChf,
       electric: electricUpfront,
@@ -1735,15 +1770,36 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
     const el = section.querySelector(`[data-role="${role}"]`);
     if (el) el.textContent = text;
   };
+  const setCostLifecycleTitle = (role, text) => {
+    const el = section.querySelector(`[data-role="${role}"]`);
+    if (!el) return;
+    const tooltipText =
+      t("simulation.costs_trend_lifecycle_tooltip") ||
+      "Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI.";
+    el.textContent = "";
+    const labelEl = document.createElement("span");
+    labelEl.textContent = text;
+    const infoEl = document.createElement("span");
+    infoEl.className = "costs-title-info";
+    infoEl.tabIndex = 0;
+    infoEl.setAttribute("role", "img");
+    infoEl.setAttribute("aria-label", tooltipText);
+    infoEl.textContent = "i";
+    const tooltipEl = document.createElement("span");
+    tooltipEl.className = "costs-title-tooltip";
+    tooltipEl.textContent = tooltipText;
+    infoEl.appendChild(tooltipEl);
+    el.append(labelEl, infoEl);
+  };
 
   const tcoTitle =
     t("simulation.results_tco_title") || "Annual cost comparison";
   const yearlyTitle =
-    t("simulation.results_costs_trend") || "Projected discounted cost trend";
+    t("simulation.results_costs_trend") || "Projected discounted lifecycle cost";
   setTitle("costs-bar-title-a", `${tcoTitle} — ${fullLabelA}`);
   setTitle("costs-bar-title-b", `${tcoTitle} — ${fullLabelB}`);
-  setTitle("costs-line-title-a", `${yearlyTitle} — ${fullLabelA}`);
-  setTitle("costs-line-title-b", `${yearlyTitle} — ${fullLabelB}`);
+  setCostLifecycleTitle("costs-line-title-a", `${yearlyTitle} — ${fullLabelA}`);
+  setCostLifecycleTitle("costs-line-title-b", `${yearlyTitle} — ${fullLabelB}`);
 
   const efficiencyNotAvailableMsg =
     t("simulation.compare_efficiency_not_available") ||

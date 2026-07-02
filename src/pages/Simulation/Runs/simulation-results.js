@@ -40,6 +40,7 @@ import {
 import {
   buildDiscountedProjectedCostTrend as buildProjectedCostTrendYearlySeries,
   computeEquivalentAnnualCost,
+  computeScheduleResidualValue,
 } from "../../../utils/economic-costs";
 import { getOptimizationRunName } from "../../../utils/optimization-run";
 import "./simulation-results.css";
@@ -996,8 +997,10 @@ const computeRecurringReplacementYears = (lifetimeYears, horizonYears) => {
     return [];
   }
 
+  // Exclusive of the horizon: a replacement landing exactly at the horizon
+  // belongs to the next lifecycle and must not be charged in this view.
   const years = [];
-  for (let year = lifetime; year <= horizon; year += lifetime) {
+  for (let year = lifetime; year < horizon; year += lifetime) {
     years.push(year);
   }
   return years;
@@ -1105,7 +1108,6 @@ const buildCostsChartData = (comparison, options = {}) => {
   if (!comparison) return null;
 
   const eacData = buildEquivalentAnnualCostData(comparison, options);
-  const horizonYears = PROJECTED_COST_TREND_HORIZON_YEARS;
   const electricAnnualOpex = eacData.annualOpex.electric;
   const dieselAnnualOpex = eacData.annualOpex.diesel;
   const electricBusCapexChf = eacData.upfrontCapex.electric;
@@ -1116,6 +1118,9 @@ const buildCostsChartData = (comparison, options = {}) => {
   );
   const electricBusLifetime = resolveBusLifetimeYears(options);
   const dieselBusLifetime = eacData.dieselBusLifetime ?? resolveDieselBusLifetimeYears();
+  // Default horizon = e-bus lifespan (discounted lifecycle view), not a fixed
+  // long horizon. Replacements landing exactly at the horizon are excluded.
+  const horizonYears = electricBusLifetime;
   const electricBusReplacementYears = computeRecurringReplacementYears(
     electricBusLifetime,
     horizonYears
@@ -1144,16 +1149,42 @@ const buildCostsChartData = (comparison, options = {}) => {
     acc[year] = (acc[year] ?? 0) + (toFiniteNumber(dieselBusCapexChf) ?? 0);
     return acc;
   }, {});
+
+  // Residual value credited at the horizon for assets with remaining useful
+  // life (see computeLinearResidualValue). Infrastructure is not replaced and
+  // holds no residual here.
+  const dieselResidualValue = computeScheduleResidualValue({
+    purchaseCost: dieselBusCapexChf,
+    lifetimeYears: dieselBusLifetime,
+    purchaseYears: [0, ...dieselBusReplacementYears],
+    horizonYears,
+  });
+  const electricResidualValue =
+    computeScheduleResidualValue({
+      purchaseCost: electricVehicleReplacementCost,
+      lifetimeYears: electricBusLifetime,
+      purchaseYears: [0, ...electricBusReplacementYears],
+      horizonYears,
+    }) +
+    computeScheduleResidualValue({
+      purchaseCost: batteryReplacementCost,
+      lifetimeYears: resolveBatteryLifetimeYears(options),
+      purchaseYears: [0, ...batteryReplacementYears],
+      horizonYears,
+    });
+
   const yearly = buildProjectedCostTrendYearlySeries({
     horizonYears,
     discountRate: eacData.annualizationRate,
     dieselBusCapexChf,
     dieselAnnualOpex,
     dieselBusReplacementCostByYear,
+    dieselResidualValue,
     electricBusCapexChf,
     electricAnnualOpex,
     electricBusReplacementCostByYear,
     batteryReplacementCostByYear,
+    electricResidualValue,
   });
 
   return {
@@ -1161,6 +1192,8 @@ const buildCostsChartData = (comparison, options = {}) => {
     annualTotals: eacData.annualTotals,
     upfrontCapex: eacData.upfrontCapex,
     annualOpex: eacData.annualOpex,
+    horizonYears,
+    lifecycle: yearly.lifecycle,
     replacementYears: {
       electricBus: electricBusReplacementYears,
       dieselBus: dieselBusReplacementYears,
@@ -1203,12 +1236,19 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
 
   const breakEvenYear = computeBreakEvenYear(yearlyData);
 
-  const horizonYears = PROJECTED_COST_TREND_HORIZON_YEARS;
   const lastPoint = Array.isArray(yearlyData) ? yearlyData[yearlyData.length - 1] : null;
+  // Lifecycle horizon = e-bus lifespan, taken from the trend itself so the KPI
+  // label reflects the actual model lifespan rather than a fixed constant.
+  const horizonYears =
+    toFiniteNumber(chartData?.lifecycle?.horizonYears) ??
+    toFiniteNumber(chartData?.horizonYears) ??
+    toFiniteNumber(lastPoint?.year) ??
+    PROJECTED_COST_TREND_HORIZON_YEARS;
   const lifetimeSaving =
-    lastPoint != null
+    toFiniteNumber(chartData?.lifecycle?.lifecycleSaving) ??
+    (lastPoint != null
       ? (toFiniteNumber(lastPoint.diesel) ?? 0) - (toFiniteNumber(lastPoint.electric) ?? 0)
-      : null;
+      : null);
 
   const upfrontDelta =
     (chartData?.upfrontCapex?.electric ?? 0) - (chartData?.upfrontCapex?.diesel ?? 0);
@@ -6451,7 +6491,8 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
   );
   const fuelCostPerL = positiveOrNull(resolveFuelCostPerL(options));
   const energyPricePerKwh = positiveOrNull(resolveEnergyPricePerKwh(options));
-  const projectedTrendHorizonYears = PROJECTED_COST_TREND_HORIZON_YEARS;
+  // Discounted lifecycle horizon = e-bus lifespan.
+  const projectedTrendHorizonYears = lifetimeBus;
   const electricBusReplacementYears = computeRecurringReplacementYears(
     lifetimeBus,
     projectedTrendHorizonYears
