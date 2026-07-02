@@ -41,6 +41,7 @@ import {
 import {
   buildDiscountedProjectedCostTrend,
   computeEquivalentAnnualCost,
+  computeScheduleResidualValue,
 } from "../../../utils/economic-costs";
 
 /* ── Shared helpers ────────────────────────────────────────────── */
@@ -1281,6 +1282,8 @@ const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
 
 const DEFAULT_FUEL_COST_PER_L = 1.85;
 const DEFAULT_ENERGY_PRICE_PER_KWH = 0.20;
+// Fallback horizon only. The projected discounted lifecycle trend now uses the
+// actual e-bus lifespan as its horizon (see resolveTrendHorizonYears usage).
 const PROJECTED_COST_TREND_HORIZON_YEARS = 20;
 
 const LCA_SIZE_BUCKETS = ["9m", "13m", "18m"];
@@ -1445,20 +1448,48 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
   const dieselAnnual = dieselCapexAnnual + dieselTotalOpex;
   const annualSaving = dieselAnnual - electricAnnual;
 
-  const electricBusReplYears = computeRecurringReplacementYears(busLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
-  const dieselBusReplYears = computeRecurringReplacementYears(dieselBusLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
-  const trendBatteryReplYears = computeBatteryReplacementYearsOverHorizon(busLifetime, batteryLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
+  // Default horizon = e-bus lifespan. A full e-bus replacement would land
+  // exactly at the horizon; the exclusive `< horizon` schedule below drops it
+  // because it belongs to the next lifecycle.
+  const trendHorizon = busLifetime;
+  const electricBusReplYears = computeRecurringReplacementYears(busLifetime, trendHorizon);
+  const dieselBusReplYears = computeRecurringReplacementYears(dieselBusLifetime, trendHorizon);
+  const trendBatteryReplYears = computeBatteryReplacementYearsOverHorizon(busLifetime, batteryLifetime, trendHorizon);
+
+  // Residual value credited at the horizon for any asset still holding useful
+  // life (typically the diesel comparator replaced at year 10 for a 12-yr horizon).
+  const dieselResidualValue = computeScheduleResidualValue({
+    purchaseCost: dieselCapexChf,
+    lifetimeYears: dieselBusLifetime,
+    purchaseYears: [0, ...dieselBusReplYears],
+    horizonYears: trendHorizon,
+  });
+  const electricResidualValue =
+    computeScheduleResidualValue({
+      purchaseCost: busCostChf,
+      lifetimeYears: busLifetime,
+      purchaseYears: [0, ...electricBusReplYears],
+      horizonYears: trendHorizon,
+    }) +
+    computeScheduleResidualValue({
+      purchaseCost: totalBatteryCostChf,
+      lifetimeYears: batteryLifetime,
+      purchaseYears: [0, ...trendBatteryReplYears],
+      horizonYears: trendHorizon,
+    });
 
   const yearly = buildDiscountedProjectedCostTrend({
-    horizonYears: PROJECTED_COST_TREND_HORIZON_YEARS,
+    horizonYears: trendHorizon,
     discountRate: annualizationRate,
     dieselBusCapexChf: dieselCapexChf,
     dieselAnnualOpex: dieselTotalOpex,
     dieselBusReplacementCostByYear: dieselBusReplYears.reduce((a, y) => { a[y] = dieselCapexChf; return a; }, {}),
+    dieselResidualValue,
     electricBusCapexChf: electricCapexChf,
     electricAnnualOpex: electricTotalOpex,
     electricBusReplacementCostByYear: electricBusReplYears.reduce((a, y) => { a[y] = busCostChf; return a; }, {}),
     batteryReplacementCostByYear: trendBatteryReplYears.reduce((a, y) => { a[y] = (a[y] ?? 0) + totalBatteryCostChf; return a; }, {}),
+    electricResidualValue,
   });
 
   return {
@@ -1487,6 +1518,7 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
     },
     annualSaving,
     breakEvenYear: computeBreakEvenYear(yearly),
+    lifecycle: yearly.lifecycle,
     yearly,
   };
 };
@@ -1568,21 +1600,46 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
   const dieselAnnual = dieselCapexAnnual + dieselTotalOpex;
   const annualSaving = dieselAnnual - electricAnnual;
 
-  /* ── Projected discounted cost trend with replacements ─────── */
-  const electricBusReplYears = computeRecurringReplacementYears(busLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
-  const dieselBusReplYears = computeRecurringReplacementYears(dieselBusLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
-  const trendBatteryReplYears = computeBatteryReplacementYearsOverHorizon(busLifetime, batteryLifetime, PROJECTED_COST_TREND_HORIZON_YEARS);
+  /* ── Projected discounted lifecycle cost trend over the e-bus lifespan ── */
+  // Horizon = e-bus lifespan; `< horizon` schedules exclude a full e-bus
+  // replacement exactly at the horizon (it belongs to the next lifecycle).
+  const trendHorizon = busLifetime;
+  const electricBusReplYears = computeRecurringReplacementYears(busLifetime, trendHorizon);
+  const dieselBusReplYears = computeRecurringReplacementYears(dieselBusLifetime, trendHorizon);
+  const trendBatteryReplYears = computeBatteryReplacementYearsOverHorizon(busLifetime, batteryLifetime, trendHorizon);
+
+  const dieselResidualValue = computeScheduleResidualValue({
+    purchaseCost: dieselCapexChf,
+    lifetimeYears: dieselBusLifetime,
+    purchaseYears: [0, ...dieselBusReplYears],
+    horizonYears: trendHorizon,
+  });
+  const electricResidualValue =
+    computeScheduleResidualValue({
+      purchaseCost: busCostChf,
+      lifetimeYears: busLifetime,
+      purchaseYears: [0, ...electricBusReplYears],
+      horizonYears: trendHorizon,
+    }) +
+    computeScheduleResidualValue({
+      purchaseCost: totalBatteryCostChf,
+      lifetimeYears: batteryLifetime,
+      purchaseYears: [0, ...trendBatteryReplYears],
+      horizonYears: trendHorizon,
+    });
 
   const yearly = buildDiscountedProjectedCostTrend({
-    horizonYears: PROJECTED_COST_TREND_HORIZON_YEARS,
+    horizonYears: trendHorizon,
     discountRate: annualizationRate,
     dieselBusCapexChf: dieselCapexChf,
     dieselAnnualOpex: dieselTotalOpex,
     dieselBusReplacementCostByYear: dieselBusReplYears.reduce((acc, y) => { acc[y] = dieselCapexChf; return acc; }, {}),
+    dieselResidualValue,
     electricBusCapexChf: electricCapexUpfront,
     electricAnnualOpex: electricTotalOpex,
     electricBusReplacementCostByYear: electricBusReplYears.reduce((acc, y) => { acc[y] = busCostChf; return acc; }, {}),
     batteryReplacementCostByYear: trendBatteryReplYears.reduce((acc, y) => { acc[y] = (acc[y] ?? 0) + totalBatteryCostChf; return acc; }, {}),
+    electricResidualValue,
   });
 
   /* ── Scenarios: recalculate costs from physical quantities ──── */
@@ -1658,6 +1715,7 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
     },
     annualSaving,
     breakEvenYear: computeBreakEvenYear(yearly),
+    lifecycle: yearly.lifecycle,
     yearly,
   };
 };
@@ -1669,7 +1727,16 @@ const renderCostsKpis = (el, cd) => {
   const yearlyKm = toFiniteNumber(cd.yearlyDistanceKm);
   const savingCls = cd.annualSaving > 0 ? "ya-costs-kpi-value--positive" : cd.annualSaving < 0 ? "ya-costs-kpi-value--negative" : "";
   const lastPoint = Array.isArray(cd.yearly) ? cd.yearly[cd.yearly.length - 1] : null;
-  const lifetimeSaving = lastPoint != null ? (toFiniteNumber(lastPoint.diesel) ?? 0) - (toFiniteNumber(lastPoint.electric) ?? 0) : null;
+  const lifecycle = cd.lifecycle ?? cd.yearly?.lifecycle;
+  const lifetimeSaving =
+    toFiniteNumber(lifecycle?.lifecycleSaving) ??
+    (lastPoint != null ? (toFiniteNumber(lastPoint.diesel) ?? 0) - (toFiniteNumber(lastPoint.electric) ?? 0) : null);
+  // Lifecycle horizon = e-bus lifespan, read from the final trend point so the
+  // KPI label stays in sync with whatever lifespan the selected model uses.
+  const lifecycleYears =
+    toFiniteNumber(lifecycle?.horizonYears) ??
+    toFiniteNumber(lastPoint?.year) ??
+    PROJECTED_COST_TREND_HORIZON_YEARS;
 
   el.innerHTML = `
     <div class="ya-costs-kpi-card">
@@ -1677,7 +1744,7 @@ const renderCostsKpis = (el, cd) => {
       <span class="ya-costs-kpi-value ${savingCls}">CHF ${formatCHF(Math.round(cd.annualSaving))}</span>
     </div>
     <div class="ya-costs-kpi-card">
-      <span class="ya-costs-kpi-label">${textContent(t("yearly_analysis.lifetime_saving_years", { years: PROJECTED_COST_TREND_HORIZON_YEARS }))}</span>
+      <span class="ya-costs-kpi-label">${textContent(t("yearly_analysis.lifetime_saving_years", { years: lifecycleYears }))}</span>
       <span class="ya-costs-kpi-value ${lifetimeSaving != null && lifetimeSaving > 0 ? "ya-costs-kpi-value--positive" : ""}">${lifetimeSaving != null ? `CHF ${formatCHF(Math.round(lifetimeSaving))}` : "—"}</span>
     </div>
     <div class="ya-costs-kpi-card">
