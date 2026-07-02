@@ -22,6 +22,10 @@ import {
   DEFAULT_BATTERY_LIFETIME_YEARS,
   getEquivalentDieselBusCapexForLength,
 } from "../../../config/economic-defaults";
+import {
+  buildDiscountedProjectedCostTrend as buildProjectedCostTrendYearlySeries,
+  computeEquivalentAnnualCost,
+} from "../../../utils/economic-costs";
 import "./simulation-comparison.css";
 
 /* ── Shared utilities ─────────────────────────────────────────── */
@@ -338,17 +342,6 @@ const resolveBatteryLifetimeYears = (opts = {}) => {
 
 const resolveDieselBusLifetimeYears = () => DEFAULT_DIESEL_BUS_LIFETIME_YEARS;
 
-const computeEquivalentAnnualCost = (principal, rate, lifetimeYears) => {
-  const capex = toFiniteNumber(principal);
-  const lifetime = toFiniteNumber(lifetimeYears);
-  const annualRate = toFiniteNumber(rate);
-  if (capex == null || capex <= 0 || lifetime == null || lifetime <= 0)
-    return 0;
-  if (annualRate == null || annualRate <= 0) return capex / lifetime;
-  const growth = Math.pow(1 + annualRate, lifetime);
-  return capex * ((annualRate * growth) / (growth - 1));
-};
-
 const computeReplacementYears = (busLifetimeYears, batteryLifetimeYears) => {
   const busLt = toFiniteNumber(busLifetimeYears);
   const batLt = toFiniteNumber(batteryLifetimeYears);
@@ -436,6 +429,7 @@ const buildEquivalentAnnualCostData = (comparison, opts = {}) => {
   );
 
   return {
+    annualizationRate,
     tco: [
       {
         category: "equivalent_diesel_bus",
@@ -462,63 +456,6 @@ const buildEquivalentAnnualCostData = (comparison, opts = {}) => {
     dieselBusLifetime,
     batteryReplacementCost,
   };
-};
-
-const buildProjectedCostTrendYearlySeries = ({
-  horizonYears,
-  dieselBusCapexChf,
-  dieselAnnualOpex,
-  dieselBusReplacementCostByYear,
-  electricBusCapexChf,
-  electricAnnualOpex,
-  electricBusReplacementCostByYear,
-  batteryReplacementCostByYear,
-}) => {
-  const yearly = [];
-  let dieselReplacementCarry = 0;
-  let electricReplacementCarry = 0;
-
-  if (electricBusCapexChf > 0 || dieselBusCapexChf > 0) {
-    yearly.push({
-      year: 0,
-      diesel: dieselBusCapexChf,
-      electric: electricBusCapexChf,
-    });
-  }
-
-  for (let year = 1; year <= horizonYears; year += 1) {
-    const dieselReplacementCost =
-      year < horizonYears ? dieselBusReplacementCostByYear[year] ?? 0 : 0;
-    const electricReplacementCost =
-      year < horizonYears
-        ? (electricBusReplacementCostByYear[year] ?? 0) +
-          (batteryReplacementCostByYear[year] ?? 0)
-        : 0;
-
-    const dieselPreReplacement =
-      dieselBusCapexChf + dieselAnnualOpex * year + dieselReplacementCarry;
-    const electricPreReplacement =
-      electricBusCapexChf + electricAnnualOpex * year + electricReplacementCarry;
-
-    if (dieselReplacementCost > 0 || electricReplacementCost > 0) {
-      yearly.push({
-        year,
-        diesel: dieselPreReplacement,
-        electric: electricPreReplacement,
-      });
-    }
-
-    dieselReplacementCarry += dieselReplacementCost;
-    electricReplacementCarry += electricReplacementCost;
-
-    yearly.push({
-      year,
-      diesel: dieselPreReplacement + dieselReplacementCost,
-      electric: electricPreReplacement + electricReplacementCost,
-    });
-  }
-
-  return yearly;
 };
 
 const buildCostsChartData = (comparison, opts = {}) => {
@@ -577,6 +514,7 @@ const buildCostsChartData = (comparison, opts = {}) => {
 
   const yearly = buildProjectedCostTrendYearlySeries({
     horizonYears,
+    discountRate: eacData.annualizationRate,
     dieselBusCapexChf,
     dieselAnnualOpex,
     dieselBusReplacementCostByYear,
@@ -1148,7 +1086,7 @@ const renderComparisonCostsLine = (el, data) => {
     H,
     chartAriaLabel(
       "simulation.chart_aria_cost_trend",
-      "Projected cumulative cost trend"
+      "Projected cumulative present-value cost trend"
     )
   );
   const g = svg
@@ -1801,7 +1739,7 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
   const tcoTitle =
     t("simulation.results_tco_title") || "Annual cost comparison";
   const yearlyTitle =
-    t("simulation.results_costs_trend") || "Projected cost trend";
+    t("simulation.results_costs_trend") || "Projected discounted cost trend";
   setTitle("costs-bar-title-a", `${tcoTitle} — ${fullLabelA}`);
   setTitle("costs-bar-title-b", `${tcoTitle} — ${fullLabelB}`);
   setTitle("costs-line-title-a", `${yearlyTitle} — ${fullLabelA}`);

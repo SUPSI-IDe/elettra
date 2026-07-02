@@ -37,6 +37,10 @@ import {
   DIESEL_MAINT_BASE,
   ELECTRIC_MAINT_BASE,
 } from "../../../config/economic-defaults";
+import {
+  buildDiscountedProjectedCostTrend as buildProjectedCostTrendYearlySeries,
+  computeEquivalentAnnualCost,
+} from "../../../utils/economic-costs";
 import { getOptimizationRunName } from "../../../utils/optimization-run";
 import "./simulation-results.css";
 
@@ -1019,18 +1023,6 @@ const computeBatteryReplacementYearsOverHorizon = (
   return computeRecurringReplacementYears(batteryLifetime, horizon);
 };
 
-const computeEquivalentAnnualCost = (principal, rate, lifetimeYears) => {
-  const capex = toFiniteNumber(principal);
-  const lifetime = toFiniteNumber(lifetimeYears);
-  const annualRate = toFiniteNumber(rate);
-
-  if (capex == null || capex <= 0 || lifetime == null || lifetime <= 0) return 0;
-  if (annualRate == null || annualRate <= 0) return capex / lifetime;
-
-  const growth = Math.pow(1 + annualRate, lifetime);
-  return capex * ((annualRate * growth) / (growth - 1));
-};
-
 const buildEquivalentAnnualCostData = (comparison, options = {}) => {
   const annualizationRate =
     toFiniteNumber(options?.annualizationRate) ?? DEFAULT_OPEX_ANNUALIZATION_RATE;
@@ -1109,63 +1101,6 @@ const buildEquivalentAnnualCostData = (comparison, options = {}) => {
   };
 };
 
-const buildProjectedCostTrendYearlySeries = ({
-  horizonYears,
-  dieselBusCapexChf,
-  dieselAnnualOpex,
-  dieselBusReplacementCostByYear,
-  electricBusCapexChf,
-  electricAnnualOpex,
-  electricBusReplacementCostByYear,
-  batteryReplacementCostByYear,
-}) => {
-  const yearly = [];
-  let dieselReplacementCarry = 0;
-  let electricReplacementCarry = 0;
-
-  if (electricBusCapexChf > 0 || dieselBusCapexChf > 0) {
-    yearly.push({
-      year: 0,
-      diesel: dieselBusCapexChf,
-      electric: electricBusCapexChf,
-    });
-  }
-
-  for (let year = 1; year <= horizonYears; year += 1) {
-    const dieselReplacementCost =
-      year < horizonYears ? dieselBusReplacementCostByYear[year] ?? 0 : 0;
-    const electricReplacementCost =
-      year < horizonYears
-        ? (electricBusReplacementCostByYear[year] ?? 0) +
-          (batteryReplacementCostByYear[year] ?? 0)
-        : 0;
-
-    const dieselPreReplacement =
-      dieselBusCapexChf + dieselAnnualOpex * year + dieselReplacementCarry;
-    const electricPreReplacement =
-      electricBusCapexChf + electricAnnualOpex * year + electricReplacementCarry;
-
-    if (dieselReplacementCost > 0 || electricReplacementCost > 0) {
-      yearly.push({
-        year,
-        diesel: dieselPreReplacement,
-        electric: electricPreReplacement,
-      });
-    }
-
-    dieselReplacementCarry += dieselReplacementCost;
-    electricReplacementCarry += electricReplacementCost;
-
-    yearly.push({
-      year,
-      diesel: dieselPreReplacement + dieselReplacementCost,
-      electric: electricPreReplacement + electricReplacementCost,
-    });
-  }
-
-  return yearly;
-};
-
 const buildCostsChartData = (comparison, options = {}) => {
   if (!comparison) return null;
 
@@ -1211,6 +1146,7 @@ const buildCostsChartData = (comparison, options = {}) => {
   }, {});
   const yearly = buildProjectedCostTrendYearlySeries({
     horizonYears,
+    discountRate: eacData.annualizationRate,
     dieselBusCapexChf,
     dieselAnnualOpex,
     dieselBusReplacementCostByYear,
@@ -1309,7 +1245,7 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
       tone: breakEvenYear != null ? "positive" : "",
       tooltip:
         t("simulation.kpi_tip_break_even") ||
-        "Year when cumulative electric costs fall below diesel on the projected cost trend.",
+        "Year when cumulative present-value electric costs fall below diesel on the projected discounted cost trend.",
     },
     {
       hidden: lifetimeSaving == null,
@@ -1328,7 +1264,7 @@ const renderCostsKpis = (el, comparison, chartData = null) => {
             : "",
       tooltip:
         t("simulation.kpi_tip_lifetime_saving", { years: horizonYears }) ||
-        `Cumulative savings over the ${horizonYears}-year horizon, incl. replacements.`,
+        `Present-value savings over the ${horizonYears}-year horizon, incl. discounted replacements.`,
     },
     {
       hidden: paybackYears == null,
@@ -2816,7 +2752,7 @@ const renderCostsLine = (el, data) => {
     H,
     chartAriaLabel(
       "simulation.chart_aria_cost_trend",
-      "Projected cumulative cost trend"
+      "Projected cumulative present-value cost trend"
     )
   );
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
