@@ -603,6 +603,32 @@ nav .nav-links li {
   margin: 0;
 }
 
+nav .nav-links .nav-section-title {
+  padding: 0.9rem 1rem 0.4rem;
+  color: var(--color-sidebar-text);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: 1.3;
+  text-transform: none;
+}
+
+nav .nav-links .nav-section-title:first-child {
+  padding-top: 0.25rem;
+}
+
+nav .nav-links .nav-section-title:not(:first-child) {
+  margin-top: 1rem;
+}
+
+nav .nav-links .nav-section-title h2 {
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
 nav .nav-links a {
   display: flex;
   align-items: center;
@@ -638,9 +664,7 @@ nav .nav-links a[aria-current="page"] {
   background-color: var(--color-sidebar-active-bg);
   color: #ffffff;
   font-weight: 600;
-  box-shadow:
-    inset 3px 0 0 0 var(--color-sidebar-active-border),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
 nav .nav-links a.is-active:hover,
@@ -2275,6 +2299,22 @@ table input[type="checkbox"] {
     font-size: var(--font-size-md);
     white-space: nowrap;
     flex-shrink: 0;
+  }
+
+  nav .nav-links .nav-section-title,
+  nav .nav-links .nav-section-title:first-child {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.4rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  nav .nav-links .nav-section-title:not(:first-child) {
+    margin-top: 0;
+    margin-left: 0.75rem;
+    padding-left: 1rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.42);
   }
 
   nav .nav-links a.is-active,
