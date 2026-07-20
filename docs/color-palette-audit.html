@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ELETTRA colour palette audit</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17212b;
+        --muted: #65727d;
+        --paper: #f4f7f9;
+        --card: #ffffff;
+        --line: #dbe3e8;
+        --accent: #003296;
+        --keep: #2e7d32;
+        --review: #d4881f;
+        --collapse: #00639a;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-block-size: 100dvb;
+        background: var(--paper);
+        color: var(--ink);
+        font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main { max-inline-size: 92rem; margin-inline: auto; padding: clamp(1.25rem, 3vw, 3rem); }
+      h1, h2, p { margin-block: 0; }
+      h1 { font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1; letter-spacing: -.045em; text-wrap: balance; }
+      h2 { font-size: 1rem; }
+      .intro { color: var(--muted); max-inline-size: 70ch; margin-block-start: .85rem; text-wrap: pretty; }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .6rem;
+        align-items: center;
+        margin-block: 1.5rem;
+        padding: .8rem;
+        background: color-mix(in srgb, var(--card) 86%, transparent);
+        border: 1px solid var(--line);
+        border-radius: .8rem;
+        position: sticky;
+        inset-block-start: .75rem;
+        z-index: 2;
+        box-shadow: 0 8px 24px rgb(15 23 42 / .08);
+      }
+
+      button, input { font: inherit; }
+      button {
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: .45rem;
+        padding: .45rem .7rem;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: white; }
+      button:focus-visible, input:focus-visible { outline: 3px solid rgb(0 50 150 / .25); outline-offset: 2px; }
+      input { min-inline-size: min(18rem, 100%); flex: 1 1 18rem; border: 1px solid var(--line); border-radius: .45rem; padding: .48rem .65rem; }
+
+      .legend { display: flex; flex-wrap: wrap; gap: 1rem; color: var(--muted); font-size: .85rem; margin-block-end: 1.5rem; }
+      .legend span::before { content: ""; display: inline-block; inline-size: .65rem; block-size: .65rem; border-radius: 99px; margin-inline-end: .35rem; background: var(--dot); }
+      .legend .collapse { --dot: var(--collapse); }.legend .keep { --dot: var(--keep); }.legend .review { --dot: var(--review); }
+
+      .section { margin-block: 2rem; }
+      .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-block-end: .7rem; }
+      .section-head p { color: var(--muted); font-size: .9rem; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .8rem; }
+      .card { container: card / inline-size; overflow: clip; background: var(--card); border: 1px solid var(--line); border-radius: .7rem; min-block-size: 11rem; }
+      .card[hidden], .section[hidden] { display: none; }
+      .swatch { block-size: 4.75rem; border-block-end: 1px solid rgb(0 0 0 / .08); background: var(--color); position: relative; }
+      .swatch.checkered { background-color: white; background-image: linear-gradient(45deg,#e4e8eb 25%,transparent 25%),linear-gradient(-45deg,#e4e8eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e4e8eb 75%),linear-gradient(-45deg,transparent 75%,#e4e8eb 75%); background-size: 16px 16px; background-position: 0 0,0 8px,8px -8px,-8px 0; }
+      .swatch::after { content: ""; position: absolute; inset: 0; background: var(--color); }
+      .detail { padding: .75rem; }
+      .hex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 750; font-size: 1rem; }
+      .count { color: var(--muted); font-size: .8rem; }
+      .decision { display: inline-flex; margin-block-start: .55rem; padding: .18rem .42rem; border-radius: 99px; color: white; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: var(--decision); }
+      .decision.collapse { --decision: var(--collapse); }.decision.keep { --decision: var(--keep); }.decision.review { --decision: var(--review); }
+      .note { margin-block-start: .45rem; color: var(--muted); font-size: .8rem; }
+      .token { display: block; margin-block-start: .35rem; font: .75rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
+      .empty { display: none; padding: 2rem; background: var(--card); border: 1px dashed var(--line); border-radius: .7rem; color: var(--muted); }
+      .empty.show { display: block; }
+      @media (width < 38rem) { .toolbar { position: static; }.section-head { align-items: flex-start; flex-direction: column; gap: .15rem; } }
+      @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Colour palette audit</h1>
+      <p class="intro">A visual decision sheet for the colours currently used in the UI and D3 charts. “Collapse” means route it to the named token; “keep distinct” means retain a named chart/domain token; “review” needs a semantic decision before migration.</p>
+
+      <div class="toolbar" aria-label="Palette filters">
+        <button type="button" data-filter="all" aria-pressed="true">All colours</button>
+        <button type="button" data-filter="collapse" aria-pressed="false">Candidate collapse</button>
+        <button type="button" data-filter="keep" aria-pressed="false">Keep distinct</button>
+        <button type="button" data-filter="review" aria-pressed="false">Needs review</button>
+        <input type="search" id="search" placeholder="Filter by hex, token, or note" aria-label="Filter colours">
+      </div>
+
+      <div class="legend"><span class="collapse">collapse to token</span><span class="keep">keep as named token</span><span class="review">semantic decision needed</span></div>
+      <div id="palette"></div>
+      <p id="empty" class="empty">No colours match this filter.</p>
+    </main>
+
+    <script>
+      // Counts are the current repository-wide literal counts, rounded to the audit's source scan.
+      const groups = [
+        { title: "Foundation: straightforward consolidation", description: "Literal UI colours that already have an equivalent global token.", colors: [
+          ["#ffffff / #fff / #f5f7fa", 79, "collapse", "Collapse all three surface literals to one canonical surface token.", "--color-surface"],
+          ["#1c1c1c", 21, "collapse", "Primary chart and UI text.", "--color-text-main"],
+          ["#666 / #666666", 34, "collapse", "Mostly axis and supporting text.", "--color-text-muted"],
+          ["#333", 18, "collapse", "Use the canonical primary text colour.", "--color-text-main (#1c1c1c)"],
+          ["#888 / #999 / #777", 11, "collapse", "Muted/secondary chart labels.", "--color-text-subtle"],
+          ["#94a3b8", 8, "review", "Chart tooltip outline; retain as a chart-border role if contrast changes.", "--color-chart-tooltip-border"],
+          ["#e5e5e5 / #e9ecef", 7, "collapse", "Chart grid lines.", "--color-border-light or --color-chart-grid"],
+          ["#f5f5f5 / #fafafa", 2, "collapse", "Muted surfaces.", "--color-background-muted / --color-surface-muted"],
+          ["#edf4f9", 1, "collapse", "Primary app background.", "--color-background"],
+          ["#d3d3d3 / #dde6ea / #e2e8f0", 3, "collapse", "Border variants.", "--color-border / --color-border-dim"],
+        ]},
+        { title: "Status colours", description: "The semantic role is clear; consolidate rogue values before touching data-series colours.", colors: [
+          ["#c0392b", 21, "collapse", "Rogue danger red used in Simulation.", "--color-danger"],
+          ["#d32f2f / #c62828 / #ef4444 / #ef5350", 4, "collapse", "One canonical danger status colour.", "--color-danger"],
+          ["#2e7d32", 12, "keep", "Current canonical success green.", "--color-success"],
+          ["#27ae60 / #1e8449 / #3d7a00 / #4caf50", 20, "collapse", "Rogue positive greens.", "--color-success or --color-positive-strong"],
+          ["#f5a623", 8, "keep", "Current canonical warning colour.", "--color-warning"],
+          ["#f59e0b / #d97706", 4, "collapse", "Shifts depot-marker oranges.", "--color-warning"],
+          ["#e67e22 / #d4881f / #d4a017 / #8b6914", 16, "review", "May encode different non-status chart metrics, not warnings.", "named chart series tokens"],
+        ]},
+        { title: "Blue family", description: "Choose one brand-adjacent base only where the data meaning is the same.", colors: [
+          ["#003296", 1, "keep", "Canonical brand-secondary.", "--color-brand-secondary"],
+          ["#00639a", 10, "review", "Simulation/Yearly efficiency and chart series; likely a chart-primary role.", "--color-chart-primary"],
+          ["#1a73e8 / #3498db / #007bff", 6, "collapse", "Rogue UI/chart blues competing with the chart primary.", "--color-chart-primary"],
+          ["#0b74de", 1, "collapse", "Fleet timeline trip line.", "--color-trip-line"],
+          ["#007bff", 1, "collapse", "Fleet shift visualization trip line.", "--color-trip-line"],
+          ["#6fbeec", 10, "keep", "Brand accent; useful as a lighter series companion.", "--color-brand-accent / --color-chart-secondary"],
+          ["#4f86c6 / #2980b9 / #1f4e79 / #1a6fa0", 8, "review", "Cost/energy series blues: decide whether they mean distinct metrics.", "named chart series tokens"],
+          ["#00aaff / #5b8def / #2563eb / #4271c9", 4, "review", "One-off interface blues; assess by component meaning.", "--color-brand-secondary or chart token"],
+        ]},
+        { title: "Chart data series: keep distinguishable", description: "These should become named tokens, but should not collapse into success/warning/danger merely because they share a hue.", colors: [
+          ["#e74c3c", 3, "keep", "Lifecycle phase: direct emissions.", "--color-chart-phase-direct"],
+          ["#f1c40f", 3, "keep", "Lifecycle phase: energy chain.", "--color-chart-phase-energy-chain"],
+          ["#9b59b6", 3, "keep", "Lifecycle phase: vehicle manufacturing.", "--color-chart-phase-vehicle"],
+          ["#1abc9c", 3, "keep", "Lifecycle phase: infrastructure.", "--color-chart-phase-infrastructure"],
+          ["#7f8c8d / #95a5a6", 8, "collapse", "One neutral chart-series colour.", "--color-chart-neutral"],
+          ["#5f8f2f", 4, "keep", "Cost series: maintenance.", "--color-chart-cost-maintenance"],
+          ["#abe828 / #587a00", 5, "review", "Optimisation/prediction highlight; clarify whether it means success or an independent series.", "--color-chart-optimized"],
+          ["#cfd8e3 / #d7e1e8", 9, "collapse", "One chart track/reference colour.", "--color-chart-track"],
+        ]},
+        { title: "One-off UI colours", description: "Low-frequency values worth checking during the component-by-component pass.", colors: [
+          ["#0f3c3c / #092525 / #4a9da6", 3, "keep", "Brand teal and its hover/light companions.", "--color-brand-primary (+ variants)"],
+          ["#e63946", 1, "review", "Map marker red; map semantics may need its own token.", "--color-map-marker-danger"],
+          ["#1e293b", 1, "keep", "Tooltip background.", "--color-tooltip-bg"],
+          ["#4f4f4f / #65727d / #272727", 4, "keep", "Existing text-token source values.", "--color-text-muted / --color-text-subtle / --color-text-label"],
+          ["#fff3cd / #f8d7da / #d4edda / #cce5ff", 4, "keep", "Badge background family.", "--badge-*-bg"],
+          ["#856404 / #721c24 / #155724 / #004085", 4, "keep", "Badge text family.", "--badge-*-text"],
+          ["#d6dee3 / #7f8b96 / #f3f5f7", 3, "keep", "Disabled control family.", "--color-disabled-*"],
+        ]},
+        { title: "Transparent variants", description: "Do not make independent colour tokens for these: derive them from the base token where the base meaning matches.", colors: [
+          ["rgba(0, 99, 154, 0.03–0.18)", 12, "collapse", "Efficiency-chart tints.", "derived from --color-chart-primary"],
+          ["rgba(192, 57, 43, 0.06–0.12)", 3, "collapse", "Rogue red tints.", "derived from --color-danger"],
+          ["rgba(39, 174, 96, 0–0.03)", 2, "collapse", "Rogue green tints.", "derived from --color-success"],
+          ["rgba(15, 60, 60, 0.04–0.22)", 17, "keep", "Brand-primary interaction and shadow tints.", "derived from --color-brand-primary"],
+          ["rgba(255, 255, 255, 0.12–0.98)", 10, "keep", "Sidebar translucent whites.", "sidebar-specific tokens"],
+          ["rgba(0, 0, 0, 0.015–0.8)", 23, "review", "Shadows, overlays, and chart effects have different purposes.", "named shadow/overlay tokens"],
+        ]},
+      ];
+
+      const palette = document.querySelector("#palette");
+      const empty = document.querySelector("#empty");
+      const search = document.querySelector("#search");
+      let activeFilter = "all";
+
+      const representative = (value) => {
+        const hex = value.match(/#[0-9a-f]{3,8}/i)?.[0];
+        if (hex) return hex;
+        return value.match(/rgba?\([^)]*\)/i)?.[0] || "transparent";
+      };
+
+      palette.innerHTML = groups.map((group, groupIndex) => `
+        <section class="section" data-group="${groupIndex}">
+          <div class="section-head"><h2>${group.title}</h2><p>${group.description}</p></div>
+          <div class="cards">${group.colors.map(([color, count, decision, note, token]) => `
+            <article class="card" data-decision="${decision}" data-search="${[color, note, token, decision].join(" ").toLowerCase()}">
+              <div class="swatch ${color.startsWith("rgba") ? "checkered" : ""}" style="--color: ${representative(color)}"></div>
+              <div class="detail">
+                <div class="hex">${color}</div><div class="count">${count} literal occurrence${count === 1 ? "" : "s"}</div>
+                <span class="decision ${decision}">${decision === "collapse" ? "collapse" : decision === "keep" ? "keep distinct" : "review"}</span>
+                <p class="note">${note}</p><span class="token">${token}</span>
+              </div>
+            </article>`).join("")}
+          </div>
+        </section>`).join("");
+
+      function filterCards() {
+        const term = search.value.trim().toLowerCase();
+        let visible = 0;
+        document.querySelectorAll(".card").forEach((card) => {
+          const matchesDecision = activeFilter === "all" || card.dataset.decision === activeFilter;
+          const matchesSearch = !term || card.dataset.search.includes(term);
+          card.hidden = !(matchesDecision && matchesSearch);
+          if (!card.hidden) visible += 1;
+        });
+        document.querySelectorAll(".section").forEach((section) => {
+          section.hidden = !section.querySelector(".card:not([hidden])");
+        });
+        empty.classList.toggle("show", visible === 0);
+      }
+
+      document.querySelectorAll("[data-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeFilter = button.dataset.filter;
+          document.querySelectorAll("[data-filter]").forEach((item) => item.setAttribute("aria-pressed", item === button));
+          filterCards();
+        });
+      });
+      search.addEventListener("input", filterCards);
+    </script>
+  </body>
+</html>
