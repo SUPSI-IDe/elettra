@@ -11,6 +11,10 @@
   box-shadow: var(--shadow-sm);
 }
 
+.custom-stop-table th.checkbox {
+  text-align: left;
+}
+
 /* Add custom stop form - page-specific overrides */
 .add-custom-stop .intro {
   max-width: 48ch;

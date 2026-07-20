@@ -322,12 +322,11 @@
 .shifts-table th.checkbox,
 .shifts-table td.checkbox {
   width: 2.5rem;
-  text-align: center;
+  text-align: left;
 }
 
 .shifts-table th.name,
 .shifts-table td.name {
-  width: 16%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -335,7 +334,6 @@
 
 .shifts-table th.bus,
 .shifts-table td.bus {
-  width: 16%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -347,7 +345,6 @@
 .shifts-table td.end,
 .shifts-table th.distance,
 .shifts-table td.distance {
-  width: 10%;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -358,15 +355,11 @@
   justify-content: flex-end;
 }
 
-.shifts-table th.route,
-.shifts-table td.route {
-  width: 10%;
-}
-
 .shifts-table th.actions,
 .shifts-table td.actions {
-  width: 12%;
-  text-align: left;
+  width: 8rem;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .visualize-shift {
