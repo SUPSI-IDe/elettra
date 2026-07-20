@@ -1460,7 +1460,7 @@ const buildChargingConfigurationSection = (costInputs = {}) => {
                 t("simulation.cs_stop_name") || "Stop"
               )}</th>
               ${includeStatus
-                ? `<th>${textContent(
+                ? `<th class="efficiency-th-text">${textContent(
                     translateOr("simulation.costs_input_station_status", "Status")
                   )}</th>`
                 : ""}
@@ -1500,7 +1500,7 @@ const buildChargingConfigurationSection = (costInputs = {}) => {
                       : textContent(formatFixed(row.totalPowerKw, 0))
                   }</td>
                   ${includeSlotCosts
-                    ? `<td>${textContent(formatSlotCostsSummary(row.slotCosts))}</td>`
+                    ? `<td class="efficiency-td-num">${textContent(formatSlotCostsSummary(row.slotCosts))}</td>`
                     : ""}
                 </tr>`)
               .join("")}
@@ -3201,7 +3201,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
         <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
         <td class="efficiency-td-num">${bOpen}${textContent(String(b.required_total_packs ?? "—"))}${bClose}</td>
         <td class="efficiency-td-num">${textContent(String(b.excess_packs ?? 0))}</td>
-        <td class="efficiency-td-center"><span class="efficiency-badge ${feasBadge}">${textContent(
+        <td><span class="efficiency-badge ${feasBadge}">${textContent(
           physFeasible === true ? (t("simulation.feasibility_feasible") || "Feasible") :
           physFeasible === false ? (t("simulation.feasibility_infeasible") || "Infeasible") : "—"
         )}</span></td>
@@ -3222,7 +3222,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
               <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical")}</th>
               <th>${textContent(t("simulation.opt_col_required_packs") || "Required")}</th>
               <th>${textContent(t("simulation.opt_col_excess") || "Excess")}</th>
-              <th class="efficiency-th-center">${textContent(t("simulation.opt_col_feasibility") || "Feasibility")}</th>
+              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_feasibility") || "Feasibility")}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -5908,14 +5908,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   );
 
   const conditions = [
-    ...(viewOptions?.selectedShiftName
-      ? [
-          {
-            label: t("simulation.general_shift_name") || "Shift name",
-            value: textContent(viewOptions.selectedShiftName),
-          },
-        ]
-      : []),
     { label: t("simulation.var_optimization_mode") || "Mode", value: modeLabel(ip.mode ?? "") },
     {
       label:
@@ -6069,7 +6061,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   const chartsHtml = chartCards.length > 0
     ? `
     <div class="efficiency-section">
-      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_graphical_analysis") || "Graphical analysis")}</h3>
+      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_graphical_analysis") || "Visual analysis")}</h3>
       <div class="${chartGridClass}">
         ${chartCards.join("")}
       </div>
@@ -6078,8 +6070,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
 
   const predictionTableHtml = isFeasible || predictionData.length > 0
     ? `
-    <details class="efficiency-section efficiency-collapsible" open>
-      <summary class="efficiency-section-title efficiency-collapsible__toggle">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</summary>
+    <section class="efficiency-section">
+      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</h3>
       <div class="efficiency-table-wrap">
         <table class="efficiency-table">
           <thead>
@@ -6102,7 +6094,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           <tbody>${tableBody}</tbody>
         </table>
       </div>
-    </details>`
+    </section>`
     : "";
 
   const sensitivityFeasibilityCardHtml = buildSensitivityFeasibilityCardHtml(
@@ -6113,15 +6105,20 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   );
 
   el.innerHTML = `
-    ${sensitivityFeasibilityCardHtml}
-    <div class="efficiency-section">
-      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
-      <div class="efficiency-params-grid">${conditionsHtml}</div>
-      ${predictionSummaryHtml}
-    </div>
-    ${optimizationHtml}
     ${isFeasible ? chartsHtml : ""}
-    ${predictionTableHtml}`;
+    ${sensitivityFeasibilityCardHtml}
+    <details class="efficiency-more-information">
+      <summary class="efficiency-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
+      <div class="efficiency-more-information__content">
+        <div class="efficiency-section">
+          <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
+          <div class="efficiency-params-grid">${conditionsHtml}</div>
+          ${predictionSummaryHtml}
+        </div>
+        ${optimizationHtml}
+        ${predictionTableHtml}
+      </div>
+    </details>`;
 
   renderEfficiencyEnergySplitChart(
     el.querySelector('[data-role="efficiency-energy-chart"]'),
@@ -8433,19 +8430,14 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const pageTitleEl = section.querySelector('[data-role="results-page-title"]');
   const simNameEl = section.querySelector('[data-role="sim-name"]');
+  const evaluationNameEl = section.querySelector('[data-role="results-evaluation-name"]');
   const busModelEl = section.querySelector('[data-role="sim-bus-model"]');
   const shiftTabsEl = section.querySelector('[data-role="shift-tabs"]');
   const overlay = section.querySelector('[data-role="sim-data-overlay"]');
   const subtitleEl = section.querySelector('[data-role="sim-data-subtitle"]');
-  const scenarioScalingOverlay = section.querySelector('[data-role="scenario-scaling-overlay"]');
-  const scenarioScalingSubtitleEl = section.querySelector(
-    '[data-role="scenario-scaling-subtitle"]'
-  );
   const scenarioScalingContentEl = section.querySelector(
     '[data-role="scenario-scaling-content"]'
   );
-  const investmentOverlay = section.querySelector('[data-role="investment-overlay"]');
-  const investmentSubtitleEl = section.querySelector('[data-role="investment-subtitle"]');
   const investmentContentEl = section.querySelector('[data-role="investment-content"]');
   const fuelCostInput = section.querySelector('[data-role="cost-variable-fuel-cost"]');
   const energyPriceInput = section.querySelector('[data-role="cost-variable-energy-price"]');
@@ -8465,33 +8457,25 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const busModelName = options.busModelName || "";
   const renderPageTitle = () => {
     if (!pageTitleEl) return;
-    const baseTitle =
+    pageTitleEl.textContent =
       t("simulation.results_page_title") || "Feasibility evaluation results";
-    const simulationName = resolveSimulationName(loadedOptimizationRun, options);
-    pageTitleEl.textContent = simulationName
-      ? `${baseTitle} – ${simulationName}`
-      : baseTitle;
+  };
+  const renderEvaluationName = () => {
+    if (!evaluationNameEl) return;
+    evaluationNameEl.textContent =
+      resolveSimulationName(loadedOptimizationRun, options) || "—";
   };
   const getResultsSubtitle = () =>
     firstText(options.simulationName, activeShiftName);
 
   renderPageTitle();
+  renderEvaluationName();
   if (simNameEl) simNameEl.textContent = activeShiftName;
   if (busModelEl) busModelEl.textContent = busModelName;
   if (subtitleEl) {
     const subtitle = getResultsSubtitle();
     subtitleEl.textContent = subtitle;
     subtitleEl.hidden = !subtitle;
-  }
-  if (scenarioScalingSubtitleEl) {
-    const subtitle = getResultsSubtitle();
-    scenarioScalingSubtitleEl.textContent = subtitle;
-    scenarioScalingSubtitleEl.hidden = !subtitle;
-  }
-  if (investmentSubtitleEl) {
-    const subtitle = getResultsSubtitle();
-    investmentSubtitleEl.textContent = subtitle;
-    investmentSubtitleEl.hidden = !subtitle;
   }
 
   const renderGeneralInfo = (overrides = {}) => {
@@ -8578,16 +8562,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       subtitleEl.textContent = subtitle;
       subtitleEl.hidden = !subtitle;
     }
-    if (scenarioScalingSubtitleEl) {
-      const subtitle = getResultsSubtitle();
-      scenarioScalingSubtitleEl.textContent = subtitle;
-      scenarioScalingSubtitleEl.hidden = !subtitle;
-    }
-    if (investmentSubtitleEl) {
-      const subtitle = getResultsSubtitle();
-      investmentSubtitleEl.textContent = subtitle;
-      investmentSubtitleEl.hidden = !subtitle;
-    }
+    renderEvaluationName();
 
     const firstPredictionRun = loadedPredictionRuns[0] ?? {};
     renderGeneralInfo({
@@ -8683,15 +8658,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     subtitleEl.textContent = "";
     subtitleEl.hidden = true;
   }
-  if (scenarioScalingSubtitleEl) {
-    scenarioScalingSubtitleEl.textContent = "";
-    scenarioScalingSubtitleEl.hidden = true;
-  }
-  if (investmentSubtitleEl) {
-    investmentSubtitleEl.textContent = "";
-    investmentSubtitleEl.hidden = true;
-  }
-
   renderGeneralInfo();
   renderBusInfo();
   renderChargingInfrastructure(section.querySelector('[data-role="charging-info"]'), null, {
@@ -8752,63 +8718,27 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     cleanupHandlers.push(() => overlay.removeEventListener("click", onBg));
   }
 
-  const toggleScenarioScalingOverlay = () => {
-    if (scenarioScalingOverlay) scenarioScalingOverlay.hidden = !scenarioScalingOverlay.hidden;
+  const activateRawDataTab = (tabName) => {
+    section.querySelectorAll(".sim-data-tab").forEach((btn) => {
+      const active = btn.dataset.tab === tabName;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-selected", String(active));
+    });
+    section.querySelectorAll(".sim-data-tab-panel").forEach((panel) => {
+      const active = panel.dataset.panel === tabName;
+      panel.classList.toggle("active", active);
+      panel.hidden = !active;
+    });
   };
-  section.querySelectorAll('[data-action="toggle-scenario-scaling"]').forEach((btn) => {
-    btn.addEventListener("click", toggleScenarioScalingOverlay);
-    cleanupHandlers.push(() =>
-      btn.removeEventListener("click", toggleScenarioScalingOverlay)
-    );
-  });
-
-  const closeScenarioScalingOverlay = () => {
-    if (scenarioScalingOverlay) scenarioScalingOverlay.hidden = true;
-  };
-  section.querySelectorAll('[data-action="close-scenario-scaling"]').forEach((btn) => {
-    btn.addEventListener("click", closeScenarioScalingOverlay);
-    cleanupHandlers.push(() =>
-      btn.removeEventListener("click", closeScenarioScalingOverlay)
-    );
-  });
-
-  if (scenarioScalingOverlay) {
-    const onScenarioScalingBg = (e) => {
-      if (e.target === scenarioScalingOverlay) closeScenarioScalingOverlay();
+  const rawDataTabs = section.querySelector(".sim-data-tabs");
+  if (rawDataTabs) {
+    const handleRawDataTabClick = (event) => {
+      const btn = event.target.closest(".sim-data-tab");
+      if (btn) activateRawDataTab(btn.dataset.tab);
     };
-    scenarioScalingOverlay.addEventListener("click", onScenarioScalingBg);
+    rawDataTabs.addEventListener("click", handleRawDataTabClick);
     cleanupHandlers.push(() =>
-      scenarioScalingOverlay.removeEventListener("click", onScenarioScalingBg)
-    );
-  }
-
-  const toggleInvestmentOverlay = () => {
-    if (investmentOverlay) investmentOverlay.hidden = !investmentOverlay.hidden;
-  };
-  section.querySelectorAll('[data-action="toggle-investment-breakdown"]').forEach((btn) => {
-    btn.addEventListener("click", toggleInvestmentOverlay);
-    cleanupHandlers.push(() =>
-      btn.removeEventListener("click", toggleInvestmentOverlay)
-    );
-  });
-
-  const closeInvestmentOverlay = () => {
-    if (investmentOverlay) investmentOverlay.hidden = true;
-  };
-  section.querySelectorAll('[data-action="close-investment-breakdown"]').forEach((btn) => {
-    btn.addEventListener("click", closeInvestmentOverlay);
-    cleanupHandlers.push(() =>
-      btn.removeEventListener("click", closeInvestmentOverlay)
-    );
-  });
-
-  if (investmentOverlay) {
-    const onInvestmentBg = (e) => {
-      if (e.target === investmentOverlay) closeInvestmentOverlay();
-    };
-    investmentOverlay.addEventListener("click", onInvestmentBg);
-    cleanupHandlers.push(() =>
-      investmentOverlay.removeEventListener("click", onInvestmentBg)
+      rawDataTabs.removeEventListener("click", handleRawDataTabClick)
     );
   }
 
@@ -9155,6 +9085,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       loadedOptimizationRun = optimizationRun;
       options.simulationName = resolveSimulationName(optimizationRun, options);
       renderPageTitle();
+      renderEvaluationName();
       const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
         ? optimizationRun.prediction_run_ids
         : [];

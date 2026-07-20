@@ -27,6 +27,27 @@
   margin-bottom: var(--spacing-md);
 }
 
+.results-evaluation-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  min-height: 3.25rem;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md, 6px);
+  background: #fff;
+  color: var(--text-main);
+}
+
+.results-evaluation-summary strong {
+  font-weight: 600;
+}
+
+.results-evaluation-summary .sim-data-btn {
+  margin-left: auto;
+}
+
 .results-shift-tabs {
   display: flex;
   gap: var(--spacing-xs);
@@ -550,7 +571,7 @@
 }
 
 .investment-table td {
-  padding: 0.5rem 0.75rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   border-bottom: 1px solid var(--color-border-dim);
 }
 
@@ -634,7 +655,7 @@
 
 .costs-inputs-table th,
 .costs-inputs-table td {
-  padding: 0.65rem 0.75rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   border-bottom: 1px solid var(--border-light);
   vertical-align: top;
 }
@@ -642,8 +663,8 @@
 .costs-inputs-table th {
   text-align: left;
   font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-secondary);
   background: var(--background-alt, #f5f7fa);
 }
@@ -656,6 +677,13 @@
 
 .costs-inputs-table td:last-child {
   color: var(--text-main);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.costs-inputs-table--detailed :is(th, td):nth-child(n + 2) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .costs-inputs-table--detailed td:nth-child(1) {
@@ -776,6 +804,40 @@
   max-width: 560px;
 }
 
+.sim-data-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-light);
+  overflow-x: auto;
+}
+
+.sim-data-tab {
+  flex: 0 0 auto;
+  padding: 0.6rem 0.9rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sim-data-tab:hover,
+.sim-data-tab:focus-visible {
+  color: var(--text-main);
+}
+
+.sim-data-tab.active {
+  border-bottom-color: var(--brand-teal);
+  color: var(--brand-teal);
+}
+
+.sim-data-tab-panel[hidden] {
+  display: none;
+}
+
 .sim-data-header {
   display: flex;
   justify-content: space-between;
@@ -867,6 +929,16 @@
 }
 
 @media (max-width: 768px) {
+  .results-evaluation-summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .results-evaluation-summary .sim-data-btn {
+    width: 100%;
+    margin-left: 0;
+  }
+
   .sim-data-columns {
     grid-template-columns: 1fr;
   }
@@ -1231,6 +1303,48 @@
   line-height: 1.35;
 }
 
+.efficiency-more-information {
+  min-width: 0;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.efficiency-more-information__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem var(--spacing-md);
+  color: var(--text-main);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.efficiency-more-information__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.efficiency-more-information__toggle::before {
+  content: "▸";
+  color: var(--text-secondary);
+  font-size: 0.85em;
+  transition: transform 0.15s ease;
+}
+
+.efficiency-more-information[open] > .efficiency-more-information__toggle::before {
+  transform: rotate(90deg);
+}
+
+.efficiency-more-information__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: 1.25rem;
+  border-top: 1px solid var(--border-light);
+}
+
 .efficiency-params-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -1404,10 +1518,10 @@
   color: var(--text-secondary);
   font-size: 0.72rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.55rem 0.85rem;
-  text-align: center;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
+  text-align: right;
   border-bottom: 2px solid var(--border-light);
   white-space: nowrap;
 }
@@ -1421,20 +1535,16 @@
 }
 
 .efficiency-table td {
-  padding: 0.5rem 0.85rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   border-bottom: 1px solid var(--border-light);
   color: var(--text-main);
   white-space: nowrap;
-  text-align: center;
+  text-align: left;
 }
 
 .efficiency-td-num {
-  text-align: center;
+  text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-.efficiency-td-center {
-  text-align: center;
 }
 
 .efficiency-td-highlight {
@@ -1443,9 +1553,9 @@
 }
 
 .efficiency-no-data {
-  text-align: center;
+  text-align: left;
   color: var(--text-secondary);
-  padding: var(--spacing-lg) !important;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline) !important;
   font-style: italic;
 }
 
@@ -1471,11 +1581,7 @@
 /* Left-aligned text header for Shift column */
 
 .efficiency-th-text {
-  text-align: center !important;
-}
-
-.efficiency-th-center {
-  text-align: center !important;
+  text-align: left !important;
 }
 
 /* Collapsible sections */
@@ -1736,9 +1842,9 @@
   color: var(--text-secondary);
   font-size: 0.72rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.55rem 0.8rem;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   border-bottom: 2px solid var(--border-light);
   text-align: right;
   white-space: nowrap;
@@ -1755,7 +1861,7 @@
 
 .predictions-table tbody th,
 .predictions-table tbody td {
-  padding: 0.55rem 0.8rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   border-bottom: 1px solid var(--border-light);
   white-space: nowrap;
 }
@@ -2094,11 +2200,11 @@
 }
 
 .emissions-recap-table thead th {
-  padding: 0.6rem 0.75rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   font-size: 0.72rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-secondary);
   border-bottom: 2px solid var(--border-light);
   text-align: left;
@@ -2110,7 +2216,7 @@
 }
 
 .emissions-recap-table tbody td {
-  padding: 0.55rem 0.75rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   border-bottom: 1px solid var(--border-light);
   color: var(--text-main);
 }
@@ -2153,7 +2259,7 @@
 /* ── Env table: two-level grouped header ─────────────────────── */
 
 .emissions-recap-table--env thead th:not(:first-child) {
-  text-align: center;
+  text-align: right;
 }
 
 .emissions-recap-table--env .env-header-main th {
@@ -2166,21 +2272,20 @@
 }
 
 .emissions-recap-table--env .env-header-sub th {
-  padding-top: 0.3rem;
-  padding-bottom: 0.4rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   font-size: 0.66rem;
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0.02em;
   color: var(--text-secondary, #888);
   border-bottom: 2px solid var(--border-light);
-  text-align: center;
+  text-align: right;
 }
 
 /* ── Env table: data cell centering ──────────────────────────── */
 
 .emissions-recap-table--env tbody td:not(:first-child) {
-  text-align: center;
+  text-align: right;
 }
 
 /* ── Env table: inline unit spans ────────────────────────────── */
