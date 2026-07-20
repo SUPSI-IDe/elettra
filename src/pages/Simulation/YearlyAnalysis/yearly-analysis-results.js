@@ -81,12 +81,6 @@ const quantileHelpText = () =>
     "Q50 is the median scenario prediction. Q05 is a low-demand estimate and Q95 is a high-demand estimate. Q05-Q95 shows the prediction spread across simulations; wider intervals indicate higher uncertainty."
   );
 
-const efficiencyTemperatureHelpText = () =>
-  translateOr(
-    "yearly_analysis.efficiency_temperature_uncertainty_help",
-    "Q50 is the median scenario efficiency. The Q05-Q95 band shows the prediction spread across simulations for each temperature scenario."
-  );
-
 const annualContributionHelpText = () =>
   translateOr(
     "yearly_analysis.annual_contribution_uncertainty_help",
@@ -3240,12 +3234,16 @@ const renderEmissionsPanel = (sec, emState) => {
   const co2El = panel.querySelector('[data-role="ya-env-co2-phase"]');
   const co2LegEl = panel.querySelector('[data-role="ya-env-co2-phase-legend"]');
   const methEl = panel.querySelector('[data-role="ya-env-methodology"]');
+  const chartsEl = panel.querySelector(".ya-env-chart-grid");
+  const moreInformationEl = panel.querySelector(".ya-more-information");
   setYaCo2PhaseTitle(co2El, emState?.status === "done" && !!emState?.isDieselHeating);
 
   const clearAll = () => {
     [headerEl, kpisEl, tableEl, histEl, histLegEl, co2El, co2LegEl, methEl]
       .forEach((e) => { if (e) e.innerHTML = ""; });
     if (controlsEl) controlsEl.hidden = true;
+    if (chartsEl) chartsEl.hidden = true;
+    if (moreInformationEl) moreInformationEl.hidden = true;
   };
 
   if (emState.status === "loading") {
@@ -3263,6 +3261,9 @@ const renderEmissionsPanel = (sec, emState) => {
     if (kpisEl) kpisEl.innerHTML = `<p class="ya-status-msg">${textContent(t("simulation.emissions_no_data"))}</p>`;
     return;
   }
+
+  if (chartsEl) chartsEl.hidden = false;
+  if (moreInformationEl) moreInformationEl.hidden = false;
 
   const electricY = emState.electricYearly;
   const dieselY = emState.dieselYearly;
@@ -3798,7 +3799,7 @@ const downloadJson = (data, filename) => {
 
 /* ── Overview rendering ────────────────────────────────────────── */
 
-const renderOverviewPanel = (el, features, effState, costState, emissionsState, busModelData = {}, { onDownload } = {}) => {
+const renderOverviewPanel = (el, features, effState, costState, emissionsState, busModelData = {}) => {
   if (!el) return;
 
   const cfg = features.config ?? {};
@@ -3933,19 +3934,7 @@ const renderOverviewPanel = (el, features, effState, costState, emissionsState, 
     }
   }
 
-  el.innerHTML = `
-    <div class="ya-overview-grid">${columns.join("")}</div>
-    <div class="ya-overview-actions">
-      <button class="ya-btn ya-btn--download" data-action="download-json" type="button">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M8 1v9m0 0L5 7m3 3 3-3M2 12v1.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        ${textContent(t("yearly_analysis.download_json"))}
-      </button>
-    </div>`;
-
-  const dlBtn = el.querySelector('[data-action="download-json"]');
-  if (dlBtn && onDownload) dlBtn.addEventListener("click", onDownload);
+  el.innerHTML = `<div class="ya-overview-grid">${columns.join("")}</div>`;
 
   el.querySelectorAll('[data-action="open-simulation-results"]').forEach((simLink) => {
     simLink.addEventListener("click", (event) => {
@@ -3998,10 +3987,12 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   const cleanups = [];
   const pageTitleEl = section.querySelector('[data-role="page-title"]');
+  const analysisNameEl = section.querySelector('[data-role="ya-analysis-name"]');
   const feedbackEl = section.querySelector('[data-role="feedback"]');
   const overviewPanel = section.querySelector('[data-role="overview-panel"]');
-  const efficiencyContent = section.querySelector('[data-role="efficiency-content"]');
   const emissionsContent = section.querySelector('[data-role="emissions-content"]');
+  const configOverlay = section.querySelector('[data-role="ya-config-overlay"]');
+  const configContent = section.querySelector('[data-role="ya-configuration-content"]');
 
   const analysisId = options.analysisId ?? "";
   if (!analysisId) {
@@ -4023,11 +4014,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   }
 
   const analysisName = text(analysis.name).trim();
-  if (pageTitleEl) {
-    pageTitleEl.textContent = analysisName
-      ? t("yearly_analysis.results_title_named", { name: analysisName })
-      : t("yearly_analysis.results_title");
-  }
+  if (pageTitleEl) pageTitleEl.textContent = t("yearly_analysis.results_title");
+  if (analysisNameEl) analysisNameEl.textContent = analysisName || "—";
 
   const features = analysis.features ?? {};
   const scenarioResults = features.results?.scenarioResults ?? [];
@@ -4083,7 +4071,41 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     downloadJson(payload, `yearly-analysis-${timestamp}.json`);
   };
-  const overviewOpts = { onDownload: handleDownload };
+  if (configContent) configContent.innerHTML = renderConfig(features);
+
+  const openConfiguration = () => {
+    if (!configOverlay) return;
+    configOverlay.hidden = false;
+    configOverlay.querySelector('[data-action="close-configuration"]')?.focus();
+  };
+  const closeConfiguration = () => {
+    if (configOverlay) configOverlay.hidden = true;
+  };
+
+  section.querySelectorAll('[data-action="view-configuration"]').forEach((btn) => {
+    btn.addEventListener("click", openConfiguration);
+    cleanups.push(() => btn.removeEventListener("click", openConfiguration));
+  });
+  section.querySelectorAll('[data-action="close-configuration"]').forEach((btn) => {
+    btn.addEventListener("click", closeConfiguration);
+    cleanups.push(() => btn.removeEventListener("click", closeConfiguration));
+  });
+  section.querySelectorAll('[data-action="download-json"]').forEach((btn) => {
+    btn.addEventListener("click", handleDownload);
+    cleanups.push(() => btn.removeEventListener("click", handleDownload));
+  });
+
+  const overlayClickHandler = (event) => {
+    if (event.target === configOverlay) closeConfiguration();
+  };
+  configOverlay?.addEventListener("click", overlayClickHandler);
+  if (configOverlay) cleanups.push(() => configOverlay.removeEventListener("click", overlayClickHandler));
+
+  const overlayKeyHandler = (event) => {
+    if (event.key === "Escape" && configOverlay && !configOverlay.hidden) closeConfiguration();
+  };
+  document.addEventListener("keydown", overlayKeyHandler);
+  cleanups.push(() => document.removeEventListener("keydown", overlayKeyHandler));
 
   /* ── Efficiency state (mutable — recomputed after quantile backfill) */
   const effState = { enriched: null, summary: null, effByTemp: null, annualContrib: null, annualContributionMode: "yearly" };
@@ -4096,12 +4118,37 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   };
   recomputeEfficiency(scenarioResults);
 
+  const detailContent = {
+    critical: section.querySelector('[data-role="ya-detail-critical"]'),
+    scenarios: section.querySelector('[data-role="ya-detail-scenarios"]'),
+    battery: section.querySelector('[data-role="ya-detail-battery"]'),
+    yearlySummary: section.querySelector('[data-role="ya-detail-yearly-summary"]'),
+    yearlyUncertainty: section.querySelector('[data-role="ya-detail-yearly-uncertainty"]'),
+  };
+
+  const renderYearlyDetails = () => {
+    if (detailContent.critical) {
+      detailContent.critical.innerHTML = renderCriticalUncertaintyScenarios(effState.annualContrib);
+    }
+    if (detailContent.scenarios) {
+      detailContent.scenarios.innerHTML = renderScenarioTable(effState.enriched);
+    }
+    if (detailContent.battery) {
+      detailContent.battery.innerHTML = renderBatterySizing(features, analysis.optimization_run_id);
+    }
+    if (detailContent.yearlySummary) {
+      detailContent.yearlySummary.innerHTML = renderYearlySummary(effState.summary);
+    }
+    if (detailContent.yearlyUncertainty) {
+      detailContent.yearlyUncertainty.innerHTML = renderYearlyUncertaintySummary(effState.annualContrib);
+    }
+  };
+
   const effChart1El = section.querySelector('[data-role="ya-eff-chart-1"]');
   const effChart1Legend = section.querySelector('[data-role="ya-eff-chart-1-legend"]');
   const effChart2El = section.querySelector('[data-role="ya-eff-chart-2"]');
   const effChart2Legend = section.querySelector('[data-role="ya-eff-chart-2-legend"]');
   const effChart2UnitToggle = section.querySelector('[data-role="ya-eff-chart-2-unit-toggle"]');
-  const scenarioTableEl = section.querySelector('[data-role="efficiency-scenario-table"]');
   const effChart1NoteEl = section.querySelector('[data-role="ya-eff-chart-1-note"]');
   const effChart2NoteEl = section.querySelector('[data-role="ya-eff-chart-2-note"]');
 
@@ -4124,25 +4171,12 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   };
 
   const renderEfficiency = () => {
-    if (!efficiencyContent) return;
-    efficiencyContent.innerHTML = [
-      renderConfig(features),
-      renderBatterySizing(features, analysis.optimization_run_id),
-      renderYearlySummary(effState.summary),
-      renderYearlyUncertaintySummary(effState.annualContrib),
-      `<p class="ya-sizing-note">${textContent(quantileHelpText())}</p>`,
-    ].join("");
-    if (effChart1NoteEl) effChart1NoteEl.textContent = efficiencyTemperatureHelpText();
+    renderYearlyDetails();
+    if (effChart1NoteEl) effChart1NoteEl.textContent = quantileHelpText();
     if (effChart2NoteEl) effChart2NoteEl.textContent = annualContributionHelpText();
 
     try { renderEfficiencyByTempChart(effChart1El, effChart1Legend, effState.effByTemp); } catch (e) { console.error("[YA-Eff] Chart 1 error:", e); }
     renderAnnualContribution();
-    if (scenarioTableEl) {
-      scenarioTableEl.innerHTML = [
-        renderCriticalUncertaintyScenarios(effState.annualContrib),
-        renderScenarioTable(effState.enriched),
-      ].join("");
-    }
   };
 
   if (effChart2UnitToggle) {
@@ -4204,7 +4238,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         costState,
         getDisplayedEmissionsState(),
         busModelData,
-        overviewOpts,
       );
     }
   };
@@ -4240,7 +4273,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       costState,
       getDisplayedEmissionsState(),
       busModelData,
-      overviewOpts,
     ),
     efficiency: () => renderEfficiency(),
     costs: () => {
@@ -4554,6 +4586,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     );
     if (anyNew) {
       recomputeEfficiency(backfilled);
+      renderYearlyDetails();
       renderedTabs.delete("efficiency");
       refreshActiveTab();
     }
