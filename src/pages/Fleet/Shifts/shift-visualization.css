@@ -16,7 +16,7 @@
 
 .axis text {
     font-family: 'Inter', sans-serif;
-    font-size: 12px;
+    font-size: var(--font-size-2xs);
     fill: var(--dark-gray);
 }
 
@@ -46,7 +46,7 @@
 
 .stop-dot {
     fill: var(--chart-blue);
-    stroke: #fff;
+    stroke: var(--color-surface);
     stroke-width: 1px;
     transition: r 0.2s ease;
 }

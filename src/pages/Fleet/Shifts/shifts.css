@@ -46,7 +46,7 @@
 
 .shift-form .shift-form-card {
   overflow: hidden;
-  background: #ffffff;
+  background: var(--color-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-2xl);
 }
@@ -60,7 +60,7 @@
   margin: 0 var(--spacing-lg);
   padding: var(--spacing-md) 0;
   border-bottom: 1px solid var(--border-light);
-  font-size: 1.15rem;
+  font-size: var(--font-size-heading-sm);
 }
 
 .shift-form .shift-config {
@@ -187,7 +187,7 @@
 .shift-form button {
   padding: 0.65rem 1.25rem;
   border-radius: var(--radius-md);
-  font-size: 0.95rem;
+  font-size: var(--font-size-lg);
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -268,7 +268,7 @@
 
 .shift-form .shift-progress__message {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--font-size-lg);
   color: var(--color-text);
 }
 
@@ -388,7 +388,7 @@
   border: none;
   background: none;
   color: var(--brand-teal);
-  font-size: 0.95rem;
+  font-size: var(--font-size-lg);
   cursor: pointer;
   text-decoration: underline;
   padding: 0.25rem 0.5rem;
@@ -415,7 +415,7 @@
 .shift-summary__card {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-2xl);
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .shift-summary__header {
@@ -428,7 +428,7 @@
 .shift-summary__header h2 {
   margin: 0 var(--spacing-lg);
   padding: var(--spacing-md) 0;
-  font-size: 1.15rem;
+  font-size: var(--font-size-heading-sm);
   font-weight: 600;
   color: var(--text-main);
   line-height: 1.35;
@@ -483,7 +483,7 @@
   margin: 0 var(--spacing-lg);
   padding: var(--spacing-md) 0;
   border-bottom: 1px solid var(--border-light);
-  font-size: 1.15rem;
+  font-size: var(--font-size-heading-sm);
   font-weight: 600;
   color: var(--text-main);
   line-height: 1.35;
@@ -507,7 +507,7 @@
 .shift-summary__table tbody td.empty {
   text-align: left;
   color: var(--dark-gray);
-  font-size: 0.9rem;
+  font-size: var(--font-size-lg);
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   background-color: var(--bg-subtle);
 }
@@ -576,7 +576,7 @@
 }
 
 .timeline-legend__swatch--depot {
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .timeline-legend__swatch--depot::before {
@@ -600,7 +600,7 @@
 }
 
 .visualize-shift .timeline {
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .timeline__chart {
@@ -627,13 +627,13 @@
 }
 
 .timeline__axis--x text {
-  font-size: 0.78rem;
+  font-size: var(--font-size-2xs);
   fill: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
 .timeline__stop-label {
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
   font-family: inherit;
 }
@@ -645,7 +645,7 @@
 }
 
 .timeline__point {
-  fill: #ffffff;
+  fill: var(--color-surface);
   stroke: var(--timeline-blue);
   stroke-width: 2;
 }
@@ -656,21 +656,21 @@
 }
 
 .timeline__point--intermediate {
-  fill: #ffffff;
+  fill: var(--color-surface);
   stroke: var(--timeline-blue);
   stroke-width: 1.5;
 }
 
 .timeline__depot-line {
   fill: none;
-  stroke: #f59e0b;
+  stroke: var(--color-warning);
   stroke-width: 2;
   stroke-dasharray: 5 3;
 }
 
 .timeline__point--depot {
-  fill: #f59e0b;
-  stroke: #d97706;
+  fill: var(--color-warning);
+  stroke: var(--color-warning);
   stroke-width: 2;
 }
 
@@ -767,7 +767,7 @@
   height: 100%;
   min-height: 120px;
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--font-size-lg);
   text-align: center;
   padding: var(--spacing-md);
 }

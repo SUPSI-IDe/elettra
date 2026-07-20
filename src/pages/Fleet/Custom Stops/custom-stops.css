@@ -41,7 +41,7 @@
 }
 
 .add-custom-stop .map-picker-container > label {
-  font-size: 0.95rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--text-label);
 }
