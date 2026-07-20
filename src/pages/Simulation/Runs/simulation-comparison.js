@@ -110,7 +110,7 @@ const COST_COLORS = {
   maintenance: "#5f8f2f",
 };
 const FUEL_COLORS = {
-  diesel: "#c0392b",
+  diesel: "var(--color-danger)",
   electric: "#2e7d32",
 };
 const PROJECTED_COST_TREND_HORIZON_YEARS = 20;
@@ -134,7 +134,7 @@ const LCA_PHASES = [
   { key: "energyChain", i18n: "simulation.emissions_phase_energy_chain", fallback: "Energy chain", color: "#f1c40f" },
   { key: "maintenance", i18n: "simulation.emissions_phase_maintenance", fallback: "Maintenance", color: "#3498db" },
   { key: "vehicle", i18n: "simulation.emissions_phase_vehicle", fallback: "Vehicle mfg.", color: "#9b59b6" },
-  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", fallback: "End of life", color: "#7f8c8d" },
+  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", fallback: "End of life", color: "var(--color-chart-neutral)" },
   { key: "infrastructure", i18n: "simulation.emissions_phase_infrastructure", fallback: "Infrastructure", color: "#1abc9c" },
 ];
 
@@ -811,7 +811,7 @@ const gridLines = (g, scale, innerW, ticks = 5) => {
     .attr("x2", innerW)
     .attr("y1", (d) => scale(d))
     .attr("y2", (d) => scale(d))
-    .attr("stroke", "#e5e5e5")
+    .attr("stroke", "var(--color-border-light)")
     .attr("stroke-dasharray", "3,3");
 };
 
@@ -1015,14 +1015,14 @@ const attachComparisonCostsLineHover = ({
   focus
     .append("circle")
     .attr("r", 4)
-    .attr("fill", "#fff")
+    .attr("fill", "var(--color-surface)")
     .attr("stroke", color)
     .attr("stroke-width", 2);
 
   const tooltip = focus.append("g");
   const tooltipBg = tooltip
     .append("rect")
-    .attr("fill", "#fff")
+    .attr("fill", "var(--color-surface)")
     .attr("stroke", color)
     .attr("stroke-width", 1)
     .attr("rx", 6)
@@ -1336,7 +1336,7 @@ const loadEmissionsDataForComparison = async (
 };
 
 const EMISSIONS_POLLUTANTS = [
-  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "#c0392b", unitGroup: "ton", divisor: 1e6, perKmUnit: "g/km" },
+  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "var(--color-danger)", unitGroup: "ton", divisor: 1e6, perKmUnit: "g/km" },
   { key: "nox", i18n: "simulation.emissions_nox_label", fallback: "NOx (nitric oxide)", color: "#d4a017", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
   { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
 ];
@@ -1412,7 +1412,7 @@ const renderComparisonHistogram = (el, legendEl, emState) => {
         .attr("width", Math.max(0, x(item.electric))).attr("height", hasDiesel ? barHeight / 2 - 1 : barHeight)
         .attr("rx", 2).attr("fill", item.color).attr("opacity", 0.85);
       g.append("text").attr("x", Math.max(0, x(item.electric)) + 3).attr("y", hasDiesel ? barHeight * 3 / 4 : barHeight / 2)
-        .attr("dy", "0.35em").attr("font-size", "8px").attr("fill", "#333").text(formatFixed(item.electric, 1));
+        .attr("dy", "0.35em").attr("font-size", "8px").attr("fill", "var(--color-text-main)").text(formatFixed(item.electric, 1));
       yOffset += barHeight + barGap;
     });
   });
@@ -1425,7 +1425,7 @@ const renderComparisonHistogram = (el, legendEl, emState) => {
       .map((p) => `<div class="chart-legend-item"><span class="chart-legend-swatch" style="background:${p.color}"></span>${textContent(t(p.i18n) || p.fallback)}</div>`);
     if (hasDiesel) {
       items.push(`<div class="chart-legend-item" style="margin-left:8px"><span class="chart-legend-swatch" style="background:#999;opacity:0.35"></span>${textContent(t("simulation.emissions_toggle_diesel") || "Diesel bus")}</div>`);
-      items.push(`<div class="chart-legend-item"><span class="chart-legend-swatch" style="background:#333;opacity:0.85"></span>${textContent(t("simulation.emissions_toggle_electric") || "Electric bus")}</div>`);
+      items.push(`<div class="chart-legend-item"><span class="chart-legend-swatch" style="background:var(--color-text-main);opacity:0.85"></span>${textContent(t("simulation.emissions_toggle_electric") || "Electric bus")}</div>`);
     }
     legendEl.innerHTML = items.join("");
   }
@@ -1573,7 +1573,7 @@ const renderComparisonCo2Phase = (el, legendEl, emState) => {
     const y = margin.top + i * (barHeight + barGap);
     svg.append("text").attr("x", margin.left - 6).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "10px").attr("font-weight", "600").attr("fill", "#333").text(bar.label);
+      .attr("font-size", "10px").attr("font-weight", "600").attr("fill", "var(--color-text-main)").text(bar.label);
     let xOff = 0;
     const total = bar.phases.reduce((s, p) => s + p.value, 0);
     bar.phases.forEach((phase) => {
@@ -1607,7 +1607,7 @@ const renderComparisonCo2Phase = (el, legendEl, emState) => {
   }
 };
 
-const COMP_ENERGY_COLORS = { renewable: "#27ae60", nonRenewable: "#e67e22" };
+const COMP_ENERGY_COLORS = { renewable: "var(--color-success)", nonRenewable: "#e67e22" };
 
 const renderComparisonPrimaryEnergy = (el, legendEl, emState) => {
   if (!el) return;
@@ -1687,7 +1687,7 @@ const renderComparisonPrimaryEnergy = (el, legendEl, emState) => {
     const y = margin.top + i * (barHeight + barGap);
     svg.append("text").attr("x", margin.left - 6).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "10px").attr("font-weight", "600").attr("fill", "#333").text(bar.label);
+      .attr("font-size", "10px").attr("font-weight", "600").attr("fill", "var(--color-text-main)").text(bar.label);
     let xOff = 0;
     const total = bar.segments.reduce((sum, segment) => sum + segment.value, 0);
     bar.segments.forEach((segment) => {

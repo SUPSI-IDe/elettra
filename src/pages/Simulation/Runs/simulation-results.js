@@ -104,7 +104,7 @@ const busLabels = () => ({
 
 const COST_STACK_KEYS = ["vehicle", "energy", "maintenance"];
 const FUEL_COLORS = {
-  diesel: "#c0392b",
+  diesel: "var(--color-danger)",
   electric: "#2e7d32",
 };
 const COST_COLORS = { vehicle: "#4f86c6", energy: "#d4881f", maintenance: "#5f8f2f" };
@@ -138,7 +138,7 @@ const LCA_PHASES = [
   { key: "energyChain", i18n: "simulation.emissions_phase_energy_chain", fallback: "Energy chain", color: "#f1c40f" },
   { key: "maintenance", i18n: "simulation.emissions_phase_maintenance", fallback: "Maintenance", color: "#3498db" },
   { key: "vehicle", i18n: "simulation.emissions_phase_vehicle", fallback: "Vehicle mfg.", color: "#9b59b6" },
-  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", fallback: "End of life", color: "#7f8c8d" },
+  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", fallback: "End of life", color: "var(--color-chart-neutral)" },
   { key: "infrastructure", i18n: "simulation.emissions_phase_infrastructure", fallback: "Infrastructure", color: "#1abc9c" },
 ];
 
@@ -839,7 +839,7 @@ const gridLines = (g, scale, innerW, ticks = 5) => {
     .attr("x2", innerW)
     .attr("y1", (d) => scale(d))
     .attr("y2", (d) => scale(d))
-    .attr("stroke", "#e5e5e5")
+    .attr("stroke", "var(--color-border-light)")
     .attr("stroke-dasharray", "3,3");
 };
 
@@ -2137,7 +2137,7 @@ const renderCostsBar = (el, data, yearlyDistanceKm = null) => {
     .attr("pointer-events", "none");
   tooltipBg = tooltipGroup
     .append("rect")
-    .attr("fill", "#fff")
+    .attr("fill", "var(--color-surface)")
     .attr("stroke", "#94a3b8")
     .attr("stroke-width", 1)
     .attr("rx", 6)
@@ -2324,7 +2324,7 @@ const renderCostPerKmBar = (el, data, yearlyDistanceKm = null) => {
     .attr("pointer-events", "none");
   tooltipBg = tooltipGroup
     .append("rect")
-    .attr("fill", "#fff")
+    .attr("fill", "var(--color-surface)")
     .attr("stroke", "#94a3b8")
     .attr("stroke-width", 1)
     .attr("rx", 6)
@@ -2448,7 +2448,7 @@ const renderCumulativeSavings = (el, yearlyData) => {
       .attr("cy", by)
       .attr("r", 5)
       .attr("fill", "#2e7d32")
-      .attr("stroke", "#fff")
+      .attr("stroke", "var(--color-surface)")
       .attr("stroke-width", 2);
 
     g.append("text")
@@ -2465,10 +2465,10 @@ const renderCumulativeSavings = (el, yearlyData) => {
 };
 
 const WATERFALL_COLORS = {
-  start: "#c0392b",
+  start: "var(--color-danger)",
   end: "#2e7d32",
-  saving: "#4caf50",
-  extra: "#ef5350",
+  saving: "var(--color-success)",
+  extra: "var(--color-danger)",
 };
 
 const renderWaterfall = (el, tcoData) => {
@@ -2592,7 +2592,7 @@ const renderWaterfall = (el, tcoData) => {
       .attr("text-anchor", "middle")
       .attr("font-size", "10px")
       .attr("font-weight", "600")
-      .attr("fill", b.color === WATERFALL_COLORS.saving ? "#2e7d32" : b.color === WATERFALL_COLORS.extra ? "#c0392b" : "#1c1c1c")
+      .attr("fill", b.color === WATERFALL_COLORS.saving ? "#2e7d32" : b.color === WATERFALL_COLORS.extra ? "var(--color-danger)" : "#1c1c1c")
       .text(
         b.type === "delta"
           ? `${b.value <= 0 ? "" : "+"}${formatChfAxis(Math.round(b.value))}`
@@ -2685,14 +2685,14 @@ const attachCostsLineHover = ({
   focus
     .append("circle")
     .attr("r", 4)
-    .attr("fill", "#fff")
+    .attr("fill", "var(--color-surface)")
     .attr("stroke", color)
     .attr("stroke-width", 2);
 
   const tooltip = focus.append("g");
   const tooltipBg = tooltip
     .append("rect")
-    .attr("fill", "#fff")
+    .attr("fill", "var(--color-surface)")
     .attr("stroke", color)
     .attr("stroke-width", 1)
     .attr("rx", 6)
@@ -3041,7 +3041,7 @@ const SOLVER_STATUS_CLASS = {
 };
 
 const OPTIMIZATION_BATTERY_COLORS = {
-  base: "#cfd8e3",
+  base: "var(--color-chart-track)",
   optimized: "#abe828",
 };
 
@@ -3967,7 +3967,7 @@ const renderTripUncertaintyChart = (el, rows = [], { tripStopLookup = new Map() 
     .attr("cy", (row) => y(row.median))
     .attr("r", 3.5)
     .attr("fill", PREDICTION_QUANTILE_SERIES_COLORS.q50)
-    .attr("stroke", "#fff")
+    .attr("stroke", "var(--color-surface)")
     .attr("stroke-width", 1.2)
     .each(function addTooltip(row) {
       const lines = [
@@ -4388,7 +4388,7 @@ const renderPredictionOverviewChart = (
       .attr("cy", (row) => y(row[key]))
       .attr("r", 4)
       .attr("fill", PREDICTION_QUANTILE_SERIES_COLORS[key])
-      .attr("stroke", "#fff")
+      .attr("stroke", "var(--color-surface)")
       .attr("stroke-width", 1.5)
       .each(function addTooltip(row) {
         d3.select(this)
@@ -4426,7 +4426,7 @@ const renderPredictionOverviewChart = (
       )
       .attr("d", markerSymbol)
       .attr("fill", (marker) => marker.color ?? OPTIMIZATION_BATTERY_COLORS.optimized)
-      .attr("stroke", "#fff")
+      .attr("stroke", "var(--color-surface)")
       .attr("stroke-width", 1.5)
       .each(function addTooltip(marker) {
         d3.select(this)
@@ -4975,7 +4975,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
     .attr("cy", (d) => y(d.consumptionPerKmMedianKwh))
     .attr("r", (d) => (d.isOptimized ? 5.5 : 4))
     .attr("fill", (d) => (d.isOptimized ? "#abe828" : "#00639a"))
-    .attr("stroke", "#fff")
+    .attr("stroke", "var(--color-surface)")
     .attr("stroke-width", 2)
     .each(function addTooltip(d) {
       d3.select(this)
@@ -7183,7 +7183,7 @@ const renderCostsSection = (sec, state, options = {}) => {
 /* ── Emissions tab ────────────────────────────────────────────── */
 
 const EMISSIONS_POLLUTANTS = [
-  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "#c0392b", unitGroup: "ton", divisor: 1e6, perKmUnit: "g/km" },
+  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "var(--color-danger)", unitGroup: "ton", divisor: 1e6, perKmUnit: "g/km" },
   { key: "nox", i18n: "simulation.emissions_nox_label", fallback: "NOx (nitric oxide)", color: "#d4a017", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
   { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
 ];
@@ -7386,7 +7386,7 @@ const renderEnvRecapTable = (el, emState) => {
   </div>`;
 };
 
-const DIESEL_BAR_COLOR = "#7f8c8d";
+const DIESEL_BAR_COLOR = "var(--color-chart-neutral)";
 const ELECTRIC_BAR_COLOR = "#2980b9";
 
 const renderEmissionsHistogram = (el, legendEl, emState) => {
@@ -7460,7 +7460,7 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
     gridG.append("line")
       .attr("x1", margin.left + x(tick)).attr("x2", margin.left + x(tick))
       .attr("y1", margin.top).attr("y2", chartHeight - margin.bottom)
-      .attr("stroke", "#e9ecef").attr("stroke-dasharray", "3,3");
+      .attr("stroke", "var(--color-border-light)").attr("stroke-dasharray", "3,3");
   });
 
   data.forEach((item, i) => {
@@ -7469,7 +7469,7 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
     svg.append("text")
       .attr("x", margin.left - 10).attr("y", yBase + groupHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#333")
+      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(item.label);
 
     if (hasDiesel) {
@@ -7506,13 +7506,13 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
       .attr("x", margin.left + Math.max(0, x(item.electric)) + 4)
       .attr("y", electricY2 + subBarHeight / 2)
       .attr("dy", "0.35em")
-      .attr("font-size", "9px").attr("fill", "#333")
+      .attr("font-size", "9px").attr("fill", "var(--color-text-main)")
       .text(formatFixed(item.electric, 2));
 
     if (hasDiesel) {
       const savedPositive = item.saved > 0;
       const arrow = savedPositive ? "↓" : "↑";
-      const tone = savedPositive ? "#1e8449" : "#c0392b";
+      const tone = savedPositive ? "var(--color-success)" : "var(--color-danger)";
       const pctStr = `${arrow} ${formatFixed(Math.abs(item.pctReduction), 0)}%`;
       const savedStr = `${savedPositive ? "−" : "+"}${formatFixed(Math.abs(item.saved), 2)} ${item.unitLabel}`;
 
@@ -7758,7 +7758,7 @@ const renderCo2PhaseBreakdown = (el, legendEl, emState) => {
     svg.append("text")
       .attr("x", margin.left - 8).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#333")
+      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(bar.label);
 
     let xOff = 0;
@@ -7801,7 +7801,7 @@ const renderCo2PhaseBreakdown = (el, legendEl, emState) => {
   }
 };
 
-const ENERGY_COLORS = { renewable: "#27ae60", nonRenewable: "#e67e22" };
+const ENERGY_COLORS = { renewable: "var(--color-success)", nonRenewable: "#e67e22" };
 
 const renderPrimaryEnergy = (el, legendEl, emState) => {
   if (!el) return;
@@ -7886,7 +7886,7 @@ const renderPrimaryEnergy = (el, legendEl, emState) => {
     svg.append("text")
       .attr("x", margin.left - 8).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#333")
+      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(bar.label);
 
     let xOff = 0;
@@ -7907,7 +7907,7 @@ const renderPrimaryEnergy = (el, legendEl, emState) => {
           svg.append("text")
             .attr("x", margin.left + xOff + w / 2).attr("y", y + barHeight / 2)
             .attr("dy", "0.35em").attr("text-anchor", "middle")
-            .attr("font-size", "9px").attr("font-weight", "600").attr("fill", "#fff")
+            .attr("font-size", "9px").attr("font-weight", "600").attr("fill", "var(--color-surface)")
             .attr("pointer-events", "none")
             .text(`${pct}%`);
         }

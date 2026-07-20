@@ -16,7 +16,7 @@
 .simulation-detail .detail-loading {
   padding: var(--spacing-lg);
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--font-size-lg);
 }
 
 .simulation-detail .detail-loading[hidden] {
@@ -48,7 +48,7 @@
 }
 
 .simulation-detail .custom-variables-section label {
-  font-size: 0.9rem;
+  font-size: var(--font-size-lg);
   font-weight: 500;
   color: var(--text-label);
 }
