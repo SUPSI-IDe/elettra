@@ -2,9 +2,9 @@
 .create-yearly-analysis form { max-width: clamp(22rem, 60vw, 42rem); gap: var(--spacing-md); }
 .create-yearly-analysis .required-mark { color: var(--brand-teal); }
 .create-yearly-analysis [hidden] { display: none !important; }
-.create-yearly-analysis label { font-size: 0.82rem; font-weight: 600; }
+.create-yearly-analysis label { font-size: var(--font-size-sm); font-weight: 600; }
 .create-yearly-analysis select,
-.create-yearly-analysis input[type="text"] { padding: 0.4rem 0.55rem; font-size: 0.85rem; width: 100%; }
+.create-yearly-analysis input[type="text"] { padding: 0.4rem 0.55rem; font-size: var(--font-size-md); width: 100%; }
 .create-yearly-analysis .form-group { gap: 0.2rem; }
 
 .ya-create-description { font-size: var(--font-size-md); margin: 0 0 var(--spacing-sm); line-height: 1.5; }
@@ -30,10 +30,10 @@
 
 /* Scenarios table */
 .create-yearly-analysis .ya-scenarios-table-wrapper { overflow-x: auto; border: 1px solid var(--border-light); border-radius: var(--radius-sm); }
-.create-yearly-analysis .ya-scenarios-table { width: 100%; font-size: 0.82rem; border-collapse: collapse; }
+.create-yearly-analysis .ya-scenarios-table { width: 100%; font-size: var(--font-size-sm); border-collapse: collapse; }
 .create-yearly-analysis .ya-scenarios-table th:first-child,
 .create-yearly-analysis .ya-scenarios-table td:first-child { width: 4rem; }
-.create-yearly-analysis .ya-scenarios-table th { background-color: var(--bg-subtle); font-size: 0.75rem; font-weight: 600; padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); text-align: left; white-space: nowrap; }
+.create-yearly-analysis .ya-scenarios-table th { background-color: var(--bg-subtle); font-size: var(--font-size-2xs); font-weight: 600; padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); text-align: left; white-space: nowrap; }
 .create-yearly-analysis .ya-scenarios-table td { padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); vertical-align: middle; border-top: 1px solid var(--border-light); text-align: left; }
 .create-yearly-analysis .ya-scenarios-table tbody tr:hover { background-color: var(--bg-hover); }
 .create-yearly-analysis .ya-scenarios-table tfoot td { border-top: 2px solid var(--border-medium); font-weight: 600; padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); }
@@ -52,7 +52,7 @@
 .ya-total-value { text-align: right; font-variant-numeric: tabular-nums; min-width: 5.5rem; }
 .ya-total-value.ya-total-warn { color: var(--error-color); }
 .ya-scenarios-placeholder { text-align: left; color: var(--text-secondary); font-size: var(--font-size-md); font-style: italic; line-height: 1.5; padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); }
-.ya-occurrences-warning { font-size: 0.8rem; color: var(--error-color); margin: 0.35rem 0 0; font-weight: 500; }
+.ya-occurrences-warning { font-size: var(--font-size-sm); color: var(--error-color); margin: 0.35rem 0 0; font-weight: 500; }
 
 #ya-occupancy { width: 25%; min-width: 6rem; }
 .ya-occupancy-note { font-size: var(--font-size-md); color: var(--text-secondary); margin: 0.25rem 0 0; line-height: 1.5; }

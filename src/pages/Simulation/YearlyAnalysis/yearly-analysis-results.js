@@ -200,7 +200,7 @@ const buildShiftLink = (features) => {
 
 /* ── Chart / slider helpers ─────────────────────────────────────── */
 
-const FUEL_COLORS = { diesel: "#c0392b", electric: "#2e7d32" };
+const FUEL_COLORS = { diesel: "var(--color-danger)", electric: "#2e7d32" };
 const COST_COLORS = { vehicle: "#4f86c6", energy: "#d4881f", maintenance: "#5f8f2f" };
 const COST_STACK_KEYS = ["vehicle", "energy", "maintenance"];
 const COST_VARIABLE_DEBOUNCE_MS = 300;
@@ -279,7 +279,7 @@ const gridLines = (g, scale, innerW, ticks = 5) => {
     .join("line")
     .attr("x1", 0).attr("x2", innerW)
     .attr("y1", (d) => scale(d)).attr("y2", (d) => scale(d))
-    .attr("stroke", "#e5e5e5").attr("stroke-dasharray", "3,3");
+    .attr("stroke", "var(--color-border-light)").attr("stroke-dasharray", "3,3");
 };
 
 const formatChfAxis = (value) => {
@@ -425,7 +425,7 @@ const renderYaCostsBar = (el, cd) => {
 
   tooltipGroup = g.append("g").style("display", "none").attr("pointer-events", "none");
   tooltipBg = tooltipGroup.append("rect")
-    .attr("fill", "#fff").attr("stroke", "#94a3b8").attr("stroke-width", 1)
+    .attr("fill", "var(--color-surface)").attr("stroke", "#94a3b8").attr("stroke-width", 1)
     .attr("rx", 6).attr("ry", 6).attr("opacity", 0.97)
     .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
   tooltipText = tooltipGroup.append("text").attr("fill", "#1c1c1c").attr("font-size", "10px");
@@ -450,10 +450,10 @@ const attachLineHover = ({ layer, lineData, lineGen, x, y, iW, iH, color, series
     .attr("fill", "none").attr("stroke", "transparent").attr("stroke-width", 14).style("cursor", "pointer");
 
   const focus = layer.append("g").style("display", "none").attr("pointer-events", "none");
-  focus.append("circle").attr("r", 4).attr("fill", "#fff").attr("stroke", color).attr("stroke-width", 2);
+  focus.append("circle").attr("r", 4).attr("fill", "var(--color-surface)").attr("stroke", color).attr("stroke-width", 2);
 
   const tooltip = focus.append("g");
-  const tooltipBg = tooltip.append("rect").attr("fill", "#fff").attr("stroke", color).attr("stroke-width", 1)
+  const tooltipBg = tooltip.append("rect").attr("fill", "var(--color-surface)").attr("stroke", color).attr("stroke-width", 1)
     .attr("rx", 6).attr("ry", 6).attr("opacity", 0.96);
   const tooltipText = tooltip.append("text").attr("fill", "#1c1c1c").attr("font-size", "10px");
 
@@ -1063,14 +1063,14 @@ const renderEfficiencyByTempChart = (el, legendEl, data) => {
     if (d.efficiency == null) return;
     g.append("circle")
       .attr("cx", x(d.temperature)).attr("cy", y(d.efficiency))
-      .attr("r", 4.5).attr("fill", EFF_COLORS.total).attr("stroke", "#fff").attr("stroke-width", 1.5)
+      .attr("r", 4.5).attr("fill", EFF_COLORS.total).attr("stroke", "var(--color-surface)").attr("stroke-width", 1.5)
       .style("cursor", "pointer")
       .on("pointerenter", () => showTooltip(d))
       .on("pointerleave", hideTooltip);
   });
 
   tooltipGroup = g.append("g").style("display", "none").attr("pointer-events", "none");
-  tooltipBg = tooltipGroup.append("rect").attr("fill", "#fff").attr("stroke", "#94a3b8").attr("stroke-width", 1).attr("rx", 6).attr("ry", 6).attr("opacity", 0.97).attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
+  tooltipBg = tooltipGroup.append("rect").attr("fill", "var(--color-surface)").attr("stroke", "#94a3b8").attr("stroke-width", 1).attr("rx", 6).attr("ry", 6).attr("opacity", 0.97).attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
   tooltipText = tooltipGroup.append("text").attr("fill", "#1c1c1c").attr("font-size", "10px");
 
   el.appendChild(svg.node());
@@ -1086,7 +1086,7 @@ const renderEfficiencyByTempChart = (el, legendEl, data) => {
 
 /* ── Plot 2: Annual energy contribution by scenario ───────────── */
 
-const CONTRIB_COLORS = { drivetrain: "#6fbeec", auxiliary: "#f5a623", errorBar: "#333" };
+const CONTRIB_COLORS = { drivetrain: "#6fbeec", auxiliary: "#f5a623", errorBar: "var(--color-text-main)" };
 
 const normalizeAnnualContributionMode = (mode) => (mode === "daily" ? "daily" : "yearly");
 
@@ -1259,7 +1259,7 @@ const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
   }
 
   tooltipGroup = g.append("g").style("display", "none").attr("pointer-events", "none");
-  tooltipBg = tooltipGroup.append("rect").attr("fill", "#fff").attr("stroke", "#94a3b8").attr("stroke-width", 1).attr("rx", 6).attr("ry", 6).attr("opacity", 0.97).attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
+  tooltipBg = tooltipGroup.append("rect").attr("fill", "var(--color-surface)").attr("stroke", "#94a3b8").attr("stroke-width", 1).attr("rx", 6).attr("ry", 6).attr("opacity", 0.97).attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
   tooltipText = tooltipGroup.append("text").attr("fill", "#1c1c1c").attr("font-size", "10px");
 
   el.appendChild(svg.node());
@@ -2001,7 +2001,7 @@ const LCA_PHASES = [
   { key: "energyChain", i18n: "simulation.emissions_phase_energy_chain", label: "Energy chain", color: "#f1c40f" },
   { key: "maintenance", i18n: "simulation.emissions_phase_maintenance", label: "Maintenance", color: "#3498db" },
   { key: "vehicle", i18n: "simulation.emissions_phase_vehicle", label: "Vehicle mfg.", color: "#9b59b6" },
-  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", label: "End of life", color: "#7f8c8d" },
+  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", label: "End of life", color: "var(--color-chart-neutral)" },
   { key: "infrastructure", i18n: "simulation.emissions_phase_infrastructure", label: "Infrastructure", color: "#1abc9c" },
 ];
 
@@ -2758,16 +2758,16 @@ const deriveScaledEmissionsState = (emState, baseDistanceKm, selectedDistanceKm)
 /* ── Emissions panel rendering ─────────────────────────────────── */
 
 const EMISSIONS_POLLUTANTS = [
-  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "#c0392b", unitGroup: "ton", divisor: 1e6, perKmUnit: "g/km" },
+  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "var(--color-danger)", unitGroup: "ton", divisor: 1e6, perKmUnit: "g/km" },
   { key: "nox", i18n: "simulation.emissions_nox_label", fallback: "NOx (nitric oxide)", color: "#d4a017", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
   { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
 ];
 
-const DIESEL_BAR_COLOR = "#c0392b";
-const ELECTRIC_BAR_COLOR = "#27ae60";
+const DIESEL_BAR_COLOR = "var(--color-danger)";
+const ELECTRIC_BAR_COLOR = "var(--color-success)";
 const DH_BAR_COLOR = "#e67e22";
 const CO2_PHASE_DIVISOR = 1e6;
-const ENERGY_COLORS = { renewable: "#27ae60", nonRenewable: "#e67e22" };
+const ENERGY_COLORS = { renewable: "var(--color-success)", nonRenewable: "#e67e22" };
 
 const inferUnitDivisor = (indicator, fallbackDivisor = CO2_PHASE_DIVISOR) => {
   const u = text(indicator?.unit).trim().toLowerCase().replace(/[\s_-]+/g, "");
@@ -2810,7 +2810,7 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
   let data;
   if (savingsItems?.length) {
     const CHART_KEYS = new Set(["gwp100a", "co2", "nox", "pm10"]);
-    const COLORS = { gwp100a: "#c0392b", co2: "#c0392b", nox: "#d4a017", pm10: "#8b6914" };
+    const COLORS = { gwp100a: "var(--color-danger)", co2: "var(--color-danger)", nox: "#d4a017", pm10: "#8b6914" };
     data = savingsItems
       .filter((it) => CHART_KEYS.has(it.key))
       .map((it) => ({
@@ -2862,7 +2862,7 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
     gridG.append("line")
       .attr("x1", margin.left + x(tick)).attr("x2", margin.left + x(tick))
       .attr("y1", margin.top).attr("y2", chartHeight - margin.bottom)
-      .attr("stroke", "#e9ecef").attr("stroke-dasharray", "3,3");
+      .attr("stroke", "var(--color-border-light)").attr("stroke-dasharray", "3,3");
   });
 
   data.forEach((item, i) => {
@@ -2870,7 +2870,7 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
     svg.append("text")
       .attr("x", margin.left - 10).attr("y", yBase + groupHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#333")
+      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(item.label);
 
     if (hasDiesel) {
@@ -2892,13 +2892,13 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
       .append("title").text(`${totalLabel}: ${formatFixed(item.electric, 1)} ${item.unitLabel}`);
     svg.append("text")
       .attr("x", margin.left + Math.max(0, x(item.electric)) + 4).attr("y", electricY2 + subBarHeight / 2)
-      .attr("dy", "0.35em").attr("font-size", "9px").attr("fill", "#333")
+      .attr("dy", "0.35em").attr("font-size", "9px").attr("fill", "var(--color-text-main)")
       .text(formatFixed(item.electric, 1));
 
     if (hasDiesel) {
       const savedPositive = item.saved > 0;
       const arrow = savedPositive ? "↓" : "↑";
-      const tone = savedPositive ? "#1e8449" : "#c0392b";
+      const tone = savedPositive ? "var(--color-success)" : "var(--color-danger)";
       svg.append("text")
         .attr("x", W - margin.right + 10).attr("y", yBase + groupHeight / 2 - 6)
         .attr("dy", "0.35em").attr("font-size", "11px").attr("font-weight", "700").attr("fill", tone)
@@ -3050,7 +3050,7 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
       .attr("x", layoutMargin.left - 8).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
       .attr("font-size", labelFontSize)
-      .attr("font-weight", "600").attr("fill", "#333")
+      .attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(bar.label);
     let xOff = 0;
     const dec = adaptiveDecimals(bar.total);
@@ -3076,7 +3076,7 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
           .attr("x", layoutMargin.left + xOff).attr("y", y)
           .attr("width", w).attr("height", barHeight)
           .attr("fill", DH_BAR_COLOR).attr("rx", 0)
-          .attr("stroke", "#fff").attr("stroke-width", 1)
+          .attr("stroke", "var(--color-surface)").attr("stroke-width", 1)
           .style("cursor", "pointer")
           .append("title")
           .text(`${bar.label} · ${t("yearly_analysis.diesel_heating")}: ${formatFixed(bar.dhValue, dec)} ${unitLabel} (${pct}%)`);
@@ -3175,7 +3175,7 @@ const renderYaPrimaryEnergy = (el, legendEl, emState) => {
     svg.append("text")
       .attr("x", margin.left - 8).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#333")
+      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(bar.label);
     let xOff = 0;
     const total = bar.segments.reduce((s, seg) => s + seg.value, 0);
@@ -3194,7 +3194,7 @@ const renderYaPrimaryEnergy = (el, legendEl, emState) => {
           svg.append("text")
             .attr("x", margin.left + xOff + w / 2).attr("y", y + barHeight / 2)
             .attr("dy", "0.35em").attr("text-anchor", "middle")
-            .attr("font-size", "9px").attr("font-weight", "600").attr("fill", "#fff")
+            .attr("font-size", "9px").attr("font-weight", "600").attr("fill", "var(--color-surface)")
             .attr("pointer-events", "none").text(`${pct}%`);
         }
         xOff += w;

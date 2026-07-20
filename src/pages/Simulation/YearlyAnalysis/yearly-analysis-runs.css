@@ -20,7 +20,7 @@
 
 .ya-runs-table {
   width: 100%;
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
 }
 
 .ya-runs-table th {

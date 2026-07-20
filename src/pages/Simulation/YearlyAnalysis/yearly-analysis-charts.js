@@ -6,20 +6,20 @@ const tr = (key, fallback, params = {}) => {
   return value !== key ? value : fallback;
 };
 
-const FUEL_COLORS = { diesel: "#c0392b", electric: "#2e7d32" };
+const FUEL_COLORS = { diesel: "var(--color-danger)", electric: "#2e7d32" };
 const COST_COLORS = { vehicle: "#4f86c6", usage: "#d4881f", maintenance: "#5f8f2f" };
 const EFF_COLORS = {
   efficiency: "#00639a",
   energy: "#6fbeec",
-  dieselHeating: "#c0392b",
+  dieselHeating: "var(--color-danger)",
 };
 const PHASE_COLORS = {
   production: "#6fbeec",
   maintenance: "#4f86c6",
-  use: "#27ae60",
-  operation: "#27ae60",
+  use: "var(--color-success)",
+  operation: "var(--color-success)",
   infrastructure: "#f5a623",
-  endOfLife: "#95a5a6",
+  endOfLife: "var(--color-chart-neutral)",
 };
 const PRIMARY_ENERGY_COLORS = {
   renewable: "#6fbeec",
@@ -105,7 +105,7 @@ const addGridLines = (g, y, innerWidth, ticks = 5) => {
     .attr("x2", innerWidth)
     .attr("y1", (d) => y(d))
     .attr("y2", (d) => y(d))
-    .attr("stroke", "#e5e5e5")
+    .attr("stroke", "var(--color-border-light)")
     .attr("stroke-dasharray", "3,3");
 };
 
@@ -113,7 +113,7 @@ const attachTooltip = (layer, { title, lines = [] }, x, y) => {
   const group = layer.append("g").attr("pointer-events", "none");
   const bg = group
     .append("rect")
-    .attr("fill", "#fff")
+    .attr("fill", "var(--color-surface)")
     .attr("stroke", "#94a3b8")
     .attr("stroke-width", 1)
     .attr("rx", 6)
@@ -217,7 +217,7 @@ export const renderEfficiencyByTemperatureChart = (el, legendEl, data = []) => {
     .attr("cy", (d) => y(d.efficiency))
     .attr("r", 4.5)
     .attr("fill", EFF_COLORS.efficiency)
-    .attr("stroke", "#fff")
+    .attr("stroke", "var(--color-surface)")
     .attr("stroke-width", 1.5)
     .style("cursor", "pointer")
     .on("pointerenter", (_, d) => {
@@ -379,7 +379,7 @@ export const renderScenarioContributionChart = (el, legendEl, data = []) => {
       .attr("cy", (d) => yDiesel(d.dieselHeatingAnnualLiters))
       .attr("r", 3.5)
       .attr("fill", EFF_COLORS.dieselHeating)
-      .attr("stroke", "#fff")
+      .attr("stroke", "var(--color-surface)")
       .attr("stroke-width", 1.2);
   }
 
@@ -629,7 +629,7 @@ export const renderEmissionsHistogram = (el, legendEl, data = []) => {
       .attr("text-anchor", "end")
       .attr("font-size", "11px")
       .attr("font-weight", "600")
-      .attr("fill", "#333")
+      .attr("fill", "var(--color-text-main)")
       .text(item.label);
 
     svg
@@ -661,7 +661,7 @@ export const renderEmissionsHistogram = (el, legendEl, data = []) => {
       .attr("x", margin.left + x(item.ebusTotal) + 4)
       .attr("y", yBase + rowHeight + 10)
       .attr("font-size", "9px")
-      .attr("fill", "#333")
+      .attr("fill", "var(--color-text-main)")
       .text(formatFixed(item.ebusTotal, 1));
   });
 
@@ -724,7 +724,7 @@ export const renderCo2PhaseBreakdown = (el, legendEl, co2Data) => {
       .attr("text-anchor", "end")
       .attr("font-size", "11px")
       .attr("font-weight", "600")
-      .attr("fill", "#333")
+      .attr("fill", "var(--color-text-main)")
       .text(bar.label);
     let offset = 0;
     PHASE_KEYS.forEach((phase) => {
@@ -736,7 +736,7 @@ export const renderCo2PhaseBreakdown = (el, legendEl, co2Data) => {
         .attr("y", y)
         .attr("width", segmentWidth)
         .attr("height", 24)
-        .attr("fill", PHASE_COLORS[phase.key] ?? "#95a5a6")
+        .attr("fill", PHASE_COLORS[phase.key] ?? "var(--color-chart-neutral)")
         .attr("rx", offset === 0 ? 3 : 0);
       offset += segmentWidth;
     });
@@ -760,7 +760,7 @@ export const renderCo2PhaseBreakdown = (el, legendEl, co2Data) => {
     legendEl,
     PHASE_KEYS.map((phase) => ({
       label: phaseLabel(phase),
-      color: PHASE_COLORS[phase.key] ?? "#95a5a6",
+      color: PHASE_COLORS[phase.key] ?? "var(--color-chart-neutral)",
     }))
   );
 };
@@ -809,7 +809,7 @@ export const renderPrimaryEnergyChart = (el, legendEl, energyData) => {
       .attr("text-anchor", "end")
       .attr("font-size", "11px")
       .attr("font-weight", "600")
-      .attr("fill", "#333")
+      .attr("fill", "var(--color-text-main)")
       .text(bar.label);
     svg.append("rect")
       .attr("x", margin.left)
