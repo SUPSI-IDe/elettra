@@ -47,7 +47,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.875rem;
+  font-size: var(--font-size-md);
   font-weight: 500;
   color: var(--brand-teal);
   text-decoration: none;
@@ -65,7 +65,7 @@
 }
 
 .about-section .section-title {
-  font-size: 1.15rem;
+  font-size: var(--font-size-heading-sm);
   margin: 0 0 1.25rem 0;
   position: relative;
   display: inline-block;
@@ -134,7 +134,7 @@
 }
 
 .about-card-name {
-  font-size: 1.1rem;
+  font-size: var(--font-size-heading-sm);
   font-weight: 700;
   color: var(--text-main);
 }
@@ -146,7 +146,7 @@
 }
 
 .about-card-link {
-  font-size: 0.75rem;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   color: var(--brand-teal);
   text-decoration: none;
@@ -182,7 +182,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.875rem;
+  font-size: var(--font-size-md);
   font-weight: 500;
   color: var(--brand-teal);
   text-decoration: none;
@@ -194,11 +194,11 @@
 
 .about-privacy-link:hover {
   background-color: var(--brand-teal);
-  color: #ffffff;
+  color: var(--color-surface);
 }
 
 .about-privacy-link:hover svg {
-  stroke: #ffffff;
+  stroke: var(--color-surface);
 }
 
 @media (max-width: 640px) {
