@@ -100,12 +100,6 @@ export const initializeVisualizeShift = async (
     }
     const resolved = text(value).trim() || fallback;
     node.textContent = textContent(resolved);
-    if (field === "bus-name") {
-      const container = node.closest(".shift-summary__bus");
-      if (container) {
-        container.hidden = !text(value).trim();
-      }
-    }
   };
 
   const tripsBody = section.querySelector('tbody[data-role="trips-body"]');
