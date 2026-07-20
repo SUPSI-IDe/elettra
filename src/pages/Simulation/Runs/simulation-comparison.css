@@ -326,7 +326,7 @@
 
 .simulation-comparison-page .efficiency-table th,
 .simulation-comparison-page .efficiency-table td {
-  padding: 0.55rem 0.75rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   border-bottom: 1px solid var(--color-border-dim);
   text-align: left;
 }
@@ -334,8 +334,8 @@
 .simulation-comparison-page .efficiency-table th {
   font-weight: 600;
   font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-secondary);
   background: var(--color-background-alt);
 }
@@ -351,6 +351,10 @@
 .simulation-comparison-page .efficiency-td-num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.simulation-comparison-page .efficiency-table th:not(.efficiency-th-text) {
+  text-align: right;
 }
 
 .simulation-comparison-page .infeasibility-tab-notice {

@@ -26,16 +26,22 @@
 .ya-runs-table th {
   font-size: var(--font-size-xs);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.55rem 0.65rem;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   text-align: left;
   white-space: nowrap;
 }
 
 .ya-runs-table td {
-  padding: 0.5rem 0.65rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   vertical-align: middle;
+}
+
+.ya-runs-table :is(th, td):nth-child(2),
+.ya-runs-table :is(th, td):nth-child(6) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .ya-runs-table th.checkbox,

@@ -61,6 +61,9 @@
   --space-2xl: 2.5rem;
   --space-3xl: 3rem;
 
+  --table-cell-padding-block: 0.55rem;
+  --table-cell-padding-inline: 0.75rem;
+
   --layout-sidebar-width: 15rem;
   --layout-header-min-height: 3.25rem;
   --layout-content-padding: var(--space-lg);
@@ -880,13 +883,14 @@ table thead,
 
 table th,
 .table-standard th {
-  padding: 0.75rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   text-align: left;
   border-bottom: 1px solid var(--color-border-dim);
   font-weight: 600;
   font-size: var(--font-size-sm);
   color: var(--color-text-subtle);
-  letter-spacing: 0.02em;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 table th.checkbox {
@@ -896,18 +900,25 @@ table th.checkbox {
 
 table th.actions {
   width: 8rem;
-  text-align: center;
+  text-align: left;
 }
 
 table td,
 .table-standard td {
-  padding: 0.75rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
+  text-align: left;
   border-bottom: 1px solid var(--border-light);
+}
+
+table :is(.table-number, [data-table-type="number"]),
+.table-standard :is(.table-number, [data-table-type="number"]) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 table td.actions,
 .table-standard td.actions {
-  text-align: center;
+  text-align: left;
   background-color: var(--bg-subtle);
 }
 
@@ -979,10 +990,9 @@ table input[type="checkbox"] {
 
 .table-state-cell,
 .table-empty {
-  padding-top: var(--spacing-lg);
-  padding-bottom: var(--spacing-lg);
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   color: var(--text-secondary);
-  text-align: center;
+  text-align: left;
 }
 
 .table-empty-message {
@@ -1328,8 +1338,13 @@ table input[type="checkbox"] {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--spacing-xs);
-  background-color: var(--color-surface-elevated);
+  background-color: transparent;
+  color: var(--color-brand-secondary);
   border-bottom: 1px solid var(--color-border-dim);
+}
+
+.page-header :is(.page-title, .page-subtitle, .helper-text, p) {
+  color: inherit;
 }
 
 .page-header .title-container {

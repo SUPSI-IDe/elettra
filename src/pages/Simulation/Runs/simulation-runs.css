@@ -37,7 +37,7 @@
 
 .simulation-runs-table th,
 .simulation-runs-table td {
-  text-align: center;
+  text-align: left;
   vertical-align: middle;
 }
 
@@ -45,7 +45,7 @@
   width: 100%;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.35rem;
   border: 0;
   background: transparent;
@@ -113,6 +113,12 @@
 .simulation-runs-table th.actions,
 .simulation-runs-table td.actions {
   width: 12%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.simulation-runs-table th.actions .sort-button {
+  justify-content: flex-end;
 }
 
 .simulation-runs-table .results-link.disabled {
@@ -125,7 +131,7 @@
 .simulation-runs-table th.results,
 .simulation-runs-table td.results {
   width: 6%;
-  text-align: center;
+  text-align: left;
 }
 
 /* Compare section */

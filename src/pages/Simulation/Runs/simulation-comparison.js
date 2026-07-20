@@ -1989,7 +1989,7 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
               <th>${textContent(t("simulation.opt_col_opt_kwh") || "Optimized (kWh)")}</th>
               <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical")}</th>
               <th>${textContent(t("simulation.opt_col_max_kwh") || "Max (kWh)")}</th>
-              <th>${textContent(t("simulation.opt_col_feasibility") || "Feasibility")}</th>
+              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_feasibility") || "Feasibility")}</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>

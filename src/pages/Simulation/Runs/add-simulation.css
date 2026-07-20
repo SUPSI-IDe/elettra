@@ -106,14 +106,15 @@
   background-color: var(--bg-subtle);
   z-index: 1;
   font-size: 0.75rem;
-  padding: 0.3rem 0.5rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
+  text-align: left;
 }
 
 .add-simulation .shift-table .sort-button {
   width: 100%;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.35rem;
   border: 0;
   background: transparent;
@@ -134,7 +135,7 @@
 }
 
 .add-simulation .shift-table td {
-  padding: 0.25rem 0.5rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
 }
 
 .add-simulation .shift-table th.checkbox,
@@ -146,6 +147,12 @@
 .add-simulation .shift-table th.distance,
 .add-simulation .shift-table td.distance {
   white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.add-simulation .shift-table th.distance .sort-button {
+  justify-content: flex-end;
 }
 
 .add-simulation .shift-table tbody tr:hover {
@@ -217,14 +224,20 @@
   background-color: var(--bg-subtle);
   z-index: 1;
   font-size: 0.72rem;
-  padding: 0.3rem 0.4rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   text-align: left;
   white-space: nowrap;
 }
 
 .add-simulation .stops-table td {
-  padding: 0.25rem 0.4rem;
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   vertical-align: middle;
+}
+
+.add-simulation .stops-table :is(th, td):nth-child(n + 3),
+.add-simulation .stops-table input[type="number"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .add-simulation .stops-table tbody tr:hover {
