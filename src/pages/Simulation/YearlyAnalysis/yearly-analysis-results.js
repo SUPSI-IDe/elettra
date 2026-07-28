@@ -802,7 +802,7 @@ const renderCriticalUncertaintyScenarios = (annualContrib = []) => {
   }
 
   const bodyHtml = items.length
-    ? `<div class="ya-critical-grid">${items.map((item) => `
+    ? `<div class="kpi-grid ya-critical-grid">${items.map((item) => `
         <div class="ya-critical-item">
           <span class="ya-critical-item__label">${textContent(item.label)}</span>
           <strong class="ya-critical-item__value">${textContent(item.value)}</strong>
@@ -862,7 +862,7 @@ const renderYearlyUncertaintySummary = (annualContrib = []) => {
 
   const summary = buildYearlyUncertaintySummary(annualContrib);
   const bodyHtml = summary
-    ? `<div class="ya-uncertainty-summary-grid">
+    ? `<div class="kpi-grid ya-uncertainty-summary-grid">
         <div class="ya-uncertainty-summary-item">
           <span class="ya-uncertainty-summary-item__label">${textContent(
             translateOr("yearly_analysis.yearly_uncertainty_q50", "Scenario-weighted Q50 annual energy")
@@ -946,7 +946,7 @@ const renderYearlySummary = (summary) => {
 
   return `<div class="ya-res-section">
     <h3 class="ya-res-section-title">${textContent(t("yearly_analysis.yearly_aggregated_summary"))}</h3>
-    <div class="ya-summary-cards">${cards.join("")}</div>
+    <div class="kpi-grid ya-summary-cards">${cards.join("")}</div>
     <p class="ya-sizing-note ya-summary-transition-note">${textContent(
       translateOr(
         "yearly_analysis.point_estimate_vs_uncertainty_note",
@@ -3347,7 +3347,7 @@ const renderEmissionsPanel = (sec, emState) => {
       </div>`;
   }
   if (kpisEl) {
-    kpisEl.innerHTML = `<div class="ya-env-kpi-row">${kpiCards}</div>`;
+    kpisEl.innerHTML = `<div class="kpi-grid ya-env-kpi-row">${kpiCards}</div>`;
   }
 
   /* Comparison tables */
