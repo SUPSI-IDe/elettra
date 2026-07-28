@@ -1,7 +1,7 @@
 .settings-content {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--spacing-lg);
+  gap: var(--space-lg);
   align-items: start;
   padding: var(--layout-content-padding);
   max-width: var(--layout-content-max-width);
@@ -13,16 +13,16 @@
   background: var(--color-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-xl);
-  padding: var(--spacing-lg);
+  padding: var(--space-lg);
   box-shadow: var(--shadow-sm);
 }
 
 .settings-card-header {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .settings-card-header h2 {
-  margin: 0 0 0.35rem;
+  margin: 0 0 var(--space-2xs);
   font-size: var(--font-size-xl);
   color: var(--text-main);
   line-height: 1.35;
@@ -37,7 +37,7 @@
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--spacing-md);
+  gap: var(--space-md);
 }
 
 .settings-field-full {
@@ -51,7 +51,7 @@
 }
 
 .settings-page .form-actions {
-  margin-top: var(--spacing-lg);
+  margin-top: var(--space-lg);
 }
 
 @media (max-width: 960px) {

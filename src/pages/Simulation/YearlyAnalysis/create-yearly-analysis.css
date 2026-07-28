@@ -1,5 +1,5 @@
 .create-yearly-analysis main { max-width: 720px; overflow-y: auto; }
-.create-yearly-analysis form { max-width: clamp(22rem, 60vw, 42rem); gap: var(--spacing-md); }
+.create-yearly-analysis form { max-width: clamp(22rem, 60vw, 42rem); gap: var(--space-md); }
 .create-yearly-analysis .required-mark { color: var(--brand-teal); }
 .create-yearly-analysis [hidden] { display: none !important; }
 .create-yearly-analysis label { font-size: var(--font-size-sm); font-weight: 600; }
@@ -7,7 +7,7 @@
 .create-yearly-analysis input[type="text"] { padding: 0.4rem 0.55rem; font-size: var(--font-size-md); width: 100%; }
 .create-yearly-analysis .form-group { gap: 0.2rem; }
 
-.ya-create-description { font-size: var(--font-size-md); margin: 0 0 var(--spacing-sm); line-height: 1.5; }
+.ya-create-description { font-size: var(--font-size-md); margin: 0 0 var(--space-sm); line-height: 1.5; }
 .ya-scenarios-note { font-size: var(--font-size-md); color: var(--text-secondary); margin: 0 0 0.45rem; line-height: 1.5; }
 
 /* Fieldsets */

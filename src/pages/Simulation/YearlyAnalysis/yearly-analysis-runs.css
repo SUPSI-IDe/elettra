@@ -3,7 +3,7 @@
 }
 
 .ya-runs-actions {
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--space-sm);
 }
 
 .ya-runs-search {
@@ -57,11 +57,11 @@
 .ya-actions-cell {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 .ya-loading {
-  padding: var(--spacing-sm);
+  padding: var(--space-sm);
 }
 
 .yearly-analysis-runs [hidden] {

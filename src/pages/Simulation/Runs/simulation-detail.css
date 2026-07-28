@@ -1,7 +1,7 @@
 .simulation-detail .breadcrumb {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: var(--space-xs);
 }
 
 .simulation-detail .breadcrumb-sep {
@@ -14,7 +14,7 @@
 }
 
 .simulation-detail .detail-loading {
-  padding: var(--spacing-lg);
+  padding: var(--space-lg);
   color: var(--text-secondary);
   font-size: var(--font-size-lg);
 }
@@ -26,7 +26,7 @@
 .simulation-detail .custom-variables-section {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-xl);
-  padding: var(--spacing-lg);
+  padding: var(--space-lg);
   background-color: var(--color-surface);
   box-shadow: var(--shadow-sm);
 }
@@ -36,11 +36,11 @@
   font-weight: 600;
   color: var(--text-main);
   line-height: 1.35;
-  padding: 0 var(--spacing-xs);
+  padding: 0 var(--space-xs);
 }
 
 .simulation-detail .custom-variables-section .form-group {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--space-md);
 }
 
 .simulation-detail .custom-variables-section .form-group:last-child {
@@ -59,10 +59,10 @@
 }
 
 .simulation-results {
-  margin-top: var(--spacing-lg);
+  margin-top: var(--space-lg);
   border: 1px solid var(--border-light);
   border-radius: 8px;
-  padding: var(--spacing-lg);
+  padding: var(--space-lg);
 }
 
 .simulation-results[hidden] {
@@ -74,14 +74,14 @@
   font-weight: 600;
   color: var(--text-main);
   line-height: 1.35;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--space-md);
 }
 
 .result-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-sm) 0;
+  padding: var(--space-sm) 0;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -107,16 +107,16 @@
 .result-card {
   border: 1px solid var(--border-light);
   border-radius: 6px;
-  padding: var(--spacing-md);
-  margin-bottom: var(--spacing-sm);
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
 }
 
 .result-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-sm);
-  padding-bottom: var(--spacing-sm);
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
   border-bottom: 1px solid var(--border-light);
 }
 

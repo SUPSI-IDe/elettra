@@ -12,14 +12,14 @@
 
 .comparison-header-labels {
   display: flex;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-md);
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
   min-width: 0;
 }
 
 .comparison-label {
   flex: 1;
-  padding: 0.65rem 1rem;
+  padding: var(--control-padding-block) var(--space-md);
   border-radius: var(--radius-lg);
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -45,13 +45,13 @@
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--color-border-dim);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--space-lg);
   overflow-x: auto;
   scrollbar-width: thin;
 }
 
 .simulation-comparison-page .results-tab {
-  padding: 0.7rem 1.25rem;
+  padding: var(--space-2sm) var(--space-2md);
   font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--text-secondary);
@@ -87,7 +87,7 @@
 .simulation-comparison-page .tab-panel {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--space-lg);
   min-width: 0;
 }
 
@@ -99,7 +99,7 @@
 
 .comparison-row {
   display: flex;
-  gap: var(--spacing-md);
+  gap: var(--space-md);
   min-width: 0;
 }
 
@@ -107,18 +107,13 @@
   flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--color-border-dim);
-  border-radius: var(--panel-radius);
-  padding: var(--panel-padding);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
 }
 
 .comparison-row .chart-section h3 {
   font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--text-main);
-  margin: 0 0 var(--spacing-md);
+  margin: 0 0 var(--space-md);
   line-height: 1.35;
 }
 
@@ -137,7 +132,7 @@
   cursor: help;
   position: relative;
   vertical-align: middle;
-  margin-left: 0.4rem;
+  margin-left: var(--space-2xs);
 }
 
 .comparison-row .chart-section h3 .costs-title-tooltip {
@@ -147,7 +142,7 @@
   right: -8px;
   width: 320px;
   max-width: min(320px, 75vw);
-  padding: 0.55rem 0.7rem;
+  padding: var(--space-sm) var(--space-2sm);
   font-size: var(--font-size-xs);
   font-weight: 400;
   font-style: normal;
@@ -181,16 +176,16 @@
 
 .comparison-row .chart-legend {
   display: flex;
-  gap: var(--spacing-sm);
+  gap: var(--space-sm);
   justify-content: center;
-  margin-top: var(--spacing-xs);
+  margin-top: var(--space-xs);
   flex-wrap: wrap;
 }
 
 .comparison-row .chart-legend-item {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-2xs);
   font-size: var(--font-size-xs);
   color: var(--text-secondary);
 }
@@ -205,7 +200,7 @@
 
 .simulation-comparison-page .costs-state-msg {
   margin: 0;
-  padding: var(--spacing-lg);
+  padding: var(--space-lg);
   color: var(--text-secondary);
   font-size: var(--font-size-md);
 }
@@ -217,7 +212,7 @@
 /* Close button */
 
 .simulation-comparison-page .results-actions {
-  margin-top: var(--spacing-xl);
+  margin-top: var(--space-xl);
   display: flex;
   justify-content: center;
 }
@@ -225,7 +220,7 @@
 .simulation-comparison-page .btn-close-results {
   background-color: var(--brand-teal);
   color: var(--color-surface);
-  padding: 0.65rem 2rem;
+  padding: var(--control-padding-block) var(--space-xl);
   border-radius: var(--radius-md);
   font-size: var(--font-size-md);
   font-weight: 600;
@@ -243,13 +238,13 @@
 .simulation-comparison-page .efficiency-params-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem 1.2rem;
-  margin-bottom: 0.8rem;
+  gap: 0.6rem var(--space-2md);
+  margin-bottom: var(--space-2sm);
 }
 
 .simulation-comparison-page .efficiency-param {
   display: flex;
-  gap: 0.4rem;
+  gap: var(--space-2xs);
   align-items: baseline;
   font-size: var(--font-size-sm);
 }
@@ -295,8 +290,8 @@
 }
 
 .simulation-comparison-page .efficiency-infeasibility-notice {
-  margin: 0.8rem 0;
-  padding: 0.85rem 1rem;
+  margin: var(--space-2sm) 0;
+  padding: 0.85rem var(--space-md);
   border-left: 4px solid var(--color-danger);
   background: var(--color-negative-muted);
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
@@ -362,7 +357,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1.5rem;
+  padding: var(--space-xl) var(--space-lg);
   text-align: center;
   color: var(--text-secondary);
 }
@@ -374,7 +369,7 @@
 }
 
 .simulation-comparison-page .infeasibility-tab-notice h3 {
-  margin: 0 0 0.4rem;
+  margin: 0 0 var(--space-2xs);
   font-size: var(--font-size-xl);
   color: var(--color-negative-strong);
   font-weight: 600;

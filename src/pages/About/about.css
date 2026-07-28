@@ -10,7 +10,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 3rem 2rem;
+  padding: var(--space-3xl) var(--space-xl);
 }
 
 .about-content {
@@ -20,7 +20,7 @@
 }
 
 .about-logo {
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--space-2md);
 }
 
 .about-logo img {
@@ -34,25 +34,25 @@
 }
 
 .about-tagline {
-  margin: var(--spacing-xs) 0 1.25rem 0;
+  margin: var(--space-xs) 0 var(--space-2md) 0;
 }
 
 .about-description {
   font-size: var(--font-size-lg);
   line-height: 1.7;
-  margin: 0 0 1.25rem 0;
+  margin: 0 0 var(--space-2md) 0;
 }
 
 .about-project-link {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-2xs);
   font-size: var(--font-size-md);
   font-weight: 500;
   color: var(--brand-teal);
   text-decoration: none;
   transition: color 0.2s ease;
-  margin-bottom: 2.5rem;
+  margin-bottom: var(--space-2xl);
 }
 
 .about-project-link:hover {
@@ -61,12 +61,12 @@
 }
 
 .about-section {
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-xl);
 }
 
 .about-section .section-title {
   font-size: var(--font-size-heading-sm);
-  margin: 0 0 1.25rem 0;
+  margin: 0 0 var(--space-2md) 0;
   position: relative;
   display: inline-block;
 }
@@ -85,7 +85,7 @@
 .about-cards {
   display: flex;
   justify-content: center;
-  gap: 1.25rem;
+  gap: var(--space-2md);
   flex-wrap: wrap;
 }
 
@@ -97,8 +97,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
-  padding: 1.25rem 1.5rem;
+  gap: var(--space-2xs);
+  padding: var(--space-2md) var(--space-lg);
   background: var(--color-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-xl);
@@ -124,7 +124,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--space-xs);
 }
 
 .about-card-logo img {
@@ -150,7 +150,7 @@
   font-weight: 500;
   color: var(--brand-teal);
   text-decoration: none;
-  margin-top: 0.2rem;
+  margin-top: var(--space-xs);
   transition: color 0.2s ease;
 }
 
@@ -164,29 +164,29 @@
   border: 1px solid var(--border-light);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
-  padding: 1.5rem;
+  padding: var(--space-lg);
   text-align: center;
 }
 
 .about-privacy .section-title {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-2sm);
 }
 
 .about-privacy p {
   font-size: var(--font-size-md);
   line-height: 1.6;
-  margin: 0 0 1rem 0;
+  margin: 0 0 var(--space-md) 0;
 }
 
 .about-privacy-link {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-2xs);
   font-size: var(--font-size-md);
   font-weight: 500;
   color: var(--brand-teal);
   text-decoration: none;
-  padding: 0.5rem 1rem;
+  padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--brand-teal);
   border-radius: var(--radius-md);
   transition: background-color 0.2s ease, color 0.2s ease;
@@ -203,7 +203,7 @@
 
 @media (max-width: 640px) {
   .about-hero {
-    padding: 2rem 1rem;
+    padding: var(--space-xl) var(--space-md);
   }
 
   .about-cards {
