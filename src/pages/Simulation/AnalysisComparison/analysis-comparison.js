@@ -386,7 +386,7 @@ const renderCompatibility = (root, a, b, compat) => {
       <h2 class="ya-res-section-title">${textContent(t("analysisComparison.compatibility"))}</h2>
       <span class="ya-badge ${statusInfo.cls}">${textContent(t(statusInfo.key))}</span>
     </div>
-    <div class="ac-meta-grid">${rows}</div>
+    <div class="kpi-grid ac-meta-grid">${rows}</div>
     ${warning}`;
 };
 

@@ -1940,7 +1940,7 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
         : "—";
     const feasCls = feasible === true ? "efficiency-badge--ok" : feasible === false ? "efficiency-badge--err" : "efficiency-badge--neutral";
 
-    socHtml += `<div class="efficiency-params-grid">
+    socHtml += `<div class="kpi-grid efficiency-params-grid">
       <div class="efficiency-param">
         <span class="efficiency-param-label">${textContent(t("simulation.opt_solver_status") || "Solver Status")}</span>
         <span class="efficiency-param-value">${textContent(results.solver_status ?? "—")}</span>

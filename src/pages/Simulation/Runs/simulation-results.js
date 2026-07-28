@@ -4736,7 +4736,7 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
               buildPredictionScenarioTitle(run, index)
             )}</h3>
           </header>
-          <div class="predictions-metrics-grid">${metricHtml}</div>
+          <div class="kpi-grid predictions-metrics-grid">${metricHtml}</div>
           <div class="predictions-card-grid">
             ${sections.join("")}
           </div>
@@ -6112,7 +6112,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       <div class="efficiency-more-information__content">
         <div class="efficiency-section">
           <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
-          <div class="efficiency-params-grid">${conditionsHtml}</div>
+          <div class="kpi-grid efficiency-params-grid">${conditionsHtml}</div>
           ${predictionSummaryHtml}
         </div>
         ${optimizationHtml}
@@ -7632,7 +7632,7 @@ const renderEmissionsRecapTable = (el, emState) => {
     );
   }
   const sanityHtml = co2Outlier
-    ? `<p class="emissions-state-msg emissions-state-msg--error" style="margin-bottom:var(--spacing-sm)">⚠ ${textContent(
+    ? `<p class="emissions-state-msg emissions-state-msg--error" style="margin-bottom:var(--space-sm)">⚠ ${textContent(
         t("simulation.emissions_co2_sanity_warning") ||
         `CO₂ value exceeds ${CO2_SANITY_LIMIT_TON} ton/year for a single bus — please verify the data source.`
       )}</p>`
