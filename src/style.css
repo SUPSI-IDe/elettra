@@ -880,7 +880,6 @@ table td button:disabled,
 .btn-disabled,
 .btn-primary:disabled,
 .btn-secondary:disabled,
-.compare-btn:disabled,
 .form-actions button:disabled,
 .login-submit:disabled,
 .register-submit:disabled,
@@ -897,8 +896,7 @@ table td button:disabled,
 .list-primary-action:disabled:hover,
 .list-secondary-action:disabled:hover,
 .list-danger-action:disabled:hover,
-table td button:disabled:hover,
-.compare-btn:disabled:hover {
+table td button:disabled:hover {
   background-color: var(--color-disabled-bg);
   border-color: var(--color-disabled-border);
   color: var(--color-disabled-text);

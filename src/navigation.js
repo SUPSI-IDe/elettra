@@ -9,7 +9,6 @@ import { initializeSimulationRuns } from "./pages/Simulation/Runs/simulation-run
 import { initializeAddSimulation } from "./pages/Simulation/Runs/add-simulation";
 import { initializeSimulationDetail } from "./pages/Simulation/Runs/simulation-detail";
 import { initializeSimulationResults } from "./pages/Simulation/Runs/simulation-results";
-import { initializeSimulationComparison } from "./pages/Simulation/Runs/simulation-comparison";
 import { initializeCreateYearlyAnalysis } from "./pages/Simulation/YearlyAnalysis/create-yearly-analysis";
 import { initializeYearlyAnalysisRuns } from "./pages/Simulation/YearlyAnalysis/yearly-analysis-runs";
 import { initializeYearlyAnalysisResults } from "./pages/Simulation/YearlyAnalysis/yearly-analysis-results";
@@ -45,7 +44,6 @@ const SHELL_SECTION_BY_SLUG = {
   "add-simulation": "simulation-runs",
   "simulation-detail": "simulation-runs",
   "simulation-results": "simulation-runs",
-  "simulation-comparison": "simulation-runs",
   "yearly-analysis-runs": "yearly-analysis-runs",
   "create-yearly-analysis": "yearly-analysis-runs",
   "yearly-analysis-results": "yearly-analysis-runs",
@@ -238,9 +236,6 @@ export const initializeNavigation = (root = document) => {
         break;
       case "simulation-results":
         cleanup = initializeSimulationResults(target, options);
-        break;
-      case "simulation-comparison":
-        cleanup = initializeSimulationComparison(target, options);
         break;
       case "create-yearly-analysis":
         cleanup = await initializeCreateYearlyAnalysis(target, options);
