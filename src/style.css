@@ -58,6 +58,7 @@
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 10px 24px rgba(15, 23, 42, 0.06);
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.18);
   --shadow-focus-ring: 0 0 0 3px var(--color-focus-ring);
   /* For controls whose ring would be clipped by an overflow:hidden parent. */
   --shadow-focus-ring-inset: inset 0 0 0 3px var(--color-focus-ring);
@@ -535,10 +536,6 @@ body {
   border-color: rgba(15, 60, 60, 0.16);
 }
 
-.user-section.is-active .user-info {
-  box-shadow: inset 3px 0 0 0 var(--brand-teal);
-}
-
 .user-section.is-active .user-icon,
 .user-section.is-active .user-name,
 .user-section.is-active .user-menu-toggle {
@@ -557,7 +554,7 @@ body {
   background-color: var(--color-surface);
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   z-index: 100;
   padding: var(--space-xs) 0;
 }
@@ -794,9 +791,9 @@ nav .nav-links a:focus-visible {
   line-height: 1.2;
   white-space: nowrap;
   transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .table-controls button:hover {
@@ -815,8 +812,12 @@ button.list-danger-action {
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   font-size: var(--font-size-md);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 button.list-primary-action {
@@ -867,14 +868,20 @@ table td button:focus-visible,
   box-shadow: var(--shadow-focus-ring);
 }
 
+button:disabled,
 .table-controls button:disabled,
 .list-primary-action:disabled,
 .list-secondary-action:disabled,
 .list-danger-action:disabled,
 table td button:disabled,
+.btn-disabled,
 .btn-primary:disabled,
 .btn-secondary:disabled,
-.compare-btn:disabled {
+.compare-btn:disabled,
+.form-actions button:disabled,
+.login-submit:disabled,
+.register-submit:disabled,
+.pagination-controls .pagination-buttons button:disabled {
   background-color: var(--color-disabled-bg);
   border-color: var(--color-disabled-border);
   color: var(--color-disabled-text);
@@ -1004,7 +1011,7 @@ table input[type="checkbox"] {
 }
 
 .table-selectable tbody tr:has(input[type="checkbox"]:checked) > td.checkbox {
-  box-shadow: inset 3px 0 0 0 var(--brand-teal);
+  box-shadow: none;
 }
 
 .table-state-row > td,
@@ -1310,13 +1317,14 @@ table input[type="checkbox"] {
   gap: var(--space-xs);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
+  font-weight: 500;
   line-height: 1.2;
   cursor: pointer;
   transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
-    opacity 0.2s ease;
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast);
 }
 
 .btn-primary {
@@ -1346,13 +1354,6 @@ table input[type="checkbox"] {
 .btn-secondary:hover {
   background-color: var(--bg-hover);
   border-color: var(--dark-gray);
-}
-
-.btn-disabled,
-.btn-primary:disabled,
-.btn-secondary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .form-label {
@@ -1416,15 +1417,15 @@ table input[type="checkbox"] {
 }
 
 .section-header button {
-  padding: var(--space-sm) var(--space-lg);
-  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
   border: none;
   background-color: var(--brand-teal);
   color: var(--color-surface);
   font-size: var(--font-size-md);
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--transition-fast);
 }
 
 .section-header button:hover {
@@ -1441,7 +1442,7 @@ table input[type="checkbox"] {
   justify-content: center;
   color: inherit;
   opacity: 0.7;
-  transition: opacity 0.2s;
+  transition: opacity var(--transition-fast);
   width: 40px;
   height: 40px;
 }
@@ -1560,12 +1561,12 @@ table input[type="checkbox"] {
 }
 
 .form-actions button {
-  padding: var(--control-padding-block) var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   font-size: var(--font-size-lg);
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 /* Cancel button - secondary style */
@@ -1594,9 +1595,100 @@ table input[type="checkbox"] {
   border-color: var(--brand-teal-dark);
 }
 
-.form-actions button:disabled {
-  opacity: 0.6;
+/* Cost-variable sliders shared by simulation and yearly-analysis results. */
+:is(.results-cost-variables, .ya-cost-variables) {
+  padding: var(--space-2sm);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--brand-teal) 8%, transparent), transparent),
+    var(--color-surface);
+}
+
+:is(.results-cost-variables__grid, .ya-cost-variables__grid) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.32rem 0.42rem;
+}
+
+:is(.results-cost-variables__field, .ya-cost-variables__field) {
+  display: grid;
+  gap: 0.14rem;
+  font-size: var(--font-size-2xs);
+}
+
+:is(.results-cost-variables__field-top, .ya-cost-variables__field-top) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+:is(.results-cost-variables__value, .ya-cost-variables__value) {
+  min-width: 4.1rem;
+  padding: 0.14rem 0.38rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-teal) 8%, transparent);
+  color: var(--brand-teal-dark);
+  font-weight: 700;
+}
+
+:is(.results-cost-variables__range, .ya-cost-variables__range) {
+  --slider-progress: 50%;
+  appearance: none;
+  width: 100%;
+  height: 0.56rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--brand-teal) 0,
+    var(--brand-teal) var(--slider-progress),
+    var(--color-chart-track) var(--slider-progress),
+    var(--color-chart-track) 100%
+  );
+  cursor: pointer;
+}
+
+:is(.results-cost-variables__range, .ya-cost-variables__range)::-webkit-slider-thumb {
+  appearance: none;
+  width: 0.82rem;
+  height: 0.82rem;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--brand-teal);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-teal) 12%, transparent);
+}
+
+:is(.results-cost-variables__range, .ya-cost-variables__range)::-moz-range-thumb {
+  width: 0.82rem;
+  height: 0.82rem;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--brand-teal);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-teal) 12%, transparent);
+}
+
+:is(.results-cost-variables__range, .ya-cost-variables__range):disabled {
+  background: var(--color-disabled-bg);
   cursor: not-allowed;
+}
+
+:is(.results-cost-variables__range-scale, .ya-cost-variables__range-scale) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+:is(.results-cost-variables__actions, .ya-cost-variables__actions) {
+  display: flex;
+  justify-content: flex-end;
+}
+
+:is(.results-cost-variables__reset, .ya-cost-variables__reset) {
+  border: none;
+  background: transparent;
+  color: var(--brand-teal-dark);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
 }
 
 .form-feedback {
@@ -1727,12 +1819,12 @@ table input[type="checkbox"] {
 }
 
 .landing-btn {
-  padding: var(--space-sm) var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
   font-size: var(--font-size-md);
   font-weight: 500;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
   min-width: 140px;
 }
 
@@ -2011,7 +2103,7 @@ table input[type="checkbox"] {
   border: 1px solid var(--border-medium);
   border-top: none;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   max-height: 200px;
   overflow-y: auto;
   z-index: 100;
@@ -2115,27 +2207,21 @@ table input[type="checkbox"] {
   justify-content: center;
   gap: var(--space-sm);
   width: 100%;
-  padding: var(--space-sm) var(--space-lg);
-  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
   border: 1px solid var(--brand-teal);
   background-color: var(--brand-teal);
   color: var(--color-surface);
   font-size: var(--font-size-md);
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--transition-fast);
   margin-top: var(--space-sm);
 }
 
 .login-submit:hover:not(:disabled),
 .register-submit:hover:not(:disabled) {
   background-color: var(--brand-teal-dark);
-}
-
-.login-submit:disabled,
-.register-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .login-submit .spinner,
@@ -2208,7 +2294,7 @@ table input[type="checkbox"] {
   color: var(--brand-teal);
   background-color: var(--brand-teal-bg);
   border: 1px solid rgba(15, 60, 60, 0.12);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
@@ -2267,7 +2353,7 @@ table input[type="checkbox"] {
 
 .pagination-controls .pagination-page-size select {
   padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--color-border-dim);
+  border: 1px solid var(--border-medium);
   border-radius: var(--radius-sm);
   background-color: var(--color-surface);
   color: var(--dark-blue);
@@ -2301,11 +2387,6 @@ table input[type="checkbox"] {
 
 .pagination-controls .pagination-buttons button:hover:not(:disabled) {
   background-color: var(--brand-teal-bg);
-}
-
-.pagination-controls .pagination-buttons button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* ==========================================================================

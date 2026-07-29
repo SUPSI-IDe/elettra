@@ -51,9 +51,6 @@
   cursor: not-allowed;
 }
 
-.settings-page .form-actions {
-  margin-top: var(--space-lg);
-}
 
 @media (max-width: 960px) {
   .settings-content {
