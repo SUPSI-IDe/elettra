@@ -51,6 +51,7 @@
   --radius-lg: 8px;
   --radius-xl: 10px;
   --radius-2xl: 14px;
+  --radius-full: 9999px;
 
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
@@ -106,6 +107,10 @@
   --color-positive-muted: rgba(46, 125, 50, 0.12);
   --color-negative-strong: var(--color-danger);
   --color-negative-muted: rgba(211, 47, 47, 0.1);
+  --badge-positive-bg: var(--color-positive-muted);
+  --badge-positive-text: var(--color-positive);
+  --badge-negative-bg: var(--color-negative-muted);
+  --badge-negative-text: var(--color-negative-strong);
   --color-chart-neutral: #95a5a6;
   --color-neutral-accent: var(--color-chart-neutral);
   --color-chart-track: #d7e1e8;
@@ -1164,12 +1169,16 @@ table input[type="checkbox"] {
   align-items: center;
   justify-content: center;
   padding: var(--space-xs) 0.65rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
   font-weight: 600;
   line-height: 1.35;
   text-transform: capitalize;
   white-space: nowrap;
+}
+
+.badge--compact {
+  padding: 0.15rem var(--space-sm);
 }
 
 .badge--success,
@@ -1200,6 +1209,16 @@ table input[type="checkbox"] {
 .ya-status-badge.failed {
   background-color: var(--badge-danger-bg);
   color: var(--badge-danger-text);
+}
+
+.badge--positive {
+  background-color: var(--badge-positive-bg);
+  color: var(--badge-positive-text);
+}
+
+.badge--negative {
+  background-color: var(--badge-negative-bg);
+  color: var(--badge-negative-text);
 }
 
 .badge--neutral,

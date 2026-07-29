@@ -1,6 +1,6 @@
 # Badge / pill unification
 
-Status: needs-triage
+Status: ready-for-human
 Type: task
 
 A shared `.badge`/`.status-badge` component exists (style.css:1142–1191, with success/warn/danger/neutral tones) and five page-local badge families reimplement it with near-identical-but-different values — sometimes both shapes on the same page (env badge = pill, overview badge = rect, both in simulation-results).
@@ -31,3 +31,9 @@ Shared `.badge` = `xs × 0.65rem` (itself carrying a non-token 0.65rem). Local: 
 ## Recommendation
 
 Extend the shared `.badge` with the missing tones/sizes, delete the local reimplementations (`.ya-badge`, `.efficiency-badge` ×2, `.overview-badge`, `.ya-overview-badge`, `.env-kpi-card__badge`), and route colors through `--badge-*` tokens.
+
+Decision applied: badges are pills with normal-case labels. Dense result and overview badges use the shared compact size; feasibility and delta outcomes use the shared positive/negative tones.
+
+## Comments
+
+- 2026-07-29: Added the shared full-radius token, compact size, and positive/negative badge tones. Replaced all five local badge families in yearly analysis, simulation results, simulation comparison, and analysis comparison. Ready for visual review.

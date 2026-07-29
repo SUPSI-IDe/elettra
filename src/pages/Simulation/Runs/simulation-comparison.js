@@ -1938,7 +1938,7 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
       : feasible === false
         ? (t("simulation.feasibility_infeasible") || "Infeasible")
         : "—";
-    const feasCls = feasible === true ? "efficiency-badge--ok" : feasible === false ? "efficiency-badge--err" : "efficiency-badge--neutral";
+    const feasCls = feasible === true ? "badge--positive" : feasible === false ? "badge--negative" : "badge--neutral";
 
     socHtml += `<div class="kpi-grid efficiency-params-grid">
       <div class="efficiency-param">
@@ -1947,7 +1947,7 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
       </div>
       <div class="efficiency-param">
         <span class="efficiency-param-label">${textContent(t("simulation.opt_feasibility") || "Electrification Feasibility")}</span>
-        <span class="efficiency-param-value"><span class="efficiency-badge ${feasCls}">${textContent(feasLabel)}</span></span>
+        <span class="efficiency-param-value"><span class="badge badge--compact ${feasCls}">${textContent(feasLabel)}</span></span>
       </div>
       <div class="efficiency-param">
         <span class="efficiency-param-label">${textContent(t("simulation.opt_solve_time") || "Solve Time (s)")}</span>
@@ -1966,14 +1966,14 @@ export const initializeSimulationComparison = (root = document, options = {}) =>
       }
       const rows = uniqueByShift.map((b) => {
         const pf = b.physical_feasible;
-        const badge = pf === true ? "efficiency-badge--ok" : pf === false ? "efficiency-badge--err" : "efficiency-badge--neutral";
+        const badge = pf === true ? "badge--positive" : pf === false ? "badge--negative" : "badge--neutral";
         return `<tr>
           <td>${textContent(b.shift_name ?? "—")}</td>
           <td class="efficiency-td-num">${textContent(String(b.optimized_packs ?? "—"))}</td>
           <td class="efficiency-td-num">${formatFixed(b.optimized_kwh, 0)}</td>
           <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
           <td class="efficiency-td-num">${formatFixed(b.max_physical_kwh, 0)}</td>
-          <td><span class="efficiency-badge ${badge}">${textContent(
+          <td><span class="badge badge--compact ${badge}">${textContent(
             pf === true ? (t("simulation.feasibility_feasible") || "Feasible") :
             pf === false ? (t("simulation.feasibility_infeasible") || "Infeasible") : "—"
           )}</span></td>

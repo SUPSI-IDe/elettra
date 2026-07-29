@@ -3034,10 +3034,10 @@ const compactFieldEntries = (entries = {}) =>
   );
 
 const SOLVER_STATUS_CLASS = {
-  optimal: "efficiency-badge--ok",
-  feasible: "efficiency-badge--ok",
-  infeasible: "efficiency-badge--err",
-  error: "efficiency-badge--err",
+  optimal: "badge--positive",
+  feasible: "badge--positive",
+  infeasible: "badge--negative",
+  error: "badge--negative",
 };
 
 const OPTIMIZATION_BATTERY_COLORS = {
@@ -3169,10 +3169,10 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
     const rows = batteryEntries.map(([, b]) => {
       const physFeasible = b.physical_feasible;
       const feasBadge = physFeasible === true
-        ? "efficiency-badge--ok"
+        ? "badge--positive"
         : physFeasible === false
-          ? "efficiency-badge--err"
-          : "efficiency-badge--neutral";
+          ? "badge--negative"
+          : "badge--neutral";
       const reqPacks = toFiniteNumber(b.required_total_packs);
       const maxPacks = toFiniteNumber(b.max_physical_packs);
       const overLimit = reqPacks != null && maxPacks != null && reqPacks > maxPacks;
@@ -3201,7 +3201,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
         <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
         <td class="efficiency-td-num">${bOpen}${textContent(String(b.required_total_packs ?? "—"))}${bClose}</td>
         <td class="efficiency-td-num">${textContent(String(b.excess_packs ?? 0))}</td>
-        <td><span class="efficiency-badge ${feasBadge}">${textContent(
+        <td><span class="badge badge--compact ${feasBadge}">${textContent(
           physFeasible === true ? (t("simulation.feasibility_feasible") || "Feasible") :
           physFeasible === false ? (t("simulation.feasibility_infeasible") || "Infeasible") : "—"
         )}</span></td>
@@ -4229,9 +4229,9 @@ const renderBatteryAdequacyPanel = (status = {}) => {
         <span>${textContent(translateOr("simulation.battery_adequacy_usable", "Usable energy"))}</span>
         <strong>${textContent(formatFixed(status.usableEnergy, 1))} kWh</strong>
         <span>${textContent(translateOr("simulation.battery_adequacy_q50", "Q50 demand"))}</span>
-        <strong>${textContent(formatFixed(status.q50Demand, 1))} kWh <span class="efficiency-badge ${status.q50Covered ? "efficiency-badge--ok" : "efficiency-badge--err"}">${textContent(q50Label)}</span></strong>
+        <strong>${textContent(formatFixed(status.q50Demand, 1))} kWh <span class="badge badge--compact ${status.q50Covered ? "badge--positive" : "badge--negative"}">${textContent(q50Label)}</span></strong>
         <span>${textContent(translateOr("simulation.battery_adequacy_q95", "Q95 demand"))}</span>
-        <strong>${textContent(formatFixed(status.q95Demand, 1))} kWh <span class="efficiency-badge ${status.q95Covered ? "efficiency-badge--ok" : "efficiency-badge--err"}">${textContent(q95Label)}</span></strong>
+        <strong>${textContent(formatFixed(status.q95Demand, 1))} kWh <span class="badge badge--compact ${status.q95Covered ? "badge--positive" : "badge--negative"}">${textContent(q95Label)}</span></strong>
       </div>
       <p class="efficiency-adequacy-note">${textContent(note)}</p>
     </div>`;
@@ -5725,7 +5725,7 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
   if (!data) return "";
 
   const isFeasible = data.feasibility !== false;
-  const feasBadgeClass = isFeasible ? "efficiency-badge--ok" : "efficiency-badge--err";
+  const feasBadgeClass = isFeasible ? "badge--positive" : "badge--negative";
   const feasLabel = isFeasible
     ? (t("simulation.feasibility_feasible") || "Feasible")
     : (t("simulation.feasibility_infeasible") || "Infeasible");
@@ -5866,7 +5866,7 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
   <div class="efficiency-sensitivity-card">
     <div class="efficiency-sensitivity-card__header">
       <span class="efficiency-sensitivity-card__title">${textContent(translateOr("simulation.sensitivity_card_title", "Sensitivity / Feasibility Insight"))}</span>
-      <span class="efficiency-badge ${feasBadgeClass}">${textContent(feasLabel)}</span>
+      <span class="badge badge--compact ${feasBadgeClass}">${textContent(feasLabel)}</span>
     </div>
     ${bodyHtml}
     ${driversHtml}
@@ -6826,9 +6826,9 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
 
     const feasible = results.electrification_feasible;
     const feasBadge =
-      feasible === true ? "overview-badge--ok"
-        : feasible === false ? "overview-badge--err"
-          : "overview-badge--neutral";
+      feasible === true ? "badge--positive"
+        : feasible === false ? "badge--negative"
+          : "badge--neutral";
     const feasLabel =
       feasible === true ? t("simulation.feasibility_feasible") || "Feasible"
         : feasible === false ? t("simulation.feasibility_infeasible") || "Infeasible"
@@ -6891,7 +6891,7 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
     const body = [
       overviewRowHtml(
         t("simulation.opt_feasibility") || "Feasibility",
-        `<span class="overview-badge ${feasBadge}">${textContent(feasLabel)}</span>`,
+        `<span class="badge badge--compact ${feasBadge}">${textContent(feasLabel)}</span>`,
         true
       ),
       overviewRowHtml(
@@ -7280,7 +7280,7 @@ const renderEnvKpiCards = (el, emState) => {
         </div>
         ${hasDiesel ? `
           <div class="env-kpi-card__delta">
-            <span class="env-kpi-card__badge env-kpi-card__badge--${tone}">${textContent(pctStr)}</span>
+            <span class="badge ${tone === "positive" ? "badge--positive" : tone === "negative" ? "badge--negative" : "badge--neutral"}">${textContent(pctStr)}</span>
             ${diffStr ? `<span class="env-kpi-card__abs-diff">${textContent(diffStr)}</span>` : ""}
           </div>
         ` : ""}

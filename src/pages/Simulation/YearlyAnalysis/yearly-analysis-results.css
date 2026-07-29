@@ -289,13 +289,6 @@
 .ya-res-table tbody tr:hover { background: rgba(15,60,60,0.04); }
 .ya-scenario-error { color: var(--error-color); font-weight: 600; text-align: left !important; }
 
-/* ── Badges ────────────────────────────────────────────────────── */
-
-.ya-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: var(--font-size-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-.ya-badge--ok { background: var(--badge-success-bg); color: var(--badge-success-text); }
-.ya-badge--err { background: var(--badge-danger-bg); color: var(--badge-danger-text); }
-.ya-badge--neutral { background: var(--badge-neutral-bg); color: var(--badge-neutral-text); }
-
 /* ── Yearly table ──────────────────────────────────────────────── */
 
 .ya-yearly-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-md); }
@@ -548,20 +541,6 @@
   font-size: var(--font-size-md);
   text-align: center;
 }
-
-.ya-overview-badge {
-  display: inline-block;
-  padding: 0.12rem var(--space-sm);
-  border-radius: 4px;
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.ya-overview-badge--ok { background: var(--color-positive-muted); color: var(--color-positive); }
-.ya-overview-badge--err { background: var(--color-negative-muted); color: var(--color-negative-strong); }
-.ya-overview-badge--neutral { background: var(--color-background-alt); color: var(--text-secondary); }
 
 /* ── Costs panel ───────────────────────────────────────────────── */
 

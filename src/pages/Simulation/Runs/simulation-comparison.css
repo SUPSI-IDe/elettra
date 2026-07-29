@@ -264,31 +264,6 @@
   line-height: 1.45;
 }
 
-.simulation-comparison-page .efficiency-badge {
-  display: inline-block;
-  padding: 0.15rem 0.6rem;
-  border-radius: 4px;
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.simulation-comparison-page .efficiency-badge--ok {
-  background: var(--color-positive-muted);
-  color: var(--color-positive);
-}
-
-.simulation-comparison-page .efficiency-badge--err {
-  background: var(--color-negative-muted);
-  color: var(--color-negative-strong);
-}
-
-.simulation-comparison-page .efficiency-badge--neutral {
-  background: var(--color-background-alt);
-  color: var(--text-secondary);
-}
-
 .simulation-comparison-page .efficiency-infeasibility-notice {
   margin: var(--space-2sm) 0;
   padding: 0.85rem var(--space-md);

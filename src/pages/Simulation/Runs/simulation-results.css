@@ -1085,31 +1085,6 @@
   color: var(--text-secondary);
 }
 
-.overview-badge {
-  display: inline-block;
-  padding: 0.12rem var(--space-sm);
-  border-radius: 4px;
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.overview-badge--ok {
-  background: rgba(171, 232, 40, 0.18);
-  color: var(--color-success);
-}
-
-.overview-badge--err {
-  background: rgba(192, 57, 43, 0.12);
-  color: var(--color-danger);
-}
-
-.overview-badge--neutral {
-  background: var(--background-alt, var(--color-surface));
-  color: var(--text-secondary);
-}
-
 .overview-col__msg {
   padding: var(--space-2sm);
   color: var(--text-secondary);
@@ -1604,33 +1579,6 @@
   padding: 0 var(--space-md) var(--space-2sm);
 }
 
-/* Status badges */
-
-.efficiency-badge {
-  display: inline-block;
-  padding: 0.15rem 0.6rem;
-  border-radius: 4px;
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.efficiency-badge--ok {
-  background: rgba(171, 232, 40, 0.18);
-  color: var(--color-success);
-}
-
-.efficiency-badge--err {
-  background: rgba(192, 57, 43, 0.12);
-  color: var(--color-danger);
-}
-
-.efficiency-badge--neutral {
-  background: var(--background-alt, var(--color-surface));
-  color: var(--text-secondary);
-}
-
 /* Infeasibility notices */
 
 .efficiency-infeasibility-notice {
@@ -2029,31 +1977,6 @@
   align-items: center;
   gap: var(--space-2xs);
   margin-top: 0.15rem;
-}
-
-.env-kpi-card__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: 0.15rem var(--space-sm);
-  border-radius: 999px;
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
-}
-
-.env-kpi-card__badge--positive {
-  background: var(--color-positive-muted);
-  color: var(--color-positive-strong);
-}
-
-.env-kpi-card__badge--negative {
-  background: var(--color-negative-muted);
-  color: var(--color-negative-strong);
-}
-
-.env-kpi-card__badge--neutral {
-  background: rgba(149, 165, 166, 0.12);
-  color: var(--color-text-subtle);
 }
 
 .env-kpi-card__abs-diff {

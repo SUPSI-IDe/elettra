@@ -127,9 +127,9 @@ const formatCHF = (v) => {
 };
 
 const feasibilityBadge = (v) => {
-  if (v === true) return `<span class="ya-badge ya-badge--ok">${textContent(t("simulation.feasibility_feasible"))}</span>`;
-  if (v === false) return `<span class="ya-badge ya-badge--err">${textContent(t("simulation.feasibility_infeasible"))}</span>`;
-  return `<span class="ya-badge ya-badge--neutral">—</span>`;
+  if (v === true) return `<span class="badge badge--success">${textContent(t("simulation.feasibility_feasible"))}</span>`;
+  if (v === false) return `<span class="badge badge--danger">${textContent(t("simulation.feasibility_infeasible"))}</span>`;
+  return `<span class="badge badge--neutral">—</span>`;
 };
 
 const MOBITOOL_URL = "https://www.i14y.admin.ch/en/catalog/dataservices/171b09a4-5b5f-4577-8921-3af7fc6eee39/description";
@@ -3834,8 +3834,8 @@ const renderOverviewPanel = (el, features, effState, costState, emissionsState, 
   /* ── Column 2: Efficiency ──────────────────────────────────── */
   {
     const feasible = results.baseFeasible;
-    const feasBadge = feasible === true ? "ya-overview-badge--ok"
-      : feasible === false ? "ya-overview-badge--err" : "ya-overview-badge--neutral";
+    const feasBadge = feasible === true ? "badge--positive"
+      : feasible === false ? "badge--negative" : "badge--neutral";
     const feasLabel = feasible === true ? t("simulation.feasibility_feasible") : feasible === false ? t("simulation.feasibility_infeasible") : "—";
 
     const yearlyEnergy = toFiniteNumber(efficiencySummary?.energy ?? yearlyTotals.totalEnergyKwh);
@@ -3851,7 +3851,7 @@ const renderOverviewPanel = (el, features, effState, costState, emissionsState, 
       ?? (epkValues.length ? Math.max(...epkValues) : null);
 
     const body = [
-      overviewRowHtml(t("yearly_analysis.base_feasibility"), `<span class="ya-overview-badge ${feasBadge}">${textContent(feasLabel)}</span>`, true),
+      overviewRowHtml(t("yearly_analysis.base_feasibility"), `<span class="badge badge--compact ${feasBadge}">${textContent(feasLabel)}</span>`, true),
       overviewRowHtml(t("yearly_analysis.yearly_energy"), yearlyEnergy != null ? `${formatInt(yearlyEnergy)} kWh` : "—"),
       overviewRowHtml(t("yearly_analysis.yearly_simulated_distance"), yearlyDist != null ? `${formatInt(yearlyDist)} km` : "—"),
       overviewRowHtml(t("yearly_analysis.avg_consumption_per_km"), avgEpk != null ? `${formatFixed(avgEpk, 3)} kWh/km` : "—"),

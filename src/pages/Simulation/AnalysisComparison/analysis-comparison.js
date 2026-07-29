@@ -344,9 +344,9 @@ const renderCompatibility = (root, a, b, compat) => {
   if (!container) return;
 
   const statusMap = {
-    compatible: { key: "analysisComparison.compatible", cls: "ya-badge--ok" },
-    partially: { key: "analysisComparison.partiallyComparable", cls: "ya-badge--neutral" },
-    not: { key: "analysisComparison.notComparable", cls: "ya-badge--err" },
+    compatible: { key: "analysisComparison.compatible", cls: "badge--success" },
+    partially: { key: "analysisComparison.partiallyComparable", cls: "badge--neutral" },
+    not: { key: "analysisComparison.notComparable", cls: "badge--danger" },
   };
   const statusInfo = statusMap[compat.status];
 
@@ -384,7 +384,7 @@ const renderCompatibility = (root, a, b, compat) => {
   container.innerHTML = `
     <div class="ya-res-section-header">
       <h2 class="ya-res-section-title">${textContent(t("analysisComparison.compatibility"))}</h2>
-      <span class="ya-badge ${statusInfo.cls}">${textContent(t(statusInfo.key))}</span>
+      <span class="badge ${statusInfo.cls}">${textContent(t(statusInfo.key))}</span>
     </div>
     <div class="kpi-grid ac-meta-grid">${rows}</div>
     ${warning}`;
