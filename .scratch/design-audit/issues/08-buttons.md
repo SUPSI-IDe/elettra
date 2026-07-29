@@ -1,6 +1,6 @@
 # Button normalization
 
-Status: needs-triage
+Status: done
 Type: task
 
 ## Radius — majority `--radius-md`
@@ -31,3 +31,11 @@ Visually confirmed: the disabled Delete button renders differently on Buses vs C
 ## Hover
 
 Color-shift hover is the system (primary bg→teal-dark, secondary bg→bg-hover). The `translateY(-2px)+shadow` lift exists only on about/landing feature cards (style.css:1665, about.css:116) — marketing idiom, fine to keep, but `.about-privacy-link` invert-to-teal sits on an app page; decide keep/align.
+
+## Implementation
+
+- Standard buttons now use `500`; result-overlay close buttons retain their compact `md/600` tier.
+- Radius and ordinary padding are `--radius-md` and `sm × md`, including form-ending actions, auth submits, and page-specific toolbar buttons.
+- Button-like controls use `--transition-fast`; app controls retain semantic colour/border hovers, while marketing cards retain their lift treatment.
+- Disabled buttons use the shared token gray-swap at full opacity. The result sliders and disabled bus-model input now use the same disabled palette.
+- Validation: `npm test` (26 passing) and `npm run build` (successful; retains the pre-existing ticket-14 malformed-CSS warning).

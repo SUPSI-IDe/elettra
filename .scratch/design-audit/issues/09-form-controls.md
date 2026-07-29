@@ -1,6 +1,6 @@
 # Form control consistency
 
-Status: needs-triage
+Status: done
 Type: task
 
 ## Labels — majority `lg/600` (global .form-label, style.css:1317, 1483)
@@ -35,3 +35,9 @@ Shared `.form-actions` margin-top `md` (style.css:1518); settings.css:54 and shi
 ## Sliders (cost variables)
 
 Focus outlines removed (ticket 01). Thumb halo: sim-results teal `rgba(11,126,119,0.12)` vs ya-results plain drop-shadow; value pill: teal `rgba(11,126,119,0.08)` vs accent-blue `rgba(111,190,236,0.12)` — 1 page each, **decision needed**; `#0b7e77` matches no token. The whole `*-cost-variables__*` panel is duplicated byte-identical (spacing) between the two pages — extract to style.css before it drifts further.
+
+## Resolution
+
+- No compact form tier: labels and ordinary form controls use the shared `lg/600` and `lg` contract.
+- Form actions use the shared `md` top margin.
+- Cost-variable sliders use the shared teal treatment and are defined in `src/style.css`; result pages retain only their grid and layout variants.

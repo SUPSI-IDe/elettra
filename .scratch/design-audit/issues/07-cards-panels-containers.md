@@ -1,6 +1,6 @@
 # Card / panel / table-container treatment
 
-Status: needs-triage
+Status: ready-for-agent
 Type: task
 
 ## Card treatment — majority: 1px border + `--panel-radius`/`--radius-xl` + `--shadow-sm`
@@ -33,6 +33,11 @@ Heading underlines (buses.css:92, sim-results:833, 1908) and dense-table thead b
 simulation-detail.css:64 (8px→lg), :109 (6px→md); add-simulation.css:170, 188 (6px→md), :251 (4px→sm), :331 (8px→lg), :87, 96, 211 (5px→sm or md), :283 (12px→xl or 2xl); simulation-results.css:321 (8px→lg), :747 (6px→md), :776 (10px→xl), :1094 (4px→sm), :1133, 1277, 1296 (8px→lg), :1577 (6px→md), :1614 (4px→sm), :1643 (0 6px 6px 0→md), :1724, 1792, 1867, 1939, 2137, 2329 (8px→lg); simulation-comparison.css:269 (4px→sm); yearly-analysis-results.css:135 (10px→xl), :209 (5px), :242/247 (6px/4px), :378, 416, 1163, 1237 (8px→lg), :554 (4px→sm), :680, 722 (6px→md), :1263 (10px→xl); create-yearly-analysis.css:24 (5px); style.css:2170 (6px→md).
 
 Fallback anti-pattern: `var(--radius-sm, 6px)` at simulation-results.css:1446 — fallback contradicts the token (4px); also `var(--radius-md, 6px)` noise at sim-results:38, ya-results:87.
+
+## Comments
+
+- 2026-07-29: Resolved through a grilling session. Standard cards/panels use a 1px border, `--panel-radius`, and `--shadow-sm`; `md` padding is limited to intentional dense analytical panels, including mobile result panels. Standalone table wrappers use a 1px border, `--radius-lg`, and `--shadow-sm`; in-panel tables remain bare. Remove left-accent bars. Borders are uniformly 1px. Add `--shadow-modal` (`0 8px 32px rgba(0, 0, 0, 0.18)`) and standardize slider thumbs on the focus-ring treatment.
+- 2026-07-29: Restored semantic emphasis on environmental KPI cards without a side rail: variants use a solid 1px, brighter and less-saturated HSL border with a 10% tint over white.
 
 ## Shadows
 
