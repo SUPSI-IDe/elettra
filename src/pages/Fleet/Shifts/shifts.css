@@ -60,7 +60,8 @@
   margin: 0 var(--space-lg);
   padding: var(--space-md) 0;
   border-bottom: 1px solid var(--border-light);
-  font-size: var(--font-size-heading-sm);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
 }
 
 .shift-form .shift-config {
@@ -420,7 +421,7 @@
 .shift-summary__header h2 {
   margin: 0 var(--space-lg);
   padding: var(--space-md) 0;
-  font-size: var(--font-size-heading-sm);
+  font-size: var(--font-size-xl);
   font-weight: 600;
   color: var(--text-main);
   line-height: 1.35;
@@ -475,7 +476,7 @@
   margin: 0 var(--space-lg);
   padding: var(--space-md) 0;
   border-bottom: 1px solid var(--border-light);
-  font-size: var(--font-size-heading-sm);
+  font-size: var(--font-size-xl);
   font-weight: 600;
   color: var(--text-main);
   line-height: 1.35;
@@ -499,7 +500,7 @@
 .shift-summary__table tbody td.empty {
   text-align: left;
   color: var(--dark-gray);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   background-color: var(--bg-subtle);
 }
@@ -759,7 +760,7 @@
   height: 100%;
   min-height: 120px;
   color: var(--text-secondary);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   text-align: center;
   padding: var(--space-md);
 }

@@ -280,8 +280,8 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
 }
-.ya-res-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
-.ya-res-table th { padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); font-size: var(--font-size-2xs); font-weight: 700; text-transform: none; letter-spacing: normal; color: var(--text-secondary); background: var(--bg-subtle); text-align: right; white-space: nowrap; }
+.ya-res-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-md); }
+.ya-res-table th { padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); font-size: var(--font-size-sm); font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--color-text-subtle); background: var(--bg-subtle); text-align: right; white-space: nowrap; }
 .ya-res-table th:first-child { text-align: left; }
 .ya-res-table td { padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); border-bottom: 1px solid var(--border-light); color: var(--text-main); text-align: right; font-variant-numeric: tabular-nums; }
 .ya-res-table td:first-child { text-align: left; font-weight: 600; }
@@ -298,8 +298,8 @@
 
 /* ── Yearly table ──────────────────────────────────────────────── */
 
-.ya-yearly-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
-.ya-yearly-table th { padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); font-size: var(--font-size-2xs); font-weight: 700; text-transform: none; letter-spacing: normal; color: var(--text-secondary); background: var(--bg-subtle); text-align: left; }
+.ya-yearly-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-md); }
+.ya-yearly-table th { padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); font-size: var(--font-size-sm); font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--color-text-subtle); background: var(--bg-subtle); text-align: left; }
 .ya-yearly-table td { padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); border-bottom: 1px solid var(--border-light); }
 .ya-yearly-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
 .ya-yearly-table tbody tr:nth-child(even) { background: var(--bg-subtle); }
@@ -438,7 +438,7 @@
 .ya-critical-empty {
   margin: 0.65rem 0 0;
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 /* ── Overview grid ─────────────────────────────────────────────── */
@@ -942,16 +942,16 @@
 .ya-costs-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .ya-costs-table thead th {
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
-  color: var(--text-secondary);
+  color: var(--color-text-subtle);
   background: var(--bg-subtle);
   border-bottom: 2px solid var(--border-light);
   text-align: left;
@@ -993,7 +993,7 @@
   margin-left: var(--space-xs);
 }
 
-.ya-costs-table--scenario thead th { font-size: var(--font-size-2xs); }
+.ya-costs-table--scenario thead th { font-size: var(--font-size-sm); }
 
 .ya-costs-scenario-total td {
   border-top: 2px solid var(--border-light);
@@ -1110,16 +1110,16 @@
 .ya-env-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .ya-env-table thead th {
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
-  color: var(--text-main);
+  color: var(--color-text-subtle);
   background: var(--bg-subtle);
   border-bottom: 2px solid var(--border-light);
   text-align: left;
@@ -1130,8 +1130,8 @@
 
 .ya-env-table thead th.ya-env-table__section-title {
   text-align: left;
-  font-size: var(--font-size-2xs);
-  color: var(--text-main);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-subtle);
   white-space: nowrap;
 }
 

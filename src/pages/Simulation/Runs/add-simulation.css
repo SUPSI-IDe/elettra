@@ -97,7 +97,7 @@
 
 .add-simulation .shift-table {
   width: 100%;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .add-simulation .shift-table th {
@@ -105,7 +105,9 @@
   top: 0;
   background-color: var(--bg-subtle);
   z-index: 1;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-subtle);
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   text-align: left;
 }
@@ -214,7 +216,7 @@
 
 .add-simulation .stops-table {
   width: 100%;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
   border-collapse: collapse;
 }
 
@@ -223,7 +225,9 @@
   top: 0;
   background-color: var(--bg-subtle);
   z-index: 1;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-subtle);
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   text-align: left;
   white-space: nowrap;

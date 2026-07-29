@@ -548,7 +548,7 @@
   width: 100%;
   max-width: 480px;
   border-collapse: collapse;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
   margin-bottom: var(--space-md);
 }
 
@@ -632,7 +632,7 @@
 .costs-inputs-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .costs-inputs-table th,
@@ -644,11 +644,11 @@
 
 .costs-inputs-table th {
   text-align: left;
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
-  color: var(--text-secondary);
+  color: var(--color-text-subtle);
   background: var(--background-alt, var(--color-surface));
 }
 
@@ -803,8 +803,9 @@
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .sim-data-tab:hover,
@@ -815,6 +816,7 @@
 .sim-data-tab.active {
   border-bottom-color: var(--brand-teal);
   color: var(--brand-teal);
+  font-weight: 600;
 }
 
 .sim-data-tab-panel[hidden] {
@@ -1141,8 +1143,8 @@
 }
 
 .efficiency-sensitivity-card__title {
-  font-size: var(--font-size-md);
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
   color: var(--text-main);
 }
 
@@ -1258,7 +1260,7 @@
 .efficiency-state-msg {
   padding: var(--space-lg);
   color: var(--text-secondary);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
 }
 
 .efficiency-state-error {
@@ -1491,14 +1493,14 @@
   width: 100%;
   min-width: max-content;
   border-collapse: collapse;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .efficiency-table thead th {
   background: var(--background-alt, var(--color-surface));
-  color: var(--text-secondary);
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
@@ -1535,7 +1537,7 @@
 
 .efficiency-no-data {
   text-align: left;
-  color: var(--text-secondary);
+  color: var(--color-text-subtle);
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline) !important;
   font-style: italic;
 }
@@ -1668,7 +1670,7 @@
 
 .infeasibility-tab-notice h3 {
   margin: 0 0 0.6rem;
-  font-size: var(--font-size-heading-sm);
+  font-size: var(--font-size-xl);
   color: var(--color-danger);
   font-weight: 600;
 }
@@ -1756,8 +1758,8 @@
 
 .predictions-card-section__header h4 {
   margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
   color: var(--text-main);
 }
 
@@ -1813,14 +1815,14 @@
   width: 100%;
   min-width: 420px;
   border-collapse: collapse;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .predictions-table thead th {
   background: var(--background-alt, var(--color-surface));
-  color: var(--text-secondary);
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
@@ -2157,16 +2159,16 @@
 .emissions-recap-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .emissions-recap-table thead th {
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
-  color: var(--text-secondary);
+  color: var(--color-text-subtle);
   border-bottom: 2px solid var(--border-light);
   text-align: left;
   background: var(--background-alt, var(--color-surface));
@@ -2234,11 +2236,11 @@
 
 .emissions-recap-table--env .env-header-sub th {
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: none;
   letter-spacing: 0.02em;
-  color: var(--text-secondary, #888);
+  color: var(--color-text-subtle);
   border-bottom: 2px solid var(--border-light);
   text-align: right;
 }

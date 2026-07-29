@@ -20,12 +20,13 @@
 
 .ya-runs-table {
   width: 100%;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
 .ya-runs-table th {
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-subtle);
   text-transform: none;
   letter-spacing: normal;
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
@@ -61,7 +62,7 @@
 }
 
 .ya-loading {
-  padding: var(--space-sm);
+  padding: var(--space-lg);
 }
 
 .yearly-analysis-runs [hidden] {

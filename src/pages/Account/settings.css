@@ -24,6 +24,7 @@
 .settings-card-header h2 {
   margin: 0 0 var(--space-2xs);
   font-size: var(--font-size-xl);
+  font-weight: 600;
   color: var(--text-main);
   line-height: 1.35;
 }
