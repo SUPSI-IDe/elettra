@@ -1,11 +1,9 @@
 .create-yearly-analysis main { max-width: 720px; overflow-y: auto; }
-.create-yearly-analysis form { max-width: clamp(22rem, 60vw, 42rem); gap: var(--space-md); }
+.create-yearly-analysis form { max-width: clamp(22rem, 60vw, 42rem); }
 .create-yearly-analysis .required-mark { color: var(--brand-teal); }
 .create-yearly-analysis [hidden] { display: none !important; }
-.create-yearly-analysis label { font-size: var(--font-size-sm); font-weight: 600; }
 .create-yearly-analysis select,
-.create-yearly-analysis input[type="text"] { padding: 0.4rem 0.55rem; font-size: var(--font-size-md); width: 100%; }
-.create-yearly-analysis .form-group { gap: 0.2rem; }
+.create-yearly-analysis input[type="text"] { width: 100%; }
 
 .ya-create-description { font-size: var(--font-size-md); margin: 0 0 var(--space-sm); line-height: 1.5; }
 .ya-scenarios-note { font-size: var(--font-size-md); color: var(--text-secondary); margin: 0 0 0.45rem; line-height: 1.5; }
@@ -21,7 +19,7 @@
 }
 
 /* Config summary */
-.ya-config-summary { margin-top: 0.5rem; padding: 0.55rem 0.65rem; background: var(--bg-subtle); border-radius: 5px; font-size: var(--font-size-md); display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; }
+.ya-config-summary { margin-top: 0.5rem; padding: 0.55rem 0.65rem; background: var(--bg-subtle); border-radius: var(--radius-md); font-size: var(--font-size-md); display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; }
 .ya-config-param { display: flex; gap: 0.3rem; }
 .ya-config-param-label { font-size: var(--font-size-sm); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
 .ya-config-param-label::after { content: ":"; }
