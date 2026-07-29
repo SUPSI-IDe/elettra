@@ -13,6 +13,7 @@ import {
 } from "../config/simulation-defaults";
 import { normalizeOptimizationRunName } from "../utils/optimization-run";
 import { readDeleteResponse } from "./delete-response";
+import { createPredictionRunIndex } from "./prediction-run-index";
 
 const SIMULATION_PATH = `${API_ROOT}/api/v1/simulation`;
 const YEARLY_ANALYSIS_PATH = `${API_ROOT}/api/v1/yearly-analysis`;
@@ -148,9 +149,19 @@ const waitForPredictionRuns = async (runIds) => {
   const pending = new Set(runIds);
 
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-    const checks = await Promise.all(
-      [...pending].map((id) => fetchPredictionRun(id))
-    );
+    // `refresh` because polling is the one caller that must not be served a
+    // cached status. While many runs are pending this collapses each cycle to a
+    // single list request; as the set drains it reverts to per-id lookups.
+    const { runs: checks, missing } = await resolvePredictionRuns([...pending], {
+      refresh: true,
+    });
+
+    // A run we just created that the server no longer knows about will never
+    // complete, so fail now instead of polling it for three minutes. Request
+    // failures are left alone: they retry on the next cycle.
+    if (missing.length) {
+      throw new Error(`Prediction run ${missing[0]} is no longer available.`);
+    }
 
     for (const run of checks) {
       const id = text(run?.id ?? "");
@@ -306,7 +317,7 @@ export const createSinglePredictionRun = async ({
   }
 
   await waitForPredictionRuns(ids);
-  const runs = await Promise.all(ids.map((id) => fetchPredictionRun(id)));
+  const { runs } = await resolvePredictionRuns(ids);
   return runs;
 };
 
@@ -400,13 +411,36 @@ export const fetchPredictionRun = async (runId) => {
       payload?.detail?.[0]?.msg ??
       payload?.detail ??
       "Unable to load prediction run.";
-    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+    const error = new Error(
+      typeof message === "string" ? message : JSON.stringify(message)
+    );
+    // Callers distinguish "this run is gone" (an empty state) from "the request
+    // failed" (an error state).
+    error.status = response.status;
+    throw error;
   }
   return payload;
 };
 
+const predictionRunIndex = createPredictionRunIndex({
+  fetchOne: fetchPredictionRun,
+  fetchAll: fetchPredictionRuns,
+});
+
+/**
+ * Resolves prediction runs by id, batching through the list endpoint when the
+ * fan-out is wide enough to be worth it. See `prediction-run-index.js`.
+ */
+export const resolvePredictionRuns = (ids, options) =>
+  predictionRunIndex.resolve(ids, options);
+
+export const primePredictionRuns = (runs) => predictionRunIndex.prime(runs);
+
+export const invalidatePredictionRunIndex = () => predictionRunIndex.invalidate();
+
 export const deletePredictionRun = async (runId) => {
   if (!runId) throw new Error("Missing prediction run ID.");
+  predictionRunIndex.invalidate();
   const headers = authHeaders();
   const response = await fetch(
     `${SIMULATION_PATH}/prediction-runs/${encodeURIComponent(runId)}`,
