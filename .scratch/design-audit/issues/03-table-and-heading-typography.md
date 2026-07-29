@@ -1,6 +1,6 @@
 # Table, heading, and state-message typography tiers
 
-Status: needs-triage
+Status: ready-for-human
 Type: task
 
 ## Table headers (largest divergence in the app)
@@ -12,6 +12,8 @@ De facto two-tier system with stragglers:
 - **Stragglers to fold into the dense tier**: yearly-analysis-runs.css:27 (`xs/700`), simulation-comparison.css:330–331 (`xs/600`), simulation-results.css:2241 (`xs/600`), create-yearly-analysis.css:36 + simulation-results.css:651 (`2xs/600`).
 
 Decision: formalize the two tiers (recommended — matches list-vs-analytic reality) or unify entirely.
+
+Decision applied: unify all tables to the list tier.
 
 ## Table body cells
 
@@ -40,3 +42,7 @@ Majority `sm/500 → active 600` (results-tab, ya-tab, comparison twin). Fix `.s
 ## Chart legends
 
 Majority `sm`; fold simulation-comparison.css:189 (`xs`).
+
+## Comments
+
+- 2026-07-29: Unified tables to the list tier (`md` body; `sm`/600, subtle headers) and applied the related heading, card-title, state-message, tab, legend, and infeasibility-notice consistency fixes. Ready for visual review.
