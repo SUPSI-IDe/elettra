@@ -147,7 +147,7 @@
 }
 
 .about-card-link {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   font-weight: 500;
   color: var(--brand-teal);
   text-decoration: none;

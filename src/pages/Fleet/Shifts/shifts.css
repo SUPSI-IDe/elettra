@@ -316,11 +316,6 @@
   color: var(--brand-teal);
 }
 
-.shifts-table .sort-arrow {
-  font-size: 0.8em;
-  line-height: 1;
-}
-
 .shifts-table th.checkbox,
 .shifts-table td.checkbox {
   width: 2.5rem;
@@ -583,8 +578,8 @@
   border-radius: 0;
   background: linear-gradient(
     180deg,
-    rgba(142, 229, 227, 0.12),
-    rgba(177, 232, 232, 0.05)
+    color-mix(in srgb, var(--color-teal-tint) 12%, transparent),
+    color-mix(in srgb, var(--color-teal-tint-soft) 5%, transparent)
   );
   padding: var(--space-lg);
   min-height: 250px;
@@ -612,17 +607,17 @@
 }
 
 .timeline__grid line {
-  stroke: rgba(15, 60, 60, 0.12);
+  stroke: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
   stroke-dasharray: 3 3;
 }
 
 .timeline__grid--vertical line {
-  stroke: rgba(15, 60, 60, 0.08);
+  stroke: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
   stroke-dasharray: 2 6;
 }
 
 .timeline__axis--x text {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   fill: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -692,7 +687,11 @@
 
 /* Trip Preview - Inline Row (below the hovered row) */
 .trip-preview-row {
-  background: linear-gradient(180deg, rgba(142, 229, 227, 0.08), rgba(255, 255, 255, 1));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-teal-tint) 8%, transparent),
+    var(--color-surface)
+  );
   animation: slideDown 0.2s ease-out;
 }
 
@@ -728,7 +727,7 @@
 
 .trip-preview-inline__map {
   height: 180px;
-  background: #f0f4f4;
+  background: var(--color-disabled-bg);
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-xl) 0 0 var(--radius-xl);

@@ -6,21 +6,21 @@
 .create-yearly-analysis input[type="text"] { width: 100%; }
 
 .ya-create-description { font-size: var(--font-size-md); margin: 0 0 var(--space-sm); line-height: 1.5; }
-.ya-scenarios-note { font-size: var(--font-size-md); color: var(--text-secondary); margin: 0 0 0.45rem; line-height: 1.5; }
+.ya-scenarios-note { font-size: var(--font-size-md); color: var(--text-secondary); margin: 0 0 var(--space-sm); line-height: 1.5; }
 
 /* Fieldsets */
 .create-yearly-analysis .ya-base-section,
 .create-yearly-analysis .ya-scenarios-section {
-  border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 0.5rem 0.75rem 0.65rem; margin: 0;
+  border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-2sm) var(--control-padding-block); margin: 0;
 }
 .create-yearly-analysis .ya-base-section legend,
 .create-yearly-analysis .ya-scenarios-section legend {
-  color: var(--text-main); font-weight: 600; font-size: var(--font-size-lg); line-height: 1.35; padding: 0 0.3rem;
+  color: var(--text-main); font-weight: 600; font-size: var(--font-size-lg); line-height: 1.35; padding: 0 var(--space-xs);
 }
 
 /* Config summary */
-.ya-config-summary { margin-top: 0.5rem; padding: 0.55rem 0.65rem; background: var(--bg-subtle); border-radius: var(--radius-md); font-size: var(--font-size-md); display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; }
-.ya-config-param { display: flex; gap: 0.3rem; }
+.ya-config-summary { margin-top: var(--space-sm); padding: var(--space-sm) var(--space-md); background: var(--bg-subtle); border-radius: var(--radius-md); font-size: var(--font-size-md); display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-lg); }
+.ya-config-param { display: flex; gap: var(--space-xs); }
 .ya-config-param-label { font-size: var(--font-size-sm); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
 .ya-config-param-label::after { content: ":"; }
 .ya-config-param-value { font-size: var(--font-size-md); font-weight: 600; color: var(--text-main); font-variant-numeric: tabular-nums; }
@@ -35,13 +35,15 @@
 .create-yearly-analysis .ya-scenarios-table td { padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); vertical-align: middle; border-top: 1px solid var(--border-light); text-align: left; }
 .create-yearly-analysis .ya-scenarios-table tbody tr:hover { background-color: var(--bg-hover); }
 .create-yearly-analysis .ya-scenarios-table tfoot td { border-top: 2px solid var(--border-medium); font-weight: 600; padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); }
-.create-yearly-analysis .ya-scenarios-color-cell { padding-inline: 0.25rem; }
+.create-yearly-analysis .ya-scenarios-color-cell { padding-inline: var(--space-xs); }
 .create-yearly-analysis .ya-scenarios-swatch {
   display: inline-block;
   width: 1.1rem;
   height: 1.1rem;
   border-radius: 9999px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-surface) 55%, transparent),
+    0 0 0 1px var(--color-swatch-ring);
 }
 .create-yearly-analysis .ya-scenarios-table :is(th, td):first-child { text-align: center; }
 .create-yearly-analysis .ya-scenarios-table :is(th, td):nth-child(n + 2),
@@ -50,10 +52,10 @@
 .ya-total-value { text-align: right; font-variant-numeric: tabular-nums; min-width: 5.5rem; }
 .ya-total-value.ya-total-warn { color: var(--error-color); }
 .ya-scenarios-placeholder { text-align: left; color: var(--text-secondary); font-size: var(--font-size-md); font-style: italic; line-height: 1.5; padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); }
-.ya-occurrences-warning { font-size: var(--font-size-sm); color: var(--error-color); margin: 0.35rem 0 0; font-weight: 500; }
+.ya-occurrences-warning { font-size: var(--font-size-sm); color: var(--error-color); margin: var(--space-2xs) 0 0; font-weight: 500; }
 
 #ya-occupancy { width: 25%; min-width: 6rem; }
-.ya-occupancy-note { font-size: var(--font-size-md); color: var(--text-secondary); margin: 0.25rem 0 0; line-height: 1.5; }
+.ya-occupancy-note { font-size: var(--font-size-md); color: var(--text-secondary); margin: var(--space-xs) 0 0; line-height: 1.5; }
 .ya-occupancy-note strong { font-weight: 600; color: var(--text-primary); }
 
 @media (max-width: 480px) {

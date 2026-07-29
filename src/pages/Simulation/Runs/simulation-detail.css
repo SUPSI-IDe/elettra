@@ -124,5 +124,5 @@
   font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--text-main);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }

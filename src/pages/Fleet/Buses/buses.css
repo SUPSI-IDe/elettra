@@ -5,7 +5,7 @@
 /* Page-specific overrides for bus model forms */
 .add-bus-model main {
   max-width: 1120px;
-  padding: var(--space-lg);
+  padding: var(--layout-content-padding);
   overflow-y: auto;
 }
 
@@ -21,12 +21,6 @@
   font-size: var(--font-size-md);
   color: var(--text-secondary);
   margin: 0;
-}
-
-.add-bus-model .optional-note {
-  font-size: 0.8em;
-  font-weight: 400;
-  color: var(--text-secondary);
 }
 
 .add-bus-model .bus-model-shell {
@@ -45,7 +39,7 @@
 
 .add-bus-model .bus-model-kicker {
   margin: 0 0 var(--space-xs);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -220,10 +214,6 @@
 }
 
 @media (max-width: 640px) {
-  .add-bus-model main {
-    padding: var(--space-md);
-  }
-
   .add-bus-model .bus-model-intro-card,
   .add-bus-model .bus-model-panel {
     padding: var(--space-md);

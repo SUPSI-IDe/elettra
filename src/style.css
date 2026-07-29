@@ -3,8 +3,11 @@
   --color-brand-primary-hover: #092525;
   --color-brand-secondary: #003296;
   --color-brand-accent: #6fbeec;
+  --color-accent-lime: #abe828;
+  --color-teal-tint: #8ee5e3;
+  --color-teal-tint-soft: #b1e8e8;
   --color-sidebar-start: #00aaff;
-  --color-sidebar-end: #b1e8e8;
+  --color-sidebar-end: var(--color-teal-tint-soft);
   --color-sidebar-text: rgba(255, 255, 255, 0.98);
   --color-sidebar-hover-bg: rgba(255, 255, 255, 0.14);
   --color-sidebar-active-bg: rgba(255, 255, 255, 0.22);
@@ -18,6 +21,7 @@
   --color-border: #d3d3d3;
   --color-border-light: #e5e5e5;
   --color-border-dim: #dde6ea;
+  --color-swatch-ring: rgba(15, 23, 42, 0.08);
   --color-text-main: #1c1c1c;
   --color-text-muted: #4f4f4f;
   --color-text-subtle: #65727d;
@@ -25,19 +29,21 @@
   --color-success: #2e7d32;
   --color-warning: #f5a623;
   --color-danger: #d32f2f;
-  --color-focus-ring: rgba(142, 229, 227, 0.35);
+  --color-warning-text: #b95d0a;
+  --color-info-text: #4271c9;
+  --color-focus-ring: color-mix(in srgb, var(--color-teal-tint) 35%, transparent);
   --color-row-hover-bg: var(--color-surface-muted);
-  --color-row-dense-hover-bg: rgba(15, 60, 60, 0.04);
+  --color-row-dense-hover-bg: color-mix(in srgb, var(--color-brand-primary) 4%, transparent);
   --color-row-zebra-bg: rgba(0, 0, 0, 0.015);
-  --color-row-selected-bg: rgba(15, 60, 60, 0.08);
-  --color-row-selected-hover-bg: rgba(15, 60, 60, 0.12);
+  --color-row-selected-bg: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+  --color-row-selected-hover-bg: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
   --color-disabled-bg: #f3f5f7;
   --color-disabled-border: #d6dee3;
   --color-disabled-text: #7f8b96;
 
   --font-family-base: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-size-xs: 0.6875rem;
-  --font-size-2xs: 0.75rem;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-size-xs: 0.75rem;
   --font-size-sm: 0.8125rem;
   --font-size-md: 0.875rem;
   --font-size-lg: 0.95rem;
@@ -52,7 +58,6 @@
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 10px;
-  --radius-2xl: 14px;
   --radius-full: 9999px;
 
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
@@ -107,13 +112,23 @@
 
   --color-positive: #2e7d32;
   --color-positive-strong: var(--color-success);
-  --color-positive-muted: rgba(46, 125, 50, 0.12);
+  --color-positive-muted: color-mix(in srgb, var(--color-positive) 12%, transparent);
   --color-negative-strong: var(--color-danger);
-  --color-negative-muted: rgba(211, 47, 47, 0.1);
+  --color-negative-muted: color-mix(in srgb, var(--color-danger) 10%, transparent);
   --badge-positive-bg: var(--color-positive-muted);
   --badge-positive-text: var(--color-positive);
   --badge-negative-bg: var(--color-negative-muted);
   --badge-negative-text: var(--color-negative-strong);
+
+  /* Env KPI card tones. Softer than the semantic positive/danger pair on
+     purpose — these paint a whole card border plus a 10% background wash.
+     Shared by simulation-results and yearly-analysis-results. */
+  --color-kpi-positive: hsl(123 28% 44%);
+  --color-kpi-negative: hsl(0 55% 55%);
+  --color-kpi-neutral: hsl(190 10% 68%);
+  --kpi-tint-strength: 10%;
+
+  --color-chart-primary: #00639a;
   --color-chart-neutral: #95a5a6;
   --color-neutral-accent: var(--color-chart-neutral);
   --color-chart-track: #d7e1e8;
@@ -122,9 +137,9 @@
   --color-tooltip-text: var(--color-text-muted);
   --color-overlay: rgba(0, 0, 0, 0.45);
   --color-sim-a: #1a6fa0;
-  --color-sim-a-bg: rgba(111, 190, 236, 0.14);
+  --color-sim-a-bg: color-mix(in srgb, var(--color-brand-accent) 14%, transparent);
   --color-sim-b: #4a7a0a;
-  --color-sim-b-bg: rgba(171, 232, 40, 0.14);
+  --color-sim-b-bg: color-mix(in srgb, var(--color-accent-lime) 14%, transparent);
   --panel-padding: var(--space-lg);
   --panel-radius: var(--radius-xl);
 
@@ -227,7 +242,7 @@ button {
 }
 
 .green {
-  background-color: #abe828;
+  background-color: var(--color-accent-lime);
 }
 
 .blue {
@@ -299,7 +314,7 @@ body {
   min-width: 0;
   background-color: var(--color-background);
   scrollbar-width: thin;
-  scrollbar-color: rgba(15, 60, 60, 0.22) transparent;
+  scrollbar-color: color-mix(in srgb, var(--color-brand-primary) 22%, transparent) transparent;
 }
 
 .layout-article::-webkit-scrollbar {
@@ -307,7 +322,7 @@ body {
 }
 
 .layout-article::-webkit-scrollbar-thumb {
-  background-color: rgba(15, 60, 60, 0.22);
+  background-color: color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
   border-radius: 999px;
 }
 
@@ -388,19 +403,19 @@ body {
 }
 
 .about-btn.is-active {
-  background-color: rgba(15, 60, 60, 0.1);
+  background-color: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
   color: var(--brand-teal);
-  box-shadow: inset 0 0 0 1px rgba(15, 60, 60, 0.12);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
 }
 
 .about-btn.is-active:hover {
-  background-color: rgba(15, 60, 60, 0.14);
+  background-color: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
 }
 
 /* Declared after .is-active so the ring survives on the active button. */
 .about-btn:focus-visible {
   outline: 2px solid transparent;
-  background-color: rgba(15, 60, 60, 0.08);
+  background-color: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
   color: var(--brand-teal);
   box-shadow: var(--shadow-focus-ring);
 }
@@ -535,8 +550,8 @@ body {
 
 .user-section.is-active .user-info,
 .user-section.is-active .user-menu-toggle {
-  background-color: rgba(15, 60, 60, 0.06);
-  border-color: rgba(15, 60, 60, 0.16);
+  background-color: color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
 }
 
 .user-section.is-active .user-icon,
@@ -551,7 +566,7 @@ body {
 
 .user-menu-dropdown {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + var(--space-xs));
   right: 0;
   min-width: 180px;
   background-color: var(--color-surface);
@@ -612,7 +627,7 @@ nav {
   height: 100%;
   overflow-y: auto;
   flex-shrink: 0;
-  box-shadow: 2px 0 12px rgba(15, 60, 60, 0.06);
+  box-shadow: 2px 0 12px color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
 }
 
 nav[hidden] {
@@ -634,7 +649,7 @@ nav .nav-links li {
 }
 
 nav .nav-links .nav-section-title {
-  padding: 0.9rem var(--space-md) var(--space-2xs);
+  padding: var(--space-md) var(--space-md) var(--space-2xs);
   color: var(--color-sidebar-text);
   font-size: var(--font-size-xl);
   font-weight: 700;
@@ -663,7 +678,7 @@ nav .nav-links a {
   display: flex;
   align-items: center;
   min-height: 2.75rem;
-  padding: var(--control-padding-block) 0.9rem 0.65rem var(--space-md);
+  padding: var(--control-padding-block) var(--space-md);
   color: var(--color-sidebar-text);
   font-size: var(--font-size-md);
   font-weight: 500;
@@ -854,14 +869,14 @@ button.list-secondary-action:hover:not(:disabled) {
 }
 
 button.list-danger-action {
-  background-color: rgba(211, 47, 47, 0.06);
+  background-color: color-mix(in srgb, var(--color-danger) 6%, transparent);
   color: var(--danger);
-  border-color: rgba(211, 47, 47, 0.18);
+  border-color: color-mix(in srgb, var(--color-danger) 18%, transparent);
 }
 
 button.list-danger-action:hover:not(:disabled) {
-  background-color: rgba(211, 47, 47, 0.12);
-  border-color: rgba(211, 47, 47, 0.32);
+  background-color: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-danger) 32%, transparent);
 }
 
 .table-controls button:focus-visible,
@@ -1097,7 +1112,7 @@ table input[type="checkbox"] {
   padding: var(--space-2sm) var(--space-md);
   background-color: var(--brand-teal-bg);
   color: var(--brand-teal);
-  border: 1px solid rgba(15, 60, 60, 0.12);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
   border-radius: var(--radius-lg);
   font-size: var(--font-size-md);
   max-width: var(--layout-content-max-width);
@@ -1178,7 +1193,7 @@ table input[type="checkbox"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-xs) 0.65rem;
+  padding: var(--space-xs) var(--space-2sm);
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
   font-weight: 600;
@@ -1188,7 +1203,18 @@ table input[type="checkbox"] {
 }
 
 .badge--compact {
-  padding: 0.15rem var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.sort-arrow {
+  font-size: 0.8em;
+  line-height: 1;
+}
+
+.optional-note {
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--text-secondary);
 }
 
 .badge--success,
@@ -1291,7 +1317,7 @@ table input[type="checkbox"] {
   background: var(--color-tooltip-surface);
   box-shadow: var(--shadow-md);
   color: var(--color-tooltip-text);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   font-weight: 400;
   font-style: normal;
   line-height: 1.45;
@@ -1713,13 +1739,13 @@ table input[type="checkbox"] {
 :is(.results-cost-variables__grid, .ya-cost-variables__grid) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.32rem 0.42rem;
+  gap: var(--space-2xs);
 }
 
 :is(.results-cost-variables__field, .ya-cost-variables__field) {
   display: grid;
-  gap: 0.14rem;
-  font-size: var(--font-size-2xs);
+  gap: var(--space-xs);
+  font-size: var(--font-size-xs);
 }
 
 :is(.results-cost-variables__field-top, .ya-cost-variables__field-top) {
@@ -1730,7 +1756,7 @@ table input[type="checkbox"] {
 
 :is(.results-cost-variables__value, .ya-cost-variables__value) {
   min-width: 4.1rem;
-  padding: 0.14rem 0.38rem;
+  padding: var(--space-xs) var(--space-2xs);
   border-radius: 999px;
   background: color-mix(in srgb, var(--brand-teal) 8%, transparent);
   color: var(--brand-teal-dark);
@@ -1965,7 +1991,7 @@ table input[type="checkbox"] {
   display: inline-flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: 0.6rem var(--space-2md);
+  padding: var(--space-sm) var(--space-2md);
   font-size: var(--font-size-lg);
   font-weight: 500;
   color: var(--brand-teal);
@@ -2133,7 +2159,7 @@ table input[type="checkbox"] {
 .login-form .input-icon,
 .register-form .input-icon {
   position: absolute;
-  left: 0.75rem;
+  left: var(--space-2sm);
   color: var(--dark-gray);
   pointer-events: none;
   transition: color 0.2s ease;
@@ -2142,7 +2168,7 @@ table input[type="checkbox"] {
 .login-form .input-wrapper input,
 .register-form .input-wrapper input {
   width: 100%;
-  padding: var(--control-padding-block) var(--control-padding-inline) 0.65rem var(--space-2xl);
+  padding: var(--control-padding-block) var(--control-padding-inline) var(--control-padding-block) var(--space-2xl);
   font-size: var(--font-size-lg);
   line-height: 1.45;
   border: 1px solid var(--border-medium);
@@ -2172,10 +2198,10 @@ table input[type="checkbox"] {
 .login-form .toggle-password,
 .register-form .toggle-password {
   position: absolute;
-  right: 0.75rem;
+  right: var(--space-2sm);
   background: none;
   border: none;
-  padding: 4px;
+  padding: var(--space-xs);
   cursor: pointer;
   color: var(--dark-gray);
   display: flex;
@@ -2191,7 +2217,7 @@ table input[type="checkbox"] {
 
 /* Input Hint */
 .input-hint {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-secondary);
   margin: 0;
 }
@@ -2400,7 +2426,7 @@ table input[type="checkbox"] {
   font-weight: 500;
   color: var(--brand-teal);
   background-color: var(--brand-teal-bg);
-  border: 1px solid rgba(15, 60, 60, 0.12);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease;
@@ -2443,7 +2469,7 @@ table input[type="checkbox"] {
   gap: var(--space-sm);
   padding: var(--space-sm);
   margin-top: var(--space-sm);
-  border-top: 1px solid rgba(15, 60, 60, 0.08);
+  border-top: 1px solid color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
   font-size: var(--font-size-md);
   color: var(--dark-blue);
 }
@@ -2455,7 +2481,7 @@ table input[type="checkbox"] {
 .pagination-controls .pagination-page-size {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs, var(--space-sm));
+  gap: var(--space-xs);
 }
 
 .pagination-controls .pagination-page-size select {
@@ -2548,7 +2574,7 @@ table input[type="checkbox"] {
 
   nav .nav-links a {
     min-height: 2.25rem;
-    padding: var(--space-sm) 0.85rem;
+    padding: var(--space-sm) var(--space-2sm);
     font-size: var(--font-size-md);
     white-space: nowrap;
     flex-shrink: 0;
