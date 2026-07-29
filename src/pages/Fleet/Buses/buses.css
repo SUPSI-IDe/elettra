@@ -219,8 +219,8 @@
 }
 
 .add-bus-model .vehicle-category-info:focus-visible {
-  outline: 2px solid var(--action-blue);
-  outline-offset: 2px;
+  outline: 2px solid transparent;
+  box-shadow: var(--shadow-focus-ring);
 }
 
 .add-bus-model .bus-model-form-footer {

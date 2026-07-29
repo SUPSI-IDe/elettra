@@ -357,10 +357,6 @@
   cursor: pointer;
 }
 
-.results-cost-variables__range:focus {
-  outline: none;
-}
-
 .results-cost-variables__range::-webkit-slider-thumb {
   appearance: none;
   width: 0.82rem;
@@ -1045,7 +1041,6 @@
 .efficiency-info-icon:hover,
 .efficiency-info-icon:focus {
   opacity: 1;
-  outline: none;
 }
 
 .efficiency-limit-cell {

@@ -387,8 +387,7 @@
   padding: var(--space-xs) var(--space-sm);
 }
 
-.visualize-shift__back:hover,
-.visualize-shift__back:focus {
+.visualize-shift__back:hover {
   text-decoration: none;
 }
 

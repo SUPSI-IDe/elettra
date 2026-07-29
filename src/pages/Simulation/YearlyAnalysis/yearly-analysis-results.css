@@ -172,9 +172,10 @@
   display: none;
 }
 
+/* Inset ring: the parent clips overflow, so an outer ring would be cut off. */
 .ya-efficiency-details__toggle:focus-visible {
-  outline: 3px solid var(--color-focus-ring);
-  outline-offset: -3px;
+  outline: 2px solid transparent;
+  box-shadow: var(--shadow-focus-ring-inset);
 }
 
 .ya-efficiency-details__toggle::before {
@@ -615,9 +616,10 @@
   display: none;
 }
 
+/* Inset ring: the parent clips overflow, so an outer ring would be cut off. */
 .ya-more-information__toggle:focus-visible {
-  outline: 3px solid var(--color-focus-ring);
-  outline-offset: -3px;
+  outline: 2px solid transparent;
+  box-shadow: var(--shadow-focus-ring-inset);
 }
 
 .ya-more-information__toggle::before {
@@ -780,7 +782,6 @@
   width: 100%;
   height: 0.56rem;
   border-radius: 999px;
-  outline: none;
   background: linear-gradient(
     90deg,
     var(--brand-teal) var(--slider-progress),
@@ -789,8 +790,6 @@
   );
   cursor: pointer;
 }
-
-.ya-cost-variables__range:focus { outline: none; }
 
 .ya-cost-variables__range::-webkit-slider-thumb {
   appearance: none;

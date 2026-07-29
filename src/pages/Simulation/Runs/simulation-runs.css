@@ -192,10 +192,10 @@
     box-shadow var(--transition-fast);
 }
 
-.compare-select-group select:focus {
+.compare-select-group select:focus-visible {
   border-color: var(--brand-teal-light);
   outline: 2px solid transparent;
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  box-shadow: var(--shadow-focus-ring);
 }
 
 .compare-btn {
