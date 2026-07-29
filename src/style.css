@@ -1154,7 +1154,7 @@ table input[type="checkbox"] {
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--kpi-tile-min, 10rem), 1fr));
-  gap: var(--space-md);
+  gap: var(--space-sm);
 }
 
 .badge,
@@ -1276,7 +1276,7 @@ table input[type="checkbox"] {
 
 .metric-value {
   color: var(--text-main);
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-md);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
