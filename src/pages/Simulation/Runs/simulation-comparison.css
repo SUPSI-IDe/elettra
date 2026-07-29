@@ -315,7 +315,7 @@
 }
 
 .simulation-comparison-page .efficiency-table tbody tr:hover {
-  background: var(--color-row-hover-bg);
+  background: var(--color-row-dense-hover-bg);
 }
 
 .simulation-comparison-page .efficiency-td-num {

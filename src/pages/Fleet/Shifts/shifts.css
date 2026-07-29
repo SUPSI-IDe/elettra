@@ -808,7 +808,7 @@
 }
 
 .shift-form .scheduled-trips tbody tr:hover {
-  background-color: rgba(15, 138, 135, 0.05);
+  background-color: var(--color-row-hover-bg);
 }
 
 /* Shift Timeline Section in Form */

@@ -1007,7 +1007,7 @@
 }
 
 .overview-row:nth-child(even) {
-  background: rgba(0, 0, 0, 0.015);
+  background: var(--color-row-zebra-bg);
 }
 
 .overview-row__label {
@@ -1489,7 +1489,7 @@
 }
 
 .efficiency-table tbody tr:hover {
-  background: rgba(0, 99, 154, 0.05);
+  background: var(--color-row-dense-hover-bg);
 }
 
 .efficiency-table td {
@@ -2122,7 +2122,7 @@
 }
 
 .emissions-recap-table tbody tr:hover {
-  background: rgba(0, 99, 154, 0.05);
+  background: var(--color-row-dense-hover-bg);
 }
 
 .emissions-recap-table .emissions-recap-reduction {
@@ -2228,7 +2228,7 @@
 }
 
 .emissions-recap-table--env tbody tr.env-row:hover {
-  background: rgba(0, 99, 154, 0.04);
+  background: var(--color-row-dense-hover-bg);
 }
 
 /* Legacy KPI cards (per-km intensity) — hidden but kept for compatibility */

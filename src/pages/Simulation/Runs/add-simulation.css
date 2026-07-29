@@ -158,11 +158,19 @@
 }
 
 .add-simulation .shift-table tbody tr:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--color-row-hover-bg);
 }
 
-.add-simulation .shift-table tbody tr:has(input:checked) {
-  background-color: var(--brand-teal-bg);
+.add-simulation .shift-table tbody tr:has(input:checked) > td {
+  background-color: var(--color-row-selected-bg);
+}
+
+.add-simulation .shift-table tbody tr:has(input:checked):hover > td {
+  background-color: var(--color-row-selected-hover-bg);
+}
+
+.add-simulation .shift-table tbody tr:has(input:checked) > td.checkbox {
+  box-shadow: inset 3px 0 0 var(--brand-teal);
 }
 
 /* ── Custom variables fieldset ───────────────────────────────────── */

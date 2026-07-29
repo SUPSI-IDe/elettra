@@ -286,7 +286,7 @@
 .ya-res-table td { padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); border-bottom: 1px solid var(--border-light); color: var(--text-main); text-align: right; font-variant-numeric: tabular-nums; }
 .ya-res-table td:first-child { text-align: left; font-weight: 600; }
 .ya-res-table tbody tr:nth-child(even) { background: var(--bg-subtle); }
-.ya-res-table tbody tr:hover { background: rgba(15,60,60,0.04); }
+.ya-res-table tbody tr:hover { background: var(--color-row-dense-hover-bg); }
 .ya-scenario-error { color: var(--error-color); font-weight: 600; text-align: left !important; }
 
 /* ── Yearly table ──────────────────────────────────────────────── */
@@ -486,7 +486,7 @@
 }
 
 .ya-overview-row:last-child { border-bottom: none; }
-.ya-overview-row:nth-child(even) { background: rgba(0, 0, 0, 0.015); }
+.ya-overview-row:nth-child(even) { background: var(--color-row-zebra-bg); }
 
 .ya-overview-row__label {
   color: var(--text-secondary);
@@ -951,7 +951,7 @@
 
 .ya-costs-table tbody td:first-child { font-weight: 600; }
 .ya-costs-table tbody tr:nth-child(even) { background: var(--bg-subtle); }
-.ya-costs-table tbody tr:hover { background: rgba(15, 60, 60, 0.04); }
+.ya-costs-table tbody tr:hover { background: var(--color-row-dense-hover-bg); }
 
 .ya-costs-table .ya-costs-saving-row td {
   border-top: 2px solid var(--border-light);
@@ -1132,7 +1132,7 @@
 
 .ya-env-table tbody td:first-child { font-weight: 600; white-space: nowrap; }
 .ya-env-table tbody tr:nth-child(even) { background: var(--bg-subtle); }
-.ya-env-table tbody tr:hover { background: rgba(15, 60, 60, 0.04); }
+.ya-env-table tbody tr:hover { background: var(--color-row-dense-hover-bg); }
 
 .ya-env-reduction--positive { color: var(--color-positive); font-weight: 700; }
 .ya-env-reduction--negative { color: var(--color-negative-strong); font-weight: 700; }

@@ -27,6 +27,8 @@
   --color-danger: #d32f2f;
   --color-focus-ring: rgba(142, 229, 227, 0.35);
   --color-row-hover-bg: var(--color-surface-muted);
+  --color-row-dense-hover-bg: rgba(15, 60, 60, 0.04);
+  --color-row-zebra-bg: rgba(0, 0, 0, 0.015);
   --color-row-selected-bg: rgba(15, 60, 60, 0.08);
   --color-row-selected-hover-bg: rgba(15, 60, 60, 0.12);
   --color-disabled-bg: #f3f5f7;
@@ -975,7 +977,7 @@ table td button:hover,
 
 table tbody tr:hover,
 .table-standard tbody tr:hover {
-  background-color: var(--bg-subtle);
+  background-color: var(--color-row-hover-bg);
 }
 
 table input[type="checkbox"] {

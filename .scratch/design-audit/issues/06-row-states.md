@@ -1,6 +1,6 @@
 # Table row hover / selected states
 
-Status: needs-triage
+Status: done
 Type: task
 
 ## Hover — four tints coexist
@@ -20,3 +20,7 @@ Decision: plain token everywhere, or a single tinted hover for dense/zebra table
 ## Zebra
 
 `rgba(0,0,0,0.015)` hardcoded twice (simulation-results.css:1011, yearly-analysis-results.css:495) — add a token (e.g. `--color-row-zebra-bg`).
+
+## Comments
+
+- 2026-07-29: Added `--color-row-dense-hover-bg` (the shared teal tint) and applied it to the dense and striped analysis tables. Standard list and scheduled-trip rows now use the neutral `--color-row-hover-bg`. Added `--color-row-zebra-bg` and replaced both duplicated overview-row stripe values. The add-simulation shift table now uses the shared selected and selected-hover tokens with the standard inset selection bar.
