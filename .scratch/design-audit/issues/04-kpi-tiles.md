@@ -1,6 +1,6 @@
 # KPI / stat tile consistency
 
-Status: needs-triage
+Status: resolved
 Type: task
 
 ## Labels (uppercase micro-labels) — tie, decision needed
@@ -32,3 +32,10 @@ Used by costs-kpi-card (sim-results:473), ya-costs-kpi-card (ya-results:909), ya
 ## Grid gap — working majority: `--space-sm` (8 uses) though shared `.kpi-grid` defaults to `md`
 
 Either add a dense modifier to `.kpi-grid` in style.css or change the default. Outlier: ya-env-kpi-row (ya-results:1009) at `lg`.
+
+## Answer
+
+Implemented the shared `sm/600/uppercase/0.04em` KPI-label standard and a
+single `md/700` primary-value tier. Normalized KPI tile padding to the shared
+control padding tokens and standardized KPI grid gaps to `--space-sm`,
+including the yearly emissions row.

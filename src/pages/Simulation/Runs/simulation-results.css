@@ -478,8 +478,8 @@
 
 .costs-kpi-label {
   display: block;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
@@ -983,8 +983,8 @@
 
 .overview-col__title {
   margin: 0;
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--dark-blue);
@@ -1185,8 +1185,8 @@
 
 .efficiency-sensitivity-card__drivers-label {
   display: block;
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
@@ -1386,7 +1386,7 @@
   text-align: right;
   color: var(--text-main);
   font-size: var(--font-size-md);
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1716,22 +1716,22 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  padding: var(--space-2sm) 0.85rem;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border-radius: 8px;
   background: var(--background-alt, var(--color-surface));
 }
 
 .predictions-metric__label {
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .predictions-metric__value {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: 700;
   color: var(--text-main);
   font-variant-numeric: tabular-nums;
 }
@@ -1964,7 +1964,7 @@
 .env-kpi-card {
   border: 1px solid var(--color-border-dim);
   border-radius: var(--panel-radius);
-  padding: var(--space-md) 1.1rem;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   background: var(--color-surface);
   display: flex;
   flex-direction: column;
@@ -1991,8 +1991,8 @@
 }
 
 .env-kpi-card__title {
-  font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
@@ -2322,7 +2322,7 @@
   min-width: 130px;
   border: 1px solid var(--border-light);
   border-radius: 8px;
-  padding: var(--control-padding-block) 0.85rem;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   background: var(--background-alt, var(--color-surface));
   display: flex;
   flex-direction: column;
@@ -2330,15 +2330,15 @@
 }
 
 .emissions-kpi-label {
-  font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: var(--text-secondary);
 }
 
 .emissions-kpi-value {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: 700;
   color: var(--text-main);
   font-variant-numeric: tabular-nums;

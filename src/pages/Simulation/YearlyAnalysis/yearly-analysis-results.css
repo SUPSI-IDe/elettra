@@ -340,7 +340,7 @@
 }
 
 .ya-summary-card {
-  padding: var(--space-2sm) var(--space-md);
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--color-border-dim);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
@@ -355,7 +355,7 @@
   margin: 0 0 0.15rem;
 }
 .ya-summary-card__value {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-md);
   font-weight: 700;
   color: var(--text-main);
   font-variant-numeric: tabular-nums;
@@ -374,7 +374,7 @@
   margin-top: var(--space-2sm);
 }
 .ya-uncertainty-summary-item {
-  padding: 0.6rem var(--space-2sm);
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--border-light);
   border-radius: 8px;
   background: var(--color-surface);
@@ -916,8 +916,8 @@
 
 .ya-costs-kpi-label {
   display: block;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
@@ -1005,7 +1005,7 @@
 
 .ya-env-kpi-row {
   --kpi-tile-min: 12.5rem;
-  gap: var(--space-lg);
+  gap: var(--space-sm);
   margin-bottom: var(--space-md);
   align-items: stretch;
 }
@@ -1013,7 +1013,7 @@
 .ya-env-kpi-card {
   border: 1px solid var(--color-border-dim);
   border-radius: var(--panel-radius);
-  padding: var(--space-md) 1.1rem;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   background: var(--color-surface);
   display: flex;
   align-items: stretch;
@@ -1040,8 +1040,10 @@
 
 .ya-env-kpi-card__title {
   flex: 1 1 100%;
-  font-size: var(--font-size-lg);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--text-main);
   margin: 0;
   line-height: 1.35;
@@ -1066,14 +1068,14 @@
 }
 
 .ya-env-kpi-card__val-label {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   color: var(--text-main);
   font-weight: 700;
   white-space: nowrap;
 }
 
 .ya-env-kpi-card__val-num {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: 700;
   color: var(--text-main);
   font-variant-numeric: tabular-nums;
@@ -1085,7 +1087,7 @@
   align-items: center;
   gap: var(--space-xs);
   margin-left: auto;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
