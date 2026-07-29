@@ -1,7 +1,22 @@
 # Dialogs, tooltips, and info icons
 
-Status: needs-triage
+Status: done (CSS scope; SVG chart tooltips deferred to ticket 02)
 Type: task
+
+## Comments
+
+- 2026-07-29: Resolved through a grilling session; implemented in the same pass.
+  - **Scope**: CSS only. The 7 d3/SVG chart tooltips and `shift-timeline.js` move to ticket 02, which inherits the surface decision below.
+  - **Tooltip surface**: light wins (4–2 in CSS, 11–3 counting the SVG rects). `--color-tooltip-bg` (`#1e293b`) deleted; replaced by `--color-tooltip-surface`, `--color-tooltip-border`, `--color-tooltip-text`. Renamed rather than repointed so a missed call site fails visibly instead of rendering white-on-white.
+  - **Arrow**: dropped. `.costs-kpi-tooltip` was the only one with a pointer; 4 of 5 had none.
+  - **Info icon**: filled circle at 0.95rem, `color-mix(in srgb, var(--color-brand-secondary) 12%, transparent)`, brand-secondary italic `i` (majority 3–2). `.vehicle-category-info` and `.efficiency-info-icon` converge onto it, retiring `--action-blue` and the `opacity: 0.75` treatment as icon idioms.
+  - **Tooltip text**: `--font-size-2xs` (12px). Genuine 3–3 tie broken on readability — these carry paragraphs, and 11px is the badge/glyph tier.
+  - **Motion**: `display: none` + `transition-behavior: allow-discrete` + `@starting-style`. Gives buses' fade everywhere while keeping hidden tooltips out of their containers' scroll extent (they live inside `overflow: auto` table wrappers). `--tooltip-enter-offset` flips the entry direction for upward tooltips.
+  - **Consolidation**: one definition in `style.css`, selector-list aliased onto the historical class names (`.info-icon`/`.info-tooltip` are canonical for new call sites). No class renames — three of the four pages cannot be rendered on the test account. This also fixed a live collision: `.costs-title-info`/`.costs-title-tooltip` were defined at identical specificity in both `simulation-results.css` and `yearly-analysis-results.css`, so one build was already dead.
+  - **Seam**: the shared block owns surface, type and motion; call sites own only anchor edge and width (`min(20rem, 75vw)` for prose, `260px` for short hints).
+  - **Backdrop blur**: kept as an intentional role distinction, not drift — `blur(2px)` on the two blocking progress overlays, none on the three dialogs. It was already 100% consistent within each role.
+  - **a11y**: because hidden tooltips leave the a11y tree, the six unlabelled `.ya-info-icon` spans in `yearly-analysis-results.js` now go through an `infoTip()` helper that also emits an escaped `aria-label`.
+- Follow-up for ticket 14: `--radius-2xl` is now dead — `.shift-progress__content` was its last consumer.
 
 ## Modals / dialogs
 

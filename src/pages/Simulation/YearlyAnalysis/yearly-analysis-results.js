@@ -1747,6 +1747,15 @@ const renderCostsKpis = (el, cd) => {
     </div>`;
 };
 
+/* The shared tooltip is `display: none` until hovered, so its text is not in
+   the accessibility tree — the icon has to carry the same text as its
+   accessible name. */
+const infoTip = (text) => {
+  const value = textContent(text);
+  const label = value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  return `<span class="ya-info-icon" tabindex="0" aria-label="${label}">i<span class="ya-info-tooltip">${value}</span></span>`;
+};
+
 const renderElectricOpexBreakdown = (el, cd) => {
   if (!el || !cd) { if (el) el.innerHTML = ""; return; }
   const km = toFiniteNumber(cd.yearlyDistanceKm);
@@ -1756,8 +1765,8 @@ const renderElectricOpexBreakdown = (el, cd) => {
   const avgKwhKm = cd.yearlyEnergyKwh > 0 && km > 0 ? cd.yearlyEnergyKwh / km : null;
 
   const nSc = (cd.scenarioCosts ?? []).length;
-  const energyTip = `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${textContent(t("yearly_analysis.energy_cost_tooltip", { count: nSc, energy: formatInt(cd.yearlyEnergyKwh), distance: formatInt(km), average: avgKwhKm != null ? formatFixed(avgKwhKm, 3) : "—", price: formatFixed(cd.assumptions.energyPricePerKwh, 2) }))}</span></span>`;
-  const maintTip = `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${formatInt(km)} km × ${formatFixed(cd.assumptions.electricMaintPerKm, 4)} CHF/km.</span></span>`;
+  const energyTip = infoTip(textContent(t("yearly_analysis.energy_cost_tooltip", { count: nSc, energy: formatInt(cd.yearlyEnergyKwh), distance: formatInt(km), average: avgKwhKm != null ? formatFixed(avgKwhKm, 3) : "—", price: formatFixed(cd.assumptions.energyPricePerKwh, 2) })));
+  const maintTip = infoTip(`${formatInt(km)} km × ${formatFixed(cd.assumptions.electricMaintPerKm, 4)} CHF/km.`);
 
   const dhFuel = toFiniteNumber(cd.electric.dieselHeatingFuelOpex) ?? 0;
   const dhMaint = toFiniteNumber(cd.electric.dieselHeatingMaintOpex) ?? 0;
@@ -1767,8 +1776,8 @@ const renderElectricOpexBreakdown = (el, cd) => {
   const dhLiters = toFiniteNumber(cd.assumptions?.yearlyDieselHeatingLiters) ?? 0;
   const dhMaintFactor = toFiniteNumber(cd.assumptions?.dieselHeatingMaintenanceFactor) ?? 0;
 
-  const dhFuelTip = showDh ? `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${textContent(t("yearly_analysis.diesel_heating_fuel_tooltip", { liters: formatFixed(dhLiters, 1), price: formatFixed(cd.assumptions.fuelPricePerL, 2) }))}</span></span>` : "";
-  const dhMaintTip = showDh ? `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${textContent(t("yearly_analysis.diesel_heating_maintenance_tooltip", { maintenance: formatFixed(cd.assumptions.electricMaintPerKm, 4), factor: dhMaintFactor, distance: formatInt(km) }))}</span></span>` : "";
+  const dhFuelTip = showDh ? infoTip(textContent(t("yearly_analysis.diesel_heating_fuel_tooltip", { liters: formatFixed(dhLiters, 1), price: formatFixed(cd.assumptions.fuelPricePerL, 2) }))) : "";
+  const dhMaintTip = showDh ? infoTip(textContent(t("yearly_analysis.diesel_heating_maintenance_tooltip", { maintenance: formatFixed(cd.assumptions.electricMaintPerKm, 4), factor: dhMaintFactor, distance: formatInt(km) }))) : "";
 
   const dhRows = showDh ? `
             <tr>
@@ -1819,8 +1828,8 @@ const renderDieselOpexBreakdown = (el, cd) => {
   const fuelPrice = cd.assumptions?.fuelPricePerL ?? 0;
   const dieselMaintPerKm = cd.assumptions?.dieselMaintPerKm ?? 0;
 
-  const fuelTip = `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${textContent(t("yearly_analysis.diesel_fuel_tooltip", { distance: formatInt(km), efficiency: formatFixed(dieselEff, 4), price: formatFixed(fuelPrice, 2) }))}</span></span>`;
-  const maintTip = `<span class="ya-info-icon" tabindex="0">i<span class="ya-info-tooltip">${formatInt(km)} km × ${formatFixed(dieselMaintPerKm, 4)} CHF/km.</span></span>`;
+  const fuelTip = infoTip(textContent(t("yearly_analysis.diesel_fuel_tooltip", { distance: formatInt(km), efficiency: formatFixed(dieselEff, 4), price: formatFixed(fuelPrice, 2) })));
+  const maintTip = infoTip(`${formatInt(km)} km × ${formatFixed(dieselMaintPerKm, 4)} CHF/km.`);
 
   el.innerHTML = `
     <div class="ya-res-section">

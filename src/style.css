@@ -117,7 +117,10 @@
   --color-chart-neutral: #95a5a6;
   --color-neutral-accent: var(--color-chart-neutral);
   --color-chart-track: #d7e1e8;
-  --color-tooltip-bg: #1e293b;
+  --color-tooltip-surface: var(--color-surface);
+  --color-tooltip-border: var(--color-border-dim);
+  --color-tooltip-text: var(--color-text-muted);
+  --color-overlay: rgba(0, 0, 0, 0.45);
   --color-sim-a: #1a6fa0;
   --color-sim-a-bg: rgba(111, 190, 236, 0.14);
   --color-sim-b: #4a7a0a;
@@ -1234,6 +1237,112 @@ table input[type="checkbox"] {
 .status-badge.unknown {
   background-color: var(--badge-neutral-bg);
   color: var(--badge-neutral-text);
+}
+
+/* Shared info affordance: a tinted circular "i" revealing a light tooltip on
+   hover or keyboard focus. `.info-icon`/`.info-tooltip` are the canonical names
+   for new call sites; the other selectors are the historical per-page classes,
+   aliased here so the markup did not have to change. Call sites own only the
+   anchor edge and the width — everything else lives in these four rules.
+   The focus ring comes from the shared :focus-visible treatment above. */
+.info-icon,
+.costs-title-info,
+.ya-info-icon,
+.efficiency-info-icon,
+.vehicle-category-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  vertical-align: middle;
+  width: 0.95rem;
+  height: 0.95rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-brand-secondary) 12%, transparent);
+  color: var(--color-brand-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  text-transform: none;
+  cursor: help;
+}
+
+/* Icons that sit inline in running text need their own gap; the ones inside a
+   flex label row (buses, efficiency) get theirs from the parent's `gap`. */
+.costs-title-info,
+.ya-info-icon {
+  margin-left: var(--space-2xs);
+}
+
+.info-tooltip,
+.costs-title-tooltip,
+.ya-info-tooltip,
+.costs-kpi-tooltip,
+.vehicle-category-info::after {
+  display: none;
+  position: absolute;
+  z-index: 100;
+  width: max-content;
+  max-width: min(20rem, 75vw);
+  padding: var(--space-sm) var(--space-2sm);
+  border: 1px solid var(--color-tooltip-border);
+  border-radius: var(--radius-md);
+  background: var(--color-tooltip-surface);
+  box-shadow: var(--shadow-md);
+  color: var(--color-tooltip-text);
+  font-size: var(--font-size-2xs);
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.45;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+  opacity: 0;
+  translate: 0 var(--tooltip-enter-offset, -0.2rem);
+  transition: opacity var(--transition-fast), translate var(--transition-fast),
+    display var(--transition-fast) allow-discrete;
+}
+
+/* Anchors for the legacy call sites. These class names are each used on more
+   than one page, so the placement lives here rather than in any one page file.
+   `--tooltip-enter-offset` flips the entry direction for upward tooltips. */
+.costs-title-tooltip {
+  top: calc(100% + var(--space-2xs));
+  right: calc(-1 * var(--space-sm));
+}
+
+.ya-info-tooltip {
+  --tooltip-enter-offset: 0.2rem;
+  bottom: calc(100% + var(--space-2xs));
+  right: calc(-1 * var(--space-sm));
+  max-width: 260px;
+}
+
+/* `display` is transitioned discretely rather than swapped, so the tooltip
+   fades but still contributes nothing to its container's scroll extent while
+   hidden — these live inside `overflow: auto` table wrappers. */
+.info-icon:is(:hover, :focus-visible) .info-tooltip,
+.costs-title-info:is(:hover, :focus-visible) .costs-title-tooltip,
+.ya-info-icon:is(:hover, :focus-visible) .ya-info-tooltip,
+.costs-kpi-card:hover .costs-kpi-tooltip,
+.vehicle-category-info:is(:hover, :focus-visible)::after {
+  display: block;
+  opacity: 1;
+  translate: 0 0;
+}
+
+@starting-style {
+  .info-icon:is(:hover, :focus-visible) .info-tooltip,
+  .costs-title-info:is(:hover, :focus-visible) .costs-title-tooltip,
+  .ya-info-icon:is(:hover, :focus-visible) .ya-info-tooltip,
+  .costs-kpi-card:hover .costs-kpi-tooltip,
+  .vehicle-category-info:is(:hover, :focus-visible)::after {
+    opacity: 0;
+    translate: 0 var(--tooltip-enter-offset, -0.2rem);
+  }
 }
 
 .list-page-main,

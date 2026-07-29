@@ -23,6 +23,7 @@ Type: task
 - style.css:2224 — `var(--space-xs, var(--space-sm))` misleading fallback
 - simulation-results.css:1446 — `var(--radius-sm, 6px)` fallback contradicts token
 - sim-results:2374 / ya-results:1291 — redundant responsive padding overrides
+- style.css:55 — `--radius-2xl: 14px` is now dead. Ticket 07 folded the Shifts cards to `--panel-radius` and ticket 10 moved `.shift-progress__content` to `--radius-xl`, leaving no consumers. Delete unless the 14px tier is being kept deliberately.
 
 ## Backend observation (not frontend work, recording for visibility)
 

@@ -90,7 +90,7 @@ Mechanical inventories (every hardcoded value with file:line and target token) l
 | 07 | cards-panels-containers | needs-triage |
 | 08 | buttons | needs-triage |
 | 09 | form-controls | needs-triage |
-| 10 | dialogs-tooltips-info-icons | needs-triage |
+| 10 | dialogs-tooltips-info-icons | done |
 | 11 | mechanical-spacing | ready-for-agent |
 | 12 | mechanical-color | ready-for-agent |
 | 13 | mechanical-typography | needs-triage |

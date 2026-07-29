@@ -5,6 +5,15 @@ Type: task
 
 Chart code never references the CSS token system. Palettes are copy-pasted 3–4× across files. Recommendation: one shared chart-palette module (JS constants reading CSS custom properties, or exported constants mirrored as tokens) consumed by all chart code.
 
+## Inherited from ticket 10 (decided 2026-07-29, binding)
+
+The SVG chart tooltips were deferred here from ticket 10, which settled their appearance:
+
+- Light surface. The 7 d3 tooltip rects (`simulation-results.js:2141, 2328, 2407, 2583`; `yearly-analysis-results.js:428, 1073, 1262`) point their fill at `--color-tooltip-surface` and their stroke at `--color-tooltip-border` — the `#94a3b8` stroke goes away.
+- `shift-timeline.js:147`'s `rgba(0, 0, 0, 0.8)` HTML tooltip converts to the same light treatment; `--color-tooltip-bg` no longer exists.
+- Tooltip label fill → `--color-tooltip-text`; tooltip text size → `--font-size-2xs` (12px).
+- No pointer arrows.
+
 ## Duplicated palettes (consistent today, one edit from drift)
 
 - **Cost stack** `#4f86c6 / #d4881f / #5f8f2f`: simulation-results.js:110, simulation-comparison.js:108–110, yearly-analysis-results.js:204 (+ dead ya-charts.js with a renamed key)

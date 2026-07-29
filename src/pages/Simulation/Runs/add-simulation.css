@@ -270,7 +270,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--color-overlay);
   backdrop-filter: blur(2px);
 }
 
@@ -316,7 +316,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-md);
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--color-overlay);
 }
 
 .usable-soc-warning__dialog {
@@ -324,7 +324,7 @@
   background: var(--bg-card, var(--color-surface));
   border: 1px solid var(--border-light);
   border-top: 4px solid var(--color-warning, #f5a623);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-modal);
   padding: 1.35rem var(--space-lg) var(--space-2md);
 }

@@ -155,56 +155,14 @@
   position: relative;
 }
 
-.add-bus-model .vehicle-category-info {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  width: 1.05rem;
-  height: 1.05rem;
-  padding: 0;
-  border: 1px solid var(--action-blue);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--action-blue);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  line-height: 1;
-  cursor: help;
-}
-
+/* Surface, type and motion come from the shared info affordance in style.css;
+   this only supplies the generated content and the anchor. */
 .add-bus-model .vehicle-category-info::after {
   content: attr(data-tooltip);
-  position: absolute;
   left: 50%;
-  top: calc(100% + 0.45rem);
-  z-index: 20;
-  width: min(20rem, 70vw);
-  padding: var(--space-sm) 0.65rem;
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-md);
-  background: var(--text-main);
-  color: var(--color-surface);
-  box-shadow: var(--shadow-md);
-  font-size: var(--font-size-2xs);
-  font-weight: 400;
-  line-height: 1.35;
-  opacity: 0;
+  top: calc(100% + var(--space-2xs));
+  transform: translateX(-50%);
   pointer-events: none;
-  text-align: left;
-  transform: translate(-50%, -0.2rem);
-  transition: opacity 0.12s ease, transform 0.12s ease;
-}
-
-.add-bus-model .vehicle-category-info:hover::after,
-.add-bus-model .vehicle-category-info:focus-visible::after {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-.add-bus-model .vehicle-category-info:focus-visible {
-  outline: 2px solid transparent;
-  box-shadow: var(--shadow-focus-ring);
 }
 
 .add-bus-model .bus-model-form-footer {

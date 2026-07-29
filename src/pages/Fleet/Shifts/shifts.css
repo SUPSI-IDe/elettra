@@ -236,13 +236,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--color-overlay);
   backdrop-filter: blur(2px);
 }
 
 .shift-form .shift-progress__content {
   background: var(--color-surface);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-xl);
   padding: var(--space-xl) var(--space-2xl);
   display: flex;
   flex-direction: column;

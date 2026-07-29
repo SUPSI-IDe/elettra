@@ -227,49 +227,6 @@
   flex: 1 1 100%;
 }
 
-.costs-title-info {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 0.95rem;
-  height: 0.95rem;
-  border-radius: 50%;
-  background: rgba(0, 99, 154, 0.12);
-  color: var(--color-brand-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  font-style: italic;
-  cursor: help;
-  position: relative;
-  vertical-align: middle;
-  margin-left: var(--space-2xs);
-}
-
-.costs-title-tooltip {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: -8px;
-  width: 320px;
-  max-width: min(320px, 75vw);
-  padding: var(--space-sm) var(--space-2sm);
-  font-size: var(--font-size-xs);
-  font-weight: 400;
-  font-style: normal;
-  line-height: 1.45;
-  color: var(--text-secondary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-dim);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  white-space: normal;
-  z-index: 30;
-}
-
-.costs-title-info:hover .costs-title-tooltip,
-.costs-title-info:focus .costs-title-tooltip {
-  display: block;
-}
 
 .costs-electric-opex-section {}
 
@@ -427,39 +384,15 @@
   color: var(--color-negative-strong);
 }
 
+/* Anchor and width only — see the shared info affordance in style.css. Opens
+   upward, so it enters from below. */
 .costs-kpi-tooltip {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 6px);
+  --tooltip-enter-offset: 0.2rem;
+  bottom: calc(100% + var(--space-2xs));
   left: 50%;
   transform: translateX(-50%);
-  width: max-content;
   max-width: 260px;
-  padding: var(--space-sm) var(--space-2sm);
-  font-size: var(--font-size-xs);
-  font-weight: 400;
-  line-height: 1.45;
-  color: var(--color-surface);
-  background: var(--color-tooltip-bg);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
   pointer-events: none;
-  z-index: 20;
-  white-space: normal;
-}
-
-.costs-kpi-tooltip::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: var(--color-tooltip-bg);
-}
-
-.costs-kpi-card:hover .costs-kpi-tooltip {
-  display: block;
 }
 
 .costs-assumption-note {
@@ -680,7 +613,7 @@
 .sim-data-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--color-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -946,27 +879,6 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2xs);
-}
-
-.efficiency-info-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 0.95rem;
-  height: 0.95rem;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  line-height: 1;
-  text-transform: none;
-  cursor: help;
-  opacity: 0.75;
-}
-
-.efficiency-info-icon:hover,
-.efficiency-info-icon:focus {
-  opacity: 1;
 }
 
 .efficiency-limit-cell {

@@ -122,7 +122,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-md);
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--color-overlay);
 }
 
 .ya-config-overlay[hidden] { display: none; }
@@ -631,90 +631,9 @@
   font-weight: 700;
 }
 
-.ya-info-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: rgba(0, 99, 154, 0.12);
-  color: var(--color-brand-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  font-style: italic;
-  cursor: help;
-  position: relative;
-  vertical-align: middle;
-  margin-left: 4px;
-}
-
+/* The info icons and their tooltips are the shared affordance in style.css.
+   This wrapper still has to opt out of clipping so they can overhang it. */
 .ya-costs-opex-pair .ya-costs-table-wrap { overflow: visible; }
-
-.ya-info-icon .ya-info-tooltip {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 6px);
-  right: -8px;
-  width: 260px;
-  padding: 8px 10px;
-  background: var(--bg-card, var(--color-surface));
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  font-size: var(--font-size-2xs);
-  font-weight: 400;
-  font-style: normal;
-  color: var(--text-secondary);
-  line-height: 1.45;
-  white-space: normal;
-  z-index: 100;
-}
-
-.ya-info-icon:hover .ya-info-tooltip,
-.ya-info-icon:focus .ya-info-tooltip { display: block; }
-
-.costs-title-info {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: rgba(0, 99, 154, 0.12);
-  color: var(--color-brand-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  font-style: italic;
-  cursor: help;
-  position: relative;
-  vertical-align: middle;
-  margin-left: 6px;
-}
-
-.costs-title-tooltip {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: -8px;
-  width: 320px;
-  max-width: min(320px, 75vw);
-  padding: 8px 10px;
-  background: var(--bg-card, var(--color-surface));
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  font-size: var(--font-size-2xs);
-  font-weight: 400;
-  font-style: normal;
-  color: var(--text-secondary);
-  line-height: 1.45;
-  white-space: normal;
-  z-index: 100;
-}
-
-.costs-title-info:hover .costs-title-tooltip,
-.costs-title-info:focus .costs-title-tooltip { display: block; }
 
 /* ── Slider variables panel ───────────────────────────────────── */
 
@@ -1042,10 +961,6 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-subtle);
   white-space: nowrap;
-}
-
-.ya-env-table thead th.ya-env-table__section-title .ya-info-icon {
-  margin-left: 6px;
 }
 
 .ya-env-table tbody td {

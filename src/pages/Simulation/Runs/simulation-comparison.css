@@ -117,50 +117,6 @@
   line-height: 1.35;
 }
 
-.comparison-row .chart-section h3 .costs-title-info {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 0.95rem;
-  height: 0.95rem;
-  border-radius: 50%;
-  background: rgba(0, 99, 154, 0.12);
-  color: var(--color-brand-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  font-style: italic;
-  cursor: help;
-  position: relative;
-  vertical-align: middle;
-  margin-left: var(--space-2xs);
-}
-
-.comparison-row .chart-section h3 .costs-title-tooltip {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: -8px;
-  width: 320px;
-  max-width: min(320px, 75vw);
-  padding: var(--space-sm) var(--space-2sm);
-  font-size: var(--font-size-xs);
-  font-weight: 400;
-  font-style: normal;
-  line-height: 1.45;
-  color: var(--text-secondary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-dim);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  white-space: normal;
-  z-index: 30;
-}
-
-.comparison-row .chart-section h3 .costs-title-info:hover .costs-title-tooltip,
-.comparison-row .chart-section h3 .costs-title-info:focus .costs-title-tooltip {
-  display: block;
-}
-
 .comparison-row .chart-container {
   width: 100%;
   max-width: 100%;
