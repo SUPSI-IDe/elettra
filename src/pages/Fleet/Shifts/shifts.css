@@ -48,7 +48,8 @@
   overflow: hidden;
   background: var(--color-surface);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--shadow-sm);
 }
 
 .shift-form .shift-form-card__header {
@@ -113,6 +114,7 @@
 .shift-form .table-wrapper {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
   margin-bottom: 0;
   max-height: 500px;
@@ -139,7 +141,6 @@
 
 .shift-form .table-bulk-action:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
 }
 
 .shift-form table {
@@ -180,18 +181,18 @@
 
 .shift-form .form-actions {
   justify-content: flex-end;
-  margin-top: var(--space-lg);
+  margin-top: var(--space-md);
   padding-top: var(--space-lg);
   border-top: 1px solid var(--border-light);
 }
 
 .shift-form button {
-  padding: var(--control-padding-block) var(--space-2md);
+  padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   font-size: var(--font-size-lg);
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color var(--transition-fast);
 }
 
 .shift-form button[type="submit"] {
@@ -247,7 +248,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-2md);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-modal);
   min-width: 280px;
   text-align: center;
 }
@@ -407,8 +408,9 @@
 
 .shift-summary__card {
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--panel-radius);
   background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .shift-summary__header {
@@ -707,7 +709,7 @@
 
 .trip-preview-cell {
   padding: 0 !important;
-  border-bottom: 2px solid var(--brand-teal-light) !important;
+  border-bottom: 1px solid var(--brand-teal-light);
 }
 
 .trip-preview-inline {
@@ -721,7 +723,7 @@
   background: var(--color-surface);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .trip-preview-inline__map {
