@@ -18,7 +18,7 @@ The token system in `style.css` is solid and the **list pages are in good shape*
 The drift concentrates in three places:
 
 1. **The results pages** (`simulation-results.css` ~156 hardcoded values, `yearly-analysis-results.css` ~112) and their duplicated components. Several components are copy-pasted between the two pages (or between results and comparison) and have drifted: tooltips, badges, params grids, infeasibility notices, slider panels, mission bars.
-2. **Chart code in JS** never references the token system: ~150 hardcoded colors/font sizes across `simulation-results.js`, `simulation-comparison.js`, `yearly-analysis-results.js`, `trip-preview.js`, `shift-timeline.js`. The cost-stack, LCA-phase, and pollutant palettes are copy-pasted 3–4×. `trip-preview.js` uses a Tailwind palette alien to the app.
+2. **Chart code in JS** never references the token system: ~150 hardcoded colors/font sizes across `simulation-results.js`, `simulation-comparison.js` (since deleted — ticket 14), `yearly-analysis-results.js`, `trip-preview.js`, `shift-timeline.js`. The cost-stack, LCA-phase, and pollutant palettes are copy-pasted 3–4×. `trip-preview.js` uses a Tailwind palette alien to the app.
 3. **Interactive states**: focus styles are missing or explicitly removed on many controls (accessibility defect), two conflicting disabled-button treatments stack on the same selectors, and four different row-hover tints coexist.
 
 Also found (not presentation drift, but real): a text-overlap rendering defect in the Buses table, a dead `compare-section` UI that nothing ever unhides, an orphaned `yearly-analysis-charts.js` with a contradictory palette, and one malformed CSS rule that the parser silently drops.
@@ -67,15 +67,16 @@ Mechanical inventories (every hardcoded value with file:line and target token) l
 6. **Compact form tier** — md and sm both exist for labels/inputs (ticket 09).
 7. **Tooltip surface** — dark `--color-tooltip-bg` vs white surface; **modal backdrop blur** yes/no (ticket 10).
 8. **Chart red/orange vs UI danger/warning** — merge or keep distinct series colors (ticket 02).
-9. **`--font-size-xs` (11px) < `--font-size-2xs` (12px)** — inverted naming; rename or live with it (ticket 13).
-10. **Delete orphaned `yearly-analysis-charts.js` and dead compare-section UI** (ticket 14).
+9. **Small-text scale** — consolidated in ticket 13 to one readable 12px
+   `--font-size-xs` token.
+10. ~~**Delete orphaned `yearly-analysis-charts.js` and dead compare-section UI**~~ — resolved (ticket 14). `yearly-analysis-charts.js` deleted; run-level `simulation-comparison` deleted entirely as superseded by `analysis-comparison`, not merely unhidden.
 
 ## Out-of-scope observations (recorded, not part of this audit's fix phase)
 
 - Buses table: Name column text overlaps the Vehicle-category column at 1440×900 (visual defect; ticket 15).
-- Backend: every prediction run for the test dataset 404s (`/api/v1/simulation/prediction-runs/*`), so the results pages render only an error state; the console reports ~200 failed requests per visit.
-- The simulation-runs "Compare simulations" section (`simulation-runs.html:15`) is permanently `hidden`; no JS references `data-role="compare-section"` (ticket 14).
-- `yearly-analysis-results.css:1315–1319` contains a malformed final media-query rule (dangling selector) that the parser silently drops (ticket 14).
+- Backend: every prediction run for the test dataset 404s (`/api/v1/simulation/prediction-runs/*`), so the results pages render only an error state; the console reports ~200 failed requests per visit. Now tracked with the frontend N+1 fan-out that causes them (ticket 17).
+- ~~The simulation-runs "Compare simulations" section is permanently `hidden`~~ — resolved: the whole run-level comparison feature was deleted (ticket 14).
+- ~~`yearly-analysis-results.css` contains a malformed final media-query rule~~ — resolved: dangling selector removed (ticket 14). The phone KPI layout it used to cover is now its own decision (ticket 16).
 
 ## Tickets
 
@@ -91,8 +92,8 @@ Mechanical inventories (every hardcoded value with file:line and target token) l
 | 08 | buttons | needs-triage |
 | 09 | form-controls | needs-triage |
 | 10 | dialogs-tooltips-info-icons | done |
-| 11 | mechanical-spacing | ready-for-agent |
-| 12 | mechanical-color | ready-for-agent |
-| 13 | mechanical-typography | needs-triage |
+| 11 | mechanical-spacing | done |
+| 12 | mechanical-color | done |
+| 13 | mechanical-typography | done |
 | 14 | dead-code-and-broken-css | needs-triage |
 | 15 | bug-buses-column-overlap | needs-triage |

@@ -1,7 +1,88 @@
 # Mechanical: hardcoded colors → tokens (CSS)
 
-Status: ready-for-agent
+Status: done
 Type: task
+
+## Outcome (2026-07-29)
+
+25 literal edits + 59 alpha-literal swaps across 9 files. As with ticket 11, the
+line numbers below are from baseline `9a5e061` and are stale — tickets 05/06/07
+had already landed `--color-overlay`, `--color-row-zebra-bg`, `--shadow-modal`,
+`--radius-full`, the `rgba(149,165,166,…)` and add-simulation error-ring swaps.
+Applied by content match.
+
+**New tokens** — `--color-warning-text: #b95d0a`, `--color-info-text: #4271c9`
+(the env-table amber/neutral row tones), `--color-chart-primary: #00639a`,
+`--color-accent-lime: #abe828`, `--color-teal-tint: #8ee5e3`,
+`--color-teal-tint-soft: #b1e8e8`, `--color-swatch-ring: rgba(15,23,42,0.08)`.
+
+**Existing tokens rewired onto them** (values unchanged, relationships now
+explicit rather than coincidental): `--color-sidebar-end`, `--color-focus-ring`,
+`--color-sim-a-bg`, `--color-sim-b-bg`, `--color-positive-muted`,
+`--color-negative-muted`, the three `--color-row-*` tints.
+
+**Alpha-literal sweep — scope extension.** The ticket named the brand-primary
+alphas only for the shifts timeline strokes, but `rgba(15,60,60,…)` appears ~15×
+in `style.css` and the same pattern holds for danger, warning, brand-accent,
+chart-primary and the lime/teal tints. Rather than tokenize one file and leave
+the identical pattern raw next to it, every alpha literal whose base colour is a
+token became `color-mix(in srgb, var(--token) N%, transparent)` — arithmetically
+identical output, so no visual change. Families covered: brand-primary, danger,
+positive, chart-primary, brand-accent, accent-lime, warning, teal-tint(-soft).
+
+**Also applied**: `#7a1a10` → `--badge-danger-text`; `#1e7e46` →
+`--color-success`; `#f0f4f4` → `--color-disabled-bg`; `rgba(192,57,43,0.06)` →
+`--color-negative-muted`; `rgba(255,255,255,0.96/1)` → `--color-surface`; the
+ya unit-button shadow → `--shadow-sm`; all six raw-literal `var()` fallbacks
+removed (`#00639a`, `#888`, `#777`, `#999`, `#2563eb`, `#f5a623` — every one of
+those tokens does exist, so the fallbacks were dead as well as wrong).
+
+**`!important` on the sensitivity margin trio** — dropped from all three, not
+just `__margin-tight`. Verified inert first: the class sits on
+`.efficiency-sensitivity-card__row`, nothing else sets that element's colour, its
+`> span` / `> strong` children win on specificity regardless, and the JS sets no
+inline colour. Dropping only one of the three would have left the set asymmetric.
+
+Left raw, out of this ticket's enumerated scope:
+
+- **White/black alpha decoratives** in `style.css` (sidebar rules, scrim tints,
+  `rgba(0,0,0,0.06)`). Several already have dedicated tokens; the rest need
+  naming decisions rather than a mechanical swap.
+- **Login form-feedback tones** `#fdecea` / `#e8f5e9` and the
+  `.login-about-link:hover` `#d0eded` — one-off surfaces with no near token; the
+  shared `.form-feedback` has no background tones to fold them into.
+- **`rgba(39,174,96,…)`** in `.env-chart-section--prominent` — a green gradient
+  that belongs to no current token family; belongs with ticket 02.
+- **`--kpi-tone: hsl(…)`** triples — *unified after the fact* (see below).
+- **`rgba(0,99,154,…)` sites are now `--color-chart-primary`**, defined here so
+  the CSS side stops repeating the literal. Ticket 02 still owns the chart
+  palette proper and may rename or restructure it.
+
+## Follow-up: env KPI card tone triples unified
+
+The three `--kpi-tone: hsl(…)` values were duplicated verbatim in
+`simulation-results.css` and `yearly-analysis-results.css`, along with the
+identical `border-color` + 10% wash they drive. Now:
+
+- `--color-kpi-positive` / `--color-kpi-negative` / `--color-kpi-neutral` +
+  `--kpi-tint-strength: 10%` live in `style.css`. Values unchanged — they are
+  deliberately softer than `--color-positive` / `--color-danger` because they
+  paint a whole card border plus a background wash, so they were *not* folded
+  into the semantic pair.
+- Each page file's three modifiers now set only `--kpi-tone: var(--color-kpi-*)`,
+  and the shared `border-color` + `background` pair is stated once per file
+  across a grouped selector. The `white` literal became `--color-surface`.
+
+**Why the paint rule stays in the page files rather than `style.css`**: the build
+emits one stylesheet with `style.css` first, so a same-specificity rule there
+would lose to each page's own `.env-kpi-card` / `.ya-env-kpi-card` base rule
+(which sets `border` and `background`). Unifying the *values* removes the drift
+risk without touching cascade order.
+
+Verified `color-mix(… var(--kpi-tint-strength) …)` — a `var()` in the percentage
+slot — computes identically to the previous literal in Chrome. Custom-property
+substitution happens before the declaration is parsed, so this is spec behaviour
+rather than an engine quirk, but only Chrome was checked directly.
 
 Chart-JS colors are ticket 02; this ticket covers CSS files + the near-token swaps that need no design decision. Fully clean files: about.css, settings.css, buses.css, custom-stops.css, shift-visualization.css, simulation-detail.css, yearly-analysis-runs.css.
 

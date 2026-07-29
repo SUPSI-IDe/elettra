@@ -1,7 +1,59 @@
 # Mechanical: hardcoded spacing → tokens
 
-Status: ready-for-agent
+Status: done
 Type: task
+
+## Outcome (2026-07-29)
+
+85 declarations tokenized across 9 files. Line numbers below are from the audit
+baseline (`9a5e061`) and are stale — tickets 01–10 had already absorbed a large
+part of this inventory (buses `0.45/0.65`, the ya-results slider grids, most of
+the sim-results candidate list, the `table-controls` margin verdict on
+`yearly-analysis-runs.css` / `shifts.css`). What was left was applied by content
+match, not line number.
+
+Applied beyond the straight swaps:
+
+- **`0.65rem`**: `--control-padding-block` where it is control padding (nav link,
+  login input, the add-simulation + create-YA fieldsets); snapped to `2sm`
+  elsewhere (`.status-badge`, `.ac-meta`, `.ya-legend-note` margin).
+- **Micro label/value gaps folded to `xs`** as one role: `0.1 / 0.14 / 0.15 /
+  0.18 / 0.22rem` and the two `gap: 2px` KPI stacks (`.efficiency-param`,
+  `.emissions-kpi-card`). Strict nearest-token would have sent `0.1rem` to `0`
+  and split a single role across two values.
+- **Key-value row rhythm → `2xs`**: `.ac-meta-row`,
+  `.efficiency-sensitivity-card__row`. `simulation-detail.css:84` was already
+  `sm` on a *list-tier* row (`.result-row`), left alone — it is not the dense tier.
+- **Params/meta strips → `.meta-list` gap (`xs lg`) + `sm × md` padding**:
+  `.ya-res-params`, `.ya-config-summary`, `.simulation-comparison-page
+  .efficiency-params-grid`. The **mission bars** were folded onto their already
+  tokenized twin `.env-mission-bar` (`gap sm lg`, `padding 2sm md`) instead —
+  `.ya-env-mission-bar` now matches it exactly.
+- **Page container padding**: `.add-bus-model main` → `--layout-content-padding`,
+  and its redundant `≤640` `md` override deleted so the token's own drops apply.
+- **Redundant responsive overrides deleted**: `.results-main` and
+  `.ya-results-main` `padding: md` at `≤768` (the token is already `md` at
+  `≤1024`); `.simulation-runs .table-controls` margin (restates the shared rule).
+- `.env-kpi-card__unit { margin-top: -0.1rem }` deleted (snaps to 0).
+
+Deliberately left as raw values (no token, and not spacing rhythm):
+
+- `margin: -1px` / `margin-bottom: -1px` — tab-strip and border-overlap hairlines.
+- `style.css` checkbox `margin-top: 2px` — optical baseline nudge; 2px is exactly
+  between `0` and `xs`, so the snap rule does not resolve it.
+- `.ya-chart-unit-toggle { gap: 2px; padding: 2px }` — hairline inset track of a
+  segmented control; `xs` would visibly thicken it, `0` would break it.
+
+Still open (needs a decision, unchanged by this ticket):
+
+- **`.visualize-shift` page padding at `--space-sm`** (`shifts.css:371`) — left
+  as-is per the flag below; likely intentional full-bleed for the timeline.
+- **Tab-panel section gap** — no longer a discrepancy: `.tab-panel` and
+  `.ya-tab-panel` are both `md` today. The `lg` cluster the audit referred to is
+  panel-level spacing, not these. No change made.
+- **`.badge--compact`** block padding snapped `0.15rem → xs`, which is now equal
+  to `.status-badge`; the compact variant differs only in inline padding. Worth a
+  look if the two should stay visually distinct in height.
 
 Rule: values that map exactly to a token get the token; "between-token" values (marked *candidate*) snap to the **nearest token** unless doing so visibly changes a verified-consistent pair — then keep both sides equal and note it. Token scale: xs .25 / 2xs .375 / sm .5 / 2sm .75 / md 1 / 2md 1.25 / lg 1.5 / xl 2 / 2xl 2.5 / 3xl 3 (rem); `--control-padding-block` .65rem, `--control-padding-inline` .75rem.
 

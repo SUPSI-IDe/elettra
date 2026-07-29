@@ -1,13 +1,39 @@
 # Mechanical: typography tokens and literals
 
-Status: needs-triage
+Status: done
 Type: task
+
+## Outcome (2026-07-29)
+
+Decision: **consolidate**. The 11px tier was removed; `--font-size-xs` is now
+the sole small-text token at 12px. Former 11px uses now render at 12px for
+better readability.
+
+Also applied:
+
+- Added `--font-family-mono`; the results and detail views now use it. The shift
+  visualization now inherits the complete base font fallback stack.
+- Centralized duplicated sort-arrow typography in the shared `.sort-arrow`
+  class, aligned the one 0.85em disclosure arrow to 0.8em, and folded the bus
+  optional note into the shared hint styling.
+- Removed the 1.05em yearly-analysis highlight outlier, normalized the lone
+  0.02em label tracking to 0.04em, and changed the lone reset from `0` to
+  `normal`.
+
+Already resolved before this ticket: the Settings and Shifts headings already
+explicitly use `font-weight: 600`.
+
+Deliberately retained: the bus-model kicker's 0.08em tracking is an intentional
+display treatment, and the page-title clamp's 1.375rem lower bound remains its
+single sanctioned responsive literal.
 
 Mostly mechanical; one naming decision blocks part of it.
 
-## Token-naming decision (blocks nothing else, decide first though)
+## Token-size decision (implemented)
 
-`--font-size-xs` (0.6875rem/11px) is **smaller** than `--font-size-2xs` (0.75rem/12px) — inverted vs every common convention, and the audit found xs/2xs confusion in tooltip/badge sizes that this likely caused. Options: rename (one-shot sed across repo) or document and live with it.
+Previously, the project had separate 11px and 12px token tiers with inverted
+names. The 11px tier was removed and its uses now reference the readable 12px
+`--font-size-xs` token.
 
 ## Straight swaps
 

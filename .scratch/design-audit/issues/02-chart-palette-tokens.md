@@ -11,7 +11,7 @@ The SVG chart tooltips were deferred here from ticket 10, which settled their ap
 
 - Light surface. The 7 d3 tooltip rects (`simulation-results.js:2141, 2328, 2407, 2583`; `yearly-analysis-results.js:428, 1073, 1262`) point their fill at `--color-tooltip-surface` and their stroke at `--color-tooltip-border` — the `#94a3b8` stroke goes away.
 - `shift-timeline.js:147`'s `rgba(0, 0, 0, 0.8)` HTML tooltip converts to the same light treatment; `--color-tooltip-bg` no longer exists.
-- Tooltip label fill → `--color-tooltip-text`; tooltip text size → `--font-size-2xs` (12px).
+- Tooltip label fill → `--color-tooltip-text`; tooltip text size → `--font-size-xs` (12px).
 - No pointer arrows.
 
 ## Duplicated palettes (consistent today, one edit from drift)
@@ -47,4 +47,4 @@ The SVG chart tooltips were deferred here from ticket 10, which settled their ap
 
 - Ticks: 10px majority; 11px in consumption/route charts; 9px in horizontal bars; **8px only in simulation-comparison.js:1599, 1712 — below legibility floor, eliminate**. Datum labels: 11px/600 majority.
 - No tokens exist for chart text; add e.g. `--font-size-chart-tick` / reuse `xs`/`2xs` where they coincide (11px = xs, 12px = 2xs).
-- shift-timeline.js:149 `0.75rem` → `var(--font-size-2xs)`; shift-visualization.css:18 hardcodes `'Inter', sans-serif` → `var(--font-family-base)`.
+- shift-timeline.js:149 `0.75rem` → `var(--font-size-xs)`; shift-visualization.css:18 hardcodes `'Inter', sans-serif` → `var(--font-family-base)`.
