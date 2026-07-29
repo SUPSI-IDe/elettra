@@ -74,7 +74,7 @@ Mechanical inventories (every hardcoded value with file:line and target token) l
 ## Out-of-scope observations (recorded, not part of this audit's fix phase)
 
 - Buses table: Name column text overlaps the Vehicle-category column at 1440×900 (visual defect; ticket 15).
-- Backend: every prediction run for the test dataset 404s (`/api/v1/simulation/prediction-runs/*`), so the results pages render only an error state; the console reports ~200 failed requests per visit. Now tracked with the frontend N+1 fan-out that causes them (ticket 17).
+- Backend: every prediction run for the test dataset 404s (`/api/v1/simulation/prediction-runs/*`). Diagnosed in ticket 17: the route is correct, the data is orphaned — the optimization runs outlived the shifts and prediction runs they reference. The frontend fan-out that turned this into ~200 failed requests per visit is fixed, and the pages now degrade to an empty state; the orphaned data is still open.
 - ~~The simulation-runs "Compare simulations" section is permanently `hidden`~~ — resolved: the whole run-level comparison feature was deleted (ticket 14).
 - ~~`yearly-analysis-results.css` contains a malformed final media-query rule~~ — resolved: dangling selector removed (ticket 14). The phone KPI layout it used to cover is now its own decision (ticket 16).
 
@@ -95,5 +95,8 @@ Mechanical inventories (every hardcoded value with file:line and target token) l
 | 11 | mechanical-spacing | done |
 | 12 | mechanical-color | done |
 | 13 | mechanical-typography | done |
-| 14 | dead-code-and-broken-css | needs-triage |
+| 14 | dead-code-and-broken-css | done |
 | 15 | bug-buses-column-overlap | needs-triage |
+| 16 | kpi-grid-480px-layout | needs-triage |
+| 17 | prediction-run-fanout | done (frontend) / open (backend data) |
+| 18 | prediction-run-list-filter | needs-triage |
