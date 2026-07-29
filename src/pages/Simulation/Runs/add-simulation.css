@@ -214,7 +214,7 @@
 
 .add-simulation .stops-table {
   width: 100%;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   border-collapse: collapse;
 }
 
@@ -249,7 +249,7 @@
   padding: var(--space-xs) var(--space-2xs);
   border: 1px solid var(--border-medium);
   border-radius: 4px;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
 }
 
 .add-simulation .stops-table th.checkbox,

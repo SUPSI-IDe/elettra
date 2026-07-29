@@ -327,8 +327,8 @@
 }
 
 .simulation-comparison-page .efficiency-table th {
-  font-weight: 600;
-  font-size: var(--font-size-xs);
+  font-weight: 700;
+  font-size: var(--font-size-2xs);
   text-transform: none;
   letter-spacing: normal;
   color: var(--text-secondary);

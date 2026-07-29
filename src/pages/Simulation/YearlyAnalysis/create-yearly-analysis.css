@@ -33,7 +33,7 @@
 .create-yearly-analysis .ya-scenarios-table { width: 100%; font-size: var(--font-size-sm); border-collapse: collapse; }
 .create-yearly-analysis .ya-scenarios-table th:first-child,
 .create-yearly-analysis .ya-scenarios-table td:first-child { width: 4rem; }
-.create-yearly-analysis .ya-scenarios-table th { background-color: var(--bg-subtle); font-size: var(--font-size-2xs); font-weight: 600; padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); text-align: left; white-space: nowrap; }
+.create-yearly-analysis .ya-scenarios-table th { background-color: var(--bg-subtle); font-size: var(--font-size-2xs); font-weight: 700; padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); text-align: left; white-space: nowrap; }
 .create-yearly-analysis .ya-scenarios-table td { padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); vertical-align: middle; border-top: 1px solid var(--border-light); text-align: left; }
 .create-yearly-analysis .ya-scenarios-table tbody tr:hover { background-color: var(--bg-hover); }
 .create-yearly-analysis .ya-scenarios-table tfoot td { border-top: 2px solid var(--border-medium); font-weight: 600; padding: var(--table-cell-padding-block) var(--table-cell-padding-inline); }

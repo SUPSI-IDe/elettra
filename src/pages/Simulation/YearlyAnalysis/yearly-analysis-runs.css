@@ -24,7 +24,7 @@
 }
 
 .ya-runs-table th {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   text-transform: none;
   letter-spacing: normal;

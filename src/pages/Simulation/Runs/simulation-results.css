@@ -548,7 +548,7 @@
   width: 100%;
   max-width: 480px;
   border-collapse: collapse;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   margin-bottom: var(--space-md);
 }
 
@@ -645,6 +645,7 @@
 .costs-inputs-table th {
   text-align: left;
   font-size: var(--font-size-2xs);
+  font-weight: 700;
   text-transform: none;
   letter-spacing: normal;
   color: var(--text-secondary);
@@ -2233,8 +2234,8 @@
 
 .emissions-recap-table--env .env-header-sub th {
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
   text-transform: none;
   letter-spacing: 0.02em;
   color: var(--text-secondary, #888);
