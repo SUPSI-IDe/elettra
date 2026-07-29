@@ -201,6 +201,19 @@ button {
   background-color: transparent;
 }
 
+/* Give every actionable native control a consistent pointer cursor. Disabled
+   controls deliberately opt out so their existing not-allowed treatment wins. */
+:is(
+  a[href],
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  input:is([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="range"]):not(:disabled),
+  [role="button"]:not([aria-disabled="true"])
+) {
+  cursor: pointer;
+}
+
 /* Shared focus-visible treatment: every interactive element gets the same 3px
    ring. The transparent outline is the forced-colors fallback (box-shadow is
    not painted there). Components override this only when the ring needs a
