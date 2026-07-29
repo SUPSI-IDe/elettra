@@ -7,8 +7,8 @@ import {
   fetchYearlyAnalysisCosts,
   fetchYearlyAnalysisEmissions,
   fetchOptimizationRun,
-  fetchPredictionRun,
   fetchPredictionRuns,
+  resolvePredictionRuns,
 } from "../../../api/simulation";
 import { fetchBusModelById } from "../../../api/bus-models";
 import {
@@ -575,20 +575,13 @@ const backfillQuantiles = async (scenarioResults, analysisId) => {
   let summaryByTemp = null;
 
   if (hasPredRunIds) {
-    const fetches = await Promise.allSettled(
-      needsBackfill.filter((sr) => sr.predRunId).map((sr) => fetchPredictionRun(sr.predRunId)),
+    const { byId: runsById } = await resolvePredictionRuns(
+      needsBackfill.filter((sr) => sr.predRunId).map((sr) => sr.predRunId),
     );
-    const byId = new Map();
-    const idsWithPred = needsBackfill.filter((sr) => sr.predRunId);
-    fetches.forEach((result, i) => {
-      if (result.status === "fulfilled" && result.value?.summary) {
-        byId.set(idsWithPred[i].predRunId, result.value.summary);
-      }
-    });
 
     return scenarioResults.map((sr) => {
       if (sr.error || !sr.predRunId || sr.kpis?.quantiles) return sr;
-      const summary = byId.get(sr.predRunId);
+      const summary = runsById.get(String(sr.predRunId))?.summary;
       if (!summary) return sr;
       return { ...sr, kpis: patchKpisFromSummary(sr.kpis, summary) };
     });

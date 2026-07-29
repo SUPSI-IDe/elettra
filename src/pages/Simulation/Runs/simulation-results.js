@@ -6,14 +6,15 @@ import {
   fetchEconomicComparison,
   fetchEconomicDefaults,
   fetchOptimizationRun,
-  fetchPredictionRun,
   fetchPredictionRunPredictions,
+  resolvePredictionRuns,
 } from "../../../api/simulation";
 import { fetchBusModelById } from "../../../api/bus-models";
 import {
   fetchShiftById,
   fetchShiftInfo,
   fetchShiftYearlyDistance,
+  screenShiftIds,
 } from "../../../api/shifts";
 import { fetchStopsByTripId } from "../../../api/gtfs";
 import {
@@ -314,9 +315,25 @@ const buildTripStopLookup = (shift = {}) => {
   return lookup;
 };
 
+const missingShiftPresentation = (fallbackName = "") => ({
+  shiftName: resolveShiftDisplayName(null, fallbackName),
+  lineLabel: "—",
+  weekdayLabel: "—",
+  tripStopLookup: new Map(),
+});
+
 const resolveShiftPresentation = async (shiftId, fallbackName = "") => {
   if (!shiftId) {
     return { shiftName: fallbackName || "—", lineLabel: "—", weekdayLabel: "—" };
+  }
+
+  // Free once a caller has primed the screen with the whole id list: a shift
+  // already proven gone costs nothing here instead of a failed `/info` and a
+  // failed detail fallback. Before any sweep the id comes back a candidate, so
+  // the single-shift paths behave exactly as they did.
+  const { missing } = await screenShiftIds([shiftId]);
+  if (missing.length) {
+    return missingShiftPresentation(fallbackName);
   }
 
   let shift = null;
@@ -353,6 +370,9 @@ const resolveShiftSummary = async (shiftIds = []) => {
     return { lines: "—", days: "—" };
   }
 
+  // Prime the screen with the whole list, so the presentations below can skip
+  // the ids that no longer exist without a request each.
+  await screenShiftIds(ids);
   const presentations = await Promise.all(ids.map((shiftId) => resolveShiftPresentation(shiftId)));
   const lines = [...new Set(presentations.map((item) => item?.lineLabel).filter((value) => value && value !== "—"))];
   const days = [...new Set(presentations.map((item) => item?.weekdayLabel).filter((value) => value && value !== "—"))];
@@ -387,6 +407,9 @@ const resolveShiftTabs = async (
     ];
   }
 
+  // Prime the screen with the whole list, so the presentations below can skip
+  // the ids that no longer exist without a request each.
+  await screenShiftIds(ids);
   const presentations = await Promise.all(
     ids.map((shiftId, index) =>
       resolveShiftPresentation(
@@ -9089,9 +9112,22 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
         ? optimizationRun.prediction_run_ids
         : [];
-      const predictionRuns = predRunIds.length
-        ? await Promise.all(predRunIds.map((id) => fetchPredictionRun(id)))
-        : [];
+      const { runs: predictionRuns, missing, errors } = predRunIds.length
+        ? await resolvePredictionRuns(predRunIds)
+        : { runs: [], missing: [], errors: [] };
+      // Prediction runs an optimization references can be gone — the panels
+      // already have an empty state for that, so one line here beats failing
+      // the whole page and logging once per id.
+      if (errors.length) {
+        console.warn(
+          `[elettra] Unable to load ${errors.length} of ${predRunIds.length} prediction runs:`,
+          errors[0].error
+        );
+      } else if (missing.length) {
+        console.warn(
+          `[elettra] ${missing.length} of ${predRunIds.length} prediction runs no longer exist.`
+        );
+      }
       loadedPredictionRuns = predictionRuns;
 
       const inputShiftIds = Array.isArray(optimizationRun?.input_params?.shift_ids)

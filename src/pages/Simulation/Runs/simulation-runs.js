@@ -6,9 +6,9 @@ import {
   fetchOptimizationRuns,
   fetchOptimizationRun,
   deleteOptimizationRun,
-  fetchPredictionRun,
+  resolvePredictionRuns,
 } from "../../../api/simulation";
-import { fetchShiftById } from "../../../api/shifts";
+import { fetchShiftById, screenShiftIds } from "../../../api/shifts";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { installPaginationControl } from "../../../dom/pagination";
@@ -745,7 +745,6 @@ export const initializeSimulationRuns = async (
   let allRuns = [];
   let sortState = { ...DEFAULT_SORT };
   const shiftMetaCache = new Map();
-  const predictionRunCache = new Map();
   const runDetailCache = new Map();
   const busModelDetailCache = new Map();
   let busModelsById = {};
@@ -831,9 +830,21 @@ export const initializeSimulationRuns = async (
     const toFetch = uniqueShiftIds.filter((id) => !shiftMetaCache.has(id));
 
     if (toFetch.length) {
-      const results = await Promise.allSettled(toFetch.map((id) => fetchShiftById(id)));
+      // A name is all this table wants, and the shift list already carries it —
+      // so screening resolves the wide case outright and leaves nothing to fetch
+      // per id.
+      const { candidates, summaries } = await screenShiftIds(toFetch);
+      const stillUnnamed = candidates.filter((id) => {
+        const name = text(summaries.get(id)?.name ?? "").trim();
+        if (name) shiftMetaCache.set(id, { name });
+        return !name;
+      });
+
+      const results = await Promise.allSettled(
+        stillUnnamed.map((id) => fetchShiftById(id))
+      );
       results.forEach((res, idx) => {
-        const id = toFetch[idx];
+        const id = stillUnnamed[idx];
         if (res.status === "fulfilled") {
           const shift = res.value ?? {};
           const name = text(shift?.name ?? "").trim();
@@ -890,38 +901,31 @@ export const initializeSimulationRuns = async (
   };
 
   const enrichPredictionRunParameters = async (runs = []) => {
-    const predictionRunIdsToResolve = [
+    const needsEnrichment = (run) =>
+      resolveExternalTemp(run) == null || resolveOccupancyPercent(run) == null;
+
+    // Only the first prediction run of each optimization is ever read, and only
+    // for the rows still missing a temperature or occupancy — resolving every
+    // id of every row was fetching an order of magnitude more than the table
+    // displays.
+    const wantedIds = [
       ...new Set(
         runs
-          .flatMap((run) => resolvePredictionRunIds(run))
-          .filter((id) => id && !predictionRunCache.has(id))
+          .filter(needsEnrichment)
+          .map((run) => resolvePredictionRunIds(run)[0])
+          .filter(Boolean)
       ),
     ];
 
-    if (predictionRunIdsToResolve.length) {
-      const results = await Promise.allSettled(
-        predictionRunIdsToResolve.map((id) => fetchPredictionRun(id))
-      );
-
-      results.forEach((result, index) => {
-        const runId = predictionRunIdsToResolve[index];
-        if (result.status === "fulfilled") {
-          predictionRunCache.set(runId, result.value ?? null);
-        }
-      });
-    }
+    const { byId } = await resolvePredictionRuns(wantedIds);
 
     runs.forEach((run) => {
-      if (resolveExternalTemp(run) != null && resolveOccupancyPercent(run) != null) {
-        return;
-      }
+      if (!needsEnrichment(run)) return;
 
       const firstPredictionRunId = resolvePredictionRunIds(run)[0];
-      if (!firstPredictionRunId) {
-        return;
-      }
+      if (!firstPredictionRunId) return;
 
-      const predictionRun = predictionRunCache.get(firstPredictionRunId);
+      const predictionRun = byId.get(String(firstPredictionRunId));
       if (predictionRun) {
         run._resolved_prediction_run = predictionRun;
       }
