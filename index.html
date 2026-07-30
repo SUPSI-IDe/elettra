@@ -13,7 +13,7 @@
     <title data-i18n-title="common.app_title">ELETTRA</title>
   </head>
   <body>
-    <nav hidden>
+    <nav id="primary-nav" popover="auto" hidden>
       <div class="logo">
         <img src="assets/logo.svg" alt="ELETTRA Logo" data-i18n-alt="common.logo_alt" />
       </div>
@@ -30,6 +30,20 @@
     </nav>
     <main class="layout-main">
       <header class="layout-header blue-gray">
+        <button
+          class="nav-toggle"
+          type="button"
+          popovertarget="primary-nav"
+          aria-label="Menu"
+          data-i18n-aria-label="common.menu"
+          hidden
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="4" y1="7" x2="20" y2="7"/>
+            <line x1="4" y1="12" x2="20" y2="12"/>
+            <line x1="4" y1="17" x2="20" y2="17"/>
+          </svg>
+        </button>
         <div class="header-spacer"></div>
 
         <div class="user-section">

@@ -129,6 +129,7 @@ export const initializeNavigation = (root = document) => {
   const aboutBtn = root.querySelector(".about-btn[data-partial]");
   const footerAboutLink = root.querySelector(".footer-about-link[data-partial]");
   const userSection = root.querySelector(".user-section");
+  const navToggle = root.querySelector(".nav-toggle");
 
   if (!container || !nav) {
     return;
@@ -280,10 +281,32 @@ export const initializeNavigation = (root = document) => {
     );
   };
 
+  // Below the drawer breakpoint the nav is an `auto` popover opened by
+  // `.nav-toggle`; above it CSS renders the same element as a static sidebar.
+  // Closing is only ever needed in drawer mode — `hidePopover` throws if the
+  // popover is not open, so every call site guards on `:popover-open`.
+  const closeNavDrawer = () => {
+    if (nav.matches(":popover-open")) {
+      nav.hidePopover();
+    }
+  };
+
+  // Rotating a tablet crosses this threshold, which would otherwise strand an
+  // open drawer in the top layer over the restored sidebar.
+  root.defaultView
+    ?.matchMedia("(width <= 1080px)")
+    .addEventListener("change", closeNavDrawer);
+
   // Update nav visibility based on authentication
   const updateNavVisibility = () => {
     const authenticated = isAuthenticated();
     nav.hidden = !authenticated;
+    if (navToggle) {
+      navToggle.hidden = !authenticated;
+    }
+    if (!authenticated) {
+      closeNavDrawer();
+    }
   };
 
   nav.addEventListener("click", (event) => {
@@ -293,6 +316,7 @@ export const initializeNavigation = (root = document) => {
     }
 
     event.preventDefault();
+    closeNavDrawer();
     const slug = slugFrom(link);
     loadAndInitialize(slug);
   });

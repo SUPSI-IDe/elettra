@@ -688,7 +688,7 @@
   stroke-width: 2;
 }
 
-@media (max-width: 1024px) {
+@media (width <= 1080px) {
   .visualize-shift-grid {
     grid-template-columns: 1fr;
   }
@@ -702,7 +702,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (width <= 900px) {
   .shift-form .shift-control-grid--details,
   .shift-form .shift-stops__controls {
     grid-template-columns: 1fr;
@@ -802,7 +802,7 @@
 }
 
 /* Responsive: Stack map and elevation on smaller screens */
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .trip-preview-inline__content {
     grid-template-columns: 1fr;
   }

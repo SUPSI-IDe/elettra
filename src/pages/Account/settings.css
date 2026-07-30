@@ -50,13 +50,13 @@
 }
 
 
-@media (max-width: 960px) {
+@media (width <= 1080px) {
   .settings-content {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 640px) {
+@media (width <= 700px) {
   .settings-grid {
     grid-template-columns: 1fr;
   }

@@ -383,7 +383,7 @@
   box-shadow: var(--shadow-focus-ring);
 }
 
-@media (max-width: 480px) {
+@media (width <= 700px) {
   .add-simulation .compact-row--2,
   .add-simulation .compact-row--3 {
     grid-template-columns: 1fr;

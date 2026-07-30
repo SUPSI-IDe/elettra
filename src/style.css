@@ -97,6 +97,23 @@
   --table-cell-padding-block: 0.55rem;
   --table-cell-padding-inline: 0.75rem;
 
+  /* ── Breakpoint scale ────────────────────────────────────────────────────
+     Four tiers, used by every media query in this project. Custom properties
+     are invalid inside media conditions, so these are literals by convention —
+     `grep -rn "width <=" src` finds every use, and any value not on this list
+     is a mistake.
+
+       1280   narrow desktop — multi-column grids drop to one column
+       1080   tablet portrait — sidebar becomes a `popover` drawer
+        900   small tablet portrait — two-column forms and cards stack
+        700   phone — the fixed app shell is torn down, `body` scrolls
+
+     Range syntax (`width <= 1080px`) rather than `max-width`, for readability;
+     both are inclusive and supported everywhere in scope.
+
+     Sign-off viewports: 820x1180 and 1180x820 (iPad Air, both orientations).
+     ──────────────────────────────────────────────────────────────────────── */
+
   --layout-sidebar-width: 15rem;
   --layout-header-min-height: 3.25rem;
   --layout-content-padding: var(--space-lg);
@@ -647,9 +664,20 @@ body {
   color: var(--text-secondary);
 }
 
+/* `nav` carries the `popover` attribute at every width so the drawer below
+   --bp-drawer needs no markup swap. That attribute brings UA styles with it —
+   `position: fixed`, `inset: 0`, `margin: auto`, `border: solid`, `padding`,
+   and `display: none` until open — all of which apply here too, so each one is
+   neutralised explicitly. Author declarations beat the UA sheet regardless of
+   specificity, so the sidebar wins by being declared at all. */
 nav {
   display: flex;
   flex-direction: column;
+  position: static;
+  inset: auto;
+  margin: 0;
+  border: 0;
+  padding: 0;
   background: linear-gradient(
     180deg,
     var(--color-sidebar-start) 0%,
@@ -663,7 +691,34 @@ nav {
   box-shadow: 2px 0 12px color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
 }
 
+/* Pre-login. `navigation.js` closes the drawer alongside setting this, so
+   `hidden` and `:popover-open` are never both true. */
 nav[hidden] {
+  display: none;
+}
+
+/* Header hamburger. Hidden on desktop by default and re-hidden pre-login by the
+   `[hidden]` rule, whose extra specificity keeps it winning inside the drawer
+   media query below. */
+.nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.nav-toggle:hover {
+  background-color: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.nav-toggle[hidden] {
   display: none;
 }
 
@@ -1431,6 +1486,7 @@ table input[type="checkbox"] {
   cursor: help;
 }
 
+
 /* Icons that sit inline in running text need their own gap; the ones inside a
    flex label row (buses, efficiency) get theirs from the parent's `gap`. */
 .costs-title-info,
@@ -2168,7 +2224,7 @@ table input[type="checkbox"] {
 }
 
 /* Landing Page Responsive */
-@media (max-width: 640px) {
+@media (width <= 700px) {
   .landing-title {
     font-size: var(--font-size-3xl);
   }
@@ -2589,7 +2645,7 @@ table input[type="checkbox"] {
 }
 
 /* Auth Pages Responsive */
-@media (max-width: 480px) {
+@media (width <= 700px) {
   .login-page,
   .register-page {
     padding: var(--space-md);
@@ -2677,9 +2733,10 @@ table input[type="checkbox"] {
    Shell & list-page responsive layout
    ========================================================================== */
 
-@media (max-width: 1024px) {
+/* Drawer tier. The sidebar leaves the flow entirely, so `.layout-main` gets the
+   full viewport width — the point of the exercise on a portrait tablet. */
+@media (width <= 1080px) {
   :root {
-    --layout-sidebar-width: 13.5rem;
     --layout-content-padding: var(--space-md);
   }
 
@@ -2691,93 +2748,79 @@ table input[type="checkbox"] {
   .layout-footer {
     padding-inline: var(--space-md);
   }
+
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  /* Promoted to the top layer when open, which is also why the drawer clears
+     Leaflet's z-index 200-1000 panes without competing with them. */
+  nav {
+    display: none;
+    position: fixed;
+    inset: 0 auto 0 0;
+    max-width: 85vw;
+    translate: -100% 0;
+    transition:
+      translate var(--transition-base),
+      display var(--transition-base) allow-discrete,
+      overlay var(--transition-base) allow-discrete;
+  }
+
+  nav:popover-open {
+    display: flex;
+    translate: 0 0;
+  }
+
+  @starting-style {
+    nav:popover-open {
+      translate: -100% 0;
+    }
+  }
+
+  nav::backdrop {
+    background-color: color-mix(in srgb, var(--color-brand-primary) 45%, transparent);
+  }
+
+  /* Row action buttons sit at ~26px, the only control under the touch floor.
+     Everything else already clears 36px, so this is the whole sweep. */
+  table td button,
+  .table-standard td button {
+    min-height: 2.25rem;
+    padding-block: var(--space-xs);
+  }
+
+  /* The info glyph is 0.95rem — under the 24px WCAG 2.2 minimum and far under
+     the 44px touch guidance. The dot is deliberately small, so a transparent
+     square centred on it carries the hit area instead. Touch tier only: it
+     overhangs the glyph and would otherwise swallow clicks aimed at adjacent
+     controls on desktop, where the pointer is precise anyway. */
+  .info-icon::before,
+  .costs-title-info::before,
+  .ya-info-icon::before,
+  .efficiency-info-icon::before,
+  .vehicle-category-info::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2.75rem;
+    height: 2.75rem;
+    translate: -50% -50%;
+  }
 }
 
-@media (max-width: 768px) {
-  body {
-    flex-direction: column;
-    height: auto;
-    min-height: 100vh;
-    max-height: none;
-    overflow: auto;
-  }
-
+@media (width <= 1080px) and (prefers-reduced-motion: reduce) {
   nav {
-    width: 100%;
-    min-width: 0;
-    height: auto;
-    max-height: none;
-    flex-shrink: 0;
+    transition: none;
+    translate: 0 0;
   }
+}
 
-  nav .logo {
-    padding: var(--space-sm) var(--space-md);
-  }
-
-  nav .logo img {
-    height: 1.75rem;
-  }
-
-  nav .nav-links {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: var(--space-xs);
-    padding: var(--space-sm);
-    scrollbar-width: thin;
-  }
-
-  nav .nav-links a {
-    min-height: 2.25rem;
-    padding: var(--space-sm) var(--space-2sm);
-    font-size: var(--font-size-md);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  nav .nav-links .nav-section-title,
-  nav .nav-links .nav-section-title:first-child {
-    display: flex;
-    align-items: center;
-    padding: var(--space-sm) var(--space-2xs);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  nav .nav-links .nav-section-title:not(:first-child) {
-    margin-top: 0;
-    margin-left: var(--space-2sm);
-    padding-left: var(--space-md);
-    border-left: 1px solid rgba(255, 255, 255, 0.42);
-  }
-
-  nav .nav-links a.is-active,
-  nav .nav-links a[aria-current="page"] {
-    box-shadow:
-      inset 0 -3px 0 0 var(--color-sidebar-active-border),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-  }
-
-  /* Keeps the focus ring on the active link, whose shadow is set above. */
-  nav .nav-links a.is-active:focus-visible,
-  nav .nav-links a[aria-current="page"]:focus-visible {
-    box-shadow:
-      inset 0 -3px 0 0 var(--color-sidebar-active-border),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.22),
-      0 0 0 3px var(--color-sidebar-focus-ring);
-  }
-
-  .layout-main {
-    min-height: 0;
-    flex: 1;
-    max-height: none;
-  }
-
-  .layout-article {
-    max-height: none;
-    overflow-y: visible;
-  }
-
+/* Narrow-content tier. Previously 768px; the nav rules that lived here are gone
+   — the drawer is now the only nav below 1080, so the horizontal top strip they
+   styled is unreachable. */
+@media (width <= 900px) {
   .user-name,
   .user-company {
     max-width: 7rem;
@@ -2800,9 +2843,30 @@ table input[type="checkbox"] {
   }
 }
 
-@media (max-width: 480px) {
+/* Phone tier. The only place the fixed app shell is torn down: `body` scrolls
+   instead of `.layout-article`. Tablets keep the shell. */
+@media (width <= 700px) {
   :root {
     --layout-content-padding: var(--space-sm);
+  }
+
+  body {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    max-height: none;
+    overflow: auto;
+  }
+
+  .layout-main {
+    min-height: 0;
+    flex: 1;
+    max-height: none;
+  }
+
+  .layout-article {
+    max-height: none;
+    overflow-y: visible;
   }
 
   .layout-header {

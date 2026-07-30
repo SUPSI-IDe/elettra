@@ -200,7 +200,7 @@
   text-align: center;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .add-bus-model .bus-model-panels,
   .add-bus-model .bus-model-grid--2,
   .add-bus-model .bus-model-grid--3 {
@@ -212,7 +212,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (width <= 700px) {
   .add-bus-model .bus-model-intro-card,
   .add-bus-model .bus-model-panel {
     padding: var(--space-md);

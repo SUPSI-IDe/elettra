@@ -197,7 +197,7 @@
   background-color: var(--bg-hover);
 }
 
-@media (max-width: 640px) {
+@media (width <= 700px) {
   .about-hero {
     padding: var(--space-xl) var(--space-md);
   }

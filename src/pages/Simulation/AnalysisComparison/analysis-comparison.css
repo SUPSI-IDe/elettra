@@ -208,7 +208,7 @@
   margin-top: var(--layout-gap);
 }
 
-@media (max-width: 640px) {
+@media (width <= 700px) {
   .ac-selectors {
     grid-template-columns: 1fr;
   }

@@ -214,7 +214,7 @@
   box-shadow: var(--shadow-sm);
 }
 
-@media (max-width: 560px) {
+@media (width <= 700px) {
   .ya-res-section-header {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -267,7 +267,7 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--layout-gap);
 }
-@media (max-width: 1000px) { .ya-eff-charts-grid { grid-template-columns: 1fr; } }
+@media (width <= 1080px) { .ya-eff-charts-grid { grid-template-columns: 1fr; } }
 
 .ya-eff-chart-section {
   border: 1px solid var(--color-border-dim);
@@ -395,7 +395,7 @@
   align-items: start;
 }
 
-@media (max-width: 960px) {
+@media (width <= 1080px) {
   .ya-overview-grid { grid-template-columns: 1fr; }
 }
 
@@ -515,7 +515,7 @@
   gap: var(--layout-gap);
 }
 
-@media (max-width: 980px) {
+@media (width <= 1080px) {
   .ya-costs-charts-grid,
   .ya-costs-opex-pair {
     grid-template-columns: 1fr;
@@ -661,12 +661,12 @@
   padding: 0 var(--space-xs);
 }
 
-@media (max-width: 980px) {
+@media (width <= 1080px) {
   .ya-cost-variables__grid { grid-template-columns: 1fr; }
   .ya-costs-inputs-section .ya-cost-variables__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-@media (max-width: 600px) {
+@media (width <= 700px) {
   .ya-costs-inputs-section .ya-cost-variables__grid { grid-template-columns: 1fr; }
 }
 
@@ -941,7 +941,7 @@
 
 .ya-env-kpi-card__abs-diff { font-size: var(--font-size-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
-@media (max-width: 1180px) {
+@media (width <= 1280px) {
   .ya-env-kpi-card__values {
     gap: var(--space-2xs) var(--space-2sm);
   }
@@ -1092,7 +1092,7 @@
 .ya-env-content .ya-env-kpi-row { margin-bottom: 0; }
 .ya-env-content .ya-more-information .ya-env-methodology-note { margin-top: 0; }
 
-@media (max-width: 1100px) { .ya-env-chart-grid { grid-template-columns: 1fr; } }
+@media (width <= 1280px) { .ya-env-chart-grid { grid-template-columns: 1fr; } }
 
 .ya-env-chart-section {
   display: flex;
@@ -1125,7 +1125,7 @@
 
 /* ── Responsive visual polish ─────────────────────────────────── */
 
-@media (max-width: 768px) {
+@media (width <= 900px) {
   .ya-analysis-summary {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -1147,6 +1147,6 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (width <= 700px) {
   .ya-analysis-summary__actions { flex-direction: column; }
 }
