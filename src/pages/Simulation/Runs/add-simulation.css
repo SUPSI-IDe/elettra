@@ -1,10 +1,11 @@
 .add-simulation main {
-  max-width: 720px;
+  max-width: 1400px;
+  width: 100%;
   overflow-y: auto;
 }
 
 .add-simulation form {
-  max-width: clamp(22rem, 60vw, 42rem);
+  width: 100%;
 }
 
 .add-simulation .required-mark {
@@ -26,6 +27,10 @@
   width: 100%;
 }
 
+.add-simulation .form-group > :is(input, select) {
+  width: 100%;
+}
+
 .add-simulation #simulation-name[aria-invalid="true"] {
   border-color: var(--error-color);
   box-shadow: 0 0 0 3px var(--color-negative-muted);
@@ -39,7 +44,7 @@
 
 .add-simulation .compact-row {
   display: grid;
-  gap: var(--space-sm);
+  gap: var(--space-md);
   align-items: end;
 }
 
@@ -49,6 +54,50 @@
 
 .add-simulation .compact-row--3 {
   grid-template-columns: 1fr 1fr 1fr;
+}
+
+/* ── Optional variables disclosure ───────────────────────────────── */
+
+.add-simulation .add-simulation-options {
+  min-width: 0;
+}
+
+.add-simulation .add-simulation-options__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 0 var(--space-2sm);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-main);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.add-simulation .add-simulation-options__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.add-simulation .add-simulation-options__toggle:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--shadow-focus-ring);
+}
+
+.add-simulation .add-simulation-options__toggle::before {
+  color: var(--text-secondary);
+  content: "▸";
+  transition: transform var(--transition-fast);
+}
+
+.add-simulation
+  .add-simulation-options[open]
+  > .add-simulation-options__toggle::before {
+  transform: rotate(90deg);
+}
+
+.add-simulation .add-simulation-options__content {
+  margin-top: var(--layout-gap);
 }
 
 /* ── Shift selection ─────────────────────────────────────────────── */
@@ -151,54 +200,19 @@
   box-shadow: none;
 }
 
-/* ── Custom variables fieldset ───────────────────────────────────── */
-
-.add-simulation .custom-variables-section {
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-2sm) var(--control-padding-block);
-  margin: 0;
-}
-
-.add-simulation .custom-variables-section legend {
-  color: var(--text-main);
-  font-weight: 600;
-  font-size: var(--font-size-lg);
-  line-height: 1.35;
-  padding: 0 var(--space-xs);
-}
-
-/* ── Charging stations fieldset ──────────────────────────────────── */
-
-.add-simulation .charging-stations-section {
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-2sm) var(--control-padding-block);
-  margin: 0;
-}
-
-.add-simulation .charging-stations-section legend {
-  color: var(--text-main);
-  font-weight: 600;
-  font-size: var(--font-size-lg);
-  line-height: 1.35;
-  padding: 0 var(--space-xs);
-}
-
 .add-simulation .stops-hint {
   font-size: var(--font-size-md);
   color: var(--text-secondary);
-  margin: var(--space-xs) 0;
+  margin: 0;
   line-height: 1.5;
 }
 
 .add-simulation .stops-table-wrapper {
   max-height: 260px;
-  overflow-y: auto;
+  overflow: auto;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  margin-top: var(--space-xs);
 }
 
 .add-simulation .stops-table {
@@ -346,22 +360,29 @@
 
 .usable-soc-warning__confirm {
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--brand-teal);
+  border: 1px solid var(--color-action-positive);
   border-radius: var(--radius-md);
-  background: var(--brand-teal);
-  color: var(--color-surface);
+  background: var(--color-action-positive);
+  color: var(--color-action-positive-text);
   font-weight: 600;
   cursor: pointer;
   transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.usable-soc-warning__confirm:hover,
-.usable-soc-warning__confirm:focus-visible {
-  border-color: var(--brand-teal-dark);
-  background: var(--brand-teal-dark);
+.usable-soc-warning__confirm:hover {
+  border-color: var(--color-action-positive-hover);
+  background: var(--color-action-positive-hover);
 }
 
-/* ── Responsive fallback for narrow viewports ────────────────────── */
+.usable-soc-warning__confirm:active {
+  border-color: var(--color-action-positive-active);
+  background: var(--color-action-positive-active);
+}
+
+.usable-soc-warning__confirm:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--shadow-focus-ring);
+}
 
 @media (max-width: 480px) {
   .add-simulation .compact-row--2,

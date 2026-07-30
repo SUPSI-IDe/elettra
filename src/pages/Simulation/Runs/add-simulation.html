@@ -28,219 +28,252 @@
         hidden
       ></p>
 
-      <div class="form-group">
-        <label for="simulation-name">
-          <span data-i18n="simulation.field_name">Name</span>
-          <span class="required-mark">*</span>
-        </label>
-        <input
-          type="text"
-          id="simulation-name"
-          name="name"
-          required
-          aria-describedby="simulation-name-feedback"
-        />
-        <p
-          class="form-feedback"
-          id="simulation-name-feedback"
-          data-role="name-feedback"
-          role="alert"
-          aria-live="polite"
-          hidden
-        ></p>
+      <div class="form-card-grid">
+        <section
+          class="form-card"
+          aria-labelledby="simulation-information-heading"
+        >
+          <header class="form-card__header">
+            <h2
+              id="simulation-information-heading"
+              data-i18n="simulation.information_heading"
+            >
+              Information
+            </h2>
+          </header>
+          <div class="form-card__body">
+            <div class="form-group">
+              <label for="simulation-name">
+                <span data-i18n="simulation.field_name">Name</span>
+                <span class="required-mark">*</span>
+              </label>
+              <input
+                type="text"
+                id="simulation-name"
+                name="name"
+                required
+                aria-describedby="simulation-name-feedback"
+              />
+              <p
+                class="form-feedback"
+                id="simulation-name-feedback"
+                data-role="name-feedback"
+                role="alert"
+                aria-live="polite"
+                hidden
+              ></p>
+            </div>
+
+            <div class="form-group shift-selection">
+              <label for="sim-shift-filter">
+                <span data-i18n="simulation.field_shifts">Shift</span>
+                <span class="required-mark">*</span>
+              </label>
+              <div class="shift-search">
+                <input
+                  type="search"
+                  id="sim-shift-filter"
+                  placeholder="Search"
+                  data-i18n-placeholder="simulation.search_shifts"
+                />
+              </div>
+              <div class="shift-table-wrapper">
+                <table class="shift-table">
+                  <thead>
+                    <tr>
+                      <th class="checkbox"></th>
+                      <th scope="col" data-sort-key="name" aria-sort="ascending">
+                        <button type="button" class="sort-button" data-sort-key="name">
+                          <span data-i18n="simulation.shift_col_name">Shift name</span>
+                          <span class="sort-arrow" aria-hidden="true">↑</span>
+                        </button>
+                      </th>
+                      <th scope="col" data-sort-key="bus_model" aria-sort="none">
+                        <button type="button" class="sort-button" data-sort-key="bus_model">
+                          <span data-i18n="simulation.shift_col_bus_model">Bus model</span>
+                          <span class="sort-arrow" aria-hidden="true">↕</span>
+                        </button>
+                      </th>
+                      <th class="distance" scope="col" data-sort-key="distance" aria-sort="none">
+                        <button type="button" class="sort-button" data-sort-key="distance">
+                          <span data-i18n="simulation.shift_col_distance">Distance (km)</span>
+                          <span class="sort-arrow" aria-hidden="true">↕</span>
+                        </button>
+                      </th>
+                      <th class="distance" scope="col" data-sort-key="yearly_distance" aria-sort="none">
+                        <button type="button" class="sort-button" data-sort-key="yearly_distance">
+                          <span data-i18n="simulation.shift_col_yearly_distance">Yearly distance (km)</span>
+                          <span class="sort-arrow" aria-hidden="true">↕</span>
+                        </button>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody data-role="shift-selection-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          class="form-card"
+          aria-labelledby="simulation-optimization-heading"
+        >
+          <header class="form-card__header">
+            <h2
+              id="simulation-optimization-heading"
+              data-i18n="simulation.bus_model_optimization_heading"
+            >
+              Bus model and optimization mode
+            </h2>
+          </header>
+          <div class="form-card__body" data-role="charging-stations-section">
+            <div class="compact-row compact-row--2">
+              <div class="form-group">
+                <label for="var-bus-model-override">
+                  <span data-i18n="simulation.var_bus_model_override">Bus model override</span>
+                  <span class="required-mark">*</span>
+                </label>
+                <select id="var-bus-model-override" name="bus_model_id" required>
+                  <option value="" disabled selected data-i18n="simulation.select_shift_first">
+                    Select a shift first…
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="var-optimization-mode">
+                  <span data-i18n="simulation.var_optimization_mode">Optimization mode</span>
+                  <span class="required-mark">*</span>
+                </label>
+                <select id="var-optimization-mode" name="optimization_mode" required>
+                  <option value="" selected disabled data-i18n="simulation.select_optimization_mode">
+                    Select a mode…
+                  </option>
+                  <option value="battery_only" data-i18n="simulation.mode_battery_only">Battery only</option>
+                  <option value="charging_only" data-i18n="simulation.mode_charging">Charging</option>
+                  <option value="joint" data-i18n="simulation.mode_joint">Joint</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="compact-row compact-row--2" data-role="battery-cost-group" hidden>
+              <div class="form-group">
+                <label for="var-battery-cost-per-kwh" data-i18n="simulation.var_battery_cost_per_kwh">
+                  Battery cost (CHF / kWh)
+                </label>
+                <input
+                  type="number"
+                  id="var-battery-cost-per-kwh"
+                  name="battery_cost_per_kwh"
+                  min="0"
+                  step="10"
+                  value="300"
+                />
+              </div>
+              <div class="form-group">
+                <label for="var-battery-sizing-mode" data-i18n="simulation.var_battery_sizing_mode">
+                  Battery sizing mode
+                </label>
+                <select id="var-battery-sizing-mode" name="battery_sizing_mode">
+                  <option value="per_bus" data-i18n="simulation.sizing_per_bus">Per bus</option>
+                  <option value="per_route" data-i18n="simulation.sizing_per_route">Per route</option>
+                </select>
+              </div>
+            </div>
+
+            <p
+              class="stops-hint"
+              data-role="stops-hint"
+              data-i18n="simulation.configure_stations_missing_both"
+            >
+              Select at least one shift and an optimization mode to configure charging stations.
+            </p>
+            <div class="stops-table-wrapper" data-role="stops-table-wrapper">
+              <table class="stops-table">
+                <thead data-role="stops-thead">
+                  <tr>
+                    <th data-i18n="simulation.cs_stop_name">Stop</th>
+                  </tr>
+                </thead>
+                <tbody data-role="stops-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </div>
 
-      <div class="form-group shift-selection">
-        <label>
-          <span data-i18n="simulation.field_shifts">Shift</span>
-          <span class="required-mark">*</span>
-        </label>
-        <div class="shift-search">
-          <input
-            type="search"
-            id="sim-shift-filter"
-            placeholder="Search"
-            data-i18n-placeholder="simulation.search_shifts"
-          />
-        </div>
-        <div class="shift-table-wrapper">
-          <table class="shift-table">
-            <thead>
-              <tr>
-                <th class="checkbox">
-                  
-                </th>
-                <th scope="col" data-sort-key="name" aria-sort="ascending">
-                  <button type="button" class="sort-button" data-sort-key="name">
-                    <span data-i18n="simulation.shift_col_name">Shift name</span>
-                    <span class="sort-arrow" aria-hidden="true">↑</span>
-                  </button>
-                </th>
-                <th scope="col" data-sort-key="bus_model" aria-sort="none">
-                  <button type="button" class="sort-button" data-sort-key="bus_model">
-                    <span data-i18n="simulation.shift_col_bus_model">Bus model</span>
-                    <span class="sort-arrow" aria-hidden="true">↕</span>
-                  </button>
-                </th>
-                <th class="distance" scope="col" data-sort-key="distance" aria-sort="none">
-                  <button type="button" class="sort-button" data-sort-key="distance">
-                    <span data-i18n="simulation.shift_col_distance">Distance (km)</span>
-                    <span class="sort-arrow" aria-hidden="true">↕</span>
-                  </button>
-                </th>
-                <th class="distance" scope="col" data-sort-key="yearly_distance" aria-sort="none">
-                  <button type="button" class="sort-button" data-sort-key="yearly_distance">
-                    <span data-i18n="simulation.shift_col_yearly_distance">Yearly distance (km)</span>
-                    <span class="sort-arrow" aria-hidden="true">↕</span>
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody data-role="shift-selection-body"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <fieldset class="custom-variables-section">
-        <legend data-i18n="simulation.custom_variables">Main variables</legend>
-        <div class="compact-row compact-row--2">
-          <div class="form-group">
-            <label for="var-external-temp" data-i18n="simulation.var_external_temp">
-              External temperature (°C)
-            </label>
-            <input
-              type="number"
-              id="var-external-temp"
-              name="external_temp_celsius"
-              step="0.5"
-              value="-5"
-            />
-          </div>
-          <div class="form-group">
-            <label for="var-occupancy" data-i18n="simulation.var_occupancy">
-              Avg. passengers (%)
-            </label>
-            <select id="var-occupancy" name="occupancy_percent">
-              <option value="0">0%</option>
-              <option value="10">10%</option>
-              <option value="20">20%</option>
-              <option value="30">30%</option>
-              <option value="40">40%</option>
-              <option value="50">50%</option>
-              <option value="60">60%</option>
-              <option value="70">70%</option>
-              <option value="80">80%</option>
-              <option value="90">90%</option>
-              <option value="100" selected>100%</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="var-heating-type" data-i18n="simulation.var_heating_type">
-              Heating type
-            </label>
-            <select id="var-heating-type" name="auxiliary_heating_type">
-              <option value="default" data-i18n="simulation.heating_hp">HP</option>
-              <option value="diesel" data-i18n="simulation.heating_diesel">Diesel</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="var-usable-soc-percent" data-i18n="simulation.var_usable_soc_percent">
-              Usable SOC (% of nominal)
-            </label>
-            <select id="var-usable-soc-percent" name="usable_soc_percent">
-              <option value="100">100%</option>
-              <option value="90">90%</option>
-              <option value="80">80%</option>
-              <option value="70">70%</option>
-              <option value="60">60%</option>
-              <option value="50" selected>50%</option>
-              <option value="40">40%</option>
-              <option value="30">30%</option>
-              <option value="20">20%</option>
-              <option value="10">10%</option>
-            </select>
+      <details class="add-simulation-options" data-role="optional-variables">
+        <summary
+          class="add-simulation-options__toggle"
+          data-i18n="simulation.set_optional_variables"
+        >
+          Set optional variables
+        </summary>
+        <div class="add-simulation-options__content">
+          <div class="form-card">
+            <div class="form-card__body">
+              <div class="compact-row compact-row--2">
+                <div class="form-group">
+                  <label for="var-external-temp" data-i18n="simulation.var_external_temp">
+                    External temperature (°C)
+                  </label>
+                  <input
+                    type="number"
+                    id="var-external-temp"
+                    name="external_temp_celsius"
+                    step="0.5"
+                    value="-5"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="var-occupancy" data-i18n="simulation.var_occupancy">
+                    Avg. passengers (%)
+                  </label>
+                  <select id="var-occupancy" name="occupancy_percent">
+                    <option value="0">0%</option>
+                    <option value="10">10%</option>
+                    <option value="20">20%</option>
+                    <option value="30">30%</option>
+                    <option value="40">40%</option>
+                    <option value="50">50%</option>
+                    <option value="60">60%</option>
+                    <option value="70">70%</option>
+                    <option value="80">80%</option>
+                    <option value="90">90%</option>
+                    <option value="100" selected>100%</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="var-heating-type" data-i18n="simulation.var_heating_type">
+                    Heating type
+                  </label>
+                  <select id="var-heating-type" name="auxiliary_heating_type">
+                    <option value="default" data-i18n="simulation.heating_hp">HP</option>
+                    <option value="diesel" data-i18n="simulation.heating_diesel">Diesel</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="var-usable-soc-percent" data-i18n="simulation.var_usable_soc_percent">
+                    Usable SOC (% of nominal)
+                  </label>
+                  <select id="var-usable-soc-percent" name="usable_soc_percent">
+                    <option value="100">100%</option>
+                    <option value="90">90%</option>
+                    <option value="80">80%</option>
+                    <option value="70">70%</option>
+                    <option value="60">60%</option>
+                    <option value="50" selected>50%</option>
+                    <option value="40">40%</option>
+                    <option value="30">30%</option>
+                    <option value="20">20%</option>
+                    <option value="10">10%</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </fieldset>
-
-      <div class="compact-row compact-row--2">
-        <div class="form-group">
-          <label for="var-bus-model-override" data-i18n="simulation.var_bus_model_override">
-            Bus model override
-          </label>
-          <select id="var-bus-model-override" name="bus_model_id">
-            <option value="" disabled selected data-i18n="simulation.select_shift_first">
-              Select a shift first…
-            </option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="var-optimization-mode" data-i18n="simulation.var_optimization_mode">
-            Optimization mode
-          </label>
-          <select id="var-optimization-mode" name="optimization_mode">
-            <option value="" selected disabled data-i18n="simulation.select_optimization_mode">
-              Select a mode…
-            </option>
-            <option value="battery_only" data-i18n="simulation.mode_battery_only">Battery only</option>
-            <option value="charging_only" data-i18n="simulation.mode_charging">Charging</option>
-            <option value="joint" data-i18n="simulation.mode_joint">Joint</option>
-          </select>
-        </div>
-      </div>
-
-      <fieldset class="charging-stations-section" data-role="charging-stations-section" hidden>
-        <legend data-i18n="simulation.charging_stations">Charging stations</legend>
-
-        <div class="form-group" data-role="battery-packs-group" hidden>
-          <label for="var-num-battery-packs" data-i18n="simulation.var_num_battery_packs">
-            Number of battery packs
-          </label>
-          <input
-            type="number"
-            id="var-num-battery-packs"
-            name="num_battery_packs"
-            min="1"
-            step="1"
-            value="6"
-          />
-        </div>
-
-        <div data-role="battery-cost-group" hidden>
-          <div class="form-group">
-            <label for="var-battery-cost-per-kwh" data-i18n="simulation.var_battery_cost_per_kwh">
-              Battery cost (CHF / kWh)
-            </label>
-            <input
-              type="number"
-              id="var-battery-cost-per-kwh"
-              name="battery_cost_per_kwh"
-              min="0"
-              step="10"
-              value="300"
-            />
-          </div>
-          <div class="form-group">
-            <label for="var-battery-sizing-mode" data-i18n="simulation.var_battery_sizing_mode">
-              Battery sizing mode
-            </label>
-            <select id="var-battery-sizing-mode" name="battery_sizing_mode">
-              <option value="per_bus" data-i18n="simulation.sizing_per_bus">Per bus</option>
-              <option value="per_route" data-i18n="simulation.sizing_per_route">Per route</option>
-            </select>
-          </div>
-        </div>
-
-        <p class="stops-hint" data-role="stops-hint" hidden data-i18n="simulation.select_shifts_for_stops">
-          Select shifts above to see available stops.
-        </p>
-        <div class="stops-table-wrapper" data-role="stops-table-wrapper" hidden>
-          <table class="stops-table">
-            <thead data-role="stops-thead"></thead>
-            <tbody data-role="stops-tbody"></tbody>
-          </table>
-        </div>
-      </fieldset>
+      </details>
 
       <p class="required-note">
         <span class="required-mark">*</span>
@@ -290,7 +323,7 @@
           <div class="usable-soc-warning__actions">
             <button
               type="button"
-              class="usable-soc-warning__confirm"
+              class="usable-soc-warning__confirm action-positive"
               data-role="usable-soc-warning-confirm"
               data-i18n="simulation.usable_soc_warning_confirm"
             >
