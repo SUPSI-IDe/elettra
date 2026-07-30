@@ -266,8 +266,18 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     const { name, address, latitude, longitude, features } =
       toDepotPayload(formData);
 
-    if (!name || !address) {
-      updateFeedback(feedback, t("custom_stops.name_address_required"), "error");
+    // Everything but the notes is mandatory. Address, city and the coordinates
+    // are map-derived, so a gap here means the reverse geocode came back empty.
+    const missingRequired =
+      !name ||
+      !address ||
+      !features.type ||
+      !features.city ||
+      latitude === undefined ||
+      longitude === undefined;
+
+    if (missingRequired) {
+      updateFeedback(feedback, t("custom_stops.required_fields_missing"), "error");
       return;
     }
 

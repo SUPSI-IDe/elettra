@@ -1,7 +1,9 @@
 <section class="form-page add-custom-stop">
   <header class="page-header">
     <div class="header-with-close">
-      <h1 class="page-title" data-i18n="custom_stops.add_custom_stop">Add Custom Stop</h1>
+      <div class="title-container">
+        <h1 class="page-title" data-i18n="custom_stops.add_custom_stop">Add Custom Stop</h1>
+      </div>
       <button
         type="button"
         data-action="close"
@@ -15,97 +17,154 @@
   </header>
   <main>
     <form data-form="add-custom-stop" novalidate>
-      <div class="form-fields">
-        <p
-          class="form-feedback"
-          data-role="feedback"
-          role="status"
-          aria-live="polite"
-          hidden
-        ></p>
-        <div class="form-group">
-          <label for="custom-stop-name" data-i18n="custom_stops.field_name">Name</label>
-          <input
-            type="text"
-            id="custom-stop-name"
-            name="name"
-            required
-            autocomplete="off"
-          />
-        </div>
-        <div class="form-group">
-          <label for="custom-stop-type" data-i18n="custom_stops.field_type">Type</label>
-          <select id="custom-stop-type" name="type">
-            <option value="" data-i18n="custom_stops.placeholder_type">Select a type</option>
-            <option value="depot" data-i18n="custom_stops.type_depot">Depot</option>
-            <option value="charging" data-i18n="custom_stops.type_charging">Charging</option>
-            <option value="hub" data-i18n="custom_stops.type_hub">Hub</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="custom-stop-city" data-i18n="custom_stops.field_city">City</label>
-          <input
-            type="text"
-            id="custom-stop-city"
-            name="city"
-            readonly
-            autocomplete="address-level2"
-          />
-        </div>
-        <div class="form-group">
-          <label for="custom-stop-address" data-i18n="custom_stops.field_address">Address</label>
-          <textarea
-            id="custom-stop-address"
-            name="address"
-            rows="3"
-            required
-            readonly
-            autocomplete="street-address"
-          ></textarea>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="custom-stop-latitude" data-i18n="custom_stops.field_latitude">Latitude</label>
-            <input
-              type="number"
-              id="custom-stop-latitude"
-              name="latitude"
-              step="any"
-              readonly
-              inputmode="decimal"
-            />
+      <p
+        class="form-feedback"
+        data-role="feedback"
+        role="status"
+        aria-live="polite"
+        hidden
+      ></p>
+
+      <div class="form-card-grid">
+        <section
+          class="form-card"
+          aria-labelledby="custom-stop-information-heading"
+        >
+          <header class="form-card__header">
+            <h2
+              id="custom-stop-information-heading"
+              data-i18n="custom_stops.information_heading"
+            >
+              Information
+            </h2>
+          </header>
+          <div class="form-card__body">
+            <div class="form-group">
+              <label for="custom-stop-name">
+                <span data-i18n="custom_stops.field_name">Name</span>
+                <span class="required-mark" aria-hidden="true">*</span>
+              </label>
+              <input
+                type="text"
+                id="custom-stop-name"
+                name="name"
+                required
+                autocomplete="off"
+              />
+            </div>
+            <div class="form-group">
+              <label for="custom-stop-type">
+                <span data-i18n="custom_stops.field_type">Type</span>
+                <span class="required-mark" aria-hidden="true">*</span>
+              </label>
+              <select id="custom-stop-type" name="type" required>
+                <option value="" data-i18n="custom_stops.placeholder_type">Select a type</option>
+                <option value="depot" data-i18n="custom_stops.type_depot">Depot</option>
+                <option value="charging" data-i18n="custom_stops.type_charging">Charging</option>
+                <option value="hub" data-i18n="custom_stops.type_hub">Hub</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="custom-stop-address">
+                <span data-i18n="custom_stops.field_address">Address</span>
+                <span class="required-mark" aria-hidden="true">*</span>
+              </label>
+              <textarea
+                id="custom-stop-address"
+                name="address"
+                rows="2"
+                required
+                readonly
+                autocomplete="street-address"
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label for="custom-stop-city">
+                <span data-i18n="custom_stops.field_city">City</span>
+                <span class="required-mark" aria-hidden="true">*</span>
+              </label>
+              <input
+                type="text"
+                id="custom-stop-city"
+                name="city"
+                required
+                readonly
+                autocomplete="address-level2"
+              />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="custom-stop-latitude">
+                  <span data-i18n="custom_stops.field_latitude">Latitude</span>
+                  <span class="required-mark" aria-hidden="true">*</span>
+                </label>
+                <input
+                  type="number"
+                  id="custom-stop-latitude"
+                  name="latitude"
+                  step="any"
+                  required
+                  readonly
+                  inputmode="decimal"
+                />
+              </div>
+              <div class="form-group">
+                <label for="custom-stop-longitude">
+                  <span data-i18n="custom_stops.field_longitude">Longitude</span>
+                  <span class="required-mark" aria-hidden="true">*</span>
+                </label>
+                <input
+                  type="number"
+                  id="custom-stop-longitude"
+                  name="longitude"
+                  step="any"
+                  required
+                  readonly
+                  inputmode="decimal"
+                />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="custom-stop-notes">
+                <span data-i18n="custom_stops.field_notes">Notes</span>
+                <span class="optional-note" data-i18n="common.optional">(optional)</span>
+              </label>
+              <textarea id="custom-stop-notes" name="notes" rows="3"></textarea>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="custom-stop-longitude" data-i18n="custom_stops.field_longitude">Longitude</label>
-            <input
-              type="number"
-              id="custom-stop-longitude"
-              name="longitude"
-              step="any"
-              readonly
-              inputmode="decimal"
-            />
+        </section>
+
+        <section
+          class="form-card add-custom-stop__location-card"
+          aria-labelledby="custom-stop-location-heading"
+        >
+          <header class="form-card__header">
+            <h2
+              id="custom-stop-location-heading"
+              data-i18n="custom_stops.location_heading"
+            >
+              Location
+            </h2>
+          </header>
+          <div class="form-card__body">
+            <p class="helper-text map-hint" data-i18n="custom_stops.map_hint">
+              Drag the map to position the crosshair on your stop location
+            </p>
+            <div class="map-wrapper">
+              <div id="custom-stop-map" data-role="map"></div>
+              <div class="map-crosshair" aria-hidden="true"></div>
+            </div>
           </div>
-        </div>
-        <div class="form-group">
-          <label for="custom-stop-notes"
-            ><span data-i18n="custom_stops.field_notes">Notes</span> <span aria-hidden="true" data-i18n="common.optional">(optional)</span></label
-          >
-          <textarea id="custom-stop-notes" name="notes" rows="3"></textarea>
-        </div>
+        </section>
+      </div>
+
+      <div class="add-custom-stop__footer">
+        <p class="required-note" data-i18n="common.required_info">
+          * Required information
+        </p>
         <div class="form-actions">
           <button type="button" data-action="cancel" data-i18n="common.cancel">Cancel</button>
           <button type="submit" data-i18n="custom_stops.save">Save Custom Stop</button>
-        </div>
-      </div>
-      <div class="map-picker-container">
-        <label data-i18n="custom_stops.pick_location">Pick location on map</label>
-        <p class="map-hint helper-text" data-i18n="custom_stops.map_hint">
-          Drag the map to position the crosshair on your stop location
-        </p>
-        <div class="map-wrapper">
-          <div id="custom-stop-map" data-role="map"></div>
-          <div class="map-crosshair" aria-hidden="true"></div>
         </div>
       </div>
     </form>
