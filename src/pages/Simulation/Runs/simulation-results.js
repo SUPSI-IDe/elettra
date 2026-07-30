@@ -3004,9 +3004,9 @@ const usableSocInfoLabelHtml = (label, tooltipOptions = {}) => {
 
   return `<span class="efficiency-label-with-info">${escapeHtml(
     label
-  )}<span class="efficiency-info-icon" tabindex="0" role="img" aria-label="${escapeAttr(
+  )}<button type="button" class="efficiency-info-icon" aria-label="${escapeAttr(
     tooltip
-  )}" title="${escapeAttr(tooltip)}">i</span></span>`;
+  )}" title="${escapeAttr(tooltip)}">i</button></span>`;
 };
 
 const maxUsableLimitCellHtml = (maxUsableKwh, shiftConsumptionKwh) => {

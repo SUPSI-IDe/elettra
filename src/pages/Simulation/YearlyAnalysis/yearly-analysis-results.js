@@ -1765,7 +1765,7 @@ const renderCostsKpis = (el, cd) => {
 const infoTip = (text) => {
   const value = textContent(text);
   const label = value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-  return `<span class="ya-info-icon" tabindex="0" aria-label="${label}">i<span class="ya-info-tooltip">${value}</span></span>`;
+  return `<button type="button" class="ya-info-icon" aria-label="${label}">i<span class="ya-info-tooltip">${value}</span></button>`;
 };
 
 const renderElectricOpexBreakdown = (el, cd) => {
@@ -2971,6 +2971,12 @@ const setYaCo2PhaseTitle = (chartEl, showLifecycleInfo = false) => {
     return;
   }
   const tooltipText = textContent(t("yearly_analysis.lifecycle_phases_exclude_dh"));
+  /* The other `.ya-info-icon` call sites are `<button>`, which is what makes
+     them work on touch — iOS never focuses a non-form element on tap, so the
+     `:focus-visible` trigger never fires there. This one stays a span because
+     `linkifyMobitoolHtml` injects an `<a>` into the tooltip, and interactive
+     content inside a `<button>` is invalid and would break the link. Fixing it
+     needs the tooltip moved out to a sibling with its own anchor rules. */
   titleEl.innerHTML = `${baseTitle}<span class="ya-info-icon" tabindex="0" aria-label="${tooltipText}">i<span class="ya-info-tooltip">${linkifyMobitoolHtml(tooltipText)}</span></span>`;
 };
 
@@ -3470,7 +3476,7 @@ const renderEmissionsPanel = (sec, emState) => {
     const mcdIndicators = mcd.indicators ?? {};
     const MCD_KEYS = ["gwp100a", "nox", "pm10"];
     const mcdTooltipText = `${textContent(t("yearly_analysis.mixed_case_description"))} ${textContent(t("yearly_analysis.electric_side"))}: ${mcdYearlyKwh ? `${formatInt(mcdYearlyKwh)} kWh/yr` : "—"} (${mcdKwhPer100km ? `${formatFixed(mcdKwhPer100km, 1)} kWh/100km` : "—"}) · ${textContent(t("yearly_analysis.diesel_heating_label"))} ${mcdDhLiters ? `${formatFixed(mcdDhLiters, 1)} l/yr` : "0 l/yr"}`;
-    const mcdInfoTip = `<span class="ya-info-icon" tabindex="0" aria-label="${textContent(mcdTooltipText)}">i<span class="ya-info-tooltip">${textContent(mcdTooltipText)}</span></span>`;
+    const mcdInfoTip = `<button type="button" class="ya-info-icon" aria-label="${textContent(mcdTooltipText)}">i<span class="ya-info-tooltip">${textContent(mcdTooltipText)}</span></button>`;
     const mcdRows = MCD_KEYS.map((key) => {
       const mi = mcdIndicators[key];
       if (!mi) return "";
