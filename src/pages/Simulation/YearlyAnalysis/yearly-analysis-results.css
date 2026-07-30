@@ -13,7 +13,7 @@
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--color-border-dim);
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--layout-gap);
   overflow-x: auto;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
@@ -73,7 +73,7 @@
 
 /* ── Results toolbar ───────────────────────────────────────────── */
 
-.ya-results-toolbar { margin-bottom: var(--space-md); }
+.ya-results-toolbar { margin-bottom: var(--layout-gap); }
 
 .ya-analysis-summary {
   display: flex;
@@ -148,61 +148,6 @@
 .ya-config-dialog__header .ya-res-section-title { margin: 0; }
 .ya-config-dialog .ya-res-config { margin-bottom: 0; }
 
-.ya-efficiency-details {
-  overflow: hidden;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.ya-efficiency-details__toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-2sm) var(--space-md);
-  color: var(--text-main);
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  cursor: pointer;
-  list-style: none;
-}
-
-.ya-efficiency-details__toggle::-webkit-details-marker {
-  display: none;
-}
-
-/* Inset ring: the parent clips overflow, so an outer ring would be cut off. */
-.ya-efficiency-details__toggle:focus-visible {
-  outline: 2px solid transparent;
-  box-shadow: var(--shadow-focus-ring-inset);
-}
-
-.ya-efficiency-details__toggle::before {
-  color: var(--text-secondary);
-  content: "▸";
-  transition: transform var(--transition-fast);
-}
-
-.ya-efficiency-details[open] > .ya-efficiency-details__toggle::before {
-  transform: rotate(90deg);
-}
-
-.ya-efficiency-details__content {
-  display: grid;
-  gap: var(--space-md);
-  padding: var(--space-md);
-  border-top: 1px solid var(--border-light);
-}
-
-.ya-efficiency-details__content > div > .ya-res-section {
-  margin-bottom: 0;
-}
-
-.ya-efficiency-details__content > div:empty {
-  display: none;
-}
-
 /* ── Config summary ────────────────────────────────────────────── */
 
 .ya-res-config { margin-bottom: var(--space-lg); }
@@ -215,8 +160,16 @@
 
 /* ── Section cards ─────────────────────────────────────────────── */
 
+/* Every container that holds cards supplies the gap itself (flex/grid), so the
+   card carries no margin of its own — otherwise gap + margin stack up. */
 .ya-res-section {
-  margin-bottom: var(--space-md);
+  margin-bottom: 0;
+}
+
+/* The one exception: JS renders several cards as plain siblings inside a single
+   slot of these panels, where no parent gap separates them. */
+.ya-more-information__content > div > .ya-res-section + .ya-res-section {
+  margin-top: var(--layout-gap);
 }
 
 .ya-res-section-title {
@@ -314,7 +267,7 @@
 .ya-eff-charts-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-md);
+  gap: var(--layout-gap);
 }
 @media (max-width: 1000px) { .ya-eff-charts-grid { grid-template-columns: 1fr; } }
 
@@ -329,8 +282,7 @@
 /* Yearly summary cards row */
 .ya-summary-cards {
   --kpi-tile-min: 8.5rem;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--layout-gap);
 }
 
 .ya-summary-card {
@@ -362,9 +314,9 @@
 }
 .ya-summary-transition-note { margin-top: var(--space-2xs); }
 
-.ya-yearly-uncertainty-summary { margin-top: var(--space-sm); }
+/* Own slot in the details grid — the grid gap already spaces it. */
+.ya-yearly-uncertainty-summary { margin-top: 0; }
 .ya-uncertainty-summary-grid {
-  gap: var(--space-sm);
   margin-top: var(--space-2sm);
 }
 .ya-uncertainty-summary-item {
@@ -401,9 +353,8 @@
 /* Uncertainty cell styling */
 .ya-uncertainty { font-size: var(--font-size-xs); color: var(--text-secondary); white-space: nowrap; }
 
-.ya-critical-panel { margin-top: var(--space-md); }
+.ya-critical-panel { margin-top: 0; }
 .ya-critical-grid {
-  gap: var(--space-sm);
   margin-top: var(--space-2sm);
 }
 .ya-critical-item {
@@ -442,7 +393,7 @@
 .ya-overview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-md);
+  gap: var(--layout-gap);
   align-items: start;
 }
 
@@ -550,20 +501,20 @@
 .ya-costs-panel {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-md);
+  gap: var(--layout-gap);
 }
 
 .ya-costs-charts-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-md);
+  gap: var(--layout-gap);
   align-items: start;
 }
 
 .ya-costs-opex-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-md);
+  gap: var(--layout-gap);
 }
 
 @media (max-width: 980px) {
@@ -573,20 +524,18 @@
   }
 }
 
+/* Not a card: the contents sit in the page flow at the same level as the KPI,
+   chart and input cards. The disclosure survives as a label plus a rule. */
 .ya-more-information {
   min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
 }
 
 .ya-more-information__toggle {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-2sm) var(--space-md);
+  padding: 0 0 var(--space-2sm);
+  border-bottom: 1px solid var(--border-light);
   color: var(--text-main);
   font-size: var(--font-size-lg);
   font-weight: 600;
@@ -598,10 +547,9 @@
   display: none;
 }
 
-/* Inset ring: the parent clips overflow, so an outer ring would be cut off. */
 .ya-more-information__toggle:focus-visible {
   outline: 2px solid transparent;
-  box-shadow: var(--shadow-focus-ring-inset);
+  box-shadow: var(--shadow-focus-ring);
 }
 
 .ya-more-information__toggle::before {
@@ -616,14 +564,13 @@
 
 .ya-more-information__content {
   display: grid;
-  gap: var(--space-md);
-  padding: var(--space-md);
-  border-top: 1px solid var(--border-light);
+  gap: var(--layout-gap);
+  /* No parent gap to inherit — clear the summary rule by the page's gap. */
+  margin-top: var(--layout-gap);
 }
 
-.ya-more-information__content > .ya-res-section,
-.ya-more-information__content > div > .ya-res-section {
-  margin-bottom: 0;
+.ya-more-information__content > div:empty {
+  display: none;
 }
 
 .ya-costs-table .ya-opex-summary td {
@@ -637,8 +584,60 @@
 
 /* ── Slider variables panel ───────────────────────────────────── */
 
+/* Plain card surface and standard card padding, dropping the shared
+   gradient and tighter padding so it matches the chart cards below.
+   Shared by the costs and emissions slider panels. */
+:is(.ya-costs-inputs-section, .ya-env-controls) {
+  padding: var(--panel-padding);
+  background: var(--color-surface);
+}
+
+:is(.ya-costs-inputs-section, .ya-env-controls) .ya-res-section-header {
+  margin-bottom: var(--space-md);
+}
+
+/* Same gutter as the chart grid below, so fields and charts sit on one rhythm.
+   Subgrid keeps label/slider/scale rows aligned across columns when a label wraps. */
 .ya-costs-inputs-section .ya-cost-variables__grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--layout-gap);
+}
+
+.ya-costs-inputs-section .ya-cost-variables__field {
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+}
+
+/* One reset for the whole panel, pinned to the header's right edge. */
+.ya-cost-variables__reset-all {
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--brand-teal-dark);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ya-cost-variables__reset-all:hover {
+  border-color: var(--brand-teal);
+  background: color-mix(in srgb, var(--brand-teal) 10%, var(--color-surface));
+}
+
+.ya-cost-variables__reset-all:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--shadow-focus-ring);
+}
+
+/* The emissions panel disables its reset until the run has loaded. */
+.ya-cost-variables__reset-all:disabled {
+  border-color: var(--color-disabled-border);
+  background: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
 }
 
 .ya-cost-variables__value {
@@ -646,17 +645,23 @@
   text-align: right;
 }
 
+/* Hierarchy inside a field: the current value reads as bare text (no pill), the
+   min/max scale recedes below it. */
+:is(.ya-costs-inputs-section, .ya-env-controls) .ya-cost-variables__value {
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font-size: inherit;
+}
+
+:is(.ya-costs-inputs-section, .ya-env-controls) .ya-cost-variables__range-scale {
+  opacity: 0.55;
+}
+
 .ya-cost-variables__range-scale {
   padding: 0 var(--space-xs);
 }
-
-.ya-cost-variables__reset {
-  padding: 0 var(--space-xs);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.ya-cost-variables__reset:hover { opacity: 0.8; }
 
 @media (max-width: 980px) {
   .ya-cost-variables__grid { grid-template-columns: 1fr; }
@@ -669,10 +674,17 @@
 
 /* ── Charts ───────────────────────────────────────────────────── */
 
+/* Same frame contract as .chart-container on the run-results page: charts draw
+   at 1:1 into a canvas of --chart-plot-height (see utils/chart-frame.js), so
+   every chart on both pages is exactly this tall. */
 .ya-chart-container {
-  min-height: 72px;
+  height: var(--chart-plot-height);
   width: 100%;
-  overflow-x: auto;
+  overflow: hidden;
+  /* Centres the empty/error state in the reserved box; the SVG fills it
+     exactly, so it is unaffected. */
+  display: grid;
+  align-content: center;
 }
 
 .ya-chart-container svg {
@@ -681,12 +693,16 @@
   height: auto;
 }
 
+/* Reserving the band keeps chart + legend the same total height whether the
+   legend has two entries or wraps to a second row. */
 .ya-chart-legend {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
+  justify-content: flex-start;
   gap: var(--space-sm) var(--space-md);
+  min-height: var(--chart-legend-height);
   margin-top: var(--space-sm);
-  padding: 0 var(--space-xs);
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
@@ -709,10 +725,10 @@
 
 /* ── KPI cards ────────────────────────────────────────────────── */
 
+/* Last child of its card — no trailing margin, the card padding closes it. */
 .ya-costs-kpi-grid {
   --kpi-tile-min: 8.5rem;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+  margin-bottom: 0;
 }
 
 .ya-costs-kpi-card {
@@ -819,8 +835,7 @@
 
 .ya-env-kpi-row {
   --kpi-tile-min: 12.5rem;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--layout-gap);
   align-items: stretch;
 }
 
@@ -988,7 +1003,7 @@
   border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--color-chart-primary) 12%, transparent);
   background: color-mix(in srgb, var(--color-chart-primary) 3%, transparent);
-  margin-top: var(--space-md);
+  margin-top: var(--layout-gap);
 }
 
 .ya-env-methodology-note p {
@@ -1002,7 +1017,7 @@
 
 .ya-env-content {
   display: grid;
-  gap: var(--space-md);
+  gap: var(--layout-gap);
 }
 
 .ya-env-panel .ya-env-header {
@@ -1013,9 +1028,9 @@
 .ya-env-panel .ya-env-header a { color: var(--color-link); text-decoration: none; }
 .ya-env-panel .ya-env-header a:hover { text-decoration: underline; }
 
+/* Padding comes from the shared slider-panel rule above. */
 .ya-env-controls {
   margin: 0;
-  padding: var(--space-2sm) var(--space-md);
 }
 
 .ya-env-controls .ya-cost-variables__grid {
@@ -1061,7 +1076,7 @@
   padding: var(--space-2sm) var(--space-md);
   background: var(--bg-subtle);
   border-radius: var(--radius-lg);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--layout-gap);
 }
 .ya-env-mission-item { display: flex; flex-direction: column; gap: var(--space-xs); }
 .ya-env-mission-item__label { font-size: var(--font-size-sm); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); font-weight: 600; }
@@ -1070,8 +1085,8 @@
 .ya-env-chart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-lg);
-  margin-top: var(--space-md);
+  gap: var(--layout-gap);
+  margin-top: var(--layout-gap);
   align-items: stretch;
 }
 

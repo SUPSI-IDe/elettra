@@ -16,6 +16,19 @@ import {
   fetchVehicleImpact,
   fetchShiftYearlyImpact,
 } from "../../../api/environmental";
+import {
+  CHART_PLOT_HEIGHT,
+  CHART_FONT_TICK,
+  CHART_FONT_LABEL,
+  CHART_FONT_EMPHASIS,
+  CHART_FONT_TOOLTIP,
+  chartCanvasWidth,
+  horizontalBandGeometry,
+} from "../../../utils/chart-frame";
+import {
+  CHART_LCA_PHASE_COLORS,
+  CHART_VEHICLE_BAR_COLORS,
+} from "../../../utils/chart-palette";
 import { ADDITIVE_KPIS, MODE_LABELS, MODE_LABEL_KEYS } from "./yearly-analysis-store";
 import { t } from "../../../i18n";
 import {
@@ -347,7 +360,8 @@ const renderYaCostsBar = (el, cd) => {
   ];
 
   const margin = { top: 28, right: 24, bottom: 32, left: 72 };
-  const W = 620, H = 180;
+  const W = chartCanvasWidth(el, () => renderYaCostsBar(el, cd));
+  const H = CHART_PLOT_HEIGHT;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
   const stacked = d3.stack().keys(COST_STACK_KEYS)(data);
@@ -359,10 +373,10 @@ const renderYaCostsBar = (el, cd) => {
   const x = d3.scaleBand().domain(data.map((d) => d.category)).range([0, iW]).padding(0.35);
   const y = d3.scaleLinear().domain([0, maxVal * 1.15]).nice().range([iH, 0]);
 
-  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x)).selectAll("text").attr("font-size", "11px");
-  g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(formatKChfAxis)).selectAll("text").attr("font-size", "11px");
+  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x)).selectAll("text").attr("font-size", CHART_FONT_TICK);
+  g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(formatKChfAxis)).selectAll("text").attr("font-size", CHART_FONT_TICK);
   g.append("text").attr("transform", "rotate(-90)").attr("y", -54).attr("x", -iH / 2)
-    .attr("text-anchor", "middle").attr("font-size", "11px").attr("fill", "#666").text(t("simulation.axis_cost_kchf_per_year"));
+    .attr("text-anchor", "middle").attr("font-size", CHART_FONT_TICK).attr("fill", "#666").text(t("simulation.axis_cost_kchf_per_year"));
 
   let tooltipGroup, tooltipBg, tooltipText;
 
@@ -413,22 +427,22 @@ const renderYaCostsBar = (el, cd) => {
     const labelY = Math.max(10, y(total) - (perKm ? 18 : 6));
     const label = g.append("text")
       .attr("x", x(d.category) + x.bandwidth() / 2).attr("y", labelY)
-      .attr("text-anchor", "middle").attr("font-size", "12px").attr("font-weight", "600")
+      .attr("text-anchor", "middle").attr("font-size", CHART_FONT_EMPHASIS).attr("font-weight", "600")
       .attr("fill", "#1c1c1c").attr("pointer-events", "none");
     label.append("tspan").attr("x", x(d.category) + x.bandwidth() / 2).text(formatKChfLabel(total));
     if (perKm) {
       label.append("tspan").attr("x", x(d.category) + x.bandwidth() / 2)
-        .attr("dy", "1.1em").attr("font-size", "10px").attr("font-weight", "500")
+        .attr("dy", "1.1em").attr("font-size", CHART_FONT_LABEL).attr("font-weight", "500")
         .text(t("yearly_analysis.cost_per_km_bar_suffix", { value: perKm }));
     }
   });
 
   tooltipGroup = g.append("g").style("display", "none").attr("pointer-events", "none");
   tooltipBg = tooltipGroup.append("rect")
-    .attr("fill", "var(--color-surface)").attr("stroke", "#94a3b8").attr("stroke-width", 1)
+    .attr("fill", "var(--color-tooltip-surface)").attr("stroke", "var(--color-tooltip-border)").attr("stroke-width", 1)
     .attr("rx", 6).attr("ry", 6).attr("opacity", 0.97)
     .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
-  tooltipText = tooltipGroup.append("text").attr("fill", "#1c1c1c").attr("font-size", "10px");
+  tooltipText = tooltipGroup.append("text").attr("fill", "var(--color-tooltip-text)").attr("font-size", CHART_FONT_TOOLTIP);
 
   el.appendChild(svg.node());
 };
@@ -453,9 +467,9 @@ const attachLineHover = ({ layer, lineData, lineGen, x, y, iW, iH, color, series
   focus.append("circle").attr("r", 4).attr("fill", "var(--color-surface)").attr("stroke", color).attr("stroke-width", 2);
 
   const tooltip = focus.append("g");
-  const tooltipBg = tooltip.append("rect").attr("fill", "var(--color-surface)").attr("stroke", color).attr("stroke-width", 1)
+  const tooltipBg = tooltip.append("rect").attr("fill", "var(--color-tooltip-surface)").attr("stroke", color).attr("stroke-width", 1)
     .attr("rx", 6).attr("ry", 6).attr("opacity", 0.96);
-  const tooltipText = tooltip.append("text").attr("fill", "#1c1c1c").attr("font-size", "10px");
+  const tooltipText = tooltip.append("text").attr("fill", "var(--color-tooltip-text)").attr("font-size", CHART_FONT_TOOLTIP);
 
   const update = (event) => {
     const ptr = d3.pointer(event, layer.node());
@@ -489,7 +503,8 @@ const renderYaCostsLine = (el, data, cd) => {
   if (!Array.isArray(data) || data.length === 0) return;
 
   const margin = { top: 14, right: 24, bottom: 30, left: 84 };
-  const W = 620, H = 140;
+  const W = chartCanvasWidth(el, () => renderYaCostsLine(el, data, cd));
+  const H = CHART_PLOT_HEIGHT;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
   const svg = svgBase(W, H, t("simulation.chart_aria_cost_trend"));
@@ -499,8 +514,8 @@ const renderYaCostsLine = (el, data, cd) => {
   const x = d3.scaleLinear().domain(d3.extent(data, (d) => d.year)).range([0, iW]);
   const y = d3.scaleLinear().domain([0, d3.max(data, (d) => Math.max(d.diesel, d.electric)) * 1.1]).nice().range([iH, 0]);
 
-  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x).tickValues(tickYears).tickFormat(String)).selectAll("text").attr("font-size", "10px");
-  g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxisWithUnit)).selectAll("text").attr("font-size", "10px");
+  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x).tickValues(tickYears).tickFormat(String)).selectAll("text").attr("font-size", CHART_FONT_TICK);
+  g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxisWithUnit)).selectAll("text").attr("font-size", CHART_FONT_TICK);
   gridLines(g, y, iW);
 
   attachLineHover({
@@ -960,7 +975,8 @@ const renderEfficiencyByTempChart = (el, legendEl, data) => {
   if (!data || !data.length) return;
 
   const margin = { top: 16, right: 24, bottom: 38, left: 56 };
-  const W = 560, H = 300;
+  const W = chartCanvasWidth(el, () => renderEfficiencyByTempChart(el, legendEl, data));
+  const H = CHART_PLOT_HEIGHT;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
   const svg = svgBase(W, H, t("yearly_analysis.chart_aria_efficiency_temperature"));
@@ -974,9 +990,9 @@ const renderEfficiencyByTempChart = (el, legendEl, data) => {
   const x = d3.scaleLinear().domain(xExtent).range([0, iW]);
   const y = d3.scaleLinear().domain([0, yMax]).nice().range([iH, 0]);
 
-  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x).ticks(data.length).tickFormat((d) => `${d}°C`)).selectAll("text").attr("font-size", "10px");
-  g.append("g").call(d3.axisLeft(y).ticks(6).tickFormat((d) => d.toFixed(2))).selectAll("text").attr("font-size", "10px");
-  g.append("text").attr("transform", "rotate(-90)").attr("y", -44).attr("x", -iH / 2).attr("text-anchor", "middle").attr("font-size", "10px").attr("fill", "#666").text(t("yearly_analysis.axis_kwh_km"));
+  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(x).ticks(data.length).tickFormat((d) => `${d}°C`)).selectAll("text").attr("font-size", CHART_FONT_TICK);
+  g.append("g").call(d3.axisLeft(y).ticks(6).tickFormat((d) => d.toFixed(2))).selectAll("text").attr("font-size", CHART_FONT_TICK);
+  g.append("text").attr("transform", "rotate(-90)").attr("y", -44).attr("x", -iH / 2).attr("text-anchor", "middle").attr("font-size", CHART_FONT_TICK).attr("fill", "#666").text(t("yearly_analysis.axis_kwh_km"));
 
   gridLines(g, y, iW, 6);
 
@@ -1036,7 +1052,7 @@ const renderEfficiencyByTempChart = (el, legendEl, data) => {
     if (d.distanceKm != null) lines.push(t("yearly_analysis.tooltip_distance", { value: d.distanceKm.toFixed(1) }));
 
     lines.forEach((txt, i) => {
-      tooltipText.append("tspan").attr("x", 8).attr("dy", i === 0 ? 14 : 13).attr("font-weight", i === 0 ? "600" : "400").attr("fill", "#1c1c1c").text(txt);
+      tooltipText.append("tspan").attr("x", 8).attr("dy", i === 0 ? 14 : 13).attr("font-weight", i === 0 ? "600" : "400").attr("fill", "var(--color-tooltip-text)").text(txt);
     });
 
     const bbox = tooltipText.node().getBBox();
@@ -1063,8 +1079,8 @@ const renderEfficiencyByTempChart = (el, legendEl, data) => {
   });
 
   tooltipGroup = g.append("g").style("display", "none").attr("pointer-events", "none");
-  tooltipBg = tooltipGroup.append("rect").attr("fill", "var(--color-surface)").attr("stroke", "#94a3b8").attr("stroke-width", 1).attr("rx", 6).attr("ry", 6).attr("opacity", 0.97).attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
-  tooltipText = tooltipGroup.append("text").attr("fill", "#1c1c1c").attr("font-size", "10px");
+  tooltipBg = tooltipGroup.append("rect").attr("fill", "var(--color-tooltip-surface)").attr("stroke", "var(--color-tooltip-border)").attr("stroke-width", 1).attr("rx", 6).attr("ry", 6).attr("opacity", 0.97).attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
+  tooltipText = tooltipGroup.append("text").attr("fill", "var(--color-tooltip-text)").attr("font-size", CHART_FONT_TOOLTIP);
 
   el.appendChild(svg.node());
 
@@ -1131,7 +1147,10 @@ const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
   };
 
   const margin = { top: 16, right: 24, bottom: 54, left: 64 };
-  const W = 560, H = 300;
+  const W = chartCanvasWidth(el, () =>
+    renderAnnualContributionChart(el, legendEl, data, mode)
+  );
+  const H = CHART_PLOT_HEIGHT;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
   const svg = svgBase(W, H, t("yearly_analysis.chart_aria_annual_energy_unit", { unit: config.unitLabel }));
@@ -1144,9 +1163,9 @@ const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
   const yMax = d3.max(allMaxes) * 1.12 || 1;
   const y = d3.scaleLinear().domain([0, yMax]).nice().range([iH, 0]);
 
-  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(xBand)).selectAll("text").attr("font-size", "10px").attr("text-anchor", "end").attr("transform", "rotate(-30)");
-  g.append("g").call(d3.axisLeft(y).ticks(6).tickFormat((d) => formatContributionTick(d, config.mode))).selectAll("text").attr("font-size", "10px");
-  g.append("text").attr("transform", "rotate(-90)").attr("y", -52).attr("x", -iH / 2).attr("text-anchor", "middle").attr("font-size", "10px").attr("fill", "#666").text(config.axisLabel);
+  g.append("g").attr("transform", `translate(0,${iH})`).call(d3.axisBottom(xBand)).selectAll("text").attr("font-size", CHART_FONT_TICK).attr("text-anchor", "end").attr("transform", "rotate(-30)");
+  g.append("g").call(d3.axisLeft(y).ticks(6).tickFormat((d) => formatContributionTick(d, config.mode))).selectAll("text").attr("font-size", CHART_FONT_TICK);
+  g.append("text").attr("transform", "rotate(-90)").attr("y", -52).attr("x", -iH / 2).attr("text-anchor", "middle").attr("font-size", CHART_FONT_TICK).attr("fill", "#666").text(config.axisLabel);
 
   gridLines(g, y, iW, 6);
 
@@ -1206,7 +1225,7 @@ const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
     }
 
     lines.forEach((txt, i) => {
-      tooltipText.append("tspan").attr("x", 8).attr("dy", i === 0 ? 14 : 13).attr("font-weight", i === 0 ? "600" : "400").attr("fill", "#1c1c1c").text(txt);
+      tooltipText.append("tspan").attr("x", 8).attr("dy", i === 0 ? 14 : 13).attr("font-weight", i === 0 ? "600" : "400").attr("fill", "var(--color-tooltip-text)").text(txt);
     });
 
     const bbox = tooltipText.node().getBBox();
@@ -1252,8 +1271,8 @@ const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
   }
 
   tooltipGroup = g.append("g").style("display", "none").attr("pointer-events", "none");
-  tooltipBg = tooltipGroup.append("rect").attr("fill", "var(--color-surface)").attr("stroke", "#94a3b8").attr("stroke-width", 1).attr("rx", 6).attr("ry", 6).attr("opacity", 0.97).attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
-  tooltipText = tooltipGroup.append("text").attr("fill", "#1c1c1c").attr("font-size", "10px");
+  tooltipBg = tooltipGroup.append("rect").attr("fill", "var(--color-tooltip-surface)").attr("stroke", "var(--color-tooltip-border)").attr("stroke-width", 1).attr("rx", 6).attr("ry", 6).attr("opacity", 0.97).attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
+  tooltipText = tooltipGroup.append("text").attr("fill", "var(--color-tooltip-text)").attr("font-size", CHART_FONT_TOOLTIP);
 
   el.appendChild(svg.node());
 
@@ -1998,13 +2017,13 @@ const LCA_INDICATORS = [
 ];
 
 const LCA_PHASES = [
-  { key: "direct", i18n: "simulation.emissions_phase_direct", label: "Direct", color: "#e74c3c" },
-  { key: "directNonExhaust", i18n: "simulation.emissions_phase_direct_non_exhaust", label: "Non-exhaust", color: "#e67e22" },
-  { key: "energyChain", i18n: "simulation.emissions_phase_energy_chain", label: "Energy chain", color: "#f1c40f" },
-  { key: "maintenance", i18n: "simulation.emissions_phase_maintenance", label: "Maintenance", color: "#3498db" },
-  { key: "vehicle", i18n: "simulation.emissions_phase_vehicle", label: "Vehicle mfg.", color: "#9b59b6" },
-  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", label: "End of life", color: "var(--color-chart-neutral)" },
-  { key: "infrastructure", i18n: "simulation.emissions_phase_infrastructure", label: "Infrastructure", color: "#1abc9c" },
+  { key: "direct", i18n: "simulation.emissions_phase_direct", label: "Direct", color: CHART_LCA_PHASE_COLORS.direct },
+  { key: "directNonExhaust", i18n: "simulation.emissions_phase_direct_non_exhaust", label: "Non-exhaust", color: CHART_LCA_PHASE_COLORS.directNonExhaust },
+  { key: "energyChain", i18n: "simulation.emissions_phase_energy_chain", label: "Energy chain", color: CHART_LCA_PHASE_COLORS.energyChain },
+  { key: "maintenance", i18n: "simulation.emissions_phase_maintenance", label: "Maintenance", color: CHART_LCA_PHASE_COLORS.maintenance },
+  { key: "vehicle", i18n: "simulation.emissions_phase_vehicle", label: "Vehicle mfg.", color: CHART_LCA_PHASE_COLORS.vehicle },
+  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", label: "End of life", color: CHART_LCA_PHASE_COLORS.endOfLife },
+  { key: "infrastructure", i18n: "simulation.emissions_phase_infrastructure", label: "Infrastructure", color: CHART_LCA_PHASE_COLORS.infrastructure },
 ];
 
 const scaleLcaImpactToYearly = (perUnitImpact, yearlyDistanceKm, passengers = 1) => {
@@ -2765,8 +2784,8 @@ const EMISSIONS_POLLUTANTS = [
   { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
 ];
 
-const DIESEL_BAR_COLOR = "var(--color-danger)";
-const ELECTRIC_BAR_COLOR = "var(--color-success)";
+const DIESEL_BAR_COLOR = CHART_VEHICLE_BAR_COLORS.diesel;
+const ELECTRIC_BAR_COLOR = CHART_VEHICLE_BAR_COLORS.electric;
 const DH_BAR_COLOR = "#e67e22";
 const CO2_PHASE_DIVISOR = 1e6;
 const ENERGY_COLORS = { renewable: "var(--color-success)", nonRenewable: "#e67e22" };
@@ -2845,13 +2864,20 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
   if (!data.length) return;
 
   const labelWidth = 108;
-  const subBarHeight = 16;
   const subBarGap = 3;
-  const groupHeight = hasDiesel ? subBarHeight * 2 + subBarGap : subBarHeight;
-  const groupGap = 22;
   const margin = { top: 12, right: 112, bottom: 28, left: labelWidth };
-  const W = 620;
-  const chartHeight = margin.top + margin.bottom + data.length * groupHeight + (data.length - 1) * groupGap;
+  const W = chartCanvasWidth(el, () =>
+    renderYaEmissionsHistogram(el, legendEl, emState)
+  );
+  const chartHeight = CHART_PLOT_HEIGHT;
+  // Bars are sized from the fixed canvas instead of the other way round, so the
+  // chart is the same height whatever the pollutant count.
+  const { band: groupHeight, gap: groupGap, offsetTop } = horizontalBandGeometry(
+    data.length,
+    margin,
+    { height: chartHeight, maxBand: 64 }
+  );
+  const subBarHeight = hasDiesel ? (groupHeight - subBarGap) / 2 : groupHeight;
   const allValues = data.flatMap((d) => hasDiesel ? [d.electric, d.diesel] : [d.electric]);
   const maxVal = d3.max(allValues) * 1.15 || 1;
 
@@ -2868,33 +2894,33 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
   });
 
   data.forEach((item, i) => {
-    const yBase = margin.top + i * (groupHeight + groupGap);
+    const yBase = offsetTop + i * (groupHeight + groupGap);
     svg.append("text")
       .attr("x", margin.left - 10).attr("y", yBase + groupHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "var(--color-text-main)")
+      .attr("font-size", CHART_FONT_LABEL).attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(item.label);
 
     if (hasDiesel) {
       svg.append("rect")
         .attr("x", margin.left).attr("y", yBase)
         .attr("width", Math.max(0, x(item.diesel))).attr("height", subBarHeight)
-        .attr("rx", 3).attr("fill", DIESEL_BAR_COLOR).attr("opacity", 0.78)
+        .attr("rx", 3).attr("fill", DIESEL_BAR_COLOR)
         .append("title").text(`${t("simulation.label_diesel")}: ${formatFixed(item.diesel, 1)} ${item.unitLabel}`);
       svg.append("text")
         .attr("x", margin.left + Math.max(0, x(item.diesel)) + 4).attr("y", yBase + subBarHeight / 2)
-        .attr("dy", "0.35em").attr("font-size", "9px").attr("fill", "#888")
+        .attr("dy", "0.35em").attr("font-size", CHART_FONT_LABEL).attr("fill", "#888")
         .text(formatFixed(item.diesel, 1));
     }
     const electricY2 = hasDiesel ? yBase + subBarHeight + subBarGap : yBase;
     svg.append("rect")
       .attr("x", margin.left).attr("y", electricY2)
       .attr("width", Math.max(0, x(item.electric))).attr("height", subBarHeight)
-      .attr("rx", 3).attr("fill", ELECTRIC_BAR_COLOR).attr("opacity", 0.9)
+      .attr("rx", 3).attr("fill", ELECTRIC_BAR_COLOR)
       .append("title").text(`${totalLabel}: ${formatFixed(item.electric, 1)} ${item.unitLabel}`);
     svg.append("text")
       .attr("x", margin.left + Math.max(0, x(item.electric)) + 4).attr("y", electricY2 + subBarHeight / 2)
-      .attr("dy", "0.35em").attr("font-size", "9px").attr("fill", "var(--color-text-main)")
+      .attr("dy", "0.35em").attr("font-size", CHART_FONT_LABEL).attr("fill", "var(--color-text-main)")
       .text(formatFixed(item.electric, 1));
 
     if (hasDiesel) {
@@ -2903,11 +2929,11 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
       const tone = savedPositive ? "var(--color-success)" : "var(--color-danger)";
       svg.append("text")
         .attr("x", W - margin.right + 10).attr("y", yBase + groupHeight / 2 - 6)
-        .attr("dy", "0.35em").attr("font-size", "11px").attr("font-weight", "700").attr("fill", tone)
+        .attr("dy", "0.35em").attr("font-size", CHART_FONT_LABEL).attr("font-weight", "700").attr("fill", tone)
         .text(`${arrow} ${formatFixed(Math.abs(item.pctReduction), 0)}%`);
       svg.append("text")
         .attr("x", W - margin.right + 10).attr("y", yBase + groupHeight / 2 + 8)
-        .attr("dy", "0.35em").attr("font-size", "9px").attr("fill", "#888")
+        .attr("dy", "0.35em").attr("font-size", CHART_FONT_LABEL).attr("fill", "#888")
         .text(`${savedPositive ? "−" : "+"}${formatFixed(Math.abs(item.saved), 1)} ${item.unitLabel}`);
     }
   });
@@ -2915,14 +2941,14 @@ const renderYaEmissionsHistogram = (el, legendEl, emState) => {
   svg.append("g")
     .attr("transform", `translate(${margin.left},${chartHeight - margin.bottom})`)
     .call(d3.axisBottom(x).ticks(4).tickFormat((d) => formatFixed(d, 1)))
-    .selectAll("text").attr("font-size", "9px");
+    .selectAll("text").attr("font-size", CHART_FONT_TICK);
 
   el.appendChild(svg.node());
 
   if (legendEl) {
     let html = "";
-    if (hasDiesel) html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${DIESEL_BAR_COLOR};opacity:0.78"></span>${textContent(t("simulation.emissions_toggle_diesel"))}</div>`;
-    html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${ELECTRIC_BAR_COLOR};opacity:0.9"></span>${textContent(totalLabel)}</div>`;
+    if (hasDiesel) html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${DIESEL_BAR_COLOR}"></span>${textContent(t("simulation.emissions_toggle_diesel"))}</div>`;
+    html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${ELECTRIC_BAR_COLOR}"></span>${textContent(totalLabel)}</div>`;
     legendEl.innerHTML = html;
   }
 };
@@ -2948,16 +2974,18 @@ const setYaCo2PhaseTitle = (chartEl, showLifecycleInfo = false) => {
   titleEl.innerHTML = `${baseTitle}<span class="ya-info-icon" tabindex="0" aria-label="${tooltipText}">i<span class="ya-info-tooltip">${linkifyMobitoolHtml(tooltipText)}</span></span>`;
 };
 
-const getYaCo2BreakdownLabelFontSize = (labels = []) => {
+/**
+ * Widen the label gutter to fit the longest bar label rather than shrinking the
+ * type. Charts draw at 1:1 now, so a shrunk label really is 8.5px on screen —
+ * and it would be the one chart on the page not using the shared label size.
+ */
+const getYaCo2BreakdownLabelWidth = (labels = []) => {
   const longestLength = labels.reduce(
     (maxLength, label) => Math.max(maxLength, text(label).trim().length),
     0
   );
-  const length = longestLength;
-  if (length > 24) return 8.5;
-  if (length > 18) return 9;
-  if (length > 12) return 10;
-  return 11;
+  const approxCharWidth = 6.2; // 11px system sans, mixed case
+  return Math.min(184, Math.max(96, Math.round(longestLength * approxCharWidth) + 16));
 };
 
 const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
@@ -3026,32 +3054,30 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
 
   const maxTotal = Math.max(...bars.map((b) => b.total)) * 1.15 || 1;
   const totalDecimals = adaptiveDecimals(maxTotal);
-  const barHeight = 42;
-  const barGap = 14;
-  const labelWidth = emState.isDieselHeating ? 124 : 108;
-  const margin = { top: 12, right: 68, bottom: 28, left: labelWidth };
-  const W = 600;
-  const contentHeight = bars.length * barHeight + (bars.length - 1) * barGap;
-  const minChartHeight = 188;
-  const extraVerticalSpace = Math.max(0, minChartHeight - (margin.top + margin.bottom + contentHeight));
-  const layoutMargin = {
-    ...margin,
-    top: margin.top + extraVerticalSpace / 2,
-    bottom: margin.bottom + extraVerticalSpace / 2,
-  };
-  const chartHeight = layoutMargin.top + layoutMargin.bottom + contentHeight;
+  const labelWidth = getYaCo2BreakdownLabelWidth(bars.map((bar) => bar.label));
+  const layoutMargin = { top: 12, right: 68, bottom: 28, left: labelWidth };
+  const W = chartCanvasWidth(el, () =>
+    renderYaCo2PhaseBreakdown(el, legendEl, emState)
+  );
+  const chartHeight = CHART_PLOT_HEIGHT;
+  // Bars are sized from the fixed canvas and centred in it, so the chart is the
+  // same height whether or not the diesel comparison bar is present.
+  const { band: barHeight, gap: barGap, offsetTop } = horizontalBandGeometry(
+    bars.length,
+    layoutMargin,
+    { height: chartHeight, maxBand: 64 }
+  );
 
   const svg = svgBase(W, chartHeight, t("simulation.chart_aria_co2_phase"));
   const iW = W - layoutMargin.left - layoutMargin.right;
   const x = d3.scaleLinear().domain([0, maxTotal]).nice().range([0, iW]);
-  const labelFontSize = `${getYaCo2BreakdownLabelFontSize(bars.map((bar) => bar.label))}px`;
 
   bars.forEach((bar, i) => {
-    const y = layoutMargin.top + i * (barHeight + barGap);
+    const y = offsetTop + i * (barHeight + barGap);
     svg.append("text")
       .attr("x", layoutMargin.left - 8).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", labelFontSize)
+      .attr("font-size", CHART_FONT_LABEL)
       .attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(bar.label);
     let xOff = 0;
@@ -3087,14 +3113,14 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
     }
     svg.append("text")
       .attr("x", layoutMargin.left + xOff + 6).attr("y", y + barHeight / 2)
-      .attr("dy", "0.35em").attr("font-size", "10px").attr("fill", "#666")
+      .attr("dy", "0.35em").attr("font-size", CHART_FONT_LABEL).attr("fill", "#666")
       .text(`${formatFixed(bar.total, dec)} ${unitLabel}`);
   });
 
   svg.append("g")
     .attr("transform", `translate(${layoutMargin.left},${chartHeight - layoutMargin.bottom})`)
     .call(d3.axisBottom(x).ticks(5).tickFormat((d) => formatFixed(d, totalDecimals)))
-    .selectAll("text").attr("font-size", "9px");
+    .selectAll("text").attr("font-size", CHART_FONT_TICK);
 
   el.appendChild(svg.node());
 
@@ -3177,7 +3203,7 @@ const renderYaPrimaryEnergy = (el, legendEl, emState) => {
     svg.append("text")
       .attr("x", margin.left - 8).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "var(--color-text-main)")
+      .attr("font-size", CHART_FONT_LABEL).attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(bar.label);
     let xOff = 0;
     const total = bar.segments.reduce((s, seg) => s + seg.value, 0);
@@ -3196,7 +3222,7 @@ const renderYaPrimaryEnergy = (el, legendEl, emState) => {
           svg.append("text")
             .attr("x", margin.left + xOff + w / 2).attr("y", y + barHeight / 2)
             .attr("dy", "0.35em").attr("text-anchor", "middle")
-            .attr("font-size", "9px").attr("font-weight", "600").attr("fill", "var(--color-surface)")
+            .attr("font-size", CHART_FONT_LABEL).attr("font-weight", "600").attr("fill", "var(--color-surface)")
             .attr("pointer-events", "none").text(`${pct}%`);
         }
         xOff += w;
@@ -3204,14 +3230,14 @@ const renderYaPrimaryEnergy = (el, legendEl, emState) => {
     });
     svg.append("text")
       .attr("x", margin.left + xOff + 6).attr("y", y + barHeight / 2)
-      .attr("dy", "0.35em").attr("font-size", "10px").attr("fill", "#666")
+      .attr("dy", "0.35em").attr("font-size", CHART_FONT_LABEL).attr("fill", "#666")
       .text(`${t("simulation.label_total")}: ${formatFixed(total, 0)} ${unitLabel}`);
   });
 
   svg.append("g")
     .attr("transform", `translate(${margin.left},${chartHeight - margin.bottom})`)
     .call(d3.axisBottom(x).ticks(5).tickFormat((d) => formatFixed(d, 0)))
-    .selectAll("text").attr("font-size", "9px");
+    .selectAll("text").attr("font-size", CHART_FONT_TICK);
 
   el.appendChild(svg.node());
 
@@ -3462,7 +3488,7 @@ const renderEmissionsPanel = (sec, emState) => {
         <td><strong>${formatFixed(totVal, dec)}</strong></td>
       </tr>`;
     }).filter(Boolean).join("");
-    dhBreakdownHtml = `<div class="ya-res-section" style="margin-top:16px">
+    dhBreakdownHtml = `<div class="ya-res-section">
       <div class="ya-env-table-wrap"><table class="ya-env-table">
         <thead><tr><th class="ya-env-table__section-title">${textContent(t("yearly_analysis.mixed_case_decomposition"))}${mcdInfoTip}</th><th>${textContent(t("yearly_analysis.electric_side"))}</th><th>${textContent(t("yearly_analysis.diesel_heating"))}</th><th>${textContent(t("yearly_analysis.ebus_total_diesel_heating"))}</th></tr></thead>
         <tbody>${mcdRows}</tbody>
@@ -4344,35 +4370,27 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
     const fuelInput = q("ya-var-fuel-cost");
     const fuelValueEl = q("ya-var-fuel-cost-value");
-    const fuelReset = q("ya-var-fuel-cost-reset");
 
     const dieselMaintInput = q("ya-var-diesel-maint");
     const dieselMaintValueEl = q("ya-var-diesel-maint-value");
-    const dieselMaintReset = q("ya-var-diesel-maint-reset");
 
     const energyInput = q("ya-var-energy-price");
     const energyValueEl = q("ya-var-energy-price-value");
-    const energyReset = q("ya-var-energy-price-reset");
 
     const elecMaintInput = q("ya-var-elec-maint");
     const elecMaintValueEl = q("ya-var-elec-maint-value");
-    const elecMaintReset = q("ya-var-elec-maint-reset");
 
     const interestInput = q("ya-var-interest");
     const interestValueEl = q("ya-var-interest-value");
-    const interestReset = q("ya-var-interest-reset");
 
     const dieselEffInput = q("ya-var-diesel-eff");
     const dieselEffValueEl = q("ya-var-diesel-eff-value");
-    const dieselEffReset = q("ya-var-diesel-eff-reset");
 
     const dieselCapexInput = q("ya-var-diesel-capex");
     const dieselCapexValueEl = q("ya-var-diesel-capex-value");
-    const dieselCapexReset = q("ya-var-diesel-capex-reset");
 
     const yearlyDistanceInput = q("ya-var-yearly-distance");
     const yearlyDistanceValueEl = q("ya-var-yearly-distance-value");
-    const yearlyDistanceReset = q("ya-var-yearly-distance-reset");
 
     applyYaSliderRange(dieselEffInput, busDefaults.diesel_consumption_l_per_km);
     applyYaSliderRange(dieselMaintInput, busDefaults.diesel_maintenance_chf_per_km);
@@ -4426,31 +4444,34 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     onSlider(dieselCapexInput, dieselCapexValueEl, "dieselCapex", (v) => `${Math.round(v / 1000)}k`);
     onSlider(yearlyDistanceInput, yearlyDistanceValueEl, "yearlyDistanceKm", (v) => formatInt(v));
 
-    const onReset = (btn, overrideKey, defaultVal, syncFn) => {
-      if (!btn) return;
+    const resetAllBtn = q("ya-var-reset-all");
+    if (resetAllBtn) {
       const handler = () => {
-        costOverrides[overrideKey] = null;
-        syncFn();
+        for (const key of [
+          "fuelCostPerL",
+          "energyPricePerKwh",
+          "interestRate",
+          "dieselEfficiency",
+          "dieselMaintCost",
+          "electricMaintCost",
+          "dieselCapex",
+          "yearlyDistanceKm",
+        ]) {
+          costOverrides[key] = null;
+        }
+        syncAll();
         scheduleCostRefresh();
       };
-      btn.addEventListener("click", handler);
-      cleanups.push(() => btn.removeEventListener("click", handler));
-    };
-
-    onReset(fuelReset, "fuelCostPerL", defaultFuel, syncAll);
-    onReset(energyReset, "energyPricePerKwh", defaultEnergy, syncAll);
-    onReset(interestReset, "interestRate", defaultInterest, syncAll);
-    onReset(dieselEffReset, "dieselEfficiency", defaultDieselEff, syncAll);
-    onReset(dieselMaintReset, "dieselMaintCost", defaultDieselMaint, syncAll);
-    onReset(elecMaintReset, "electricMaintCost", defaultElecMaint, syncAll);
-    onReset(dieselCapexReset, "dieselCapex", defaultDieselCapex, syncAll);
-    onReset(yearlyDistanceReset, "yearlyDistanceKm", defaultYearlyDistance, syncAll);
+      resetAllBtn.addEventListener("click", handler);
+      cleanups.push(() => resetAllBtn.removeEventListener("click", handler));
+    }
   };
 
   const wireEmissionsDistanceSlider = () => {
     const q = (role) => section.querySelector(`[data-role="${role}"]`);
     const controlsEl = q("ya-env-controls");
     const yearlyDistanceInput = q("ya-env-yearly-distance");
+    const yearlyDistanceValueEl = q("ya-env-yearly-distance-value");
     const yearlyDistanceReset = q("ya-env-yearly-distance-reset");
 
     const syncControl = () => {
@@ -4461,9 +4482,9 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       );
       syncYaRangeInput(
         yearlyDistanceInput,
-        null,
+        yearlyDistanceValueEl,
         getSelectedEmissionsYearlyDistanceKm(),
-        () => "",
+        (v) => formatInt(v),
       );
       if (yearlyDistanceInput) yearlyDistanceInput.disabled = emissionsState.status !== "done";
       if (yearlyDistanceReset) yearlyDistanceReset.disabled = emissionsState.status !== "done";
@@ -4480,6 +4501,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         if (value == null) return;
         emissionsOverrides.yearlyDistanceKm = value;
         setRangeProgress(yearlyDistanceInput, value);
+        if (yearlyDistanceValueEl) yearlyDistanceValueEl.textContent = formatInt(value);
         refreshDerivedEmissionsViews();
       };
       yearlyDistanceInput.addEventListener("input", handler);

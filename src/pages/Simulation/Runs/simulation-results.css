@@ -24,7 +24,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--layout-gap);
 }
 
 .results-evaluation-summary {
@@ -125,7 +125,7 @@
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--color-border-dim);
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--layout-gap);
   overflow-x: auto;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
@@ -181,7 +181,7 @@
 
 .costs-primary-stack {
   display: grid;
-  gap: var(--space-md);
+  gap: var(--layout-gap);
   min-width: 0;
   align-self: stretch;
 }
@@ -315,19 +315,18 @@
   }
 }
 
+/* Every chart draws at 1:1 into a canvas of --chart-plot-height (see
+   utils/chart-frame.js), so the box is exact and identical across all charts —
+   including before the SVG has painted. */
 .chart-container {
   width: 100%;
   max-width: 100%;
-  min-height: 150px;
+  height: var(--chart-plot-height);
   overflow: hidden;
-}
-
-.costs-annual-section .chart-container {
-  min-height: 72px;
-}
-
-.costs-trend-section .chart-container {
-  min-height: 72px;
+  /* Centres the empty/error state in the reserved box; the SVG fills it
+     exactly, so it is unaffected. */
+  display: grid;
+  align-content: center;
 }
 
 .chart-container svg {
@@ -338,7 +337,6 @@
 
 .costs-kpi-grid {
   --kpi-tile-min: 8.5rem;
-  gap: var(--space-sm);
 }
 
 .costs-kpi-card {
@@ -448,7 +446,7 @@
 
 .costs-inputs-layout {
   display: grid;
-  gap: var(--space-md);
+  gap: var(--layout-gap);
 }
 
 .costs-inputs-section {
@@ -555,11 +553,14 @@
   }
 }
 
+/* Reserving the band keeps chart + legend the same total height whether the
+   legend has two entries or wraps to a second row. */
 .chart-legend {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-sm) var(--space-md);
-  justify-content: center;
+  justify-content: flex-start;
+  min-height: var(--chart-legend-height);
   margin-top: var(--space-sm);
   flex-wrap: wrap;
 }
@@ -795,7 +796,7 @@
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-md);
+  gap: var(--layout-gap);
   align-items: start;
   width: 70%;
   margin: 0 auto 0 0;
@@ -941,7 +942,8 @@
   border-radius: var(--radius-lg);
   background: var(--color-background-alt);
   padding: var(--space-md);
-  margin-bottom: var(--space-md);
+  /* Direct child of the gapped .efficiency-panel — no margin of its own. */
+  margin-bottom: 0;
 }
 
 .efficiency-sensitivity-card__header {
@@ -1055,7 +1057,7 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--layout-gap);
   min-width: 0;
 }
 
@@ -1063,7 +1065,7 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--layout-gap);
   min-width: 0;
 }
 
@@ -1136,14 +1138,13 @@
 .efficiency-more-information__content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  padding: var(--space-2md);
+  gap: var(--layout-gap);
+  padding: var(--layout-gap);
   border-top: 1px solid var(--border-light);
 }
 
 .efficiency-params-grid {
   --kpi-tile-min: 8.5rem;
-  gap: var(--space-sm);
 }
 
 .efficiency-param {
@@ -1176,7 +1177,7 @@
 .efficiency-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-md);
+  gap: var(--layout-gap);
 }
 
 .efficiency-summary-item {
@@ -1207,7 +1208,7 @@
 .efficiency-chart-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-md);
+  gap: var(--layout-gap);
   min-width: 0;
 }
 
@@ -1235,12 +1236,8 @@
   color: var(--text-secondary);
 }
 
-.efficiency-chart-container {
-  min-height: 220px;
-}
-
+/* The card is a flex column with its own gap, so the legend drops its margin. */
 .efficiency-chart-legend {
-  justify-content: flex-start;
   margin-top: 0;
 }
 
@@ -1485,17 +1482,15 @@
 .predictions-overview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-md);
+  gap: var(--layout-gap);
 }
 
 .predictions-overview__chart {
-  min-height: 280px;
   margin-bottom: var(--space-sm);
 }
 
 .predictions-metrics-grid {
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--layout-gap);
 }
 
 .predictions-metric {
@@ -1525,7 +1520,7 @@
 .predictions-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-md);
+  gap: var(--layout-gap);
 }
 
 .predictions-card-section {
@@ -1558,12 +1553,10 @@
 }
 
 .predictions-chart-container {
-  min-height: 240px;
   margin-bottom: var(--space-sm);
 }
 
 .predictions-chart-legend {
-  justify-content: flex-start;
   margin-top: 0;
   margin-bottom: var(--space-sm);
 }
@@ -1683,7 +1676,7 @@
 .env-page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--layout-gap);
   width: 100%;
 }
 
@@ -1873,8 +1866,8 @@
 .env-chart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-lg);
-  align-items: start;
+  gap: var(--layout-gap);
+  align-items: stretch;
 }
 
 .env-chart-grid > .env-chart-section {
@@ -2066,7 +2059,6 @@
 
 .emissions-kpi-grid {
   --kpi-tile-min: 8.5rem;
-  gap: var(--space-sm);
 }
 
 .emissions-kpi-card {
@@ -2125,19 +2117,10 @@
 
   .tab-panel {
     flex-direction: column;
-    gap: var(--space-md);
-  }
-
-  .chart-container {
-    min-height: 120px;
   }
 
   .results-toolbar {
     gap: var(--space-xs);
-  }
-
-  .env-kpi-row {
-    gap: var(--space-sm);
   }
 }
 
