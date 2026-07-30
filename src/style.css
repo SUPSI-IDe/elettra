@@ -226,6 +226,7 @@ button {
    controls deliberately opt out so their existing not-allowed treatment wins. */
 :is(
   a[href],
+  nav .nav-links a[data-partial],
   button:not(:disabled),
   summary,
   select:not(:disabled),
