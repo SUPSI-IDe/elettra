@@ -9,7 +9,6 @@
 }
 
 .simulation-detail main {
-  max-width: 720px;
   overflow-y: auto;
 }
 

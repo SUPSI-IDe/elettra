@@ -100,7 +100,6 @@
   --layout-sidebar-width: 15rem;
   --layout-header-min-height: 3.25rem;
   --layout-content-padding: var(--space-lg);
-  --layout-content-max-width: 90rem;
   /* Shared rhythm for page gutters and the gaps between major layout cards.
      Tracks --layout-content-padding, so it shrinks with it at breakpoints. */
   --layout-gap: var(--layout-content-padding);
@@ -251,8 +250,6 @@ button {
   display: flex;
   flex-direction: column;
   gap: var(--layout-gap);
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
 }
 
@@ -1216,7 +1213,6 @@ table input[type="checkbox"] {
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
   border-radius: var(--radius-lg);
   font-size: var(--font-size-md);
-  max-width: var(--layout-content-max-width);
 }
 
 .flash-message[hidden] {
@@ -1520,8 +1516,6 @@ table input[type="checkbox"] {
   flex: 1;
   min-width: 0;
   width: 100%;
-  max-width: var(--layout-content-max-width);
-  margin-inline: auto;
 }
 
 .table-scroll-wrap {
@@ -1775,8 +1769,6 @@ table input[type="checkbox"] {
   display: flex;
   flex-direction: column;
   padding: var(--layout-content-padding);
-  max-width: var(--layout-content-max-width);
-  margin-inline: auto;
   width: 100%;
 }
 

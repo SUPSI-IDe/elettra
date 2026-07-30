@@ -2,8 +2,6 @@
 .ya-results-main {
   padding: var(--layout-content-padding);
   overflow-y: auto;
-  max-width: var(--layout-content-max-width);
-  margin-inline: auto;
   width: 100%;
 }
 

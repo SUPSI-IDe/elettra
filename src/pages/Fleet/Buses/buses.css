@@ -4,7 +4,6 @@
 
 /* Page-specific overrides for bus model forms */
 .add-bus-model main {
-  max-width: 1120px;
   padding: var(--layout-content-padding);
   overflow-y: auto;
 }

@@ -15,8 +15,6 @@
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
-  max-width: var(--layout-content-max-width);
-  margin-inline: auto;
   width: 100%;
 }
 
