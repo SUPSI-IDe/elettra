@@ -1,7 +1,7 @@
 .settings-content {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-lg);
+  gap: var(--layout-gap);
   align-items: start;
   padding: var(--layout-content-padding);
   max-width: var(--layout-content-max-width);

@@ -64,12 +64,12 @@
 
 .simulation-runs-table th.name,
 .simulation-runs-table td.name {
-  width: 16%;
+  width: calc(22% - 2.5rem);
 }
 
 .simulation-runs-table th.main-parameters,
 .simulation-runs-table td.main-parameters {
-  width: 16%;
+  width: 20%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -85,7 +85,7 @@
 
 .simulation-runs-table th.day,
 .simulation-runs-table td.day {
-  width: 16%;
+  width: 10%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -103,7 +103,7 @@
 
 .simulation-runs-table th.actions,
 .simulation-runs-table td.actions {
-  width: 12%;
+  width: 14%;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

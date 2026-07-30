@@ -1,14 +1,14 @@
 .shift-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-xl);
+  gap: var(--layout-gap);
   align-items: start;
 }
 
 .shift-form-left-column {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
+  gap: var(--layout-gap);
 }
 
 /* Page-specific overrides */
@@ -139,7 +139,26 @@
   background-color: var(--brand-teal-bg);
 }
 
+.shift-form .table-bulk-action.action-positive:not(:disabled) {
+  background-color: var(--color-action-positive);
+  border-color: var(--color-action-positive);
+  color: var(--color-action-positive-text);
+}
+
+.shift-form .table-bulk-action.action-positive:hover:not(:disabled) {
+  background-color: var(--color-action-positive-hover);
+  border-color: var(--color-action-positive-hover);
+}
+
+.shift-form .table-bulk-action.action-positive:active:not(:disabled) {
+  background-color: var(--color-action-positive-active);
+  border-color: var(--color-action-positive-active);
+}
+
 .shift-form .table-bulk-action:disabled {
+  background-color: var(--color-disabled-bg);
+  border-color: var(--color-disabled-border);
+  color: var(--color-disabled-text);
   cursor: not-allowed;
 }
 
@@ -195,14 +214,20 @@
   transition: background-color var(--transition-fast);
 }
 
-.shift-form button[type="submit"] {
-  background-color: var(--brand-teal);
-  color: var(--color-surface);
-  border: 1px solid var(--brand-teal);
+.shift-form button[type="submit"]:not(:disabled) {
+  background-color: var(--color-action-positive);
+  color: var(--color-action-positive-text);
+  border: 1px solid var(--color-action-positive);
 }
 
-.shift-form button[type="submit"]:hover {
-  background-color: var(--brand-teal-dark);
+.shift-form button[type="submit"]:hover:not(:disabled) {
+  background-color: var(--color-action-positive-hover);
+  border-color: var(--color-action-positive-hover);
+}
+
+.shift-form button[type="submit"]:active:not(:disabled) {
+  background-color: var(--color-action-positive-active);
+  border-color: var(--color-action-positive-active);
 }
 
 .shift-form button[data-action="cancel"] {

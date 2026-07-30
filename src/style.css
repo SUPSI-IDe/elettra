@@ -26,6 +26,18 @@
   --color-text-muted: #4f4f4f;
   --color-text-subtle: #65727d;
   --color-text-label: #272727;
+  --color-action-positive: #a1d236;
+  --color-action-positive-text: var(--color-text-main);
+  --color-action-positive-hover: color-mix(
+    in srgb,
+    var(--color-action-positive) 88%,
+    var(--color-action-positive-text)
+  );
+  --color-action-positive-active: color-mix(
+    in srgb,
+    var(--color-action-positive) 80%,
+    var(--color-action-positive-text)
+  );
   --color-success: #2e7d32;
   --color-warning: #f5a623;
   --color-danger: #d32f2f;
@@ -89,6 +101,9 @@
   --layout-header-min-height: 3.25rem;
   --layout-content-padding: var(--space-lg);
   --layout-content-max-width: 90rem;
+  /* Shared rhythm for page gutters and the gaps between major layout cards.
+     Tracks --layout-content-padding, so it shrinks with it at breakpoints. */
+  --layout-gap: var(--layout-content-padding);
 
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
@@ -179,6 +194,13 @@
   --color-trip-line: #007bff;
   --chart-blue: var(--color-trip-line);
   --timeline-blue: var(--color-trip-line);
+
+  /* Chart frame — keep in sync with CHART_PLOT_HEIGHT in utils/chart-frame.js.
+     Every chart draws at 1:1 into a canvas of this height, so reserving it on
+     the container makes the box exact before the SVG paints. The legend band is
+     reserved too, so chart + legend is the same height in every card. */
+  --chart-plot-height: 260px;
+  --chart-legend-height: 1.5rem;
 }
 
 * {
@@ -225,10 +247,10 @@ button {
 }
 
 .page-container {
-  padding: var(--space-xl);
+  padding: var(--layout-gap);
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--layout-gap);
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
@@ -852,22 +874,48 @@ button.list-danger-action {
 }
 
 button.list-primary-action {
-  background-color: var(--brand-teal);
-  color: var(--color-surface);
+  background-color: var(--color-action-positive);
+  color: var(--color-action-positive-text);
   cursor: pointer;
-  border-color: var(--brand-teal);
+  border-color: var(--color-action-positive);
 }
 
 button.list-primary-action:hover:not(:disabled) {
-  background-color: var(--brand-teal-dark);
-  border-color: var(--brand-teal-dark);
-  color: var(--color-surface);
+  background-color: var(--color-action-positive-hover);
+  border-color: var(--color-action-positive-hover);
+  color: var(--color-action-positive-text);
+}
+
+button.list-primary-action:active:not(:disabled) {
+  background-color: var(--color-action-positive-active);
+  border-color: var(--color-action-positive-active);
 }
 
 button.list-primary-action:focus-visible {
-  color: var(--color-surface);
+  color: var(--color-action-positive-text);
   outline: 2px solid transparent;
   box-shadow: var(--shadow-focus-ring);
+}
+
+.action-positive {
+  background-color: var(--color-action-positive);
+  border-color: var(--color-action-positive);
+  color: var(--color-action-positive-text);
+}
+
+.action-positive:hover:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--color-action-positive-hover);
+  border-color: var(--color-action-positive-hover);
+  color: var(--color-action-positive-text);
+}
+
+.action-positive:active:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--color-action-positive-active);
+  border-color: var(--color-action-positive-active);
+}
+
+.action-positive:focus-visible {
+  color: var(--color-action-positive-text);
 }
 
 button.list-secondary-action {
@@ -958,6 +1006,9 @@ table th,
   color: var(--color-text-subtle);
   letter-spacing: normal;
   text-transform: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 table th.checkbox {
@@ -975,6 +1026,43 @@ table td,
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   text-align: left;
   border-bottom: 1px solid var(--border-light);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+table .sort-button > :not(.sort-arrow),
+.table-standard .sort-button > :not(.sort-arrow) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+table .sort-button > .sort-arrow,
+.table-standard .sort-button > .sort-arrow {
+  flex: 0 0 auto;
+}
+
+table :is(th, td):has(
+  :is(
+    .info-icon,
+    .costs-title-info,
+    .ya-info-icon,
+    .efficiency-info-icon,
+    .vehicle-category-info
+  )
+),
+.table-standard :is(th, td):has(
+  :is(
+    .info-icon,
+    .costs-title-info,
+    .ya-info-icon,
+    .efficiency-info-icon,
+    .vehicle-category-info
+  )
+) {
+  overflow: visible;
 }
 
 table :is(.table-number, [data-table-type="number"]),
@@ -1121,7 +1209,7 @@ table input[type="checkbox"] {
 }
 
 .flash-message {
-  margin: var(--space-md) var(--layout-content-padding) 0;
+  margin: var(--layout-gap) var(--layout-content-padding) 0;
   padding: var(--space-2sm) var(--space-md);
   background-color: var(--brand-teal-bg);
   color: var(--brand-teal);
@@ -1192,6 +1280,45 @@ table input[type="checkbox"] {
   border-radius: var(--panel-radius);
   box-shadow: var(--shadow-sm);
   padding: var(--panel-padding);
+}
+
+.form-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-gap);
+  align-items: start;
+}
+
+.form-card {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-card__header {
+  display: block;
+  margin: 0;
+}
+
+.form-card__header h2 {
+  margin: 0 var(--space-lg);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-main);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.form-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: var(--space-md) var(--space-lg);
 }
 
 .kpi-grid {
@@ -1530,7 +1657,7 @@ table input[type="checkbox"] {
 }
 
 .page-header {
-  padding: var(--space-lg) var(--layout-content-padding);
+  padding: var(--layout-gap) var(--layout-content-padding);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1656,7 +1783,7 @@ table input[type="checkbox"] {
 .form-page form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--layout-gap);
 }
 
 /* Form elements - can be used globally */
@@ -1702,6 +1829,7 @@ table input[type="checkbox"] {
 
 .form-actions {
   display: flex;
+  justify-content: flex-end;
   gap: var(--space-2sm);
   margin-top: var(--space-md);
 }
@@ -1730,15 +1858,20 @@ table input[type="checkbox"] {
 }
 
 /* Save/Submit button - primary style */
-.form-actions button[type="submit"] {
-  background-color: var(--brand-teal);
-  color: var(--color-surface);
-  border: 1px solid var(--brand-teal);
+.form-actions button[type="submit"]:not(:disabled) {
+  background-color: var(--color-action-positive);
+  color: var(--color-action-positive-text);
+  border: 1px solid var(--color-action-positive);
 }
 
-.form-actions button[type="submit"]:hover {
-  background-color: var(--brand-teal-dark);
-  border-color: var(--brand-teal-dark);
+.form-actions button[type="submit"]:hover:not(:disabled) {
+  background-color: var(--color-action-positive-hover);
+  border-color: var(--color-action-positive-hover);
+}
+
+.form-actions button[type="submit"]:active:not(:disabled) {
+  background-color: var(--color-action-positive-active);
+  border-color: var(--color-action-positive-active);
 }
 
 /* Cost-variable sliders shared by simulation and yearly-analysis results. */
@@ -1975,14 +2108,19 @@ table input[type="checkbox"] {
 }
 
 .landing-btn-primary {
-  background-color: var(--brand-teal);
-  color: var(--color-surface);
-  border: 1px solid var(--brand-teal);
+  background-color: var(--color-action-positive);
+  color: var(--color-action-positive-text);
+  border: 1px solid var(--color-action-positive);
 }
 
 .landing-btn-primary:hover {
-  background-color: var(--brand-teal-dark);
-  border-color: var(--brand-teal-dark);
+  background-color: var(--color-action-positive-hover);
+  border-color: var(--color-action-positive-hover);
+}
+
+.landing-btn-primary:active {
+  background-color: var(--color-action-positive-active);
+  border-color: var(--color-action-positive-active);
 }
 
 .landing-btn-secondary {
@@ -2355,9 +2493,9 @@ table input[type="checkbox"] {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
-  border: 1px solid var(--brand-teal);
-  background-color: var(--brand-teal);
-  color: var(--color-surface);
+  border: 1px solid var(--color-action-positive);
+  background-color: var(--color-action-positive);
+  color: var(--color-action-positive-text);
   font-size: var(--font-size-md);
   font-weight: 500;
   cursor: pointer;
@@ -2367,7 +2505,14 @@ table input[type="checkbox"] {
 
 .login-submit:hover:not(:disabled),
 .register-submit:hover:not(:disabled) {
-  background-color: var(--brand-teal-dark);
+  background-color: var(--color-action-positive-hover);
+  border-color: var(--color-action-positive-hover);
+}
+
+.login-submit:active:not(:disabled),
+.register-submit:active:not(:disabled) {
+  background-color: var(--color-action-positive-active);
+  border-color: var(--color-action-positive-active);
 }
 
 .login-submit .spinner,
@@ -2543,6 +2688,10 @@ table input[type="checkbox"] {
   :root {
     --layout-sidebar-width: 13.5rem;
     --layout-content-padding: var(--space-md);
+  }
+
+  .form-card-grid {
+    grid-template-columns: 1fr;
   }
 
   .layout-header,

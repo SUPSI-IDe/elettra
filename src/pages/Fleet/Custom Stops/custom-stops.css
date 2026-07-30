@@ -29,7 +29,7 @@
 .add-custom-stop .form-fields {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--layout-gap);
 }
 
 .add-custom-stop .map-picker-container {

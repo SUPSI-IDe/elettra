@@ -3,7 +3,7 @@
 }
 
 .ya-runs-actions {
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-md);
 }
 
 .ya-runs-search {
@@ -53,12 +53,6 @@
 
 .ya-runs-table .ya-results-link {
   font-size: var(--font-size-sm);
-}
-
-.ya-actions-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
 }
 
 .ya-loading {

@@ -17,8 +17,8 @@
 .ac-selectors {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-md);
-  margin-bottom: var(--space-lg);
+  gap: var(--layout-gap);
+  margin-bottom: var(--layout-gap);
 }
 
 .ac-selector {
@@ -115,7 +115,7 @@
 /* ── Executive KPIs ────────────────────────────────────────────── */
 
 .ac-executive {
-  margin: var(--space-lg) 0;
+  margin: var(--layout-gap) 0;
 }
 
 .ac-kpi-grid {
@@ -207,7 +207,7 @@
 .ac-export-btn:hover { background-color: var(--brand-teal-dark); }
 
 .ac-download-actions {
-  margin-top: var(--space-lg);
+  margin-top: var(--layout-gap);
 }
 
 @media (max-width: 640px) {

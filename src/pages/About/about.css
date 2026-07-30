@@ -86,7 +86,7 @@
 .about-cards {
   display: flex;
   justify-content: center;
-  gap: var(--space-2md);
+  gap: var(--layout-gap);
   flex-wrap: wrap;
 }
 
