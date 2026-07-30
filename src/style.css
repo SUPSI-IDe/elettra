@@ -670,7 +670,7 @@ nav .nav-links {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: 0;
   padding: var(--space-md) var(--space-sm);
   margin: 0;
 }
@@ -695,7 +695,7 @@ nav .nav-links .nav-section-title:first-child {
 }
 
 nav .nav-links .nav-section-title:not(:first-child) {
-  margin-top: var(--space-md);
+  margin-top: var(--space-2md);
 }
 
 nav .nav-links .nav-section-title h2 {
