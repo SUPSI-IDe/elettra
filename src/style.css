@@ -408,7 +408,8 @@ body {
 }
 
 .language-select {
-  padding: var(--space-xs) var(--space-2xs);
+  height: 2rem;
+  width: 3.5rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-medium);
   background-color: var(--color-surface);
@@ -506,6 +507,7 @@ body {
   display: flex;
   align-items: center;
   position: relative;
+  margin-right: 1rem;
 }
 
 .user-menu[hidden] {
@@ -521,6 +523,7 @@ body {
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-md) 0 0 var(--radius-md);
   border-right: none;
+  line-height: normal;
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
