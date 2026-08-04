@@ -211,6 +211,9 @@
   --chart-blue: var(--color-trip-line);
   --timeline-blue: var(--color-trip-line);
 
+  --close-button: #003296;
+  --close-button-hover: #0c285f;
+
   /* Chart frame — keep in sync with CHART_PLOT_HEIGHT in utils/chart-frame.js.
      Every chart draws at 1:1 into a canvas of this height, so reserving it on
      the container makes the box exact before the SVG paints. The legend band is
@@ -410,6 +413,7 @@ body {
 .language-select {
   height: 2rem;
   width: 3.5rem;
+  padding: 0.2rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-medium);
   background-color: var(--color-surface);

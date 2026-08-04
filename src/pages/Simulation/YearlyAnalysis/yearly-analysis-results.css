@@ -52,11 +52,11 @@
 .ya-results-actions {
   margin-top: var(--space-xl);
   display: flex;
-  justify-content: center;
+  justify-content: right;
 }
 
 .ya-btn-close {
-  background-color: var(--brand-teal);
+  background-color: var(--close-button);
   color: var(--color-surface);
   padding: var(--control-padding-block) var(--space-xl);
   border-radius: var(--radius-md);
@@ -67,7 +67,7 @@
   transition: background-color var(--transition-fast);
 }
 
-.ya-btn-close:hover { background-color: var(--brand-teal-dark); }
+.ya-btn-close:hover { background-color: var(--close-button-hover); }
 
 /* ── Results toolbar ───────────────────────────────────────────── */
 
