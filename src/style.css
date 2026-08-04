@@ -1610,8 +1610,8 @@ table input[type="checkbox"] {
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  /* letter-spacing: 0.04em;
+  text-transform: uppercase; */
 }
 
 .meta-value {
@@ -1770,17 +1770,15 @@ table input[type="checkbox"] {
   color: inherit;
   opacity: 0.7;
   transition: opacity var(--transition-fast);
-  width: 40px;
-  height: 40px;
 }
 
 .close-button:hover {
   opacity: 1;
 }
 
-.close-button img {
-  width: 34px;
-  height: 34px;
+.close-button svg {
+  width: 40px;
+  height: 40px;
   display: block;
 }
 

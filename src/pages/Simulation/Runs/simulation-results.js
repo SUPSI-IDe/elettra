@@ -6149,9 +6149,9 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   el.innerHTML = `
     ${isFeasible ? chartsHtml : ""}
     ${sensitivityFeasibilityCardHtml}
-    <details class="efficiency-more-information">
-      <summary class="efficiency-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
-      <div class="efficiency-more-information__content">
+    <details class="ya-more-information">
+      <summary class="ya-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
+      <div class="ya-more-information__content">
         <div class="efficiency-section">
           <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
           <div class="kpi-grid efficiency-params-grid">${conditionsHtml}</div>

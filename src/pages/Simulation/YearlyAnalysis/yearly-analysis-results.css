@@ -12,7 +12,7 @@
   gap: 0;
   border-bottom: 1px solid var(--color-border-dim);
   margin-bottom: var(--layout-gap);
-  overflow-x: auto;
+  /* overflow-x: auto; */
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
@@ -553,11 +553,18 @@
 .ya-more-information__toggle::before {
   color: var(--text-secondary);
   content: "▸";
+  transform: rotate(90deg);
+  display: inline-block;
+  transform-origin: 50% 55%;
+  position: relative;
+  bottom: 0.12rem;
+  vertical-align: middle;
+  line-height: 1; 
   transition: transform var(--transition-fast);
 }
 
 .ya-more-information[open] > .ya-more-information__toggle::before {
-  transform: rotate(90deg);
+  transform: rotate(-90deg);
 }
 
 .ya-more-information__content {
