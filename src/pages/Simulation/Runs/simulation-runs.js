@@ -6,9 +6,9 @@ import {
   fetchOptimizationRuns,
   fetchOptimizationRun,
   deleteOptimizationRun,
-  fetchPredictionRun,
+  resolvePredictionRuns,
 } from "../../../api/simulation";
-import { fetchShiftById } from "../../../api/shifts";
+import { fetchShiftById, screenShiftIds } from "../../../api/shifts";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { installPaginationControl } from "../../../dom/pagination";
@@ -745,7 +745,6 @@ export const initializeSimulationRuns = async (
   let allRuns = [];
   let sortState = { ...DEFAULT_SORT };
   const shiftMetaCache = new Map();
-  const predictionRunCache = new Map();
   const runDetailCache = new Map();
   const busModelDetailCache = new Map();
   let busModelsById = {};
@@ -831,9 +830,21 @@ export const initializeSimulationRuns = async (
     const toFetch = uniqueShiftIds.filter((id) => !shiftMetaCache.has(id));
 
     if (toFetch.length) {
-      const results = await Promise.allSettled(toFetch.map((id) => fetchShiftById(id)));
+      // A name is all this table wants, and the shift list already carries it —
+      // so screening resolves the wide case outright and leaves nothing to fetch
+      // per id.
+      const { candidates, summaries } = await screenShiftIds(toFetch);
+      const stillUnnamed = candidates.filter((id) => {
+        const name = text(summaries.get(id)?.name ?? "").trim();
+        if (name) shiftMetaCache.set(id, { name });
+        return !name;
+      });
+
+      const results = await Promise.allSettled(
+        stillUnnamed.map((id) => fetchShiftById(id))
+      );
       results.forEach((res, idx) => {
-        const id = toFetch[idx];
+        const id = stillUnnamed[idx];
         if (res.status === "fulfilled") {
           const shift = res.value ?? {};
           const name = text(shift?.name ?? "").trim();
@@ -890,38 +901,31 @@ export const initializeSimulationRuns = async (
   };
 
   const enrichPredictionRunParameters = async (runs = []) => {
-    const predictionRunIdsToResolve = [
+    const needsEnrichment = (run) =>
+      resolveExternalTemp(run) == null || resolveOccupancyPercent(run) == null;
+
+    // Only the first prediction run of each optimization is ever read, and only
+    // for the rows still missing a temperature or occupancy — resolving every
+    // id of every row was fetching an order of magnitude more than the table
+    // displays.
+    const wantedIds = [
       ...new Set(
         runs
-          .flatMap((run) => resolvePredictionRunIds(run))
-          .filter((id) => id && !predictionRunCache.has(id))
+          .filter(needsEnrichment)
+          .map((run) => resolvePredictionRunIds(run)[0])
+          .filter(Boolean)
       ),
     ];
 
-    if (predictionRunIdsToResolve.length) {
-      const results = await Promise.allSettled(
-        predictionRunIdsToResolve.map((id) => fetchPredictionRun(id))
-      );
-
-      results.forEach((result, index) => {
-        const runId = predictionRunIdsToResolve[index];
-        if (result.status === "fulfilled") {
-          predictionRunCache.set(runId, result.value ?? null);
-        }
-      });
-    }
+    const { byId } = await resolvePredictionRuns(wantedIds);
 
     runs.forEach((run) => {
-      if (resolveExternalTemp(run) != null && resolveOccupancyPercent(run) != null) {
-        return;
-      }
+      if (!needsEnrichment(run)) return;
 
       const firstPredictionRunId = resolvePredictionRunIds(run)[0];
-      if (!firstPredictionRunId) {
-        return;
-      }
+      if (!firstPredictionRunId) return;
 
-      const predictionRun = predictionRunCache.get(firstPredictionRunId);
+      const predictionRun = byId.get(String(firstPredictionRunId));
       if (predictionRun) {
         run._resolved_prediction_run = predictionRun;
       }
@@ -1271,106 +1275,8 @@ export const initializeSimulationRuns = async (
     );
   }
 
-  const compareSelectA = section.querySelector('[data-role="compare-sim-a"]');
-  const compareSelectB = section.querySelector('[data-role="compare-sim-b"]');
-  const compareBtn = section.querySelector('[data-action="compare-simulations"]');
-
-  const populateCompareSelects = () => {
-    const placeholder = t("simulation.compare_select_placeholder") || "Select a simulation…";
-    [compareSelectA, compareSelectB].forEach((sel) => {
-      if (!sel) return;
-      sel.innerHTML = `<option value="" disabled selected>${textContent(placeholder)}</option>`;
-      allRuns.forEach((run) => {
-        const id = text(run?.id);
-        const runName =
-          getOptimizationRunDisplayName(run, resolveShiftLabel(run)) ||
-          id.slice(0, 8);
-        const bus = resolveBusModelName(run) || "—";
-        const created = formatDate(resolveCreatedAt(run));
-        const label = `${runName} — ${bus} — ${created}`;
-        const opt = document.createElement("option");
-        opt.value = id;
-        opt.textContent = label;
-        sel.appendChild(opt);
-      });
-    });
-  };
-
-  const origLoadRuns = loadRuns;
-  const loadRunsAndPopulate = async () => {
-    await origLoadRuns();
-    populateCompareSelects();
-  };
-
-  const handleCompareClick = async () => {
-    const idA = compareSelectA?.value;
-    const idB = compareSelectB?.value;
-    if (!idA || !idB) return;
-    if (idA === idB) {
-      setFlashMessage(section, t("simulation.compare_same_error") || "Please select two different simulations.");
-      return;
-    }
-    const runA = allRuns.find((r) => text(r?.id) === idA);
-    const runB = allRuns.find((r) => text(r?.id) === idB);
-    if (!runA || !runB) return;
-
-    // Pre-fetch bus model details (with specs) before building the
-    // payload — the list response is lightweight and may not include
-    // specs.
-    const modelIds = [
-      text(resolveBusModelId(runA)).trim(),
-      text(resolveBusModelId(runB)).trim(),
-    ].filter(Boolean);
-    await Promise.all(modelIds.map((id) => ensureBusModelDetail(id)));
-
-    const buildOptions = (run) => {
-      const modelId = text(resolveBusModelId(run)).trim();
-      const busModel = busModelsById?.[modelId] ?? {};
-      const specs = (() => {
-        const raw = busModel?.specs;
-        if (!raw) return {};
-        if (typeof raw === "string") { try { return JSON.parse(raw); } catch { return {}; } }
-        return typeof raw === "object" ? raw : {};
-      })();
-      return {
-        runId: text(run?.id),
-        simulationName: resolveRunName(run),
-        shiftName: resolveShiftName(run),
-        shiftId: resolveShiftId(run),
-        busModelName: resolveBusModelName(run),
-        busModelId: modelId,
-        status: text(run?.status ?? ""),
-        createdAt: formatDate(resolveCreatedAt(run)),
-        occupancyPercent: resolveOccupancyPercent(run),
-        externalTemp: resolveExternalTemp(run),
-        heatingType: run?.auxiliary_heating_type ?? run?.auxiliaryHeatingType,
-        numBatteryPacks: run?.num_battery_packs ?? run?.numBatteryPacks,
-        busModelData: {
-          cost: specs?.cost ?? "",
-          bus_length_m: specs?.bus_length_m ?? "",
-          max_passengers: specs?.max_passengers ?? "",
-          bus_lifetime: specs?.bus_lifetime ?? "",
-          battery_pack_size_kwh: specs?.battery_pack_size_kwh ?? "",
-          battery_pack_cost: specs?.battery_pack_cost_chf ?? "",
-          battery_pack_lifetime: specs?.battery_pack_lifetime ?? "",
-          max_charging_power_kw: specs?.max_charging_power_kw ?? "",
-        },
-      };
-    };
-
-    triggerPartialLoad("simulation-comparison", {
-      simA: buildOptions(runA),
-      simB: buildOptions(runB),
-    });
-  };
-
-  if (compareBtn) {
-    compareBtn.addEventListener("click", handleCompareClick);
-    cleanupHandlers.push(() => compareBtn.removeEventListener("click", handleCompareClick));
-  }
-
   bindSelectAll(headerCheckbox, table);
-  await loadRunsAndPopulate();
+  await loadRuns();
 
   return () => {
     cleanupHandlers.forEach((handler) => handler());

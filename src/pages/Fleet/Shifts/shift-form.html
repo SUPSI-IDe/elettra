@@ -23,12 +23,13 @@
         hidden
       ></p>
       <div class="shift-form-grid">
-        <section class="shift-config" aria-labelledby="shift-details-heading">
-          <header class="section-header">
-            <h2 id="shift-details-heading" class="section-title" data-i18n="shifts.shift_heading">Shift</h2>
+        <div class="shift-form-left-column">
+          <section class="shift-config shift-form-card" aria-labelledby="shift-details-heading">
+          <header class="section-header shift-form-card__header">
+            <h2 id="shift-details-heading" class="section-title" data-i18n="shifts.information_heading">Information</h2>
           </header>
 
-          <div class="shift-control-grid shift-control-grid--primary">
+          <div class="shift-control-grid shift-control-grid--details">
             <div class="form-group">
               <label for="shift-name" data-i18n="shifts.field_shift_name"
                 >Shift name <span aria-hidden="true">*</span></label
@@ -49,135 +50,71 @@
                 <option value="" data-i18n="shifts.placeholder_bus_model">Select a bus model</option>
               </select>
             </div>
-          </div>
-
-          <div class="shift-control-grid shift-control-grid--secondary">
-            <div class="shift-secondary-group shift-secondary-group--filters">
-              <div class="form-group">
-                <label for="scheduled-trips-line" data-i18n="shifts.filter_line">Line</label>
-                <select
-                  id="scheduled-trips-line"
-                  name="line"
-                  data-filter="line"
-                >
-                  <option value="" data-i18n="shifts.filter_all_lines">All lines</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="scheduled-trips-day" data-i18n="shifts.filter_day">Day</label>
-                <select id="scheduled-trips-day" name="day" data-filter="day">
-                  <option value="" data-i18n="shifts.filter_all_days">All days</option>
-                </select>
-              </div>
+            <div class="form-group">
+              <label for="scheduled-trips-line" data-i18n="shifts.filter_line">Line</label>
+              <select id="scheduled-trips-line" name="line" data-filter="line">
+                <option value="" data-i18n="shifts.filter_all_lines">All lines</option>
+              </select>
             </div>
-
-            <div class="shift-secondary-group shift-secondary-group--depots">
-              <div class="controls-group-box">
-                <h3 class="controls-group-title card-title" data-i18n="shifts.start_from_depot">Start from depot</h3>
-                <div class="controls-group-fields">
-                  <div class="form-group">
-                    <label for="shift-start-time" class="sr-only" data-i18n="shifts.field_start_time"
-                      >Start time</label
-                    >
-                    <input
-                      type="time"
-                      id="shift-start-time"
-                      name="startTime"
-                      data-field="start-time"
-                      step="60"
-                      required
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label for="shift-start-depot" class="sr-only" data-i18n="shifts.field_start_depot"
-                      >Start depot</label
-                    >
-                    <select
-                      id="shift-start-depot"
-                      name="startDepot"
-                      data-field="start-depot"
-                      required
-                    >
-                      <option value="" data-i18n="shifts.placeholder_depot">Depot name</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div class="controls-group-box">
-                <h3 class="controls-group-title card-title" data-i18n="shifts.return_to_depot">Return to depot</h3>
-                <div class="controls-group-fields">
-                  <div class="form-group">
-                    <label for="shift-end-time" class="sr-only" data-i18n="shifts.field_end_time">End time</label>
-                    <input
-                      type="time"
-                      id="shift-end-time"
-                      name="endTime"
-                      data-field="end-time"
-                      step="60"
-                      required
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label for="shift-end-depot" class="sr-only" data-i18n="shifts.field_return_depot"
-                      >Return depot</label
-                    >
-                    <select
-                      id="shift-end-depot"
-                      name="endDepot"
-                      data-field="end-depot"
-                      required
-                    >
-                      <option value="" data-i18n="shifts.placeholder_depot">Depot name</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
+            <div class="form-group">
+              <label for="scheduled-trips-day" data-i18n="shifts.filter_day">Day</label>
+              <select id="scheduled-trips-day" name="day" data-filter="day">
+                <option value="" data-i18n="shifts.filter_all_days">All days</option>
+              </select>
             </div>
           </div>
-        </section>
-
-        <div class="shift-trip-tables">
-          <section
-            class="scheduled-trips"
-            aria-labelledby="scheduled-trips-heading"
-          >
-            <header class="section-header">
-              <h2 id="scheduled-trips-heading" class="section-title" data-i18n="shifts.scheduled_trips">Scheduled trips</h2>
-            </header>
-            <div class="table-toolbar">
-              <button type="button" class="table-bulk-action" data-action="add-all-trips" data-i18n="shifts.add_all">
-                Add all
-              </button>
-            </div>
-            <div class="table-wrapper">
-              <table>
-                <caption class="sr-only" data-i18n="shifts.scheduled_trips_caption">
-                  Scheduled trips available to add to the shift
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col" class="time" data-i18n="shifts.col_start">Start</th>
-                    <th scope="col" class="end-time" data-i18n="shifts.col_end">End</th>
-                    <th scope="col" class="route" data-i18n="shifts.col_from_to">From–To</th>
-                    <th scope="col" class="actions">
-                      <span class="sr-only" data-i18n="common.actions">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody data-role="scheduled-trips-body"></tbody>
-              </table>
-              <p class="table-empty" data-role="scheduled-trips-empty" data-i18n="shifts.no_trips_match" hidden>
-                No trips match the current filters.
-              </p>
-            </div>
           </section>
 
-          <section class="shift-details" aria-labelledby="shift-trips-heading">
-            <header class="section-header">
-              <h2 id="shift-trips-heading" class="section-title" data-i18n="shifts.shift_heading">Shift</h2>
-            </header>
+          <section class="add-stops shift-form-card" aria-labelledby="add-stops-heading">
+          <header class="section-header shift-form-card__header">
+            <h2 id="add-stops-heading" class="section-title" data-i18n="shifts.add_stops_heading">Add stops</h2>
+          </header>
+          <div class="table-toolbar">
+            <button type="button" class="table-bulk-action action-positive" data-action="add-all-trips" data-i18n="shifts.add_all">
+              Add all
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <caption class="sr-only" data-i18n="shifts.scheduled_trips_caption">
+                Scheduled trips available to add to the shift
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="time" data-i18n="shifts.col_start">Start</th>
+                  <th scope="col" class="end-time" data-i18n="shifts.col_end">End</th>
+                  <th scope="col" class="route" data-i18n="shifts.col_from_to">From–To</th>
+                  <th scope="col" class="actions">
+                    <span class="sr-only" data-i18n="common.actions">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody data-role="scheduled-trips-body"></tbody>
+            </table>
+            <p class="table-empty" data-role="scheduled-trips-empty" data-i18n="shifts.no_trips_match" hidden>
+              No trips match the current filters.
+            </p>
+          </div>
+          </section>
+        </div>
+
+        <section class="shift-stops shift-form-card" aria-labelledby="shift-stops-heading">
+          <header class="section-header shift-form-card__header">
+            <h2 id="shift-stops-heading" class="section-title" data-i18n="shifts.stops_heading">Stops</h2>
+          </header>
+          <div class="shift-stops__controls">
+            <div class="form-group">
+              <label for="shift-start-depot" data-i18n="shifts.stop_start_location_label">Start location:</label>
+              <select id="shift-start-depot" name="startDepot" data-field="start-depot" required>
+                <option value="" data-i18n="shifts.placeholder_depot">Depot name</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="shift-start-time" data-i18n="shifts.stop_start_time_label">Start time:</label>
+              <input type="time" id="shift-start-time" name="startTime" data-field="start-time" step="60" required />
+            </div>
+          </div>
+          <section class="shift-details" aria-labelledby="shift-stops-heading">
             <div class="table-toolbar">
               <button type="button" class="table-bulk-action" data-action="remove-all-trips" data-i18n="shifts.remove_all">
                 Remove all
@@ -205,18 +142,33 @@
               </p>
             </div>
           </section>
-        </div>
-
-      <section class="shift-timeline-section" aria-label="Shift Timeline" data-i18n-aria-label="shifts.timeline_section_label">
-          <div 
-            class="timeline shift-form-timeline" 
-            data-role="shift-timeline" 
-            role="img" 
-            aria-label="Shift timeline chart"
-            data-i18n-aria-label="shifts.timeline_chart_label"
-          >
-            <p class="timeline__placeholder" data-i18n="shifts.timeline_placeholder">Add trips to visualize the shift timeline.</p>
+          <div class="shift-stops__controls">
+            <div class="form-group">
+              <label for="shift-end-depot" data-i18n="shifts.stop_return_location_label">Return location:</label>
+              <select id="shift-end-depot" name="endDepot" data-field="end-depot" required>
+                <option value="" data-i18n="shifts.placeholder_depot">Depot name</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="shift-end-time" data-i18n="shifts.stop_return_time_label">Return time:</label>
+              <input type="time" id="shift-end-time" name="endTime" data-field="end-time" step="60" required />
+            </div>
           </div>
+          <section
+            class="shift-timeline-section"
+            aria-label="Shift timeline"
+            data-i18n-aria-label="shifts.timeline_section_label"
+          >
+            <div
+              class="timeline shift-form-timeline"
+              data-role="shift-timeline"
+              role="img"
+              aria-label="Shift timeline chart"
+              data-i18n-aria-label="shifts.timeline_chart_label"
+            >
+              <p class="timeline__placeholder" data-i18n="shifts.timeline_placeholder">Add trips to visualize the shift timeline.</p>
+            </div>
+          </section>
         </section>
       </div>
       <div class="form-actions">

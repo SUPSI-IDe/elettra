@@ -50,7 +50,7 @@ const setFlashMessage = (section, message) => {
 
 const initializeModelControls = (section, cleanupHandlers) => {
   const controls = section.querySelector(
-    ".bus-models .table-controls .actions"
+    ".table-controls .actions"
   );
   if (!controls || controls.dataset.bound === "true") {
     return;

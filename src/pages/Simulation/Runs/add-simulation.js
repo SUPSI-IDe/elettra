@@ -372,25 +372,24 @@ const toFiniteNumber = (value) => {
 
 const renderStopsTable = (thead, tbody, stops, mode) => {
   if (!thead || !tbody) return;
-  const cols = COLUMN_DEFS[mode] ?? COLUMN_DEFS.battery_only;
+  const cols = COLUMN_DEFS[mode] ?? [];
+  const isConfigurable = cols.length > 0;
 
   thead.innerHTML = `<tr>
-    <th class="checkbox"><input type="checkbox" data-role="select-all-stops" aria-label="${textContent(t("simulation.select_all_stops") || "Select all stops")}" /></th>
+    ${isConfigurable ? `<th class="checkbox"><input type="checkbox" data-role="select-all-stops" aria-label="${textContent(t("simulation.select_all_stops") || "Select all stops")}" /></th>` : ""}
     <th>${t("simulation.cs_stop_name") || "Stop"}</th>
     ${cols.map((c) => `<th>${t(c.label) || c.fallback}</th>`).join("")}
   </tr>`;
 
   if (!stops.length) {
-    tbody.innerHTML = `<tr><td colspan="${2 + cols.length}">
-      ${t("simulation.no_stops_for_shifts") || "No stops found for the selected shifts."}
-    </td></tr>`;
+    tbody.innerHTML = "";
     return;
   }
 
   tbody.innerHTML = stops
     .map(
       (stop) => `<tr data-stop-id="${textContent(stop.stop_id)}">
-        <td class="checkbox"><input type="checkbox" ${stop.isCustom ? "checked" : ""} aria-label="${textContent(t("simulation.select_stop") || "Select stop")}" /></td>
+        ${isConfigurable ? `<td class="checkbox"><input type="checkbox" ${stop.isCustom ? "checked" : ""} aria-label="${textContent(t("simulation.select_stop") || "Select stop")}" /></td>` : ""}
         <td class="stop-name" title="${textContent(stop.stop_id)}">${textContent(stop.stop_name || stop.stop_id)}</td>
         ${cols
           .map(
@@ -402,7 +401,7 @@ const renderStopsTable = (thead, tbody, stops, mode) => {
     )
     .join("");
 
-  syncSelectAllCheckbox(thead, tbody);
+  if (isConfigurable) syncSelectAllCheckbox(thead, tbody);
 };
 
 const collectChargingStations = (tbody, mode) => {
@@ -551,6 +550,9 @@ export const initializeAddSimulation = async (
   const usableSocWarningConfirm = section.querySelector(
     '[data-role="usable-soc-warning-confirm"]'
   );
+  const optionalVariablesDetails = section.querySelector(
+    '[data-role="optional-variables"]'
+  );
 
   const progressOverlay = section.querySelector(
     '[data-role="simulation-progress"]'
@@ -567,12 +569,6 @@ export const initializeAddSimulation = async (
     if (progressOverlay) progressOverlay.hidden = true;
   };
 
-  const csSection = section.querySelector(
-    '[data-role="charging-stations-section"]'
-  );
-  const batteryPacksGroup = section.querySelector(
-    '[data-role="battery-packs-group"]'
-  );
   const batteryCostGroup = section.querySelector(
     '[data-role="battery-cost-group"]'
   );
@@ -762,49 +758,50 @@ export const initializeAddSimulation = async (
 
   const rebuildStopsTable = async () => {
     const mode = (modeSelect?.value ?? "").trim();
+    const selectedIds = getSelectedShiftIds();
+    const seq = ++rebuildSeq;
+
+    if (batteryCostGroup) {
+      batteryCostGroup.hidden = mode !== "joint";
+    }
 
     if (!mode) {
-      if (csSection) csSection.hidden = true;
       currentStops = [];
+      renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
+      if (stopsHint) {
+        const hasSelectedShifts = selectedIds.length > 0;
+        stopsHint.textContent = hasSelectedShifts
+          ? (t("simulation.configure_stations_missing_mode") ||
+            "Select an optimization mode to configure charging stations.")
+          : (t("simulation.configure_stations_missing_both") ||
+            "Select at least one shift and an optimization mode to configure charging stations.");
+        stopsHint.hidden = false;
+      }
+      if (stopsWrapper) stopsWrapper.hidden = false;
       return;
     }
 
-    if (csSection) csSection.hidden = false;
-
-    if (batteryPacksGroup) {
-      batteryPacksGroup.setAttribute("hidden", "");
-    }
-
-    if (batteryCostGroup) {
-      if (mode === "joint") {
-        batteryCostGroup.removeAttribute("hidden");
-      } else {
-        batteryCostGroup.setAttribute("hidden", "");
-      }
-    }
-
-    const selectedIds = getSelectedShiftIds();
-
     if (!selectedIds.length) {
       currentStops = [];
+      renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
       if (stopsHint) {
         stopsHint.textContent =
-          t("simulation.select_shifts_for_stops") ||
-          "Select shifts above to see available stops.";
+          t("simulation.configure_stations_missing_shifts") ||
+          "Select at least one shift to configure charging stations.";
         stopsHint.hidden = false;
       }
-      if (stopsWrapper) stopsWrapper.hidden = true;
+      if (stopsWrapper) stopsWrapper.hidden = false;
       return;
     }
 
     // Show loading feedback while fetching
-    const seq = ++rebuildSeq;
     if (stopsHint) {
       stopsHint.textContent =
         t("common.loading") || "Loading…";
       stopsHint.hidden = false;
     }
-    if (stopsWrapper) stopsWrapper.hidden = true;
+    renderStopsTable(stopsThead, stopsTbody, [], mode);
+    if (stopsWrapper) stopsWrapper.hidden = false;
 
     currentStops = await loadEndStopsForShifts(selectedIds);
 
@@ -822,7 +819,8 @@ export const initializeAddSimulation = async (
           "No stops found for the selected shifts.";
         stopsHint.hidden = false;
       }
-      if (stopsWrapper) stopsWrapper.hidden = true;
+      renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
+      if (stopsWrapper) stopsWrapper.hidden = false;
     }
   };
 
@@ -946,6 +944,18 @@ export const initializeAddSimulation = async (
       chargingStations,
       name,
     } = prefill;
+
+    if (
+      optionalVariablesDetails &&
+      [
+        externalTempCelsius,
+        occupancyPercent,
+        heatingType,
+        usableSocPercent,
+      ].some((value) => value != null)
+    ) {
+      optionalVariablesDetails.open = true;
+    }
 
     const normalizedName = normalizeOptimizationRunName(name);
     if (normalizedName && nameInput) {

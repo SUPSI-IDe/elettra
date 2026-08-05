@@ -6,14 +6,15 @@ import {
   fetchEconomicComparison,
   fetchEconomicDefaults,
   fetchOptimizationRun,
-  fetchPredictionRun,
   fetchPredictionRunPredictions,
+  resolvePredictionRuns,
 } from "../../../api/simulation";
 import { fetchBusModelById } from "../../../api/bus-models";
 import {
   fetchShiftById,
   fetchShiftInfo,
   fetchShiftYearlyDistance,
+  screenShiftIds,
 } from "../../../api/shifts";
 import { fetchStopsByTripId } from "../../../api/gtfs";
 import {
@@ -22,6 +23,19 @@ import {
   fetchVehicleImpact,
 } from "../../../api/environmental";
 import { resolveShiftDailyDistanceKm } from "../../../utils/shift-distance";
+import {
+  CHART_PLOT_HEIGHT,
+  CHART_FONT_TICK,
+  CHART_FONT_LABEL,
+  CHART_FONT_EMPHASIS,
+  CHART_FONT_TOOLTIP,
+  chartCanvasWidth,
+  horizontalBandGeometry,
+} from "../../../utils/chart-frame";
+import {
+  CHART_LCA_PHASE_COLORS,
+  CHART_VEHICLE_BAR_COLORS,
+} from "../../../utils/chart-palette";
 import {
   DEFAULT_OPEX_ANNUALIZATION_RATE,
   DEFAULT_BUS_LIFETIME_YEARS,
@@ -104,7 +118,7 @@ const busLabels = () => ({
 
 const COST_STACK_KEYS = ["vehicle", "energy", "maintenance"];
 const FUEL_COLORS = {
-  diesel: "#c0392b",
+  diesel: "var(--color-danger)",
   electric: "#2e7d32",
 };
 const COST_COLORS = { vehicle: "#4f86c6", energy: "#d4881f", maintenance: "#5f8f2f" };
@@ -133,13 +147,13 @@ const LCA_INDICATORS = [
 ];
 
 const LCA_PHASES = [
-  { key: "direct", i18n: "simulation.emissions_phase_direct", fallback: "Direct", color: "#e74c3c" },
-  { key: "directNonExhaust", i18n: "simulation.emissions_phase_direct_non_exhaust", fallback: "Non-exhaust", color: "#e67e22" },
-  { key: "energyChain", i18n: "simulation.emissions_phase_energy_chain", fallback: "Energy chain", color: "#f1c40f" },
-  { key: "maintenance", i18n: "simulation.emissions_phase_maintenance", fallback: "Maintenance", color: "#3498db" },
-  { key: "vehicle", i18n: "simulation.emissions_phase_vehicle", fallback: "Vehicle mfg.", color: "#9b59b6" },
-  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", fallback: "End of life", color: "#7f8c8d" },
-  { key: "infrastructure", i18n: "simulation.emissions_phase_infrastructure", fallback: "Infrastructure", color: "#1abc9c" },
+  { key: "direct", i18n: "simulation.emissions_phase_direct", fallback: "Direct", color: CHART_LCA_PHASE_COLORS.direct },
+  { key: "directNonExhaust", i18n: "simulation.emissions_phase_direct_non_exhaust", fallback: "Non-exhaust", color: CHART_LCA_PHASE_COLORS.directNonExhaust },
+  { key: "energyChain", i18n: "simulation.emissions_phase_energy_chain", fallback: "Energy chain", color: CHART_LCA_PHASE_COLORS.energyChain },
+  { key: "maintenance", i18n: "simulation.emissions_phase_maintenance", fallback: "Maintenance", color: CHART_LCA_PHASE_COLORS.maintenance },
+  { key: "vehicle", i18n: "simulation.emissions_phase_vehicle", fallback: "Vehicle mfg.", color: CHART_LCA_PHASE_COLORS.vehicle },
+  { key: "endOfLife", i18n: "simulation.emissions_phase_end_of_life", fallback: "End of life", color: CHART_LCA_PHASE_COLORS.endOfLife },
+  { key: "infrastructure", i18n: "simulation.emissions_phase_infrastructure", fallback: "Infrastructure", color: CHART_LCA_PHASE_COLORS.infrastructure },
 ];
 
 const emissionsStateHtml = (message, tone = "default") =>
@@ -314,9 +328,25 @@ const buildTripStopLookup = (shift = {}) => {
   return lookup;
 };
 
+const missingShiftPresentation = (fallbackName = "") => ({
+  shiftName: resolveShiftDisplayName(null, fallbackName),
+  lineLabel: "—",
+  weekdayLabel: "—",
+  tripStopLookup: new Map(),
+});
+
 const resolveShiftPresentation = async (shiftId, fallbackName = "") => {
   if (!shiftId) {
     return { shiftName: fallbackName || "—", lineLabel: "—", weekdayLabel: "—" };
+  }
+
+  // Free once a caller has primed the screen with the whole id list: a shift
+  // already proven gone costs nothing here instead of a failed `/info` and a
+  // failed detail fallback. Before any sweep the id comes back a candidate, so
+  // the single-shift paths behave exactly as they did.
+  const { missing } = await screenShiftIds([shiftId]);
+  if (missing.length) {
+    return missingShiftPresentation(fallbackName);
   }
 
   let shift = null;
@@ -353,6 +383,9 @@ const resolveShiftSummary = async (shiftIds = []) => {
     return { lines: "—", days: "—" };
   }
 
+  // Prime the screen with the whole list, so the presentations below can skip
+  // the ids that no longer exist without a request each.
+  await screenShiftIds(ids);
   const presentations = await Promise.all(ids.map((shiftId) => resolveShiftPresentation(shiftId)));
   const lines = [...new Set(presentations.map((item) => item?.lineLabel).filter((value) => value && value !== "—"))];
   const days = [...new Set(presentations.map((item) => item?.weekdayLabel).filter((value) => value && value !== "—"))];
@@ -387,6 +420,9 @@ const resolveShiftTabs = async (
     ];
   }
 
+  // Prime the screen with the whole list, so the presentations below can skip
+  // the ids that no longer exist without a request each.
+  await screenShiftIds(ids);
   const presentations = await Promise.all(
     ids.map((shiftId, index) =>
       resolveShiftPresentation(
@@ -839,7 +875,7 @@ const gridLines = (g, scale, innerW, ticks = 5) => {
     .attr("x2", innerW)
     .attr("y1", (d) => scale(d))
     .attr("y2", (d) => scale(d))
-    .attr("stroke", "#e5e5e5")
+    .attr("stroke", "var(--color-border-light)")
     .attr("stroke-dasharray", "3,3");
 };
 
@@ -1460,7 +1496,7 @@ const buildChargingConfigurationSection = (costInputs = {}) => {
                 t("simulation.cs_stop_name") || "Stop"
               )}</th>
               ${includeStatus
-                ? `<th>${textContent(
+                ? `<th class="efficiency-th-text">${textContent(
                     translateOr("simulation.costs_input_station_status", "Status")
                   )}</th>`
                 : ""}
@@ -1500,7 +1536,7 @@ const buildChargingConfigurationSection = (costInputs = {}) => {
                       : textContent(formatFixed(row.totalPowerKw, 0))
                   }</td>
                   ${includeSlotCosts
-                    ? `<td>${textContent(formatSlotCostsSummary(row.slotCosts))}</td>`
+                    ? `<td class="efficiency-td-num">${textContent(formatSlotCostsSummary(row.slotCosts))}</td>`
                     : ""}
                 </tr>`)
               .join("")}
@@ -1992,7 +2028,8 @@ const renderCostsBar = (el, data, yearlyDistanceKm = null) => {
     return;
   }
   const margin = { top: 28, right: 24, bottom: 32, left: 72 };
-  const W = 620, H = 164;
+  const W = chartCanvasWidth(el, () => renderCostsBar(el, data, yearlyDistanceKm));
+  const H = CHART_PLOT_HEIGHT;
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -2018,18 +2055,18 @@ const renderCostsBar = (el, data, yearlyDistanceKm = null) => {
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x).tickFormat((d) => busCategoryLabel(d)))
     .selectAll("text")
-    .attr("font-size", "11px");
+    .attr("font-size", CHART_FONT_TICK);
   g.append("g")
     .call(d3.axisLeft(y).ticks(5).tickFormat(formatKChfAxis))
     .selectAll("text")
-    .attr("font-size", "11px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("text")
     .attr("transform", "rotate(-90)")
     .attr("y", -54)
     .attr("x", -iH / 2)
     .attr("text-anchor", "middle")
-    .attr("font-size", "11px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(t("simulation.axis_cost_kchf_per_year") || "kCHF / year");
 
@@ -2111,7 +2148,7 @@ const renderCostsBar = (el, data, yearlyDistanceKm = null) => {
       .attr("x", x(d.category) + x.bandwidth() / 2)
       .attr("y", labelY)
       .attr("text-anchor", "middle")
-      .attr("font-size", "12px")
+      .attr("font-size", CHART_FONT_EMPHASIS)
       .attr("font-weight", "600")
       .attr("fill", "#1c1c1c")
       .attr("pointer-events", "none");
@@ -2126,7 +2163,7 @@ const renderCostsBar = (el, data, yearlyDistanceKm = null) => {
         .append("tspan")
         .attr("x", x(d.category) + x.bandwidth() / 2)
         .attr("dy", "1.1em")
-        .attr("font-size", "10px")
+        .attr("font-size", CHART_FONT_LABEL)
         .attr("font-weight", "500")
         .text(totalPerKm);
     }
@@ -2137,8 +2174,8 @@ const renderCostsBar = (el, data, yearlyDistanceKm = null) => {
     .attr("pointer-events", "none");
   tooltipBg = tooltipGroup
     .append("rect")
-    .attr("fill", "#fff")
-    .attr("stroke", "#94a3b8")
+    .attr("fill", "var(--color-tooltip-surface)")
+    .attr("stroke", "var(--color-chart-neutral)")
     .attr("stroke-width", 1)
     .attr("rx", 6)
     .attr("ry", 6)
@@ -2146,8 +2183,8 @@ const renderCostsBar = (el, data, yearlyDistanceKm = null) => {
     .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
   tooltipText = tooltipGroup
     .append("text")
-    .attr("fill", "#1c1c1c")
-    .attr("font-size", "10px");
+    .attr("fill", "var(--color-tooltip-text)")
+    .attr("font-size", CHART_FONT_TOOLTIP);
 
   el.appendChild(svg.node());
 };
@@ -2224,18 +2261,18 @@ const renderCostPerKmBar = (el, data, yearlyDistanceKm = null) => {
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x).tickFormat((d) => busCategoryLabel(d)))
     .selectAll("text")
-    .attr("font-size", "11px");
+    .attr("font-size", CHART_FONT_TICK);
   g.append("g")
     .call(d3.axisLeft(y).ticks(5).tickFormat((v) => v.toFixed(2)))
     .selectAll("text")
-    .attr("font-size", "11px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("text")
     .attr("transform", "rotate(-90)")
     .attr("y", -54)
     .attr("x", -iH / 2)
     .attr("text-anchor", "middle")
-    .attr("font-size", "11px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(
       t("simulation.axis_cost_per_km_chf") ||
@@ -2312,7 +2349,7 @@ const renderCostPerKmBar = (el, data, yearlyDistanceKm = null) => {
       .attr("x", x(d.category) + x.bandwidth() / 2)
       .attr("y", labelY)
       .attr("text-anchor", "middle")
-      .attr("font-size", "12px")
+      .attr("font-size", CHART_FONT_EMPHASIS)
       .attr("font-weight", "600")
       .attr("fill", "#1c1c1c")
       .attr("pointer-events", "none")
@@ -2324,8 +2361,8 @@ const renderCostPerKmBar = (el, data, yearlyDistanceKm = null) => {
     .attr("pointer-events", "none");
   tooltipBg = tooltipGroup
     .append("rect")
-    .attr("fill", "#fff")
-    .attr("stroke", "#94a3b8")
+    .attr("fill", "var(--color-tooltip-surface)")
+    .attr("stroke", "var(--color-tooltip-border)")
     .attr("stroke-width", 1)
     .attr("rx", 6)
     .attr("ry", 6)
@@ -2333,8 +2370,8 @@ const renderCostPerKmBar = (el, data, yearlyDistanceKm = null) => {
     .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,.12))");
   tooltipText = tooltipGroup
     .append("text")
-    .attr("fill", "#1c1c1c")
-    .attr("font-size", "10px");
+    .attr("fill", "var(--color-tooltip-text)")
+    .attr("font-size", CHART_FONT_TOOLTIP);
 
   el.appendChild(svg.node());
 };
@@ -2392,11 +2429,11 @@ const renderCumulativeSavings = (el, yearlyData) => {
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x).tickValues(tickYears).tickFormat((d) => `${d}`))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
   g.append("g")
     .call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxisWithUnit))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
   gridLines(g, y, iW);
 
   g.append("line")
@@ -2404,7 +2441,7 @@ const renderCumulativeSavings = (el, yearlyData) => {
     .attr("x2", iW)
     .attr("y1", y(0))
     .attr("y2", y(0))
-    .attr("stroke", "#94a3b8")
+    .attr("stroke", "var(--color-tooltip-border)")
     .attr("stroke-width", 1)
     .attr("stroke-dasharray", "4,3");
 
@@ -2448,14 +2485,14 @@ const renderCumulativeSavings = (el, yearlyData) => {
       .attr("cy", by)
       .attr("r", 5)
       .attr("fill", "#2e7d32")
-      .attr("stroke", "#fff")
+      .attr("stroke", "var(--color-surface)")
       .attr("stroke-width", 2);
 
     g.append("text")
       .attr("x", bx)
       .attr("y", -6)
       .attr("text-anchor", "middle")
-      .attr("font-size", "10px")
+      .attr("font-size", CHART_FONT_LABEL)
       .attr("font-weight", "700")
       .attr("fill", "#2e7d32")
       .text(`${t("simulation.label_break_even") || "Break-even"}: ${t("simulation.general_year") || "Yr"} ${formatFixed(breakEven, 1)}`);
@@ -2465,10 +2502,10 @@ const renderCumulativeSavings = (el, yearlyData) => {
 };
 
 const WATERFALL_COLORS = {
-  start: "#c0392b",
+  start: "var(--color-danger)",
   end: "#2e7d32",
-  saving: "#4caf50",
-  extra: "#ef5350",
+  saving: "var(--color-success)",
+  extra: "var(--color-danger)",
 };
 
 const renderWaterfall = (el, tcoData) => {
@@ -2544,20 +2581,20 @@ const renderWaterfall = (el, tcoData) => {
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x))
     .selectAll("text")
-    .attr("font-size", "9px")
+    .attr("font-size", CHART_FONT_TICK)
     .attr("text-anchor", "end")
     .attr("transform", "rotate(-25)");
   g.append("g")
     .call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxis))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("text")
     .attr("transform", "rotate(-90)")
     .attr("y", -54)
     .attr("x", -iH / 2)
     .attr("text-anchor", "middle")
-    .attr("font-size", "11px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(t("simulation.axis_cost_chf_per_year") || "CHF / year");
 
@@ -2580,7 +2617,7 @@ const renderWaterfall = (el, tcoData) => {
         .attr("x2", currLeft)
         .attr("y1", connectorY)
         .attr("y2", connectorY)
-        .attr("stroke", "#94a3b8")
+        .attr("stroke", "var(--color-chart-neutral)")
         .attr("stroke-width", 1)
         .attr("stroke-dasharray", "3,2");
     }
@@ -2590,9 +2627,9 @@ const renderWaterfall = (el, tcoData) => {
       .attr("x", x(b.label) + x.bandwidth() / 2)
       .attr("y", Math.min(iH - 4, Math.max(12, labelY)))
       .attr("text-anchor", "middle")
-      .attr("font-size", "10px")
+      .attr("font-size", CHART_FONT_LABEL)
       .attr("font-weight", "600")
-      .attr("fill", b.color === WATERFALL_COLORS.saving ? "#2e7d32" : b.color === WATERFALL_COLORS.extra ? "#c0392b" : "#1c1c1c")
+      .attr("fill", b.color === WATERFALL_COLORS.saving ? "#2e7d32" : b.color === WATERFALL_COLORS.extra ? "var(--color-danger)" : "#1c1c1c")
       .text(
         b.type === "delta"
           ? `${b.value <= 0 ? "" : "+"}${formatChfAxis(Math.round(b.value))}`
@@ -2685,14 +2722,14 @@ const attachCostsLineHover = ({
   focus
     .append("circle")
     .attr("r", 4)
-    .attr("fill", "#fff")
+    .attr("fill", "var(--color-surface)")
     .attr("stroke", color)
     .attr("stroke-width", 2);
 
   const tooltip = focus.append("g");
   const tooltipBg = tooltip
     .append("rect")
-    .attr("fill", "#fff")
+    .attr("fill", "var(--color-tooltip-surface)")
     .attr("stroke", color)
     .attr("stroke-width", 1)
     .attr("rx", 6)
@@ -2700,8 +2737,8 @@ const attachCostsLineHover = ({
     .attr("opacity", 0.96);
   const tooltipText = tooltip
     .append("text")
-    .attr("fill", "#1c1c1c")
-    .attr("font-size", "10px");
+    .attr("fill", "var(--color-tooltip-text)")
+    .attr("font-size", CHART_FONT_TOOLTIP);
 
   const updateHover = (event) => {
     const pointer = d3.pointer(event, layer.node());
@@ -2784,7 +2821,8 @@ const renderCostsLine = (el, data) => {
     return;
   }
   const margin = { top: 14, right: 24, bottom: 30, left: 84 };
-  const W = 620, H = 118;
+  const W = chartCanvasWidth(el, () => renderCostsLine(el, data));
+  const H = CHART_PLOT_HEIGHT;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
   const svg = svgBase(
@@ -2810,11 +2848,11 @@ const renderCostsLine = (el, data) => {
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x).tickValues(tickYears).tickFormat((d) => `${d}`))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
   g.append("g")
     .call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxisWithUnit))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
   gridLines(g, y, iW);
 
   const dieselLine = d3.line().x((d) => x(d.year)).y((d) => y(d.diesel));
@@ -2966,9 +3004,9 @@ const usableSocInfoLabelHtml = (label, tooltipOptions = {}) => {
 
   return `<span class="efficiency-label-with-info">${escapeHtml(
     label
-  )}<span class="efficiency-info-icon" tabindex="0" role="img" aria-label="${escapeAttr(
+  )}<button type="button" class="efficiency-info-icon" aria-label="${escapeAttr(
     tooltip
-  )}" title="${escapeAttr(tooltip)}">i</span></span>`;
+  )}" title="${escapeAttr(tooltip)}">i</button></span>`;
 };
 
 const maxUsableLimitCellHtml = (maxUsableKwh, shiftConsumptionKwh) => {
@@ -3034,14 +3072,14 @@ const compactFieldEntries = (entries = {}) =>
   );
 
 const SOLVER_STATUS_CLASS = {
-  optimal: "efficiency-badge--ok",
-  feasible: "efficiency-badge--ok",
-  infeasible: "efficiency-badge--err",
-  error: "efficiency-badge--err",
+  optimal: "badge--positive",
+  feasible: "badge--positive",
+  infeasible: "badge--negative",
+  error: "badge--negative",
 };
 
 const OPTIMIZATION_BATTERY_COLORS = {
-  base: "#cfd8e3",
+  base: "var(--color-chart-track)",
   optimized: "#abe828",
 };
 
@@ -3169,10 +3207,10 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
     const rows = batteryEntries.map(([, b]) => {
       const physFeasible = b.physical_feasible;
       const feasBadge = physFeasible === true
-        ? "efficiency-badge--ok"
+        ? "badge--positive"
         : physFeasible === false
-          ? "efficiency-badge--err"
-          : "efficiency-badge--neutral";
+          ? "badge--negative"
+          : "badge--neutral";
       const reqPacks = toFiniteNumber(b.required_total_packs);
       const maxPacks = toFiniteNumber(b.max_physical_packs);
       const overLimit = reqPacks != null && maxPacks != null && reqPacks > maxPacks;
@@ -3201,7 +3239,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
         <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
         <td class="efficiency-td-num">${bOpen}${textContent(String(b.required_total_packs ?? "—"))}${bClose}</td>
         <td class="efficiency-td-num">${textContent(String(b.excess_packs ?? 0))}</td>
-        <td class="efficiency-td-center"><span class="efficiency-badge ${feasBadge}">${textContent(
+        <td><span class="badge badge--compact ${feasBadge}">${textContent(
           physFeasible === true ? (t("simulation.feasibility_feasible") || "Feasible") :
           physFeasible === false ? (t("simulation.feasibility_infeasible") || "Infeasible") : "—"
         )}</span></td>
@@ -3222,7 +3260,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
               <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical")}</th>
               <th>${textContent(t("simulation.opt_col_required_packs") || "Required")}</th>
               <th>${textContent(t("simulation.opt_col_excess") || "Excess")}</th>
-              <th class="efficiency-th-center">${textContent(t("simulation.opt_col_feasibility") || "Feasibility")}</th>
+              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_feasibility") || "Feasibility")}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -3872,8 +3910,10 @@ const renderTripUncertaintyChart = (el, rows = [], { tripStopLookup = new Map() 
   const hasBand = data.some((row) => row.q05 != null && row.q95 != null);
   const hasMedian = data.some((row) => row.median != null);
   const margin = { top: 20, right: 20, bottom: 48, left: 64 };
-  const W = 680;
-  const H = 260;
+  const W = chartCanvasWidth(el, () =>
+    renderTripUncertaintyChart(el, rows, { tripStopLookup })
+  );
+  const H = CHART_PLOT_HEIGHT;
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
   const svg = svgBase(
@@ -3905,18 +3945,18 @@ const renderTripUncertaintyChart = (el, rows = [], { tripStopLookup = new Map() 
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x).tickValues(data.length > 16 ? data.filter((_, index) => index % Math.ceil(data.length / 12) === 0).map((row) => row.label) : data.map((row) => row.label)))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("g")
     .call(d3.axisLeft(y).ticks(5).tickFormat((value) => d3.format(".3~s")(value)))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("text")
     .attr("x", iW / 2)
     .attr("y", iH + 38)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(translateOr("simulation.trip_uncertainty_x_axis", "Trip sequence"));
 
@@ -3925,7 +3965,7 @@ const renderTripUncertaintyChart = (el, rows = [], { tripStopLookup = new Map() 
     .attr("x", -iH / 2)
     .attr("y", -46)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(t("simulation.axis_energy_kwh") || "kWh");
 
@@ -3967,7 +4007,7 @@ const renderTripUncertaintyChart = (el, rows = [], { tripStopLookup = new Map() 
     .attr("cy", (row) => y(row.median))
     .attr("r", 3.5)
     .attr("fill", PREDICTION_QUANTILE_SERIES_COLORS.q50)
-    .attr("stroke", "#fff")
+    .attr("stroke", "var(--color-surface)")
     .attr("stroke-width", 1.2)
     .each(function addTooltip(row) {
       const lines = [
@@ -4229,9 +4269,9 @@ const renderBatteryAdequacyPanel = (status = {}) => {
         <span>${textContent(translateOr("simulation.battery_adequacy_usable", "Usable energy"))}</span>
         <strong>${textContent(formatFixed(status.usableEnergy, 1))} kWh</strong>
         <span>${textContent(translateOr("simulation.battery_adequacy_q50", "Q50 demand"))}</span>
-        <strong>${textContent(formatFixed(status.q50Demand, 1))} kWh <span class="efficiency-badge ${status.q50Covered ? "efficiency-badge--ok" : "efficiency-badge--err"}">${textContent(q50Label)}</span></strong>
+        <strong>${textContent(formatFixed(status.q50Demand, 1))} kWh <span class="badge badge--compact ${status.q50Covered ? "badge--positive" : "badge--negative"}">${textContent(q50Label)}</span></strong>
         <span>${textContent(translateOr("simulation.battery_adequacy_q95", "Q95 demand"))}</span>
-        <strong>${textContent(formatFixed(status.q95Demand, 1))} kWh <span class="efficiency-badge ${status.q95Covered ? "efficiency-badge--ok" : "efficiency-badge--err"}">${textContent(q95Label)}</span></strong>
+        <strong>${textContent(formatFixed(status.q95Demand, 1))} kWh <span class="badge badge--compact ${status.q95Covered ? "badge--positive" : "badge--negative"}">${textContent(q95Label)}</span></strong>
       </div>
       <p class="efficiency-adequacy-note">${textContent(note)}</p>
     </div>`;
@@ -4261,19 +4301,17 @@ const renderPredictionOverviewLegend = (
   ).join("");
 };
 
-const renderPredictionOverviewChart = (
-  el,
-  data = [],
-  {
+const renderPredictionOverviewChart = (el, data = [], options = {}) => {
+  if (!el) return;
+  el.innerHTML = "";
+
+  const {
     unit = "kWh",
     ariaLabel = "Total consumption quantiles across simulations",
     yAxisLabel = "Total consumption",
     decimals = 1,
     markers = [],
-  } = {}
-) => {
-  if (!el) return;
-  el.innerHTML = "";
+  } = options ?? {};
 
   const chartData = Array.isArray(data) ? data : [];
   const chartMarkers = (Array.isArray(markers) ? markers : [])
@@ -4305,8 +4343,10 @@ const renderPredictionOverviewChart = (
   }
 
   const margin = { top: 16, right: 20, bottom: 48, left: 68 };
-  const W = 620;
-  const H = 280;
+  const W = chartCanvasWidth(el, () =>
+    renderPredictionOverviewChart(el, data, options)
+  );
+  const H = CHART_PLOT_HEIGHT;
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -4336,7 +4376,7 @@ const renderPredictionOverviewChart = (
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("g")
     .call(
@@ -4345,13 +4385,13 @@ const renderPredictionOverviewChart = (
       )
     )
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("text")
     .attr("x", iW / 2)
     .attr("y", iH + 38)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(t("simulation.axis_packs") || "# Packs");
 
@@ -4360,7 +4400,7 @@ const renderPredictionOverviewChart = (
     .attr("x", -iH / 2)
     .attr("y", -48)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(yAxisLabel);
 
@@ -4388,7 +4428,7 @@ const renderPredictionOverviewChart = (
       .attr("cy", (row) => y(row[key]))
       .attr("r", 4)
       .attr("fill", PREDICTION_QUANTILE_SERIES_COLORS[key])
-      .attr("stroke", "#fff")
+      .attr("stroke", "var(--color-surface)")
       .attr("stroke-width", 1.5)
       .each(function addTooltip(row) {
         d3.select(this)
@@ -4403,7 +4443,7 @@ const renderPredictionOverviewChart = (
   });
 
   if (chartMarkers.length) {
-    const markerSymbol = d3.symbol().type(d3.symbolDiamond).size(120);
+    const markerSymbol = d3.symbol().type(d3.symbolCircle).size(120);
 
     g.selectAll(".predictions-overview-marker-guide")
       .data(chartMarkers)
@@ -4426,7 +4466,7 @@ const renderPredictionOverviewChart = (
       )
       .attr("d", markerSymbol)
       .attr("fill", (marker) => marker.color ?? OPTIMIZATION_BATTERY_COLORS.optimized)
-      .attr("stroke", "#fff")
+      .attr("stroke", "var(--color-surface)")
       .attr("stroke-width", 1.5)
       .each(function addTooltip(marker) {
         d3.select(this)
@@ -4469,8 +4509,10 @@ const renderPredictionsQuantileChart = (
   }
 
   const margin = { top: 20, right: 16, bottom: 40, left: 64 };
-  const W = 620;
-  const H = 240;
+  const W = chartCanvasWidth(el, () =>
+    renderPredictionsQuantileChart(el, rows, { decimals, unit })
+  );
+  const H = CHART_PLOT_HEIGHT;
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -4510,7 +4552,7 @@ const renderPredictionsQuantileChart = (
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x0))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("g")
     .call(
@@ -4519,14 +4561,14 @@ const renderPredictionsQuantileChart = (
       )
     )
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("text")
     .attr("transform", "rotate(-90)")
     .attr("x", -iH / 2)
     .attr("y", -46)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(unit);
 
@@ -4736,7 +4778,7 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
               buildPredictionScenarioTitle(run, index)
             )}</h3>
           </header>
-          <div class="predictions-metrics-grid">${metricHtml}</div>
+          <div class="kpi-grid predictions-metrics-grid">${metricHtml}</div>
           <div class="predictions-card-grid">
             ${sections.join("")}
           </div>
@@ -4931,18 +4973,18 @@ const renderEfficiencyCurveChart = (el, rows) => {
         .tickFormat((d) => `${d}`)
     )
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("g")
     .call(d3.axisLeft(y).ticks(5).tickFormat((d) => d3.format(".3~f")(d)))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("text")
     .attr("x", iW / 2)
     .attr("y", iH + 38)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(t("simulation.axis_packs") || "# Packs");
 
@@ -4951,7 +4993,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
     .attr("x", -iH / 2)
     .attr("y", -46)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(t("simulation.efficiency_col_per_km") || "kWh / km");
 
@@ -4975,7 +5017,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
     .attr("cy", (d) => y(d.consumptionPerKmMedianKwh))
     .attr("r", (d) => (d.isOptimized ? 5.5 : 4))
     .attr("fill", (d) => (d.isOptimized ? "#abe828" : "#00639a"))
-    .attr("stroke", "#fff")
+    .attr("stroke", "var(--color-surface)")
     .attr("stroke-width", 2)
     .each(function addTooltip(d) {
       d3.select(this)
@@ -5000,7 +5042,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
     .attr("x", (d) => x(d.numBatteryPacks))
     .attr("y", (d) => y(d.consumptionPerKmMedianKwh) - 12)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("font-weight", "600")
     .attr("fill", "#587a00")
     .text(t("simulation.chart_label_optimized") || "Optimized");
@@ -5046,8 +5088,8 @@ const renderEfficiencyEnergySplitChart = (el, rows) => {
   }
 
   const margin = { top: 24, right: 20, bottom: 44, left: 64 };
-  const W = 620;
-  const H = 280;
+  const W = chartCanvasWidth(el, () => renderEfficiencyEnergySplitChart(el, rows));
+  const H = CHART_PLOT_HEIGHT;
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
 
@@ -5086,18 +5128,18 @@ const renderEfficiencyEnergySplitChart = (el, rows) => {
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("g")
     .call(d3.axisLeft(y).ticks(5).tickFormat((d) => d3.format(".3~s")(d)))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("text")
     .attr("x", iW / 2)
     .attr("y", iH + 38)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(t("simulation.axis_packs") || "# Packs");
 
@@ -5106,7 +5148,7 @@ const renderEfficiencyEnergySplitChart = (el, rows) => {
     .attr("x", -iH / 2)
     .attr("y", -46)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(t("simulation.axis_energy_kwh") || "kWh");
 
@@ -5147,7 +5189,7 @@ const renderEfficiencyEnergySplitChart = (el, rows) => {
     .attr("x", (d) => x(String(d.numBatteryPacks)) + x.bandwidth() / 2)
     .attr("y", (d) => y(d.totalDrivetrainKwh + d.totalAuxiliaryKwh) - 6)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("font-weight", "600")
     .attr("fill", "#1c1c1c")
     .text((d) => formatFixed(d.totalConsumptionKwh, 0));
@@ -5206,18 +5248,18 @@ const renderEfficiencySocEnvelopeChart = (el, rows) => {
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("g")
     .call(d3.axisLeft(y).ticks(5).tickFormat((d) => d3.format(".3~s")(d)))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   g.append("text")
     .attr("x", iW / 2)
     .attr("y", iH + 38)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(t("simulation.axis_packs") || "# Packs");
 
@@ -5226,7 +5268,7 @@ const renderEfficiencySocEnvelopeChart = (el, rows) => {
     .attr("x", -iH / 2)
     .attr("y", -46)
     .attr("text-anchor", "middle")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text(t("simulation.axis_energy_kwh") || "kWh");
 
@@ -5264,7 +5306,7 @@ const renderEfficiencySocEnvelopeChart = (el, rows) => {
     .attr("x", (d) => x(String(d.numBatteryPacks)))
     .attr("y", (d) => y(d.maxSocKwh) - 10)
     .attr("text-anchor", "middle")
-    .attr("font-size", "9px")
+    .attr("font-size", CHART_FONT_LABEL)
     .attr("fill", "#666")
     .text((d) => `${formatFixed(d.numChargingSessions, 0)}x`);
 
@@ -5361,14 +5403,14 @@ const renderOptimizationBatteryChart = (el, rows) => {
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x0))
     .selectAll("text")
-    .attr("font-size", "10px")
+    .attr("font-size", CHART_FONT_TICK)
     .attr("transform", "rotate(-18)")
     .style("text-anchor", "end");
 
   g.append("g")
     .call(d3.axisLeft(y).ticks(5).tickFormat((d) => `${d}`))
     .selectAll("text")
-    .attr("font-size", "10px");
+    .attr("font-size", CHART_FONT_TICK);
 
   ["basePacks", "optimizedPacks"].forEach((key) => {
     g.selectAll(`.battery-sizing-${key}`)
@@ -5725,7 +5767,7 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
   if (!data) return "";
 
   const isFeasible = data.feasibility !== false;
-  const feasBadgeClass = isFeasible ? "efficiency-badge--ok" : "efficiency-badge--err";
+  const feasBadgeClass = isFeasible ? "badge--positive" : "badge--negative";
   const feasLabel = isFeasible
     ? (t("simulation.feasibility_feasible") || "Feasible")
     : (t("simulation.feasibility_infeasible") || "Infeasible");
@@ -5866,7 +5908,7 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
   <div class="efficiency-sensitivity-card">
     <div class="efficiency-sensitivity-card__header">
       <span class="efficiency-sensitivity-card__title">${textContent(translateOr("simulation.sensitivity_card_title", "Sensitivity / Feasibility Insight"))}</span>
-      <span class="efficiency-badge ${feasBadgeClass}">${textContent(feasLabel)}</span>
+      <span class="badge badge--compact ${feasBadgeClass}">${textContent(feasLabel)}</span>
     </div>
     ${bodyHtml}
     ${driversHtml}
@@ -5908,14 +5950,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   );
 
   const conditions = [
-    ...(viewOptions?.selectedShiftName
-      ? [
-          {
-            label: t("simulation.general_shift_name") || "Shift name",
-            value: textContent(viewOptions.selectedShiftName),
-          },
-        ]
-      : []),
     { label: t("simulation.var_optimization_mode") || "Mode", value: modeLabel(ip.mode ?? "") },
     {
       label:
@@ -6054,11 +6088,11 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
             class="chart-container efficiency-chart-container"
             data-role="efficiency-consumption-coverage-chart"
           ></div>
-          ${batteryAdequacyHtml}
           <div
             class="chart-legend efficiency-chart-legend"
             data-role="efficiency-consumption-coverage-legend"
           ></div>
+          ${batteryAdequacyHtml}
         </div>`);
   }
 
@@ -6069,7 +6103,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   const chartsHtml = chartCards.length > 0
     ? `
     <div class="efficiency-section">
-      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_graphical_analysis") || "Graphical analysis")}</h3>
+      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_graphical_analysis") || "Visual analysis")}</h3>
       <div class="${chartGridClass}">
         ${chartCards.join("")}
       </div>
@@ -6078,8 +6112,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
 
   const predictionTableHtml = isFeasible || predictionData.length > 0
     ? `
-    <details class="efficiency-section efficiency-collapsible" open>
-      <summary class="efficiency-section-title efficiency-collapsible__toggle">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</summary>
+    <section class="efficiency-section">
+      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</h3>
       <div class="efficiency-table-wrap">
         <table class="efficiency-table">
           <thead>
@@ -6102,7 +6136,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           <tbody>${tableBody}</tbody>
         </table>
       </div>
-    </details>`
+    </section>`
     : "";
 
   const sensitivityFeasibilityCardHtml = buildSensitivityFeasibilityCardHtml(
@@ -6113,15 +6147,20 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   );
 
   el.innerHTML = `
-    ${sensitivityFeasibilityCardHtml}
-    <div class="efficiency-section">
-      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
-      <div class="efficiency-params-grid">${conditionsHtml}</div>
-      ${predictionSummaryHtml}
-    </div>
-    ${optimizationHtml}
     ${isFeasible ? chartsHtml : ""}
-    ${predictionTableHtml}`;
+    ${sensitivityFeasibilityCardHtml}
+    <details class="ya-more-information">
+      <summary class="ya-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
+      <div class="ya-more-information__content">
+        <div class="efficiency-section">
+          <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
+          <div class="kpi-grid efficiency-params-grid">${conditionsHtml}</div>
+          ${predictionSummaryHtml}
+        </div>
+        ${optimizationHtml}
+        ${predictionTableHtml}
+      </div>
+    </details>`;
 
   renderEfficiencyEnergySplitChart(
     el.querySelector('[data-role="efficiency-energy-chart"]'),
@@ -6829,9 +6868,9 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
 
     const feasible = results.electrification_feasible;
     const feasBadge =
-      feasible === true ? "overview-badge--ok"
-        : feasible === false ? "overview-badge--err"
-          : "overview-badge--neutral";
+      feasible === true ? "badge--positive"
+        : feasible === false ? "badge--negative"
+          : "badge--neutral";
     const feasLabel =
       feasible === true ? t("simulation.feasibility_feasible") || "Feasible"
         : feasible === false ? t("simulation.feasibility_infeasible") || "Infeasible"
@@ -6894,7 +6933,7 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
     const body = [
       overviewRowHtml(
         t("simulation.opt_feasibility") || "Feasibility",
-        `<span class="overview-badge ${feasBadge}">${textContent(feasLabel)}</span>`,
+        `<span class="badge badge--compact ${feasBadge}">${textContent(feasLabel)}</span>`,
         true
       ),
       overviewRowHtml(
@@ -7186,7 +7225,7 @@ const renderCostsSection = (sec, state, options = {}) => {
 /* ── Emissions tab ────────────────────────────────────────────── */
 
 const EMISSIONS_POLLUTANTS = [
-  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "#c0392b", unitGroup: "ton", divisor: 1e6, perKmUnit: "g/km" },
+  { key: "gwp100a", i18n: "simulation.emissions_co2_label", fallback: "CO₂ (carbon dioxide)", color: "var(--color-danger)", unitGroup: "ton", divisor: 1e6, perKmUnit: "g/km" },
   { key: "nox", i18n: "simulation.emissions_nox_label", fallback: "NOx (nitric oxide)", color: "#d4a017", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
   { key: "pm10", i18n: "simulation.emissions_pm10_label", fallback: "PM₁₀", color: "#8b6914", unitGroup: "kg", divisor: 1e6, perKmUnit: "mg/km" },
 ];
@@ -7283,7 +7322,7 @@ const renderEnvKpiCards = (el, emState) => {
         </div>
         ${hasDiesel ? `
           <div class="env-kpi-card__delta">
-            <span class="env-kpi-card__badge env-kpi-card__badge--${tone}">${textContent(pctStr)}</span>
+            <span class="badge ${tone === "positive" ? "badge--positive" : tone === "negative" ? "badge--negative" : "badge--neutral"}">${textContent(pctStr)}</span>
             ${diffStr ? `<span class="env-kpi-card__abs-diff">${textContent(diffStr)}</span>` : ""}
           </div>
         ` : ""}
@@ -7389,8 +7428,8 @@ const renderEnvRecapTable = (el, emState) => {
   </div>`;
 };
 
-const DIESEL_BAR_COLOR = "#7f8c8d";
-const ELECTRIC_BAR_COLOR = "#2980b9";
+const DIESEL_BAR_COLOR = CHART_VEHICLE_BAR_COLORS.diesel;
+const ELECTRIC_BAR_COLOR = CHART_VEHICLE_BAR_COLORS.electric;
 
 const renderEmissionsHistogram = (el, legendEl, emState) => {
   if (!el) return;
@@ -7441,13 +7480,20 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
   }
 
   const labelWidth = 120;
-  const subBarHeight = 14;
   const subBarGap = 3;
-  const groupHeight = hasDiesel ? subBarHeight * 2 + subBarGap : subBarHeight;
-  const groupGap = 24;
   const margin = { top: 12, right: 140, bottom: 28, left: labelWidth };
-  const W = 600;
-  const chartHeight = margin.top + margin.bottom + data.length * groupHeight + (data.length - 1) * groupGap;
+  const W = chartCanvasWidth(el, () =>
+    renderEmissionsHistogram(el, legendEl, emState)
+  );
+  const chartHeight = CHART_PLOT_HEIGHT;
+  // Bars are sized from the fixed canvas instead of the other way round, so the
+  // chart is the same height whatever the pollutant count.
+  const { band: groupHeight, gap: groupGap, offsetTop } = horizontalBandGeometry(
+    data.length,
+    margin,
+    { height: chartHeight, maxBand: 64 }
+  );
+  const subBarHeight = hasDiesel ? (groupHeight - subBarGap) / 2 : groupHeight;
 
   const allValues = data.flatMap((d) => hasDiesel ? [d.electric, d.diesel] : [d.electric]);
   const maxVal = d3.max(allValues) * 1.15 || 1;
@@ -7463,16 +7509,16 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
     gridG.append("line")
       .attr("x1", margin.left + x(tick)).attr("x2", margin.left + x(tick))
       .attr("y1", margin.top).attr("y2", chartHeight - margin.bottom)
-      .attr("stroke", "#e9ecef").attr("stroke-dasharray", "3,3");
+      .attr("stroke", "var(--color-border-light)").attr("stroke-dasharray", "3,3");
   });
 
   data.forEach((item, i) => {
-    const yBase = margin.top + i * (groupHeight + groupGap);
+    const yBase = offsetTop + i * (groupHeight + groupGap);
 
     svg.append("text")
       .attr("x", margin.left - 10).attr("y", yBase + groupHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#333")
+      .attr("font-size", CHART_FONT_LABEL).attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(item.label);
 
     if (hasDiesel) {
@@ -7482,7 +7528,6 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
         .attr("height", subBarHeight)
         .attr("rx", 3)
         .attr("fill", DIESEL_BAR_COLOR)
-        .attr("opacity", 0.6)
         .append("title")
         .text(`${t("simulation.emissions_toggle_diesel") || "Diesel"}: ${formatFixed(item.diesel, 2)} ${item.unitLabel}`);
 
@@ -7490,7 +7535,7 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
         .attr("x", margin.left + Math.max(0, x(item.diesel)) + 4)
         .attr("y", yBase + subBarHeight / 2)
         .attr("dy", "0.35em")
-        .attr("font-size", "9px").attr("fill", "#888")
+        .attr("font-size", CHART_FONT_LABEL).attr("fill", "#888")
         .text(formatFixed(item.diesel, 2));
     }
 
@@ -7501,7 +7546,6 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
       .attr("height", subBarHeight)
       .attr("rx", 3)
       .attr("fill", ELECTRIC_BAR_COLOR)
-      .attr("opacity", 0.85)
       .append("title")
       .text(`${t("simulation.emissions_toggle_electric") || "Electric"}: ${formatFixed(item.electric, 2)} ${item.unitLabel}`);
 
@@ -7509,26 +7553,26 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
       .attr("x", margin.left + Math.max(0, x(item.electric)) + 4)
       .attr("y", electricY2 + subBarHeight / 2)
       .attr("dy", "0.35em")
-      .attr("font-size", "9px").attr("fill", "#333")
+      .attr("font-size", CHART_FONT_LABEL).attr("fill", "var(--color-text-main)")
       .text(formatFixed(item.electric, 2));
 
     if (hasDiesel) {
       const savedPositive = item.saved > 0;
       const arrow = savedPositive ? "↓" : "↑";
-      const tone = savedPositive ? "#1e8449" : "#c0392b";
+      const tone = savedPositive ? "var(--color-success)" : "var(--color-danger)";
       const pctStr = `${arrow} ${formatFixed(Math.abs(item.pctReduction), 0)}%`;
       const savedStr = `${savedPositive ? "−" : "+"}${formatFixed(Math.abs(item.saved), 2)} ${item.unitLabel}`;
 
       svg.append("text")
         .attr("x", W - margin.right + 10).attr("y", yBase + groupHeight / 2 - 6)
         .attr("dy", "0.35em")
-        .attr("font-size", "11px").attr("font-weight", "700").attr("fill", tone)
+        .attr("font-size", CHART_FONT_LABEL).attr("font-weight", "700").attr("fill", tone)
         .text(pctStr);
 
       svg.append("text")
         .attr("x", W - margin.right + 10).attr("y", yBase + groupHeight / 2 + 8)
         .attr("dy", "0.35em")
-        .attr("font-size", "9px").attr("fill", "#888")
+        .attr("font-size", CHART_FONT_LABEL).attr("fill", "#888")
         .text(savedStr);
     }
   });
@@ -7537,7 +7581,7 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
   svg.append("g")
     .attr("transform", `translate(${margin.left},${chartHeight - margin.bottom})`)
     .call(xAxis)
-    .selectAll("text").attr("font-size", "9px");
+    .selectAll("text").attr("font-size", CHART_FONT_TICK);
 
   el.appendChild(svg.node());
 
@@ -7548,13 +7592,13 @@ const renderEmissionsHistogram = (el, legendEl, emState) => {
     if (hasDiesel) {
       html += `
         <div class="chart-legend-item">
-          <span class="chart-legend-swatch" style="background:${DIESEL_BAR_COLOR};opacity:0.6"></span>
+          <span class="chart-legend-swatch" style="background:${DIESEL_BAR_COLOR}"></span>
           ${textContent(dieselLabel)}
         </div>`;
     }
     html += `
       <div class="chart-legend-item">
-        <span class="chart-legend-swatch" style="background:${ELECTRIC_BAR_COLOR};opacity:0.85"></span>
+        <span class="chart-legend-swatch" style="background:${ELECTRIC_BAR_COLOR}"></span>
         ${textContent(electricLabel)}
       </div>`;
     legendEl.innerHTML = html;
@@ -7635,7 +7679,7 @@ const renderEmissionsRecapTable = (el, emState) => {
     );
   }
   const sanityHtml = co2Outlier
-    ? `<p class="emissions-state-msg emissions-state-msg--error" style="margin-bottom:var(--spacing-sm)">⚠ ${textContent(
+    ? `<p class="emissions-state-msg emissions-state-msg--error" style="margin-bottom:var(--space-sm)">⚠ ${textContent(
         t("simulation.emissions_co2_sanity_warning") ||
         `CO₂ value exceeds ${CO2_SANITY_LIMIT_TON} ton/year for a single bus — please verify the data source.`
       )}</p>`
@@ -7744,12 +7788,17 @@ const renderCo2PhaseBreakdown = (el, legendEl, emState) => {
 
   const maxTotal = Math.max(...bars.map((b) => b.phases.reduce((s, p) => s + p.value, 0))) * 1.15 || 1;
 
-  const barHeight = 36;
-  const barGap = 16;
   const labelWidth = 80;
   const margin = { top: 12, right: 64, bottom: 28, left: labelWidth };
-  const W = 560;
-  const chartHeight = margin.top + margin.bottom + bars.length * barHeight + (bars.length - 1) * barGap;
+  const W = chartCanvasWidth(el, () =>
+    renderCo2PhaseBreakdown(el, legendEl, emState)
+  );
+  const chartHeight = CHART_PLOT_HEIGHT;
+  const { band: barHeight, gap: barGap, offsetTop } = horizontalBandGeometry(
+    bars.length,
+    margin,
+    { height: chartHeight, maxBand: 64 }
+  );
 
   const svg = svgBase(W, chartHeight,
     chartAriaLabel("simulation.chart_aria_co2_phase", "CO₂ lifecycle phase breakdown"));
@@ -7757,11 +7806,11 @@ const renderCo2PhaseBreakdown = (el, legendEl, emState) => {
   const x = d3.scaleLinear().domain([0, maxTotal]).nice().range([0, iW]);
 
   bars.forEach((bar, i) => {
-    const y = margin.top + i * (barHeight + barGap);
+    const y = offsetTop + i * (barHeight + barGap);
     svg.append("text")
       .attr("x", margin.left - 8).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#333")
+      .attr("font-size", CHART_FONT_LABEL).attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(bar.label);
 
     let xOff = 0;
@@ -7783,7 +7832,7 @@ const renderCo2PhaseBreakdown = (el, legendEl, emState) => {
     });
     svg.append("text")
       .attr("x", margin.left + xOff + 6).attr("y", y + barHeight / 2)
-      .attr("dy", "0.35em").attr("font-size", "10px").attr("fill", "#666")
+      .attr("dy", "0.35em").attr("font-size", CHART_FONT_LABEL).attr("fill", "#666")
       .text(`${formatFixed(total, 1)} ${t("simulation.emissions_unit_ton_year") || "ton/year"}`);
   });
 
@@ -7791,7 +7840,7 @@ const renderCo2PhaseBreakdown = (el, legendEl, emState) => {
   svg.append("g")
     .attr("transform", `translate(${margin.left},${chartHeight - margin.bottom})`)
     .call(xAxis)
-    .selectAll("text").attr("font-size", "9px");
+    .selectAll("text").attr("font-size", CHART_FONT_TICK);
 
   el.appendChild(svg.node());
 
@@ -7804,7 +7853,7 @@ const renderCo2PhaseBreakdown = (el, legendEl, emState) => {
   }
 };
 
-const ENERGY_COLORS = { renewable: "#27ae60", nonRenewable: "#e67e22" };
+const ENERGY_COLORS = { renewable: "var(--color-success)", nonRenewable: "#e67e22" };
 
 const renderPrimaryEnergy = (el, legendEl, emState) => {
   if (!el) return;
@@ -7889,7 +7938,7 @@ const renderPrimaryEnergy = (el, legendEl, emState) => {
     svg.append("text")
       .attr("x", margin.left - 8).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("text-anchor", "end")
-      .attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#333")
+      .attr("font-size", CHART_FONT_LABEL).attr("font-weight", "600").attr("fill", "var(--color-text-main)")
       .text(bar.label);
 
     let xOff = 0;
@@ -7910,7 +7959,7 @@ const renderPrimaryEnergy = (el, legendEl, emState) => {
           svg.append("text")
             .attr("x", margin.left + xOff + w / 2).attr("y", y + barHeight / 2)
             .attr("dy", "0.35em").attr("text-anchor", "middle")
-            .attr("font-size", "9px").attr("font-weight", "600").attr("fill", "#fff")
+            .attr("font-size", CHART_FONT_LABEL).attr("font-weight", "600").attr("fill", "var(--color-surface)")
             .attr("pointer-events", "none")
             .text(`${pct}%`);
         }
@@ -7919,7 +7968,7 @@ const renderPrimaryEnergy = (el, legendEl, emState) => {
     });
     svg.append("text")
       .attr("x", margin.left + xOff + 6).attr("y", y + barHeight / 2)
-      .attr("dy", "0.35em").attr("font-size", "10px").attr("fill", "#666")
+      .attr("dy", "0.35em").attr("font-size", CHART_FONT_LABEL).attr("fill", "#666")
       .text(`Total: ${formatFixed(total, 0)} ${unitLabel}`);
   });
 
@@ -7927,7 +7976,7 @@ const renderPrimaryEnergy = (el, legendEl, emState) => {
   svg.append("g")
     .attr("transform", `translate(${margin.left},${chartHeight - margin.bottom})`)
     .call(xAxis)
-    .selectAll("text").attr("font-size", "9px");
+    .selectAll("text").attr("font-size", CHART_FONT_TICK);
 
   el.appendChild(svg.node());
 
@@ -8433,19 +8482,14 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const pageTitleEl = section.querySelector('[data-role="results-page-title"]');
   const simNameEl = section.querySelector('[data-role="sim-name"]');
+  const evaluationNameEl = section.querySelector('[data-role="results-evaluation-name"]');
   const busModelEl = section.querySelector('[data-role="sim-bus-model"]');
   const shiftTabsEl = section.querySelector('[data-role="shift-tabs"]');
   const overlay = section.querySelector('[data-role="sim-data-overlay"]');
   const subtitleEl = section.querySelector('[data-role="sim-data-subtitle"]');
-  const scenarioScalingOverlay = section.querySelector('[data-role="scenario-scaling-overlay"]');
-  const scenarioScalingSubtitleEl = section.querySelector(
-    '[data-role="scenario-scaling-subtitle"]'
-  );
   const scenarioScalingContentEl = section.querySelector(
     '[data-role="scenario-scaling-content"]'
   );
-  const investmentOverlay = section.querySelector('[data-role="investment-overlay"]');
-  const investmentSubtitleEl = section.querySelector('[data-role="investment-subtitle"]');
   const investmentContentEl = section.querySelector('[data-role="investment-content"]');
   const fuelCostInput = section.querySelector('[data-role="cost-variable-fuel-cost"]');
   const energyPriceInput = section.querySelector('[data-role="cost-variable-energy-price"]');
@@ -8465,33 +8509,25 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const busModelName = options.busModelName || "";
   const renderPageTitle = () => {
     if (!pageTitleEl) return;
-    const baseTitle =
+    pageTitleEl.textContent =
       t("simulation.results_page_title") || "Feasibility evaluation results";
-    const simulationName = resolveSimulationName(loadedOptimizationRun, options);
-    pageTitleEl.textContent = simulationName
-      ? `${baseTitle} – ${simulationName}`
-      : baseTitle;
+  };
+  const renderEvaluationName = () => {
+    if (!evaluationNameEl) return;
+    evaluationNameEl.textContent =
+      resolveSimulationName(loadedOptimizationRun, options) || "—";
   };
   const getResultsSubtitle = () =>
     firstText(options.simulationName, activeShiftName);
 
   renderPageTitle();
+  renderEvaluationName();
   if (simNameEl) simNameEl.textContent = activeShiftName;
   if (busModelEl) busModelEl.textContent = busModelName;
   if (subtitleEl) {
     const subtitle = getResultsSubtitle();
     subtitleEl.textContent = subtitle;
     subtitleEl.hidden = !subtitle;
-  }
-  if (scenarioScalingSubtitleEl) {
-    const subtitle = getResultsSubtitle();
-    scenarioScalingSubtitleEl.textContent = subtitle;
-    scenarioScalingSubtitleEl.hidden = !subtitle;
-  }
-  if (investmentSubtitleEl) {
-    const subtitle = getResultsSubtitle();
-    investmentSubtitleEl.textContent = subtitle;
-    investmentSubtitleEl.hidden = !subtitle;
   }
 
   const renderGeneralInfo = (overrides = {}) => {
@@ -8578,16 +8614,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       subtitleEl.textContent = subtitle;
       subtitleEl.hidden = !subtitle;
     }
-    if (scenarioScalingSubtitleEl) {
-      const subtitle = getResultsSubtitle();
-      scenarioScalingSubtitleEl.textContent = subtitle;
-      scenarioScalingSubtitleEl.hidden = !subtitle;
-    }
-    if (investmentSubtitleEl) {
-      const subtitle = getResultsSubtitle();
-      investmentSubtitleEl.textContent = subtitle;
-      investmentSubtitleEl.hidden = !subtitle;
-    }
+    renderEvaluationName();
 
     const firstPredictionRun = loadedPredictionRuns[0] ?? {};
     renderGeneralInfo({
@@ -8683,15 +8710,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     subtitleEl.textContent = "";
     subtitleEl.hidden = true;
   }
-  if (scenarioScalingSubtitleEl) {
-    scenarioScalingSubtitleEl.textContent = "";
-    scenarioScalingSubtitleEl.hidden = true;
-  }
-  if (investmentSubtitleEl) {
-    investmentSubtitleEl.textContent = "";
-    investmentSubtitleEl.hidden = true;
-  }
-
   renderGeneralInfo();
   renderBusInfo();
   renderChargingInfrastructure(section.querySelector('[data-role="charging-info"]'), null, {
@@ -8752,63 +8770,27 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     cleanupHandlers.push(() => overlay.removeEventListener("click", onBg));
   }
 
-  const toggleScenarioScalingOverlay = () => {
-    if (scenarioScalingOverlay) scenarioScalingOverlay.hidden = !scenarioScalingOverlay.hidden;
+  const activateRawDataTab = (tabName) => {
+    section.querySelectorAll(".sim-data-tab").forEach((btn) => {
+      const active = btn.dataset.tab === tabName;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-selected", String(active));
+    });
+    section.querySelectorAll(".sim-data-tab-panel").forEach((panel) => {
+      const active = panel.dataset.panel === tabName;
+      panel.classList.toggle("active", active);
+      panel.hidden = !active;
+    });
   };
-  section.querySelectorAll('[data-action="toggle-scenario-scaling"]').forEach((btn) => {
-    btn.addEventListener("click", toggleScenarioScalingOverlay);
-    cleanupHandlers.push(() =>
-      btn.removeEventListener("click", toggleScenarioScalingOverlay)
-    );
-  });
-
-  const closeScenarioScalingOverlay = () => {
-    if (scenarioScalingOverlay) scenarioScalingOverlay.hidden = true;
-  };
-  section.querySelectorAll('[data-action="close-scenario-scaling"]').forEach((btn) => {
-    btn.addEventListener("click", closeScenarioScalingOverlay);
-    cleanupHandlers.push(() =>
-      btn.removeEventListener("click", closeScenarioScalingOverlay)
-    );
-  });
-
-  if (scenarioScalingOverlay) {
-    const onScenarioScalingBg = (e) => {
-      if (e.target === scenarioScalingOverlay) closeScenarioScalingOverlay();
+  const rawDataTabs = section.querySelector(".sim-data-tabs");
+  if (rawDataTabs) {
+    const handleRawDataTabClick = (event) => {
+      const btn = event.target.closest(".sim-data-tab");
+      if (btn) activateRawDataTab(btn.dataset.tab);
     };
-    scenarioScalingOverlay.addEventListener("click", onScenarioScalingBg);
+    rawDataTabs.addEventListener("click", handleRawDataTabClick);
     cleanupHandlers.push(() =>
-      scenarioScalingOverlay.removeEventListener("click", onScenarioScalingBg)
-    );
-  }
-
-  const toggleInvestmentOverlay = () => {
-    if (investmentOverlay) investmentOverlay.hidden = !investmentOverlay.hidden;
-  };
-  section.querySelectorAll('[data-action="toggle-investment-breakdown"]').forEach((btn) => {
-    btn.addEventListener("click", toggleInvestmentOverlay);
-    cleanupHandlers.push(() =>
-      btn.removeEventListener("click", toggleInvestmentOverlay)
-    );
-  });
-
-  const closeInvestmentOverlay = () => {
-    if (investmentOverlay) investmentOverlay.hidden = true;
-  };
-  section.querySelectorAll('[data-action="close-investment-breakdown"]').forEach((btn) => {
-    btn.addEventListener("click", closeInvestmentOverlay);
-    cleanupHandlers.push(() =>
-      btn.removeEventListener("click", closeInvestmentOverlay)
-    );
-  });
-
-  if (investmentOverlay) {
-    const onInvestmentBg = (e) => {
-      if (e.target === investmentOverlay) closeInvestmentOverlay();
-    };
-    investmentOverlay.addEventListener("click", onInvestmentBg);
-    cleanupHandlers.push(() =>
-      investmentOverlay.removeEventListener("click", onInvestmentBg)
+      rawDataTabs.removeEventListener("click", handleRawDataTabClick)
     );
   }
 
@@ -9155,12 +9137,26 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       loadedOptimizationRun = optimizationRun;
       options.simulationName = resolveSimulationName(optimizationRun, options);
       renderPageTitle();
+      renderEvaluationName();
       const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
         ? optimizationRun.prediction_run_ids
         : [];
-      const predictionRuns = predRunIds.length
-        ? await Promise.all(predRunIds.map((id) => fetchPredictionRun(id)))
-        : [];
+      const { runs: predictionRuns, missing, errors } = predRunIds.length
+        ? await resolvePredictionRuns(predRunIds)
+        : { runs: [], missing: [], errors: [] };
+      // Prediction runs an optimization references can be gone — the panels
+      // already have an empty state for that, so one line here beats failing
+      // the whole page and logging once per id.
+      if (errors.length) {
+        console.warn(
+          `[elettra] Unable to load ${errors.length} of ${predRunIds.length} prediction runs:`,
+          errors[0].error
+        );
+      } else if (missing.length) {
+        console.warn(
+          `[elettra] ${missing.length} of ${predRunIds.length} prediction runs no longer exist.`
+        );
+      }
       loadedPredictionRuns = predictionRuns;
 
       const inputShiftIds = Array.isArray(optimizationRun?.input_params?.shift_ids)

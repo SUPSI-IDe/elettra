@@ -114,7 +114,7 @@ const renderMap = async (container, elevationData, stops) => {
     // End marker (red)
     L.circleMarker(coordinates[coordinates.length - 1], {
       radius: 8,
-      fillColor: "#ef4444",
+      fillColor: "var(--color-danger)",
       color: "#7f1d1d",
       weight: 2,
       fillOpacity: 1,

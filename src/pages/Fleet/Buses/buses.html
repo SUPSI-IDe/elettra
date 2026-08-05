@@ -12,40 +12,40 @@
     hidden
   ></p>
   <main class="buses-content">
-    <section class="bus-models">
-      <div class="table-controls">
-        <input
-          type="text"
-          placeholder="Search models"
-          data-i18n-placeholder="buses.search_placeholder"
-        />
+    <div class="table-controls">
+      <input
+        type="text"
+        placeholder="Search models"
+        data-i18n-placeholder="buses.search_placeholder"
+      />
+      <button
+        type="button"
+        class="list-primary-action"
+        data-action="add-bus-model"
+        data-i18n="buses.add_model"
+      >
+        Add Bus Model
+      </button>
+      <div class="actions">
         <button
           type="button"
-          class="list-primary-action"
-          data-action="add-bus-model"
-          data-i18n="buses.add_model"
+          class="list-danger-action requires-selection"
+          data-action="delete-selected-models"
+          data-i18n="common.delete"
         >
-          Add Bus Model
+          Delete
         </button>
-        <div class="actions">
-          <button
-            type="button"
-            class="list-danger-action requires-selection"
-            data-action="delete-selected-models"
-            data-i18n="common.delete"
-          >
-            Delete
-          </button>
-          <button
-            type="button"
-            class="list-secondary-action requires-single-selection"
-            data-action="edit-selected-model"
-            data-i18n="common.edit"
-          >
-            Edit
-          </button>
-        </div>
+        <button
+          type="button"
+          class="list-secondary-action requires-single-selection"
+          data-action="edit-selected-model"
+          data-i18n="common.edit"
+        >
+          Edit
+        </button>
       </div>
+    </div>
+    <section class="bus-models">
       <table class="table-standard table-selectable">
         <thead>
           <tr>

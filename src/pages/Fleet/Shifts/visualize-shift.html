@@ -8,87 +8,107 @@
       aria-label="Close"
       data-i18n-aria-label="common.close"
     >
-      <img src="assets/xmark.svg" alt="" aria-hidden="true" />
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+
     </button>
   </header>
   <main>
     <div class="visualize-shift-grid">
       <section class="shift-summary" aria-labelledby="shift-summary-heading">
-        <header class="shift-summary__header">
-          <h2 id="shift-summary-heading" data-field="name" data-i18n="shifts.field_shift_name">Shift name</h2>
-          <p class="shift-summary__bus" hidden>
-            <span class="shift-summary__bus-label meta-label" data-i18n="shifts.bus_model_label">Bus model:</span>
-            <span class="meta-value" data-field="bus-name"></span>
-          </p>
-          <p class="shift-summary__distance">
-            <span
-              class="shift-summary__distance-label meta-label"
-              data-i18n="shifts.daily_distance_label"
-              >Daily distance:</span
-            >
-            <span class="meta-value" data-field="daily-distance">—</span>
-          </p>
+        <header class="shift-summary__header shift-summary__card">
+          <h2 id="shift-summary-heading" data-i18n="shifts.information_heading">Information</h2>
+          <div class="shift-summary__meta">
+            <p class="shift-summary__bus">
+              <span class="shift-summary__bus-label meta-label" data-i18n="shifts.bus_model_label">Bus model:</span>
+              <span class="meta-value" data-field="bus-name">—</span>
+            </p>
+            <p class="shift-summary__distance">
+              <span
+                class="shift-summary__distance-label meta-label"
+                data-i18n="shifts.daily_distance_label"
+                >Daily distance:</span
+              >
+              <span class="meta-value" data-field="daily-distance">—</span>
+            </p>
+          </div>
         </header>
-        <section
-          class="shift-summary__block"
-          aria-labelledby="shift-start-heading"
-        >
-          <h3 id="shift-start-heading" class="card-title" data-i18n="shifts.start_heading">Start</h3>
-          <dl class="shift-summary__details">
-            <div>
-              <dt data-i18n="shifts.label_time">Time</dt>
-              <dd data-field="start-time">00:00</dd>
-            </div>
-            <div>
-              <dt data-i18n="shifts.label_depot">Depot</dt>
-              <dd data-field="start-depot" data-i18n="shifts.default_depot_name">Depot name</dd>
-            </div>
-          </dl>
-        </section>
-        <div class="shift-summary__table">
-          <table>
-            <caption class="sr-only" data-i18n="shifts.trips_caption">
-              Trips included in this shift
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col" class="time" data-i18n="shifts.col_time">Time</th>
-                <th scope="col" class="route" data-i18n="shifts.col_from_to">From–To</th>
-              </tr>
-            </thead>
-            <tbody data-role="trips-body">
-              <tr>
-                <td colspan="3" class="empty" data-i18n="shifts.no_trips_available">No trips available.</td>
-              </tr>
-            </tbody>
-          </table>
-          <p class="shift-summary__empty" data-role="trips-empty" data-i18n="shifts.no_trips_yet" hidden>
-            No trips in this shift yet.
-          </p>
+        <div class="shift-summary__card shift-summary__schedule">
+          <header class="shift-summary__section-header">
+            <h2 data-i18n="shifts.stops_heading">Stops</h2>
+          </header>
+          <div class="shift-summary__meta shift-summary__stops-meta">
+            <p>
+              <span class="meta-label" data-i18n="shifts.stop_start_location_label">Start location:</span>
+              <span class="meta-value" data-field="start-depot">—</span>
+            </p>
+            <p>
+              <span class="meta-label" data-i18n="shifts.stop_start_time_label">Start time:</span>
+              <span class="meta-value" data-field="start-time">00:00</span>
+            </p>
+          </div>
+          <div class="shift-summary__table">
+            <table>
+              <caption class="sr-only" data-i18n="shifts.trips_caption">
+                Trips included in this shift
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="time" data-i18n="shifts.col_time">Time</th>
+                  <th scope="col" class="route" data-i18n="shifts.col_from_to">From–To</th>
+                </tr>
+              </thead>
+              <tbody data-role="trips-body">
+                <tr>
+                  <td colspan="3" class="empty" data-i18n="shifts.no_trips_available">No trips available.</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="shift-summary__empty" data-role="trips-empty" data-i18n="shifts.no_trips_yet" hidden>
+              No trips in this shift yet.
+            </p>
+          </div>
+          <div class="shift-summary__meta shift-summary__stops-meta">
+            <p>
+              <span class="meta-label" data-i18n="shifts.stop_return_location_label">Return location:</span>
+              <span class="meta-value" data-field="end-depot">—</span>
+            </p>
+            <p>
+              <span class="meta-label" data-i18n="shifts.stop_return_time_label">Return time:</span>
+              <span class="meta-value" data-field="end-time">00:00</span>
+            </p>
+          </div>
         </div>
-        <section
-          class="shift-summary__block"
-          aria-labelledby="shift-end-heading"
-        >
-          <h3 id="shift-end-heading" class="card-title" data-i18n="shifts.return_heading">Return</h3>
-          <dl class="shift-summary__details">
-            <div>
-              <dt data-i18n="shifts.label_time">Time</dt>
-              <dd data-field="end-time">00:00</dd>
-            </div>
-            <div>
-              <dt data-i18n="shifts.label_depot">Depot</dt>
-              <dd data-field="end-depot" data-i18n="shifts.default_depot_name">Depot name</dd>
-            </div>
-          </dl>
-        </section>
       </section>
       <section
-        class="shift-visualization"
+        class="shift-visualization shift-summary__card"
         aria-labelledby="shift-visualization-heading"
       >
         <header class="shift-visualization__header">
           <h2 id="shift-visualization-heading" class="section-title" data-i18n="shifts.timeline_heading">Timeline</h2>
+          <div
+            class="timeline-legend"
+            role="group"
+            aria-label="Timeline legend"
+            data-i18n-aria-label="shifts.timeline_legend_label"
+          >
+            <span class="timeline-legend__item">
+              <span
+                class="timeline-legend__swatch timeline-legend__swatch--trip"
+                aria-hidden="true"
+              ></span>
+              <span data-i18n="shifts.timeline_legend_trips">Scheduled trips</span>
+            </span>
+            <span class="timeline-legend__item">
+              <span
+                class="timeline-legend__swatch timeline-legend__swatch--depot"
+                aria-hidden="true"
+              ></span>
+              <span data-i18n="shifts.timeline_legend_depot">Depot connections</span>
+            </span>
+          </div>
         </header>
         <div
           class="timeline"

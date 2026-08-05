@@ -13,94 +13,138 @@
     </div>
   </header>
   <main>
-    <p class="ya-create-description helper-text" data-i18n="yearly_analysis.create_description">
-      Select a feasibility evaluation as the base configuration. Temperature
-      scenarios are loaded from the location's weather clustering data.
-      They are shown here as read-only cluster data and used as-is when the
-      yearly analysis runs. Only prediction runs are executed — the battery sizing is inherited
-      from the selected evaluation. The occupancy can be adjusted to a more
-      realistic value for the yearly analysis.
-    </p>
     <form novalidate>
       <p class="form-feedback" data-role="feedback" role="status" aria-live="polite" hidden></p>
 
-      <fieldset class="ya-base-section">
-        <legend><span data-i18n="yearly_analysis.analysis_name">Analysis name</span> <span class="required-mark">*</span></legend>
-        <div class="form-group">
-          <label for="ya-analysis-name" data-i18n="simulation.field_name">Name</label>
-          <input
-            id="ya-analysis-name"
-            name="name"
-            type="text"
-            maxlength="120"
-            placeholder="Enter yearly analysis name"
-            data-i18n-placeholder="yearly_analysis.name_placeholder"
-            required
-          />
-        </div>
-      </fieldset>
+      <div class="form-card-grid">
+        <section
+          class="ya-create-card--information form-card"
+          aria-labelledby="ya-information-heading"
+        >
+          <header class="form-card__header">
+            <h2 id="ya-information-heading" data-i18n="simulation.information_heading">
+              Information
+            </h2>
+          </header>
+          <div class="form-card__body">
+            <div class="form-group">
+              <label for="ya-analysis-name">
+                <span data-i18n="simulation.field_name">Name</span>
+                <span class="required-mark">*</span>
+              </label>
+              <input
+                id="ya-analysis-name"
+                name="name"
+                type="text"
+                maxlength="120"
+                placeholder="Enter yearly analysis name"
+                data-i18n-placeholder="yearly_analysis.name_placeholder"
+                required
+              />
+            </div>
 
-      <!-- Feasibility evaluation selector -->
-      <fieldset class="ya-base-section">
-        <legend><span data-i18n="yearly_analysis.base_evaluation">Feasibility evaluation</span> <span class="required-mark">*</span></legend>
-        <div class="form-group">
-          <label for="ya-base-run" data-i18n="yearly_analysis.select_feasible_evaluation">Select a feasible evaluation</label>
-          <select id="ya-base-run" data-role="base-run-select">
-            <option value="" disabled selected data-i18n="yearly_analysis.loading_evaluations">Loading evaluations…</option>
-          </select>
-        </div>
-        <div class="ya-config-summary" data-role="config-summary" hidden></div>
-      </fieldset>
+            <div class="form-group">
+              <label for="ya-base-run">
+                <span data-i18n="yearly_analysis.simulation_field">Simulation</span>
+                <span class="required-mark">*</span>
+              </label>
+              <select id="ya-base-run" name="optimization_run_id" data-role="base-run-select" required>
+                <option value="" disabled selected data-i18n="yearly_analysis.loading_evaluations">
+                  Loading evaluations…
+                </option>
+              </select>
+            </div>
 
-      <!-- Prediction parameters -->
-      <fieldset class="ya-base-section">
-        <legend data-i18n="yearly_analysis.prediction_parameters">Prediction parameters</legend>
-        <div class="form-group">
-          <label for="ya-occupancy" data-i18n="yearly_analysis.occupancy_percent">Occupancy (%)</label>
-          <select id="ya-occupancy" data-role="occupancy-select">
-            <option value="0">0%</option>
-            <option value="10">10%</option>
-            <option value="20">20%</option>
-            <option value="25">25%</option>
-            <option value="30">30%</option>
-            <option value="40">40%</option>
-            <option value="50" selected>50%</option>
-            <option value="60">60%</option>
-            <option value="70">70%</option>
-            <option value="75">75%</option>
-            <option value="80">80%</option>
-            <option value="90">90%</option>
-            <option value="100">100%</option>
-          </select>
-          <p class="ya-occupancy-note" data-role="occupancy-note" hidden></p>
-        </div>
-      </fieldset>
+            <div class="ya-config-table-wrapper" data-role="config-summary" hidden>
+              <table class="ya-config-table">
+                <thead>
+                  <tr>
+                    <th scope="col" data-i18n="yearly_analysis.summary_shift">Shift</th>
+                    <th scope="col" data-i18n="yearly_analysis.col_mode">Mode</th>
+                    <th scope="col" data-i18n="yearly_analysis.sizing_temperature">Sizing temperature</th>
+                    <th scope="col" data-i18n="yearly_analysis.packs">Packs</th>
+                    <th scope="col" data-i18n="yearly_analysis.capacity">Capacity</th>
+                  </tr>
+                </thead>
+                <tbody data-role="config-summary-body"></tbody>
+              </table>
+            </div>
 
-      <!-- Temperature scenarios -->
-      <fieldset class="ya-scenarios-section">
-        <legend data-i18n="yearly_analysis.temperature_scenarios">Temperature scenarios</legend>
-        <div class="ya-scenarios-table-wrapper">
-          <table class="ya-scenarios-table">
-            <thead>
-              <tr>
-                <th aria-label="Temperature color" data-i18n-aria-label="yearly_analysis.temperature_color"></th>
-                <th data-i18n="yearly_analysis.daily_avg_temperature">Daily avg. temperature (°C) (05:00-24:00)</th>
-                <th data-i18n="yearly_analysis.occurrences_days_year">Occurrences (days/year)</th>
-              </tr>
-            </thead>
-            <tbody data-role="scenarios-body">
-              <tr><td colspan="3" class="ya-scenarios-placeholder" data-i18n="yearly_analysis.select_evaluation_for_scenarios">Select a feasibility evaluation to load temperature scenarios.</td></tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="2" class="ya-total-label" data-i18n="yearly_analysis.total_occurrences">Total occurrences</td>
-                <td class="ya-total-value" data-role="total-occurrences">0</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <p class="ya-occurrences-warning" data-role="occurrences-warning" data-i18n="yearly_analysis.occurrences_warning" hidden>Total occurrences do not sum to 365 days.</p>
-      </fieldset>
+            <div class="form-group">
+              <label for="ya-occupancy">
+                <span data-i18n="yearly_analysis.average_passengers_on_board">
+                  Average passengers on board (%)
+                </span>
+                <span class="required-mark">*</span>
+              </label>
+              <select id="ya-occupancy" name="occupancy_percent" data-role="occupancy-select" required>
+                <option value="0">0%</option>
+                <option value="10">10%</option>
+                <option value="20">20%</option>
+                <option value="25">25%</option>
+                <option value="30">30%</option>
+                <option value="40">40%</option>
+                <option value="50" selected>50%</option>
+                <option value="60">60%</option>
+                <option value="70">70%</option>
+                <option value="75">75%</option>
+                <option value="80">80%</option>
+                <option value="90">90%</option>
+                <option value="100">100%</option>
+              </select>
+              <p class="ya-occupancy-note" data-role="occupancy-note" hidden></p>
+            </div>
+          </div>
+        </section>
+
+        <section
+          class="form-card"
+          aria-labelledby="ya-temperature-scenarios-heading"
+        >
+          <header class="form-card__header">
+            <h2
+              id="ya-temperature-scenarios-heading"
+              data-i18n="yearly_analysis.temperature_scenarios"
+            >
+              Temperature scenarios
+            </h2>
+          </header>
+          <div class="form-card__body">
+            <p
+              class="ya-scenarios-description"
+              data-i18n="yearly_analysis.temperature_scenarios_description"
+            >
+              Temperature scenarios are loaded from the location's weather clustering data.
+            </p>
+            <div class="ya-scenarios-table-wrapper">
+              <table class="ya-scenarios-table">
+                <thead>
+                  <tr>
+                    <th aria-label="Temperature color" data-i18n-aria-label="yearly_analysis.temperature_color"></th>
+                    <th data-i18n="yearly_analysis.daily_avg_temperature">Daily avg. temperature (°C) (05:00-24:00)</th>
+                    <th data-i18n="yearly_analysis.occurrences_days_year">Occurrences (days/year)</th>
+                  </tr>
+                </thead>
+                <tbody data-role="scenarios-body">
+                  <tr><td colspan="3" class="ya-scenarios-placeholder" data-i18n="yearly_analysis.select_evaluation_for_scenarios">Select a simulation to view temperature data.</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="2" class="ya-total-label" data-i18n="yearly_analysis.total_occurrences">Total occurrences</td>
+                    <td class="ya-total-value" data-role="total-occurrences">0</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <p class="ya-occurrences-warning" data-role="occurrences-warning" data-i18n="yearly_analysis.occurrences_warning" hidden>Total occurrences do not sum to 365 days.</p>
+          </div>
+        </section>
+      </div>
+
+      <p class="required-note">
+        <span class="required-mark">*</span>
+        <span data-i18n="simulation.required_info">Required information</span>
+      </p>
 
       <div class="form-actions">
         <button type="button" data-action="cancel" data-i18n="common.cancel">Cancel</button>

@@ -11,62 +11,91 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* Add custom stop form - page-specific overrides */
-.add-custom-stop .intro {
-  max-width: 48ch;
+.custom-stop-table th.checkbox {
+  text-align: left;
 }
 
-.add-custom-stop form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  max-width: 900px;
+/* Add custom stop form - page-specific overrides.
+   Layout comes from the shared .form-card-grid / .form-card system; only the
+   map picker and the map-derived readonly fields need page-level rules. */
+.add-custom-stop main {
+  overflow-y: auto;
 }
 
-.add-custom-stop .form-fields {
+.add-custom-stop .required-mark {
+  color: var(--brand-teal);
+}
+
+.add-custom-stop .required-note {
+  margin: 0;
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* Note and actions share one row so the buttons sit a full row higher and stay
+   above the fold instead of hanging off the bottom of the viewport. */
+.add-custom-stop .add-custom-stop__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.add-custom-stop .add-custom-stop__footer .form-actions {
+  margin-top: 0;
+  margin-left: auto;
+}
+
+/* Every field lives in the left card; the right card is the map alone. It is
+   stretched to the row height so the map ends flush with the last field
+   instead of leaving a ragged column. */
+.add-custom-stop .form-card-grid {
+  align-items: stretch;
+}
+
+.add-custom-stop .add-custom-stop__location-card,
+.add-custom-stop .add-custom-stop__location-card .form-card__body {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
 }
 
-.add-custom-stop .map-picker-container {
-  position: sticky;
-  top: var(--spacing-lg);
-  align-self: start;
+.add-custom-stop .add-custom-stop__location-card .form-card__body {
+  flex: 1;
 }
 
 .add-custom-stop .form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: var(--spacing-md);
-}
-
-.add-custom-stop .map-picker-container > label {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-label);
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--space-md);
 }
 
 .add-custom-stop .map-hint {
-  font-size: var(--font-size-md);
   margin: 0;
 }
 
 .add-custom-stop .map-wrapper {
   position: relative;
+  flex: 1;
   width: 100%;
-  height: 600px;
+  min-height: 18rem;
   border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--border-light);
 }
 
-/* Readonly fields styling */
+/* Address, city and coordinates are filled from the map, never typed. */
 .add-custom-stop input[readonly],
 .add-custom-stop textarea[readonly] {
   background-color: var(--background-muted);
-  color: var(--text-muted);
-  cursor: not-allowed;
+  color: var(--text-secondary);
   border-color: var(--border-light);
+}
+
+.add-custom-stop textarea[readonly] {
+  min-height: 0;
+  resize: none;
 }
 
 .add-custom-stop #custom-stop-map {

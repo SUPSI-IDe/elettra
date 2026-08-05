@@ -22,30 +22,18 @@
 
   <main class="results-main">
     <div class="results-toolbar">
-      <button
-        type="button"
-        class="sim-data-btn"
-        data-action="toggle-sim-data"
-        data-i18n="simulation.results_sim_data"
-      >
-        Feasibility evaluation data
-      </button>
-      <button
-        type="button"
-        class="sim-data-btn sim-data-btn--secondary"
-        data-action="toggle-scenario-scaling"
-        data-i18n="simulation.results_scenario_scaling"
-      >
-        Scenario and scaling
-      </button>
-      <button
-        type="button"
-        class="sim-data-btn sim-data-btn--secondary"
-        data-action="toggle-investment-breakdown"
-        data-i18n="simulation.results_investment_title"
-      >
-        Investment cost breakdown
-      </button>
+      <div class="results-evaluation-summary">
+        <span data-i18n="simulation.results_evaluation_label">Feasibility evaluation:</span>
+        <strong data-role="results-evaluation-name">—</strong>
+        <button
+          type="button"
+          class="sim-data-btn"
+          data-action="toggle-sim-data"
+          data-i18n="simulation.results_view_raw_data"
+        >
+          View raw feasibility data
+        </button>
+      </div>
     </div>
 
     <!-- Tabs -->
@@ -68,7 +56,7 @@
         <div class="costs-primary-stack costs-primary-stack--inputs">
           <div class="chart-section costs-kpis-section">
             <h2 class="card-title" data-i18n="simulation.results_costs_kpis_title">Key financial metrics</h2>
-            <div class="costs-kpi-grid" data-role="costs-kpis"></div>
+            <div class="kpi-grid costs-kpi-grid" data-role="costs-kpis"></div>
           </div>
           <div class="chart-section results-cost-variables">
             <div class="results-cost-variables__header">
@@ -286,7 +274,7 @@
           <div class="chart-section costs-trend-section">
             <h2 class="card-title">
               <span data-i18n="simulation.results_costs_trend">Projected discounted lifecycle cost</span>
-              <span class="costs-title-info" tabindex="0" role="img" aria-label="Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI." data-i18n-aria-label="simulation.costs_trend_lifecycle_tooltip">i<span class="costs-title-tooltip" data-i18n="simulation.costs_trend_lifecycle_tooltip">Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI.</span></span>
+              <button type="button" class="costs-title-info" aria-label="Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI." data-i18n-aria-label="simulation.costs_trend_lifecycle_tooltip">i<span class="costs-title-tooltip" data-i18n="simulation.costs_trend_lifecycle_tooltip">Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI.</span></button>
             </h2>
             <div class="chart-container" data-role="costs-line-chart"></div>
             <div class="chart-legend" data-role="costs-line-legend"></div>
@@ -323,7 +311,7 @@
           <div class="env-mission-bar" data-role="env-mission-bar"></div>
 
           <!-- 3. Main KPI cards -->
-          <div class="env-kpi-row" data-role="env-kpi-cards"></div>
+          <div class="kpi-grid env-kpi-row" data-role="env-kpi-cards"></div>
 
           <!-- 4. Comparison table -->
           <div class="chart-section env-table-section">
@@ -363,10 +351,10 @@
       </div>
     </div>
 
-    <div class="results-actions">
+    <div class="ya-results-actions">
       <button
         type="button"
-        class="btn-close-results"
+        class="ya-btn-close"
         data-action="back"
         data-i18n="common.close"
       >
@@ -374,12 +362,12 @@
       </button>
     </div>
 
-    <!-- Simulation data overlay -->
+    <!-- Raw feasibility data overlay -->
     <div class="sim-data-overlay" data-role="sim-data-overlay" hidden>
-      <div class="sim-data-panel">
+      <div class="sim-data-panel sim-data-panel--wide">
         <div class="sim-data-header">
           <div>
-            <h2 class="section-title" data-i18n="simulation.results_sim_data">Feasibility evaluation data</h2>
+            <h2 class="section-title" data-i18n="simulation.results_view_raw_data">View raw feasibility data</h2>
             <p class="sim-data-subtitle helper-text" data-role="sim-data-subtitle"></p>
           </div>
           <button
@@ -396,18 +384,48 @@
           </button>
         </div>
 
-        <div class="sim-data-columns">
-          <div class="sim-data-col">
-            <h3 class="card-title" data-i18n="simulation.results_general_info">General information</h3>
-            <div class="sim-data-fields" data-role="general-info"></div>
+        <div class="sim-data-tabs" role="tablist">
+          <button class="sim-data-tab active" type="button" role="tab" aria-selected="true" data-tab="feasibility-data" data-i18n="simulation.results_sim_data">
+            Feasibility evaluation data
+          </button>
+          <button class="sim-data-tab" type="button" role="tab" aria-selected="false" data-tab="scenario-scaling" data-i18n="simulation.results_scenario_scaling">
+            Scenario and scaling
+          </button>
+          <button class="sim-data-tab" type="button" role="tab" aria-selected="false" data-tab="investment-breakdown" data-i18n="simulation.results_investment_title">
+            Investment cost breakdown
+          </button>
+        </div>
+
+        <div class="sim-data-tab-panel active" data-panel="feasibility-data" role="tabpanel">
+          <div class="sim-data-columns">
+            <div class="sim-data-col">
+              <h3 class="card-title" data-i18n="simulation.results_general_info">General information</h3>
+              <div class="sim-data-fields" data-role="general-info"></div>
+            </div>
+            <div class="sim-data-col">
+              <h3 class="card-title" data-i18n="simulation.results_bus_info">Bus information</h3>
+              <div class="sim-data-fields" data-role="bus-info"></div>
+            </div>
+            <div class="sim-data-col">
+              <h3 class="card-title" data-i18n="simulation.results_charging_info">Charging station information</h3>
+              <div class="sim-data-fields" data-role="charging-info"></div>
+            </div>
           </div>
-          <div class="sim-data-col">
-            <h3 class="card-title" data-i18n="simulation.results_bus_info">Bus information</h3>
-            <div class="sim-data-fields" data-role="bus-info"></div>
+        </div>
+
+        <div class="sim-data-tab-panel" data-panel="scenario-scaling" role="tabpanel" hidden>
+          <div class="sim-data-columns sim-data-columns--single">
+            <div class="sim-data-col">
+              <div data-role="scenario-scaling-content"></div>
+            </div>
           </div>
-          <div class="sim-data-col">
-            <h3 class="card-title" data-i18n="simulation.results_charging_info">Charging station information</h3>
-            <div class="sim-data-fields" data-role="charging-info"></div>
+        </div>
+
+        <div class="sim-data-tab-panel" data-panel="investment-breakdown" role="tabpanel" hidden>
+          <div class="sim-data-columns sim-data-columns--single">
+            <div class="sim-data-col">
+              <div data-role="investment-content"></div>
+            </div>
           </div>
         </div>
 
@@ -416,86 +434,6 @@
             type="button"
             class="btn-close-results"
             data-action="close-sim-data"
-            data-i18n="common.close"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="sim-data-overlay" data-role="scenario-scaling-overlay" hidden>
-      <div class="sim-data-panel sim-data-panel--wide">
-        <div class="sim-data-header">
-          <div>
-            <h2 data-i18n="simulation.results_scenario_scaling">Scenario and scaling</h2>
-            <p class="sim-data-subtitle" data-role="scenario-scaling-subtitle"></p>
-          </div>
-          <button
-            type="button"
-            class="close-button"
-            data-action="close-scenario-scaling"
-            aria-label="Close"
-            data-i18n-aria-label="common.close"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        <div class="sim-data-columns sim-data-columns--single">
-          <div class="sim-data-col">
-            <div data-role="scenario-scaling-content"></div>
-          </div>
-        </div>
-
-        <div class="sim-data-actions">
-          <button
-            type="button"
-            class="btn-close-results"
-            data-action="close-scenario-scaling"
-            data-i18n="common.close"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="sim-data-overlay" data-role="investment-overlay" hidden>
-      <div class="sim-data-panel sim-data-panel--investment">
-        <div class="sim-data-header">
-          <div>
-            <h2 data-i18n="simulation.results_investment_title">Investment cost breakdown</h2>
-            <p class="sim-data-subtitle" data-role="investment-subtitle"></p>
-          </div>
-          <button
-            type="button"
-            class="close-button"
-            data-action="close-investment-breakdown"
-            aria-label="Close"
-            data-i18n-aria-label="common.close"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        <div class="sim-data-columns sim-data-columns--single">
-          <div class="sim-data-col">
-            <div data-role="investment-content"></div>
-          </div>
-        </div>
-
-        <div class="sim-data-actions">
-          <button
-            type="button"
-            class="btn-close-results"
-            data-action="close-investment-breakdown"
             data-i18n="common.close"
           >
             Close

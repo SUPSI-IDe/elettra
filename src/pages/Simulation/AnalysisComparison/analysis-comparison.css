@@ -3,13 +3,11 @@
 .ac-main {
   padding: var(--layout-content-padding);
   overflow-y: auto;
-  max-width: var(--layout-content-max-width);
-  margin-inline: auto;
   width: 100%;
 }
 
 .ac-subtitle {
-  margin: 0.25rem 0 0;
+  margin: var(--space-xs) 0 0;
 }
 
 /* ── Selectors ─────────────────────────────────────────────────── */
@@ -17,18 +15,18 @@
 .ac-selectors {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
+  gap: var(--layout-gap);
+  margin-bottom: var(--layout-gap);
 }
 
 .ac-selector {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-2xs);
 }
 
 .ac-selector-label {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-lg);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -37,18 +35,18 @@
 
 .ac-select {
   width: 100%;
-  padding: 0.5rem 0.65rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  padding: var(--control-padding-block) var(--control-padding-inline);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
   background-color: var(--color-surface);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-lg);
 }
 
 .ac-meta {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.5rem 0.65rem;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-2sm);
   background: var(--bg-subtle);
   border-radius: var(--radius-sm);
   min-height: 1.5rem;
@@ -59,17 +57,16 @@
 }
 
 .ac-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.3rem 1.2rem;
+  --kpi-tile-min: 12.5rem;
+  gap: var(--space-xs) var(--space-2md);
 }
 
 .ac-meta-row {
   display: flex;
   justify-content: space-between;
-  gap: 0.6rem;
+  gap: var(--space-sm);
   font-size: var(--font-size-sm);
-  padding: 0.15rem 0;
+  padding: var(--space-2xs) 0;
 }
 
 .ac-meta-label {
@@ -89,14 +86,14 @@
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
   font-style: italic;
-  margin: 0 0 var(--spacing-md);
+  margin: 0 0 var(--space-md);
 }
 
 .ac-warning {
-  margin: var(--spacing-sm) 0 0;
-  padding: 0.6rem 0.8rem;
+  margin: var(--space-sm) 0 0;
+  padding: var(--space-sm) var(--space-2sm);
   border-radius: var(--radius-sm);
-  background: rgba(245, 166, 35, 0.12);
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
   border: 1px solid var(--color-warning);
   color: var(--text-main);
   font-size: var(--font-size-sm);
@@ -105,40 +102,38 @@
 .ac-section-note {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  padding: var(--spacing-md);
+  padding: var(--space-md);
 }
 
 .ac-subhead {
-  margin-top: var(--spacing-md);
+  margin-top: var(--space-md);
   font-size: var(--font-size-md);
 }
 
 /* ── Executive KPIs ────────────────────────────────────────────── */
 
 .ac-executive {
-  margin: var(--spacing-lg) 0;
+  margin: var(--layout-gap) 0;
 }
 
 .ac-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-md);
+  --kpi-tile-min: 12.5rem;
 }
 
 .ac-kpi-card {
   border: 1px solid var(--color-border-dim);
   border-radius: var(--panel-radius);
-  padding: var(--spacing-md);
+  padding: var(--space-md);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 .ac-kpi-title {
-  font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
@@ -147,7 +142,7 @@
 .ac-kpi-values {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--space-xs);
 }
 
 .ac-kpi-ab {
@@ -159,7 +154,7 @@
 .ac-kpi-ab em {
   font-style: normal;
   color: var(--text-secondary);
-  margin-right: 0.35rem;
+  margin-right: var(--space-2xs);
   font-weight: 600;
 }
 
@@ -191,17 +186,17 @@
 
 .ac-export-actions {
   display: flex;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
 }
 
 .ac-export-btn {
   background-color: var(--brand-teal);
   color: var(--color-surface);
-  padding: 0.5rem 1.25rem;
+  padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   border: 1px solid var(--brand-teal);
   transition: background-color var(--transition-fast);
@@ -210,10 +205,10 @@
 .ac-export-btn:hover { background-color: var(--brand-teal-dark); }
 
 .ac-download-actions {
-  margin-top: var(--spacing-lg);
+  margin-top: var(--layout-gap);
 }
 
-@media (max-width: 640px) {
+@media (width <= 700px) {
   .ac-selectors {
     grid-template-columns: 1fr;
   }

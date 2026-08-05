@@ -15,6 +15,21 @@
   <main class="ya-results-main">
     <p class="form-feedback" data-role="feedback" hidden></p>
 
+    <div class="ya-results-toolbar">
+      <div class="ya-analysis-summary">
+        <span data-i18n="yearly_analysis.results_analysis_label">Yearly analysis:</span>
+        <strong data-role="ya-analysis-name">—</strong>
+        <div class="ya-analysis-summary__actions">
+          <button type="button" class="ya-toolbar-btn" data-action="view-configuration" data-i18n="yearly_analysis.view_configuration_data">
+            View configuration data
+          </button>
+          <button type="button" class="ya-toolbar-btn" data-action="download-json" data-i18n="yearly_analysis.download_json">
+            Download all results (JSON)
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Tabs -->
     <div class="ya-tabs" role="tablist">
       <button class="ya-tab active" role="tab" aria-selected="true" data-tab="overview" data-i18n="simulation.tab_overview">Overview</button>
@@ -30,8 +45,6 @@
       </div>
 
       <div class="ya-tab-panel" data-panel="efficiency" role="tabpanel" hidden>
-        <div data-role="efficiency-content"></div>
-
         <!-- D3 chart slots (appended to, not via innerHTML) -->
         <div class="ya-eff-charts-grid">
           <div class="ya-res-section ya-eff-chart-section">
@@ -54,18 +67,28 @@
           </div>
         </div>
 
-        <div data-role="efficiency-scenario-table"></div>
+        <details class="ya-more-information">
+          <summary class="ya-more-information__toggle" data-i18n="yearly_analysis.view_detailed_results">
+            View detailed yearly results
+          </summary>
+          <div class="ya-more-information__content">
+            <div data-role="ya-detail-critical"></div>
+            <div data-role="ya-detail-scenarios"></div>
+            <div data-role="ya-detail-battery"></div>
+            <div data-role="ya-detail-yearly-summary"></div>
+            <div data-role="ya-detail-yearly-uncertainty"></div>
+          </div>
+        </details>
       </div>
 
       <div class="ya-tab-panel ya-costs-panel" data-panel="costs" role="tabpanel" hidden>
-        <!-- Left column: KPIs + sliders -->
-        <div class="ya-costs-stack ya-costs-stack--inputs">
-          <div class="ya-res-section ya-costs-kpis-section">
-            <h3 class="ya-res-section-title" data-i18n="simulation.results_costs_kpis_title">Key financial metrics</h3>
-            <div class="ya-costs-kpi-grid" data-role="ya-costs-kpis"></div>
+        <!-- Full-width cost assumptions -->
+        <div class="ya-res-section ya-cost-variables ya-costs-inputs-section">
+          <div class="ya-res-section-header">
+            <h3 class="ya-res-section-title" data-i18n="yearly_analysis.costs_estimate_values">Set values to estimate yearly costs</h3>
+            <button type="button" class="ya-cost-variables__reset-all" data-role="ya-var-reset-all" data-i18n="yearly_analysis.costs_reset_all_parameters">Reset all parameters</button>
           </div>
-          <div class="ya-res-section ya-cost-variables">
-            <div class="ya-cost-variables__grid">
+          <div class="ya-cost-variables__grid">
               <div class="ya-cost-variables__field">
                 <div class="ya-cost-variables__field-top">
                   <span data-i18n="simulation.var_fuel_cost_per_l">Diesel cost (CHF / liter)</span>
@@ -73,7 +96,6 @@
                 </div>
                 <input class="ya-cost-variables__range" type="range" min="1" max="3" step="0.01" data-role="ya-var-fuel-cost" />
                 <div class="ya-cost-variables__range-scale"><span>1.00</span><span>3.00</span></div>
-                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-fuel-cost-reset" data-i18n="simulation.costs_variable_reset">Reset</button></div>
               </div>
               <div class="ya-cost-variables__field">
                 <div class="ya-cost-variables__field-top">
@@ -82,7 +104,6 @@
                 </div>
                 <input class="ya-cost-variables__range" type="range" min="0.05" max="0.50" step="0.01" data-role="ya-var-diesel-maint" />
                 <div class="ya-cost-variables__range-scale"><span>0.05</span><span>0.50</span></div>
-                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-diesel-maint-reset" data-i18n="simulation.costs_variable_reset">Reset</button></div>
               </div>
               <div class="ya-cost-variables__field">
                 <div class="ya-cost-variables__field-top">
@@ -91,7 +112,6 @@
                 </div>
                 <input class="ya-cost-variables__range" type="range" min="0.05" max="0.60" step="0.01" data-role="ya-var-energy-price" />
                 <div class="ya-cost-variables__range-scale"><span>0.05</span><span>0.60</span></div>
-                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-energy-price-reset" data-i18n="simulation.costs_variable_reset">Reset</button></div>
               </div>
               <div class="ya-cost-variables__field">
                 <div class="ya-cost-variables__field-top">
@@ -100,7 +120,6 @@
                 </div>
                 <input class="ya-cost-variables__range" type="range" min="0.05" max="0.50" step="0.01" data-role="ya-var-elec-maint" />
                 <div class="ya-cost-variables__range-scale"><span>0.05</span><span>0.50</span></div>
-                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-elec-maint-reset" data-i18n="simulation.costs_variable_reset">Reset</button></div>
               </div>
               <div class="ya-cost-variables__field">
                 <div class="ya-cost-variables__field-top">
@@ -109,7 +128,6 @@
                 </div>
                 <input class="ya-cost-variables__range" type="range" min="0.02" max="0.10" step="0.005" data-role="ya-var-interest" />
                 <div class="ya-cost-variables__range-scale"><span>2%</span><span>10%</span></div>
-                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-interest-reset" data-i18n="simulation.costs_variable_reset">Reset</button></div>
               </div>
               <div class="ya-cost-variables__field">
                 <div class="ya-cost-variables__field-top">
@@ -118,7 +136,6 @@
                 </div>
                 <input class="ya-cost-variables__range" type="range" min="0.15" max="0.80" step="0.01" data-role="ya-var-diesel-eff" />
                 <div class="ya-cost-variables__range-scale"><span>0.15</span><span>0.80</span></div>
-                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-diesel-eff-reset" data-i18n="simulation.costs_variable_reset">Reset</button></div>
               </div>
               <div class="ya-cost-variables__field">
                 <div class="ya-cost-variables__field-top">
@@ -127,7 +144,6 @@
                 </div>
                 <input class="ya-cost-variables__range" type="range" min="200000" max="700000" step="10000" data-role="ya-var-diesel-capex" />
                 <div class="ya-cost-variables__range-scale"><span>200k</span><span>700k</span></div>
-                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-diesel-capex-reset" data-i18n="simulation.costs_variable_reset">Reset</button></div>
               </div>
               <div class="ya-cost-variables__field">
                 <div class="ya-cost-variables__field-top">
@@ -136,13 +152,12 @@
                 </div>
                 <input class="ya-cost-variables__range" type="range" min="1" max="2" step="1" data-role="ya-var-yearly-distance" />
                 <div class="ya-cost-variables__range-scale"><span>1</span><span>2</span></div>
-                <div class="ya-cost-variables__actions"><button type="button" class="ya-cost-variables__reset" data-role="ya-var-yearly-distance-reset" data-i18n="simulation.costs_variable_reset">Reset</button></div>
               </div>
-            </div>
           </div>
         </div>
-        <!-- Right column: charts -->
-        <div class="ya-costs-stack ya-costs-stack--charts">
+
+        <!-- Equal-width cost charts -->
+        <div class="ya-costs-charts-grid">
           <div class="ya-res-section ya-costs-bar-section">
             <h3 class="ya-res-section-title" data-i18n="simulation.results_tco_title">Annual cost comparison</h3>
             <div class="ya-chart-container" data-role="ya-costs-bar-chart"></div>
@@ -150,50 +165,53 @@
           </div>
           <div class="ya-res-section ya-costs-line-section">
             <h3 class="ya-res-section-title">
-              <span data-i18n="simulation.results_costs_trend">Projected discounted lifecycle cost</span>
-              <span class="costs-title-info" tabindex="0" role="img" aria-label="Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI." data-i18n-aria-label="simulation.costs_trend_lifecycle_tooltip">i<span class="costs-title-tooltip" data-i18n="simulation.costs_trend_lifecycle_tooltip">Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI.</span></span>
+              <span data-i18n="yearly_analysis.projected_cost_trend">Projected cost trend</span>
+              <button type="button" class="costs-title-info" aria-label="Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI." data-i18n-aria-label="simulation.costs_trend_lifecycle_tooltip">i<span class="costs-title-tooltip" data-i18n="simulation.costs_trend_lifecycle_tooltip">Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI.</span></button>
             </h3>
             <div class="ya-chart-container" data-role="ya-costs-line-chart"></div>
             <div class="ya-chart-legend" data-role="ya-costs-line-legend"></div>
           </div>
         </div>
-        <!-- Full-width: individual OPEX breakdowns + tables -->
-        <div class="ya-costs-opex-pair">
-          <div data-role="ya-costs-electric-opex"></div>
-          <div data-role="ya-costs-diesel-opex"></div>
-        </div>
-        <div data-role="ya-costs-opex-tables"></div>
-        <div data-role="ya-costs-scenario-table"></div>
+
+        <!-- Supporting financial detail -->
+        <details class="ya-more-information">
+          <summary class="ya-more-information__toggle" data-i18n="simulation.efficiency_more_information">More information</summary>
+          <div class="ya-more-information__content">
+            <div class="ya-res-section ya-costs-kpis-section">
+              <h3 class="ya-res-section-title" data-i18n="simulation.results_costs_kpis_title">Key financial metrics</h3>
+              <div class="kpi-grid ya-costs-kpi-grid" data-role="ya-costs-kpis"></div>
+            </div>
+            <div class="ya-costs-opex-pair">
+              <div data-role="ya-costs-electric-opex"></div>
+              <div data-role="ya-costs-diesel-opex"></div>
+            </div>
+            <div data-role="ya-costs-opex-tables"></div>
+            <div data-role="ya-costs-scenario-table"></div>
+          </div>
+        </details>
       </div>
 
       <div class="ya-tab-panel ya-env-panel" data-panel="emissions" role="tabpanel" hidden>
-        <div data-role="emissions-content">
-          <div class="ya-env-headline">
-            <!-- JS-rendered: header note -->
-            <div data-role="ya-env-header"></div>
-
-            <!-- Slider override -->
-            <div class="ya-res-section ya-cost-variables ya-env-controls" data-role="ya-env-controls" hidden>
-              <div class="ya-cost-variables__grid">
-                <div class="ya-cost-variables__field">
-                  <div class="ya-cost-variables__field-top">
-                    <span data-i18n="yearly_analysis.annual_distance_label">Annual distance:</span>
-                    <button type="button" class="ya-cost-variables__reset" data-role="ya-env-yearly-distance-reset" data-i18n="simulation.costs_variable_reset">Reset</button>
-                  </div>
-                  <input class="ya-cost-variables__range" type="range" min="1" max="2" step="1" data-role="ya-env-yearly-distance" />
-                  <div class="ya-cost-variables__range-scale"><span>1</span><span>2</span></div>
+        <div class="ya-env-content" data-role="emissions-content">
+          <!-- Full-width annual distance control -->
+          <div class="ya-res-section ya-cost-variables ya-env-controls" data-role="ya-env-controls" hidden>
+            <div class="ya-res-section-header">
+              <h3 class="ya-res-section-title" data-i18n="yearly_analysis.emissions_set_annual_distance">Set the annual distance to estimate yearly emissions</h3>
+              <button type="button" class="ya-cost-variables__reset-all" data-role="ya-env-yearly-distance-reset" data-i18n="simulation.costs_variable_reset">Reset</button>
+            </div>
+            <div class="ya-cost-variables__grid">
+              <div class="ya-cost-variables__field">
+                <div class="ya-cost-variables__field-top">
+                  <span data-i18n="yearly_analysis.annual_distance_label">Annual distance:</span>
+                  <output class="ya-cost-variables__value" data-role="ya-env-yearly-distance-value"></output>
                 </div>
+                <input class="ya-cost-variables__range" type="range" min="1" max="2" step="1" data-role="ya-env-yearly-distance" />
+                <div class="ya-cost-variables__range-scale"><span>1</span><span>2</span></div>
               </div>
             </div>
           </div>
 
-          <!-- JS-rendered: KPI cards -->
-          <div data-role="ya-env-kpis"></div>
-
-          <!-- Comparison table -->
-          <div data-role="ya-env-table"></div>
-
-          <!-- Chart grid: 2 charts -->
+          <!-- Equal-width emissions charts -->
           <div class="ya-env-chart-grid">
             <div class="ya-res-section ya-env-chart-section ya-env-chart-section--prominent">
               <h3 class="ya-res-section-title" data-i18n="simulation.emissions_saved_title">Emissions saved</h3>
@@ -207,14 +225,39 @@
             </div>
           </div>
 
-          <!-- Methodology note -->
-          <div data-role="ya-env-methodology"></div>
+          <!-- Three headline environmental KPIs -->
+          <div data-role="ya-env-kpis"></div>
+
+          <!-- Supporting emissions detail -->
+          <details class="ya-more-information">
+            <summary class="ya-more-information__toggle" data-i18n="simulation.efficiency_more_information">More information</summary>
+            <div class="ya-more-information__content">
+              <div data-role="ya-env-header"></div>
+              <div data-role="ya-env-table"></div>
+              <div data-role="ya-env-methodology"></div>
+            </div>
+          </details>
         </div>
       </div>
     </div>
 
     <div class="ya-results-actions">
       <button type="button" class="ya-btn-close" data-action="back" data-i18n="common.close">Close</button>
+    </div>
+
+    <div class="ya-config-overlay" data-role="ya-config-overlay" hidden>
+      <div class="ya-config-dialog" role="dialog" aria-modal="true" aria-labelledby="ya-config-dialog-title">
+        <div class="ya-config-dialog__header">
+          <h2 id="ya-config-dialog-title" class="ya-res-section-title" data-i18n="yearly_analysis.view_configuration_data">View configuration data</h2>
+          <button type="button" class="close-button" data-action="close-configuration" aria-label="Close" data-i18n-aria-label="common.close">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div data-role="ya-configuration-content"></div>
+      </div>
     </div>
   </main>
 </section>

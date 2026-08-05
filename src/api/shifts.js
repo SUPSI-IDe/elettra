@@ -4,6 +4,7 @@ import {
   fetchAllPages,
   normalizePaginatedResponse,
 } from "./pagination";
+import { createShiftIndex } from "./shift-index";
 
 const SHIFTS_PATH = `${API_ROOT}/api/v1/user/shifts/`;
 
@@ -57,6 +58,16 @@ export const fetchShifts = async ({
  */
 export const fetchAllShifts = ({ busId = "", userId = "" } = {}) =>
   fetchAllPages((params) => fetchShifts({ ...params, busId, userId }));
+
+const shiftIndex = createShiftIndex({ fetchAll: () => fetchAllShifts() });
+
+/**
+ * Partitions shift ids into the ones worth fetching and the ones the user's
+ * shift list proves are gone. See `shift-index.js`.
+ */
+export const screenShiftIds = (ids) => shiftIndex.screen(ids);
+
+export const invalidateShiftIndex = () => shiftIndex.invalidate();
 
 export const fetchShiftById = async (shiftId) => {
   if (!shiftId) {
@@ -133,6 +144,7 @@ const toTripIds = (tripIds) =>
   Array.isArray(tripIds) ? tripIds.filter(Boolean).map(String) : [];
 
 export const createShift = async ({ name, busId, tripIds, startTime, endTime, startDepotId, endDepotId } = {}) => {
+  shiftIndex.invalidate();
   if (!name) {
     throw new Error("Missing name");
   }
@@ -184,6 +196,7 @@ export const createShift = async ({ name, busId, tripIds, startTime, endTime, st
 };
 
 export const updateShift = async (shiftId, { name, busId, tripIds, startTime, endTime, startDepotId, endDepotId } = {}) => {
+  shiftIndex.invalidate();
   if (!shiftId) {
     throw new Error("Missing shiftId");
   }
@@ -238,6 +251,7 @@ export const updateShift = async (shiftId, { name, busId, tripIds, startTime, en
 };
 
 export const deleteShift = async (shiftId) => {
+  shiftIndex.invalidate();
   if (!shiftId) {
     throw new Error("Missing shiftId");
   }

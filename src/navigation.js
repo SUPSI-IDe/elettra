@@ -9,7 +9,6 @@ import { initializeSimulationRuns } from "./pages/Simulation/Runs/simulation-run
 import { initializeAddSimulation } from "./pages/Simulation/Runs/add-simulation";
 import { initializeSimulationDetail } from "./pages/Simulation/Runs/simulation-detail";
 import { initializeSimulationResults } from "./pages/Simulation/Runs/simulation-results";
-import { initializeSimulationComparison } from "./pages/Simulation/Runs/simulation-comparison";
 import { initializeCreateYearlyAnalysis } from "./pages/Simulation/YearlyAnalysis/create-yearly-analysis";
 import { initializeYearlyAnalysisRuns } from "./pages/Simulation/YearlyAnalysis/yearly-analysis-runs";
 import { initializeYearlyAnalysisResults } from "./pages/Simulation/YearlyAnalysis/yearly-analysis-results";
@@ -45,7 +44,6 @@ const SHELL_SECTION_BY_SLUG = {
   "add-simulation": "simulation-runs",
   "simulation-detail": "simulation-runs",
   "simulation-results": "simulation-runs",
-  "simulation-comparison": "simulation-runs",
   "yearly-analysis-runs": "yearly-analysis-runs",
   "create-yearly-analysis": "yearly-analysis-runs",
   "yearly-analysis-results": "yearly-analysis-runs",
@@ -131,6 +129,7 @@ export const initializeNavigation = (root = document) => {
   const aboutBtn = root.querySelector(".about-btn[data-partial]");
   const footerAboutLink = root.querySelector(".footer-about-link[data-partial]");
   const userSection = root.querySelector(".user-section");
+  const navToggle = root.querySelector(".nav-toggle");
 
   if (!container || !nav) {
     return;
@@ -239,9 +238,6 @@ export const initializeNavigation = (root = document) => {
       case "simulation-results":
         cleanup = initializeSimulationResults(target, options);
         break;
-      case "simulation-comparison":
-        cleanup = initializeSimulationComparison(target, options);
-        break;
       case "create-yearly-analysis":
         cleanup = await initializeCreateYearlyAnalysis(target, options);
         break;
@@ -285,10 +281,32 @@ export const initializeNavigation = (root = document) => {
     );
   };
 
+  // Below the drawer breakpoint the nav is an `auto` popover opened by
+  // `.nav-toggle`; above it CSS renders the same element as a static sidebar.
+  // Closing is only ever needed in drawer mode — `hidePopover` throws if the
+  // popover is not open, so every call site guards on `:popover-open`.
+  const closeNavDrawer = () => {
+    if (nav.matches(":popover-open")) {
+      nav.hidePopover();
+    }
+  };
+
+  // Rotating a tablet crosses this threshold, which would otherwise strand an
+  // open drawer in the top layer over the restored sidebar.
+  root.defaultView
+    ?.matchMedia("(width <= 1080px)")
+    .addEventListener("change", closeNavDrawer);
+
   // Update nav visibility based on authentication
   const updateNavVisibility = () => {
     const authenticated = isAuthenticated();
     nav.hidden = !authenticated;
+    if (navToggle) {
+      navToggle.hidden = !authenticated;
+    }
+    if (!authenticated) {
+      closeNavDrawer();
+    }
   };
 
   nav.addEventListener("click", (event) => {
@@ -298,6 +316,7 @@ export const initializeNavigation = (root = document) => {
     }
 
     event.preventDefault();
+    closeNavDrawer();
     const slug = slugFrom(link);
     loadAndInitialize(slug);
   });

@@ -145,7 +145,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .style("padding", "6px 10px")
     .style("border-radius", "4px")
     .style("background", "rgba(0, 0, 0, 0.8)")
-    .style("color", "#fff")
+    .style("color", "var(--color-surface)")
     .style("font-size", "0.75rem")
     .style("z-index", "1000")
     .style("white-space", "nowrap");

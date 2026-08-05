@@ -152,6 +152,9 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
   const nameInput = section.querySelector("#ya-analysis-name");
   const baseSelect = section.querySelector('[data-role="base-run-select"]');
   const configSummary = section.querySelector('[data-role="config-summary"]');
+  const configSummaryBody = section.querySelector(
+    '[data-role="config-summary-body"]'
+  );
   const scenariosTbody = section.querySelector('[data-role="scenarios-body"]');
   const totalOccEl = section.querySelector('[data-role="total-occurrences"]');
   const occWarning = section.querySelector('[data-role="occurrences-warning"]');
@@ -181,8 +184,13 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       (sum, row) => sum + Math.max(0, Number(row?.occurrences) || 0),
       0
     );
-    if (totalOccEl) { totalOccEl.textContent = String(total); totalOccEl.classList.toggle("ya-total-warn", total !== 365); }
-    if (occWarning) occWarning.hidden = total === 365;
+    const hasScenarios = scenarioRows.length > 0;
+    const hasInvalidTotal = hasScenarios && total !== 365;
+    if (totalOccEl) {
+      totalOccEl.textContent = hasScenarios ? String(total) : "—";
+      totalOccEl.classList.toggle("ya-total-warn", hasInvalidTotal);
+    }
+    if (occWarning) occWarning.hidden = !hasInvalidTotal;
   };
 
   const readScenarios = () =>
@@ -333,7 +341,11 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
   };
 
   const renderConfigSummary = (run) => {
-    if (!configSummary || !run) { if (configSummary) configSummary.hidden = true; return; }
+    if (!configSummary || !configSummaryBody || !run) {
+      if (configSummary) configSummary.hidden = true;
+      if (configSummaryBody) configSummaryBody.innerHTML = "";
+      return;
+    }
     const id = text(run.id);
     const ip = run.input_params ?? {};
     const br = run.results?.battery_results ?? {};
@@ -344,16 +356,16 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     const shiftLabel = meta.shiftLabel ?? "—";
     const sizingTemp = meta.sizingTemp;
 
-    const param = (label, value, highlight = false) =>
-      `<div class="ya-config-param"><span class="ya-config-param-label">${textContent(label)}</span><span class="ya-config-param-value${highlight ? " ya-highlight" : ""}">${textContent(String(value))}</span></div>`;
+    const cell = (value, highlight = false) =>
+      `<td${highlight ? ' class="ya-config-table__highlight"' : ""}>${textContent(String(value))}</td>`;
 
-    configSummary.innerHTML = [
-      param(t("yearly_analysis.summary_shift"), shiftLabel),
-      param(t("yearly_analysis.col_mode"), modeLabel(mode)),
-      param(t("yearly_analysis.sizing_temperature"), sizingTemp != null ? `${sizingTemp} °C` : "—", true),
-      param(t("yearly_analysis.packs"), packs ?? "—", true),
-      param(t("yearly_analysis.capacity"), kwh != null ? `${Math.round(kwh)} kWh` : "—", true),
-    ].join("");
+    configSummaryBody.innerHTML = `<tr>
+      ${cell(shiftLabel)}
+      ${cell(modeLabel(mode))}
+      ${cell(sizingTemp != null ? `${sizingTemp} °C` : "—", true)}
+      ${cell(packs ?? "—", true)}
+      ${cell(kwh != null ? `${Math.round(kwh)} kWh` : "—", true)}
+    </tr>`;
     configSummary.hidden = false;
 
     setOccupancyFromRun(run);
