@@ -1,6 +1,7 @@
 const EQUIVALENT_DIESEL_BUS_CAPEX_BY_LENGTH = {
   "9": 280000,
   "12": 350000,
+  "13": 385000,
   "18": 500000,
 };
 
