@@ -431,3 +431,221 @@ export const computeTimeBounds = (trips = []) => {
 
   return { earliest, latest };
 };
+
+const extractStopDbId = (stopTime) => text(stopTime?.id).trim();
+
+export const findLoadedDepotByStopDbId = (stopDbId, loadedDepots = []) => {
+  const candidate = text(stopDbId).trim();
+  if (!candidate) {
+    return null;
+  }
+  return (
+    loadedDepots.find((depot) => text(depot?.stop_id).trim() === candidate) ??
+    null
+  );
+};
+
+const findLoadedDepotByName = (name, loadedDepots = []) => {
+  const candidate = text(name).trim();
+  if (!candidate) {
+    return null;
+  }
+  const normalized = candidate.toLowerCase();
+  return (
+    loadedDepots.find(
+      (depot) => text(depot?.name ?? depot?.label).trim().toLowerCase() === normalized
+    ) ?? null
+  );
+};
+
+const isGtfsServiceLeg = (leg = {}) => {
+  const gtfsTripId = text(leg?.gtfs_trip_id).trim();
+  return gtfsTripId.length > 0 && !gtfsTripId.startsWith("depot-");
+};
+
+const isTransferAuxLeg = (leg = {}) => {
+  const gtfsTripId = text(leg?.gtfs_trip_id).trim();
+  if (!gtfsTripId.startsWith("depot-")) {
+    return false;
+  }
+  const start = text(leg?.start_stop_name).trim();
+  const end = text(leg?.end_stop_name).trim();
+  return Boolean(start && end && start !== end);
+};
+
+export const mergeStructureWithInfoTrips = (structure = [], infoTrips = []) => {
+  const infoById = new Map(
+    (Array.isArray(infoTrips) ? infoTrips : [])
+      .filter((trip) => text(trip?.id).trim())
+      .map((trip) => [text(trip.id), trip])
+  );
+
+  return (Array.isArray(structure) ? structure : [])
+    .map((item, index) => {
+      const tripDbId = text(item?.trip_id ?? item?.tripId ?? "");
+      const info = infoById.get(tripDbId) ?? {};
+      const stopTimes =
+        Array.isArray(item?.stop_times) && item.stop_times.length > 0 ?
+          item.stop_times
+        : Array.isArray(item?.trip?.stop_times) && item.trip.stop_times.length > 0 ?
+          item.trip.stop_times
+        : [];
+
+      return {
+        ...item,
+        trip_db_id: tripDbId,
+        sequence_number: item?.sequence_number ?? index + 1,
+        gtfs_trip_id: text(info?.trip_id ?? info?.tripId ?? ""),
+        start_stop_name: text(
+          info?.start_stop_name ?? info?.startStopName ?? ""
+        ),
+        end_stop_name: text(info?.end_stop_name ?? info?.endStopName ?? ""),
+        stop_times: stopTimes,
+      };
+    })
+    .sort((left, right) => {
+      const leftSeq = Number(left?.sequence_number);
+      const rightSeq = Number(right?.sequence_number);
+      if (Number.isFinite(leftSeq) && Number.isFinite(rightSeq) && leftSeq !== rightSeq) {
+        return leftSeq - rightSeq;
+      }
+      return 0;
+    });
+};
+
+const selectOutboundDepotLeg = (legs = []) => {
+  const firstServiceLeg = legs.find(isGtfsServiceLeg);
+  if (!firstServiceLeg) {
+    return null;
+  }
+
+  const firstServiceSeq = Number(firstServiceLeg.sequence_number);
+  const firstServiceStartId = extractStopDbId(firstServiceLeg.stop_times?.[0]);
+  const candidates = legs.filter(
+    (leg) =>
+      isTransferAuxLeg(leg) &&
+      Number(leg.sequence_number) < firstServiceSeq
+  );
+  if (!candidates.length) {
+    return null;
+  }
+
+  const bySequenceDesc = [...candidates].sort(
+    (left, right) => Number(right.sequence_number) - Number(left.sequence_number)
+  );
+  const connectsToFirstService = (leg) => {
+    const lastStop = leg.stop_times?.[leg.stop_times.length - 1];
+    const outboundEndId = extractStopDbId(lastStop);
+    return Boolean(firstServiceStartId && outboundEndId === firstServiceStartId);
+  };
+
+  if (connectsToFirstService(bySequenceDesc[0])) {
+    return bySequenceDesc[0];
+  }
+  return bySequenceDesc.find(connectsToFirstService) ?? null;
+};
+
+const selectReturnDepotLeg = (legs = []) => {
+  const lastServiceLeg = [...legs].reverse().find(isGtfsServiceLeg);
+  if (!lastServiceLeg) {
+    return null;
+  }
+
+  const lastServiceSeq = Number(lastServiceLeg.sequence_number);
+  const lastServiceEndId = extractStopDbId(
+    lastServiceLeg.stop_times?.[lastServiceLeg.stop_times.length - 1]
+  );
+  const candidates = legs.filter(
+    (leg) =>
+      isTransferAuxLeg(leg) &&
+      Number(leg.sequence_number) > lastServiceSeq
+  );
+  if (!candidates.length) {
+    return null;
+  }
+
+  const bySequenceAsc = [...candidates].sort(
+    (left, right) => Number(left.sequence_number) - Number(right.sequence_number)
+  );
+  const connectsFromLastService = (leg) => {
+    const returnStartId = extractStopDbId(leg.stop_times?.[0]);
+    return Boolean(lastServiceEndId && returnStartId === lastServiceEndId);
+  };
+
+  if (connectsFromLastService(bySequenceAsc[0])) {
+    return bySequenceAsc[0];
+  }
+  return bySequenceAsc.find(connectsFromLastService) ?? null;
+};
+
+const resolveDepotIdFromLegSide = (leg, side, loadedDepots = []) => {
+  if (!leg) {
+    return "";
+  }
+
+  const stopTimes = Array.isArray(leg.stop_times) ? leg.stop_times : [];
+  if (!stopTimes.length) {
+    return "";
+  }
+
+  const stopTime =
+    side === "start" ? stopTimes[0] : stopTimes[stopTimes.length - 1];
+  const depot = findLoadedDepotByStopDbId(extractStopDbId(stopTime), loadedDepots);
+  if (depot?.id) {
+    return text(depot.id);
+  }
+
+  const fallbackName =
+    side === "start" ?
+      text(leg.start_stop_name).trim()
+    : text(leg.end_stop_name).trim();
+  const byName = findLoadedDepotByName(fallbackName, loadedDepots);
+  return byName?.id ? text(byName.id) : "";
+};
+
+export const resolveDepotPrefillFromStructure = ({
+  shift = {},
+  shiftInfo = null,
+  loadedDepots = [],
+} = {}) => {
+  const legs = mergeStructureWithInfoTrips(
+    shift?.structure,
+    shiftInfo?.trips
+  );
+  const outboundLeg = selectOutboundDepotLeg(legs);
+  const returnLeg = selectReturnDepotLeg(legs);
+
+  return {
+    startDepotId: resolveDepotIdFromLegSide(outboundLeg, "start", loadedDepots),
+    endDepotId: resolveDepotIdFromLegSide(returnLeg, "end", loadedDepots),
+  };
+};
+
+export const resolveShiftDepotIds = ({
+  shift = {},
+  shiftInfo = null,
+  loadedDepots = [],
+} = {}) => {
+  const explicitStartDepotId = firstAvailable(
+    shift?.start_depot_id,
+    shift?.startDepotId,
+    shift?.start_depot?.id,
+    shift?.startDepot?.id
+  );
+  const explicitEndDepotId = firstAvailable(
+    shift?.end_depot_id,
+    shift?.endDepotId,
+    shift?.end_depot?.id,
+    shift?.endDepot?.id
+  );
+  const inferred = resolveDepotPrefillFromStructure({
+    shift,
+    shiftInfo,
+    loadedDepots,
+  });
+
+  return {
+    startDepotId: explicitStartDepotId || inferred.startDepotId,
+    endDepotId: explicitEndDepotId || inferred.endDepotId,
+  };
+};

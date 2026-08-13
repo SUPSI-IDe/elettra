@@ -44,6 +44,7 @@ import {
   DAYS_OF_WEEK,
   evaluateTripEligibility,
   getEligibleScheduledTrips,
+  resolveShiftDepotIds,
 } from "./shift-utils";
 import {
   populateDayOptions,
@@ -809,7 +810,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     select.value = candidate;
   };
 
-  const applyShiftPrefill = (shift = {}) => {
+  const applyShiftPrefill = (shift = {}, shiftInfo = null) => {
     const name = firstAvailable(shift?.name);
     if (nameInput instanceof HTMLInputElement && name) {
       nameInput.value = name;
@@ -864,132 +865,31 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       endTimeInput.value = endTime;
     }
 
-    const startDepotId = firstAvailable(
-      shift?.start_depot_id,
-      shift?.startDepotId,
-      shift?.start_depot?.id,
-      shift?.startDepot?.id
-    );
+    const { startDepotId, endDepotId } = resolveShiftDepotIds({
+      shift,
+      shiftInfo,
+      loadedDepots,
+    });
     const startDepotLabel = firstAvailable(
       shift?.start_depot_name,
       shift?.startDepotName,
       shift?.start_depot?.name,
-      shift?.startDepot?.name
-    );
-    const endDepotId = firstAvailable(
-      shift?.end_depot_id,
-      shift?.endDepotId,
-      shift?.end_depot?.id,
-      shift?.endDepot?.id
+      shift?.startDepot?.name,
+      loadedDepots.find((depot) => text(depot?.id) === text(startDepotId))?.name
     );
     const endDepotLabel = firstAvailable(
       shift?.end_depot_name,
       shift?.endDepotName,
       shift?.end_depot?.name,
-      shift?.endDepot?.name
+      shift?.endDepot?.name,
+      loadedDepots.find((depot) => text(depot?.id) === text(endDepotId))?.name
     );
 
     prefillSelectValue(startDepotSelect, startDepotId, startDepotLabel);
     prefillSelectValue(endDepotSelect, endDepotId, endDepotLabel);
 
     const allTrips = readShiftTripsFromStructure(shift);
-    const depotTrips = allTrips.filter((trip) => isDepotTrip(trip));
     const trips = allTrips.filter((trip) => !isDepotTrip(trip));
-
-    // The API does NOT always return depot info as top-level shift fields.
-    // Fall back to auxiliary depot trips and match by linked stop_id first,
-    // then by depot label as a last resort.
-    const depotNameFromTrip = (trip) =>
-      (trip?.start_stop_name || trip?.startStopName ||
-       trip?.end_stop_name || trip?.endStopName ||
-       trip?.trip?.start_stop_name || trip?.trip?.end_stop_name || "").trim();
-
-    const depotStopIdFromTrip = (trip, side = "start") => {
-      if (!trip) {
-        return "";
-      }
-
-      const stop =
-        side === "start" ?
-          firstAvailable(
-            trip?.departure_stop_id,
-            trip?.departureStopId,
-            trip?.start_stop_id,
-            trip?.startStopId,
-            trip?.start_stop?.id,
-            trip?.start_stop?.stop_id,
-            trip?.startStop?.id,
-            trip?.trip?.departure_stop_id,
-            trip?.trip?.departureStopId,
-            trip?.trip?.start_stop_id,
-            trip?.trip?.startStopId,
-            trip?.trip?.start_stop?.id,
-            trip?.trip?.start_stop?.stop_id,
-            trip?.trip?.startStop?.id
-          )
-        : firstAvailable(
-            trip?.arrival_stop_id,
-            trip?.arrivalStopId,
-            trip?.end_stop_id,
-            trip?.endStopId,
-            trip?.end_stop?.id,
-            trip?.end_stop?.stop_id,
-            trip?.endStop?.id,
-            trip?.trip?.arrival_stop_id,
-            trip?.trip?.arrivalStopId,
-            trip?.trip?.end_stop_id,
-            trip?.trip?.endStopId,
-            trip?.trip?.end_stop?.id,
-            trip?.trip?.end_stop?.stop_id,
-            trip?.trip?.endStop?.id
-          );
-
-      return text(stop).trim();
-    };
-
-    const selectDepotByStopId = (select, stopId) => {
-      if (!(select instanceof HTMLSelectElement) || !stopId) {
-        return false;
-      }
-
-      const match = loadedDepots.find((depot) => text(depot?.stop_id).trim() === stopId);
-      if (!match?.id) {
-        return false;
-      }
-
-      prefillSelectValue(select, match.id, match?.name ?? match?.label ?? "");
-      return true;
-    };
-
-    const selectDepotByName = (select, name) => {
-      if (!(select instanceof HTMLSelectElement) || !name) return;
-      const match = Array.from(select.options).find(
-        (opt) => opt.value && opt.textContent.trim().toLowerCase() === name.toLowerCase()
-      );
-      if (match) select.value = match.value;
-    };
-
-    if (depotTrips.length > 0 && (!startDepotId || !endDepotId)) {
-      const startDepotTrip = depotTrips[0];
-      const endDepotTrip = depotTrips[depotTrips.length - 1];
-      const startDepotName = depotNameFromTrip(startDepotTrip);
-      const endDepotName = depotNameFromTrip(endDepotTrip);
-      const startDepotStopId = depotStopIdFromTrip(startDepotTrip, "start");
-      const endDepotStopId = depotStopIdFromTrip(endDepotTrip, "end");
-
-      if (!startDepotId) {
-        const matched = selectDepotByStopId(startDepotSelect, startDepotStopId);
-        if (!matched) {
-          selectDepotByName(startDepotSelect, startDepotName);
-        }
-      }
-      if (!endDepotId) {
-        const matched = selectDepotByStopId(endDepotSelect, endDepotStopId);
-        if (!matched) {
-          selectDepotByName(endDepotSelect, endDepotName);
-        }
-      }
-    }
     selectedTrips = trips;
     selectedTripIds.clear();
     trips.forEach((trip = {}) => {
@@ -1937,7 +1837,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       }
 
       const hydratedShift = await hydrateShift(shift, shiftInfo);
-      applyShiftPrefill(hydratedShift);
+      applyShiftPrefill(hydratedShift, shiftInfo);
 
       updateTimeline();
 
