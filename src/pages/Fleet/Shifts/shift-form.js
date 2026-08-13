@@ -39,7 +39,6 @@ import {
   resolveTripPk,
   normalizeTrip,
   resolveRouteLabel,
-  readShiftTripsFromStructure,
   getNextDay,
   DAYS_OF_WEEK,
   evaluateTripEligibility,
@@ -48,6 +47,9 @@ import {
   resolveShiftDepotIds,
   isShiftClosedAtDepot,
   resolveScheduledTripsEmptyMessageKey,
+  buildEditableTripsFromShift,
+  filterServiceTripsForSave,
+  assessEditRouteReconstruction,
 } from "./shift-utils";
 import {
   populateDayOptions,
@@ -392,6 +394,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   let loadedShiftForDepotState = null;
   let loadedShiftInfoForDepotState = null;
   let initialSelectedTripDbIds = new Set();
+  let editRouteReconstructionBlocked = false;
 
   const dedupeTrips = (trips = []) => {
     const seenTripIds = new Set();
@@ -838,7 +841,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     select.value = candidate;
   };
 
-  const applyShiftPrefill = (shift = {}, shiftInfo = null) => {
+  const applyShiftPrefill = (
+    shift = {},
+    shiftInfo = null,
+    { reconstructRoute = true } = {}
+  ) => {
     loadedShiftForDepotState = shift;
     loadedShiftInfoForDepotState = shiftInfo;
 
@@ -919,21 +926,27 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     prefillSelectValue(startDepotSelect, startDepotId, startDepotLabel);
     prefillSelectValue(endDepotSelect, endDepotId, endDepotLabel);
 
-    const allTrips = readShiftTripsFromStructure(shift);
-    const trips = allTrips.filter((trip) => !isDepotTrip(trip));
-    selectedTrips = trips;
-    selectedTripIds.clear();
-    initialSelectedTripDbIds = new Set();
-    trips.forEach((trip = {}) => {
-      const id = resolveTripId(trip);
-      const dbId = text(trip?.id).trim();
-      if (id) {
-        selectedTripIds.add(id);
-      }
-      if (dbId) {
-        initialSelectedTripDbIds.add(dbId);
-      }
-    });
+    let trips = [];
+    if (reconstructRoute) {
+      trips = buildEditableTripsFromShift({ shift, shiftInfo });
+      selectedTrips = trips;
+      selectedTripIds.clear();
+      initialSelectedTripDbIds = new Set();
+      trips.forEach((trip = {}) => {
+        const id = resolveTripId(trip);
+        const dbId = text(trip?.id).trim();
+        if (id) {
+          selectedTripIds.add(id);
+        }
+        if (dbId) {
+          initialSelectedTripDbIds.add(dbId);
+        }
+      });
+    } else {
+      selectedTrips = [];
+      selectedTripIds.clear();
+      initialSelectedTripDbIds = new Set();
+    }
 
     // Extract route/line information from the shift (from shiftInfo) or first trip
     const firstTrip = trips[0] ?? {};
@@ -1338,9 +1351,16 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     updateFeedback(feedback, "");
 
+    if (isEditMode && editRouteReconstructionBlocked) {
+      updateFeedback(feedback, t("shifts.unable_to_load_for_edit"), "error");
+      return;
+    }
+
+    const serviceTripsForSave = filterServiceTripsForSave(selectedTrips);
+
     const { name, busId, tripIds, startTime, endTime, startDepotId, endDepotId } = buildShiftPayload({
       form,
-      selectedTrips,
+      selectedTrips: serviceTripsForSave,
     });
 
     if (!name || !busId) {
@@ -1363,8 +1383,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       let allTripIds = [...tripIds];
       
       // Get route info for auxiliary trips
-      const firstTrip = selectedTrips[0];
-      const lastTrip = selectedTrips[selectedTrips.length - 1];
+      const firstTrip = serviceTripsForSave[0];
+      const lastTrip = serviceTripsForSave[serviceTripsForSave.length - 1];
       const routeId = lineSelect?.value || firstTrip?.route_id || null;
       
       // Find depot objects to get their stop_id
@@ -1873,12 +1893,28 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       }
 
       const hydratedShift = await hydrateShift(shift, shiftInfo);
-      applyShiftPrefill(hydratedShift, shiftInfo);
+      const reconstruction = assessEditRouteReconstruction({
+        shift: hydratedShift,
+        shiftInfo,
+      });
+      editRouteReconstructionBlocked = !reconstruction.ok;
+      if (editRouteReconstructionBlocked) {
+        console.warn("[SHIFT] Edit route reconstruction unsafe:", reconstruction);
+      }
+
+      applyShiftPrefill(hydratedShift, shiftInfo, {
+        reconstructRoute: !editRouteReconstructionBlocked,
+      });
 
       updateTimeline();
 
       toggleFormDisabled(form, false);
-      if (nameInput instanceof HTMLInputElement) {
+      if (editRouteReconstructionBlocked) {
+        updateFeedback(feedback, t("shifts.unable_to_load_for_edit"), "error");
+        if (submitButton) {
+          submitButton.disabled = true;
+        }
+      } else if (nameInput instanceof HTMLInputElement) {
         nameInput.focus();
         const length = nameInput.value.length;
         nameInput.setSelectionRange(length, length);

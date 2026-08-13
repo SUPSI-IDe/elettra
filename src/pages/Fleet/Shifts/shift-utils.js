@@ -709,10 +709,19 @@ const selectOutboundDepotLeg = (legs = []) => {
   const bySequenceDesc = [...candidates].sort(
     (left, right) => Number(right.sequence_number) - Number(left.sequence_number)
   );
+  const firstServiceStartName = text(firstServiceLeg.start_stop_name).trim();
   const connectsToFirstService = (leg) => {
     const lastStop = leg.stop_times?.[leg.stop_times.length - 1];
     const outboundEndId = extractStopDbId(lastStop);
-    return Boolean(firstServiceStartId && outboundEndId === firstServiceStartId);
+    if (firstServiceStartId && outboundEndId) {
+      return outboundEndId === firstServiceStartId;
+    }
+    const outboundEndName = text(leg.end_stop_name).trim();
+    return Boolean(
+      firstServiceStartName &&
+        outboundEndName &&
+        outboundEndName === firstServiceStartName
+    );
   };
 
   if (connectsToFirstService(bySequenceDesc[0])) {
@@ -743,9 +752,18 @@ const selectReturnDepotLeg = (legs = []) => {
   const bySequenceAsc = [...candidates].sort(
     (left, right) => Number(left.sequence_number) - Number(right.sequence_number)
   );
+  const lastServiceEndName = text(lastServiceLeg.end_stop_name).trim();
   const connectsFromLastService = (leg) => {
     const returnStartId = extractStopDbId(leg.stop_times?.[0]);
-    return Boolean(lastServiceEndId && returnStartId === lastServiceEndId);
+    if (lastServiceEndId && returnStartId) {
+      return returnStartId === lastServiceEndId;
+    }
+    const returnStartName = text(leg.start_stop_name).trim();
+    return Boolean(
+      lastServiceEndName &&
+        returnStartName &&
+        returnStartName === lastServiceEndName
+    );
   };
 
   if (connectsFromLastService(bySequenceAsc[0])) {
@@ -753,6 +771,258 @@ const selectReturnDepotLeg = (legs = []) => {
   }
   return bySequenceAsc.find(connectsFromLastService) ?? null;
 };
+
+const isAuxiliaryLegMarker = (leg = {}) => {
+  const gtfsTripId = text(leg?.gtfs_trip_id).trim();
+  if (gtfsTripId.startsWith("depot-")) {
+    return true;
+  }
+
+  const status = text(firstAvailable(leg?.status, leg?.trip?.status)).toLowerCase();
+  if (status === "depot") {
+    return true;
+  }
+
+  if (
+    leg?.trip_type === "auxiliary" ||
+    leg?.trip?.trip_type === "auxiliary"
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+const hasSameEndpoint = (leg = {}) => {
+  const start = text(leg?.start_stop_name).trim();
+  const end = text(leg?.end_stop_name).trim();
+  if (start && end && start === end) {
+    return true;
+  }
+
+  const stopTimes = Array.isArray(leg?.stop_times) ? leg.stop_times : [];
+  if (stopTimes.length >= 2) {
+    const firstStopId = extractStopDbId(stopTimes[0]);
+    const lastStopId = extractStopDbId(stopTimes[stopTimes.length - 1]);
+    if (firstStopId && lastStopId && firstStopId === lastStopId) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const isAuxDwellLeg = (leg = {}) => {
+  if (isGtfsServiceLeg(leg)) {
+    return false;
+  }
+  if (!isAuxiliaryLegMarker(leg)) {
+    return false;
+  }
+  return hasSameEndpoint(leg);
+};
+
+const mergedLegToEditableTrip = (leg = {}) => {
+  const dbUuid = text(leg?.trip_db_id ?? leg?.trip_id ?? "").trim();
+  if (!dbUuid) {
+    return null;
+  }
+
+  const gtfsTripId = text(leg?.gtfs_trip_id ?? "").trim();
+  const combined = {
+    ...leg,
+    trip_id: gtfsTripId,
+    id: dbUuid,
+    trip_db_id: dbUuid,
+    start_stop_name: leg.start_stop_name,
+    end_stop_name: leg.end_stop_name,
+    stop_times: leg.stop_times,
+  };
+
+  const normalized = normalizeTrip(combined);
+  if (!normalized.trip_id && !normalized.id) {
+    return null;
+  }
+
+  return normalized;
+};
+
+export const buildEditableTripsFromShift = ({ shift = {}, shiftInfo = null } = {}) => {
+  const legs = mergeStructureWithInfoTrips(shift?.structure, shiftInfo?.trips);
+  if (!legs.length) {
+    return [];
+  }
+
+  const outboundLeg = selectOutboundDepotLeg(legs);
+  const returnLeg = selectReturnDepotLeg(legs);
+  const outboundId = text(outboundLeg?.trip_db_id ?? "").trim();
+  const returnId = text(returnLeg?.trip_db_id ?? "").trim();
+
+  const editable = [];
+
+  for (const leg of legs) {
+    const dbId = text(leg?.trip_db_id ?? "").trim();
+
+    if (isAuxDwellLeg(leg)) {
+      console.warn("[SHIFT] Excluding dwell auxiliary leg from editable trips:", dbId);
+      continue;
+    }
+
+    if (isGtfsServiceLeg(leg)) {
+      const trip = mergedLegToEditableTrip(leg);
+      if (trip) {
+        editable.push(trip);
+      }
+      continue;
+    }
+
+    if (isTransferAuxLeg(leg)) {
+      if (dbId && (dbId === outboundId || dbId === returnId)) {
+        const trip = mergedLegToEditableTrip(leg);
+        if (trip) {
+          editable.push(trip);
+        }
+      }
+      continue;
+    }
+
+    console.warn("[SHIFT] Excluding unclassifiable leg from editable trips:", dbId);
+  }
+
+  return editable;
+};
+
+const isServiceTripForSave = (trip = {}) => {
+  const gtfsTripId = text(
+    trip?.trip_id ?? trip?.tripId ?? trip?.gtfs_trip_id ?? ""
+  ).trim();
+
+  if (gtfsTripId.startsWith("depot-")) {
+    return false;
+  }
+
+  if (
+    trip?.status === "depot" ||
+    trip?.trip?.status === "depot" ||
+    trip?.trip_type === "auxiliary" ||
+    trip?.trip?.trip_type === "auxiliary"
+  ) {
+    return false;
+  }
+
+  if (!gtfsTripId) {
+    return false;
+  }
+
+  const dbUuid = text(trip?.id ?? trip?.trip_db_id ?? "").trim();
+  if (dbUuid && gtfsTripId === dbUuid) {
+    return false;
+  }
+
+  return true;
+};
+
+export const filterServiceTripsForSave = (selectedTrips = []) =>
+  (Array.isArray(selectedTrips) ? selectedTrips : []).filter(isServiceTripForSave);
+
+const getStructureTripDbIds = (shift = {}) => {
+  const structure = Array.isArray(shift?.structure) ? shift.structure : [];
+  return structure
+    .map((item) => text(item?.trip_id ?? item?.tripId ?? "").trim())
+    .filter(Boolean);
+};
+
+const getInfoTripsByDbId = (infoTrips = []) =>
+  new Map(
+    (Array.isArray(infoTrips) ? infoTrips : [])
+      .filter((trip) => text(trip?.id).trim())
+      .map((trip) => [text(trip.id), trip])
+  );
+
+const getGtfsTripIdFromInfoTrip = (info = {}) =>
+  text(info?.trip_id ?? info?.tripId ?? "").trim();
+
+/**
+ * Decide whether persisted shift structure can be safely reconstructed into the
+ * editable route for Edit mode. Requires shiftInfo.trips to supply GTFS business
+ * trip IDs; structure trip_id values alone are database UUIDs and are not enough.
+ */
+export const assessEditRouteReconstruction = ({
+  shift = {},
+  shiftInfo = null,
+} = {}) => {
+  const structureDbIds = getStructureTripDbIds(shift);
+  if (structureDbIds.length === 0) {
+    return { ok: true, reason: null };
+  }
+
+  const infoTrips = shiftInfo?.trips;
+  if (!Array.isArray(infoTrips) || infoTrips.length === 0) {
+    return {
+      ok: false,
+      reason: "missing_shift_info_trips",
+      structureDbIds,
+    };
+  }
+
+  const infoById = getInfoTripsByDbId(infoTrips);
+  const legsWithoutInfo = mergeStructureWithInfoTrips(shift?.structure, []);
+  const legsByDbId = new Map(
+    legsWithoutInfo.map((leg) => [text(leg?.trip_db_id ?? "").trim(), leg])
+  );
+
+  const missingMetadataDbIds = [];
+  for (const dbId of structureDbIds) {
+    const leg = legsByDbId.get(dbId) ?? {};
+    if (isAuxDwellLeg(leg)) {
+      continue;
+    }
+    const gtfsTripId = getGtfsTripIdFromInfoTrip(infoById.get(dbId) ?? {});
+    if (!gtfsTripId) {
+      missingMetadataDbIds.push(dbId);
+    }
+  }
+
+  if (missingMetadataDbIds.length > 0) {
+    return {
+      ok: false,
+      reason: "incomplete_trip_metadata",
+      missingMetadataDbIds,
+      structureDbIds,
+    };
+  }
+
+  const serviceStructureDbIds = structureDbIds.filter((dbId) => {
+    const gtfsTripId = getGtfsTripIdFromInfoTrip(infoById.get(dbId) ?? {});
+    return gtfsTripId && !gtfsTripId.startsWith("depot-");
+  });
+
+  if (serviceStructureDbIds.length === 0) {
+    return { ok: true, reason: null };
+  }
+
+  const editable = buildEditableTripsFromShift({ shift, shiftInfo });
+  const recoveredServiceDbIds = new Set(
+    filterServiceTripsForSave(editable).map((trip) => text(trip?.id).trim())
+  );
+  const lostServiceDbIds = serviceStructureDbIds.filter(
+    (dbId) => !recoveredServiceDbIds.has(dbId)
+  );
+
+  if (lostServiceDbIds.length > 0) {
+    return {
+      ok: false,
+      reason: "service_trips_not_recovered",
+      lostServiceDbIds,
+      structureDbIds,
+    };
+  }
+
+  return { ok: true, reason: null };
+};
+
+export const isEditRouteReconstructionSafe = (args = {}) =>
+  assessEditRouteReconstruction(args).ok;
 
 const resolveDepotIdFromLegSide = (leg, side, loadedDepots = []) => {
   if (!leg) {
