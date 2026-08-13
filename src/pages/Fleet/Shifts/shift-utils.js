@@ -797,6 +797,116 @@ export const resolveDepotPrefillFromStructure = ({
   };
 };
 
+export const hasReturnDepotLegInStructure = ({
+  shift = {},
+  shiftInfo = null,
+  endDepotId = "",
+  loadedDepots = [],
+} = {}) => {
+  const returnLeg = selectReturnDepotLeg(
+    mergeStructureWithInfoTrips(shift?.structure, shiftInfo?.trips)
+  );
+  if (!returnLeg) {
+    return false;
+  }
+
+  const configuredEndDepotId = text(endDepotId).trim();
+  if (!configuredEndDepotId) {
+    return false;
+  }
+
+  const legEndDepotId = resolveDepotIdFromLegSide(returnLeg, "end", loadedDepots);
+  if (legEndDepotId && legEndDepotId !== configuredEndDepotId) {
+    return false;
+  }
+
+  return true;
+};
+
+const resolveReturnDepotLegDbId = ({ shift = {}, shiftInfo = null } = {}) => {
+  const returnLeg = selectReturnDepotLeg(
+    mergeStructureWithInfoTrips(shift?.structure, shiftInfo?.trips)
+  );
+  return text(returnLeg?.trip_id ?? returnLeg?.tripId ?? "").trim();
+};
+
+const normalizeInitialSelectedTripDbIds = (initialSelectedTripDbIds) => {
+  if (initialSelectedTripDbIds instanceof Set) {
+    return initialSelectedTripDbIds;
+  }
+  if (Array.isArray(initialSelectedTripDbIds)) {
+    return new Set(
+      initialSelectedTripDbIds.map((id) => text(id).trim()).filter(Boolean)
+    );
+  }
+  return null;
+};
+
+const isReturnDepotLegSelected = (trips = [], returnLegDbId = "") => {
+  const candidate = text(returnLegDbId).trim();
+  if (!candidate) {
+    return false;
+  }
+  return (Array.isArray(trips) ? trips : []).some(
+    (trip) => text(trip?.id ?? trip?.trip_db_id ?? "").trim() === candidate
+  );
+};
+
+export const isShiftClosedAtDepot = ({
+  selectedTrips = [],
+  endDepotId = "",
+  loadedDepots = [],
+  shift = null,
+  shiftInfo = null,
+  initialSelectedTripDbIds = null,
+} = {}) => {
+  if (!text(endDepotId).trim()) {
+    return false;
+  }
+  if (!Array.isArray(selectedTrips) || selectedTrips.length === 0) {
+    return false;
+  }
+  if (!shift?.structure || !Array.isArray(shift.structure) || shift.structure.length === 0) {
+    return false;
+  }
+  if (!hasReturnDepotLegInStructure({ shift, shiftInfo, endDepotId, loadedDepots })) {
+    return false;
+  }
+
+  const returnLegDbId = resolveReturnDepotLegDbId({ shift, shiftInfo });
+  if (!returnLegDbId) {
+    return false;
+  }
+
+  if (isReturnDepotLegSelected(selectedTrips, returnLegDbId)) {
+    return true;
+  }
+
+  const initialIds = normalizeInitialSelectedTripDbIds(initialSelectedTripDbIds);
+  if (initialIds?.has(returnLegDbId)) {
+    return false;
+  }
+
+  return true;
+};
+
+export const resolveScheduledTripsEmptyMessageKey = ({
+  eligibleTripsCount = 0,
+  currentTripsCount = 0,
+  isClosedAtDepot = false,
+} = {}) => {
+  if (eligibleTripsCount > 0) {
+    return null;
+  }
+  if (currentTripsCount === 0) {
+    return "shifts.no_trips_match";
+  }
+  if (isClosedAtDepot) {
+    return "shifts.shift_closed_at_depot";
+  }
+  return "shifts.no_valid_trips_to_add";
+};
+
 export const resolveShiftDepotIds = ({
   shift = {},
   shiftInfo = null,

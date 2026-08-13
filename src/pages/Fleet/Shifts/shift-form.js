@@ -46,6 +46,8 @@ import {
   getEligibleScheduledTrips,
   normalizeOperationalTripCandidates,
   resolveShiftDepotIds,
+  isShiftClosedAtDepot,
+  resolveScheduledTripsEmptyMessageKey,
 } from "./shift-utils";
 import {
   populateDayOptions,
@@ -387,6 +389,9 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   let currentTrips = [];
   const selectedTripIds = new Set();
   let selectedTrips = [];
+  let loadedShiftForDepotState = null;
+  let loadedShiftInfoForDepotState = null;
+  let initialSelectedTripDbIds = new Set();
 
   const dedupeTrips = (trips = []) => {
     const seenTripIds = new Set();
@@ -470,6 +475,28 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     shiftEndTime: getShiftEndTime(),
   });
 
+  const getEndDepotId = () =>
+    endDepotSelect instanceof HTMLSelectElement ? endDepotSelect.value.trim() : "";
+
+  const getIsShiftClosedAtDepot = () =>
+    isShiftClosedAtDepot({
+      selectedTrips,
+      endDepotId: getEndDepotId(),
+      loadedDepots,
+      shift: loadedShiftForDepotState,
+      shiftInfo: loadedShiftInfoForDepotState,
+      initialSelectedTripDbIds,
+    });
+
+  const getScheduledTripsEmptyMessage = (eligibleTripsCount = 0) => {
+    const messageKey = resolveScheduledTripsEmptyMessageKey({
+      eligibleTripsCount,
+      currentTripsCount: currentTrips.length,
+      isClosedAtDepot: getIsShiftClosedAtDepot(),
+    });
+    return messageKey ? t(messageKey) : "";
+  };
+
   const refreshScheduledTrips = () => {
     const renderState = getScheduledTripsRenderState();
     const eligibleTrips = getEligibleScheduledTrips(renderState);
@@ -487,9 +514,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateEmptyState(
       scheduledTripsEmpty,
       eligibleTrips.length > 0,
-      currentTrips.length > 0 ?
-        t("shifts.no_valid_trips_to_add")
-      : t("shifts.no_trips_match")
+      getScheduledTripsEmptyMessage(eligibleTrips.length)
     );
 
     return eligibleTrips;
@@ -751,7 +776,9 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     if (addedCount === 0) {
       updateFeedback(
         feedback,
-        t("shifts.no_valid_trips_to_add") || "No trips can be added with the current depot time limits.",
+        getScheduledTripsEmptyMessage(0) ||
+          t("shifts.no_valid_trips_to_add") ||
+          "No trips can be added with the current depot time limits.",
         "info"
       );
       return;
@@ -812,6 +839,9 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const applyShiftPrefill = (shift = {}, shiftInfo = null) => {
+    loadedShiftForDepotState = shift;
+    loadedShiftInfoForDepotState = shiftInfo;
+
     const name = firstAvailable(shift?.name);
     if (nameInput instanceof HTMLInputElement && name) {
       nameInput.value = name;
@@ -893,10 +923,15 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     const trips = allTrips.filter((trip) => !isDepotTrip(trip));
     selectedTrips = trips;
     selectedTripIds.clear();
+    initialSelectedTripDbIds = new Set();
     trips.forEach((trip = {}) => {
       const id = resolveTripId(trip);
+      const dbId = text(trip?.id).trim();
       if (id) {
         selectedTripIds.add(id);
+      }
+      if (dbId) {
+        initialSelectedTripDbIds.add(dbId);
       }
     });
 
