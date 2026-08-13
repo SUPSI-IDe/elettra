@@ -44,6 +44,7 @@ import {
   DAYS_OF_WEEK,
   evaluateTripEligibility,
   getEligibleScheduledTrips,
+  normalizeOperationalTripCandidates,
   resolveShiftDepotIds,
 } from "./shift-utils";
 import {
@@ -1199,26 +1200,26 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       // Remove duplicates by tracking seen IDs (both trip_id and database id)
       const seenTripIds = new Set();
       const seenDbIds = new Set();
-      currentTrips = normalizedTrips
-        .filter((trip) => {
+      currentTrips = normalizeOperationalTripCandidates(
+        normalizedTrips.filter((trip) => {
           const tripId = resolveTripId(trip);
           const dbId = trip?.id;
-          
+
           // Check if we've seen this trip before (by either ID)
           const isDuplicateByTripId = tripId && seenTripIds.has(tripId);
           const isDuplicateByDbId = dbId && seenDbIds.has(dbId);
-          
+
           if (isDuplicateByTripId || isDuplicateByDbId) {
             return false;
           }
-          
+
           // Mark this trip as seen
           if (tripId) seenTripIds.add(tripId);
           if (dbId) seenDbIds.add(dbId);
-          
+
           return true;
         })
-        .sort((a, b) => {
+      ).sort((a, b) => {
           const timeA = a.departure_time || "";
           const timeB = b.departure_time || "";
           return timeA.localeCompare(timeB);

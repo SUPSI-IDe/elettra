@@ -318,6 +318,182 @@ export const getEligibleScheduledTrips = ({
     .filter((result) => result.valid)
     .map((result) => result.trip);
 
+const resolveDirectionId = (trip = {}) =>
+  text(
+    firstAvailable(
+      trip?.direction_id,
+      trip?.directionId,
+      trip?.trip?.direction_id,
+      trip?.trip?.directionId
+    )
+  ).trim();
+
+const resolveShapeId = (trip = {}) =>
+  text(
+    firstAvailable(
+      trip?.shape_id,
+      trip?.shapeId,
+      trip?.trip?.shape_id,
+      trip?.trip?.shapeId
+    )
+  ).trim();
+
+const resolveTripHeadsign = (trip = {}) =>
+  text(
+    firstAvailable(
+      trip?.trip_headsign,
+      trip?.tripHeadsign,
+      trip?.trip?.trip_headsign,
+      trip?.trip?.tripHeadsign
+    )
+  ).trim();
+
+const isGtfsOperationalCandidate = (trip = {}) => {
+  const status = text(firstAvailable(trip?.status, trip?.trip?.status)).toLowerCase();
+  if (status !== "gtfs") {
+    return false;
+  }
+
+  const tripId = resolveTripId(trip);
+  if (tripId.startsWith("depot-")) {
+    return false;
+  }
+
+  if (
+    trip?.trip_type === "auxiliary" ||
+    trip?.trip?.trip_type === "auxiliary"
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+const buildOperationalCandidateKey = (trip = {}) => {
+  const normalized = normalizeTrip(trip);
+  const routeId = text(normalized.route_id).trim();
+  const directionId = resolveDirectionId(trip);
+  const shapeId = resolveShapeId(trip);
+  const startStop = normalizeStopName(normalized.start_stop_name);
+  const endStop = normalizeStopName(normalized.end_stop_name);
+  const departure = text(normalized.departure_time).trim();
+  const arrival = text(normalized.arrival_time).trim();
+  const headsign = resolveTripHeadsign(trip);
+
+  const critical = [
+    routeId,
+    directionId,
+    shapeId,
+    departure,
+    arrival,
+    startStop,
+    endStop,
+  ];
+  if (critical.some((value) => !value)) {
+    return null;
+  }
+
+  return [
+    routeId,
+    directionId,
+    shapeId,
+    startStop,
+    endStop,
+    departure,
+    arrival,
+    headsign,
+  ].join("\x1f");
+};
+
+const compareOperationalRepresentatives = (left = {}, right = {}) => {
+  const leftService = text(
+    firstAvailable(
+      left?.gtfs_service_id,
+      left?.gtfsServiceId,
+      left?.service_id,
+      left?.serviceId
+    )
+  );
+  const rightService = text(
+    firstAvailable(
+      right?.gtfs_service_id,
+      right?.gtfsServiceId,
+      right?.service_id,
+      right?.serviceId
+    )
+  );
+  if (leftService !== rightService) {
+    return leftService.localeCompare(rightService);
+  }
+
+  const leftTripId = resolveTripId(left);
+  const rightTripId = resolveTripId(right);
+  if (leftTripId !== rightTripId) {
+    return leftTripId.localeCompare(rightTripId);
+  }
+
+  return text(left?.id).localeCompare(text(right?.id));
+};
+
+const selectOperationalRepresentative = (trips = []) => {
+  if (!Array.isArray(trips) || trips.length === 0) {
+    return null;
+  }
+  return [...trips].sort(compareOperationalRepresentatives)[0];
+};
+
+// Collapse mutually exclusive GTFS calendar variants that share the same
+// operational schedule. Non-GTFS and incomplete-identity records pass through.
+export const normalizeOperationalTripCandidates = (trips = []) => {
+  const list = Array.isArray(trips) ? trips : [];
+  const passthroughIndices = new Set();
+  const groupedMembers = new Map();
+
+  list.forEach((trip, index) => {
+    if (!isGtfsOperationalCandidate(trip)) {
+      passthroughIndices.add(index);
+      return;
+    }
+
+    const key = buildOperationalCandidateKey(trip);
+    if (!key) {
+      passthroughIndices.add(index);
+      return;
+    }
+
+    if (!groupedMembers.has(key)) {
+      groupedMembers.set(key, []);
+    }
+    groupedMembers.get(key).push(trip);
+  });
+
+  const representativeByKey = new Map();
+  for (const [key, members] of groupedMembers.entries()) {
+    representativeByKey.set(key, selectOperationalRepresentative(members));
+  }
+
+  const emittedKeys = new Set();
+  const normalized = [];
+
+  for (let index = 0; index < list.length; index += 1) {
+    const trip = list[index];
+    if (passthroughIndices.has(index)) {
+      normalized.push(trip);
+      continue;
+    }
+
+    const key = buildOperationalCandidateKey(trip);
+    if (!key || emittedKeys.has(key)) {
+      continue;
+    }
+
+    emittedKeys.add(key);
+    normalized.push(representativeByKey.get(key));
+  }
+
+  return normalized;
+};
+
 export const readShiftTripsFromStructure = (shift = {}) => {
   const structure = Array.isArray(shift?.structure) ? shift.structure : [];
   if (structure.length === 0) {
