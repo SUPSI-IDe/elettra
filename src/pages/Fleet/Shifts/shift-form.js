@@ -23,6 +23,7 @@ import { resolveUserId, resolveAgencyId } from "../../../api/session";
 import { showTripPreview, hideTripPreview } from "./trip-preview";
 import { renderTimeline } from "./shift-timeline";
 import { triggerPartialLoad } from "../../../events";
+import { invalidateShiftDistanceCache } from "../../../utils/shift-distance";
 import { getOwnedBuses, setOwnedBuses, getModelsById } from "../../../store";
 import {
   textContent,
@@ -1576,6 +1577,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
       if (isEditMode) {
         await updateShift(shiftId, { name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId });
+        invalidateShiftDistanceCache(shiftId);
         updateFeedback(feedback, t("shifts.shift_updated"), "success");
         triggerPartialLoad("shifts", {
           flashMessage: t("shifts.shift_updated"),

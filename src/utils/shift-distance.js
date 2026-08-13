@@ -197,6 +197,21 @@ export const extractShiftYearlyDistanceKm = (shift = {}) =>
 const yearlyDistancePromiseCache = new Map();
 const dailyDistancePromiseCache = new Map();
 
+export const invalidateShiftDistanceCache = (shiftId) => {
+  const normalizedId = String(shiftId ?? "").trim();
+  if (!normalizedId) {
+    return;
+  }
+
+  dailyDistancePromiseCache.delete(normalizedId);
+
+  for (const cacheKey of yearlyDistancePromiseCache.keys()) {
+    if (cacheKey === normalizedId || cacheKey.startsWith(`${normalizedId}:`)) {
+      yearlyDistancePromiseCache.delete(cacheKey);
+    }
+  }
+};
+
 export const fetchShiftYearlyDistanceKm = async (
   shiftId,
   { recurrence = DAILY_DISTANCE_RECURRENCE } = {}

@@ -19,6 +19,7 @@ import { textContent, resolveBusModelDisplayName } from "../../../ui-helpers";
 import {
   extractShiftDistanceKm,
   formatDistanceKm,
+  invalidateShiftDistanceCache,
   resolveShiftDailyDistanceKm,
 } from "../../../utils/shift-distance";
 import { buildDuplicateShiftPayload } from "./shift-utils";
@@ -863,6 +864,7 @@ export const initializeShifts = async (root = document, options = {}) => {
 
     try {
       await Promise.all(ids.map((id) => deleteShift(id)));
+      ids.forEach((id) => invalidateShiftDistanceCache(id));
       console.log(t("shifts.deleted"));
       await loadShifts();
     } catch (error) {
