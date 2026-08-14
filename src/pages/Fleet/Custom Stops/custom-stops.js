@@ -1,6 +1,16 @@
 import { t } from "../../../i18n";
 import "./custom-stops.css";
 import { deleteDepot, fetchDepots } from "../../../api";
+import { fetchAllShifts, fetchShiftById, fetchShiftInfo } from "../../../api/shifts";
+import { fetchStopsByTripId } from "../../../api/gtfs";
+import {
+  fetchAllOptimizationRuns,
+  fetchOptimizationRun,
+} from "../../../api/simulation";
+import {
+  prepareCustomStopDeletion,
+  resolveCustomStopDeleteFailure,
+} from "../../../utils/custom-stop-deletion";
 import { resolveUserId, isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
@@ -178,23 +188,48 @@ export const initializeCustomStops = async (root = document, options = {}) => {
   const handleDeleteClick = async () => {
     const ids = getSelectedIdsFrom(table);
     if (!ids.length) {
-      console.error("Select at least one custom stop.");
+      setFlashMessage(section, t("custom_stops.select_min"));
       return;
     }
 
-    const confirmDelete = confirm(
-      t("custom_stops.delete_confirm", { count: ids.length })
-    );
-    if (!confirmDelete) {
-      return;
+    if (deleteButton) {
+      deleteButton.disabled = true;
     }
 
     try {
+      const preparation = await prepareCustomStopDeletion({
+        selectedDepotIds: ids,
+        depots: allDepots,
+        fetchAllShifts,
+        fetchShiftDetail: fetchShiftById,
+        fetchShiftInfo,
+        fetchTripStops: fetchStopsByTripId,
+        fetchAllOptimizationRuns,
+        fetchOptimizationRunDetail: fetchOptimizationRun,
+        showFlash: (message) => setFlashMessage(section, message),
+        translate: t,
+      });
+      if (!preparation.proceed) {
+        return;
+      }
+
+      const confirmDelete = confirm(
+        t("custom_stops.delete_confirm", { count: ids.length })
+      );
+      if (!confirmDelete) {
+        return;
+      }
+
       await Promise.all(ids.map((id) => deleteDepot(id)));
-      console.log("Custom stop(s) deleted.");
+      setFlashMessage(section, t("custom_stops.deleted"));
       await reload();
     } catch (error) {
-      console.error("Failed to delete custom stop(s)", error);
+      const resolved = resolveCustomStopDeleteFailure(error, t);
+      setFlashMessage(section, resolved.message);
+    } finally {
+      if (deleteButton) {
+        deleteButton.disabled = false;
+      }
     }
   };
   if (deleteButton) {

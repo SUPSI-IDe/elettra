@@ -49,6 +49,18 @@ const buildAnalysisName = (a) => {
   return [shifts, date].filter(Boolean).join(" · ") || text(a.id).slice(0, 8);
 };
 
+const setFlashMessage = (section, message) => {
+  const flashEl = section?.querySelector('[data-role="flash"]');
+  if (!flashEl) return;
+  if (message) {
+    flashEl.textContent = message;
+    flashEl.hidden = false;
+  } else {
+    flashEl.textContent = "";
+    flashEl.hidden = true;
+  }
+};
+
 export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
   const section = root.querySelector("section.yearly-analysis-runs");
   if (!section) return null;
@@ -271,6 +283,8 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
     });
     if (!confirm(confirmMessage)) return;
 
+    let deleteFailed = false;
+
     for (const row of checked) {
       const id = row.dataset.id;
       if (!id) continue;
@@ -279,7 +293,12 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
         await deleteYearlyAnalysis(id);
       } catch (err) {
         console.error(`Failed to delete analysis ${id}:`, err);
+        deleteFailed = true;
       }
+    }
+
+    if (deleteFailed) {
+      setFlashMessage(section, t("yearly_analysis.delete_failed"));
     }
 
     await loadAnalyses();

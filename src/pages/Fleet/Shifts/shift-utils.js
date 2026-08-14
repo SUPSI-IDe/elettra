@@ -1177,6 +1177,93 @@ export const resolveScheduledTripsEmptyMessageKey = ({
   return "shifts.no_valid_trips_to_add";
 };
 
+/**
+ * GTFS stop DB ids (depot.stop_id values) referenced by auxiliary depot legs.
+ * Used by custom-stop protected deletion; mirrors shift-editor depot-leg semantics.
+ *
+ * @param {Object} options
+ * @param {unknown} options.shift
+ * @param {unknown} [options.shiftInfo]
+ * @param {(tripId: string) => Promise<unknown>} options.fetchTripStops
+ * @param {Map<string, unknown[]>} [options.tripStopCache]
+ * @returns {Promise<string[]>}
+ */
+export const resolveDepotStopIdsFromShiftForDeletion = async ({
+  shift = {},
+  shiftInfo = null,
+  fetchTripStops,
+  tripStopCache = null,
+} = {}) => {
+  if (typeof fetchTripStops !== "function") {
+    throw new Error("Missing trip stops fetcher.");
+  }
+
+  const cache = tripStopCache ?? new Map();
+  const legs = mergeStructureWithInfoTrips(shift?.structure, shiftInfo?.trips);
+  const outboundLeg = selectOutboundDepotLeg(legs);
+  const returnLeg = selectReturnDepotLeg(legs);
+
+  const normalizeStops = (payload) => {
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    return payload?.items ?? payload?.results ?? [];
+  };
+
+  const resolveBoundaryStopDbId = async (leg, side) => {
+    if (!leg) {
+      return "";
+    }
+
+    const embeddedStopTimes = Array.isArray(leg.stop_times) ? leg.stop_times : [];
+    if (embeddedStopTimes.length) {
+      const stopTime =
+        side === "start" ?
+          embeddedStopTimes[0]
+        : embeddedStopTimes[embeddedStopTimes.length - 1];
+      return extractStopDbId(stopTime);
+    }
+
+    const tripId = text(leg.trip_db_id ?? leg.trip_id ?? leg.tripId);
+    if (!tripId) {
+      throw new Error("Missing depot leg trip id.");
+    }
+
+    if (!cache.has(tripId)) {
+      const payload = await fetchTripStops(tripId);
+      const stops = normalizeStops(payload);
+      if (!Array.isArray(stops) || !stops.length) {
+        throw new Error(`Unable to load stops for trip ${tripId}.`);
+      }
+      cache.set(tripId, stops);
+    }
+
+    const stops = cache.get(tripId);
+    const stopTime = side === "start" ? stops[0] : stops[stops.length - 1];
+    return extractStopDbId(stopTime);
+  };
+
+  const stopIds = [];
+  const outboundStopId = await resolveBoundaryStopDbId(outboundLeg, "start");
+  if (outboundStopId) {
+    stopIds.push(outboundStopId);
+  }
+  const returnStopId = await resolveBoundaryStopDbId(returnLeg, "end");
+  if (returnStopId) {
+    stopIds.push(returnStopId);
+  }
+
+  // Harmless fallback when nested depot stop ids appear on read responses.
+  for (const value of [shift?.start_depot?.stop_id, shift?.end_depot?.stop_id]) {
+    const stopId = text(value);
+    if (stopId) {
+      stopIds.push(stopId);
+    }
+  }
+
+  return [...new Set(stopIds)];
+};
+
 export const resolveShiftDepotIds = ({
   shift = {},
   shiftInfo = null,

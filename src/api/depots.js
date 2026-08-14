@@ -1,4 +1,5 @@
 import { authHeaders, API_ROOT } from "./client";
+import { readDeleteResponse } from "./delete-response.js";
 
 const DEPOTS_PATH = `${API_ROOT}/api/v1/user/depots/`;
 
@@ -140,13 +141,5 @@ export const deleteDepot = async (depotId) => {
     method: "DELETE",
     headers,
   });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    const message =
-      payload?.detail?.[0]?.msg ??
-      payload?.detail ??
-      "Unable to delete custom stop.";
-    throw new Error(message);
-  }
-  return true;
+  return readDeleteResponse(response, "Unable to delete custom stop.");
 };
