@@ -27,6 +27,7 @@ import {
   MODE_LABEL_KEYS,
 } from "./yearly-analysis-store";
 import { extractShiftDistanceKm } from "../../../utils/shift-distance";
+import { getOptimizationRunDisplayName } from "../../../utils/optimization-run";
 
 const text = (v) => (v === null || v === undefined ? "" : String(v));
 
@@ -665,9 +666,10 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
             const kwh = resolveOptimizedKwh(br, meta.packSizeKwh);
             const date = run.created_at ? new Date(run.created_at).toLocaleDateString() : "";
 
+            const evaluationName = getOptimizationRunDisplayName(run, meta.shiftLabel);
             const label = [
+              evaluationName,
               date,
-              meta.shiftLabel,
               packs != null ? t("yearly_analysis.packs_value", { count: packs }) : "",
               kwh != null ? `${Math.round(kwh)} kWh` : "",
               meta.sizingTemp != null ? `@ ${meta.sizingTemp} °C` : "",
