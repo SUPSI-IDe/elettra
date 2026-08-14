@@ -33,13 +33,6 @@ const formatDate = (iso) => {
   try { return new Date(iso).toLocaleString(); } catch { return "—"; }
 };
 
-const scenariosSummary = (scenarios = []) => {
-  if (!scenarios.length) return "—";
-  const temps = scenarios.map((s) => `${s.temperature}°C`).join(", ");
-  const total = scenarios.reduce((sum, s) => sum + (s.occurrences ?? 0), 0);
-  return `${temps} (${total}${t("yearly_analysis.days_short")})`;
-};
-
 const buildAnalysisName = (a) => {
   if (a.name) return a.name;
   const f = a.features ?? {};
@@ -129,14 +122,12 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
           const mode = modeLabel(f.config?.mode, meta.modeLabel);
           const status = f.status ?? "—";
           const statusCls = { completed: "completed", partial: "partial", failed: "failed" }[status] ?? "";
-          const scenarios = f.scenarios ?? [];
           return `<tr data-id="${textContent(id)}">
             <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("yearly_analysis.select_analysis"))}" /></td>
             <td>${textContent(formatDate(a.created_at))}</td>
             <td>${textContent(a.name || "—")}</td>
             <td title="${textContent(shifts)}">${textContent(shifts)}</td>
             <td>${textContent(mode)}</td>
-            <td>${textContent(scenariosSummary(scenarios))}</td>
             <td><span class="ya-status-badge ${statusCls}">${textContent(statusLabel(status))}</span></td>
             <td class="ya-actions-cell">
               <a class="ya-results-link table-action-link" data-action="view-results" data-id="${textContent(id)}">${textContent(t("common.view"))}</a>
@@ -181,7 +172,7 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
   // (id, optimization_run_id, name, created_at) and no longer includes
   // `features`.  Hydrate features via the detail endpoint for the
   // visible page so the existing table cells (mode, shift names,
-  // scenarios, status) keep working.
+  // status) keep working.
   const hydrateFeatures = async (rows) => {
     const targets = rows.filter(
       (row) => row?.id && !row?.features && !featuresCache.has(text(row.id))
@@ -225,7 +216,7 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
     }
 
     // Render lightweight rows immediately, then hydrate features so
-    // mode/shift/scenario/status columns populate without blocking the
+    // mode/shift/status columns populate without blocking the
     // initial paint.
     applyFilter();
     await hydrateFeatures(analyses);

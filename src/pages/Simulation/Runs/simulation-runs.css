@@ -33,7 +33,7 @@
 
 .simulation-runs-table th,
 .simulation-runs-table td {
-  text-align: left;
+  text-align: center;
   vertical-align: middle;
 }
 
@@ -41,7 +41,7 @@
   width: 100%;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: var(--space-2xs);
   border: 0;
   background: transparent;
@@ -59,7 +59,6 @@
 .simulation-runs-table th.checkbox,
 .simulation-runs-table td.checkbox {
   width: 2.5rem;
-  text-align: center;
 }
 
 .simulation-runs-table th.name,
@@ -104,12 +103,7 @@
 .simulation-runs-table th.actions,
 .simulation-runs-table td.actions {
   width: 14%;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.simulation-runs-table th.actions .sort-button {
-  justify-content: flex-end;
+  text-align: center;
 }
 
 .simulation-runs-table .results-link.disabled {
@@ -122,5 +116,4 @@
 .simulation-runs-table th.results,
 .simulation-runs-table td.results {
   width: 6%;
-  text-align: left;
 }

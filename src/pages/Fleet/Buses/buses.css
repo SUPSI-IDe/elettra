@@ -184,20 +184,18 @@
 
 .bus-models th,
 .bus-models td {
-  text-align: right;
+  text-align: center;
   font-variant-numeric: tabular-nums;
   width: calc((100% - 2.5rem) / 8);
 }
 
 .bus-models :is(th, td):is(.name, .model) {
-  text-align: left;
   font-variant-numeric: normal;
 }
 
 .bus-models th.checkbox,
 .bus-models td.checkbox {
   width: 2.5rem;
-  text-align: center;
 }
 
 @media (width <= 900px) {

@@ -11,8 +11,15 @@
   box-shadow: var(--shadow-sm);
 }
 
-.custom-stop-table th.checkbox {
-  text-align: left;
+.custom-stop-table th,
+.custom-stop-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.custom-stop-table th.checkbox,
+.custom-stop-table td.checkbox {
+  width: 2.5rem;
 }
 
 /* Add custom stop form - page-specific overrides.

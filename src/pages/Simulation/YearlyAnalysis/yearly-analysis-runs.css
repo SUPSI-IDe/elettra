@@ -30,25 +30,19 @@
   text-transform: none;
   letter-spacing: normal;
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
-  text-align: left;
+  text-align: center;
   white-space: nowrap;
 }
 
 .ya-runs-table td {
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   vertical-align: middle;
-}
-
-.ya-runs-table :is(th, td):nth-child(2),
-.ya-runs-table :is(th, td):nth-child(6) {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .ya-runs-table th.checkbox,
 .ya-runs-table td.checkbox {
   width: 2.5rem;
-  text-align: center;
 }
 
 .ya-runs-table .ya-results-link {
