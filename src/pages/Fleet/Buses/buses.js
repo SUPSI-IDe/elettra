@@ -6,6 +6,11 @@ import {
   fetchBusModels,
   fetchBusModelById,
 } from "../../../api";
+import { fetchAllOptimizationRuns } from "../../../api/simulation";
+import {
+  prepareBusModelDeletion,
+  resolveBusModelDeleteFailure,
+} from "../../../utils/bus-model-deletion";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import {
   cacheCollections,
@@ -66,23 +71,38 @@ const initializeModelControls = (section, cleanupHandlers) => {
       section.querySelector(".bus-models table")
     );
     if (!selectedIds.length) {
-      console.error(t("buses.select_min_model"));
+      setFlashMessage(section, t("buses.select_min_model"));
       return;
     }
 
     if (action === "delete-selected-models") {
-      const confirmDelete = confirm(
-        t("buses.delete_confirm_models", { count: selectedIds.length })
-      );
-      if (!confirmDelete) {
-        return;
-      }
+      actionButton.disabled = true;
       try {
+        const preparation = await prepareBusModelDeletion({
+          selectedModelIds: selectedIds,
+          fetchAllOptimizationRuns,
+          showFlash: (message) => setFlashMessage(section, message),
+          translate: t,
+        });
+        if (!preparation.proceed) {
+          return;
+        }
+
+        const confirmDelete = confirm(
+          t("buses.delete_confirm_models", { count: selectedIds.length })
+        );
+        if (!confirmDelete) {
+          return;
+        }
+
         await Promise.all(selectedIds.map((id) => deleteBusModel(id)));
         writeFlash(t("buses.deleted_models"));
         triggerPartialLoad("buses");
       } catch (error) {
-        console.error("Failed to delete bus model(s)", error);
+        const resolved = resolveBusModelDeleteFailure(error, t);
+        setFlashMessage(section, resolved.message);
+      } finally {
+        actionButton.disabled = false;
       }
       return;
     }

@@ -9,6 +9,14 @@ import {
   fetchAllBusModels,
   fetchStopsByTripId,
 } from "../../../api";
+import {
+  fetchAllOptimizationRuns,
+  fetchOptimizationRun,
+} from "../../../api/simulation";
+import {
+  prepareShiftDeletion,
+  resolveShiftDeleteFailure,
+} from "../../../utils/shift-deletion";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { bindSelectAll } from "../../../dom/tables";
@@ -849,26 +857,38 @@ export const initializeShifts = async (root = document, options = {}) => {
   const handleDeleteClick = async () => {
     const ids = getSelectedIdsFrom(table);
     if (!ids.length) {
-      console.error(t("shifts.select_min"));
-      return;
-    }
-
-    const confirmDelete = confirm(
-      t("shifts.delete_confirm", { count: ids.length })
-    );
-    if (!confirmDelete) {
+      setFlashMessage(section, t("shifts.select_min"));
       return;
     }
 
     deleteButton.disabled = true;
 
     try {
+      const preparation = await prepareShiftDeletion({
+        selectedShiftIds: ids,
+        fetchAllOptimizationRuns,
+        fetchOptimizationRunDetail: fetchOptimizationRun,
+        showFlash: (message) => setFlashMessage(section, message),
+        translate: t,
+      });
+      if (!preparation.proceed) {
+        return;
+      }
+
+      const confirmDelete = confirm(
+        t("shifts.delete_confirm", { count: ids.length })
+      );
+      if (!confirmDelete) {
+        return;
+      }
+
       await Promise.all(ids.map((id) => deleteShift(id)));
       ids.forEach((id) => invalidateShiftDistanceCache(id));
-      console.log(t("shifts.deleted"));
+      setFlashMessage(section, t("shifts.deleted"));
       await loadShifts();
     } catch (error) {
-      console.error("Failed to delete shifts", error);
+      const resolved = resolveShiftDeleteFailure(error, t);
+      setFlashMessage(section, resolved.message);
     } finally {
       deleteButton.disabled = false;
     }

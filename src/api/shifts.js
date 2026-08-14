@@ -1,4 +1,5 @@
 import { authHeaders, API_ROOT } from "./client";
+import { readDeleteResponse } from "./delete-response.js";
 import {
   buildPaginationParams,
   fetchAllPages,
@@ -260,11 +261,5 @@ export const deleteShift = async (shiftId) => {
     method: "DELETE",
     headers,
   });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    const message =
-      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to delete shift.";
-    throw new Error(message);
-  }
-  return true;
+  return readDeleteResponse(response, "Unable to delete shift.");
 };

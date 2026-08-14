@@ -1,4 +1,5 @@
 import { authHeaders, API_ROOT } from "./client";
+import { readDeleteResponse } from "./delete-response.js";
 import {
   buildPaginationParams,
   fetchAllPages,
@@ -233,13 +234,5 @@ export const deleteBusModel = async (modelId) => {
       headers,
     }
   );
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    const message =
-      payload?.detail?.[0]?.msg ??
-      payload?.detail ??
-      "Unable to delete bus model.";
-    throw new Error(message);
-  }
-  return true;
+  return readDeleteResponse(response, "Unable to delete bus model.");
 };

@@ -7,7 +7,13 @@ import {
   fetchOptimizationRun,
   deleteOptimizationRun,
   resolvePredictionRuns,
+  fetchAllYearlyAnalyses,
 } from "../../../api/simulation";
+import { isBlockedDeleteError } from "../../../api/delete-response";
+import {
+  prepareOptimizationRunDeletion,
+  resolveOptimizationRunDeleteFailure,
+} from "../../../utils/optimization-run-deletion";
 import { fetchShiftById, screenShiftIds } from "../../../api/shifts";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
@@ -1156,63 +1162,91 @@ export const initializeSimulationRuns = async (
       return;
     }
 
-    const msg = (t("simulation.delete_confirm") || "Delete {count} simulation(s)?")
-      .replace("{count}", ids.length);
-    if (!confirm(msg)) return;
+    if (deleteButton) {
+      deleteButton.disabled = true;
+    }
 
-    const deletedIds = new Set();
-    let serverFailed = 0;
+    try {
+      const preparation = await prepareOptimizationRunDeletion({
+        selectedRunIds: ids,
+        fetchAllYearlyAnalyses,
+        showFlash: (message) => setFlashMessage(section, message),
+        translate: t,
+      });
+      if (!preparation.proceed) {
+        return;
+      }
 
-    for (const id of ids) {
-      try {
-        const result = await deleteOptimizationRun(id);
-        if (result.deleted) {
-          deletedIds.add(id);
-        } else {
+      const msg = (t("simulation.delete_confirm") || "Delete {count} simulation(s)?")
+        .replace("{count}", ids.length);
+      if (!confirm(msg)) return;
+
+      const deletedIds = new Set();
+      let serverFailed = 0;
+      let blockedDeleteMessage = null;
+
+      for (const id of ids) {
+        try {
+          const result = await deleteOptimizationRun(id);
+          if (result.deleted) {
+            deletedIds.add(id);
+          } else {
+            serverFailed++;
+          }
+        } catch (error) {
           serverFailed++;
+          if (isBlockedDeleteError(error)) {
+            const resolved = resolveOptimizationRunDeleteFailure(error, t);
+            if (resolved.message) {
+              blockedDeleteMessage = resolved.message;
+            }
+          }
         }
-      } catch {
-        serverFailed++;
+      }
+
+      const removedIds = deletedIds;
+
+      if (removedIds.size) {
+        allRuns = allRuns.filter((r) => !removedIds.has(text(r?.id)));
+        applyFilter();
+        populateCompareSelects();
+      }
+
+      if (!removedIds.size && serverFailed) {
+        setFlashMessage(
+          section,
+          blockedDeleteMessage ||
+            t("simulation.delete_not_supported") ||
+            "These simulations could not be deleted. They remain visible."
+        );
+        await loadRunsAndPopulate();
+        return;
+      }
+
+      if (serverFailed) {
+        setFlashMessage(
+          section,
+          t("simulation.delete_partial_success", {
+            removed: removedIds.size,
+            failed: serverFailed,
+          }) ||
+            `${removedIds.size} simulation(s) removed. ${serverFailed} could not be deleted.`
+        );
+        await loadRunsAndPopulate();
+        return;
+      }
+
+      const removedCount = removedIds.size;
+      setFlashMessage(
+        section,
+        t("simulation.removed", { count: removedCount }) ||
+          `${removedCount} simulation(s) removed.`
+      );
+    } finally {
+      if (deleteButton) {
+        deleteButton.disabled = false;
       }
     }
-
-    const removedIds = deletedIds;
-
-    if (removedIds.size) {
-      allRuns = allRuns.filter((r) => !removedIds.has(text(r?.id)));
-      applyFilter();
-      populateCompareSelects();
-    }
-
-    if (!removedIds.size && serverFailed) {
-      setFlashMessage(
-        section,
-        t("simulation.delete_not_supported") ||
-          "These simulations could not be deleted. They remain visible."
-      );
-      await loadRunsAndPopulate();
-      return;
-    }
-
-    if (serverFailed) {
-      setFlashMessage(
-        section,
-        t("simulation.delete_partial_success", {
-          removed: removedIds.size,
-          failed: serverFailed,
-        }) ||
-          `${removedIds.size} simulation(s) removed. ${serverFailed} could not be deleted.`
-      );
-      await loadRunsAndPopulate();
-      return;
-    }
-
-    const removedCount = removedIds.size;
-    setFlashMessage(
-      section,
-      t("simulation.removed", { count: removedCount }) ||
-        `${removedCount} simulation(s) removed.`
-    );
   };
   if (deleteButton) {
     deleteButton.addEventListener("click", handleDeleteClick);

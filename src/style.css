@@ -1276,6 +1276,7 @@ table input[type="checkbox"] {
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
   border-radius: var(--radius-lg);
   font-size: var(--font-size-md);
+  white-space: pre-line;
 }
 
 .flash-message[hidden] {

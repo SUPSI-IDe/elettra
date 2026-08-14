@@ -59,6 +59,24 @@ export const translations = {
     "common.loading": "Loading…",
     "common.unknown_error": "Unknown error",
 
+    // Protected deletion (shared)
+    "protected_delete.blocked_intro":
+      "This item cannot be deleted because it is still used by:",
+    "protected_delete.blocked_item_named": '{typeLabel} "{name}"',
+    "protected_delete.blocked_item_id": "{typeLabel} (ID: {id})",
+    "protected_delete.blocked_item_type_only": "{typeLabel}",
+    "protected_delete.blocked_footer":
+      "Delete the related items first and then try again.",
+    "protected_delete.blocker_type.yearly_analysis": "Yearly analysis",
+    "protected_delete.blocker_type.optimization_run": "Feasibility evaluation",
+    "protected_delete.blocker_type.shift": "Shift",
+    "protected_delete.blocker_type.custom_stop": "Custom stop",
+    "protected_delete.blocker_type.bus_model": "Bus model",
+    "protected_delete.blocker_type.unknown": "Related item",
+    "delete_error.blocked":
+      "Unable to delete: this resource is still in use.",
+    "delete_error.generic": "Unable to delete resource.",
+
     // Pagination
     "pagination.page_size_label": "Rows per page",
     "pagination.previous": "Previous",
@@ -75,6 +93,12 @@ export const translations = {
     "simulation.login_required": "Please login to view your feasibility evaluations.",
     "simulation.select_min": "Select at least one simulation.",
     "simulation.delete_confirm": "Delete {count} simulation(s)?",
+    "simulation.delete_blocked_intro":
+      "The selected feasibility evaluation(s) cannot be deleted because they are still used by:",
+    "simulation.delete_blocked_footer":
+      "Delete the related yearly analysis/analyses first and then try again.",
+    "simulation.delete_dependency_check_failed":
+      "ELETTRA could not verify whether the selected feasibility evaluation(s) are in use. Please try again.",
     "simulation.select_single": "Select a single simulation to edit.",
     "simulation.col_name": "Name",
     "simulation.col_day": "Day",
@@ -149,6 +173,8 @@ export const translations = {
     "simulation.run": "Run simulation",
     "simulation.run_confirm": "Do you want to launch this simulation?",
     "yearly_analysis.delete_confirm": "Delete {count} yearly analysis(es)?",
+    "yearly_analysis.delete_failed":
+      "Could not delete the selected yearly analysis/analyses. Please try again.",
     "yearly_analysis.run_confirm": "Do you want to run this yearly analysis?",
     "simulation.completed": "Simulation completed successfully.",
     "simulation.results_title": "Results",
@@ -586,6 +612,12 @@ export const translations = {
     "buses.select_min_model": "Select at least one bus model.",
     "buses.select_min_bus": "Select at least one bus.",
     "buses.delete_confirm_models": "Delete {count} bus model(s)?",
+    "buses.delete_blocked_intro":
+      "The selected bus model(s) cannot be deleted because they are still used by:",
+    "buses.delete_blocked_footer":
+      "Delete the related feasibility evaluations first and then try again.",
+    "buses.delete_dependency_check_failed":
+      "ELETTRA could not verify whether the selected bus model(s) are in use. Please try again.",
     "buses.delete_confirm_buses": "Delete {count} bus(es)?",
     "buses.deleted_models": "Bus model(s) deleted.",
     "buses.deleted_buses": "Bus(es) deleted.",
@@ -654,6 +686,12 @@ export const translations = {
     "shifts.login_required": "Please login to view your shifts.",
     "shifts.select_min": "Select at least one shift.",
     "shifts.delete_confirm": "Delete {count} shift(s)?",
+    "shifts.delete_blocked_intro":
+      "The selected shift(s) cannot be deleted because they are still used by:",
+    "shifts.delete_blocked_footer":
+      "Delete the related feasibility evaluations first and then try again.",
+    "shifts.delete_dependency_check_failed":
+      "ELETTRA could not verify whether the selected shift(s) are in use. Please try again.",
     "shifts.deleted": "Shift(s) deleted.",
     "shifts.select_single": "Select a single shift to edit.",
     "shifts.edit_shift": "Edit Shift",
@@ -772,6 +810,12 @@ export const translations = {
     "custom_stops.edit_title": "Edit Custom Stop",
     "custom_stops.select_min": "Select at least one custom stop.",
     "custom_stops.delete_confirm": "Delete {count} custom stop(s)?",
+    "custom_stops.delete_blocked_intro":
+      "The selected custom stop(s) cannot be deleted because they are still used by:",
+    "custom_stops.delete_blocked_footer":
+      "Delete the related shifts and feasibility evaluations first and then try again.",
+    "custom_stops.delete_dependency_check_failed":
+      "ELETTRA could not verify whether the selected custom stop(s) are in use. Please try again.",
     "custom_stops.select_single": "Select a single custom stop to edit.",
     "custom_stops.login_required": "Please login to view your custom stops.",
     "custom_stops.field_name": "Name",
@@ -1448,6 +1492,24 @@ export const translations = {
     "common.loading": "Laden…",
     "common.unknown_error": "Unbekannter Fehler",
 
+    // Protected deletion (shared)
+    "protected_delete.blocked_intro":
+      "Dieses Element kann nicht gelöscht werden, da es noch verwendet wird von:",
+    "protected_delete.blocked_item_named": '{typeLabel} „{name}"',
+    "protected_delete.blocked_item_id": "{typeLabel} (ID: {id})",
+    "protected_delete.blocked_item_type_only": "{typeLabel}",
+    "protected_delete.blocked_footer":
+      "Löschen Sie zuerst die zugehörigen Elemente und versuchen Sie es erneut.",
+    "protected_delete.blocker_type.yearly_analysis": "Jahresanalyse",
+    "protected_delete.blocker_type.optimization_run": "Machbarkeitsbewertung",
+    "protected_delete.blocker_type.shift": "Schicht",
+    "protected_delete.blocker_type.custom_stop": "Individuelle Haltestelle",
+    "protected_delete.blocker_type.bus_model": "Busmodell",
+    "protected_delete.blocker_type.unknown": "Zugehöriges Element",
+    "delete_error.blocked":
+      "Löschen nicht möglich: Diese Ressource wird noch verwendet.",
+    "delete_error.generic": "Ressource konnte nicht gelöscht werden.",
+
     // Pagination
     "pagination.page_size_label": "Zeilen pro Seite",
     "pagination.previous": "Zurück",
@@ -1464,6 +1526,12 @@ export const translations = {
     "simulation.login_required": "Bitte melden Sie sich an, um Ihre Machbarkeitsbewertungen anzuzeigen.",
     "simulation.select_min": "Wählen Sie mindestens eine Simulation aus.",
     "simulation.delete_confirm": "{count} Simulation(en) löschen?",
+    "simulation.delete_blocked_intro":
+      "Die ausgewählte(n) Machbarkeitsbewertung(en) kann/können nicht gelöscht werden, da sie noch verwendet werden von:",
+    "simulation.delete_blocked_footer":
+      "Löschen Sie zuerst die zugehörige(n) Jahresanalyse(n) und versuchen Sie es erneut.",
+    "simulation.delete_dependency_check_failed":
+      "ELETTRA konnte nicht prüfen, ob die ausgewählte(n) Machbarkeitsbewertung(en) noch verwendet werden. Bitte versuchen Sie es erneut.",
     "simulation.select_single": "Wählen Sie eine einzelne Simulation zum Bearbeiten aus.",
     "simulation.col_name": "Name",
     "simulation.col_day": "Tag",
@@ -1538,6 +1606,8 @@ export const translations = {
     "simulation.run": "Simulation starten",
     "simulation.run_confirm": "Möchten Sie diese Simulation starten?",
     "yearly_analysis.delete_confirm": "{count} Jahresanalyse(n) löschen?",
+    "yearly_analysis.delete_failed":
+      "Die ausgewählte(n) Jahresanalyse(n) konnte(n) nicht gelöscht werden. Bitte versuchen Sie es erneut.",
     "yearly_analysis.run_confirm": "Möchten Sie diese Jahresanalyse ausführen?",
     "simulation.completed": "Simulation erfolgreich abgeschlossen.",
     "simulation.results_title": "Ergebnisse",
@@ -1971,6 +2041,12 @@ export const translations = {
     "buses.select_min_model": "Wählen Sie mindestens ein Busmodell aus.",
     "buses.select_min_bus": "Wählen Sie mindestens einen Bus aus.",
     "buses.delete_confirm_models": "{count} Busmodell(e) löschen?",
+    "buses.delete_blocked_intro":
+      "Das/die ausgewählte(n) Busmodell(e) kann/können nicht gelöscht werden, da sie noch verwendet werden von:",
+    "buses.delete_blocked_footer":
+      "Löschen Sie zuerst die zugehörigen Machbarkeitsbewertungen und versuchen Sie es erneut.",
+    "buses.delete_dependency_check_failed":
+      "ELETTRA konnte nicht prüfen, ob das/die ausgewählte(n) Busmodell(e) noch verwendet werden. Bitte versuchen Sie es erneut.",
     "buses.delete_confirm_buses": "{count} Bus(se) löschen?",
     "buses.deleted_models": "Busmodell(e) gelöscht.",
     "buses.deleted_buses": "Bus(se) gelöscht.",
@@ -2039,6 +2115,12 @@ export const translations = {
     "shifts.login_required": "Bitte melden Sie sich an, um Ihre Schichten anzuzeigen.",
     "shifts.select_min": "Wählen Sie mindestens eine Schicht aus.",
     "shifts.delete_confirm": "{count} Schicht(en) löschen?",
+    "shifts.delete_blocked_intro":
+      "Die ausgewählte(n) Schicht(en) kann/können nicht gelöscht werden, da sie noch verwendet werden von:",
+    "shifts.delete_blocked_footer":
+      "Löschen Sie zuerst die zugehörigen Machbarkeitsbewertungen und versuchen Sie es erneut.",
+    "shifts.delete_dependency_check_failed":
+      "ELETTRA konnte nicht prüfen, ob die ausgewählte(n) Schicht(en) noch verwendet werden. Bitte versuchen Sie es erneut.",
     "shifts.deleted": "Schicht(en) gelöscht.",
     "shifts.select_single": "Wählen Sie eine einzelne Schicht zum Bearbeiten aus.",
     "shifts.edit_shift": "Schicht bearbeiten",
@@ -2157,6 +2239,12 @@ export const translations = {
     "custom_stops.edit_title": "Haltestelle bearbeiten",
     "custom_stops.select_min": "Wählen Sie mindestens eine Haltestelle aus.",
     "custom_stops.delete_confirm": "{count} individuelle Haltestelle(n) löschen?",
+    "custom_stops.delete_blocked_intro":
+      "Die ausgewählte(n) individuelle(n) Haltestelle(n) kann/können nicht gelöscht werden, da sie noch verwendet werden von:",
+    "custom_stops.delete_blocked_footer":
+      "Löschen Sie zuerst die zugehörigen Schichten und Machbarkeitsbewertungen und versuchen Sie es erneut.",
+    "custom_stops.delete_dependency_check_failed":
+      "ELETTRA konnte nicht prüfen, ob die ausgewählte(n) individuelle(n) Haltestelle(n) noch verwendet werden. Bitte versuchen Sie es erneut.",
     "custom_stops.select_single": "Wählen Sie eine einzelne Haltestelle zum Bearbeiten aus.",
     "custom_stops.login_required": "Bitte melden Sie sich an, um Ihre Haltestellen anzuzeigen.",
     "custom_stops.field_name": "Name",
@@ -2833,6 +2921,24 @@ export const translations = {
     "common.loading": "Chargement…",
     "common.unknown_error": "Erreur inconnue",
 
+    // Protected deletion (shared)
+    "protected_delete.blocked_intro":
+      "Cet élément ne peut pas être supprimé car il est encore utilisé par :",
+    "protected_delete.blocked_item_named": '{typeLabel} « {name} »',
+    "protected_delete.blocked_item_id": "{typeLabel} (ID : {id})",
+    "protected_delete.blocked_item_type_only": "{typeLabel}",
+    "protected_delete.blocked_footer":
+      "Supprimez d'abord les éléments associés, puis réessayez.",
+    "protected_delete.blocker_type.yearly_analysis": "Analyse annuelle",
+    "protected_delete.blocker_type.optimization_run": "Évaluation de faisabilité",
+    "protected_delete.blocker_type.shift": "Service",
+    "protected_delete.blocker_type.custom_stop": "Arrêt personnalisé",
+    "protected_delete.blocker_type.bus_model": "Modèle de bus",
+    "protected_delete.blocker_type.unknown": "Élément associé",
+    "delete_error.blocked":
+      "Suppression impossible : cette ressource est encore utilisée.",
+    "delete_error.generic": "Impossible de supprimer la ressource.",
+
     // Pagination
     "pagination.page_size_label": "Lignes par page",
     "pagination.previous": "Précédent",
@@ -2849,6 +2955,12 @@ export const translations = {
     "simulation.login_required": "Veuillez vous connecter pour voir vos évaluations de faisabilité.",
     "simulation.select_min": "Sélectionnez au moins une simulation.",
     "simulation.delete_confirm": "Supprimer {count} simulation(s) ?",
+    "simulation.delete_blocked_intro":
+      "La/les évaluation(s) de faisabilité sélectionnée(s) ne peut/peuvent pas être supprimée(s) car elle(s) est/sont encore utilisée(s) par :",
+    "simulation.delete_blocked_footer":
+      "Supprimez d'abord l'analyse annuelle ou les analyses annuelles associées, puis réessayez.",
+    "simulation.delete_dependency_check_failed":
+      "ELETTRA n'a pas pu vérifier si la ou les évaluations de faisabilité sélectionnées sont encore utilisées. Veuillez réessayer.",
     "simulation.select_single": "Sélectionnez une seule simulation à modifier.",
     "simulation.col_name": "Nom",
     "simulation.col_day": "Jour",
@@ -2923,6 +3035,8 @@ export const translations = {
     "simulation.run": "Lancer la simulation",
     "simulation.run_confirm": "Voulez-vous lancer cette simulation ?",
     "yearly_analysis.delete_confirm": "Supprimer {count} analyse(s) annuelle(s) ?",
+    "yearly_analysis.delete_failed":
+      "Impossible de supprimer l'analyse/l'analyses annuelle(s) sélectionnée(s). Veuillez réessayer.",
     "yearly_analysis.run_confirm": "Voulez-vous exécuter cette analyse annuelle ?",
     "simulation.completed": "Simulation terminée avec succès.",
     "simulation.results_title": "Résultats",
@@ -3356,6 +3470,12 @@ export const translations = {
     "buses.select_min_model": "Sélectionnez au moins un modèle de bus.",
     "buses.select_min_bus": "Sélectionnez au moins un bus.",
     "buses.delete_confirm_models": "Supprimer {count} modèle(s) de bus ?",
+    "buses.delete_blocked_intro":
+      "Le(s) modèle(s) de bus sélectionné(s) ne peut/peuvent pas être supprimé(s) car il(s) est/sont encore utilisé(s) par :",
+    "buses.delete_blocked_footer":
+      "Supprimez d'abord les évaluations de faisabilité associées, puis réessayez.",
+    "buses.delete_dependency_check_failed":
+      "ELETTRA n'a pas pu vérifier si le(s) modèle(s) de bus sélectionné(s) sont encore utilisés. Veuillez réessayer.",
     "buses.delete_confirm_buses": "Supprimer {count} bus ?",
     "buses.deleted_models": "Modèle(s) de bus supprimé(s).",
     "buses.deleted_buses": "Bus supprimé(s).",
@@ -3424,6 +3544,12 @@ export const translations = {
     "shifts.login_required": "Veuillez vous connecter pour voir vos quarts.",
     "shifts.select_min": "Sélectionnez au moins un quart.",
     "shifts.delete_confirm": "Supprimer {count} quart(s) ?",
+    "shifts.delete_blocked_intro":
+      "Le(s) quart(s) sélectionné(s) ne peut/peuvent pas être supprimé(s) car il(s) est/sont encore utilisé(s) par :",
+    "shifts.delete_blocked_footer":
+      "Supprimez d'abord les évaluations de faisabilité associées, puis réessayez.",
+    "shifts.delete_dependency_check_failed":
+      "ELETTRA n'a pas pu vérifier si le(s) quart(s) sélectionné(s) sont encore utilisés. Veuillez réessayer.",
     "shifts.deleted": "Quart(s) supprimé(s).",
     "shifts.select_single": "Sélectionnez un seul quart à modifier.",
     "shifts.edit_shift": "Modifier le quart",
@@ -3542,6 +3668,12 @@ export const translations = {
     "custom_stops.edit_title": "Modifier l'arrêt personnalisé",
     "custom_stops.select_min": "Sélectionnez au moins un arrêt personnalisé.",
     "custom_stops.delete_confirm": "Supprimer {count} arrêt(s) personnalisé(s) ?",
+    "custom_stops.delete_blocked_intro":
+      "Le(s) arrêt(s) personnalisé(s) sélectionné(s) ne peut/peuvent pas être supprimé(s) car il(s) est/sont encore utilisé(s) par :",
+    "custom_stops.delete_blocked_footer":
+      "Supprimez d'abord les services et évaluations de faisabilité associés, puis réessayez.",
+    "custom_stops.delete_dependency_check_failed":
+      "ELETTRA n'a pas pu vérifier si le(s) arrêt(s) personnalisé(s) sélectionné(s) sont encore utilisés. Veuillez réessayer.",
     "custom_stops.select_single": "Sélectionnez un seul arrêt personnalisé à modifier.",
     "custom_stops.login_required": "Veuillez vous connecter pour voir vos arrêts personnalisés.",
     "custom_stops.field_name": "Nom",
@@ -4218,6 +4350,24 @@ export const translations = {
     "common.loading": "Caricamento…",
     "common.unknown_error": "Errore sconosciuto",
 
+    // Protected deletion (shared)
+    "protected_delete.blocked_intro":
+      "Questo elemento non può essere eliminato perché è ancora utilizzato da:",
+    "protected_delete.blocked_item_named": '{typeLabel} "{name}"',
+    "protected_delete.blocked_item_id": "{typeLabel} (ID: {id})",
+    "protected_delete.blocked_item_type_only": "{typeLabel}",
+    "protected_delete.blocked_footer":
+      "Elimina prima gli elementi correlati e riprova.",
+    "protected_delete.blocker_type.yearly_analysis": "Analisi annuale",
+    "protected_delete.blocker_type.optimization_run": "Valutazione di fattibilità",
+    "protected_delete.blocker_type.shift": "Turno",
+    "protected_delete.blocker_type.custom_stop": "Fermata personalizzata",
+    "protected_delete.blocker_type.bus_model": "Modello di autobus",
+    "protected_delete.blocker_type.unknown": "Elemento correlato",
+    "delete_error.blocked":
+      "Impossibile eliminare: questa risorsa è ancora in uso.",
+    "delete_error.generic": "Impossibile eliminare la risorsa.",
+
     // Pagination
     "pagination.page_size_label": "Righe per pagina",
     "pagination.previous": "Precedente",
@@ -4234,6 +4384,12 @@ export const translations = {
     "simulation.login_required": "Effettua l'accesso per visualizzare le tue valutazioni di fattibilità.",
     "simulation.select_min": "Seleziona almeno una simulazione.",
     "simulation.delete_confirm": "Eliminare {count} simulazione/i?",
+    "simulation.delete_blocked_intro":
+      "La/le valutazione/i di fattibilità selezionata/e non può/possono essere eliminata/e perché è/sono ancora utilizzata/e da:",
+    "simulation.delete_blocked_footer":
+      "Elimina prima l'analisi annuale o le analisi annuali correlate e riprova.",
+    "simulation.delete_dependency_check_failed":
+      "ELETTRA non ha potuto verificare se la o le valutazioni di fattibilità selezionate sono ancora in uso. Riprova.",
     "simulation.select_single": "Seleziona una singola simulazione da modificare.",
     "simulation.col_name": "Nome",
     "simulation.col_day": "Giorno",
@@ -4308,6 +4464,8 @@ export const translations = {
     "simulation.run": "Avvia simulazione",
     "simulation.run_confirm": "Vuoi avviare questa simulazione?",
     "yearly_analysis.delete_confirm": "Eliminare {count} analisi annuale/i?",
+    "yearly_analysis.delete_failed":
+      "Impossibile eliminare l'analisi/le analisi annuali selezionata/e. Riprova.",
     "yearly_analysis.run_confirm": "Vuoi eseguire questa analisi annuale?",
     "simulation.completed": "Simulazione completata con successo.",
     "simulation.results_title": "Risultati",
@@ -4741,6 +4899,12 @@ export const translations = {
     "buses.select_min_model": "Seleziona almeno un modello di autobus.",
     "buses.select_min_bus": "Seleziona almeno un autobus.",
     "buses.delete_confirm_models": "Eliminare {count} modello/i di autobus?",
+    "buses.delete_blocked_intro":
+      "Il/i modello/i di autobus selezionato/i non può/possono essere eliminato/i perché è/sono ancora utilizzato/i da:",
+    "buses.delete_blocked_footer":
+      "Elimina prima le valutazioni di fattibilità correlate e riprova.",
+    "buses.delete_dependency_check_failed":
+      "ELETTRA non ha potuto verificare se il/i modello/i di autobus selezionato/i sono ancora in uso. Riprova.",
     "buses.delete_confirm_buses": "Eliminare {count} autobus?",
     "buses.deleted_models": "Modello/i di autobus eliminato/i.",
     "buses.deleted_buses": "Autobus eliminato/i.",
@@ -4809,6 +4973,12 @@ export const translations = {
     "shifts.login_required": "Effettua l'accesso per visualizzare i tuoi turni.",
     "shifts.select_min": "Seleziona almeno un turno.",
     "shifts.delete_confirm": "Eliminare {count} turno/i?",
+    "shifts.delete_blocked_intro":
+      "Il/i turno/i selezionato/i non può/possono essere eliminato/i perché è/sono ancora utilizzato/i da:",
+    "shifts.delete_blocked_footer":
+      "Elimina prima le valutazioni di fattibilità correlate e riprova.",
+    "shifts.delete_dependency_check_failed":
+      "ELETTRA non ha potuto verificare se il/i turno/i selezionato/i sono ancora in uso. Riprova.",
     "shifts.deleted": "Turno/i eliminato/i.",
     "shifts.select_single": "Seleziona un singolo turno da modificare.",
     "shifts.edit_shift": "Modifica turno",
@@ -4927,6 +5097,12 @@ export const translations = {
     "custom_stops.edit_title": "Modifica fermata personalizzata",
     "custom_stops.select_min": "Seleziona almeno una fermata personalizzata.",
     "custom_stops.delete_confirm": "Eliminare {count} fermata/e personalizzata/e?",
+    "custom_stops.delete_blocked_intro":
+      "La/le fermata/e personalizzata/e selezionata/e non può/possono essere eliminata/e perché è/sono ancora utilizzata/e da:",
+    "custom_stops.delete_blocked_footer":
+      "Elimina prima i turni e le valutazioni di fattibilità correlate e riprova.",
+    "custom_stops.delete_dependency_check_failed":
+      "ELETTRA non ha potuto verificare se la/le fermata/e personalizzata/e selezionata/e sono ancora in uso. Riprova.",
     "custom_stops.select_single": "Seleziona una singola fermata personalizzata da modificare.",
     "custom_stops.login_required": "Effettua l'accesso per visualizzare le tue fermate personalizzate.",
     "custom_stops.field_name": "Nome",
