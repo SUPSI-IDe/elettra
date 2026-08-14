@@ -318,6 +318,182 @@ export const getEligibleScheduledTrips = ({
     .filter((result) => result.valid)
     .map((result) => result.trip);
 
+const resolveDirectionId = (trip = {}) =>
+  text(
+    firstAvailable(
+      trip?.direction_id,
+      trip?.directionId,
+      trip?.trip?.direction_id,
+      trip?.trip?.directionId
+    )
+  ).trim();
+
+const resolveShapeId = (trip = {}) =>
+  text(
+    firstAvailable(
+      trip?.shape_id,
+      trip?.shapeId,
+      trip?.trip?.shape_id,
+      trip?.trip?.shapeId
+    )
+  ).trim();
+
+const resolveTripHeadsign = (trip = {}) =>
+  text(
+    firstAvailable(
+      trip?.trip_headsign,
+      trip?.tripHeadsign,
+      trip?.trip?.trip_headsign,
+      trip?.trip?.tripHeadsign
+    )
+  ).trim();
+
+const isGtfsOperationalCandidate = (trip = {}) => {
+  const status = text(firstAvailable(trip?.status, trip?.trip?.status)).toLowerCase();
+  if (status !== "gtfs") {
+    return false;
+  }
+
+  const tripId = resolveTripId(trip);
+  if (tripId.startsWith("depot-")) {
+    return false;
+  }
+
+  if (
+    trip?.trip_type === "auxiliary" ||
+    trip?.trip?.trip_type === "auxiliary"
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+const buildOperationalCandidateKey = (trip = {}) => {
+  const normalized = normalizeTrip(trip);
+  const routeId = text(normalized.route_id).trim();
+  const directionId = resolveDirectionId(trip);
+  const shapeId = resolveShapeId(trip);
+  const startStop = normalizeStopName(normalized.start_stop_name);
+  const endStop = normalizeStopName(normalized.end_stop_name);
+  const departure = text(normalized.departure_time).trim();
+  const arrival = text(normalized.arrival_time).trim();
+  const headsign = resolveTripHeadsign(trip);
+
+  const critical = [
+    routeId,
+    directionId,
+    shapeId,
+    departure,
+    arrival,
+    startStop,
+    endStop,
+  ];
+  if (critical.some((value) => !value)) {
+    return null;
+  }
+
+  return [
+    routeId,
+    directionId,
+    shapeId,
+    startStop,
+    endStop,
+    departure,
+    arrival,
+    headsign,
+  ].join("\x1f");
+};
+
+const compareOperationalRepresentatives = (left = {}, right = {}) => {
+  const leftService = text(
+    firstAvailable(
+      left?.gtfs_service_id,
+      left?.gtfsServiceId,
+      left?.service_id,
+      left?.serviceId
+    )
+  );
+  const rightService = text(
+    firstAvailable(
+      right?.gtfs_service_id,
+      right?.gtfsServiceId,
+      right?.service_id,
+      right?.serviceId
+    )
+  );
+  if (leftService !== rightService) {
+    return leftService.localeCompare(rightService);
+  }
+
+  const leftTripId = resolveTripId(left);
+  const rightTripId = resolveTripId(right);
+  if (leftTripId !== rightTripId) {
+    return leftTripId.localeCompare(rightTripId);
+  }
+
+  return text(left?.id).localeCompare(text(right?.id));
+};
+
+const selectOperationalRepresentative = (trips = []) => {
+  if (!Array.isArray(trips) || trips.length === 0) {
+    return null;
+  }
+  return [...trips].sort(compareOperationalRepresentatives)[0];
+};
+
+// Collapse mutually exclusive GTFS calendar variants that share the same
+// operational schedule. Non-GTFS and incomplete-identity records pass through.
+export const normalizeOperationalTripCandidates = (trips = []) => {
+  const list = Array.isArray(trips) ? trips : [];
+  const passthroughIndices = new Set();
+  const groupedMembers = new Map();
+
+  list.forEach((trip, index) => {
+    if (!isGtfsOperationalCandidate(trip)) {
+      passthroughIndices.add(index);
+      return;
+    }
+
+    const key = buildOperationalCandidateKey(trip);
+    if (!key) {
+      passthroughIndices.add(index);
+      return;
+    }
+
+    if (!groupedMembers.has(key)) {
+      groupedMembers.set(key, []);
+    }
+    groupedMembers.get(key).push(trip);
+  });
+
+  const representativeByKey = new Map();
+  for (const [key, members] of groupedMembers.entries()) {
+    representativeByKey.set(key, selectOperationalRepresentative(members));
+  }
+
+  const emittedKeys = new Set();
+  const normalized = [];
+
+  for (let index = 0; index < list.length; index += 1) {
+    const trip = list[index];
+    if (passthroughIndices.has(index)) {
+      normalized.push(trip);
+      continue;
+    }
+
+    const key = buildOperationalCandidateKey(trip);
+    if (!key || emittedKeys.has(key)) {
+      continue;
+    }
+
+    emittedKeys.add(key);
+    normalized.push(representativeByKey.get(key));
+  }
+
+  return normalized;
+};
+
 export const readShiftTripsFromStructure = (shift = {}) => {
   const structure = Array.isArray(shift?.structure) ? shift.structure : [];
   if (structure.length === 0) {
@@ -430,4 +606,602 @@ export const computeTimeBounds = (trips = []) => {
   const latest = arrivals.length ? Math.max(...arrivals) : null;
 
   return { earliest, latest };
+};
+
+const extractStopDbId = (stopTime) => text(stopTime?.id).trim();
+
+export const findLoadedDepotByStopDbId = (stopDbId, loadedDepots = []) => {
+  const candidate = text(stopDbId).trim();
+  if (!candidate) {
+    return null;
+  }
+  return (
+    loadedDepots.find((depot) => text(depot?.stop_id).trim() === candidate) ??
+    null
+  );
+};
+
+const findLoadedDepotByName = (name, loadedDepots = []) => {
+  const candidate = text(name).trim();
+  if (!candidate) {
+    return null;
+  }
+  const normalized = candidate.toLowerCase();
+  return (
+    loadedDepots.find(
+      (depot) => text(depot?.name ?? depot?.label).trim().toLowerCase() === normalized
+    ) ?? null
+  );
+};
+
+const isGtfsServiceLeg = (leg = {}) => {
+  const gtfsTripId = text(leg?.gtfs_trip_id).trim();
+  return gtfsTripId.length > 0 && !gtfsTripId.startsWith("depot-");
+};
+
+const isTransferAuxLeg = (leg = {}) => {
+  const gtfsTripId = text(leg?.gtfs_trip_id).trim();
+  if (!gtfsTripId.startsWith("depot-")) {
+    return false;
+  }
+  const start = text(leg?.start_stop_name).trim();
+  const end = text(leg?.end_stop_name).trim();
+  return Boolean(start && end && start !== end);
+};
+
+export const mergeStructureWithInfoTrips = (structure = [], infoTrips = []) => {
+  const infoById = new Map(
+    (Array.isArray(infoTrips) ? infoTrips : [])
+      .filter((trip) => text(trip?.id).trim())
+      .map((trip) => [text(trip.id), trip])
+  );
+
+  return (Array.isArray(structure) ? structure : [])
+    .map((item, index) => {
+      const tripDbId = text(item?.trip_id ?? item?.tripId ?? "");
+      const info = infoById.get(tripDbId) ?? {};
+      const stopTimes =
+        Array.isArray(item?.stop_times) && item.stop_times.length > 0 ?
+          item.stop_times
+        : Array.isArray(item?.trip?.stop_times) && item.trip.stop_times.length > 0 ?
+          item.trip.stop_times
+        : [];
+
+      return {
+        ...item,
+        trip_db_id: tripDbId,
+        sequence_number: item?.sequence_number ?? index + 1,
+        gtfs_trip_id: text(info?.trip_id ?? info?.tripId ?? ""),
+        start_stop_name: text(
+          info?.start_stop_name ?? info?.startStopName ?? ""
+        ),
+        end_stop_name: text(info?.end_stop_name ?? info?.endStopName ?? ""),
+        stop_times: stopTimes,
+      };
+    })
+    .sort((left, right) => {
+      const leftSeq = Number(left?.sequence_number);
+      const rightSeq = Number(right?.sequence_number);
+      if (Number.isFinite(leftSeq) && Number.isFinite(rightSeq) && leftSeq !== rightSeq) {
+        return leftSeq - rightSeq;
+      }
+      return 0;
+    });
+};
+
+const selectOutboundDepotLeg = (legs = []) => {
+  const firstServiceLeg = legs.find(isGtfsServiceLeg);
+  if (!firstServiceLeg) {
+    return null;
+  }
+
+  const firstServiceSeq = Number(firstServiceLeg.sequence_number);
+  const firstServiceStartId = extractStopDbId(firstServiceLeg.stop_times?.[0]);
+  const candidates = legs.filter(
+    (leg) =>
+      isTransferAuxLeg(leg) &&
+      Number(leg.sequence_number) < firstServiceSeq
+  );
+  if (!candidates.length) {
+    return null;
+  }
+
+  const bySequenceDesc = [...candidates].sort(
+    (left, right) => Number(right.sequence_number) - Number(left.sequence_number)
+  );
+  const firstServiceStartName = text(firstServiceLeg.start_stop_name).trim();
+  const connectsToFirstService = (leg) => {
+    const lastStop = leg.stop_times?.[leg.stop_times.length - 1];
+    const outboundEndId = extractStopDbId(lastStop);
+    if (firstServiceStartId && outboundEndId) {
+      return outboundEndId === firstServiceStartId;
+    }
+    const outboundEndName = text(leg.end_stop_name).trim();
+    return Boolean(
+      firstServiceStartName &&
+        outboundEndName &&
+        outboundEndName === firstServiceStartName
+    );
+  };
+
+  if (connectsToFirstService(bySequenceDesc[0])) {
+    return bySequenceDesc[0];
+  }
+  return bySequenceDesc.find(connectsToFirstService) ?? null;
+};
+
+const selectReturnDepotLeg = (legs = []) => {
+  const lastServiceLeg = [...legs].reverse().find(isGtfsServiceLeg);
+  if (!lastServiceLeg) {
+    return null;
+  }
+
+  const lastServiceSeq = Number(lastServiceLeg.sequence_number);
+  const lastServiceEndId = extractStopDbId(
+    lastServiceLeg.stop_times?.[lastServiceLeg.stop_times.length - 1]
+  );
+  const candidates = legs.filter(
+    (leg) =>
+      isTransferAuxLeg(leg) &&
+      Number(leg.sequence_number) > lastServiceSeq
+  );
+  if (!candidates.length) {
+    return null;
+  }
+
+  const bySequenceAsc = [...candidates].sort(
+    (left, right) => Number(left.sequence_number) - Number(right.sequence_number)
+  );
+  const lastServiceEndName = text(lastServiceLeg.end_stop_name).trim();
+  const connectsFromLastService = (leg) => {
+    const returnStartId = extractStopDbId(leg.stop_times?.[0]);
+    if (lastServiceEndId && returnStartId) {
+      return returnStartId === lastServiceEndId;
+    }
+    const returnStartName = text(leg.start_stop_name).trim();
+    return Boolean(
+      lastServiceEndName &&
+        returnStartName &&
+        returnStartName === lastServiceEndName
+    );
+  };
+
+  if (connectsFromLastService(bySequenceAsc[0])) {
+    return bySequenceAsc[0];
+  }
+  return bySequenceAsc.find(connectsFromLastService) ?? null;
+};
+
+const isAuxiliaryLegMarker = (leg = {}) => {
+  const gtfsTripId = text(leg?.gtfs_trip_id).trim();
+  if (gtfsTripId.startsWith("depot-")) {
+    return true;
+  }
+
+  const status = text(firstAvailable(leg?.status, leg?.trip?.status)).toLowerCase();
+  if (status === "depot") {
+    return true;
+  }
+
+  if (
+    leg?.trip_type === "auxiliary" ||
+    leg?.trip?.trip_type === "auxiliary"
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+const hasSameEndpoint = (leg = {}) => {
+  const start = text(leg?.start_stop_name).trim();
+  const end = text(leg?.end_stop_name).trim();
+  if (start && end && start === end) {
+    return true;
+  }
+
+  const stopTimes = Array.isArray(leg?.stop_times) ? leg.stop_times : [];
+  if (stopTimes.length >= 2) {
+    const firstStopId = extractStopDbId(stopTimes[0]);
+    const lastStopId = extractStopDbId(stopTimes[stopTimes.length - 1]);
+    if (firstStopId && lastStopId && firstStopId === lastStopId) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const isAuxDwellLeg = (leg = {}) => {
+  if (isGtfsServiceLeg(leg)) {
+    return false;
+  }
+  if (!isAuxiliaryLegMarker(leg)) {
+    return false;
+  }
+  return hasSameEndpoint(leg);
+};
+
+const mergedLegToEditableTrip = (leg = {}) => {
+  const dbUuid = text(leg?.trip_db_id ?? leg?.trip_id ?? "").trim();
+  if (!dbUuid) {
+    return null;
+  }
+
+  const gtfsTripId = text(leg?.gtfs_trip_id ?? "").trim();
+  const combined = {
+    ...leg,
+    trip_id: gtfsTripId,
+    id: dbUuid,
+    trip_db_id: dbUuid,
+    start_stop_name: leg.start_stop_name,
+    end_stop_name: leg.end_stop_name,
+    stop_times: leg.stop_times,
+  };
+
+  const normalized = normalizeTrip(combined);
+  if (!normalized.trip_id && !normalized.id) {
+    return null;
+  }
+
+  return normalized;
+};
+
+export const buildEditableTripsFromShift = ({ shift = {}, shiftInfo = null } = {}) => {
+  const legs = mergeStructureWithInfoTrips(shift?.structure, shiftInfo?.trips);
+  if (!legs.length) {
+    return [];
+  }
+
+  const outboundLeg = selectOutboundDepotLeg(legs);
+  const returnLeg = selectReturnDepotLeg(legs);
+  const outboundId = text(outboundLeg?.trip_db_id ?? "").trim();
+  const returnId = text(returnLeg?.trip_db_id ?? "").trim();
+
+  const editable = [];
+
+  for (const leg of legs) {
+    const dbId = text(leg?.trip_db_id ?? "").trim();
+
+    if (isAuxDwellLeg(leg)) {
+      console.warn("[SHIFT] Excluding dwell auxiliary leg from editable trips:", dbId);
+      continue;
+    }
+
+    if (isGtfsServiceLeg(leg)) {
+      const trip = mergedLegToEditableTrip(leg);
+      if (trip) {
+        editable.push(trip);
+      }
+      continue;
+    }
+
+    if (isTransferAuxLeg(leg)) {
+      if (dbId && (dbId === outboundId || dbId === returnId)) {
+        const trip = mergedLegToEditableTrip(leg);
+        if (trip) {
+          editable.push(trip);
+        }
+      }
+      continue;
+    }
+
+    console.warn("[SHIFT] Excluding unclassifiable leg from editable trips:", dbId);
+  }
+
+  return editable;
+};
+
+const isServiceTripForSave = (trip = {}) => {
+  const gtfsTripId = text(
+    trip?.trip_id ?? trip?.tripId ?? trip?.gtfs_trip_id ?? ""
+  ).trim();
+
+  if (gtfsTripId.startsWith("depot-")) {
+    return false;
+  }
+
+  if (
+    trip?.status === "depot" ||
+    trip?.trip?.status === "depot" ||
+    trip?.trip_type === "auxiliary" ||
+    trip?.trip?.trip_type === "auxiliary"
+  ) {
+    return false;
+  }
+
+  if (!gtfsTripId) {
+    return false;
+  }
+
+  const dbUuid = text(trip?.id ?? trip?.trip_db_id ?? "").trim();
+  if (dbUuid && gtfsTripId === dbUuid) {
+    return false;
+  }
+
+  return true;
+};
+
+export const filterServiceTripsForSave = (selectedTrips = []) =>
+  (Array.isArray(selectedTrips) ? selectedTrips : []).filter(isServiceTripForSave);
+
+const getStructureTripDbIds = (shift = {}) => {
+  const structure = Array.isArray(shift?.structure) ? shift.structure : [];
+  return structure
+    .map((item) => text(item?.trip_id ?? item?.tripId ?? "").trim())
+    .filter(Boolean);
+};
+
+const getInfoTripsByDbId = (infoTrips = []) =>
+  new Map(
+    (Array.isArray(infoTrips) ? infoTrips : [])
+      .filter((trip) => text(trip?.id).trim())
+      .map((trip) => [text(trip.id), trip])
+  );
+
+const getGtfsTripIdFromInfoTrip = (info = {}) =>
+  text(info?.trip_id ?? info?.tripId ?? "").trim();
+
+/**
+ * Decide whether persisted shift structure can be safely reconstructed into the
+ * editable route for Edit mode. Requires shiftInfo.trips to supply GTFS business
+ * trip IDs; structure trip_id values alone are database UUIDs and are not enough.
+ */
+export const assessEditRouteReconstruction = ({
+  shift = {},
+  shiftInfo = null,
+} = {}) => {
+  const structureDbIds = getStructureTripDbIds(shift);
+  if (structureDbIds.length === 0) {
+    return { ok: true, reason: null };
+  }
+
+  const infoTrips = shiftInfo?.trips;
+  if (!Array.isArray(infoTrips) || infoTrips.length === 0) {
+    return {
+      ok: false,
+      reason: "missing_shift_info_trips",
+      structureDbIds,
+    };
+  }
+
+  const infoById = getInfoTripsByDbId(infoTrips);
+  const legsWithoutInfo = mergeStructureWithInfoTrips(shift?.structure, []);
+  const legsByDbId = new Map(
+    legsWithoutInfo.map((leg) => [text(leg?.trip_db_id ?? "").trim(), leg])
+  );
+
+  const missingMetadataDbIds = [];
+  for (const dbId of structureDbIds) {
+    const leg = legsByDbId.get(dbId) ?? {};
+    if (isAuxDwellLeg(leg)) {
+      continue;
+    }
+    const gtfsTripId = getGtfsTripIdFromInfoTrip(infoById.get(dbId) ?? {});
+    if (!gtfsTripId) {
+      missingMetadataDbIds.push(dbId);
+    }
+  }
+
+  if (missingMetadataDbIds.length > 0) {
+    return {
+      ok: false,
+      reason: "incomplete_trip_metadata",
+      missingMetadataDbIds,
+      structureDbIds,
+    };
+  }
+
+  const serviceStructureDbIds = structureDbIds.filter((dbId) => {
+    const gtfsTripId = getGtfsTripIdFromInfoTrip(infoById.get(dbId) ?? {});
+    return gtfsTripId && !gtfsTripId.startsWith("depot-");
+  });
+
+  if (serviceStructureDbIds.length === 0) {
+    return { ok: true, reason: null };
+  }
+
+  const editable = buildEditableTripsFromShift({ shift, shiftInfo });
+  const recoveredServiceDbIds = new Set(
+    filterServiceTripsForSave(editable).map((trip) => text(trip?.id).trim())
+  );
+  const lostServiceDbIds = serviceStructureDbIds.filter(
+    (dbId) => !recoveredServiceDbIds.has(dbId)
+  );
+
+  if (lostServiceDbIds.length > 0) {
+    return {
+      ok: false,
+      reason: "service_trips_not_recovered",
+      lostServiceDbIds,
+      structureDbIds,
+    };
+  }
+
+  return { ok: true, reason: null };
+};
+
+export const isEditRouteReconstructionSafe = (args = {}) =>
+  assessEditRouteReconstruction(args).ok;
+
+const resolveDepotIdFromLegSide = (leg, side, loadedDepots = []) => {
+  if (!leg) {
+    return "";
+  }
+
+  const stopTimes = Array.isArray(leg.stop_times) ? leg.stop_times : [];
+  if (!stopTimes.length) {
+    return "";
+  }
+
+  const stopTime =
+    side === "start" ? stopTimes[0] : stopTimes[stopTimes.length - 1];
+  const depot = findLoadedDepotByStopDbId(extractStopDbId(stopTime), loadedDepots);
+  if (depot?.id) {
+    return text(depot.id);
+  }
+
+  const fallbackName =
+    side === "start" ?
+      text(leg.start_stop_name).trim()
+    : text(leg.end_stop_name).trim();
+  const byName = findLoadedDepotByName(fallbackName, loadedDepots);
+  return byName?.id ? text(byName.id) : "";
+};
+
+export const resolveDepotPrefillFromStructure = ({
+  shift = {},
+  shiftInfo = null,
+  loadedDepots = [],
+} = {}) => {
+  const legs = mergeStructureWithInfoTrips(
+    shift?.structure,
+    shiftInfo?.trips
+  );
+  const outboundLeg = selectOutboundDepotLeg(legs);
+  const returnLeg = selectReturnDepotLeg(legs);
+
+  return {
+    startDepotId: resolveDepotIdFromLegSide(outboundLeg, "start", loadedDepots),
+    endDepotId: resolveDepotIdFromLegSide(returnLeg, "end", loadedDepots),
+  };
+};
+
+export const hasReturnDepotLegInStructure = ({
+  shift = {},
+  shiftInfo = null,
+  endDepotId = "",
+  loadedDepots = [],
+} = {}) => {
+  const returnLeg = selectReturnDepotLeg(
+    mergeStructureWithInfoTrips(shift?.structure, shiftInfo?.trips)
+  );
+  if (!returnLeg) {
+    return false;
+  }
+
+  const configuredEndDepotId = text(endDepotId).trim();
+  if (!configuredEndDepotId) {
+    return false;
+  }
+
+  const legEndDepotId = resolveDepotIdFromLegSide(returnLeg, "end", loadedDepots);
+  if (legEndDepotId && legEndDepotId !== configuredEndDepotId) {
+    return false;
+  }
+
+  return true;
+};
+
+const resolveReturnDepotLegDbId = ({ shift = {}, shiftInfo = null } = {}) => {
+  const returnLeg = selectReturnDepotLeg(
+    mergeStructureWithInfoTrips(shift?.structure, shiftInfo?.trips)
+  );
+  return text(returnLeg?.trip_id ?? returnLeg?.tripId ?? "").trim();
+};
+
+const normalizeInitialSelectedTripDbIds = (initialSelectedTripDbIds) => {
+  if (initialSelectedTripDbIds instanceof Set) {
+    return initialSelectedTripDbIds;
+  }
+  if (Array.isArray(initialSelectedTripDbIds)) {
+    return new Set(
+      initialSelectedTripDbIds.map((id) => text(id).trim()).filter(Boolean)
+    );
+  }
+  return null;
+};
+
+const isReturnDepotLegSelected = (trips = [], returnLegDbId = "") => {
+  const candidate = text(returnLegDbId).trim();
+  if (!candidate) {
+    return false;
+  }
+  return (Array.isArray(trips) ? trips : []).some(
+    (trip) => text(trip?.id ?? trip?.trip_db_id ?? "").trim() === candidate
+  );
+};
+
+export const isShiftClosedAtDepot = ({
+  selectedTrips = [],
+  endDepotId = "",
+  loadedDepots = [],
+  shift = null,
+  shiftInfo = null,
+  initialSelectedTripDbIds = null,
+} = {}) => {
+  if (!text(endDepotId).trim()) {
+    return false;
+  }
+  if (!Array.isArray(selectedTrips) || selectedTrips.length === 0) {
+    return false;
+  }
+  if (!shift?.structure || !Array.isArray(shift.structure) || shift.structure.length === 0) {
+    return false;
+  }
+  if (!hasReturnDepotLegInStructure({ shift, shiftInfo, endDepotId, loadedDepots })) {
+    return false;
+  }
+
+  const returnLegDbId = resolveReturnDepotLegDbId({ shift, shiftInfo });
+  if (!returnLegDbId) {
+    return false;
+  }
+
+  if (isReturnDepotLegSelected(selectedTrips, returnLegDbId)) {
+    return true;
+  }
+
+  const initialIds = normalizeInitialSelectedTripDbIds(initialSelectedTripDbIds);
+  if (initialIds?.has(returnLegDbId)) {
+    return false;
+  }
+
+  return true;
+};
+
+export const resolveScheduledTripsEmptyMessageKey = ({
+  eligibleTripsCount = 0,
+  currentTripsCount = 0,
+  isClosedAtDepot = false,
+} = {}) => {
+  if (eligibleTripsCount > 0) {
+    return null;
+  }
+  if (currentTripsCount === 0) {
+    return "shifts.no_trips_match";
+  }
+  if (isClosedAtDepot) {
+    return "shifts.shift_closed_at_depot";
+  }
+  return "shifts.no_valid_trips_to_add";
+};
+
+export const resolveShiftDepotIds = ({
+  shift = {},
+  shiftInfo = null,
+  loadedDepots = [],
+} = {}) => {
+  const explicitStartDepotId = firstAvailable(
+    shift?.start_depot_id,
+    shift?.startDepotId,
+    shift?.start_depot?.id,
+    shift?.startDepot?.id
+  );
+  const explicitEndDepotId = firstAvailable(
+    shift?.end_depot_id,
+    shift?.endDepotId,
+    shift?.end_depot?.id,
+    shift?.endDepot?.id
+  );
+  const inferred = resolveDepotPrefillFromStructure({
+    shift,
+    shiftInfo,
+    loadedDepots,
+  });
+
+  return {
+    startDepotId: explicitStartDepotId || inferred.startDepotId,
+    endDepotId: explicitEndDepotId || inferred.endDepotId,
+  };
 };

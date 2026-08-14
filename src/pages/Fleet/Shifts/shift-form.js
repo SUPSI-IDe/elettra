@@ -23,6 +23,7 @@ import { resolveUserId, resolveAgencyId } from "../../../api/session";
 import { showTripPreview, hideTripPreview } from "./trip-preview";
 import { renderTimeline } from "./shift-timeline";
 import { triggerPartialLoad } from "../../../events";
+import { invalidateShiftDistanceCache } from "../../../utils/shift-distance";
 import { getOwnedBuses, setOwnedBuses, getModelsById } from "../../../store";
 import {
   textContent,
@@ -38,11 +39,17 @@ import {
   resolveTripPk,
   normalizeTrip,
   resolveRouteLabel,
-  readShiftTripsFromStructure,
   getNextDay,
   DAYS_OF_WEEK,
   evaluateTripEligibility,
   getEligibleScheduledTrips,
+  normalizeOperationalTripCandidates,
+  resolveShiftDepotIds,
+  isShiftClosedAtDepot,
+  resolveScheduledTripsEmptyMessageKey,
+  buildEditableTripsFromShift,
+  filterServiceTripsForSave,
+  assessEditRouteReconstruction,
 } from "./shift-utils";
 import {
   populateDayOptions,
@@ -384,6 +391,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   let currentTrips = [];
   const selectedTripIds = new Set();
   let selectedTrips = [];
+  let loadedShiftForDepotState = null;
+  let loadedShiftInfoForDepotState = null;
+  let initialSelectedTripDbIds = new Set();
+  let editRouteReconstructionBlocked = false;
 
   const dedupeTrips = (trips = []) => {
     const seenTripIds = new Set();
@@ -467,6 +478,28 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     shiftEndTime: getShiftEndTime(),
   });
 
+  const getEndDepotId = () =>
+    endDepotSelect instanceof HTMLSelectElement ? endDepotSelect.value.trim() : "";
+
+  const getIsShiftClosedAtDepot = () =>
+    isShiftClosedAtDepot({
+      selectedTrips,
+      endDepotId: getEndDepotId(),
+      loadedDepots,
+      shift: loadedShiftForDepotState,
+      shiftInfo: loadedShiftInfoForDepotState,
+      initialSelectedTripDbIds,
+    });
+
+  const getScheduledTripsEmptyMessage = (eligibleTripsCount = 0) => {
+    const messageKey = resolveScheduledTripsEmptyMessageKey({
+      eligibleTripsCount,
+      currentTripsCount: currentTrips.length,
+      isClosedAtDepot: getIsShiftClosedAtDepot(),
+    });
+    return messageKey ? t(messageKey) : "";
+  };
+
   const refreshScheduledTrips = () => {
     const renderState = getScheduledTripsRenderState();
     const eligibleTrips = getEligibleScheduledTrips(renderState);
@@ -484,9 +517,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateEmptyState(
       scheduledTripsEmpty,
       eligibleTrips.length > 0,
-      currentTrips.length > 0 ?
-        t("shifts.no_valid_trips_to_add")
-      : t("shifts.no_trips_match")
+      getScheduledTripsEmptyMessage(eligibleTrips.length)
     );
 
     return eligibleTrips;
@@ -748,7 +779,9 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     if (addedCount === 0) {
       updateFeedback(
         feedback,
-        t("shifts.no_valid_trips_to_add") || "No trips can be added with the current depot time limits.",
+        getScheduledTripsEmptyMessage(0) ||
+          t("shifts.no_valid_trips_to_add") ||
+          "No trips can be added with the current depot time limits.",
         "info"
       );
       return;
@@ -808,7 +841,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     select.value = candidate;
   };
 
-  const applyShiftPrefill = (shift = {}) => {
+  const applyShiftPrefill = (
+    shift = {},
+    shiftInfo = null,
+    { reconstructRoute = true } = {}
+  ) => {
+    loadedShiftForDepotState = shift;
+    loadedShiftInfoForDepotState = shiftInfo;
+
     const name = firstAvailable(shift?.name);
     if (nameInput instanceof HTMLInputElement && name) {
       nameInput.value = name;
@@ -863,140 +903,50 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       endTimeInput.value = endTime;
     }
 
-    const startDepotId = firstAvailable(
-      shift?.start_depot_id,
-      shift?.startDepotId,
-      shift?.start_depot?.id,
-      shift?.startDepot?.id
-    );
+    const { startDepotId, endDepotId } = resolveShiftDepotIds({
+      shift,
+      shiftInfo,
+      loadedDepots,
+    });
     const startDepotLabel = firstAvailable(
       shift?.start_depot_name,
       shift?.startDepotName,
       shift?.start_depot?.name,
-      shift?.startDepot?.name
-    );
-    const endDepotId = firstAvailable(
-      shift?.end_depot_id,
-      shift?.endDepotId,
-      shift?.end_depot?.id,
-      shift?.endDepot?.id
+      shift?.startDepot?.name,
+      loadedDepots.find((depot) => text(depot?.id) === text(startDepotId))?.name
     );
     const endDepotLabel = firstAvailable(
       shift?.end_depot_name,
       shift?.endDepotName,
       shift?.end_depot?.name,
-      shift?.endDepot?.name
+      shift?.endDepot?.name,
+      loadedDepots.find((depot) => text(depot?.id) === text(endDepotId))?.name
     );
 
     prefillSelectValue(startDepotSelect, startDepotId, startDepotLabel);
     prefillSelectValue(endDepotSelect, endDepotId, endDepotLabel);
 
-    const allTrips = readShiftTripsFromStructure(shift);
-    const depotTrips = allTrips.filter((trip) => isDepotTrip(trip));
-    const trips = allTrips.filter((trip) => !isDepotTrip(trip));
-
-    // The API does NOT always return depot info as top-level shift fields.
-    // Fall back to auxiliary depot trips and match by linked stop_id first,
-    // then by depot label as a last resort.
-    const depotNameFromTrip = (trip) =>
-      (trip?.start_stop_name || trip?.startStopName ||
-       trip?.end_stop_name || trip?.endStopName ||
-       trip?.trip?.start_stop_name || trip?.trip?.end_stop_name || "").trim();
-
-    const depotStopIdFromTrip = (trip, side = "start") => {
-      if (!trip) {
-        return "";
-      }
-
-      const stop =
-        side === "start" ?
-          firstAvailable(
-            trip?.departure_stop_id,
-            trip?.departureStopId,
-            trip?.start_stop_id,
-            trip?.startStopId,
-            trip?.start_stop?.id,
-            trip?.start_stop?.stop_id,
-            trip?.startStop?.id,
-            trip?.trip?.departure_stop_id,
-            trip?.trip?.departureStopId,
-            trip?.trip?.start_stop_id,
-            trip?.trip?.startStopId,
-            trip?.trip?.start_stop?.id,
-            trip?.trip?.start_stop?.stop_id,
-            trip?.trip?.startStop?.id
-          )
-        : firstAvailable(
-            trip?.arrival_stop_id,
-            trip?.arrivalStopId,
-            trip?.end_stop_id,
-            trip?.endStopId,
-            trip?.end_stop?.id,
-            trip?.end_stop?.stop_id,
-            trip?.endStop?.id,
-            trip?.trip?.arrival_stop_id,
-            trip?.trip?.arrivalStopId,
-            trip?.trip?.end_stop_id,
-            trip?.trip?.endStopId,
-            trip?.trip?.end_stop?.id,
-            trip?.trip?.end_stop?.stop_id,
-            trip?.trip?.endStop?.id
-          );
-
-      return text(stop).trim();
-    };
-
-    const selectDepotByStopId = (select, stopId) => {
-      if (!(select instanceof HTMLSelectElement) || !stopId) {
-        return false;
-      }
-
-      const match = loadedDepots.find((depot) => text(depot?.stop_id).trim() === stopId);
-      if (!match?.id) {
-        return false;
-      }
-
-      prefillSelectValue(select, match.id, match?.name ?? match?.label ?? "");
-      return true;
-    };
-
-    const selectDepotByName = (select, name) => {
-      if (!(select instanceof HTMLSelectElement) || !name) return;
-      const match = Array.from(select.options).find(
-        (opt) => opt.value && opt.textContent.trim().toLowerCase() === name.toLowerCase()
-      );
-      if (match) select.value = match.value;
-    };
-
-    if (depotTrips.length > 0 && (!startDepotId || !endDepotId)) {
-      const startDepotTrip = depotTrips[0];
-      const endDepotTrip = depotTrips[depotTrips.length - 1];
-      const startDepotName = depotNameFromTrip(startDepotTrip);
-      const endDepotName = depotNameFromTrip(endDepotTrip);
-      const startDepotStopId = depotStopIdFromTrip(startDepotTrip, "start");
-      const endDepotStopId = depotStopIdFromTrip(endDepotTrip, "end");
-
-      if (!startDepotId) {
-        const matched = selectDepotByStopId(startDepotSelect, startDepotStopId);
-        if (!matched) {
-          selectDepotByName(startDepotSelect, startDepotName);
+    let trips = [];
+    if (reconstructRoute) {
+      trips = buildEditableTripsFromShift({ shift, shiftInfo });
+      selectedTrips = trips;
+      selectedTripIds.clear();
+      initialSelectedTripDbIds = new Set();
+      trips.forEach((trip = {}) => {
+        const id = resolveTripId(trip);
+        const dbId = text(trip?.id).trim();
+        if (id) {
+          selectedTripIds.add(id);
         }
-      }
-      if (!endDepotId) {
-        const matched = selectDepotByStopId(endDepotSelect, endDepotStopId);
-        if (!matched) {
-          selectDepotByName(endDepotSelect, endDepotName);
+        if (dbId) {
+          initialSelectedTripDbIds.add(dbId);
         }
-      }
+      });
+    } else {
+      selectedTrips = [];
+      selectedTripIds.clear();
+      initialSelectedTripDbIds = new Set();
     }
-    selectedTrips = trips;
-    selectedTripIds.clear();
-    trips.forEach((trip = {}) => {
-      const id = resolveTripId(trip);
-      if (id) {
-        selectedTripIds.add(id);
-      }
-    });
 
     // Extract route/line information from the shift (from shiftInfo) or first trip
     const firstTrip = trips[0] ?? {};
@@ -1298,26 +1248,26 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       // Remove duplicates by tracking seen IDs (both trip_id and database id)
       const seenTripIds = new Set();
       const seenDbIds = new Set();
-      currentTrips = normalizedTrips
-        .filter((trip) => {
+      currentTrips = normalizeOperationalTripCandidates(
+        normalizedTrips.filter((trip) => {
           const tripId = resolveTripId(trip);
           const dbId = trip?.id;
-          
+
           // Check if we've seen this trip before (by either ID)
           const isDuplicateByTripId = tripId && seenTripIds.has(tripId);
           const isDuplicateByDbId = dbId && seenDbIds.has(dbId);
-          
+
           if (isDuplicateByTripId || isDuplicateByDbId) {
             return false;
           }
-          
+
           // Mark this trip as seen
           if (tripId) seenTripIds.add(tripId);
           if (dbId) seenDbIds.add(dbId);
-          
+
           return true;
         })
-        .sort((a, b) => {
+      ).sort((a, b) => {
           const timeA = a.departure_time || "";
           const timeB = b.departure_time || "";
           return timeA.localeCompare(timeB);
@@ -1401,9 +1351,16 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     updateFeedback(feedback, "");
 
+    if (isEditMode && editRouteReconstructionBlocked) {
+      updateFeedback(feedback, t("shifts.unable_to_load_for_edit"), "error");
+      return;
+    }
+
+    const serviceTripsForSave = filterServiceTripsForSave(selectedTrips);
+
     const { name, busId, tripIds, startTime, endTime, startDepotId, endDepotId } = buildShiftPayload({
       form,
-      selectedTrips,
+      selectedTrips: serviceTripsForSave,
     });
 
     if (!name || !busId) {
@@ -1426,8 +1383,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       let allTripIds = [...tripIds];
       
       // Get route info for auxiliary trips
-      const firstTrip = selectedTrips[0];
-      const lastTrip = selectedTrips[selectedTrips.length - 1];
+      const firstTrip = serviceTripsForSave[0];
+      const lastTrip = serviceTripsForSave[serviceTripsForSave.length - 1];
       const routeId = lineSelect?.value || firstTrip?.route_id || null;
       
       // Find depot objects to get their stop_id
@@ -1576,6 +1533,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
       if (isEditMode) {
         await updateShift(shiftId, { name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId });
+        invalidateShiftDistanceCache(shiftId);
         updateFeedback(feedback, t("shifts.shift_updated"), "success");
         triggerPartialLoad("shifts", {
           flashMessage: t("shifts.shift_updated"),
@@ -1935,12 +1893,28 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       }
 
       const hydratedShift = await hydrateShift(shift, shiftInfo);
-      applyShiftPrefill(hydratedShift);
+      const reconstruction = assessEditRouteReconstruction({
+        shift: hydratedShift,
+        shiftInfo,
+      });
+      editRouteReconstructionBlocked = !reconstruction.ok;
+      if (editRouteReconstructionBlocked) {
+        console.warn("[SHIFT] Edit route reconstruction unsafe:", reconstruction);
+      }
+
+      applyShiftPrefill(hydratedShift, shiftInfo, {
+        reconstructRoute: !editRouteReconstructionBlocked,
+      });
 
       updateTimeline();
 
       toggleFormDisabled(form, false);
-      if (nameInput instanceof HTMLInputElement) {
+      if (editRouteReconstructionBlocked) {
+        updateFeedback(feedback, t("shifts.unable_to_load_for_edit"), "error");
+        if (submitButton) {
+          submitButton.disabled = true;
+        }
+      } else if (nameInput instanceof HTMLInputElement) {
         nameInput.focus();
         const length = nameInput.value.length;
         nameInput.setSelectionRange(length, length);
