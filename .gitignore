@@ -30,3 +30,7 @@ WARP.md
 # Local configuration files
 .nvmrc
 .codex
+
+# Browser automation output
+.playwright-cli/
+.playwright-mcp/
