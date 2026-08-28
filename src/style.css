@@ -2842,9 +2842,23 @@ table input[type="checkbox"] {
     min-width: 0;
   }
 
+  /* Every toolbar button lives in `.actions`, so the column flip gives the
+     search field its own row and leaves the actions as one equal-width bar.
+     Splitting them keeps the primary from stretching to the full column while
+     the rest hug the left edge. */
   .table-controls .actions {
     width: 100%;
-    justify-content: flex-start;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+
+  /* Equal columns get tight with four buttons and a long label ("Schicht
+     hinzufügen"), so labels wrap here instead of overflowing the nowrap
+     default; `stretch` above keeps the wrapped button level with the rest. */
+  .table-controls .actions > button {
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: normal;
   }
 }
 
@@ -2898,5 +2912,15 @@ table input[type="checkbox"] {
 
   .form-actions button {
     width: 100%;
+  }
+
+  /* Four equal columns would crush the labels at phone width, so the toolbar
+     actions drop back to natural width and wrap. */
+  .table-controls .actions {
+    flex-wrap: wrap;
+  }
+
+  .table-controls .actions > button {
+    flex: 0 1 auto;
   }
 }

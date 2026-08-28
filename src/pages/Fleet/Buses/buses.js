@@ -62,6 +62,13 @@ const initializeModelControls = (section, cleanupHandlers) => {
       return;
     }
     const action = actionButton.dataset.action;
+
+    // "Add bus model" shares this container but has its own handler and needs
+    // no selection, so the guard below must not swallow it.
+    if (action !== "delete-selected-models" && action !== "edit-selected-model") {
+      return;
+    }
+
     const selectedIds = getSelectedIdsFrom(
       section.querySelector(".bus-models table")
     );
