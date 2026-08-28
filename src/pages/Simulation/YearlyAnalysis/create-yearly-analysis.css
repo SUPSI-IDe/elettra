@@ -85,11 +85,6 @@
 
 /* ── Temperature scenarios ───────────────────────────────────────── */
 
-.create-yearly-analysis .ya-scenarios-table th:first-child,
-.create-yearly-analysis .ya-scenarios-table td:first-child {
-  width: 4rem;
-}
-
 .create-yearly-analysis .ya-scenarios-table td {
   border-top: 1px solid var(--border-light);
   text-align: left;
@@ -105,25 +100,7 @@
   font-weight: 600;
 }
 
-.create-yearly-analysis .ya-scenarios-color-cell {
-  padding-inline: var(--space-xs);
-}
-
-.create-yearly-analysis .ya-scenarios-swatch {
-  display: inline-block;
-  width: 1.1rem;
-  height: 1.1rem;
-  border-radius: var(--radius-full);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--color-surface) 55%, transparent),
-    0 0 0 1px var(--color-swatch-ring);
-}
-
-.create-yearly-analysis .ya-scenarios-table :is(th, td):first-child {
-  text-align: center;
-}
-
-.create-yearly-analysis .ya-scenarios-table :is(th, td):nth-child(n + 2),
+.create-yearly-analysis .ya-scenarios-table th,
 .create-yearly-analysis .ya-scenarios-table .ya-scenarios-number {
   text-align: right;
   font-variant-numeric: tabular-nums;

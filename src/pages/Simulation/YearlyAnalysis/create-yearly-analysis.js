@@ -46,18 +46,6 @@ const formatScenarioValue = (value, decimals = 1) => {
   return numeric != null ? numeric.toFixed(decimals) : "—";
 };
 
-const temperatureToColor = (temperature, minTemperature, maxTemperature) => {
-  const value = toFiniteNumber(temperature);
-  if (value == null) return "hsl(220 78% 55%)";
-
-  const min = toFiniteNumber(minTemperature);
-  const max = toFiniteNumber(maxTemperature);
-  const ratio = min != null && max != null && max > min ? (value - min) / (max - min) : 0.5;
-  const clamped = Math.max(0, Math.min(1, ratio));
-  const hue = 220 - (220 * clamped);
-  return `hsl(${hue} 78% 55%)`;
-};
-
 // ── Extract info from an optimization run ────────────────────────────
 
 const resolveElectrificationFeasible = (run = {}) => {
@@ -216,25 +204,10 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         temperature: Number.isFinite(cluster.temperature) ? cluster.temperature : 0,
         occurrences: Number.isFinite(cluster.occurrences) ? cluster.occurrences : 0,
       }));
-    const temperatures = scenarioRows.map((scenario) => scenario.temperature);
-    const minTemperature = temperatures.length ? Math.min(...temperatures) : null;
-    const maxTemperature = temperatures.length ? Math.max(...temperatures) : null;
-
-    scenariosTbody.innerHTML = scenarioRows.map((scenario) => {
-      const temperatureColor = temperatureToColor(scenario.temperature, minTemperature, maxTemperature);
-      return `<tr>
-        <td class="ya-scenarios-color-cell">
-          <span
-            class="ya-scenarios-swatch"
-            style="background-color: ${temperatureColor};"
-            title="${textContent(`${formatScenarioValue(scenario.temperature, 1)} °C`)}"
-            aria-label="${textContent(t("yearly_analysis.temperature_degrees_celsius", { value: formatScenarioValue(scenario.temperature, 1) }))}"
-          ></span>
-        </td>
+    scenariosTbody.innerHTML = scenarioRows.map((scenario) => `<tr>
         <td class="ya-scenarios-number">${formatScenarioValue(scenario.temperature, 1)}</td>
         <td class="ya-scenarios-number">${formatScenarioValue(scenario.occurrences, 0)}</td>
-      </tr>`;
-    }).join("");
+      </tr>`).join("");
     updateTotalOcc();
   };
 
