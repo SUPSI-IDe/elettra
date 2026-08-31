@@ -9,7 +9,6 @@ import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
 import { saveRunIds } from "./simulation-runs";
 import {
-  DEFAULT_PREDICTION_MODEL_NAME,
   DEFAULT_PREDICTION_QUANTILES,
 } from "../../../config/simulation-defaults";
 import { normalizeOptimizationRunName } from "../../../utils/optimization-run";
@@ -179,7 +178,6 @@ export const initializeSimulationDetail = async (
         shift_ids: shiftIds,
         bus_model_id: busModelId,
         prediction_params: {
-          model_name: DEFAULT_PREDICTION_MODEL_NAME,
           external_temp_celsius: externalTemp,
           occupancy_percent: occupancy,
           auxiliary_heating_type: heatingType,

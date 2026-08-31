@@ -18,7 +18,6 @@ import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveBusModelDisplayName } from "../../../ui-helpers";
 import {
-  DEFAULT_PREDICTION_MODEL_NAME,
   DEFAULT_PREDICTION_QUANTILES,
 } from "../../../config/simulation-defaults";
 import {
@@ -432,7 +431,6 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     const saveMeta = resolvedNames[text(baseRun.id)] ?? {};
     const pp = saveMeta.predParams ?? {};
     const basePredParams = {
-      model_name: pp.model_name || DEFAULT_PREDICTION_MODEL_NAME,
       occupancy_percent: chosenOccupancy,
       auxiliary_heating_type: pp.auxiliary_heating_type || "default",
       quantiles: Array.isArray(pp.quantiles) && pp.quantiles.length ? pp.quantiles : DEFAULT_PREDICTION_QUANTILES,

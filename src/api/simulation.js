@@ -7,13 +7,13 @@ import {
 } from "./pagination";
 import {
   DEFAULT_PASSENGER_WEIGHT_KG,
-  DEFAULT_PREDICTION_MODEL_NAME,
   DEFAULT_PREDICTION_QUANTILES,
   GREYBOX_PARAMS,
 } from "../config/simulation-defaults";
 import { normalizeOptimizationRunName } from "../utils/optimization-run";
 import { readDeleteResponse } from "./delete-response";
 import { createPredictionRunIndex } from "./prediction-run-index";
+import { buildPredictionRunRequestBody } from "./prediction-request";
 
 const SIMULATION_PATH = `${API_ROOT}/api/v1/simulation`;
 const YEARLY_ANALYSIS_PATH = `${API_ROOT}/api/v1/yearly-analysis`;
@@ -216,9 +216,6 @@ const createPredictionRunVariants = async ({
     prediction_params.occupancy_percent == null
       ? 50
       : Number(prediction_params.occupancy_percent);
-  const modelName =
-    text(prediction_params.model_name).trim() ||
-    DEFAULT_PREDICTION_MODEL_NAME;
   const batteryPackCases =
     pack_count_override != null
       ? [Math.round(Number(pack_count_override))]
@@ -237,7 +234,7 @@ const createPredictionRunVariants = async ({
     const payload = await createPredictionRuns({
       shift_ids,
       bus_model_id,
-      model_name: modelName,
+      model_name: prediction_params.model_name,
       external_temp_celsius:
         prediction_params.external_temp_celsius ?? 15,
       occupancy_percent: occupancyPercent,
@@ -285,10 +282,6 @@ export const createSinglePredictionRun = async ({
     prediction_params.occupancy_percent == null
       ? 50
       : Number(prediction_params.occupancy_percent);
-  const modelName =
-    text(prediction_params.model_name).trim() ||
-    DEFAULT_PREDICTION_MODEL_NAME;
-
   const contextualParameters = buildContextualParameters({
     specs,
     occupancyPercent,
@@ -299,7 +292,7 @@ export const createSinglePredictionRun = async ({
   const payload = await createPredictionRuns({
     shift_ids,
     bus_model_id,
-    model_name: modelName,
+    model_name: prediction_params.model_name,
     external_temp_celsius: prediction_params.external_temp_celsius ?? 15,
     occupancy_percent: occupancyPercent,
     auxiliary_heating_type: normalizeAuxiliaryHeatingType(
@@ -326,7 +319,7 @@ export const createSinglePredictionRun = async ({
 export const createPredictionRuns = async ({
   shift_ids,
   bus_model_id,
-  model_name = DEFAULT_PREDICTION_MODEL_NAME,
+  model_name,
   external_temp_celsius = 15,
   occupancy_percent = 50,
   auxiliary_heating_type = "default",
@@ -347,23 +340,18 @@ export const createPredictionRuns = async ({
     "Content-Type": "application/json",
   };
 
-  const body = {
+  const body = buildPredictionRunRequestBody({
     shift_ids,
     bus_model_id,
     model_name,
     external_temp_celsius: Number(external_temp_celsius),
     occupancy_percent: Number(occupancy_percent),
     auxiliary_heating_type: normalizeAuxiliaryHeatingType(auxiliary_heating_type),
-  };
-  if (Array.isArray(quantiles) && quantiles.length) body.quantiles = quantiles;
-  if (num_battery_packs != null) body.num_battery_packs = Number(num_battery_packs);
-  if (contextual_parameters && typeof contextual_parameters === "object") {
-    body.contextual_parameters = contextual_parameters;
-  }
-
-  if (yearly_analysis_id) {
-    body.yearly_analysis_id = yearly_analysis_id;
-  }
+    quantiles,
+    num_battery_packs,
+    contextual_parameters,
+    yearly_analysis_id,
+  });
 
   const response = await fetch(`${SIMULATION_PATH}/prediction-runs/`, {
     method: "POST",

@@ -1,6 +1,3 @@
-export const DEFAULT_PREDICTION_MODEL_NAME =
-  "greybox_qrf_production_crps_optimized_3";
-
 export const DEFAULT_PREDICTION_QUANTILES = [0.05, 0.5, 0.95];
 
 export const DEFAULT_PASSENGER_WEIGHT_KG = 80;

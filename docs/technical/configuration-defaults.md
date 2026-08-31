@@ -1,6 +1,6 @@
 # Configuration Defaults
 
-> Last updated: 2026-06-01
+> Last updated: 2026-08-31
 
 The frontend embeds domain-specific configuration and default values used for simulation setup, economic comparison, and bus model creation. These are **not** user-editable at runtime — they are compiled into the application.
 
@@ -27,10 +27,15 @@ Plus the runtime config:
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
-| `DEFAULT_PREDICTION_MODEL_NAME` | `greybox_qrf_production_crps_optimized_3` | ML model used for energy prediction |
 | `DEFAULT_PREDICTION_QUANTILES` | `[0.05, 0.5, 0.95]` | Quantile levels for uncertainty bands |
 | `DEFAULT_PASSENGER_WEIGHT_KG` | `80` | Average passenger weight for weight calculation |
 | `GREYBOX_PARAMS` | Object with physics coefficients | Parameters for the greybox consumption model |
+
+The frontend does not select a prediction model by default. It omits
+`model_name` from prediction requests so the backend can resolve the deployed
+release from `CONSUMPTION_MODEL_RELEASE` and persist that resolved value on the
+prediction run. An explicit `model_name` remains supported for future model
+selection interfaces.
 
 ### Greybox parameters
 
