@@ -37,7 +37,8 @@ Used by Docker containers at runtime (not embedded in the bundle).
 |----------|---------|---------|--------|
 | `API_BACKEND_URL` | Backend URL used by the nginx container to proxy `/auth` and `/api` requests at runtime. | `http://isaac-elettra.dacd.supsi.ch:8002` | `docker/env.example`, `docker-compose.yml` |
 | `ELETTRA_FRONTEND_IMAGE` | Immutable GHCR tag or digest used by the local staging service. | `ghcr.io/supsi-ide/elettra:staging` | `docker/.env.staging` |
-| `ELETTRA_STAGING_PORT` | Loopback port used by the local staging service. | `55558` | `docker/.env.staging` |
+| `ELETTRA_STAGING_BIND_ADDRESS` | Host address used to publish the local staging service. Set `0.0.0.0` only when network access is required. | `127.0.0.1` | `docker/.env.staging` |
+| `ELETTRA_STAGING_PORT` | Host port used by the local staging service. | `55558` | `docker/.env.staging` |
 
 ---
 

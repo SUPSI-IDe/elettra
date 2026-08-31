@@ -47,13 +47,16 @@ proxies API requests to the backend on this machine:
 cd docker
 cp .env.staging.example .env.staging
 # Replace ELETTRA_FRONTEND_IMAGE with the candidate digest from Actions.
+# Set ELETTRA_STAGING_BIND_ADDRESS=0.0.0.0 only when remote access is required.
 docker compose --env-file .env.staging --profile staging pull elettra-staging
 docker compose --env-file .env.staging --profile staging up -d elettra-staging
 ```
 
 Open <http://127.0.0.1:55558/elettra/> and check container health at
 <http://127.0.0.1:55558/health>. The loopback bind keeps this staging instance
-private to the host.
+private to the host. With `ELETTRA_STAGING_BIND_ADDRESS=0.0.0.0`, use
+`http://<host-ip>:55558/elettra/` from another machine and restrict access with
+the host firewall or VPN.
 
 ---
 

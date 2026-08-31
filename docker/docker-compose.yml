@@ -127,7 +127,7 @@ services:
     image: ${ELETTRA_FRONTEND_IMAGE:-ghcr.io/supsi-ide/elettra:staging}
     container_name: elettra-frontend-staging
     ports:
-      - "127.0.0.1:${ELETTRA_STAGING_PORT:-55558}:80"
+      - "${ELETTRA_STAGING_BIND_ADDRESS:-127.0.0.1}:${ELETTRA_STAGING_PORT:-55558}:80"
     environment:
       - API_BACKEND_URL=${API_BACKEND_URL:-http://host.docker.internal:8002}
     extra_hosts:
