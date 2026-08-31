@@ -3,6 +3,9 @@ server {
     server_name localhost;
     root /usr/share/nginx/html;
 
+    # Keep redirects relative so Docker-published ports are preserved.
+    absolute_redirect off;
+
     # Gzip compression for better performance
     gzip on;
     gzip_vary on;
@@ -16,6 +19,10 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
 
     # Serve Elettra application
+    location = /elettra {
+        return 301 /elettra/;
+    }
+
     location /elettra/ {
         alias /usr/share/nginx/html/elettra/;
         try_files ${ESC}uri ${ESC}uri/ /elettra/index.html;
