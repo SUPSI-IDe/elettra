@@ -122,6 +122,26 @@ services:
       retries: 3
       start_period: 10s
 
+  # Immutable GHCR image used for local production-like validation.
+  elettra-staging:
+    image: ${ELETTRA_FRONTEND_IMAGE:-ghcr.io/supsi-ide/elettra:staging}
+    container_name: elettra-frontend-staging
+    ports:
+      - "127.0.0.1:${ELETTRA_STAGING_PORT:-55558}:80"
+    environment:
+      - API_BACKEND_URL=${API_BACKEND_URL:-http://host.docker.internal:8002}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    profiles:
+      - staging
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   # Production-style service served directly by Vite preview
   elettra-prod-vite:
     build:

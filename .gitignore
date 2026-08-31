@@ -26,6 +26,7 @@ dist-ssr
 # Exclude WARP.md
 WARP.md
 .env
+docker/.env.staging
 
 # Local configuration files
 .nvmrc

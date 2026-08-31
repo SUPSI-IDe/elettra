@@ -38,6 +38,23 @@ docker compose --profile prod-vite up -d --build
 
 Open: <http://localhost:9010/elettra/>
 
+### Local staging from GHCR
+
+The staging profile runs the exact image published by GitHub Actions and
+proxies API requests to the backend on this machine:
+
+```bash
+cd docker
+cp .env.staging.example .env.staging
+# Replace ELETTRA_FRONTEND_IMAGE with the candidate digest from Actions.
+docker compose --env-file .env.staging --profile staging pull elettra-staging
+docker compose --env-file .env.staging --profile staging up -d elettra-staging
+```
+
+Open <http://127.0.0.1:55558/elettra/> and check container health at
+<http://127.0.0.1:55558/health>. The loopback bind keeps this staging instance
+private to the host.
+
 ---
 
 ## Available profiles
@@ -49,6 +66,7 @@ Open: <http://localhost:9010/elettra/>
 | `local-vpn` | `elettra-local-vpn` | `http://10.9.0.5:8002` | Development via VPN |
 | `prod` | `elettra` | `API_BACKEND_URL` (nginx runtime) | Production with nginx |
 | `prod-vite` | `elettra-prod-vite` | `VITE_API_PROXY_TARGET` | Production with vite preview |
+| `staging` | `elettra-staging` | `http://host.docker.internal:8002` | Published GHCR candidate on port 55558 |
 
 ---
 

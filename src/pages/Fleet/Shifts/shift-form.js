@@ -62,6 +62,7 @@ import {
   updateEmptyState,
   clearNode,
 } from "./shift-renderers";
+import { buildCompleteShiftTripIds } from "./depot-trip-ids";
 
 const readTripId = (node) => node?.dataset?.tripId?.trim() ?? "";
 
@@ -1373,24 +1374,30 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return;
     }
 
+    if (!startDepotId || !endDepotId || !startTime || !endTime) {
+      updateFeedback(feedback, t("shifts.depot_details_required"), "error");
+      return;
+    }
+
     toggleFormDisabled(form, true);
     updateFeedback(feedback, isEditMode ? t("shifts.updating") : t("shifts.saving"), "info");
 
     try {
       showProgress(isEditMode ? t("shifts.saving_shift") : t("shifts.creating_shift"));
 
-      // Build the complete trip IDs array, including auxiliary depot trips
-      let allTripIds = [...tripIds];
-      
       // Get route info for auxiliary trips
       const firstTrip = serviceTripsForSave[0];
       const lastTrip = serviceTripsForSave[serviceTripsForSave.length - 1];
       const routeId = lineSelect?.value || firstTrip?.route_id || null;
-      
+
+      if (!routeId) {
+        throw new Error(t("shifts.depot_route_required"));
+      }
+
       // Find depot objects to get their stop_id
       const startDepot = loadedDepots.find((d) => d.id === startDepotId);
       const endDepot = loadedDepots.find((d) => d.id === endDepotId);
-      
+
       console.debug("[SHIFT] Depot info:", {
         startDepotId,
         startDepot,
@@ -1399,124 +1406,102 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         endDepot,
         endDepotStopId: endDepot?.stop_id,
       });
-      
-      // Create auxiliary trip for depot → first stop (if start depot and time are set)
-      if (startDepotId && startTime && firstTrip && routeId) {
-        const depotStopId = startDepot?.stop_id;
-        if (!depotStopId) {
-          console.warn("[SHIFT] Start depot does not have a linked stop_id - cannot create depot trip");
-        } else {
-          // Fetch actual stops for the first trip to get the first stop ID
-          // Use the database UUID (id field), not the GTFS trip_id
-          updateFeedback(
-            feedback,
-            t("shifts.fetching_stops_first"),
-            "info"
-          );
-          showProgress(t("shifts.fetching_stops_first"));
-          const firstTripDbId = firstTrip?.id || resolveTripPk(firstTrip);
-          console.debug("[SHIFT] First trip DB ID:", firstTripDbId, "from trip:", { id: firstTrip?.id, trip_id: firstTrip?.trip_id });
-          const firstTripEdges = await fetchTripStopEdges(firstTripDbId);
-          
-          if (firstTripEdges?.firstStopId) {
-            try {
-              console.debug("[SHIFT] Creating auxiliary trip: depot → first stop", {
-                depotStopId,
-                firstStopId: firstTripEdges.firstStopId,
-                departureTime: startTime,
-                arrivalTime: firstTripEdges.firstStopArrival,
-                routeId,
-              });
-              
-              const depotToFirstStop = await createAuxiliaryTrip({
-                departureStopId: depotStopId,
-                arrivalStopId: firstTripEdges.firstStopId,
-                departureTime: startTime,
-                arrivalTime: firstTripEdges.firstStopArrival || startTime,
-                routeId,
-                status: "depot",
-              });
-              
-              // Prepend the depot trip ID to the beginning
-              if (depotToFirstStop?.id) {
-                allTripIds = [depotToFirstStop.id, ...allTripIds];
-                console.debug("[SHIFT] Created depot → first stop trip:", depotToFirstStop.id);
-              }
-            } catch (auxError) {
-              console.error("[SHIFT] Failed to create depot → first stop auxiliary trip:", auxError);
-              updateFeedback(
-                feedback,
-                t("shifts.depot_departure_warning", {
-                  message: auxError.message,
-                }),
-                "error"
-              );
-              // Continue without the auxiliary trip - the shift will still be created
-            }
-          } else {
-            console.warn("[SHIFT] Could not get first stop ID from first trip");
-          }
-        }
+
+      if (!startDepot?.stop_id || !endDepot?.stop_id) {
+        throw new Error(t("shifts.depot_stop_required"));
       }
-      
-      // Create auxiliary trip for last stop → depot (if end depot and time are set)
-      if (endDepotId && endTime && lastTrip && routeId) {
-        const depotStopId = endDepot?.stop_id;
-        if (!depotStopId) {
-          console.warn("[SHIFT] End depot does not have a linked stop_id - cannot create depot trip");
-        } else {
-          // Fetch actual stops for the last trip to get the last stop ID
-          // Use the database UUID (id field), not the GTFS trip_id
-          updateFeedback(
-            feedback,
-            t("shifts.fetching_stops_last"),
-            "info"
-          );
-          showProgress(t("shifts.fetching_stops_last"));
-          const lastTripDbId = lastTrip?.id || resolveTripPk(lastTrip);
-          console.debug("[SHIFT] Last trip DB ID:", lastTripDbId, "from trip:", { id: lastTrip?.id, trip_id: lastTrip?.trip_id });
-          const lastTripEdges = await fetchTripStopEdges(lastTripDbId);
-          
-          if (lastTripEdges?.lastStopId) {
-            try {
-              console.debug("[SHIFT] Creating auxiliary trip: last stop → depot", {
-                lastStopId: lastTripEdges.lastStopId,
-                depotStopId,
-                departureTime: lastTripEdges.lastStopDeparture,
-                arrivalTime: endTime,
-                routeId,
-              });
-              
-              const lastStopToDepot = await createAuxiliaryTrip({
-                departureStopId: lastTripEdges.lastStopId,
-                arrivalStopId: depotStopId,
-                departureTime: lastTripEdges.lastStopDeparture || endTime,
-                arrivalTime: endTime,
-                routeId,
-                status: "depot",
-              });
-              
-              // Append the depot trip ID to the end
-              if (lastStopToDepot?.id) {
-                allTripIds = [...allTripIds, lastStopToDepot.id];
-                console.debug("[SHIFT] Created last stop → depot trip:", lastStopToDepot.id);
-              }
-            } catch (auxError) {
-              console.error("[SHIFT] Failed to create last stop → depot auxiliary trip:", auxError);
-              updateFeedback(
-                feedback,
-                t("shifts.depot_return_warning", {
-                  message: auxError.message,
-                }),
-                "error"
-              );
-              // Continue without the auxiliary trip - the shift will still be created
-            }
-          } else {
-            console.warn("[SHIFT] Could not get last stop ID from last trip");
-          }
-        }
+
+      updateFeedback(feedback, t("shifts.fetching_stops_first"), "info");
+      showProgress(t("shifts.fetching_stops_first"));
+      const firstTripDbId = firstTrip?.id || resolveTripPk(firstTrip);
+      console.debug("[SHIFT] First trip DB ID:", firstTripDbId, "from trip:", {
+        id: firstTrip?.id,
+        trip_id: firstTrip?.trip_id,
+      });
+      const firstTripEdges = await fetchTripStopEdges(firstTripDbId);
+      if (!firstTripEdges?.firstStopId) {
+        throw new Error(t("shifts.depot_trip_stops_required"));
       }
+
+      let depotToFirstStop;
+      try {
+        console.debug("[SHIFT] Creating auxiliary trip: depot → first stop", {
+          depotStopId: startDepot.stop_id,
+          firstStopId: firstTripEdges.firstStopId,
+          departureTime: startTime,
+          arrivalTime: firstTripEdges.firstStopArrival,
+          routeId,
+        });
+        depotToFirstStop = await createAuxiliaryTrip({
+          departureStopId: startDepot.stop_id,
+          arrivalStopId: firstTripEdges.firstStopId,
+          departureTime: startTime,
+          arrivalTime: firstTripEdges.firstStopArrival || startTime,
+          routeId,
+          status: "depot",
+        });
+        console.debug(
+          "[SHIFT] Created depot → first stop trip:",
+          depotToFirstStop.id
+        );
+      } catch (auxError) {
+        console.error(
+          "[SHIFT] Failed to create depot → first stop auxiliary trip:",
+          auxError
+        );
+        throw new Error(
+          t("shifts.depot_departure_error", { message: auxError.message })
+        );
+      }
+
+      updateFeedback(feedback, t("shifts.fetching_stops_last"), "info");
+      showProgress(t("shifts.fetching_stops_last"));
+      const lastTripDbId = lastTrip?.id || resolveTripPk(lastTrip);
+      console.debug("[SHIFT] Last trip DB ID:", lastTripDbId, "from trip:", {
+        id: lastTrip?.id,
+        trip_id: lastTrip?.trip_id,
+      });
+      const lastTripEdges = await fetchTripStopEdges(lastTripDbId);
+      if (!lastTripEdges?.lastStopId) {
+        throw new Error(t("shifts.depot_trip_stops_required"));
+      }
+
+      let lastStopToDepot;
+      try {
+        console.debug("[SHIFT] Creating auxiliary trip: last stop → depot", {
+          lastStopId: lastTripEdges.lastStopId,
+          depotStopId: endDepot.stop_id,
+          departureTime: lastTripEdges.lastStopDeparture,
+          arrivalTime: endTime,
+          routeId,
+        });
+        lastStopToDepot = await createAuxiliaryTrip({
+          departureStopId: lastTripEdges.lastStopId,
+          arrivalStopId: endDepot.stop_id,
+          departureTime: lastTripEdges.lastStopDeparture || endTime,
+          arrivalTime: endTime,
+          routeId,
+          status: "depot",
+        });
+        console.debug(
+          "[SHIFT] Created last stop → depot trip:",
+          lastStopToDepot.id
+        );
+      } catch (auxError) {
+        console.error(
+          "[SHIFT] Failed to create last stop → depot auxiliary trip:",
+          auxError
+        );
+        throw new Error(
+          t("shifts.depot_return_error", { message: auxError.message })
+        );
+      }
+
+      const allTripIds = buildCompleteShiftTripIds({
+        scheduledTripIds: tripIds,
+        departureTrip: depotToFirstStop,
+        returnTrip: lastStopToDepot,
+      });
 
       updateFeedback(
         feedback,

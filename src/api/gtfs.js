@@ -4,6 +4,7 @@ import {
   fetchAllPages,
   normalizePaginatedResponse,
 } from "./pagination";
+import { normalizeAuxiliaryTripResponse } from "./auxiliary-trip";
 
 const AGENCIES_PATH = `${API_ROOT}/api/v1/agency/agencies/`;
 const GTFS_ROUTES_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-routes/`;
@@ -429,7 +430,7 @@ export const createAuxiliaryTrip = async ({
     console.error("[AUX-TRIP] Failed to create auxiliary trip:", message, payload);
     throw new Error(message);
   }
-  console.debug("[AUX-TRIP] Created auxiliary trip:", payload);
-  return payload;
+  const trip = normalizeAuxiliaryTripResponse(payload);
+  console.debug("[AUX-TRIP] Created auxiliary trip:", trip);
+  return trip;
 };
-

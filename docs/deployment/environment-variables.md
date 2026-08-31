@@ -36,6 +36,8 @@ Used by Docker containers at runtime (not embedded in the bundle).
 | Variable | Purpose | Default | Source |
 |----------|---------|---------|--------|
 | `API_BACKEND_URL` | Backend URL used by the nginx container to proxy `/auth` and `/api` requests at runtime. | `http://isaac-elettra.dacd.supsi.ch:8002` | `docker/env.example`, `docker-compose.yml` |
+| `ELETTRA_FRONTEND_IMAGE` | Immutable GHCR tag or digest used by the local staging service. | `ghcr.io/supsi-ide/elettra:staging` | `docker/.env.staging` |
+| `ELETTRA_STAGING_PORT` | Loopback port used by the local staging service. | `55558` | `docker/.env.staging` |
 
 ---
 
@@ -59,6 +61,7 @@ Passed during `docker build` to configure the build environment inside the conta
 | `.env.example` | Template for local development (test credentials) |
 | `.env.production` | Production build defaults (sets `VITE_API_ROOT`) |
 | `docker/env.example` | Template for Docker deployments (all Docker-related vars) |
+| `docker/.env.staging.example` | Template for the local GHCR-backed staging deployment |
 | `vite.config.js` | Reads `VITE_API_PROXY_TARGET` and `VITE_ALLOWED_HOSTS` at dev server startup |
 
 ---
