@@ -14,10 +14,10 @@ export const VEHICLE_CATEGORIES = [
   },
   {
     key: "standard_electric_bus_12_13m",
-    label: "Standard electric bus — 12/13 m",
+    label: "Standard electric bus — 13 m",
     lengthM: 13,
     size: "13m",
-    defaultSpecLength: "12",
+    defaultSpecLength: "13",
     defaultPassengerCapacity: 64,
     lcaVehicleName: "City busSingle deck13m-cityBEV-depot2020",
     tooltipI18nKey: "buses.vehicle_category_tooltip_standard_12_13m",
@@ -118,6 +118,38 @@ export const buildVehicleCategorySpecs = (
       vehicle_name: category.lcaVehicleName,
       passenger_capacity: resolvedPassengerCapacity,
       source: LCA_SOURCE,
+    },
+  };
+};
+
+export const buildVehicleCategorySpecsForSubmission = (
+  category,
+  passengerCapacity,
+  lcaVehicle = null,
+  { currentSpecs = {}, preserveLegacyTwelveMetres = false } = {}
+) => {
+  const derived = buildVehicleCategorySpecs(
+    category,
+    passengerCapacity,
+    lcaVehicle
+  );
+  if (!preserveLegacyTwelveMetres) return derived;
+
+  const currentLca =
+    currentSpecs?.lca &&
+    typeof currentSpecs.lca === "object" &&
+    !Array.isArray(currentSpecs.lca)
+      ? currentSpecs.lca
+      : {};
+
+  return {
+    ...derived,
+    size: currentSpecs?.size ?? "12m",
+    length_m: 12,
+    bus_length_m: 12,
+    lca: {
+      ...currentLca,
+      passenger_capacity: derived.max_passengers,
     },
   };
 };

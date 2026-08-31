@@ -5,6 +5,17 @@ import {
   fetchAllPages,
   normalizePaginatedResponse,
 } from "./pagination";
+import {
+  buildBusModelApiError,
+  buildBusModelUpdateBody,
+} from "./bus-model-request";
+
+export {
+  BusModelApiError,
+  buildBusModelEditRequestBody,
+  buildBusModelUpdateBody,
+  extractBusModelValidationFields,
+} from "./bus-model-request";
 
 const BUS_MODELS_PATH = `${API_ROOT}/api/v1/user/bus-models/`;
 
@@ -123,27 +134,18 @@ export const createBusModel = async ({
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    const message =
-      payload?.detail?.[0]?.msg ??
-      payload?.detail ??
-      "Unable to create bus model.";
-    throw new Error(message);
+    throw buildBusModelApiError(
+      response,
+      payload,
+      "Unable to create bus model."
+    );
   }
   return payload;
 };
 
-export const updateBusModel = async (
-  modelId,
-  { name, manufacturer, model = "", description = "", specs = {}, userId } = {}
-) => {
+export const updateBusModel = async (modelId, updates = {}) => {
   if (!modelId) {
     throw new Error("Missing modelId");
-  }
-  if (!name) {
-    throw new Error("Missing name");
-  }
-  if (!manufacturer) {
-    throw new Error("Missing manufacturer");
   }
 
   const headers = {
@@ -151,23 +153,7 @@ export const updateBusModel = async (
     "Content-Type": "application/json",
   };
 
-  const normalizedSpecs =
-    specs && typeof specs === "object" ? specs : {};
-
-  const body = {
-    name,
-    manufacturer,
-    description,
-    specs: normalizedSpecs,
-  };
-
-  if (model) {
-    body.model = model;
-  }
-
-  if (userId) {
-    body.user_id = userId;
-  }
+  const body = buildBusModelUpdateBody(updates);
 
   const response = await fetch(
     `${BUS_MODELS_PATH}${encodeURIComponent(modelId)}`,
@@ -179,11 +165,11 @@ export const updateBusModel = async (
   );
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    const message =
-      payload?.detail?.[0]?.msg ??
-      payload?.detail ??
-      "Unable to update bus model.";
-    throw new Error(message);
+    throw buildBusModelApiError(
+      response,
+      payload,
+      "Unable to update bus model."
+    );
   }
   return payload;
 };

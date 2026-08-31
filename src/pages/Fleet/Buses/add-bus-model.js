@@ -4,12 +4,13 @@ import {
   updateBusModel,
   createBus,
   fetchBusModelById,
+  buildBusModelEditRequestBody,
 } from "../../../api";
 import { fetchLcaVehicles } from "../../../api/environmental";
 import { getBusModelDefaultsForLength } from "../../../config/bus-model-defaults";
 import { AUXILIARY_CONSUMPTION_KW_DEFAULTS } from "../../../config/auxiliary-consumption-defaults";
 import {
-  buildVehicleCategorySpecs,
+  buildVehicleCategorySpecsForSubmission,
   getCuratedLcaVehicle,
   getVehicleCategoryByKey,
   inferVehicleCategoryFromSpecs,
@@ -19,6 +20,16 @@ import { triggerPartialLoad } from "../../../events";
 import { writeFlash, addOwnedBus } from "../../../store";
 import { toggleFormDisabled, updateFeedback } from "../../../ui-helpers";
 import { I18N_CHANGE_EVENT, t } from "../../../i18n";
+import {
+  BUS_MODEL_SPEC_FIELDS,
+  BUS_MODEL_SPEC_FIELD_LABEL_KEYS,
+  captureBusModelSpecFormState,
+  mergeBusModelSpecs,
+  normalizeBusModelSpecValues,
+  resolveExpectedBusLengthM,
+  shouldSubmitBusModelSpecs,
+  validateBusModelSpecs,
+} from "../../../utils/bus-model-specs";
 
 const GENERIC_MANUFACTURER = "Generic";
 
@@ -38,26 +49,19 @@ const parseSpecs = (specs) => {
       return {};
     }
   }
-  if (typeof specs === "object") {
+  if (typeof specs === "object" && !Array.isArray(specs)) {
     return specs;
   }
   return {};
 };
 
-const SPEC_FIELDS = [
-  "cost",
-  "bus_length_m",
-  "max_passengers",
-  "empty_weight_kg",
-  "max_battery_packs",
-  "min_battery_packs",
-  "battery_pack_size_kwh",
-  "battery_pack_cost_chf",
-  "max_charging_power_kw",
-  "battery_pack_weight_kg",
-  "battery_pack_lifetime",
-  "bus_lifetime",
-];
+const readRawSpecValues = (formData) =>
+  Object.fromEntries(
+    BUS_MODEL_SPEC_FIELDS.map((field) => [
+      field,
+      formData.get(field)?.toString().trim() ?? "",
+    ])
+  );
 
 const toBusModelPayload = (formData) => {
   const name = formData.get("name")?.toString().trim();
@@ -65,15 +69,42 @@ const toBusModelPayload = (formData) => {
   const vehicleReferenceKey =
     formData.get("vehicle_reference_key")?.toString().trim() ?? "";
 
-  const specs = {};
-  for (const field of SPEC_FIELDS) {
-    const raw = formData.get(field)?.toString().trim();
-    if (raw !== undefined && raw !== "") {
-      specs[field] = Number(raw);
-    }
-  }
+  const rawSpecs = readRawSpecValues(formData);
+  const specs = normalizeBusModelSpecValues(rawSpecs);
 
-  return { name, description, vehicleReferenceKey, specs };
+  return { name, description, vehicleReferenceKey, rawSpecs, specs };
+};
+
+const specIssueMessage = (issue) => {
+  const labelKey =
+    BUS_MODEL_SPEC_FIELD_LABEL_KEYS[issue?.field] ?? "buses.physical_specs";
+  const label = t(labelKey);
+  const keyByCode = {
+    required: "buses.spec_required",
+    finite: "buses.spec_finite",
+    positive: "buses.spec_positive",
+    non_negative: "buses.spec_non_negative",
+    integer: "buses.spec_integer",
+    pack_range: "buses.spec_pack_range",
+    category_length: "buses.spec_category_length",
+  };
+  const messageKey = keyByCode[issue?.code] ?? "buses.spec_invalid";
+  return t(messageKey, {
+    label,
+    length: issue?.expectedLengthM ?? "",
+  });
+};
+
+const apiErrorMessage = (error) => {
+  if (error?.status !== 422) return error?.message || "";
+
+  const labels = (error.validationFields || []).map((field) =>
+    t(BUS_MODEL_SPEC_FIELD_LABEL_KEYS[field] ?? "buses.physical_specs")
+  );
+  const uniqueLabels = [...new Set(labels)];
+  return t("buses.api_validation_error", {
+    fields: uniqueLabels.join(", ") || t("buses.physical_specs"),
+  });
 };
 
 /* ── Main initializer ───────────────────────────────────── */
@@ -114,9 +145,11 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     '[data-role="vehicle-category-info"]'
   );
   const costInfo = form.querySelector('[data-role="cost-info"]');
+  const emptyWeightInfo = form.querySelector('[data-role="empty-weight-info"]');
   const busLengthInput = form.querySelector("#bus_length_m");
   const passengerCapacityInput = form.querySelector("#max_passengers");
   let selectedVehicleCategory = null;
+  let vehicleCategoryWasTouched = false;
 
   let curatedLcaVehicles = [];
   const curatedLcaVehiclesReady = fetchLcaVehicles()
@@ -131,10 +164,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       return [];
     });
 
-  const applyVehicleCategory = (
-    category,
-    { preserveEditableValues = false } = {}
-  ) => {
+  const applyVehicleCategory = (category) => {
     if (!category) return;
 
     const defaults = getBusModelDefaultsForLength(category.defaultSpecLength);
@@ -142,7 +172,6 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       for (const [field, value] of Object.entries(defaults)) {
         const el = form.querySelector(`#${field}`);
         if (!el) continue;
-        if (preserveEditableValues && el.value !== "") continue;
         el.value = value;
       }
     }
@@ -151,10 +180,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       busLengthInput.value = category.lengthM;
     }
 
-    if (
-      passengerCapacityInput &&
-      (!preserveEditableValues || passengerCapacityInput.value === "")
-    ) {
+    if (passengerCapacityInput) {
       passengerCapacityInput.value = category.defaultPassengerCapacity;
     }
   };
@@ -177,8 +203,17 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     costInfo.setAttribute("title", text);
   };
 
+  const updateEmptyWeightTooltip = () => {
+    if (!emptyWeightInfo) return;
+    const text = t("buses.empty_weight_tooltip");
+    emptyWeightInfo.dataset.tooltip = text;
+    emptyWeightInfo.setAttribute("aria-label", text);
+    emptyWeightInfo.setAttribute("title", text);
+  };
+
   if (vehicleCategorySelect) {
     const handleVehicleCategoryChange = () => {
+      vehicleCategoryWasTouched = true;
       const category = getVehicleCategoryByKey(vehicleCategorySelect.value);
       selectedVehicleCategory = category;
       applyVehicleCategory(category);
@@ -192,10 +227,12 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
 
   updateVehicleCategoryTooltip(null);
   updateCostTooltip();
+  updateEmptyWeightTooltip();
 
   const handleI18nChange = () => {
     updateVehicleCategoryTooltip(selectedVehicleCategory);
     updateCostTooltip();
+    updateEmptyWeightTooltip();
   };
   document.addEventListener(I18N_CHANGE_EVENT, handleI18nChange);
   cleanupHandlers.push(() => {
@@ -216,7 +253,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     if (descriptionInput)
       descriptionInput.value = currentModel.description || "";
 
-    for (const field of SPEC_FIELDS) {
+    for (const field of BUS_MODEL_SPEC_FIELDS) {
       const input = form.querySelector(`#${field}`);
       if (input && specs?.[field] != null) {
         input.value = specs[field];
@@ -226,10 +263,14 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     if (category && vehicleCategorySelect) {
       selectedVehicleCategory = category;
       vehicleCategorySelect.value = category.key;
-      applyVehicleCategory(category, { preserveEditableValues: true });
       updateVehicleCategoryTooltip(category);
     }
   }
+
+  const initialSpecFormState = captureBusModelSpecFormState(
+    readRawSpecValues(new FormData(form)),
+    vehicleCategorySelect?.value ?? ""
+  );
 
   /* ── Close / Cancel ── */
   const handleCloseClick = () => {
@@ -257,39 +298,46 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     event.preventDefault();
 
     const formData = new FormData(form);
-    const { name, description, vehicleReferenceKey, specs } =
+    const { name, description, vehicleReferenceKey, rawSpecs, specs } =
       toBusModelPayload(formData);
     const currentSpecs = parseSpecs(currentModel.specs);
     const category = getVehicleCategoryByKey(vehicleReferenceKey);
+    const currentSpecFormState = captureBusModelSpecFormState(
+      rawSpecs,
+      vehicleReferenceKey
+    );
+    let expectedBusLengthM = category?.lengthM;
+    const specsChanged = shouldSubmitBusModelSpecs({
+      isEditMode,
+      initialState: initialSpecFormState,
+      currentState: currentSpecFormState,
+    });
 
     if (!name) {
       updateFeedback(feedback, t("buses.name_required"), "error");
       return;
     }
 
-    if (!category) {
-      updateFeedback(feedback, t("buses.vehicle_category_required"), "error");
-      return;
-    }
+    if (specsChanged) {
+      if (!category) {
+        updateFeedback(feedback, t("buses.vehicle_category_required"), "error");
+        vehicleCategorySelect?.focus();
+        return;
+      }
 
-    const requiredSpecs = [
-      { key: "cost", label: t("buses.field_cost") },
-      { key: "bus_length_m", label: t("buses.field_bus_length") },
-      { key: "max_passengers", label: t("buses.field_passenger_capacity") },
-      { key: "empty_weight_kg", label: t("buses.field_empty_weight") },
-      { key: "max_battery_packs", label: t("buses.field_max_battery_packs") },
-      { key: "min_battery_packs", label: t("buses.field_min_battery_packs") },
-      { key: "battery_pack_size_kwh", label: t("buses.field_battery_pack_size") },
-      { key: "battery_pack_cost_chf", label: t("buses.field_battery_pack_cost") },
-      { key: "max_charging_power_kw", label: t("buses.field_max_charging_power") },
-      { key: "battery_pack_weight_kg", label: t("buses.field_battery_pack_weight") },
-      { key: "battery_pack_lifetime", label: t("buses.field_battery_pack_lifetime") },
-      { key: "bus_lifetime", label: t("buses.field_bus_lifetime") },
-    ];
-
-    for (const { key, label } of requiredSpecs) {
-      if (specs[key] == null || isNaN(specs[key])) {
-        updateFeedback(feedback, t("buses.spec_required", { label }), "error");
+      expectedBusLengthM = resolveExpectedBusLengthM({
+        isEditMode,
+        categoryLengthM: category.lengthM,
+        initialState: initialSpecFormState,
+        currentState: currentSpecFormState,
+        categoryWasTouched: vehicleCategoryWasTouched,
+      });
+      const validation = validateBusModelSpecs(specs, {
+        expectedLengthM: expectedBusLengthM,
+      });
+      if (!validation.ok) {
+        updateFeedback(feedback, specIssueMessage(validation.issue), "error");
+        form.querySelector(`#${validation.issue.field}`)?.focus();
         return;
       }
     }
@@ -298,39 +346,54 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     updateFeedback(feedback, isEditMode ? t("buses.updating") : t("buses.saving"), "info");
 
     try {
-      const userId = await resolveUserId();
+      if (isEditMode && !specsChanged) {
+        await updateBusModel(
+          currentModel.id,
+          buildBusModelEditRequestBody({ name, description })
+        );
+        writeFlash(t("buses.model_updated"));
+        triggerPartialLoad("buses");
+        return;
+      }
+
       await curatedLcaVehiclesReady;
       const lcaVehicle = getCuratedLcaVehicle(curatedLcaVehicles, category);
-      const categorySpecs = buildVehicleCategorySpecs(
+      const preservesLegacyTwelveMetreMetadata =
+        expectedBusLengthM === 12 && category.lengthM === 13;
+      const categorySpecs = buildVehicleCategorySpecsForSubmission(
         category,
         specs.max_passengers,
-        lcaVehicle
+        lcaVehicle,
+        {
+          currentSpecs,
+          preserveLegacyTwelveMetres: preservesLegacyTwelveMetreMetadata,
+        }
       );
-      const mergedSpecs = {
-        ...currentSpecs,
-        ...specs,
-        ...categorySpecs,
-        model_type: category.label,
-      };
-      mergedSpecs.auxiliary_consumption_kw = AUXILIARY_CONSUMPTION_KW_DEFAULTS;
-      const manufacturerToSend = GENERIC_MANUFACTURER;
-      const modelToSend = category.label;
-
+      const mergedSpecs = mergeBusModelSpecs({
+        currentSpecs,
+        formSpecs: specs,
+        categorySpecs,
+        modelType: preservesLegacyTwelveMetreMetadata
+          ? currentSpecs.model_type
+          : category.label,
+        defaultAuxiliaryConsumption: AUXILIARY_CONSUMPTION_KW_DEFAULTS,
+      });
       if (isEditMode) {
-        await updateBusModel(currentModel.id, {
-          name,
-          manufacturer: manufacturerToSend,
-          model: modelToSend,
-          description,
-          specs: mergedSpecs,
-          userId,
-        });
+        await updateBusModel(
+          currentModel.id,
+          buildBusModelEditRequestBody({
+            name,
+            description,
+            specs: mergedSpecs,
+          })
+        );
         writeFlash(t("buses.model_updated"));
       } else {
+        const userId = await resolveUserId();
         const createdModel = await createBusModel({
           name,
-          manufacturer: manufacturerToSend,
-          model: modelToSend,
+          manufacturer: GENERIC_MANUFACTURER,
+          model: category.label,
           description,
           specs: mergedSpecs,
           userId,
@@ -372,7 +435,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       );
       updateFeedback(
         feedback,
-        error?.message ??
+        apiErrorMessage(error) ||
           (isEditMode
             ? t("buses.unable_to_update_model")
             : t("buses.unable_to_save_model")),

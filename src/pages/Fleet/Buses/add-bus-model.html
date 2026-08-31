@@ -52,7 +52,7 @@
                 <select id="vehicle_reference_key" name="vehicle_reference_key" required>
                   <option value="" disabled selected data-i18n="buses.placeholder_vehicle_category">Select a vehicle category…</option>
                   <option value="midi_electric_bus_9m" data-i18n="buses.vehicle_category_midi_9m">Midi electric bus — 9 m</option>
-                  <option value="standard_electric_bus_12_13m" data-i18n="buses.vehicle_category_standard_12_13m">Standard electric bus — 12/13 m</option>
+                  <option value="standard_electric_bus_12_13m" data-i18n="buses.vehicle_category_standard_12_13m">Standard electric bus — 13 m</option>
                   <option value="articulated_electric_bus_18m" data-i18n="buses.vehicle_category_articulated_18m">Articulated electric bus — 18 m</option>
                 </select>
               </div>
@@ -80,7 +80,7 @@
                   id="bus_length_m"
                   name="bus_length_m"
                   required
-                  min="0"
+                  min="0.001"
                   step="any"
                   autocomplete="off"
                   readonly
@@ -116,19 +116,30 @@
                   id="max_passengers"
                   name="max_passengers"
                   required
-                  min="0"
+                  min="1"
                   step="1"
                   autocomplete="off"
                 />
               </div>
               <div class="form-group">
-                <label for="empty_weight_kg" data-i18n="buses.field_empty_weight">Empty weight (kg) <span class="required-mark" aria-hidden="true">*</span></label>
+                <div class="vehicle-category-label-row">
+                  <label for="empty_weight_kg" data-i18n="buses.field_empty_weight">Empty weight (kg) <span class="required-mark" aria-hidden="true">*</span></label>
+                  <button
+                    type="button"
+                    class="vehicle-category-info"
+                    data-role="empty-weight-info"
+                    data-tooltip="Vehicle mass without battery packs or passengers."
+                    aria-label="Vehicle mass without battery packs or passengers."
+                  >
+                    i
+                  </button>
+                </div>
                 <input
                   type="number"
                   id="empty_weight_kg"
                   name="empty_weight_kg"
                   required
-                  min="0"
+                  min="0.001"
                   step="1"
                   autocomplete="off"
                 />
@@ -140,7 +151,7 @@
                   id="bus_lifetime"
                   name="bus_lifetime"
                   required
-                  min="0"
+                  min="1"
                   step="1"
                   autocomplete="off"
                 />
@@ -184,7 +195,7 @@
                   id="battery_pack_size_kwh"
                   name="battery_pack_size_kwh"
                   required
-                  min="0"
+                  min="0.001"
                   step="any"
                   autocomplete="off"
                 />
@@ -208,7 +219,7 @@
                   id="max_charging_power_kw"
                   name="max_charging_power_kw"
                   required
-                  min="0"
+                  min="0.001"
                   step="any"
                   autocomplete="off"
                 />
@@ -220,7 +231,7 @@
                   id="battery_pack_weight_kg"
                   name="battery_pack_weight_kg"
                   required
-                  min="0"
+                  min="0.001"
                   step="any"
                   autocomplete="off"
                 />
@@ -232,7 +243,7 @@
                   id="battery_pack_lifetime"
                   name="battery_pack_lifetime"
                   required
-                  min="0"
+                  min="1"
                   step="1"
                   autocomplete="off"
                 />

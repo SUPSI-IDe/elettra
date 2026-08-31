@@ -4,45 +4,45 @@
  * Keeping these in config avoids scattering business defaults across UI code.
  */
 
-export const BUS_MODEL_LENGTH_OPTIONS = ["9", "12", "18"];
+export const BUS_MODEL_LENGTH_OPTIONS = ["9", "13", "18"];
 
 const BUS_MODEL_DEFAULTS_BY_LENGTH = {
   "9": {
     cost: 450000,
     max_passengers: 55,
-    empty_weight_kg: 12000,
+    empty_weight_kg: 9875,
     max_battery_packs: 8,
     min_battery_packs: 5,
     battery_pack_size_kwh: 40,
     battery_pack_cost_chf: 6000,
     max_charging_power_kw: 300,
-    battery_pack_weight_kg: 275,
+    battery_pack_weight_kg: 274,
     battery_pack_lifetime: 8,
     bus_lifetime: 12,
   },
-  "12": {
+  "13": {
     cost: 600000,
     max_passengers: 85,
-    empty_weight_kg: 14000,
+    empty_weight_kg: 12750,
     max_battery_packs: 11,
     min_battery_packs: 7,
     battery_pack_size_kwh: 40,
     battery_pack_cost_chf: 6000,
     max_charging_power_kw: 450,
-    battery_pack_weight_kg: 275,
+    battery_pack_weight_kg: 274,
     battery_pack_lifetime: 8,
     bus_lifetime: 12,
   },
   "18": {
     cost: 800000,
     max_passengers: 120,
-    empty_weight_kg: 18000,
+    empty_weight_kg: 16325,
     max_battery_packs: 16,
     min_battery_packs: 12,
     battery_pack_size_kwh: 40,
     battery_pack_cost_chf: 6000,
     max_charging_power_kw: 450,
-    battery_pack_weight_kg: 275,
+    battery_pack_weight_kg: 274,
     battery_pack_lifetime: 8,
     bus_lifetime: 12,
   },
