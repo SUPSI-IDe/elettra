@@ -121,6 +121,7 @@ docker run -d \
   --name elettra \
   -p 9010:80 \
   -e API_BACKEND_URL=http://isaac-elettra.dacd.supsi.ch:8002 \
+  -e CARTO_API_KEY=your-domain-restricted-browser-key \
   elettra:latest
 ```
 

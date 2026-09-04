@@ -112,6 +112,7 @@ services:
       - "9010:80"
     environment:
       - API_BACKEND_URL=${API_BACKEND_URL:-http://isaac-elettra.dacd.supsi.ch:8002}
+      - CARTO_API_KEY=${CARTO_API_KEY:?CARTO_API_KEY is required}
     restart: unless-stopped
     profiles:
       - prod
@@ -130,6 +131,7 @@ services:
       - "${ELETTRA_STAGING_BIND_ADDRESS:-127.0.0.1}:${ELETTRA_STAGING_PORT:-55558}:80"
     environment:
       - API_BACKEND_URL=${API_BACKEND_URL:-http://host.docker.internal:8002}
+      - CARTO_API_KEY=${CARTO_API_KEY:?CARTO_API_KEY is required}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

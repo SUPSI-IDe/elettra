@@ -23,6 +23,12 @@ server {
         return 301 /elettra/;
     }
 
+    # Runtime frontend settings must never be cached across deployments.
+    location = /elettra/runtime-config.json {
+        alias /usr/share/nginx/html/elettra/runtime-config.json;
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+    }
+
     location /elettra/ {
         alias /usr/share/nginx/html/elettra/;
         try_files ${ESC}uri ${ESC}uri/ /elettra/index.html;

@@ -1,4 +1,8 @@
 import { fetchElevationByTripId, fetchStopsByTripId } from "../../../api";
+import {
+  buildCartoVoyagerTileUrl,
+  getCartoApiKey,
+} from "../../../config/carto.js";
 import { t } from "../../../i18n";
 
 const previewMessage = (key, type = "empty") =>
@@ -87,8 +91,8 @@ const renderMap = async (container, elevationData, stops) => {
       attributionControl: false,
     });
     
-    // Use CartoDB light tiles like TripShiftPlanner
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    // CARTO requires an API key for raster basemap requests.
+    L.tileLayer(buildCartoVoyagerTileUrl(await getCartoApiKey()), {
       maxZoom: 19,
     }).addTo(mapInstance);
     

@@ -323,6 +323,7 @@ Available variables:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `API_BACKEND_URL` | Backend API URL (runtime) | `http://isaac-elettra.dacd.supsi.ch:8002` |
+| `CARTO_API_KEY` | Domain-restricted browser key for CARTO Voyager tiles (runtime) | Required |
 | `VITE_API_ROOT` | API URL for build (build-time) | Empty (uses nginx proxy) |
 
 ---

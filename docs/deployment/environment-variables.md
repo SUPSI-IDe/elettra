@@ -15,6 +15,7 @@ These variables are embedded into the frontend bundle at build time. They must b
 | `VITE_API_ROOT` | Absolute backend base URL used by the browser for API calls. Leave empty to use relative `/auth` and `/api` paths (recommended when proxying). | Empty | `.env`, `.env.production` |
 | `VITE_TEST_EMAIL` | Pre-filled email on the login form for development convenience. | Empty | `.env.example` |
 | `VITE_TEST_PASSWORD` | Pre-filled password on the login form for development convenience. | Empty | `.env.example` |
+| `VITE_CARTO_API_KEY` | CARTO browser API key used only by the local Vite development server or static builds. Prefer the runtime variable for containers. | Empty | `.env.example` |
 
 ---
 
@@ -36,6 +37,7 @@ Used by Docker containers at runtime (not embedded in the bundle).
 | Variable | Purpose | Default | Source |
 |----------|---------|---------|--------|
 | `API_BACKEND_URL` | Backend URL used by the nginx container to proxy `/auth` and `/api` requests at runtime. | `http://isaac-elettra.dacd.supsi.ch:8002` | `docker/env.example`, `docker-compose.yml` |
+| `CARTO_API_KEY` | CARTO browser API key injected into `runtime-config.json` when the nginx container starts. Required for container deployments. | None | `docker/env.example`, `docker-compose.yml` |
 | `ELETTRA_FRONTEND_IMAGE` | Immutable GHCR tag or digest used by the local staging service. | `ghcr.io/supsi-ide/elettra:staging` | `docker/.env.staging` |
 | `ELETTRA_STAGING_BIND_ADDRESS` | Host address used to publish the local staging service. Set `0.0.0.0` only when network access is required. | `127.0.0.1` | `docker/.env.staging` |
 | `ELETTRA_STAGING_PORT` | Host port used by the local staging service. | `55558` | `docker/.env.staging` |
@@ -101,4 +103,9 @@ Set `API_BACKEND_URL` in `docker/.env`:
 
 ```env
 API_BACKEND_URL=http://your-backend-host:8002
+CARTO_API_KEY=your-domain-restricted-browser-key
 ```
+
+`CARTO_API_KEY` is delivered to the browser and is therefore visible in network
+requests. Restrict it to the expected frontend origins in CARTO; do not use a
+machine-to-machine credential.

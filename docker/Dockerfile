@@ -61,6 +61,7 @@ FROM nginx:alpine
 # Note: $$ in template escapes to $ after envsubst (for nginx variables)
 # ${VAR} gets substituted with environment variable values
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --chmod=755 docker/40-write-runtime-config.sh /docker-entrypoint.d/40-write-runtime-config.sh
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html/elettra
