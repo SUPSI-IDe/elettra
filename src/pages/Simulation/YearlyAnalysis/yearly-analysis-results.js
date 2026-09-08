@@ -56,6 +56,7 @@ import {
   computeEquivalentAnnualCost,
   computeScheduleResidualValue,
 } from "../../../utils/economic-costs";
+import { classifyDieselHeatingPresentation } from "../../../adapters/yearly-analysis";
 
 /* ── Shared helpers ────────────────────────────────────────────── */
 
@@ -148,6 +149,8 @@ const feasibilityBadge = (v) => {
 const MOBITOOL_URL = "https://www.i14y.admin.ch/en/catalog/dataservices/171b09a4-5b5f-4577-8921-3af7fc6eee39/description";
 const MOBITOOL_LINK_HTML = `<a href="${MOBITOOL_URL}" target="_blank" rel="noopener noreferrer">Mobitool</a>`;
 const linkifyMobitoolHtml = (value) => text(value).replace(/Mobitool/g, MOBITOOL_LINK_HTML);
+const HUMPHRIES_URL = "https://doi.org/10.4271/2024-01-5011";
+const HUMPHRIES_LINK_HTML = `<a href="${HUMPHRIES_URL}" target="_blank" rel="noopener noreferrer">Humphries et al. (2024)</a>`;
 
 /* ── Overview helpers ──────────────────────────────────────────── */
 
@@ -1768,6 +1771,50 @@ const infoTip = (text) => {
   return `<button type="button" class="ya-info-icon" aria-label="${label}">i<span class="ya-info-tooltip">${value}</span></button>`;
 };
 
+let methodologyPopoverSequence = 0;
+
+export const methodologyPopover = (label, content) => {
+  methodologyPopoverSequence += 1;
+  const id = `ya-methodology-popover-${methodologyPopoverSequence}`;
+  return `<span class="ya-methodology-popover-wrap">
+    <button type="button" class="ya-methodology-popover-trigger" aria-expanded="false" aria-controls="${id}">${textContent(label)}</button>
+    <span id="${id}" class="ya-methodology-popover" role="dialog" aria-modal="false" tabindex="-1" hidden>
+      <button type="button" class="ya-methodology-popover-close" aria-label="${textContent(t("yearly_analysis.close_methodology"))}">×</button>
+      ${content}
+    </span>
+  </span>`;
+};
+
+export const bindMethodologyPopover = (root) => {
+  const trigger = root?.querySelector(".ya-methodology-popover-trigger");
+  const popover = root?.querySelector(".ya-methodology-popover");
+  const close = root?.querySelector(".ya-methodology-popover-close");
+  if (!trigger || !popover) return;
+
+  const hide = ({ restoreFocus = false } = {}) => {
+    popover.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+    if (restoreFocus) trigger.focus();
+  };
+  const show = () => {
+    popover.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    popover.focus();
+  };
+
+  trigger.addEventListener("click", () => {
+    if (popover.hidden) show();
+    else hide({ restoreFocus: true });
+  });
+  close?.addEventListener("click", () => hide({ restoreFocus: true }));
+  popover.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      hide({ restoreFocus: true });
+    }
+  });
+};
+
 const renderElectricOpexBreakdown = (el, cd) => {
   if (!el || !cd) { if (el) el.innerHTML = ""; return; }
   const km = toFiniteNumber(cd.yearlyDistanceKm);
@@ -2319,6 +2366,37 @@ const hasPositiveMixedCaseDieselHeating = (mixedCase = {}) =>
     Math.abs(toFiniteNumber(indicator?.diesel_heating) ?? 0) > EPS
   );
 
+export const resolveDieselHeatingPresentation = (emState = {}) => {
+  const structured = emState?.structured ?? {};
+  const assumptions = structured?.assumptions ?? emState?.emissionsMetadata ?? {};
+  const heatingType = text(
+    assumptions.auxiliary_heating_type ??
+    assumptions.auxiliaryHeatingType ??
+    emState?.auxiliaryHeatingType
+  ).trim().toLowerCase();
+  const configured = emState?.isDieselHeating === true || heatingType === "diesel";
+  const dataStatus = text(
+    structured?.dataCompleteness?.status ??
+    emState?.emissionsMetadata?.dataCompleteness?.status
+  ).trim().toLowerCase();
+  const liters = toFiniteNumber(
+    assumptions.yearly_diesel_heating_liters ??
+    assumptions.yearlyDieselHeatingLiters ??
+    emState?.emissionsMetadata?.yearlyDhLiters
+  );
+  const hasPositiveContribution =
+    hasPositiveMixedCaseDieselHeating(structured?.mixedCaseDecomposition) ||
+    Object.values(emState?.dieselHeatingYearly ?? {}).some(
+      (indicator) => (toFiniteNumber(indicator?.total) ?? 0) > EPS
+    );
+  return classifyDieselHeatingPresentation({
+    configured,
+    liters,
+    dataStatus,
+    hasPositiveContribution,
+  });
+};
+
 const isDieselHeatingCase = (rawEmissions = {}) => {
   const assumptions = rawEmissions?.assumptions ?? {};
   const heatingType = text(
@@ -2329,8 +2407,8 @@ const isDieselHeatingCase = (rawEmissions = {}) => {
   ).trim().toLowerCase();
   const yearlyDhLiters = toFiniteNumber(
     assumptions.yearlyDieselHeatingLiters ?? assumptions.yearly_diesel_heating_liters
-  ) ?? 0;
-  if (heatingType === "diesel" && yearlyDhLiters > EPS) return true;
+  );
+  if (heatingType === "diesel") return true;
 
   const mixedCase = rawEmissions?.mixed_case_decomposition;
   if (mixedCase?.available === true && hasPositiveMixedCaseDieselHeating(mixedCase)) return true;
@@ -2411,10 +2489,10 @@ const mapBackendEmissionsToState = (rawEmissions, features, busModelData) => {
   );
   const yearlyDhLiters = toFiniteNumber(
     assumptions.yearlyDieselHeatingLiters ?? assumptions.yearly_diesel_heating_liters
-  ) ?? 0;
+  );
   const yearlyDhFuelKwh = toFiniteNumber(
     assumptions.yearlyDieselHeatingFuelKwh ?? assumptions.yearly_diesel_heating_fuel_kwh
-  ) ?? 0;
+  );
 
   const electricYearly = mapBackendEmissionIndicators(ebusIndicators);
   if (!Object.keys(electricYearly).length) {
@@ -2493,6 +2571,14 @@ const mapBackendEmissionsToState = (rawEmissions, features, busModelData) => {
           dieselHeatingContributionNote: null,
           upstreamApiLimitationNote: null,
           dhFuelFactorSource: null,
+          dataCompleteness:
+            rawEmissions?.data_completeness ?? rawEmissions?.dataCompleteness ?? null,
+          scopeCompleteness:
+            rawEmissions?.scope_completeness ?? rawEmissions?.scopeCompleteness ?? null,
+          dieselHeatingMethodology:
+            rawEmissions?.diesel_heating_methodology ??
+            rawEmissions?.dieselHeatingMethodology ??
+            null,
         }
       : null,
   };
@@ -2508,8 +2594,22 @@ const extractStructuredBlocks = (raw) => {
   const primaryEnergyBreakdown = raw.primary_energy_breakdown ?? null;
   const mixedCaseDecomposition = raw.mixed_case_decomposition ?? null;
   const assumptions = raw.assumptions ?? null;
+  const dataCompleteness = raw.data_completeness ?? raw.dataCompleteness ?? null;
+  const scopeCompleteness = raw.scope_completeness ?? raw.scopeCompleteness ?? null;
+  const dieselHeatingMethodology =
+    raw.diesel_heating_methodology ?? raw.dieselHeatingMethodology ?? null;
   if (!indicators && !savings && !lifecycleBreakdown) return null;
-  return { indicators, savings, lifecycleBreakdown, primaryEnergyBreakdown, mixedCaseDecomposition, assumptions };
+  return {
+    indicators,
+    savings,
+    lifecycleBreakdown,
+    primaryEnergyBreakdown,
+    mixedCaseDecomposition,
+    assumptions,
+    dataCompleteness,
+    scopeCompleteness,
+    dieselHeatingMethodology,
+  };
 };
 
 const indicatorByKey = (indicators, key) =>
@@ -3303,9 +3403,12 @@ const renderEmissionsPanel = (sec, emState) => {
   const dieselY = emState.dieselYearly;
   const hasDiesel = !!dieselY;
   const isDH = !!emState.isDieselHeating;
+  const dieselHeatingPresentation = resolveDieselHeatingPresentation(emState);
   const ebusLabel = getEmissionsTotalLabel(emState);
   const structured = emState.structured;
   const assumptions = structured?.assumptions ?? emState.emissionsMetadata ?? {};
+  const dataStatus = structured?.dataCompleteness?.status ?? "unknown";
+  const comparisonsComplete = !["partial", "unavailable"].includes(dataStatus);
   const yearlyDistKm = toFiniteNumber(
     assumptions.yearly_distance_km ?? assumptions.yearlyDistanceKm ??
     emState.yearlyDistanceKm ?? emState.yearlyImpact?.yearly_distance_km
@@ -3334,7 +3437,7 @@ const renderEmissionsPanel = (sec, emState) => {
         const div = displayDivisor(ind.unit, ind.display_unit) || 1;
         const eVal = (toFiniteNumber(ind.ebus_total) ?? 0) / div;
         const dVal = ind.diesel_comparator != null ? (toFiniteNumber(ind.diesel_comparator) ?? 0) / div : null;
-        const dir = getComparisonDirection(ind);
+        const dir = comparisonsComplete ? getComparisonDirection(ind) : null;
         const tone = dir?.kind === "reduction" ? "positive" : dir?.kind === "increase" ? "negative" : "neutral";
         const dispUnit = ind.display_unit || ind.unit || "";
         const dec = INDICATOR_DISPLAY_DECIMALS[ind.key] ?? 1;
@@ -3401,8 +3504,12 @@ const renderEmissionsPanel = (sec, emState) => {
       const dispUnit = ind.display_unit || ind.unit || "";
       const eVal = (toFiniteNumber(ind.ebus_total) ?? 0) / div;
       const dVal = ind.diesel_comparator != null ? (toFiniteNumber(ind.diesel_comparator) ?? 0) / div : null;
-      const diff = ind.delta_vs_diesel != null ? (toFiniteNumber(ind.delta_vs_diesel) ?? 0) / div : (dVal != null ? dVal - eVal : null);
-      const dir = getComparisonDirection(ind);
+      const diff = comparisonsComplete
+        ? (ind.delta_vs_diesel != null
+          ? (toFiniteNumber(ind.delta_vs_diesel) ?? 0) / div
+          : (dVal != null ? dVal - eVal : null))
+        : null;
+      const dir = comparisonsComplete ? getComparisonDirection(ind) : null;
       const changeCls = dir?.kind === "reduction" ? "ya-env-reduction--positive" : dir?.kind === "increase" ? "ya-env-reduction--negative" : "";
       return `<tr>
         <td>${textContent(resolveEnvIndicatorLabel(ind))} (${dispUnit})</td>
@@ -3515,7 +3622,13 @@ const renderEmissionsPanel = (sec, emState) => {
   }
 
   /* Charts */
-  try { renderYaEmissionsHistogram(histEl, histLegEl, emState); } catch (e) { console.error("[YA-Emissions] Histogram error:", e); }
+  try {
+    if (comparisonsComplete) renderYaEmissionsHistogram(histEl, histLegEl, emState);
+    else {
+      if (histEl) histEl.innerHTML = "";
+      if (histLegEl) histLegEl.innerHTML = "";
+    }
+  } catch (e) { console.error("[YA-Emissions] Histogram error:", e); }
   try { renderYaCo2PhaseBreakdown(co2El, co2LegEl, emState); } catch (e) { console.error("[YA-Emissions] CO₂ phase error:", e); }
 
   /* Methodology note */
@@ -3525,9 +3638,35 @@ const renderEmissionsPanel = (sec, emState) => {
     const dhNote = isDH ? ` ${textContent(t("yearly_analysis.env_methodology_diesel_heating_note"))}` : "";
     const caveatNote = isDH ? ` ${textContent(t("yearly_analysis.env_methodology_diesel_heating_caveat"))}` : "";
     const methodNote = lcaMethod ? ` ${textContent(t("yearly_analysis.env_methodology_lca_method", { method: lcaMethod }))}` : "";
+    const methodology = structured?.dieselHeatingMethodology;
+    const methodologyVersion = textContent(methodology?.methodology_version ?? "—");
+    const noxConvention = textContent(t("yearly_analysis.nox_convention_detail"));
+    const pmUncertainty = textContent(t("yearly_analysis.pm10_uncertainty_detail"));
+    const heaterSummary = isDH
+      ? `<span class="ya-methodology-popover-line">${textContent(t("yearly_analysis.diesel_heating_popover_summary"))}</span>
+        <span class="ya-methodology-popover-line">${textContent(t("yearly_analysis.diesel_heating_methodology_detail"))}</span>`
+      : "";
+    const sources = isDH
+      ? `<span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.methodology_and_sources"))}:</strong> ${MOBITOOL_LINK_HTML}; ${HUMPHRIES_LINK_HTML}</span>`
+      : `<span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.methodology_and_sources"))}:</strong> ${MOBITOOL_LINK_HTML}</span>`;
+    const heaterFactorDetails = isDH
+      ? `<span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.methodology_version"))}:</strong> ${methodologyVersion}</span>
+        <span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.nox_convention"))}:</strong> ${noxConvention}</span>
+        <span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.pm10_uncertainty"))}:</strong> ${pmUncertainty}</span>`
+      : "";
+    const detailContent = `<strong>${textContent(t("yearly_analysis.methodology_details"))}</strong>
+      ${heaterSummary}
+      <span class="ya-methodology-popover-line">${baseNote}${dhNote}${caveatNote}${methodNote}</span>
+      ${heaterFactorDetails}
+      ${sources}`;
+    const incompleteWarning = comparisonsComplete
+      ? ""
+      : `<p class="ya-env-data-warning" role="status">${textContent(t("yearly_analysis.emissions_data_incomplete"))}</p>`;
     methEl.innerHTML = `<div class="ya-env-methodology-note">
-      <p>${baseNote}${dhNote}${caveatNote}${methodNote}</p>
+      ${incompleteWarning}
+      <p>${dieselHeatingPresentation.positive ? `<span class="ya-dh-estimate-note">${textContent(t("yearly_analysis.diesel_heating_included_estimated"))}</span> ` : ""}${textContent(t("yearly_analysis.environmental_scope_brief"))} ${methodologyPopover(t("yearly_analysis.methodology_and_sources"), detailContent)}</p>
     </div>`;
+    bindMethodologyPopover(methEl);
   }
 };
 
@@ -3776,6 +3915,18 @@ const buildExportPayload = (features, effState, costState, emissionsState, busMo
       yearlyDistance_km: round(yearlyKm, 1),
       auxiliaryHeatingType: emIsDH ? "diesel" : "default",
       indicators,
+      dataCompleteness:
+        emissionsState.structured?.dataCompleteness ??
+        emissionsState.emissionsMetadata?.dataCompleteness ??
+        null,
+      scopeCompleteness:
+        emissionsState.structured?.scopeCompleteness ??
+        emissionsState.emissionsMetadata?.scopeCompleteness ??
+        null,
+      dieselHeatingMethodology:
+        emissionsState.structured?.dieselHeatingMethodology ??
+        emissionsState.emissionsMetadata?.dieselHeatingMethodology ??
+        null,
     };
 
     if (emIsDH && emissionsState.emissionsMetadata) {

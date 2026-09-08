@@ -166,7 +166,11 @@ const buildModel = (input) => {
       ? totalAnnualCost / costDistanceKm
       : null;
 
-  const co2Total = findCo2Total(emissions);
+  const emissionsDataStatus = emissions?.dataCompleteness?.status ?? "unknown";
+  const emissionsDataComplete = !["partial", "unavailable"].includes(
+    emissionsDataStatus
+  );
+  const co2Total = emissionsDataComplete ? findCo2Total(emissions) : null;
   const co2TotalTons = co2Total != null ? co2Total / 1000 : null;
   const co2PerKm =
     co2Total != null && distanceKm != null && distanceKm > 0
@@ -215,7 +219,10 @@ const buildModel = (input) => {
       co2Total,
       co2TotalTons,
       co2PerKm,
-      indicators: collectEmissionIndicators(emissions),
+      indicators: emissionsDataComplete ? collectEmissionIndicators(emissions) : [],
+      dataCompleteness: emissions?.dataCompleteness ?? null,
+      scopeCompleteness: emissions?.scopeCompleteness ?? null,
+      dieselHeatingMethodology: emissions?.dieselHeatingMethodology ?? null,
     },
   };
 };
@@ -626,9 +633,16 @@ const renderPanels = (root, a, b) => {
   if (emissions) {
     const emissionsUnavailable =
       a.sectionStatus.emissions !== "ready" && b.sectionStatus.emissions !== "ready";
+    const emissionsIncomplete = [a, b].some((model) =>
+      ["partial", "unavailable"].includes(
+        model.emissions.dataCompleteness?.status
+      )
+    );
     emissions.innerHTML = emissionsUnavailable
       ? `<p class="ac-section-note">${textContent(t("analysisComparison.emissionsUnavailable"))}</p>`
-      : renderCompareTable(buildEmissionsRows(a, b));
+      : `${emissionsIncomplete
+        ? `<p class="ac-section-note" role="status">${textContent(t("yearly_analysis.emissions_data_incomplete"))}</p>`
+        : ""}${renderCompareTable(buildEmissionsRows(a, b))}`;
   }
 
   const details = sel(root, "panel-details");
@@ -654,6 +668,10 @@ const buildComparisonRows = (a, b) => {
       analysisB: fin(row.b),
       absoluteDifference: absDiff(row.a, row.b),
       relativeDifferencePct: relDiff(row.a, row.b),
+      dataCompletenessA: a.emissions.dataCompleteness?.status ?? null,
+      dataCompletenessB: b.emissions.dataCompleteness?.status ?? null,
+      scopeCompletenessA: a.emissions.scopeCompleteness?.status ?? null,
+      scopeCompletenessB: b.emissions.scopeCompleteness?.status ?? null,
     }));
   return [
     ...tag(t("analysisComparison.efficiency"), buildEfficiencyRows(a, b)),
@@ -689,6 +707,10 @@ const exportCsv = (a, b) => {
     "analysis_b",
     "absolute_difference",
     "relative_difference_pct",
+    "data_completeness_a",
+    "data_completeness_b",
+    "scope_completeness_a",
+    "scope_completeness_b",
   ];
   const rows = buildComparisonRows(a, b).map((row) =>
     [
@@ -699,6 +721,10 @@ const exportCsv = (a, b) => {
       row.analysisB,
       row.absoluteDifference,
       row.relativeDifferencePct,
+      row.dataCompletenessA,
+      row.dataCompletenessB,
+      row.scopeCompletenessA,
+      row.scopeCompletenessB,
     ]
       .map(csvCell)
       .join(",")

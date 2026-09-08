@@ -55,15 +55,19 @@ The comparison presents stacked bar charts breaking down:
 
 ## Emissions comparison
 
-The comparison includes lifecycle emissions:
+The comparison includes environmental indicators, but the yearly-analysis
+boundary is explicitly partial rather than a complete absolute LCA:
 
 | Indicator | Scope |
 |-----------|-------|
-| CO₂ equivalent | Manufacturing + operational |
-| NOₓ | Operational emissions |
-| PM10 | Operational emissions |
+| CO₂ equivalent | Operational electric-side model plus diesel-heater WTW where applicable |
+| NOₓ | Same boundary, reported as NO₂-equivalent |
+| PM10 | Same boundary; heater uncertainty is an observed two-test range |
 
-Electric buses typically show lower operational emissions but may have higher manufacturing emissions (battery production). The net benefit depends on the electricity mix and annual distance.
+Exports preserve data-completeness, scope-completeness, fuel-profile and
+factor-methodology metadata. If required diesel-heater consumption data are
+missing, environmental comparison deltas are omitted instead of treating the
+missing contribution as zero.
 
 *To verify*: Whether LCA vehicle selection is exposed in the comparison UI or uses automatic defaults.
 
