@@ -1018,6 +1018,79 @@
   line-height: 1.55;
 }
 
+.ya-env-data-warning {
+  color: var(--color-negative-strong) !important;
+  font-weight: 700;
+  margin-bottom: var(--space-sm) !important;
+}
+
+.ya-dh-estimate-note {
+  display: inline-block;
+  margin-inline-end: var(--space-xs);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.ya-methodology-popover-wrap {
+  display: inline-block;
+  position: relative;
+}
+
+.ya-methodology-popover-trigger {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-brand-secondary);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ya-methodology-popover {
+  position: absolute;
+  z-index: 120;
+  inset-inline-end: 0;
+  top: calc(100% + var(--space-xs));
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: min(70vh, 32rem);
+  overflow: auto;
+  padding: var(--space-md);
+  border: 1px solid var(--color-tooltip-border);
+  border-radius: var(--radius-md);
+  background: var(--color-tooltip-surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-tooltip-text);
+  text-align: start;
+}
+
+.ya-methodology-popover[hidden] { display: none; }
+.ya-methodology-popover-line {
+  display: block;
+  margin-top: var(--space-sm);
+}
+
+.ya-methodology-popover-close {
+  float: inline-end;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .ya-methodology-popover {
+    position: fixed;
+    inset: auto 1rem 1rem;
+    width: auto;
+    max-height: 70vh;
+  }
+}
+
 /* ── Emissions chart grid ────────────────────────────────────── */
 
 .ya-env-content {

@@ -62,6 +62,34 @@ The Q05–Q95 range represents the prediction model's uncertainty.
 | CHF/km | Annual cost divided by yearly distance |
 | Annual emissions | Weighted CO₂/NOₓ/PM10 |
 
+### Diesel-heater environmental results
+
+For VECTO analyses, the saved diesel fuel energy is the authoritative input.
+The application converts it to litres with the versioned Swiss average fuel
+profile used by both the cost and emissions endpoints. Historical legacy
+analyses retain their original litre value and provenance.
+
+The heater contribution is well-to-wheel: exhaust emissions appear in
+`direct`, while fuel production and delivery appear in `energyChain`. NOₓ is
+shown as NO₂-equivalent so direct measurements and the Mobitool upstream
+inventory can be added consistently. The PM10 interval is the observed range
+of two valid tests, not a confidence interval.
+
+The results screen distinguishes:
+
+- **data completeness** — whether the required consumption and factors exist;
+- **scope completeness** — whether the environmental model covers a complete
+  LCA boundary.
+
+The current boundary remains partial: an operational electric-side result,
+allocated using Mobitool phase shares, plus the diesel heater WTW result.
+Comparison reductions are hidden when required heater consumption data are
+missing. With positive consumption the interface shows “Diesel heating
+included · estimated values”; that statement is absent for electric heating
+and explicit zero consumption. Use the keyboard- and touch-accessible
+methodology-and-sources control for the factor version, NOₓ convention, source
+links and PM10 caveat.
+
 ### Efficiency by temperature
 
 A chart showing:

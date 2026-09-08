@@ -72,6 +72,30 @@ const sumFinite = (...values) => {
   return hasValue ? total : null;
 };
 
+export const classifyDieselHeatingPresentation = ({
+  configured = false,
+  liters = null,
+  dataStatus = "",
+  hasPositiveContribution = false,
+} = {}) => {
+  const normalizedStatus = text(dataStatus).trim().toLowerCase();
+  const normalizedLiters = toFiniteNumber(liters);
+  const unavailable = configured
+    && ["partial", "unavailable"].includes(normalizedStatus);
+  const positive = configured && !unavailable && (
+    (normalizedLiters != null && normalizedLiters > 1e-9)
+    || hasPositiveContribution
+  );
+
+  return {
+    configured,
+    positive,
+    zero: configured && !unavailable
+      && normalizedLiters === 0 && !hasPositiveContribution,
+    unavailable,
+  };
+};
+
 const hasAnyFiniteValue = (value) => {
   if (toFiniteNumber(value) != null) return true;
   if (Array.isArray(value)) return value.some((entry) => hasAnyFiniteValue(entry));
@@ -310,6 +334,8 @@ const looksLikeIndicator = (value) => {
 };
 
 const adaptEmissionChannel = (rawChannel = {}) => {
+  const numeric = toFiniteNumber(rawChannel);
+  if (numeric != null) return { total: numeric };
   const channel = camelize(rawChannel);
 
   return {
@@ -636,6 +662,15 @@ export const adaptYearlyAnalysisEmissions = (rawEmissions = {}) => {
         ? adaptEmissionIndicators(annualSavingSource, { includeHeatingSplit: true })
         : firstFinite(annualSavingSource) ?? (annualSavingSource ?? null),
       assumptions: camelize(firstDefined(emissions.assumptions, {}) ?? {}),
+      dataCompleteness: camelize(
+        firstDefined(emissions.dataCompleteness, {}) ?? {}
+      ),
+      scopeCompleteness: camelize(
+        firstDefined(emissions.scopeCompleteness, {}) ?? {}
+      ),
+      dieselHeatingMethodology: camelize(
+        firstDefined(emissions.dieselHeatingMethodology, {}) ?? {}
+      ),
       scenarios,
     },
     rawEmissions
