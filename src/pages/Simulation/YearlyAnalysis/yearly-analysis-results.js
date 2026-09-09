@@ -149,6 +149,10 @@ const feasibilityBadge = (v) => {
 const MOBITOOL_URL = "https://www.i14y.admin.ch/en/catalog/dataservices/171b09a4-5b5f-4577-8921-3af7fc6eee39/description";
 const MOBITOOL_LINK_HTML = `<a href="${MOBITOOL_URL}" target="_blank" rel="noopener noreferrer">Mobitool</a>`;
 const linkifyMobitoolHtml = (value) => text(value).replace(/Mobitool/g, MOBITOOL_LINK_HTML);
+const MOBITOOL_V31_URL = "https://assets.energieschweiz.ch/f/174202/x/b0861efe32/mobitool-faktoren-v3-1.xlsx";
+const MOBITOOL_V31_LINK_HTML = `<a href="${MOBITOOL_V31_URL}" target="_blank" rel="noopener noreferrer">Mobitool 3.1</a>`;
+const VECTO_URL = "https://code.europa.eu/vecto/vecto/-/tags";
+const VECTO_LINK_HTML = `<a href="${VECTO_URL}" target="_blank" rel="noopener noreferrer">VECTO 5.1.3</a>`;
 const HUMPHRIES_URL = "https://doi.org/10.4271/2024-01-5011";
 const HUMPHRIES_LINK_HTML = `<a href="${HUMPHRIES_URL}" target="_blank" rel="noopener noreferrer">Humphries et al. (2024)</a>`;
 
@@ -3062,22 +3066,16 @@ const adaptiveDecimals = (v) => {
   return 3;
 };
 
-const setYaCo2PhaseTitle = (chartEl, showLifecycleInfo = false) => {
+export const setYaCo2PhaseTitle = (chartEl, showMethodologyInfo = false) => {
   const titleEl = chartEl?.closest(".ya-env-chart-section")?.querySelector(".ya-res-section-title");
   if (!titleEl) return;
-  const baseTitle = textContent(t("simulation.emissions_co2_phase_title"));
-  if (!showLifecycleInfo) {
+  const baseTitle = textContent(t("yearly_analysis.emissions_co2_breakdown_title"));
+  if (!showMethodologyInfo) {
     titleEl.textContent = baseTitle;
     return;
   }
   const tooltipText = textContent(t("yearly_analysis.lifecycle_phases_exclude_dh"));
-  /* The other `.ya-info-icon` call sites are `<button>`, which is what makes
-     them work on touch — iOS never focuses a non-form element on tap, so the
-     `:focus-visible` trigger never fires there. This one stays a span because
-     `linkifyMobitoolHtml` injects an `<a>` into the tooltip, and interactive
-     content inside a `<button>` is invalid and would break the link. Fixing it
-     needs the tooltip moved out to a sibling with its own anchor rules. */
-  titleEl.innerHTML = `${baseTitle}<span class="ya-info-icon" tabindex="0" aria-label="${tooltipText}">i<span class="ya-info-tooltip">${linkifyMobitoolHtml(tooltipText)}</span></span>`;
+  titleEl.innerHTML = `${baseTitle}${infoTip(tooltipText)}`;
 };
 
 /**
@@ -3370,7 +3368,7 @@ const renderEmissionsPanel = (sec, emState) => {
   const methEl = panel.querySelector('[data-role="ya-env-methodology"]');
   const chartsEl = panel.querySelector(".ya-env-chart-grid");
   const moreInformationEl = panel.querySelector(".ya-more-information");
-  setYaCo2PhaseTitle(co2El, emState?.status === "done" && !!emState?.isDieselHeating);
+  setYaCo2PhaseTitle(co2El, emState?.status === "done");
 
   const clearAll = () => {
     [headerEl, kpisEl, tableEl, histEl, histLegEl, co2El, co2LegEl, methEl]
@@ -3633,32 +3631,26 @@ const renderEmissionsPanel = (sec, emState) => {
 
   /* Methodology note */
   if (methEl) {
-    const lcaMethod = assumptions.lca_phase_method || "";
-    const baseNote = linkifyMobitoolHtml(textContent(t("yearly_analysis.env_methodology_base_note")));
-    const dhNote = isDH ? ` ${textContent(t("yearly_analysis.env_methodology_diesel_heating_note"))}` : "";
-    const caveatNote = isDH ? ` ${textContent(t("yearly_analysis.env_methodology_diesel_heating_caveat"))}` : "";
-    const methodNote = lcaMethod ? ` ${textContent(t("yearly_analysis.env_methodology_lca_method", { method: lcaMethod }))}` : "";
-    const methodology = structured?.dieselHeatingMethodology;
-    const methodologyVersion = textContent(methodology?.methodology_version ?? "—");
-    const noxConvention = textContent(t("yearly_analysis.nox_convention_detail"));
-    const pmUncertainty = textContent(t("yearly_analysis.pm10_uncertainty_detail"));
-    const heaterSummary = isDH
-      ? `<span class="ya-methodology-popover-line">${textContent(t("yearly_analysis.diesel_heating_popover_summary"))}</span>
-        <span class="ya-methodology-popover-line">${textContent(t("yearly_analysis.diesel_heating_methodology_detail"))}</span>`
+    const methodologyLine = (headingKey, bodyKey) =>
+      `<span class="ya-methodology-popover-line"><strong>${textContent(t(headingKey))}:</strong> ${textContent(t(bodyKey))}</span>`;
+    const heaterDetails = isDH
+      ? `${methodologyLine("yearly_analysis.methodology_diesel_heating_heading", "yearly_analysis.methodology_diesel_heating_body")}
+        ${methodologyLine("yearly_analysis.methodology_diesel_heating_factors_heading", "yearly_analysis.methodology_diesel_heating_factors_body")}`
       : "";
-    const sources = isDH
-      ? `<span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.methodology_and_sources"))}:</strong> ${MOBITOOL_LINK_HTML}; ${HUMPHRIES_LINK_HTML}</span>`
-      : `<span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.methodology_and_sources"))}:</strong> ${MOBITOOL_LINK_HTML}</span>`;
-    const heaterFactorDetails = isDH
-      ? `<span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.methodology_version"))}:</strong> ${methodologyVersion}</span>
-        <span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.nox_convention"))}:</strong> ${noxConvention}</span>
-        <span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.pm10_uncertainty"))}:</strong> ${pmUncertainty}</span>`
-      : "";
+    const references = [
+      VECTO_LINK_HTML,
+      MOBITOOL_LINK_HTML,
+      ...(isDH ? [MOBITOOL_V31_LINK_HTML, HUMPHRIES_LINK_HTML] : []),
+    ].join("; ");
     const detailContent = `<strong>${textContent(t("yearly_analysis.methodology_details"))}</strong>
-      ${heaterSummary}
-      <span class="ya-methodology-popover-line">${baseNote}${dhNote}${caveatNote}${methodNote}</span>
-      ${heaterFactorDetails}
-      ${sources}`;
+      ${methodologyLine("yearly_analysis.methodology_consumption_heading", "yearly_analysis.methodology_consumption_body")}
+      ${methodologyLine("yearly_analysis.methodology_vecto_heading", "yearly_analysis.methodology_vecto_body")}
+      ${methodologyLine("yearly_analysis.methodology_electricity_heading", "yearly_analysis.methodology_electricity_body")}
+      ${methodologyLine("yearly_analysis.methodology_mobitool_heading", "yearly_analysis.methodology_mobitool_body")}
+      ${heaterDetails}
+      ${methodologyLine("yearly_analysis.methodology_diesel_comparator_heading", "yearly_analysis.methodology_diesel_comparator_body")}
+      ${methodologyLine("yearly_analysis.methodology_scope_heading", "yearly_analysis.methodology_scope_body")}
+      <span class="ya-methodology-popover-line"><strong>${textContent(t("yearly_analysis.methodology_sources"))}:</strong> ${references}</span>`;
     const incompleteWarning = comparisonsComplete
       ? ""
       : `<p class="ya-env-data-warning" role="status">${textContent(t("yearly_analysis.emissions_data_incomplete"))}</p>`;

@@ -45,6 +45,29 @@ test("methodology popover works with pointer, keyboard and a mobile viewport", a
 });
 
 
+test("CO2 breakdown tooltip states the WTW boundary", async ({ page }) => {
+  await page.goto("./");
+  await page.evaluate(async () => {
+    const module = await import(
+      "/elettra/src/pages/Simulation/YearlyAnalysis/yearly-analysis-results.js"
+    );
+    const section = document.createElement("section");
+    section.className = "ya-env-chart-section";
+    section.innerHTML = `
+      <h3 class="ya-res-section-title"></h3>
+      <div data-role="chart"></div>
+    `;
+    document.body.replaceChildren(section);
+    module.setYaCo2PhaseTitle(section.querySelector('[data-role="chart"]'), true);
+  });
+
+  await expect(page.getByRole("heading", { level: 3 })).toContainText(
+    "CO₂ emissions breakdown"
+  );
+  await expect(page.getByRole("button", { name: /WTW/ })).toBeVisible();
+});
+
+
 test("controlled yearly cases keep positive, electric, zero and incomplete heater states distinct", async ({
   page,
 }) => {

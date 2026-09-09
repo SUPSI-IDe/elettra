@@ -44,13 +44,49 @@ test("emission adapter preserves numeric channels and methodology metadata", () 
 });
 
 
-test("diesel-heater methodology translations exist in every locale", () => {
+test("environmental methodology translations exist in every locale", () => {
   const keys = [
+    "yearly_analysis.emissions_co2_breakdown_title",
+    "yearly_analysis.lifecycle_phases_exclude_dh",
     "yearly_analysis.environmental_scope_brief",
     "yearly_analysis.diesel_heating_included_estimated",
     "yearly_analysis.methodology_and_sources",
     "yearly_analysis.methodology_details",
     "yearly_analysis.close_methodology",
+    "yearly_analysis.methodology_consumption_heading",
+    "yearly_analysis.methodology_consumption_body",
+    "yearly_analysis.methodology_vecto_heading",
+    "yearly_analysis.methodology_vecto_body",
+    "yearly_analysis.methodology_electricity_heading",
+    "yearly_analysis.methodology_electricity_body",
+    "yearly_analysis.methodology_mobitool_heading",
+    "yearly_analysis.methodology_mobitool_body",
+    "yearly_analysis.methodology_diesel_heating_heading",
+    "yearly_analysis.methodology_diesel_heating_body",
+    "yearly_analysis.methodology_diesel_heating_factors_heading",
+    "yearly_analysis.methodology_diesel_heating_factors_body",
+    "yearly_analysis.methodology_diesel_comparator_heading",
+    "yearly_analysis.methodology_diesel_comparator_body",
+    "yearly_analysis.methodology_scope_heading",
+    "yearly_analysis.methodology_scope_body",
+    "yearly_analysis.methodology_sources",
+    "yearly_analysis.emissions_data_incomplete",
+  ];
+  for (const locale of ["en", "de", "fr", "it"]) {
+    for (const key of keys) {
+      assert.equal(typeof translations[locale][key], "string", `${locale}.${key}`);
+      assert.ok(translations[locale][key].trim().length > 0, `${locale}.${key}`);
+    }
+    assert.match(
+      translations[locale]["yearly_analysis.lifecycle_phases_exclude_dh"],
+      /WTW/
+    );
+  }
+});
+
+
+test("internal methodology and PM10 uncertainty copy is not exposed", () => {
+  const removedKeys = [
     "yearly_analysis.methodology_version",
     "yearly_analysis.diesel_heating_popover_summary",
     "yearly_analysis.diesel_heating_methodology_detail",
@@ -58,12 +94,10 @@ test("diesel-heater methodology translations exist in every locale", () => {
     "yearly_analysis.nox_convention_detail",
     "yearly_analysis.pm10_uncertainty",
     "yearly_analysis.pm10_uncertainty_detail",
-    "yearly_analysis.emissions_data_incomplete",
   ];
   for (const locale of ["en", "de", "fr", "it"]) {
-    for (const key of keys) {
-      assert.equal(typeof translations[locale][key], "string", `${locale}.${key}`);
-      assert.ok(translations[locale][key].trim().length > 0, `${locale}.${key}`);
+    for (const key of removedKeys) {
+      assert.equal(translations[locale][key], undefined, `${locale}.${key}`);
     }
   }
 });
