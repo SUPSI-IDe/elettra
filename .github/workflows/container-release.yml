@@ -144,9 +144,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_DIGEST: ${{ needs.publish-image.outputs.digest }}
         run: |
+          version="${GITHUB_REF_NAME#v}"
+          changelog_entry="$(awk -v version="$version" '
+            /^## \[/ {
+              if (capture) exit
+              capture = index($0, "## [" version "]") == 1
+            }
+            capture { print }
+          ' CHANGELOG.md)"
+          if [ -z "$changelog_entry" ]; then
+            echo "::error::CHANGELOG.md has no entry for ${GITHUB_REF_NAME}."
+            exit 1
+          fi
+          release_notes="$(printf '%s\n\nContainer: %s@%s\n' "$changelog_entry" "$IMAGE_NAME" "$IMAGE_DIGEST")"
           gh release create "$GITHUB_REF_NAME" \
             "$archive" "$archive.sha256" \
             --verify-tag \
             --title "Elettra ${GITHUB_REF_NAME}" \
             --generate-notes \
-            --notes "Container: ghcr.io/supsi-ide/elettra@${IMAGE_DIGEST}"
+            --notes "$release_notes"

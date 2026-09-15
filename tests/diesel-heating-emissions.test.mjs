@@ -47,7 +47,7 @@ test("emission adapter preserves numeric channels and methodology metadata", () 
 test("environmental methodology translations exist in every locale", () => {
   const keys = [
     "yearly_analysis.emissions_co2_breakdown_title",
-    "yearly_analysis.lifecycle_phases_exclude_dh",
+    "yearly_analysis.lifecycle_phases_include_dh",
     "yearly_analysis.environmental_scope_brief",
     "yearly_analysis.diesel_heating_included_estimated",
     "yearly_analysis.methodology_and_sources",
@@ -78,7 +78,7 @@ test("environmental methodology translations exist in every locale", () => {
       assert.ok(translations[locale][key].trim().length > 0, `${locale}.${key}`);
     }
     assert.match(
-      translations[locale]["yearly_analysis.lifecycle_phases_exclude_dh"],
+      translations[locale]["yearly_analysis.lifecycle_phases_include_dh"],
       /WTW/
     );
   }

@@ -1,0 +1,27 @@
+# Changelog
+
+## [0.1.7] - 2026-09-15
+
+### Fixed
+
+- The yearly-analysis CO₂ lifecycle chart no longer adds diesel-heater emissions a second time. Its displayed e-bus total now uses the backend total, consistently with the emissions-saved KPI.
+- The redundant diesel-heater chart segment and legend entry were removed. The backend's Direct and Energy chain phases already contain that contribution.
+- The lifecycle chart's methodology tooltip now explains the heater attribution and the comparison scope in English, German, French and Italian.
+
+### Verification
+
+- Added regression tests for the mixed diesel-heating lifecycle total, the phase-only fallback and the four tooltip translations.
+
+## [0.1.6] - 2026-09-09
+
+### Changed
+
+- Clarified the well-to-wheel emissions methodology in the yearly-analysis documentation and interface.
+
+## [0.1.5] - 2026-09-08
+
+### Added
+
+- Exposed the diesel-heater emissions methodology in the yearly-analysis interface.
+
+Earlier versions are documented in the [GitHub releases](https://github.com/SUPSI-IDe/elettra/releases).
