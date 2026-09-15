@@ -40,6 +40,7 @@ import {
   hasQuantiles,
   formatUncertainty,
 } from "./yearly-analysis-helpers";
+import { buildLifecyclePhaseBar } from "./yearly-analysis-emissions";
 import {
   DEFAULT_OPEX_ANNUALIZATION_RATE,
   DEFAULT_BUS_LIFETIME_YEARS,
@@ -2890,7 +2891,6 @@ const EMISSIONS_POLLUTANTS = [
 
 const DIESEL_BAR_COLOR = CHART_VEHICLE_BAR_COLORS.diesel;
 const ELECTRIC_BAR_COLOR = CHART_VEHICLE_BAR_COLORS.electric;
-const DH_BAR_COLOR = "#e67e22";
 const CO2_PHASE_DIVISOR = 1e6;
 const ENERGY_COLORS = { renewable: "var(--color-success)", nonRenewable: "#e67e22" };
 
@@ -3074,7 +3074,7 @@ export const setYaCo2PhaseTitle = (chartEl, showMethodologyInfo = false) => {
     titleEl.textContent = baseTitle;
     return;
   }
-  const tooltipText = textContent(t("yearly_analysis.lifecycle_phases_exclude_dh"));
+  const tooltipText = textContent(t("yearly_analysis.lifecycle_phases_include_dh"));
   titleEl.innerHTML = `${baseTitle}${infoTip(tooltipText)}`;
 };
 
@@ -3100,7 +3100,6 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
 
   const lcb = emState.structured?.lifecycleBreakdown;
   const unitLabel = t("simulation.emissions_unit_ton_year");
-  let hasDhSegment = false;
 
   let bars;
   if (lcb?.ebus?.phases) {
@@ -3112,24 +3111,24 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
         value: Math.max(0, (toFiniteNumber(phasesObj?.[p.key]) ?? 0) / phaseDivisor),
       }));
     const ebusPhases = buildPhasesFromObj(lcb.ebus.phases);
-    const ebusPhaseSum = ebusPhases.reduce((s, p) => s + p.value, 0);
     const ebusLabel = getEmissionsTotalLabel(emState);
-    const ebusDh = (toFiniteNumber(lcb.ebus.diesel_heating) ?? 0) / phaseDivisor;
-    hasDhSegment = emState.isDieselHeating && ebusDh > EPS;
-
-    const ebusBar = { label: ebusLabel, phases: ebusPhases, dhValue: hasDhSegment ? ebusDh : 0, total: ebusPhaseSum + (hasDhSegment ? ebusDh : 0) };
-    bars = [ebusBar];
+    bars = [buildLifecyclePhaseBar(
+      ebusLabel,
+      ebusPhases,
+      lcb.ebus,
+      phaseDivisor
+    )];
 
     if (lcb.diesel_comparator?.available !== false && lcb.diesel_comparator?.phases) {
       const dieselPhases = buildPhasesFromObj(lcb.diesel_comparator.phases);
-      bars.push({ label: t("simulation.label_diesel"), phases: dieselPhases, dhValue: 0, total: dieselPhases.reduce((s, p) => s + p.value, 0) });
+      bars.push(buildLifecyclePhaseBar(t("simulation.label_diesel"), dieselPhases));
     } else if (emState.dieselYearly?.gwp100a && hasEmissionPhaseData(emState.dieselYearly.gwp100a)) {
       const fallbackGwp = emState.dieselYearly.gwp100a;
       const fallbackPhases = LCA_PHASES.map((p) => ({
         key: p.key, label: t(p.i18n), color: p.color,
         value: Math.max(0, (toFiniteNumber(fallbackGwp[p.key]) ?? 0) / phaseDivisor),
       }));
-      bars.push({ label: t("simulation.label_diesel"), phases: fallbackPhases, dhValue: 0, total: fallbackPhases.reduce((s, p) => s + p.value, 0) });
+      bars.push(buildLifecyclePhaseBar(t("simulation.label_diesel"), fallbackPhases));
     }
   } else {
     const electricGwp = emState.electricYearly.gwp100a;
@@ -3147,10 +3146,10 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
       }));
     const co2EbusLabel = getEmissionsTotalLabel(emState);
     const ebusPhases = buildPhases(electricGwp);
-    bars = [{ label: co2EbusLabel, phases: ebusPhases, dhValue: 0, total: ebusPhases.reduce((s, p) => s + p.value, 0) }];
+    bars = [buildLifecyclePhaseBar(co2EbusLabel, ebusPhases)];
     if (dieselGwp && hasEmissionPhaseData(dieselGwp)) {
       const dp = buildPhases(dieselGwp);
-      bars.push({ label: t("simulation.label_diesel"), phases: dp, dhValue: 0, total: dp.reduce((s, p) => s + p.value, 0) });
+      bars.push(buildLifecyclePhaseBar(t("simulation.label_diesel"), dp));
     }
   }
 
@@ -3200,21 +3199,6 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
         xOff += w;
       }
     });
-    if (bar.dhValue > EPS) {
-      const w = Math.max(0, x(bar.dhValue));
-      if (w > 0.5) {
-        const pct = bar.total > 0 ? Math.round((bar.dhValue / bar.total) * 100) : 0;
-        svg.append("rect")
-          .attr("x", layoutMargin.left + xOff).attr("y", y)
-          .attr("width", w).attr("height", barHeight)
-          .attr("fill", DH_BAR_COLOR).attr("rx", 0)
-          .attr("stroke", "var(--color-surface)").attr("stroke-width", 1)
-          .style("cursor", "pointer")
-          .append("title")
-          .text(`${bar.label} · ${t("yearly_analysis.diesel_heating")}: ${formatFixed(bar.dhValue, dec)} ${unitLabel} (${pct}%)`);
-        xOff += w;
-      }
-    }
     svg.append("text")
       .attr("x", layoutMargin.left + xOff + 6).attr("y", y + barHeight / 2)
       .attr("dy", "0.35em").attr("font-size", CHART_FONT_LABEL).attr("fill", "#666")
@@ -3229,10 +3213,7 @@ const renderYaCo2PhaseBreakdown = (el, legendEl, emState) => {
   el.appendChild(svg.node());
 
   if (legendEl) {
-    let html = LCA_PHASES.map((p) => `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${p.color}"></span>${textContent(t(p.i18n))}</div>`).join("");
-    if (hasDhSegment) {
-      html += `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${DH_BAR_COLOR}"></span>${textContent(t("yearly_analysis.diesel_heating"))}</div>`;
-    }
+    const html = LCA_PHASES.map((p) => `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${p.color}"></span>${textContent(t(p.i18n))}</div>`).join("");
     legendEl.innerHTML = html;
   }
 };
