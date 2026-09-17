@@ -1,4 +1,4 @@
-export const GUIDE_BASELINE_VERSION = "0.1.7";
+export const GUIDE_BASELINE_VERSION = "0.1.8";
 export const GUIDE_UPDATED_AT = "17 September 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];

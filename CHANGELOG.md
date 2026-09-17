@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.8] - 2026-09-17
+
+### Added
+
+- Added a public, task-oriented user guide at `/elettra/guide/`, linked directly from the landing page.
+- Added complete guide content in English, German, French and Italian, with the application language preference retained across navigation and reloads.
+- Added eight existing ELETTRA interface screenshots covering navigation, custom stops, shifts, feasibility configuration and results, and yearly efficiency and emissions results. Captions are translated and each image can be opened at full resolution.
+- Added print-friendly and responsive guide layouts for desktop and mobile use.
+
+### Changed
+
+- Configured the guide as a dedicated Vite build entry so that `/elettra/guide/` works consistently in development and in the packaged nginx image.
+
+### Verification
+
+- Added structural tests for guide translations, sections, local image assets and editorial-placeholder removal.
+- Added desktop and mobile browser tests for landing-page navigation, language persistence, responsive layout and screenshot loading.
+
 ## [0.1.7] - 2026-09-15
 
 ### Fixed
