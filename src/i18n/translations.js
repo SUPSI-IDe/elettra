@@ -929,6 +929,7 @@ export const translations = {
     "landing.login": "Sign In",
     "landing.register": "Create Account",
     "landing.about_link": "About the project",
+    "landing.user_guide": "User guide",
     "landing.footer": "© 2026 ELETTRA - Electric Transport Transition Assessment",
 
     // Register
@@ -2392,6 +2393,7 @@ export const translations = {
     "landing.login": "Anmelden",
     "landing.register": "Konto erstellen",
     "landing.about_link": "Über das Projekt",
+    "landing.user_guide": "Benutzerhandbuch",
     "landing.footer": "© 2026 ELETTRA - Elektrischer Schichtplaner",
 
     // Register
@@ -3855,6 +3857,7 @@ export const translations = {
     "landing.login": "Se connecter",
     "landing.register": "Créer un compte",
     "landing.about_link": "À propos du projet",
+    "landing.user_guide": "Guide d’utilisation",
     "landing.footer": "© 2026 ELETTRA - Planificateur de quarts électriques",
 
     // Register
@@ -5318,6 +5321,7 @@ export const translations = {
     "landing.login": "Accedi",
     "landing.register": "Crea account",
     "landing.about_link": "Informazioni sul progetto",
+    "landing.user_guide": "Guida utente",
     "landing.footer": "© 2026 ELETTRA - Pianificatore di turni elettrici",
 
     // Register

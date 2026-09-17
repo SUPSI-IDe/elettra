@@ -30,6 +30,14 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   base: "/elettra/",
+  build: {
+    rollupOptions: {
+      input: {
+        app: path.resolve(rootDir, "index.html"),
+        guide: path.resolve(rootDir, "guide/index.html"),
+      },
+    },
+  },
   server: {
     host: true,
     port: 9010,

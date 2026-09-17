@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Task-oriented user guide for the ELETTRA electric-bus transition assessment application."
+    />
+    <link rel="stylesheet" href="./guide.css" />
+    <script type="module" src="./guide.js"></script>
+    <title>ELETTRA user guide</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#guide-content">Skip to the guide</a>
+
+    <header class="guide-header">
+      <a class="guide-back-link" href="../" data-guide-ui="backToApp">
+        Back to ELETTRA
+      </a>
+
+      <div class="guide-header-actions">
+        <label for="guide-language" data-guide-ui="languageLabel">Language</label>
+        <select id="guide-language" aria-label="Guide language">
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+        </select>
+        <button type="button" class="guide-print-button" data-action="print" data-guide-ui="print">
+          Print guide
+        </button>
+      </div>
+    </header>
+
+    <div class="guide-layout">
+      <aside class="guide-sidebar" aria-label="Guide contents">
+        <a class="guide-brand" href="#guide-content" aria-label="ELETTRA user guide">
+          <img src="../assets/logo.svg" alt="" aria-hidden="true" />
+          <span>ELETTRA</span>
+        </a>
+        <p class="guide-sidebar-title" data-guide-ui="contents">Guide contents</p>
+        <nav id="guide-nav"></nav>
+      </aside>
+
+      <main id="guide-content" class="guide-main" tabindex="-1">
+        <section class="guide-hero" aria-labelledby="guide-title">
+          <p class="guide-eyebrow" data-guide-ui="eyebrow">User documentation</p>
+          <h1 id="guide-title" data-guide-ui="title">ELETTRA user guide</h1>
+          <p class="guide-introduction" data-guide-ui="introduction"></p>
+          <dl class="guide-meta">
+            <div>
+              <dt data-guide-ui="baselineLabel">Interface baseline</dt>
+              <dd data-guide-ui="baselineValue"></dd>
+            </div>
+            <div>
+              <dt data-guide-ui="updatedLabel">Guide updated</dt>
+              <dd data-guide-ui="updatedValue"></dd>
+            </div>
+          </dl>
+          <p class="guide-screenshot-note" data-guide-ui="screenshotNote"></p>
+        </section>
+
+        <div id="guide-sections"></div>
+
+        <footer class="guide-footer">
+          <p data-guide-ui="footer"></p>
+          <a href="../" data-guide-ui="backToApp">Back to ELETTRA</a>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

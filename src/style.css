@@ -2190,6 +2190,10 @@ table input[type="checkbox"] {
 }
 
 .landing-about-link-wrapper {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
   margin-bottom: var(--space-lg);
 }
 
