@@ -348,7 +348,7 @@ export const initializeNavigation = (root = document) => {
   const fromWindow = fromHash?.slug ? consumeWindowRouteState(fromHash.slug) : null;
   const defaultSlug = authenticated
     ? slugFrom(nav.querySelector("a[data-partial]"))
-    : "login";
+    : "landing";
   const initialSlug = fromHistory?.slug || fromHash?.slug || defaultSlug;
   const initialOptions = fromHistory?.options || fromWindow || fromHash?.options || {};
   loadAndInitialize(initialSlug, initialOptions, { hashAction: "replace" });

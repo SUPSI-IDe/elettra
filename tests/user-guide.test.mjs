@@ -12,15 +12,21 @@ const readProjectFile = (path) =>
 
 test("the landing page links to the public user guide", async () => {
   const landing = await readProjectFile("src/pages/Auth/landing.html");
-  assert.match(landing, /href="\.\/guide\/"/);
+  assert.equal(landing.match(/href="\.\/guide\/"/g)?.length, 1);
   assert.match(landing, /data-i18n="landing\.user_guide"/);
+
+  for (const authView of ["login", "register"]) {
+    const html = await readProjectFile(`src/pages/Auth/${authView}.html`);
+    assert.doesNotMatch(html, /href="\.\/guide\/"/);
+    assert.doesNotMatch(html, /landing\.user_guide/);
+  }
 });
 
 test("the public guide contains the expected accessible shell", async () => {
   const guide = await readProjectFile("guide/index.html");
   assert.match(guide, /id="guide-language"/);
   assert.match(guide, /id="guide-content"/);
-  assert.match(guide, /href="\.\.\/"/);
+  assert.equal(guide.match(/href="\.\.\/#landing"/g)?.length, 2);
   assert.doesNotMatch(guide, /to verify|placeholder|asset to be supplied/i);
 });
 

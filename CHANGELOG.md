@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.9] - 2026-09-17
+
+### Fixed
+
+- The bare application URL now opens the public landing page for signed-out users, making the user-guide link immediately visible.
+- Both return links in the user guide now target the landing page explicitly instead of relying on the application's default route.
+
+### Verification
+
+- Expanded the browser test matrix to cover the landing page, login and registration return paths, browser history, both guide return links, all nine guide sections and direct section URLs.
+- Added bidirectional language-persistence coverage for English, German, French and Italian, including reloads.
+- Verified the complete navigation matrix on desktop and mobile viewports and limited parallel browser workers to keep the suite reliable.
+
 ## [0.1.8] - 2026-09-17
 
 ### Added
