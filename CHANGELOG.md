@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.1.10] - 2026-09-21
+
+### Fixed
+
+- The yearly-distance emissions control now opens at the saved analysis distance instead of displaying a misleading zero value, and it keeps a positive range for short-distance cases.
+- All annual emissions, lifecycle components, primary-energy indicators and mixed diesel-heating values now scale consistently when the comparison distance changes.
+- Emissions comparison totals now use tonnes per year and per-distance values use grams per kilometre, eliminating the previous factor-of-1,000 display error.
+- Heat-pump and diesel-heater configurations now use explicit, consistent labels throughout simulation results, yearly analysis and exported data.
+- The yearly emissions export now records source and selected distances, the applied scale factor, stable indicator names, and an unambiguous electric/diesel actor structure.
+
+### Added
+
+- Added the renewable and non-renewable primary-energy breakdown to the yearly-analysis detail panel when the backend supplies it.
+
+### Verification
+
+- Added 18 unit tests for distance handling, emissions units, heating labels, annual scaling, primary energy and the export schema.
+- Added five end-to-end scenarios, exercised on desktop and mobile Chromium, covering saved-distance initialisation, deliberate distance rescaling, emissions comparison units, heating labels and primary-energy rendering.
+- Verified 260 unit tests, 46 browser executions and the production build.
+
 ## [0.1.9] - 2026-09-17
 
 ### Fixed

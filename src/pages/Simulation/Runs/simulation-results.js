@@ -57,6 +57,7 @@ import {
   computeScheduleResidualValue,
 } from "../../../utils/economic-costs";
 import { getOptimizationRunName } from "../../../utils/optimization-run";
+import { getAuxiliaryHeatingTranslationKey } from "../../../utils/heating-type";
 import "./simulation-results.css";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
@@ -3035,14 +3036,6 @@ const chartEmptyStateHtml = () =>
     t("simulation.efficiency_chart_empty") || "No chart data available."
   )}</p>`;
 
-const HEATING_LABELS = {
-  default: "simulation.heating_default",
-  hp: "simulation.heating_hp",
-  electric: "simulation.heating_electric",
-  diesel: "simulation.heating_diesel",
-  "ebus-dh": "simulation.heating_diesel",
-};
-
 const formatTemperatureValue = (value) => {
   const numeric = toFiniteNumber(value);
   return numeric == null ? null : `${numeric} °C`;
@@ -5948,6 +5941,12 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     batteryResults,
     viewOptions
   );
+  const heatingTranslationKey = getAuxiliaryHeatingTranslationKey(
+    firstRun.auxiliary_heating_type,
+  );
+  const heatingDisplayValue = heatingTranslationKey
+    ? t(heatingTranslationKey)
+    : firstRun.auxiliary_heating_type ?? "—";
 
   const conditions = [
     { label: t("simulation.var_optimization_mode") || "Mode", value: modeLabel(ip.mode ?? "") },
@@ -5974,11 +5973,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     {
       label:
         translateOr("simulation.efficiency_heating_type_short", "Heating type"),
-      value: textContent(
-        t(HEATING_LABELS[firstRun.auxiliary_heating_type]) ??
-          firstRun.auxiliary_heating_type ??
-          "—"
-      ),
+      value: textContent(heatingDisplayValue),
     },
   ];
 

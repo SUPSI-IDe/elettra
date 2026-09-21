@@ -11,6 +11,10 @@ import {
 import { fetchBusModelById } from "../../../api/bus-models";
 import { adaptYearlyAnalysisEmissions } from "../../../adapters/yearly-analysis";
 import {
+  buildAnnualCo2DisplayMetrics,
+  convertEmissionIndicatorForDisplay,
+} from "../../../utils/emissions-display";
+import {
   computeYearlyCosts,
   mapBackendCostsToLocal,
   parseBusModelSpecs,
@@ -124,11 +128,12 @@ const collectEmissionIndicators = (emissions) => {
       key,
       ebus: firstFinite(ebus[key]?.total, ebus[key]),
       diesel: firstFinite(diesel[key]?.total, diesel[key]),
+      unit: ebus[key]?.unit ?? diesel[key]?.unit ?? "",
     }))
     .filter((row) => row.ebus != null || row.diesel != null);
 };
 
-const buildModel = (input) => {
+export const buildModel = (input) => {
   const analysis = input.analysis ?? {};
   const features = input.features ?? {};
   const cfg = features.config ?? {};
@@ -171,11 +176,7 @@ const buildModel = (input) => {
     emissionsDataStatus
   );
   const co2Total = emissionsDataComplete ? findCo2Total(emissions) : null;
-  const co2TotalTons = co2Total != null ? co2Total / 1000 : null;
-  const co2PerKm =
-    co2Total != null && distanceKm != null && distanceKm > 0
-      ? co2Total / distanceKm
-      : null;
+  const co2Display = buildAnnualCo2DisplayMetrics(co2Total, distanceKm);
 
   const scenarioResults = Array.isArray(results.scenarioResults)
     ? results.scenarioResults
@@ -217,8 +218,8 @@ const buildModel = (input) => {
     },
     emissions: {
       co2Total,
-      co2TotalTons,
-      co2PerKm,
+      co2TotalTons: co2Display.totalTonnes,
+      co2PerKm: co2Display.gramsPerKm,
       indicators: emissionsDataComplete ? collectEmissionIndicators(emissions) : [],
       dataCompleteness: emissions?.dataCompleteness ?? null,
       scopeCompleteness: emissions?.scopeCompleteness ?? null,
@@ -545,7 +546,19 @@ const buildCostRows = (a, b) => [
   },
 ];
 
-const buildEmissionsRows = (a, b) => {
+const EMISSION_INDICATOR_LABEL_KEYS = {
+  nox: "simulation.env_kpi_nox",
+  pm10: "simulation.env_kpi_pm10",
+  primaryEnergy: "simulation.emissions_lca_primary_energy",
+  primaryEnergyNonRenewable: "simulation.emissions_lca_primary_energy_nr",
+};
+
+const comparisonEmissionIndicatorLabel = (key) => {
+  const translationKey = EMISSION_INDICATOR_LABEL_KEYS[key];
+  return translationKey ? t(translationKey) : key;
+};
+
+export const buildEmissionsRows = (a, b) => {
   const rows = [
     {
       label: t("analysisComparison.totalAnnualCo2"),
@@ -559,23 +572,36 @@ const buildEmissionsRows = (a, b) => {
       a: a.emissions.co2PerKm,
       b: b.emissions.co2PerKm,
       decimals: 3,
-      unit: "kg/km",
+      unit: "g/km",
     },
   ];
 
   const byKey = new Map();
   a.emissions.indicators.forEach((row) => {
-    byKey.set(row.key, { label: row.key, a: row.ebus, b: null, decimals: 1, unit: "" });
+    if (CO2_KEY_RE.test(row.key)) return;
+    byKey.set(row.key, { a: row, b: null });
   });
   b.emissions.indicators.forEach((row) => {
+    if (CO2_KEY_RE.test(row.key)) return;
     const existing = byKey.get(row.key);
-    if (existing) existing.b = row.ebus;
-    else byKey.set(row.key, { label: row.key, a: null, b: row.ebus, decimals: 1, unit: "" });
+    if (existing) existing.b = row;
+    else byKey.set(row.key, { a: null, b: row });
   });
-  return rows.concat([...byKey.values()]);
+  const indicatorRows = [...byKey.entries()].map(([key, pair]) => {
+    const displayA = convertEmissionIndicatorForDisplay(key, pair.a?.ebus);
+    const displayB = convertEmissionIndicatorForDisplay(key, pair.b?.ebus);
+    return {
+      label: comparisonEmissionIndicatorLabel(key),
+      a: displayA.value,
+      b: displayB.value,
+      decimals: Math.max(displayA.decimals, displayB.decimals),
+      unit: displayA.unit || displayB.unit || pair.a?.unit || pair.b?.unit || "",
+    };
+  });
+  return rows.concat(indicatorRows);
 };
 
-const renderPanels = (root, a, b) => {
+export const renderPanels = (root, a, b) => {
   const overview = sel(root, "panel-overview");
   if (overview) {
     const feasRows = [
