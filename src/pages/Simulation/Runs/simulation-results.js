@@ -497,7 +497,7 @@ const translateOr = (key, fallback, params = {}) => {
 const quantileHelpText = () =>
   translateOr(
     "simulation.quantile_help",
-    "Q50 is the median prediction. Q05 is a low-demand estimate and Q95 is a high-demand estimate. Q05-Q95 shows the central prediction spread across simulations; wider intervals indicate higher uncertainty."
+    "Mean demand is the feasibility decision basis. Q50 is the median prediction; Q05 and Q95 show lower- and higher-demand comparison scenarios. Q05-Q95 is not a true exceedance probability."
   );
 
 const normalizeFuelCostPerL = (value) =>
@@ -1920,10 +1920,10 @@ const renderOpexInputsTable = (el, state, options = {}) => {
 
 const renderEfficiencyPredictionSummary = (costInputs) => {
   const predictedShiftConsumption = toFiniteNumber(
-    costInputs?.predictedShiftConsumptionMedianKwh
+    costInputs?.predictedShiftConsumptionKwh
   );
   const predictedShiftConsumptionPerKm = toFiniteNumber(
-    costInputs?.predictedShiftConsumptionPerKmMedianKwh
+    costInputs?.predictedShiftConsumptionPerKmKwh
   );
 
   const items = [
@@ -2900,16 +2900,16 @@ const modeLabel = (key) =>
 
 const feasibilityDemandBasisLabel = (inputParams = {}) => {
   const basis = resolveFeasibilityDemandBasis(inputParams);
+  if (basis === FEASIBILITY_DEMAND_BASIS.MEAN) {
+    return translateOr(
+      "simulation.feasibility_basis_mean",
+      "Mean-based demand scenario"
+    );
+  }
   if (basis === FEASIBILITY_DEMAND_BASIS.Q50) {
     return translateOr(
       "simulation.feasibility_basis_q50",
       "Q50-based demand scenario"
-    );
-  }
-  if (basis === FEASIBILITY_DEMAND_BASIS.LEGACY_MEAN) {
-    return translateOr(
-      "simulation.feasibility_basis_legacy_mean",
-      "Legacy mean-based demand scenario"
     );
   }
   return translateOr(
@@ -2924,10 +2924,10 @@ const feasibilityScenarioLabel = (feasible, inputParams = {}) => {
   const outcome = feasible ? "feasible" : "infeasible";
   const fallbackOutcome = feasible ? "Feasible" : "Infeasible";
   const basisKey =
-    basis === FEASIBILITY_DEMAND_BASIS.Q50
-      ? "q50"
-      : basis === FEASIBILITY_DEMAND_BASIS.LEGACY_MEAN
-        ? "legacy_mean"
+    basis === FEASIBILITY_DEMAND_BASIS.MEAN
+      ? "mean"
+      : basis === FEASIBILITY_DEMAND_BASIS.Q50
+        ? "q50"
         : "configured";
 
   return translateOr(
@@ -3144,8 +3144,8 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
   if (electSummary.status === "infeasible") {
     const infeasibleBuses = Array.isArray(electSummary.infeasible_buses) ? electSummary.infeasible_buses : [];
     const predictedShiftConsumptionKwh = toOptionalFiniteNumber(
-      viewOptions?.predictedShiftConsumptionMedianKwh ??
-      viewOptions?.costInputs?.predictedShiftConsumptionMedianKwh
+      viewOptions?.predictedShiftConsumptionKwh ??
+      viewOptions?.costInputs?.predictedShiftConsumptionKwh
     );
     const uniqueByShift = [];
     const seenShifts = new Set();
@@ -3377,15 +3377,17 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
     const totalQuantiles = readPredictionTotalQuantiles(s, { kind: "absolute" });
     const perKmQuantiles = readPredictionTotalQuantiles(s, { kind: "per_km" });
     const componentRows = buildPredictionQuantileRows(s, "absolute");
-    const q50DrivetrainKwh = toOptionalFiniteNumber(
-      componentRows.find((row) => row.key === "drivetrain")?.quantiles?.q50
+    const meanDrivetrainKwh = toOptionalFiniteNumber(
+      componentRows.find((row) => row.key === "drivetrain")?.mean
     );
-    const q50AuxiliaryKwh = toOptionalFiniteNumber(
-      componentRows.find((row) => row.key === "auxiliary")?.quantiles?.q50
+    const meanAuxiliaryKwh = toOptionalFiniteNumber(
+      componentRows.find((row) => row.key === "auxiliary")?.mean
     );
+    const totalConsumptionMeanKwh = toOptionalFiniteNumber(s.total_consumption_kwh);
     const totalConsumptionQ05Kwh = toOptionalFiniteNumber(totalQuantiles?.q05);
     const totalConsumptionQ50Kwh = toOptionalFiniteNumber(totalQuantiles?.q50);
     const totalConsumptionQ95Kwh = toOptionalFiniteNumber(totalQuantiles?.q95);
+    const consumptionPerKmMeanKwh = toOptionalFiniteNumber(s.consumption_per_km_kwh);
     const consumptionPerKmQ05Kwh = toOptionalFiniteNumber(perKmQuantiles?.q05);
     const consumptionPerKmQ50Kwh = toOptionalFiniteNumber(perKmQuantiles?.q50);
     const consumptionPerKmQ95Kwh = toOptionalFiniteNumber(perKmQuantiles?.q95);
@@ -3399,16 +3401,18 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
       batteryCapacityKwh,
       totalWeightKg: toFiniteNumber(cp.total_weight_kg),
       totalDistanceKm: toFiniteNumber(s.total_distance_km),
-      totalConsumptionKwh: totalConsumptionQ50Kwh,
+      totalConsumptionKwh: totalConsumptionMeanKwh,
       totalConsumptionQ05Kwh,
+      totalConsumptionMeanKwh,
       totalConsumptionMedianKwh: totalConsumptionQ50Kwh,
       totalConsumptionQ95Kwh,
-      consumptionPerKmKwh: consumptionPerKmQ50Kwh,
+      consumptionPerKmKwh: consumptionPerKmMeanKwh,
       consumptionPerKmQ05Kwh,
+      consumptionPerKmMeanKwh,
       consumptionPerKmMedianKwh: consumptionPerKmQ50Kwh,
       consumptionPerKmQ95Kwh,
-      totalDrivetrainKwh: q50DrivetrainKwh,
-      totalAuxiliaryKwh: q50AuxiliaryKwh,
+      totalDrivetrainKwh: meanDrivetrainKwh,
+      totalAuxiliaryKwh: meanAuxiliaryKwh,
       minSocKwh:
         deriveSocKwh(batteryCapacityKwh, minSocFraction) ??
         toFiniteNumber(matchedBus.min_soc_kwh),
@@ -3420,8 +3424,8 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
 
   if (!optimizedPackSet.size) {
     const bestRow = rows.reduce((best, row) => {
-      if (row.consumptionPerKmMedianKwh == null) return best;
-      if (!best || row.consumptionPerKmMedianKwh < best.consumptionPerKmMedianKwh) {
+      if (row.consumptionPerKmMeanKwh == null) return best;
+      if (!best || row.consumptionPerKmMeanKwh < best.consumptionPerKmMeanKwh) {
         return row;
       }
       return best;
@@ -3449,9 +3453,11 @@ const buildUnifiedPredictionRows = (rows, { includePerBus = false } = {}) =>
         <td class="efficiency-td-num">${formatFixed(row.totalWeightKg, 0)}</td>
         <td class="efficiency-td-num">${formatFixed(row.totalDistanceKm, 1)}</td>
         <td class="efficiency-td-num">${formatOptionalFixed(row.totalConsumptionQ05Kwh, 1)}</td>
+        <td class="efficiency-td-num efficiency-td-highlight">${formatOptionalFixed(row.totalConsumptionMeanKwh, 1)}</td>
         <td class="efficiency-td-num">${formatOptionalFixed(row.totalConsumptionMedianKwh, 1)}</td>
         <td class="efficiency-td-num">${formatOptionalFixed(row.totalConsumptionQ95Kwh, 1)}</td>
         <td class="efficiency-td-num">${formatOptionalFixed(row.consumptionPerKmQ05Kwh, 3)}</td>
+        <td class="efficiency-td-num efficiency-td-highlight">${formatOptionalFixed(row.consumptionPerKmMeanKwh, 3)}</td>
         <td class="efficiency-td-num">${formatOptionalFixed(row.consumptionPerKmMedianKwh, 3)}</td>
         <td class="efficiency-td-num">${formatOptionalFixed(row.consumptionPerKmQ95Kwh, 3)}</td>
         <td class="efficiency-td-num">${formatFixed(row.totalDrivetrainKwh, 1)}</td>
@@ -3464,6 +3470,7 @@ const buildUnifiedPredictionRows = (rows, { includePerBus = false } = {}) =>
     .join("");
 
 const PREDICTION_QUANTILE_KEYS = ["q05", "q50", "q95"];
+const PREDICTION_DISTRIBUTION_KEYS = ["q05", "mean", "q50", "q95"];
 const PREDICTION_CONSUMPTION_COLORS = {
   drivetrain: "#6fbeec",
   auxiliary: "#f5a623",
@@ -3471,6 +3478,7 @@ const PREDICTION_CONSUMPTION_COLORS = {
 };
 const PREDICTION_QUANTILE_SERIES_COLORS = {
   q05: "#6fbeec",
+  mean: "#7a4fa3",
   q50: "#00639a",
   q95: "#f5a623",
 };
@@ -3554,22 +3562,31 @@ const buildPredictionQuantileRows = (summary = {}, kind = "absolute") => {
     {
       key: "drivetrain",
       label: predictionConsumptionLabel("drivetrain"),
+      mean: toFiniteNumber(
+        isPerKm ? summary?.drivetrain_per_km_kwh : summary?.total_drivetrain_kwh
+      ),
       quantiles: drivetrainQuantiles,
       derived: false,
     },
     {
       key: "auxiliary",
       label: predictionConsumptionLabel("auxiliary"),
+      mean: toFiniteNumber(
+        isPerKm ? summary?.auxiliary_per_km_kwh : summary?.total_auxiliary_kwh
+      ),
       quantiles: auxiliaryQuantiles,
       derived: !hasPredictionQuantiles(auxiliaryQuantilesDirect),
     },
     {
       key: "total",
       label: predictionConsumptionLabel("total"),
+      mean: toFiniteNumber(
+        isPerKm ? summary?.consumption_per_km_kwh : summary?.total_consumption_kwh
+      ),
       quantiles: totalQuantiles,
       derived: false,
     },
-  ].filter((row) => hasPredictionQuantiles(row.quantiles));
+  ].filter((row) => row.mean != null || hasPredictionQuantiles(row.quantiles));
 };
 
 const buildPredictionScenarioTitle = (run = {}, index = 0) => {
@@ -3615,6 +3632,7 @@ const renderPredictionsQuantileTable = (
               t("simulation.predictions_col_consumption") || "Consumption"
             )}</th>
             <th>${textContent(t("simulation.predictions_col_q05") || "Q05")}</th>
+            <th>${textContent(t("simulation.predictions_col_mean") || "Mean (decision basis)")}</th>
             <th>${textContent(t("simulation.predictions_col_q50") || "Q50")}</th>
             <th>${textContent(t("simulation.predictions_col_q95") || "Q95")}</th>
           </tr>
@@ -3626,6 +3644,7 @@ const renderPredictionsQuantileTable = (
                 <tr>
                   <th scope="row">${textContent(row.label)}</th>
                   <td>${textContent(formatFixed(row.quantiles?.q05, decimals))}</td>
+                  <td>${textContent(formatFixed(row.mean, decimals))}</td>
                   <td>${textContent(formatFixed(row.quantiles?.q50, decimals))}</td>
                   <td>${textContent(formatFixed(row.quantiles?.q95, decimals))}</td>
                 </tr>`
@@ -3636,12 +3655,24 @@ const renderPredictionsQuantileTable = (
     </div>
   </section>`;
 
+const predictionDistributionLabel = (key) =>
+  key === "mean"
+    ? (t("simulation.predictions_col_mean_short") || "Mean")
+    : key.toUpperCase();
+
 const buildPredictionChartData = (rows = []) =>
-  PREDICTION_QUANTILE_KEYS.map((quantileKey) => ({
-    quantileKey,
-    quantileLabel: quantileKey.toUpperCase(),
+  PREDICTION_DISTRIBUTION_KEYS.map((distributionKey) => ({
+    quantileKey: distributionKey,
+    quantileLabel: predictionDistributionLabel(distributionKey),
     ...Object.fromEntries(
-      rows.map((row) => [row.key, toFiniteNumber(row?.quantiles?.[quantileKey])])
+      rows.map((row) => [
+        row.key,
+        toFiniteNumber(
+          distributionKey === "mean"
+            ? row?.mean
+            : row?.quantiles?.[distributionKey]
+        ),
+      ])
     ),
   })).filter((item) =>
     rows.some((row) => item?.[row.key] != null)
@@ -3669,20 +3700,32 @@ const buildPredictionOverviewData = (
       const summary = run?.summary ?? {};
       const packs = toFiniteNumber(run?.contextual_parameters?.num_battery_packs);
       const totalQuantiles = readPredictionTotalQuantiles(summary, { kind });
+      const mean = toFiniteNumber(
+        kind === "per_km"
+          ? summary?.consumption_per_km_kwh
+          : summary?.total_consumption_kwh
+      );
 
       return {
         scenarioLabel:
           packs != null ? formatFixed(packs, 0) : String(index + 1),
         scenarioTitle: buildPredictionScenarioTitle(run, index),
         q05: toFiniteNumber(totalQuantiles?.q05),
+        mean,
         q50: toFiniteNumber(totalQuantiles?.q50),
         q95: toFiniteNumber(totalQuantiles?.q95),
       };
     })
-    .filter((item) => item.q05 != null || item.q50 != null || item.q95 != null);
+    .filter(
+      (item) =>
+        item.q05 != null ||
+        item.mean != null ||
+        item.q50 != null ||
+        item.q95 != null
+    );
 
 const resolvePredictionOverviewSeriesKeys = (data = []) =>
-  PREDICTION_QUANTILE_KEYS.filter((key) =>
+  PREDICTION_DISTRIBUTION_KEYS.filter((key) =>
     (Array.isArray(data) ? data : []).some((row) => toFiniteNumber(row?.[key]) != null)
   );
 
@@ -4221,23 +4264,33 @@ const renderTripUncertaintySection = (run = {}, { tripStopLookup = new Map() } =
 const computeBatteryAdequacyStatus = ({
   usableEnergyKwh,
   q05DemandKwh,
+  meanDemandKwh,
   q50DemandKwh,
   q95DemandKwh,
 } = {}) => {
   const usableEnergy = toOptionalFiniteNumber(usableEnergyKwh);
   const q05Demand = toOptionalFiniteNumber(q05DemandKwh);
+  const meanDemand = toOptionalFiniteNumber(meanDemandKwh);
   const q50Demand = toOptionalFiniteNumber(q50DemandKwh);
   const q95Demand = toOptionalFiniteNumber(q95DemandKwh);
 
   return {
     usableEnergy,
     q05Demand,
+    meanDemand,
     q50Demand,
     q95Demand,
     canEvaluateEnergy: usableEnergy != null,
     canEvaluateQuantiles:
-      q05Demand != null && q50Demand != null && q95Demand != null,
+      q05Demand != null &&
+      meanDemand != null &&
+      q50Demand != null &&
+      q95Demand != null,
     q05Covered: usableEnergy != null && q05Demand != null ? usableEnergy >= q05Demand : null,
+    meanCovered:
+      usableEnergy != null && meanDemand != null
+        ? usableEnergy >= meanDemand
+        : null,
     q50Covered: usableEnergy != null && q50Demand != null ? usableEnergy >= q50Demand : null,
     q95Covered: usableEnergy != null && q95Demand != null ? usableEnergy >= q95Demand : null,
   };
@@ -4250,7 +4303,7 @@ const renderBatteryAdequacyPanel = (status = {}) => {
   );
   const note = translateOr(
     "simulation.battery_adequacy_note",
-    "This is a quantile-based adequacy indicator, not a true exceedance probability."
+    "The feasibility decision uses mean demand. Q05, Q50, and Q95 are comparison scenarios and are not true exceedance probabilities."
   );
 
   if (!status.canEvaluateEnergy) {
@@ -4274,7 +4327,7 @@ const renderBatteryAdequacyPanel = (status = {}) => {
         <p>${textContent(
           translateOr(
             "simulation.battery_adequacy_missing_quantiles",
-            "Battery adequacy cannot be evaluated because quantiles are unavailable."
+            "Battery adequacy cannot be evaluated because mean or quantile demand data are unavailable."
           )
         )}</p>
         <p class="efficiency-adequacy-note">${textContent(note)}</p>
@@ -4288,6 +4341,15 @@ const renderBatteryAdequacyPanel = (status = {}) => {
       )
     : translateOr(
         "simulation.battery_adequacy_q50_above",
+        "above usable energy"
+      );
+  const meanLabel = status.meanCovered
+    ? translateOr(
+        "simulation.battery_adequacy_mean_covered",
+        "covered"
+      )
+    : translateOr(
+        "simulation.battery_adequacy_mean_above",
         "above usable energy"
       );
   const q05Label = status.q05Covered
@@ -4317,6 +4379,8 @@ const renderBatteryAdequacyPanel = (status = {}) => {
         <strong>${textContent(formatFixed(status.usableEnergy, 1))} kWh</strong>
         <span>${textContent(translateOr("simulation.battery_adequacy_q05", "Q05 demand"))}</span>
         <strong>${textContent(formatFixed(status.q05Demand, 1))} kWh <span class="badge badge--compact ${status.q05Covered ? "badge--positive" : "badge--negative"}">${textContent(q05Label)}</span></strong>
+        <span>${textContent(translateOr("simulation.battery_adequacy_mean", "Mean demand — decision basis"))}</span>
+        <strong>${textContent(formatFixed(status.meanDemand, 1))} kWh <span class="badge badge--compact ${status.meanCovered ? "badge--positive" : "badge--negative"}">${textContent(meanLabel)}</span></strong>
         <span>${textContent(translateOr("simulation.battery_adequacy_q50", "Q50 demand"))}</span>
         <strong>${textContent(formatFixed(status.q50Demand, 1))} kWh <span class="badge badge--compact ${status.q50Covered ? "badge--positive" : "badge--negative"}">${textContent(q50Label)}</span></strong>
         <span>${textContent(translateOr("simulation.battery_adequacy_q95", "Q95 demand"))}</span>
@@ -4328,12 +4392,12 @@ const renderBatteryAdequacyPanel = (status = {}) => {
 
 const renderPredictionOverviewLegend = (
   el,
-  { seriesKeys = PREDICTION_QUANTILE_KEYS, extraItems = [] } = {}
+  { seriesKeys = PREDICTION_DISTRIBUTION_KEYS, extraItems = [] } = {}
 ) => {
   if (!el) return;
   const items = [
     ...(Array.isArray(seriesKeys) ? seriesKeys : []).map((key) => ({
-      label: key.toUpperCase(),
+      label: predictionDistributionLabel(key),
       color: PREDICTION_QUANTILE_SERIES_COLORS[key],
     })),
     ...((Array.isArray(extraItems) ? extraItems : []).filter(
@@ -4356,7 +4420,7 @@ const renderPredictionOverviewChart = (el, data = [], options = {}) => {
 
   const {
     unit = "kWh",
-    ariaLabel = "Total consumption quantiles across simulations",
+    ariaLabel = "Total consumption distribution across simulations",
     yAxisLabel = "Total consumption",
     decimals = 1,
     markers = [],
@@ -4369,15 +4433,15 @@ const renderPredictionOverviewChart = (el, data = [], options = {}) => {
       value: toFiniteNumber(marker?.value),
     }))
     .filter((marker) => marker.value != null);
-  const quantileValues = chartData.flatMap((row) =>
-    PREDICTION_QUANTILE_KEYS.map((key) => toFiniteNumber(row?.[key])).filter(
+  const distributionValues = chartData.flatMap((row) =>
+    PREDICTION_DISTRIBUTION_KEYS.map((key) => toFiniteNumber(row?.[key])).filter(
       (value) => value != null
     )
   );
   const markerValues = chartMarkers
     .map((marker) => toFiniteNumber(marker?.value))
     .filter((value) => value != null);
-  const values = [...quantileValues, ...markerValues];
+  const values = [...distributionValues, ...markerValues];
   const xDomain = [
     ...new Set(
       [...chartData.map((row) => row?.scenarioLabel), ...chartMarkers.map((marker) => marker?.scenarioLabel)]
@@ -4453,7 +4517,7 @@ const renderPredictionOverviewChart = (el, data = [], options = {}) => {
     .attr("fill", "#666")
     .text(yAxisLabel);
 
-  PREDICTION_QUANTILE_KEYS.forEach((key) => {
+  PREDICTION_DISTRIBUTION_KEYS.forEach((key) => {
     const seriesData = chartData.filter((row) => toFiniteNumber(row?.[key]) != null);
     if (!seriesData.length) return;
 
@@ -4485,7 +4549,7 @@ const renderPredictionOverviewChart = (el, data = [], options = {}) => {
           .text(
             [
               row.scenarioTitle,
-              `${key.toUpperCase()}: ${formatFixed(row[key], decimals)} ${unit}`,
+              `${predictionDistributionLabel(key)}: ${formatFixed(row[key], decimals)} ${unit}`,
             ].join("\n")
           );
       });
@@ -4706,14 +4770,12 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
       const summary = run?.summary ?? {};
       const contextualParameters = run?.contextual_parameters ?? {};
       const runPacks = toFiniteNumber(contextualParameters?.num_battery_packs);
-      const q50TotalConsumptionKwh = readPredictionTotalQuantileValue(summary, {
-        kind: "absolute",
-        quantileKey: "q50",
-      });
-      const q50SpecificConsumptionKwh = readPredictionTotalQuantileValue(summary, {
-        kind: "per_km",
-        quantileKey: "q50",
-      });
+      const meanTotalConsumptionKwh = toOptionalFiniteNumber(
+        summary?.total_consumption_kwh
+      );
+      const meanSpecificConsumptionKwh = toOptionalFiniteNumber(
+        summary?.consumption_per_km_kwh
+      );
       const showTripUncertainty =
         optimizedPacks != null && runPacks != null && runPacks === optimizedPacks;
       const absoluteRows = buildPredictionQuantileRows(summary, "absolute");
@@ -4758,20 +4820,20 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
         {
           label:
             t("simulation.predictions_metric_total_consumption") ||
-            "Total consumption (Q50)",
+            "Total consumption (mean)",
           value:
-            q50TotalConsumptionKwh == null
+            meanTotalConsumptionKwh == null
               ? "—"
-              : `${formatFixed(q50TotalConsumptionKwh, 1)} kWh`,
+              : `${formatFixed(meanTotalConsumptionKwh, 1)} kWh`,
         },
         {
           label:
             t("simulation.predictions_metric_specific_consumption") ||
-            "Specific consumption (Q50)",
+            "Specific consumption (mean)",
           value:
-            q50SpecificConsumptionKwh == null
+            meanSpecificConsumptionKwh == null
               ? "—"
-              : `${formatFixed(q50SpecificConsumptionKwh, 3)} kWh/km`,
+              : `${formatFixed(meanSpecificConsumptionKwh, 3)} kWh/km`,
         },
       ];
 
@@ -4796,7 +4858,7 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
         sections.push(
           renderPredictionsQuantileTable(
             t("simulation.predictions_absolute_title") ||
-              "Quantiles by consumption type",
+              "Consumption distribution by type",
             absoluteRows,
             { decimals: 1, unit: "kWh", chartRole }
           )
@@ -4812,7 +4874,7 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
         sections.push(
           renderPredictionsQuantileTable(
             t("simulation.predictions_per_km_title") ||
-              "Specific consumption quantiles",
+              "Specific consumption distribution",
             perKmRows,
             { decimals: 3, unit: "kWh/km", chartRole }
           )
@@ -4859,13 +4921,13 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
         <h3 class="efficiency-section-title">${textContent(
           translateOr(
             "simulation.predictions_overview_title",
-            "Total consumption quantiles across simulations"
+            "Total consumption distribution across simulations"
           )
         )}</h3>
         <p class="predictions-overview__copy">${textContent(
           translateOr(
             "simulation.predictions_overview_subtitle",
-            "This view keeps only total consumption and shows how Q05, Q50, and Q95 move across the prediction scenarios."
+            "This view shows Q05, mean, Q50, and Q95 total consumption across prediction scenarios; mean is the feasibility decision basis."
           )
         )}</p>
         <p class="predictions-overview__copy">${textContent(quantileHelpText())}</p>
@@ -4886,13 +4948,13 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
         <h3 class="efficiency-section-title">${textContent(
           translateOr(
             "simulation.predictions_overview_per_km_title",
-            "Total specific-consumption quantiles across simulations"
+            "Total specific-consumption distribution across simulations"
           )
         )}</h3>
         <p class="predictions-overview__copy">${textContent(
           translateOr(
             "simulation.predictions_overview_per_km_subtitle",
-            "This view keeps only total consumption normalized by distance and shows how Q05, Q50, and Q95 move across the prediction scenarios."
+            "This view shows Q05, mean, Q50, and Q95 consumption per distance across prediction scenarios; mean is the feasibility decision basis."
           )
         )}</p>
         <p class="predictions-overview__copy">${textContent(quantileHelpText())}</p>
@@ -4921,7 +4983,7 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
       unit: "kWh",
       ariaLabel: translateOr(
         "simulation.predictions_overview_aria",
-        "Total consumption quantiles across simulations"
+        "Total consumption distribution across simulations"
       ),
       yAxisLabel: `${
         t("simulation.predictions_metric_total_consumption") ||
@@ -4943,7 +5005,7 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
       unit: "kWh/km",
       ariaLabel: translateOr(
         "simulation.predictions_overview_per_km_aria",
-        "Total specific-consumption quantiles across simulations"
+        "Total specific-consumption distribution across simulations"
       ),
       yAxisLabel: `${
         t("simulation.predictions_metric_specific_consumption") ||
@@ -4978,7 +5040,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
   el.innerHTML = "";
 
   const data = rows.filter(
-    (row) => row.numBatteryPacks != null && row.consumptionPerKmMedianKwh != null
+    (row) => row.numBatteryPacks != null && row.consumptionPerKmMeanKwh != null
   );
   if (!data.length) {
     el.innerHTML = chartEmptyStateHtml();
@@ -4993,8 +5055,8 @@ const renderEfficiencyCurveChart = (el, rows) => {
 
   const minX = d3.min(data, (d) => d.numBatteryPacks);
   const maxX = d3.max(data, (d) => d.numBatteryPacks);
-  const minY = d3.min(data, (d) => d.consumptionPerKmMedianKwh);
-  const maxY = d3.max(data, (d) => d.consumptionPerKmMedianKwh);
+  const minY = d3.min(data, (d) => d.consumptionPerKmMeanKwh);
+  const maxY = d3.max(data, (d) => d.consumptionPerKmMeanKwh);
   const yPadding = Math.max(((maxY ?? 0) - (minY ?? 0)) * 0.15, 0.02);
 
   const svg = svgBase(
@@ -5057,7 +5119,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
   const line = d3
     .line()
     .x((d) => x(d.numBatteryPacks))
-    .y((d) => y(d.consumptionPerKmMedianKwh))
+    .y((d) => y(d.consumptionPerKmMeanKwh))
     .curve(d3.curveMonotoneX);
 
   g.append("path")
@@ -5071,7 +5133,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
     .data(data)
     .join("circle")
     .attr("cx", (d) => x(d.numBatteryPacks))
-    .attr("cy", (d) => y(d.consumptionPerKmMedianKwh))
+    .attr("cy", (d) => y(d.consumptionPerKmMeanKwh))
     .attr("r", (d) => (d.isOptimized ? 5.5 : 4))
     .attr("fill", (d) => (d.isOptimized ? "#abe828" : "#00639a"))
     .attr("stroke", "var(--color-surface)")
@@ -5082,8 +5144,8 @@ const renderEfficiencyCurveChart = (el, rows) => {
         .text(
           [
             `${d.numBatteryPacks} ${t("simulation.unit_packs") || "packs"}`,
-            `${t("simulation.predictions_col_q50") || "Q50"}: ${formatFixed(
-              d.consumptionPerKmMedianKwh,
+            `${t("simulation.predictions_col_mean") || "Mean (decision basis)"}: ${formatFixed(
+              d.consumptionPerKmMeanKwh,
               3
             )} ${t("simulation.efficiency_col_per_km") || "kWh / km"}`,
             `${t("simulation.efficiency_col_capacity") || "Capacity (kWh)"}: ${formatFixed(d.batteryCapacityKwh, 0)} kWh`,
@@ -5097,7 +5159,7 @@ const renderEfficiencyCurveChart = (el, rows) => {
     .data(data.filter((d) => d.isOptimized))
     .join("text")
     .attr("x", (d) => x(d.numBatteryPacks))
-    .attr("y", (d) => y(d.consumptionPerKmMedianKwh) - 12)
+    .attr("y", (d) => y(d.consumptionPerKmMeanKwh) - 12)
     .attr("text-anchor", "middle")
     .attr("font-size", CHART_FONT_LABEL)
     .attr("font-weight", "600")
@@ -5769,6 +5831,9 @@ const resolveSensitivityFeasibilityCardData = (
       kind: "absolute",
       quantileKey: "q05",
     });
+  const meanDemandKwh =
+    toOptionalFiniteNumber(adequacyScenario?.mean) ??
+    toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh);
   const q50DemandKwh =
     toOptionalFiniteNumber(adequacyScenario?.q50) ??
     readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
@@ -5784,9 +5849,9 @@ const resolveSensitivityFeasibilityCardData = (
 
   let marginKwh = null;
   let marginPct = null;
-  if (optimizedUsableKwh != null && q50DemandKwh != null) {
-    marginKwh = optimizedUsableKwh - q50DemandKwh;
-    marginPct = q50DemandKwh > 0 ? marginKwh / q50DemandKwh : null;
+  if (optimizedUsableKwh != null && meanDemandKwh != null) {
+    marginKwh = optimizedUsableKwh - meanDemandKwh;
+    marginPct = meanDemandKwh > 0 ? marginKwh / meanDemandKwh : null;
   }
 
   const atPhysicalLimit =
@@ -5818,6 +5883,7 @@ const resolveSensitivityFeasibilityCardData = (
     occupancyPercent,
     demandBasis: resolveFeasibilityDemandBasis(ip),
     q05DemandKwh,
+    meanDemandKwh,
     q50DemandKwh,
     q95DemandKwh,
     marginKwh,
@@ -5837,7 +5903,7 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
     quantile_consumption:
       data.demandBasis === FEASIBILITY_DEMAND_BASIS.Q50
         ? "median"
-        : data.demandBasis === FEASIBILITY_DEMAND_BASIS.LEGACY_MEAN
+        : data.demandBasis === FEASIBILITY_DEMAND_BASIS.MEAN
           ? "mean"
           : "configured",
   });
@@ -5867,6 +5933,14 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
       </div>`);
   }
 
+  if (data.meanDemandKwh != null) {
+    energyRows.push(`
+      <div class="efficiency-sensitivity-card__row">
+        <span>${textContent(translateOr("simulation.sensitivity_mean_demand", "Mean demand — decision basis"))}</span>
+        <strong>${textContent(formatFixed(data.meanDemandKwh, 1))} kWh</strong>
+      </div>`);
+  }
+
   if (data.q50DemandKwh != null) {
     energyRows.push(`
       <div class="efficiency-sensitivity-card__row">
@@ -5889,12 +5963,23 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
       : "";
     energyRows.push(`
       <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_margin", "Battery margin"))}</span>
+        <span>${textContent(translateOr("simulation.sensitivity_margin_mean", "Battery margin — mean basis"))}</span>
         <strong class="${marginClass}">${textContent(formatFixed(data.marginKwh, 1))} kWh${textContent(pctStr)} \u2014 ${textContent(marginLabel)}</strong>
       </div>`);
   }
 
   const warningRows = [];
+
+  if (
+    data.q50DemandKwh != null &&
+    data.optimizedUsableKwh != null &&
+    data.q50DemandKwh > data.optimizedUsableKwh
+  ) {
+    warningRows.push(`
+      <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-tight">
+        \u26a0 ${textContent(translateOr("simulation.sensitivity_q50_exceeds_mean_decision", "Q50 demand exceeds usable energy; the feasibility decision uses mean demand."))}
+      </div>`);
+  }
 
   if (
     data.q95DemandKwh != null &&
@@ -5925,7 +6010,7 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
     quantile_consumption:
       data.demandBasis === FEASIBILITY_DEMAND_BASIS.Q50
         ? "median"
-        : data.demandBasis === FEASIBILITY_DEMAND_BASIS.LEGACY_MEAN
+        : data.demandBasis === FEASIBILITY_DEMAND_BASIS.MEAN
           ? "mean"
           : "configured",
   };
@@ -6092,12 +6177,9 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
 
   const optimizationHtml = buildOptimizationResultsHtml(results, ip, {
     ...viewOptions,
-    predictedShiftConsumptionMedianKwh:
-      toOptionalFiniteNumber(viewOptions?.costInputs?.predictedShiftConsumptionMedianKwh) ??
-      readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
-        kind: "absolute",
-        quantileKey: "q50",
-      }),
+    predictedShiftConsumptionKwh:
+      toOptionalFiniteNumber(viewOptions?.costInputs?.predictedShiftConsumptionKwh) ??
+      toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh),
   });
   const isFeasible = results.electrification_feasible !== false;
 
@@ -6130,6 +6212,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         computeBatteryAdequacyStatus({
           usableEnergyKwh: optimizedCoverageMarker.value,
           q05DemandKwh: adequacyScenario?.q05,
+          meanDemandKwh: adequacyScenario?.mean,
           q50DemandKwh: adequacyScenario?.q50,
           q95DemandKwh: adequacyScenario?.q95,
         })
@@ -6141,7 +6224,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   });
 
   const tableBody = predictionData.length === 0
-    ? `<tr><td colspan="${hasPerBus ? 14 : 12}" class="efficiency-no-data">${textContent(t("simulation.efficiency_no_predictions") || "No prediction data available.")}</td></tr>`
+    ? `<tr><td colspan="${hasPerBus ? 16 : 14}" class="efficiency-no-data">${textContent(t("simulation.efficiency_no_predictions") || "No prediction data available.")}</td></tr>`
     : unifiedRows;
 
   const perBusHeaders = hasPerBus ? `
@@ -6169,13 +6252,13 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
             <h4>${textContent(
               translateOr(
                 "simulation.efficiency_consumption_coverage_title",
-                "Consumption quantiles and battery-covered energy"
+                "Consumption distribution and battery-covered energy"
               )
             )}</h4>
             <p>${textContent(
               translateOr(
                 "simulation.efficiency_consumption_coverage_subtitle",
-                "Compare simulated total-consumption quantiles with the energy available from the optimized battery-pack setup."
+                "Compare simulated Q05, mean, Q50, and Q95 total consumption with the energy available from the optimized battery-pack setup."
               )
             )}</p>
             <p>${textContent(quantileHelpText())}</p>
@@ -6219,13 +6302,15 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
               <th>${textContent(t("simulation.efficiency_col_weight") || "Weight (kg)")}</th>
               <th>${textContent(t("simulation.efficiency_col_distance") || "Distance (km)")}</th>
               <th>${textContent(translateOr("simulation.efficiency_col_total_q05", "Total Q05 (kWh)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_total_mean", "Total mean — decision basis (kWh)"))}</th>
               <th>${textContent(translateOr("simulation.efficiency_col_total_q50", "Total Q50 (kWh)"))}</th>
               <th>${textContent(translateOr("simulation.efficiency_col_total_q95", "Total Q95 (kWh)"))}</th>
               <th>${textContent(translateOr("simulation.efficiency_col_specific_q05", "Specific Q05 (kWh/km)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_specific_mean", "Specific mean (kWh/km)"))}</th>
               <th>${textContent(translateOr("simulation.efficiency_col_specific_q50", "Specific Q50 (kWh/km)"))}</th>
               <th>${textContent(translateOr("simulation.efficiency_col_specific_q95", "Specific Q95 (kWh/km)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_drivetrain_q50", "Drivetrain Q50 (kWh)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_auxiliary_q50", "Auxiliary Q50 (kWh)"))}</th>
+              <th>${textContent(t("simulation.efficiency_col_drivetrain") || "Drivetrain mean (kWh)")}</th>
+              <th>${textContent(t("simulation.efficiency_col_auxiliary") || "Auxiliary mean (kWh)")}</th>
               ${perBusHeaders}
             </tr>
           </thead>
@@ -6272,7 +6357,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       unit: "kWh",
       ariaLabel: translateOr(
         "simulation.chart_aria_consumption_coverage",
-        "Consumption quantiles and battery-covered energy chart"
+        "Consumption distribution and battery-covered energy chart"
       ),
       yAxisLabel: t("simulation.axis_energy_kwh") || "kWh",
       decimals: 1,
@@ -6422,14 +6507,12 @@ const selectCostPredictionRun = (predictionRuns = [], batteryResults = {}, optio
   }
 
   return [...candidateRuns].reduce((best, run) => {
-    const bestValue = readPredictionTotalQuantileValue(best?.summary, {
-      kind: "per_km",
-      quantileKey: "q50",
-    });
-    const candidateValue = readPredictionTotalQuantileValue(run?.summary, {
-      kind: "per_km",
-      quantileKey: "q50",
-    });
+    const bestValue = toOptionalFiniteNumber(
+      best?.summary?.consumption_per_km_kwh
+    );
+    const candidateValue = toOptionalFiniteNumber(
+      run?.summary?.consumption_per_km_kwh
+    );
     if (candidateValue == null) return best;
     if (bestValue == null || candidateValue < bestValue) return run;
     return best;
@@ -6483,10 +6566,9 @@ const DEFAULT_SHIFT_YEARLY_DISTANCE_RECURRENCE = "daily";
 
 const resolveCostAnnualization = async (shiftId, predictionSummary = {}) => {
   const shiftDistanceKm = toFiniteNumber(predictionSummary?.total_distance_km);
-  const shiftConsumptionKwh = readPredictionTotalQuantileValue(predictionSummary, {
-    kind: "absolute",
-    quantileKey: "q50",
-  });
+  const shiftConsumptionKwh = toFiniteNumber(
+    predictionSummary?.total_consumption_kwh
+  );
 
   let yearlyDistanceKm = null;
   if (shiftId) {
@@ -6698,7 +6780,7 @@ const buildEconomicComparisonParams = async (optimizationRun, predictionRuns, op
       predictedShiftDistanceKm: annualization.predictedShiftDistanceKm,
       predictedShiftConsumptionKwh: annualization.predictedShiftConsumptionKwh,
       predictedShiftConsumptionPerKmKwh: toFiniteNumber(
-        predictionConsumptionPerKmQuantiles?.q50
+        predictionSummary?.consumption_per_km_kwh
       ),
       predictedShiftConsumptionMedianKwh: toFiniteNumber(
         predictionTotalConsumptionQuantiles?.q50
@@ -6997,11 +7079,11 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
     );
 
     const predictedConsumption = toOptionalFiniteNumber(
-      cState.costInputs?.predictedShiftConsumptionMedianKwh
+      cState.costInputs?.predictedShiftConsumptionKwh
     );
     const predictedDistance = cState.costInputs?.predictedShiftDistanceKm;
     const consumptionPerKm = firstFiniteValue(
-      cState.costInputs?.predictedShiftConsumptionPerKmMedianKwh,
+      cState.costInputs?.predictedShiftConsumptionPerKmKwh,
       predictedDistance > 0 && predictedConsumption != null
         ? predictedConsumption / predictedDistance
         : null
@@ -7056,17 +7138,17 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
         true
       ),
       overviewRowHtml(
-        t("simulation.overview_consumption_shift") || "Consumption / shift",
+        translateOr("simulation.overview_consumption_shift_mean", "Mean consumption / shift — decision basis"),
         predictedConsumption != null ? `${formatFixed(predictedConsumption, 0)} kWh` : "—"
       ),
       overviewRowHtml(
-        t("simulation.overview_consumption_km") || "Consumption / km",
+        translateOr("simulation.overview_consumption_km_mean", "Mean consumption / km"),
         consumptionPerKm != null ? `${formatFixed(consumptionPerKm, 3)} kWh` : "—"
       ),
       ...(overviewMarginSummary
         ? [
             overviewRowHtml(
-              translateOr("simulation.sensitivity_margin", "Battery margin"),
+              translateOr("simulation.sensitivity_margin_mean", "Battery margin — mean basis"),
               `<span class="overview-highlight ${overviewMarginToneClass(
                 overviewMarginSummary.marginClass
               )}">${textContent(overviewMarginSummary.text)}</span>`,

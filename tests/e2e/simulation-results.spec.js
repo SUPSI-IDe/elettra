@@ -37,7 +37,7 @@ test("feasibility results render every supported heating type", async ({ page })
   });
 });
 
-test("loaded feasibility results render the heating sensitivity driver", async ({
+test("loaded feasibility results use mean for the decision and show the full distribution", async ({
   page,
 }) => {
   await page.route("**/api/v1/**", async (route) => {
@@ -56,7 +56,7 @@ test("loaded feasibility results render the heating sensitivity driver", async (
             min_soc: 0.2,
             max_soc: 0.9,
             state_of_health: 1,
-            quantile_consumption: "median",
+            quantile_consumption: "mean",
           },
           prediction_run_ids: ["test-prediction"],
           results: {
@@ -71,9 +71,9 @@ test("loaded feasibility results render the heating sensitivity driver", async (
             battery_results: {
               "test-shift": {
                 shift_id: "test-shift",
-                optimized_packs: 13,
+                optimized_packs: 12,
                 max_physical_packs: 16,
-                optimized_kwh: 650,
+                optimized_kwh: 600,
                 max_physical_kwh: 800,
                 physical_feasible: true,
                 feasibility_status: "feasible",
@@ -95,8 +95,8 @@ test("loaded feasibility results render the heating sensitivity driver", async (
           auxiliary_heating_type: "diesel",
           occupancy_percent: 100,
           contextual_parameters: {
-            num_battery_packs: 13,
-            battery_capacity_kwh: 650,
+            num_battery_packs: 12,
+            battery_capacity_kwh: 600,
             total_weight_kg: 19800,
           },
           summary: {
@@ -105,11 +105,11 @@ test("loaded feasibility results render the heating sensitivity driver", async (
             consumption_per_km_kwh: 2.058,
             total_drivetrain_kwh: 300,
             total_auxiliary_kwh: 111.6,
-            quantiles: { q05: 262, q50: 427.1, q95: 542.5 },
+            quantiles: { q05: 258.1, q50: 424.1, q95: 538.7 },
             consumption_per_km_kwh_quantiles: {
-              q05: 1.31,
-              q50: 2.1355,
-              q95: 2.7125,
+              q05: 1.2905,
+              q50: 2.1205,
+              q95: 2.6935,
             },
             drivetrain_quantiles: { q05: 185, q50: 310, q95: 400 },
           },
@@ -144,24 +144,51 @@ test("loaded feasibility results render the heating sensitivity driver", async (
     "Heating type: Diesel",
   );
   await expect(page.locator(".efficiency-sensitivity-card__header")).toContainText(
-    "Feasible — Q50-based demand scenario",
+    "Feasible — mean-based demand scenario",
   );
-  await expect(page.locator(".efficiency-sensitivity-card__body")).toContainText(
+  const sensitivityBody = page.locator(".efficiency-sensitivity-card__body");
+  await expect(sensitivityBody).toContainText(
     "Q05 demand",
   );
-  await expect(page.locator(".efficiency-sensitivity-card__body")).toContainText(
+  await expect(sensitivityBody).toContainText(
+    "Mean demand — decision basis",
+  );
+  await expect(sensitivityBody).toContainText(
     "Q50 demand",
   );
-  await expect(page.locator(".efficiency-sensitivity-card__body")).toContainText(
+  await expect(sensitivityBody).toContainText(
     "Q95 demand",
   );
-  await expect(page.locator("[data-role='efficiency-table']")).not.toContainText(
-    "411.6",
+  await expect(sensitivityBody).toContainText(
+    "Battery margin — mean basis",
   );
-  await expect(page.locator("[data-role='efficiency-table']")).not.toContainText(
-    "Mean",
+  await expect(sensitivityBody).toContainText("8.4 kWh (2.0%)");
+  await expect(sensitivityBody).toContainText(
+    "Q50 demand exceeds usable energy; the feasibility decision uses mean demand.",
   );
-  await expect(page.locator("[data-role='efficiency-table']")).not.toContainText(
+
+  const sensitivityText = await sensitivityBody.innerText();
+  expect(sensitivityText.indexOf("Q05 demand")).toBeLessThan(
+    sensitivityText.indexOf("Mean demand — decision basis"),
+  );
+  expect(sensitivityText.indexOf("Mean demand — decision basis")).toBeLessThan(
+    sensitivityText.indexOf("Q50 demand"),
+  );
+  expect(sensitivityText.indexOf("Q50 demand")).toBeLessThan(
+    sensitivityText.indexOf("Q95 demand"),
+  );
+
+  const efficiencyTable = page.locator("[data-role='efficiency-table']");
+  await expect(efficiencyTable).toContainText("411.6");
+  await expect(efficiencyTable).toContainText(
+    "Total mean — decision basis (kWh)",
+  );
+  await expect(efficiencyTable).toContainText("424.1");
+  await expect(efficiencyTable).toContainText("538.7");
+  await expect(efficiencyTable).not.toContainText(
+    "Feasible — Q50-based demand scenario",
+  );
+  await expect(efficiencyTable).not.toContainText(
     "HEATING_LABELS is not defined",
   );
 

@@ -273,7 +273,7 @@ export const guideContent = {
         items: [
           {
             title: "Feasibility verdict",
-            text: "Feasible — Q50-based demand scenario means that the analysed configuration satisfies the implemented energy, state-of-charge, timing and charging constraints using median demand. Q05 and Q95 remain comparison scenarios for understanding uncertainty. Infeasible means that one or more assumptions or design choices must be revised.",
+            text: "Feasible — mean-based demand scenario means that the analysed configuration satisfies the implemented energy, state-of-charge, timing and charging constraints using mean demand. Q05, Q50 and Q95 remain comparison scenarios for understanding uncertainty. Infeasible means that one or more assumptions or design choices must be revised.",
           },
           {
             title: "Energy and uncertainty",
@@ -486,7 +486,7 @@ export const guideContent = {
         title: "6. Machbarkeitsergebnisse interpretieren",
         intro: "Behandeln Sie das Ergebnis als Entscheidungspunkt, der durch Energie- und Ladeinformationen gestützt wird.",
         items: [
-          { title: "Machbarkeitsurteil", text: "Machbar — Bedarfsszenario Q50 bedeutet, dass die analysierte Konfiguration die implementierten Energie-, Ladezustands-, Zeit- und Ladebedingungen mit dem Medianbedarf erfüllt. Q05 und Q95 bleiben Vergleichsszenarien zur Einordnung der Unsicherheit. Nicht machbar bedeutet, dass Annahmen oder Designentscheidungen geändert werden müssen." },
+          { title: "Machbarkeitsurteil", text: "Machbar — mittelwertbasiertes Bedarfsszenario bedeutet, dass die analysierte Konfiguration die implementierten Energie-, Ladezustands-, Zeit- und Ladebedingungen mit dem Mittelwertbedarf erfüllt. Q05, Q50 und Q95 bleiben Vergleichsszenarien zur Einordnung der Unsicherheit. Nicht machbar bedeutet, dass Annahmen oder Designentscheidungen geändert werden müssen." },
           { title: "Energie und Unsicherheit", text: "Vergleichen Sie Prognosequantile, Antriebs- und Nebenverbrauch sowie nutzbare Batterieenergie. Eine breitere Prognosespanne weist auf eine grössere Unsicherheit hin." },
           { title: "Batterie und Laden", text: "Prüfen Sie optimierte und maximal physische Packzahl, minimalen und maximalen Ladezustand, geladene Energie, Ladevorgänge und Stationsnutzung, sofern verfügbar." },
           { title: "Iterieren", text: "Duplizieren oder erstellen Sie Bewertungen für andere Fahrzeuge, Dienste, Ladezustandsfenster, Temperaturen, Belegungen oder Ladekonfigurationen. Verwenden Sie eindeutige Namen." },
@@ -630,7 +630,7 @@ export const guideContent = {
         title: "6. Interpréter les résultats de faisabilité",
         intro: "Interprétez le résultat comme une décision technique étayée par des informations d’énergie et de recharge.",
         items: [
-          { title: "Verdict de faisabilité", text: "Faisable — scénario de demande Q50 signifie que la configuration respecte les contraintes implémentées d’énergie, d’état de charge, de temps et de recharge avec la demande médiane. Q05 et Q95 restent des scénarios de comparaison pour apprécier l’incertitude. Infaisable signifie qu’une hypothèse ou un choix de conception doit être revu." },
+          { title: "Verdict de faisabilité", text: "Faisable — scénario de demande basé sur la moyenne signifie que la configuration respecte les contraintes implémentées d’énergie, d’état de charge, de temps et de recharge avec la demande moyenne. Q05, Q50 et Q95 restent des scénarios de comparaison pour apprécier l’incertitude. Infaisable signifie qu’une hypothèse ou un choix de conception doit être revu." },
           { title: "Énergie et incertitude", text: "Comparez les quantiles de prédiction, la demande de traction et auxiliaire et l’énergie utile de la batterie. Une plage plus large indique une incertitude plus élevée." },
           { title: "Batterie et recharge", text: "Examinez les packs optimisés et la limite physique, les états de charge minimal et maximal, l’énergie chargée, les sessions et l’utilisation des stations lorsqu’ils sont disponibles." },
           { title: "Itérer", text: "Dupliquez ou créez une évaluation pour tester un autre véhicule, service, état de charge, température, occupation ou dispositif de recharge. Donnez un nom distinct à chaque cas." },
@@ -774,7 +774,7 @@ export const guideContent = {
         title: "6. Interpretare i risultati di fattibilità",
         intro: "Trattare il risultato come un controllo decisionale supportato da evidenze energetiche e di ricarica.",
         items: [
-          { title: "Verdetto di fattibilità", text: "Fattibile — scenario di domanda Q50 significa che la configurazione rispetta i vincoli implementati di energia, stato di carica, tempo e ricarica usando la domanda mediana. Q05 e Q95 restano scenari di confronto per valutare l’incertezza. Non fattibile significa che occorre rivedere ipotesi o scelte progettuali." },
+          { title: "Verdetto di fattibilità", text: "Fattibile — scenario di domanda basato sulla media significa che la configurazione rispetta i vincoli implementati di energia, stato di carica, tempo e ricarica usando la domanda media. Q05, Q50 e Q95 restano scenari di confronto per valutare l’incertezza. Non fattibile significa che occorre rivedere ipotesi o scelte progettuali." },
           { title: "Energia e incertezza", text: "Confrontare quantili di previsione, domanda di trazione e ausiliaria ed energia utilizzabile. Un intervallo più ampio indica maggiore incertezza nella domanda prevista." },
           { title: "Batteria e ricarica", text: "Esaminare pacchi ottimizzati e limite fisico, stato di carica minimo e massimo, energia caricata, sessioni e uso delle stazioni quando disponibili." },
           { title: "Iterare", text: "Duplicare o creare valutazioni per provare un altro veicolo, servizio, intervallo SOC, temperatura, occupazione o configurazione di ricarica. Usare un nome distinto per ogni caso." },

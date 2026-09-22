@@ -1,17 +1,17 @@
-export const Q50_FEASIBILITY_CONSUMPTION_BASIS = "median";
+export const MEAN_FEASIBILITY_CONSUMPTION_BASIS = "mean";
 
 export const FEASIBILITY_DEMAND_BASIS = Object.freeze({
+  MEAN: "mean",
   Q50: "q50",
-  LEGACY_MEAN: "legacy_mean",
   CONFIGURED: "configured",
 });
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value).trim().toLowerCase();
 
-export const applyQ50FeasibilityBasis = (request = {}) => ({
+export const applyMeanFeasibilityBasis = (request = {}) => ({
   ...request,
-  quantile_consumption: Q50_FEASIBILITY_CONSUMPTION_BASIS,
+  quantile_consumption: MEAN_FEASIBILITY_CONSUMPTION_BASIS,
 });
 
 export const resolveFeasibilityDemandBasis = (inputParams = {}) => {
@@ -21,10 +21,10 @@ export const resolveFeasibilityDemandBasis = (inputParams = {}) => {
     return FEASIBILITY_DEMAND_BASIS.Q50;
   }
 
-  // The backend default was `mean`, so historical runs without the persisted
-  // field must be treated as mean-based rather than silently relabelled Q50.
+  // The backend default is `mean`, so runs created before the field was
+  // persisted are also mean-based.
   if (!basis || basis === "mean") {
-    return FEASIBILITY_DEMAND_BASIS.LEGACY_MEAN;
+    return FEASIBILITY_DEMAND_BASIS.MEAN;
   }
 
   return FEASIBILITY_DEMAND_BASIS.CONFIGURED;

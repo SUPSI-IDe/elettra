@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.13] - 2026-09-22
+
+### Changed
+
+- Feasibility decisions now explicitly use mean demand, while Q05, Q50 and Q95 remain visible as comparison scenarios.
+- Results identify the mean as the decision basis in verdicts, margins, battery adequacy, prediction tables and charts, and warn when Q50 exceeds usable energy without changing the mean-based verdict.
+
+### Verification
+
+- Added regression coverage for a feasible mean demand of 411.6 kWh with Q50 demand of 424.1 kWh against 420.0 kWh of usable battery energy.
+- Verified 265 unit tests, 50 browser executions and the production build.
+
 ## [0.1.12] - 2026-09-22
 
 ### Changed

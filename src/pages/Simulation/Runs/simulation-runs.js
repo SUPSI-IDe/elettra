@@ -133,10 +133,10 @@ const formatFeasibilityLabel = (feasible, run = {}) => {
 
   const basis = resolveFeasibilityDemandBasis(inputParams);
   const basisKey =
-    basis === FEASIBILITY_DEMAND_BASIS.Q50
-      ? "q50"
-      : basis === FEASIBILITY_DEMAND_BASIS.LEGACY_MEAN
-        ? "legacy_mean"
+    basis === FEASIBILITY_DEMAND_BASIS.MEAN
+      ? "mean"
+      : basis === FEASIBILITY_DEMAND_BASIS.Q50
+        ? "q50"
         : "configured";
   return (
     t(`simulation.feasibility_${basisKey}_${outcome}`) ||

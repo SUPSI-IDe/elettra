@@ -56,12 +56,12 @@ The results page is organized into sections (cards/panels):
 ## Feasibility verdict
 
 The core output is explicitly qualified by its decision basis:
-**Feasible — Q50-based demand scenario** or
-**Infeasible — Q50-based demand scenario**.
+**Feasible — mean-based demand scenario** or
+**Infeasible — mean-based demand scenario**.
 
-- **Feasible — Q50-based demand scenario**: The optimizer found a valid battery/charging configuration that keeps SOC within bounds using the Q50 demand scenario.
-- **Infeasible — Q50-based demand scenario**: No combination of available battery packs and charging stations satisfies the Q50 demand scenario within the SOC constraints.
-- **Q05 and Q95**: These remain visible as optimistic and conservative comparison scenarios. Q95 exceeding usable energy does not contradict a Q50-based feasible verdict; it means the design does not cover the Q95 stress scenario.
+- **Feasible — mean-based demand scenario**: The optimizer found a valid battery/charging configuration that keeps SOC within bounds using mean demand.
+- **Infeasible — mean-based demand scenario**: No combination of available battery packs and charging stations satisfies mean demand within the SOC constraints.
+- **Q05, Q50 and Q95**: These remain visible as comparison scenarios. Q50 or Q95 exceeding usable energy does not contradict a mean-based feasible verdict; it means the design does not cover those comparison scenarios.
 
 ---
 
@@ -145,9 +145,10 @@ If charging stations were configured:
 | Total capacity (kWh) | Packs × pack size |
 | Usable capacity (kWh) | Total × usable SOC% |
 | Q05 demand (kWh) | Optimistic comparison scenario |
-| Q50 demand (kWh) | Official feasibility decision scenario |
+| Mean demand (kWh) | Official feasibility decision scenario |
+| Q50 demand (kWh) | Median comparison scenario |
 | Q95 demand (kWh) | Conservative stress scenario |
-| Margin (kWh / %) | How much usable capacity exceeds Q50 demand |
+| Margin (kWh / %) | How much usable capacity exceeds mean demand |
 
 ---
 

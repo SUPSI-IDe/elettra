@@ -11,7 +11,7 @@ import {
   GREYBOX_PARAMS,
 } from "../config/simulation-defaults";
 import { normalizeOptimizationRunName } from "../utils/optimization-run";
-import { applyQ50FeasibilityBasis } from "../utils/feasibility-demand-basis";
+import { applyMeanFeasibilityBasis } from "../utils/feasibility-demand-basis";
 import { readDeleteResponse } from "./delete-response";
 import { createPredictionRunIndex } from "./prediction-run-index";
 import { buildPredictionRunRequestBody } from "./prediction-request";
@@ -544,7 +544,7 @@ export const createOptimizationRun = async (params = {}) => {
   }
 
   const { prediction_params: _discarded, ...restWithoutPrediction } = normalizedRest;
-  const body = applyQ50FeasibilityBasis({
+  const body = applyMeanFeasibilityBasis({
     shift_ids,
     prediction_run_ids: predictionRunIds,
     ...restWithoutPrediction,
