@@ -25,6 +25,10 @@ import {
   getOptimizationRunDisplayName,
   getOptimizationRunName,
 } from "../../../utils/optimization-run";
+import {
+  FEASIBILITY_DEMAND_BASIS,
+  resolveFeasibilityDemandBasis,
+} from "../../../utils/feasibility-demand-basis";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -114,12 +118,30 @@ const resolveElectrificationFeasible = (run = {}) => {
   return null;
 };
 
-const formatFeasibilityLabel = (feasible) => {
-  if (feasible === true)
-    return t("simulation.feasibility_feasible") || "Feasible";
-  if (feasible === false)
-    return t("simulation.feasibility_infeasible") || "Infeasible";
-  return "—";
+const formatFeasibilityLabel = (feasible, run = {}) => {
+  if (feasible !== true && feasible !== false) return "—";
+
+  const outcome = feasible ? "feasible" : "infeasible";
+  const fallbackOutcome = feasible ? "Feasible" : "Infeasible";
+  const inputParams = run?.input_params ?? run?.inputParams;
+  if (!inputParams || !Object.hasOwn(inputParams, "quantile_consumption")) {
+    return (
+      t(`simulation.feasibility_basis_in_results_${outcome}`) ||
+      `${fallbackOutcome} — demand basis shown in results`
+    );
+  }
+
+  const basis = resolveFeasibilityDemandBasis(inputParams);
+  const basisKey =
+    basis === FEASIBILITY_DEMAND_BASIS.Q50
+      ? "q50"
+      : basis === FEASIBILITY_DEMAND_BASIS.LEGACY_MEAN
+        ? "legacy_mean"
+        : "configured";
+  return (
+    t(`simulation.feasibility_${basisKey}_${outcome}`) ||
+    `${fallbackOutcome} — demand basis shown in results`
+  );
 };
 
 const feasibilityBadgeClass = (feasible) => {
@@ -681,7 +703,7 @@ const renderRows = (tbody, runs = []) => {
       const mode = resolveRunMode(run) || "—";
       const mainParameters = formatMainParameters(run);
       const feasible = resolveElectrificationFeasible(run);
-      const feasibilityLabel = formatFeasibilityLabel(feasible);
+      const feasibilityLabel = formatFeasibilityLabel(feasible, run);
       const feasibilityCls = feasibilityBadgeClass(feasible);
 
       const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${rowId}">${t("simulation.col_results") || "Results"}</a>`;

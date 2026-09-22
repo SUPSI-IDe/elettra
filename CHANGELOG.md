@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.12] - 2026-09-22
+
+### Changed
+
+- New feasibility evaluations now use the median (Q50) demand scenario consistently for optimization, battery sizing, margins, overview metrics and economic inputs.
+- Feasibility results now show Q05, Q50 and Q95 as the prediction range without displaying separate mean-consumption values.
+- Feasibility verdicts now state their demand basis explicitly; historical evaluations retain a legacy mean-based label instead of being silently reinterpreted as Q50 results.
+- Battery-limit status is now distinct from the demand-scenario feasibility verdict, avoiding ambiguous unqualified “Feasible” labels.
+
+### Verification
+
+- Added unit coverage for the Q50 request contract, historical-run classification and translated result labels.
+- Expanded the feasibility-results browser fixture to verify Q05/Q50/Q95 presentation, Q50-qualified verdicts and the absence of mean values on desktop and mobile Chromium.
+- Verified 265 unit tests, 50 browser executions and the production build.
+
 ## [0.1.11] - 2026-09-22
 
 ### Fixed

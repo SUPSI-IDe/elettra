@@ -55,10 +55,13 @@ The results page is organized into sections (cards/panels):
 
 ## Feasibility verdict
 
-The core output: **feasible** or **infeasible**.
+The core output is explicitly qualified by its decision basis:
+**Feasible — Q50-based demand scenario** or
+**Infeasible — Q50-based demand scenario**.
 
-- **Feasible**: The optimizer found a valid battery/charging configuration that keeps SOC within bounds throughout the shift.
-- **Infeasible**: No combination of available battery packs and charging stations satisfies the energy demand within the SOC constraints.
+- **Feasible — Q50-based demand scenario**: The optimizer found a valid battery/charging configuration that keeps SOC within bounds using the Q50 demand scenario.
+- **Infeasible — Q50-based demand scenario**: No combination of available battery packs and charging stations satisfies the Q50 demand scenario within the SOC constraints.
+- **Q05 and Q95**: These remain visible as optimistic and conservative comparison scenarios. Q95 exceeding usable energy does not contradict a Q50-based feasible verdict; it means the design does not cover the Q95 stress scenario.
 
 ---
 
@@ -141,8 +144,10 @@ If charging stations were configured:
 | Optimized battery packs | Number selected by the optimizer |
 | Total capacity (kWh) | Packs × pack size |
 | Usable capacity (kWh) | Total × usable SOC% |
-| Energy demand (kWh) | Predicted shift consumption |
-| Margin (kWh / %) | How much usable capacity exceeds demand |
+| Q05 demand (kWh) | Optimistic comparison scenario |
+| Q50 demand (kWh) | Official feasibility decision scenario |
+| Q95 demand (kWh) | Conservative stress scenario |
+| Margin (kWh / %) | How much usable capacity exceeds Q50 demand |
 
 ---
 

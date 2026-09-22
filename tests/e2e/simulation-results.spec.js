@@ -50,7 +50,14 @@ test("loaded feasibility results render the heating sensitivity driver", async (
           name: "Heating regression",
           mode: "battery_only",
           status: "completed",
-          input_params: { shift_ids: [], min_soc: 0.2, max_soc: 0.9 },
+          input_params: {
+            shift_ids: [],
+            mode: "battery_only",
+            min_soc: 0.2,
+            max_soc: 0.9,
+            state_of_health: 1,
+            quantile_consumption: "median",
+          },
           prediction_run_ids: ["test-prediction"],
           results: {
             solver_status: "optimal",
@@ -64,9 +71,10 @@ test("loaded feasibility results render the heating sensitivity driver", async (
             battery_results: {
               "test-shift": {
                 shift_id: "test-shift",
-                optimized_packs: 12,
+                optimized_packs: 13,
                 max_physical_packs: 16,
-                optimized_kwh: 444,
+                optimized_kwh: 650,
+                max_physical_kwh: 800,
                 physical_feasible: true,
                 feasibility_status: "feasible",
               },
@@ -86,7 +94,25 @@ test("loaded feasibility results render the heating sensitivity driver", async (
           external_temp_celsius: -5,
           auxiliary_heating_type: "diesel",
           occupancy_percent: 100,
-          summary: {},
+          contextual_parameters: {
+            num_battery_packs: 13,
+            battery_capacity_kwh: 650,
+            total_weight_kg: 19800,
+          },
+          summary: {
+            total_distance_km: 200,
+            total_consumption_kwh: 411.6,
+            consumption_per_km_kwh: 2.058,
+            total_drivetrain_kwh: 300,
+            total_auxiliary_kwh: 111.6,
+            quantiles: { q05: 262, q50: 427.1, q95: 542.5 },
+            consumption_per_km_kwh_quantiles: {
+              q05: 1.31,
+              q50: 2.1355,
+              q95: 2.7125,
+            },
+            drivetrain_quantiles: { q05: 185, q50: 310, q95: 400 },
+          },
         },
       });
       return;
@@ -116,6 +142,24 @@ test("loaded feasibility results render the heating sensitivity driver", async (
 
   await expect(page.locator(".efficiency-sensitivity-card__chips")).toContainText(
     "Heating type: Diesel",
+  );
+  await expect(page.locator(".efficiency-sensitivity-card__header")).toContainText(
+    "Feasible — Q50-based demand scenario",
+  );
+  await expect(page.locator(".efficiency-sensitivity-card__body")).toContainText(
+    "Q05 demand",
+  );
+  await expect(page.locator(".efficiency-sensitivity-card__body")).toContainText(
+    "Q50 demand",
+  );
+  await expect(page.locator(".efficiency-sensitivity-card__body")).toContainText(
+    "Q95 demand",
+  );
+  await expect(page.locator("[data-role='efficiency-table']")).not.toContainText(
+    "411.6",
+  );
+  await expect(page.locator("[data-role='efficiency-table']")).not.toContainText(
+    "Mean",
   );
   await expect(page.locator("[data-role='efficiency-table']")).not.toContainText(
     "HEATING_LABELS is not defined",
