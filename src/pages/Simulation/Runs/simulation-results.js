@@ -3049,7 +3049,8 @@ const formatOccupancyValue = (value) => {
 const formatHeatingTypeValue = (value) => {
   const heatingType = firstText(value);
   if (!heatingType) return null;
-  return t(HEATING_LABELS[heatingType]) || heatingType;
+  const translationKey = getAuxiliaryHeatingTranslationKey(heatingType);
+  return translationKey ? t(translationKey) : heatingType;
 };
 
 const formatSocValue = (value) => {
@@ -5849,7 +5850,7 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
   }
 
   if (data.heatingType) {
-    const htLabel = t(HEATING_LABELS[data.heatingType]) ?? data.heatingType;
+    const htLabel = formatHeatingTypeValue(data.heatingType) ?? data.heatingType;
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_heating_type_short", "Heating type"))}: ${textContent(htLabel)}</span>`);
   }
 

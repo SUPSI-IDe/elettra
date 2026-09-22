@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.11] - 2026-09-22
+
+### Fixed
+
+- Feasibility evaluation results now render auxiliary-heating labels through the shared heating-type formatter instead of referencing the removed `HEATING_LABELS` mapping.
+- The general-information panel and sensitivity/feasibility card now display heat-pump, diesel and electric heating labels without aborting results-page loading.
+
+### Verification
+
+- Added feasibility-results browser regression coverage for every supported heating type and for the asynchronously loaded sensitivity card on desktop and mobile Chromium.
+- Verified 260 unit tests, 50 browser executions, the production build and the live `40502_20260922` evaluation.
+
 ## [0.1.10] - 2026-09-21
 
 ### Fixed
