@@ -714,7 +714,7 @@ const renderRows = (tbody, runs = []) => {
             <input type="checkbox" aria-label="${textContent(t("simulation.select_run") || "Select run")}" />
           </td>
           <td class="name" title="${textContent(displayName !== "—" ? displayName : shiftTitle)}">${textContent(displayName)}</td>
-          <td class="actions">${textContent(created)}</td>
+          <td class="created">${textContent(created)}</td>
           <td class="day" title="${textContent(busModelTooltip)}">${textContent(
             busModelLabel
           )}</td>

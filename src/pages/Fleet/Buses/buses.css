@@ -179,6 +179,7 @@
   flex: 0 0 auto;
   height: auto;
   width: 100%;
+  min-width: 76rem;
   table-layout: fixed;
 }
 
@@ -186,11 +187,18 @@
 .bus-models td {
   text-align: center;
   font-variant-numeric: tabular-nums;
-  width: calc((100% - 2.5rem) / 8);
 }
 
 .bus-models :is(th, td):is(.name, .model) {
   font-variant-numeric: normal;
+}
+
+.bus-models :is(th, td).name {
+  width: 13rem;
+}
+
+.bus-models :is(th, td).model {
+  width: 15rem;
 }
 
 .bus-models th.checkbox,

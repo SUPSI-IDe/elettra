@@ -12,7 +12,7 @@
   gap: 0;
   border-bottom: 1px solid var(--color-border-dim);
   margin-bottom: var(--layout-gap);
-  /* overflow-x: auto; */
+  overflow-x: auto;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
@@ -52,7 +52,7 @@
 .ya-results-actions {
   margin-top: var(--space-xl);
   display: flex;
-  justify-content: right;
+  justify-content: flex-end;
 }
 
 .ya-btn-close {

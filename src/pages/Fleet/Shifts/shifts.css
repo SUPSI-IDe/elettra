@@ -334,6 +334,7 @@
 
 .shifts-table table {
   width: 100%;
+  min-width: 58rem;
   table-layout: fixed;
 }
 

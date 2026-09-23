@@ -583,13 +583,7 @@
 .results-actions {
   margin-top: var(--space-xl);
   display: flex;
-  justify-content: center;
-}
-
-.results-tab-panels:has(.tab-panel[data-panel="overview"].active) + .results-actions {
-  width: 70%;
-  margin-left: 0;
-  margin-right: auto;
+  justify-content: flex-end;
 }
 
 .btn-close-results {
@@ -801,10 +795,6 @@
 }
 
 @media (width <= 1280px) {
-  .results-tab-panels:has(.tab-panel[data-panel="overview"].active) + .results-actions {
-    width: 100%;
-  }
-
   .overview-grid {
     width: 100%;
   }
@@ -1311,7 +1301,7 @@
   text-transform: none;
   letter-spacing: normal;
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
-  text-align: right;
+  text-align: center;
   border-bottom: 1px solid var(--border-light);
   white-space: nowrap;
 }
@@ -1329,11 +1319,11 @@
   border-bottom: 1px solid var(--border-light);
   color: var(--text-main);
   white-space: nowrap;
-  text-align: left;
+  text-align: center;
 }
 
-.efficiency-td-num {
-  text-align: right;
+.efficiency-table td.efficiency-td-num {
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1343,7 +1333,7 @@
 }
 
 .efficiency-no-data {
-  text-align: left;
+  text-align: center;
   color: var(--color-text-subtle);
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline) !important;
   font-style: italic;
@@ -1368,10 +1358,10 @@
   line-height: 1.35;
 }
 
-/* Left-aligned text header for Shift column */
+/* Keep text-column headers aligned with their centered body cells. */
 
-.efficiency-th-text {
-  text-align: left !important;
+.efficiency-table thead th.efficiency-th-text {
+  text-align: center;
 }
 
 /* Collapsible sections */
@@ -1985,6 +1975,10 @@
 .emissions-recap-table--env .env-header-main th {
   border-bottom: 1px solid var(--border-light);
   vertical-align: middle;
+}
+
+.emissions-recap-table--env .env-header-main th[colspan] {
+  text-align: center;
 }
 
 .emissions-recap-table--env .env-header-main th[rowspan] {

@@ -27,6 +27,7 @@
 
 .simulation-runs-table table {
   width: 100%;
+  min-width: 72rem;
   margin: 0;
   table-layout: fixed;
 }
@@ -100,10 +101,11 @@
   width: 9%;
 }
 
-.simulation-runs-table th.actions,
-.simulation-runs-table td.actions {
+.simulation-runs-table th.created,
+.simulation-runs-table td.created {
   width: 14%;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .simulation-runs-table .results-link.disabled {

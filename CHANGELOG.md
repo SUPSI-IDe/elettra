@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.14] - 2026-09-23
+
+### Fixed
+
+- Feasibility optimization and battery-sizing tables now center headers, populated rows and empty states consistently for both feasible and infeasible results.
+- Yearly scenario summaries, environmental grouped headers and result-page actions now follow their intended column and layout alignment.
+- Dense bus, shift and feasibility-run tables retain readable column widths and scroll horizontally on narrow screens; yearly result tabs likewise keep localized labels accessible.
+- Feasibility-run creation dates no longer inherit action-column styling.
+
+### Changed
+
+- Added repository safeguards for version selection, remote synchronization, release verification and Compose-owned deployments.
+
+### Verification
+
+- Added permanent desktop and mobile regression coverage for feasible, infeasible, empty, grouped-header, responsive, localized, action and date-column alignment cases.
+- Verified 265 unit tests, 68 browser executions and the production build on the synchronized `v0.1.13` baseline.
+
 ## [0.1.13] - 2026-09-22
 
 ### Changed

@@ -119,7 +119,7 @@
     0 0 0 1px var(--color-swatch-ring);
 }
 
-.create-yearly-analysis .ya-scenarios-table :is(th, td):first-child {
+.create-yearly-analysis .ya-scenarios-table :is(th, td):first-child:not([colspan]) {
   text-align: center;
 }
 
