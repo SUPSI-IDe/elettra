@@ -1,11 +1,13 @@
 import * as d3 from "d3";
+import { gridFromDc } from "../../../utils/charging-energy";
+import { mapParameterizedLca, renderParameterizedLca } from "./parameterized-lca";
 import "./yearly-analysis-results.css";
 import { openPartialInNewTab, triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
 import {
   fetchYearlyAnalysis,
   fetchYearlyAnalysisCosts,
-  fetchYearlyAnalysisEmissions,
+  fetchYearlyAnalysisLca,
   fetchOptimizationRun,
   fetchPredictionRuns,
   resolvePredictionRuns,
@@ -1374,7 +1376,7 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
   const fuelPricePerL = ov("fuelCostPerL") ?? DEFAULT_FUEL_COST_PER_L;
   const annualizationRateOverride = ov("interestRate");
 
-  const dieselEfficiencyLPerKm = ov("dieselEfficiency") ?? (busLengthM != null ? getDieselEfficiencyForLength(busLengthM) : null);
+  const dieselEfficiencyLPerKm = ov("dieselEfficiency") ?? (busLengthM != null ? 0.02 * busLengthM + 0.1918 : null);
   const dieselMaintPerKm = ov("dieselMaintCost") ?? (busLengthM != null ? getDieselMaintenanceCostForLength(busLengthM) : null);
   const electricMaintPerKm = ov("electricMaintCost") ?? (busLengthM != null ? getElectricMaintenanceCostForLength(busLengthM) : null);
 
@@ -1399,7 +1401,7 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
       const dailyDistance = (toFiniteNumber(sr.kpis.distanceKm) ?? 0) * distanceScale;
       const annualEnergy = dailyEnergy * sr.occurrences;
       const annualDistance = dailyDistance * sr.occurrences;
-      const annualEnergyCost = annualEnergy * energyPricePerKwh;
+      const annualEnergyCost = gridFromDc(annualEnergy) * energyPricePerKwh;
       return {
         label: sr.label,
         temperature: sr.temperature,
@@ -1567,7 +1569,7 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
   const isDieselHeating = yDhLiters > 0;
 
   /* ── OPEX: recalculate from physical quantities × unit prices ── */
-  const electricEnergyOpex = yElecKwh * energyPerKwh;
+  const electricEnergyOpex = gridFromDc(yElecKwh) * energyPerKwh;
   const electricMaintOpex = yDistKm * elecMaintPerKm;
   const dhFuelOpex = yDhLiters * fuelPerL;
   const dhMaintOpex = isDieselHeating ? electricMaintOpex * dhMaintFactor : 0;
@@ -1667,7 +1669,7 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
       energyPerKm: dailyDist > 0 ? dailyElKwh / dailyDist : null,
       annualEnergy: annElKwh,
       annualDistance: annDist,
-      annualEnergyCost: annElKwh * energyPerKwh,
+      annualEnergyCost: gridFromDc(annElKwh) * energyPerKwh,
       annualElectricMaintCost: annElecMaint,
       dailyDieselHeatingLiters: dailyDhLiters,
       annualDieselHeatingLiters: annDhLiters,
@@ -1944,7 +1946,7 @@ const renderCostsOpexTables = (el, cd) => {
           <tbody>
             <tr>
               <td>${textContent(t("yearly_analysis.energy_fuel"))}</td>
-              <td>CHF ${formatCHF(Math.round(cd.electric.energyOpex))} <span class="ya-costs-detail">(${formatInt(cd.yearlyEnergyKwh)} kWh × ${formatFixed(cd.assumptions.energyPricePerKwh, 2)} CHF/kWh)</span></td>
+              <td>CHF ${formatCHF(Math.round(cd.electric.energyOpex))} <span class="ya-costs-detail">(${formatInt(cd.yearlyEnergyKwh)} kWh DC ÷ 0.94 × ${formatFixed(cd.assumptions.energyPricePerKwh, 2)} CHF/kWh)</span></td>
               <td>CHF ${formatCHF(Math.round(cd.diesel.fuelOpex))} <span class="ya-costs-detail">(${formatInt(yearlyKm)} km × ${formatFixed(cd.assumptions.dieselEfficiencyLPerKm, 3)} l/km × ${formatFixed(cd.assumptions.fuelPricePerL, 2)} CHF/l)</span></td>
             </tr>
             <tr>
@@ -3117,6 +3119,13 @@ export const renderEmissionsPanel = (sec, emState) => {
   const methEl = panel.querySelector('[data-role="ya-env-methodology"]');
   const chartsEl = panel.querySelector(".ya-env-chart-grid");
   const moreInformationEl = panel.querySelector(".ya-more-information");
+  if (emState.status === "done" && emState.rawLca) {
+    // Keep the mileage controls and their listeners alive across recalculations.
+    if (chartsEl) chartsEl.hidden = true;
+    if (moreInformationEl) moreInformationEl.hidden = true;
+    if (controlsEl) controlsEl.hidden = false;
+    return renderParameterizedLca(kpisEl ?? sec, emState.rawLca, t);
+  }
   setYaCo2PhaseTitle(co2El, emState?.status === "done");
 
   const clearAll = () => {
@@ -3534,6 +3543,10 @@ export const buildExportPayload = (features, effState, costState, emissionsState
       || (cd.electric.dieselHeatingMaintOpex ?? 0) > 0;
 
     const assumptions = {
+      energyPolicy: "grid-to-bus-dc-94-v1",
+      gridToBusEfficiency: 0.94,
+      annualGridEnergy_kWh: gridFromDc(cd.yearlyEnergyKwh),
+      annualChargingLosses_kWh: gridFromDc(cd.yearlyEnergyKwh) - cd.yearlyEnergyKwh,
       energyPrice_CHFPerKwh: round(cd.assumptions.energyPricePerKwh, 3),
       fuelPrice_CHFPerL: round(cd.assumptions.fuelPricePerL, 3),
       electricMaintenanceCost_CHFPerKm: round(cd.assumptions.electricMaintPerKm, 4),
@@ -3623,7 +3636,7 @@ export const buildExportPayload = (features, effState, costState, emissionsState
       emissionsState.structured?.assumptions?.auxiliary_heating_type ??
       emissionsState.emissionsMetadata?.auxiliaryHeatingType,
   );
-  const emissions = buildYearlyEmissionsExport(emissionsState, {
+  const emissions = emissionsState.rawLca ?? buildYearlyEmissionsExport(emissionsState, {
     auxiliaryHeatingType,
   });
 
@@ -3913,6 +3926,13 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     dieselCapex: null, yearlyDistanceKm: null,
   };
   const emissionsOverrides = { yearlyDistanceKm: null };
+  let lcaController = null;
+  let lcaRequestId = 0;
+  let lcaRefreshTimer = null;
+  const scheduleLcaRefresh = () => {
+    if (lcaRefreshTimer) clearTimeout(lcaRefreshTimer);
+    lcaRefreshTimer = setTimeout(() => loadEmissions(), 350);
+  };
   const emissionsState = {
     status: "idle", electricYearly: null, electricOnlyYearly: null,
     dieselHeatingYearly: null, dieselYearly: null, yearlyImpact: null,
@@ -4144,7 +4164,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       getBaseEmissionsYearlyDistanceKm(),
     );
 
-  const getDisplayedEmissionsState = () =>
+  const getDisplayedEmissionsState = () => emissionsState.rawLca ? emissionsState :
     deriveCompleteScaledEmissionsState(
       emissionsState,
       getBaseEmissionsYearlyDistanceKm(),
@@ -4217,6 +4237,23 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       );
     }
     await Promise.all(promises);
+    // The assessment must not silently follow bus specifications edited after
+    // prediction. Apply common frozen values for this economic reference bus.
+    try {
+      const runs = await fetchPredictionRuns({ yearly_analysis_id: analysisId });
+      const selected = runs.filter(r => !busModelId || String(r.bus_model_id) === busModelId);
+      const assumptions = features.assessment_assumptions ?? {};
+      for (const [field, read] of [
+        ["bus_length_m", cp => cp.bus_length_m],
+        ["bus_lifetime", cp => assumptions.lifetime_bus ?? cp.assessment_metadata?.bus_lifetime ?? cp.assessment_metadata?.bus_lifetime_years],
+        ["battery_pack_lifetime", cp => assumptions.lifetime_battery ?? cp.assessment_metadata?.battery_pack_lifetime ?? cp.assessment_metadata?.battery_pack_lifetime_years],
+      ]) {
+        const values = selected.map(r => toFiniteNumber(read(r.contextual_parameters ?? {})));
+        if (values.length && values.every(v => v !== null && v === values[0])) busModelData[field] = values[0];
+      }
+    } catch (error) {
+      console.warn("[ya-results] Frozen economic metadata unavailable:", error);
+    }
   };
 
   /* ── Wire cost variable sliders ─────────────────────────── */
@@ -4258,7 +4295,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     const defaultFuel = DEFAULT_FUEL_COST_PER_L;
     const defaultEnergy = DEFAULT_ENERGY_PRICE_PER_KWH;
     const defaultInterest = DEFAULT_OPEX_ANNUALIZATION_RATE;
-    const defaultDieselEff = busLengthM != null ? getDieselEfficiencyForLength(busLengthM) : busDefaults.diesel_consumption_l_per_km.default;
+    const defaultDieselEff = costState.costsData?.assumptions?.dieselEfficiencyLPerKm ?? (busLengthM != null ? 0.02 * busLengthM + 0.1918 : busDefaults.diesel_consumption_l_per_km.default);
     const defaultDieselMaint = busLengthM != null ? getDieselMaintenanceCostForLength(busLengthM) : busDefaults.diesel_maintenance_chf_per_km.default;
     const defaultElecMaint = busLengthM != null ? getElectricMaintenanceCostForLength(busLengthM) : busDefaults.electric_maintenance_chf_per_km.default;
     const defaultDieselCapex = getEquivalentDieselBusCapexForLength(busLengthM) ?? 350000;
@@ -4286,6 +4323,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         const v = toFiniteNumber(input.value);
         if (v == null) return;
         costOverrides[overrideKey] = v;
+        if (overrideKey === "yearlyDistanceKm") emissionsOverrides.yearlyDistanceKm = v;
+        if (overrideKey === "yearlyDistanceKm" || overrideKey === "dieselEfficiency") scheduleLcaRefresh();
         setRangeProgress(input, v);
         if (valueEl) valueEl.textContent = fmt(v);
         scheduleCostRefresh();
@@ -4318,8 +4357,10 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         ]) {
           costOverrides[key] = null;
         }
+        emissionsOverrides.yearlyDistanceKm = null;
         syncAll();
         scheduleCostRefresh();
+        scheduleLcaRefresh();
       };
       resetAllBtn.addEventListener("click", handler);
       cleanups.push(() => resetAllBtn.removeEventListener("click", handler));
@@ -4359,9 +4400,11 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         const value = parseYearlyDistanceKm(yearlyDistanceInput.value);
         if (value == null) return;
         emissionsOverrides.yearlyDistanceKm = value;
+        costOverrides.yearlyDistanceKm = value;
+        scheduleCostRefresh();
         setRangeProgress(yearlyDistanceInput, value);
         if (yearlyDistanceValueEl) yearlyDistanceValueEl.textContent = formatInt(value);
-        refreshDerivedEmissionsViews();
+        scheduleLcaRefresh();
       };
       yearlyDistanceInput.addEventListener("input", handler);
       cleanups.push(() => yearlyDistanceInput.removeEventListener("input", handler));
@@ -4370,8 +4413,10 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     if (yearlyDistanceReset) {
       const handler = () => {
         emissionsOverrides.yearlyDistanceKm = null;
+        costOverrides.yearlyDistanceKm = null;
+        scheduleCostRefresh();
         syncControl();
-        refreshDerivedEmissionsViews();
+        scheduleLcaRefresh();
       };
       yearlyDistanceReset.addEventListener("click", handler);
       cleanups.push(() => yearlyDistanceReset.removeEventListener("click", handler));
@@ -4381,24 +4426,24 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   };
 
   const loadEmissions = async () => {
+    const requestId = ++lcaRequestId;
+    lcaController?.abort();
+    lcaController = new AbortController();
     emissionsState.status = "loading";
     emissionsState.error = null;
     syncEmissionsDistanceControl();
     refreshActiveTab();
     try {
-      const busLengthForEmissions = toFiniteNumber(busModelData?.bus_length_m);
-      if (busLengthForEmissions == null) {
-        throw new Error(t("yearly_analysis.bus_length_missing_emissions"));
-      }
-      const backendEmissionsRaw = await fetchYearlyAnalysisEmissions(analysisId, {
-        bus_length_m: busLengthForEmissions,
-      });
-      const structured = extractStructuredBlocks(backendEmissionsRaw);
-      const mapped = mapBackendEmissionsToState(
-        backendEmissionsRaw,
-        features,
-        busModelData,
-      );
+      // Physical inputs and lifetimes are resolved per vehicle from backend snapshots.
+      const backendEmissionsRaw = await fetchYearlyAnalysisLca(analysisId, {
+        annual_km: emissionsOverrides.yearlyDistanceKm,
+        // No fleet-wide overwrite with the first bus model.
+        diesel_consumption_l_per_km: costOverrides.dieselEfficiency,
+      }, { signal: lcaController.signal });
+      if (requestId !== lcaRequestId) return;
+      const mapped = mapParameterizedLca(backendEmissionsRaw);
+      const structured = mapped.structured;
+      emissionsState.rawLca = backendEmissionsRaw;
       emissionsState.electricYearly = mapped.electricYearly;
       emissionsState.electricOnlyYearly = mapped.electricOnlyYearly;
       emissionsState.dieselHeatingYearly = mapped.dieselHeatingYearly;
@@ -4410,6 +4455,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       emissionsState.structured = structured;
       emissionsState.status = "done";
     } catch (err) {
+      if (requestId !== lcaRequestId || err?.name === "AbortError") return;
+      emissionsState.rawLca = null;
       emissionsState.status = "error";
       emissionsState.error = err?.message ?? t("yearly_analysis.environmental_load_failed");
       emissionsState.electricYearly = null;
@@ -4480,6 +4527,9 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   await loadEmissions();
 
   return () => {
+    lcaRequestId++;
+    lcaController?.abort();
+    if (lcaRefreshTimer) clearTimeout(lcaRefreshTimer);
     if (costRefreshTimer) clearTimeout(costRefreshTimer);
     cleanups.forEach((h) => h());
   };

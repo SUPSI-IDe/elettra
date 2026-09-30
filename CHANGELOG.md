@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0] - 2026-09-30
+
+### Added
+
+- Parameterized annual Mobitool LCA, with separate electricity, auxiliary diesel and non-energy inventories, lifecycle phases, assumptions and reproducible exports.
+- Mileage adjustments request a new backend LCA instead of scaling vehicle manufacturing locally. Incomplete LCA responses never fall back to the historical environmental method.
+
+### Changed
+
+- Electricity costs use purchased grid energy at fixed 94% grid-to-bus infrastructure efficiency; consumed DC energy and charging losses remain separately visible.
+- Charging powers are labelled DC, with a downstream AC-connection estimate that is not an optimizer constraint. Forecasts and SOC calculations are unchanged.
+- Costs remain accessible when the LCA service is unavailable.
+
+### Verification
+
+- Added reproducible API fixtures and browser checks for the grid boundary, backend mileage recalculation, exports and incomplete-service handling.
+- Verified 272 Node tests, 78 desktop/mobile browser executions and production build; coordinated staging uses the backend release candidate and isolated data stores.
+
 ## [0.1.16] - 2026-09-30
 
 ### Fixed

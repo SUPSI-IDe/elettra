@@ -3,14 +3,14 @@ import {
   fetchYearlyAnalysis,
   fetchYearlyAnalysisEnergySummary,
   fetchYearlyAnalysisCosts,
-  fetchYearlyAnalysisEmissions,
+  fetchYearlyAnalysisLca,
 } from "../../../api/simulation";
 import {
   adaptYearlyAnalysisMeta,
   adaptYearlyAnalysisEnergySummary,
   adaptYearlyAnalysisCosts,
-  adaptYearlyAnalysisEmissions,
 } from "../../../adapters/yearly-analysis";
+import { mapParameterizedLca } from "./parameterized-lca";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -45,11 +45,11 @@ const parseSpecs = (specs) => {
 
 const toSectionState = (result, adapt) => {
   if (result.status === "fulfilled") {
-    return {
-      status: "ready",
-      data: adapt(result.value),
-      error: null,
-    };
+    try {
+      return { status: "ready", data: adapt(result.value), error: null };
+    } catch (reason) {
+      return { status: "error", data: null, error: reason };
+    }
   }
 
   return {
@@ -145,20 +145,17 @@ export const loadYearlyAnalysisDetail = async (yearlyAnalysisId) => {
       data: null,
       error: busLengthError,
     };
-    emissionsResult = {
-      status: "error",
-      data: null,
-      error: busLengthError,
-    };
   } else {
-    const [costsRaw, emissionsRaw] = await Promise.allSettled([
+    const [costsRaw] = await Promise.allSettled([
       fetchYearlyAnalysisCosts(yearlyAnalysisId, { bus_length_m: busLengthM }),
-      fetchYearlyAnalysisEmissions(yearlyAnalysisId, { bus_length_m: busLengthM }),
     ]);
 
     costsResult = toSectionState(costsRaw, adaptYearlyAnalysisCosts);
-    emissionsResult = toSectionState(emissionsRaw, adaptYearlyAnalysisEmissions);
   }
+  // LCA resolves immutable physical inputs itself; mutable model metadata is
+  // not a prerequisite for loading it, and a failed LCA cannot hide costs.
+  const [emissionsRaw] = await Promise.allSettled([fetchYearlyAnalysisLca(yearlyAnalysisId)]);
+  emissionsResult = toSectionState(emissionsRaw, raw => mapParameterizedLca(raw).structured);
 
   return {
     yearlyAnalysisId,

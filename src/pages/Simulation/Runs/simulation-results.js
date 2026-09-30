@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { gridFromDc } from "../../../utils/charging-energy";
 import { t } from "../../../i18n";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
@@ -851,6 +852,7 @@ const renderChargingInfrastructure = (container, optimizationRun = null, options
             <th class="efficiency-th-text">${textContent(t("simulation.cs_stop_name") || "Stop")}</th>
             <th>${textContent(t("simulation.opt_col_slots") || "Slots")}</th>
             <th>${textContent(t("simulation.cs_power_per_plug") || "kW / plug")}</th>
+            <th>${textContent(t("simulation.grid_connection_estimate"))}</th>
           </tr>
         </thead>
         <tbody>
@@ -861,12 +863,22 @@ const renderChargingInfrastructure = (container, optimizationRun = null, options
                   <td>${textContent(row.stopName)}</td>
                   <td class="efficiency-td-num">${row.slots == null ? "—" : textContent(String(row.slots))}</td>
                   <td class="efficiency-td-num">${row.powerPerSlotKw == null ? "—" : textContent(formatFixed(row.powerPerSlotKw, 0))}</td>
+                  <td class="efficiency-td-num">${row.totalPowerKw == null ? "—" : textContent(formatFixed(gridFromDc(row.slots != null && row.powerPerSlotKw != null ? Math.min(row.totalPowerKw, row.slots * row.powerPerSlotKw) : row.totalPowerKw), 1))}</td>
                 </tr>`;
             })
             .join("")}
         </tbody>
       </table>
     </div>`;
+  const boundaryNote = document.createElement("p");
+  boundaryNote.textContent = t("simulation.grid_connection_note");
+  container.append(boundaryNote);
+  const charged = optimizationRun?.results?.grid_assessment?.charged_energy;
+  if (charged) {
+    const quantities = document.createElement("p");
+    quantities.textContent = `${t("yearly_analysis.lca_charged_energy")}: ${formatFixed(charged.dc_kwh, 1)} kWh DC · ${t("yearly_analysis.lca_grid_energy")}: ${formatFixed(charged.grid_kwh, 1)} kWh · ${t("yearly_analysis.lca_losses")}: ${formatFixed(charged.charging_losses_kwh, 1)} kWh`;
+    container.append(quantities);
+  }
 };
 
 const svgBase = (w, h, ariaLabel) =>
