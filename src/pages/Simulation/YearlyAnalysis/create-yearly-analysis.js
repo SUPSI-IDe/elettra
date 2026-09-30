@@ -61,6 +61,7 @@ const temperatureToColor = (temperature, minTemperature, maxTemperature) => {
 // ── Extract info from an optimization run ────────────────────────────
 
 const resolveElectrificationFeasible = (run = {}) => {
+  if (run?.results?.integrity_audit?.yearly_eligible !== true) return false;
   const d = run?.results?.electrification_feasible;
   if (d === true) return true;
   if (d === false) return false;

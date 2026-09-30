@@ -156,6 +156,12 @@
               </div>
             </div>
 
+            <div class="form-group" data-role="fixed-battery-group" hidden>
+              <label for="var-fixed-battery-packs" data-i18n="simulation.fixed_battery_packs">Battery packs (fixed for charging optimisation)</label>
+              <input id="var-fixed-battery-packs" name="fixed_battery_packs" type="number" min="1" step="1" />
+              <p data-i18n="simulation.fixed_battery_help">Choose an allowed pack count for the selected bus model. All battery forecasts remain available for comparison.</p>
+            </div>
+
             <div class="compact-row compact-row--2" data-role="battery-cost-group" hidden>
               <div class="form-group">
                 <label for="var-battery-cost-per-kwh" data-i18n="simulation.var_battery_cost_per_kwh">
