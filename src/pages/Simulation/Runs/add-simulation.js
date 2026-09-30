@@ -757,6 +757,13 @@ export const initializeAddSimulation = async (
 
   const rebuildStopsTable = async () => {
     const mode = (modeSelect?.value ?? "").trim();
+    const fixedGroup = section.querySelector('[data-role="fixed-battery-group"]');
+    const fixedPacks = section.querySelector('#var-fixed-battery-packs');
+    if (fixedGroup) fixedGroup.hidden = mode !== "charging_only";
+    if (fixedPacks) {
+      fixedPacks.required = mode === "charging_only";
+      fixedPacks.disabled = mode !== "charging_only";
+    }
     const selectedIds = getSelectedShiftIds();
     const seq = ++rebuildSeq;
 
@@ -1289,6 +1296,15 @@ export const initializeAddSimulation = async (
       solver_name: "highs",
       max_solver_time_seconds: 300,
     };
+
+    if (optimizationMode === "charging_only") {
+      const packs = Number(formData.get("fixed_battery_packs"));
+      if (!Number.isInteger(packs) || packs < 1) {
+        setFeedback(section, t("simulation.fixed_battery_invalid"));
+        return;
+      }
+      payload.fixed_battery_packs = packs;
+    }
 
     if (optimizationMode === "joint") {
       const costPerKwh = Number(formData.get("battery_cost_per_kwh"));

@@ -1,5 +1,13 @@
 export const translations = {
   en: {
+    "simulation.fixed_battery_packs": "Battery packs (fixed for charging optimisation)",
+    "simulation.fixed_battery_help": "Choose an allowed pack count for the selected bus model. All battery forecasts remain available for comparison.",
+    "simulation.fixed_battery_invalid": "Select an integer battery pack count within the selected bus model's limits.",
+    "simulation.reference_packs": "Reference packs",
+    "simulation.verification_pending": "Not verified",
+    "simulation.forecast_verified": "Battery and infrastructure verified with the full forecast at the selected pack count.",
+    "simulation.forecast_unverified": "Full-forecast feasibility has not been verified. This result cannot be used for a new yearly analysis; existing analyses remain available.",
+    "simulation.forecast_duplicate": "Historical result: battery variants were treated as multiple buses. Recalculate before starting a new yearly analysis. The saved result has not been altered.",
     // Navigation
     "nav.fleet": "Fleet",
     "nav.buses": "Buses",
@@ -1501,6 +1509,14 @@ export const translations = {
     "yearly_analysis.yearly_uncertainty_title": "Yearly uncertainty summary",
   },
   de: {
+    "simulation.fixed_battery_packs": "Batteriepakete (fest für die Ladeoptimierung)",
+    "simulation.fixed_battery_help": "Wählen Sie eine zulässige Paketanzahl. Alle Batterieprognosen bleiben zum Vergleich verfügbar.",
+    "simulation.fixed_battery_invalid": "Wählen Sie eine ganzzahlige Paketanzahl innerhalb der Grenzen des Busmodells.",
+    "simulation.reference_packs": "Referenzpakete",
+    "simulation.verification_pending": "Nicht verifiziert",
+    "simulation.forecast_verified": "Batterie und Infrastruktur anhand der vollständigen Prognose für die gewählte Paketanzahl verifiziert.",
+    "simulation.forecast_unverified": "Die Machbarkeit wurde nicht mit der vollständigen Prognose verifiziert. Keine neue Jahresanalyse möglich; bestehende Analysen bleiben verfügbar.",
+    "simulation.forecast_duplicate": "Historisches Ergebnis: Batterievarianten wurden als mehrere Busse behandelt. Vor einer neuen Jahresanalyse neu berechnen. Das gespeicherte Ergebnis bleibt unverändert.",
     // Navigation
     "nav.fleet": "Flotte",
     "nav.buses": "Busse",
@@ -2998,6 +3014,14 @@ export const translations = {
     "simulation.sensitivity_driver_annual_distance": "Jährliche Distanz: {distance} km",
   },
   fr: {
+    "simulation.fixed_battery_packs": "Packs batterie (fixes pour l’optimisation de la recharge)",
+    "simulation.fixed_battery_help": "Choisissez un nombre de packs autorisé. Toutes les prévisions restent disponibles pour comparaison.",
+    "simulation.fixed_battery_invalid": "Choisissez un nombre entier de packs dans les limites du modèle de bus.",
+    "simulation.reference_packs": "Packs de référence",
+    "simulation.verification_pending": "Non vérifié",
+    "simulation.forecast_verified": "Batterie et infrastructure vérifiées avec la prévision complète pour le nombre de packs retenu.",
+    "simulation.forecast_unverified": "La faisabilité avec la prévision complète n’est pas vérifiée. Aucune nouvelle analyse annuelle possible ; les analyses existantes restent disponibles.",
+    "simulation.forecast_duplicate": "Résultat historique : les variantes de batterie ont été traitées comme plusieurs bus. Recalculer avant une nouvelle analyse annuelle. Le résultat enregistré reste inchangé.",
     // Navigation
     "nav.fleet": "Flotte",
     "nav.buses": "Bus",
@@ -4495,6 +4519,14 @@ export const translations = {
     "simulation.sensitivity_driver_annual_distance": "Distance annuelle : {distance} km",
   },
   it: {
+    "simulation.fixed_battery_packs": "Pacchi batteria (fissi per l’ottimizzazione della ricarica)",
+    "simulation.fixed_battery_help": "Scegli un numero di pacchi ammesso dal modello di bus. Tutti i forecast restano disponibili per il confronto.",
+    "simulation.fixed_battery_invalid": "Scegli un numero intero di pacchi entro i limiti del modello di bus.",
+    "simulation.reference_packs": "Pacchi di riferimento",
+    "simulation.verification_pending": "Non verificato",
+    "simulation.forecast_verified": "Batteria e infrastruttura verificate con il forecast completo al numero di pacchi selezionato.",
+    "simulation.forecast_unverified": "La fattibilità con il forecast completo non è verificata. Non è possibile avviare una nuova analisi annuale; quelle esistenti restano disponibili.",
+    "simulation.forecast_duplicate": "Risultato storico: le varianti di batteria sono state trattate come più bus. Ricalcola prima di una nuova analisi annuale. Il risultato salvato non è stato modificato.",
     // Navigation
     "nav.fleet": "Flotta",
     "nav.buses": "Autobus",

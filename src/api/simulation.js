@@ -12,6 +12,7 @@ import {
 } from "../config/simulation-defaults";
 import { normalizeOptimizationRunName } from "../utils/optimization-run";
 import { applyMeanFeasibilityBasis } from "../utils/feasibility-demand-basis";
+import { selectOptimizationReferences } from "../utils/optimization-references";
 import { readDeleteResponse } from "./delete-response";
 import { createPredictionRunIndex } from "./prediction-run-index";
 import { buildPredictionRunRequestBody } from "./prediction-request";
@@ -205,6 +206,7 @@ const createPredictionRunVariants = async ({
   bus_model_id,
   prediction_params = {},
   pack_count_override = null,
+  required_pack_count = null,
 }) => {
   const busModel = await fetchBusModelById(bus_model_id);
   const specs = parseSpecs(busModel?.specs);
@@ -223,6 +225,9 @@ const createPredictionRunVariants = async ({
       : computeBatteryPackCases(specs);
 
   const createdIds = [];
+  if (required_pack_count != null && !batteryPackCases.includes(required_pack_count)) {
+    throw new Error("Selected battery pack count is outside the bus model limits.");
+  }
 
   for (const numBatteryPacks of batteryPackCases) {
     const contextualParameters = buildContextualParameters({
@@ -517,10 +522,14 @@ export const fetchEconomicComparison = async (params = {}) => {
 // ── Optimization Runs ────────────────────────────────────────────────
 
 export const createOptimizationRun = async (params = {}) => {
-  const { shift_ids, charging_stations, pack_count_override, ...rest } = params;
+  const { shift_ids, charging_stations, pack_count_override, fixed_battery_packs, ...rest } = params;
 
   if (!Array.isArray(shift_ids) || !shift_ids.length) {
     throw new Error("At least one shift is required.");
+  }
+  const fixedPacks = fixed_battery_packs ?? pack_count_override ?? null;
+  if (rest.mode === "charging_only" && (!Number.isInteger(fixedPacks) || fixedPacks < 1)) {
+    throw new Error("Select the battery pack count for charging-only optimisation.");
   }
 
   const headers = {
@@ -532,8 +541,13 @@ export const createOptimizationRun = async (params = {}) => {
     shift_ids,
     bus_model_id: rest.bus_model_id,
     prediction_params: rest.prediction_params,
-    pack_count_override: pack_count_override ?? null,
+    // Keep every battery variant for comparison, even in charging-only mode.
+    pack_count_override: null,
+    required_pack_count: rest.mode === "charging_only" ? fixedPacks : null,
   });
+  const { runs } = await resolvePredictionRuns(predictionRunIds);
+  const referenceIds = selectOptimizationReferences(runs, shift_ids, rest.mode,
+    fixedPacks);
 
   const normalizedRest = { ...rest };
   const normalizedName = normalizeOptimizationRunName(normalizedRest.name);
@@ -548,6 +562,7 @@ export const createOptimizationRun = async (params = {}) => {
     shift_ids,
     prediction_run_ids: predictionRunIds,
     ...restWithoutPrediction,
+    reference_prediction_run_ids: referenceIds,
   });
 
   if (Array.isArray(charging_stations) && charging_stations.length) {

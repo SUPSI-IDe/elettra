@@ -3140,6 +3140,12 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
   const usableSocNoteHtml = buildUsableSocCapacityNoteHtml(inputParams);
 
   const electSummary = results.electrification_summary ?? {};
+  const verificationStatus = results.integrity_audit?.status ??
+    (results.forecast_verification?.status === "verified" ? "verified" : "unverified");
+  const verificationNotice = `<p class="${verificationStatus === "verified" ? "" : "efficiency-infeasibility-notice"}" data-role="forecast-verification">${textContent(
+    t(verificationStatus === "verified" ? "simulation.forecast_verified" :
+      verificationStatus === "duplicate_physical_shifts" ? "simulation.forecast_duplicate" : "simulation.forecast_unverified")
+  )}</p>`;
   let electrificationSummaryHtml = "";
   if (electSummary.status === "infeasible") {
     const infeasibleBuses = Array.isArray(electSummary.infeasible_buses) ? electSummary.infeasible_buses : [];
@@ -3268,13 +3274,14 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
       }
       return `
       <tr>
+        <td class="efficiency-td-num">${textContent(String(b.reference_packs ?? "—"))}</td>
         <td class="efficiency-td-num efficiency-td-highlight">${textContent(String(b.optimized_packs ?? "—"))}</td>
         <td class="efficiency-td-num efficiency-td-highlight">${optimizedUsableKwh == null ? "—" : formatFixed(optimizedUsableKwh, 0)}</td>
         <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
         <td class="efficiency-td-num">${bOpen}${textContent(String(b.required_total_packs ?? "—"))}${bClose}</td>
         <td class="efficiency-td-num">${textContent(String(b.excess_packs ?? 0))}</td>
         <td><span class="badge badge--compact ${feasBadge}">${textContent(
-          physFeasible === true
+          b.feasibility_status === "unverified" ? t("simulation.verification_pending") : physFeasible === true
             ? translateOr(
                 "simulation.feasibility_physical_within_limit",
                 "Within physical pack limit"
@@ -3295,6 +3302,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
         <table class="efficiency-table">
           <thead>
             <tr>
+              <th>${textContent(t("simulation.reference_packs"))}</th>
               <th>${textContent(t("simulation.opt_col_opt_packs") || "Optimized Packs")}</th>
               <th>${usableSocInfoLabelHtml(
                 t("simulation.opt_col_opt_usable_kwh") || "Optimized usable (kWh)",
@@ -3313,6 +3321,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
 
   return `
     <div class="efficiency-section">
+      ${verificationNotice}
       <h3 class="efficiency-section-title">${textContent(t("simulation.opt_section_title") || "Optimization Results")}</h3>
       ${usableSocNoteHtml}
       ${electrificationSummaryHtml}
