@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.16] - 2026-09-30
+
+### Fixed
+
+- Battery-specific forecasts remain available for comparison, while optimization submits exactly one physical reference per selected duty.
+- Charging-only evaluation requires an explicit fixed battery count instead of implicitly using several alternative vehicle configurations.
+- Results show the full-forecast verification status and reference pack count. Unverified or duplicated historical optimizations cannot initialize a new yearly analysis; existing analyses remain readable.
+
+### Verification
+
+- Added unit and desktop/mobile browser regressions for all three optimization modes, seven forecast variants and one physical reference.
+- Verified 269 unit tests, 74 browser executions, production build and an isolated API/browser replay.
+- Release v0.1.15 built successfully but its release-publication job stopped because the changelog entry was missing. It was not deployed; the tag and artifact are retained unchanged.
+
 ## [0.1.14] - 2026-09-23
 
 ### Fixed
