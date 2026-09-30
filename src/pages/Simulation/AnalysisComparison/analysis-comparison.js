@@ -6,10 +6,10 @@ import {
   fetchAllYearlyAnalyses,
   fetchYearlyAnalysis,
   fetchYearlyAnalysisCosts,
-  fetchYearlyAnalysisEmissions,
+  fetchYearlyAnalysisLca,
 } from "../../../api/simulation";
 import { fetchBusModelById } from "../../../api/bus-models";
-import { adaptYearlyAnalysisEmissions } from "../../../adapters/yearly-analysis";
+import { mapParameterizedLca } from "../YearlyAnalysis/parameterized-lca";
 import {
   buildAnnualCo2DisplayMetrics,
   convertEmissionIndicatorForDisplay,
@@ -826,13 +826,13 @@ const loadAnalysisModel = async (id) => {
     }
   }
 
-  // Emissions: reuse the backend emissions endpoint + adapter.
+  // The comparison uses the same versioned vehicle LCA as the annual view.
   let emissions = null;
   let emissionsStatus = "error";
-  if (busLengthM != null && busLengthM > 0) {
+  {
     try {
-      const raw = await fetchYearlyAnalysisEmissions(id, { bus_length_m: busLengthM });
-      emissions = adaptYearlyAnalysisEmissions(raw);
+      const raw = await fetchYearlyAnalysisLca(id);
+      emissions = mapParameterizedLca(raw).structured;
       emissionsStatus = "ready";
     } catch {
       emissions = null;

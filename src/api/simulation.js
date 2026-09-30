@@ -1025,3 +1025,17 @@ export const fetchYearlyAnalysisEmissions = async (id, params = {}) => {
   }
   return payload;
 };
+
+export const fetchYearlyAnalysisLca = async (id, params = {}, { signal } = {}) => {
+  if (!id) throw new Error("Missing yearly analysis ID.");
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value != null && value !== "") query.set(key, String(value));
+  }
+  const response = await fetch(`${YEARLY_ANALYSIS_PATH}/${encodeURIComponent(id)}/lca?${query}`, {
+    method: "GET", headers: authHeaders(), signal,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(typeof payload?.detail === "string" ? payload.detail : "Unable to load parameterized LCA.");
+  return payload;
+};
