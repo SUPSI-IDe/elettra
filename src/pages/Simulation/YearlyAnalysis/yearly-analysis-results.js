@@ -1,5 +1,7 @@
 import * as d3 from "d3";
-import { gridFromDc } from "../../../utils/charging-energy";
+import {
+  buildChargingEnergyBoundary,
+} from "../../../utils/charging-energy";
 import { mapParameterizedLca, renderParameterizedLca } from "./parameterized-lca";
 import "./yearly-analysis-results.css";
 import { openPartialInNewTab, triggerPartialLoad } from "../../../events";
@@ -1392,6 +1394,8 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
   if (yearlyEnergyKwh == null || yearlyEnergyKwh <= 0) return null;
   if (busLengthM == null) return null;
 
+  const yearlyEnergyBoundary = buildChargingEnergyBoundary(yearlyEnergyKwh);
+
   const scenarioCosts = scenarioResults
     .filter((sr) => !sr.error && sr.kpis)
     .map((sr) => {
@@ -1401,7 +1405,9 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
       const dailyDistance = (toFiniteNumber(sr.kpis.distanceKm) ?? 0) * distanceScale;
       const annualEnergy = dailyEnergy * sr.occurrences;
       const annualDistance = dailyDistance * sr.occurrences;
-      const annualEnergyCost = gridFromDc(annualEnergy) * energyPricePerKwh;
+      const dailyEnergyBoundary = buildChargingEnergyBoundary(dailyEnergy);
+      const annualEnergyBoundary = buildChargingEnergyBoundary(annualEnergy);
+      const annualEnergyCost = annualEnergyBoundary.gridKwh * energyPricePerKwh;
       return {
         label: sr.label,
         temperature: sr.temperature,
@@ -1412,14 +1418,16 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
         dailyDistance,
         energyPerKm: dailyDistance > 0 ? dailyEnergy / dailyDistance : null,
         annualEnergy,
+        dailyGridEnergy: dailyEnergyBoundary.gridKwh,
+        dailyChargingLosses: dailyEnergyBoundary.chargingLossesKwh,
+        annualGridEnergy: annualEnergyBoundary.gridKwh,
+        annualChargingLosses: annualEnergyBoundary.chargingLossesKwh,
         annualDistance,
         annualEnergyCost,
       };
     });
 
-  const totalScenarioEnergyCost = scenarioCosts.reduce((s, sc) => s + sc.annualEnergyCost, 0);
-
-  const electricEnergyOpex = totalScenarioEnergyCost;
+  const electricEnergyOpex = yearlyEnergyBoundary.gridKwh * energyPricePerKwh;
   const electricMaintOpex = yearlyDistanceKm != null && electricMaintPerKm != null
     ? yearlyDistanceKm * electricMaintPerKm : 0;
   const electricTotalOpex = electricEnergyOpex + electricMaintOpex;
@@ -1501,8 +1509,18 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
 
   return {
     scenarioCosts,
-    assumptions: { energyPricePerKwh, fuelPricePerL, dieselEfficiencyLPerKm, dieselMaintPerKm, electricMaintPerKm },
+    assumptions: {
+      energyPricePerKwh,
+      fuelPricePerL,
+      dieselEfficiencyLPerKm,
+      dieselMaintPerKm,
+      electricMaintPerKm,
+      gridToBusEfficiency: yearlyEnergyBoundary.gridToBusEfficiency,
+      chargingEnergyPolicy: yearlyEnergyBoundary.policy,
+    },
     yearlyEnergyKwh,
+    yearlyGridEnergyKwh: yearlyEnergyBoundary.gridKwh,
+    yearlyChargingLossesKwh: yearlyEnergyBoundary.chargingLossesKwh,
     yearlyDistanceKm,
     electric: {
       energyOpex: electricEnergyOpex, maintOpex: electricMaintOpex,
@@ -1563,13 +1581,18 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
   const baseYDistKm = fn(yearlyDistanceKm ?? a.yearly_distance_km) ?? 0;
   const yDistKm = ov("yearlyDistanceKm") ?? baseYDistKm;
   const distanceScale = baseYDistKm > 0 ? yDistKm / baseYDistKm : 1;
-  const yElecKwh = (fn(yearlyEnergyKwh ?? a.yearly_electric_kwh) ?? 0) * distanceScale;
+  const baseYElecKwh = fn(yearlyEnergyKwh ?? a.yearly_electric_kwh) ?? 0;
+  const yElecKwh = baseYElecKwh * distanceScale;
+  const yearlyEnergyBoundary = buildChargingEnergyBoundary(yElecKwh, {
+    boundary: a.energy_boundary,
+    boundaryDcEnergyKwh: fn(a.yearly_electric_kwh) ?? baseYElecKwh,
+  });
   const yDhLiters = (fn(a.yearly_diesel_heating_liters) ?? 0) * distanceScale;
   const yDhFuelKwh = (fn(a.yearly_diesel_heating_fuel_kwh) ?? 0) * distanceScale;
   const isDieselHeating = yDhLiters > 0;
 
   /* ── OPEX: recalculate from physical quantities × unit prices ── */
-  const electricEnergyOpex = gridFromDc(yElecKwh) * energyPerKwh;
+  const electricEnergyOpex = yearlyEnergyBoundary.gridKwh * energyPerKwh;
   const electricMaintOpex = yDistKm * elecMaintPerKm;
   const dhFuelOpex = yDhLiters * fuelPerL;
   const dhMaintOpex = isDieselHeating ? electricMaintOpex * dhMaintFactor : 0;
@@ -1651,13 +1674,23 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
 
   /* ── Scenarios: recalculate costs from physical quantities ──── */
   const scenarioCosts = (raw.scenarios ?? []).map((sc, i) => {
-    const dailyElKwh = (fn(sc.daily_electric_kwh) ?? 0) * distanceScale;
+    const baseDailyElKwh = fn(sc.daily_electric_kwh) ?? 0;
+    const baseAnnElKwh = fn(sc.annual_electric_kwh) ?? 0;
+    const dailyElKwh = baseDailyElKwh * distanceScale;
     const dailyDist = (fn(sc.daily_distance_km) ?? 0) * distanceScale;
-    const annElKwh = (fn(sc.annual_electric_kwh) ?? 0) * distanceScale;
+    const annElKwh = baseAnnElKwh * distanceScale;
     const annDist = (fn(sc.annual_distance_km) ?? 0) * distanceScale;
     const dailyDhLiters = (fn(sc.daily_diesel_heating_liters) ?? 0) * distanceScale;
     const annDhLiters = (fn(sc.annual_diesel_heating_liters) ?? 0) * distanceScale;
     const annElecMaint = annDist * elecMaintPerKm;
+    const dailyEnergyBoundary = buildChargingEnergyBoundary(dailyElKwh, {
+      boundary: sc.energy_boundary,
+      boundaryDcEnergyKwh: baseAnnElKwh,
+    });
+    const annualEnergyBoundary = buildChargingEnergyBoundary(annElKwh, {
+      boundary: sc.energy_boundary,
+      boundaryDcEnergyKwh: baseAnnElKwh,
+    });
     return {
       label: sc.label ?? t("yearly_analysis.scenario_fallback", { index: i + 1 }),
       temperature: fn(sc.temperature_celsius) ?? 0,
@@ -1668,8 +1701,12 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
       dailyDistance: dailyDist,
       energyPerKm: dailyDist > 0 ? dailyElKwh / dailyDist : null,
       annualEnergy: annElKwh,
+      dailyGridEnergy: dailyEnergyBoundary.gridKwh,
+      dailyChargingLosses: dailyEnergyBoundary.chargingLossesKwh,
+      annualGridEnergy: annualEnergyBoundary.gridKwh,
+      annualChargingLosses: annualEnergyBoundary.chargingLossesKwh,
       annualDistance: annDist,
-      annualEnergyCost: gridFromDc(annElKwh) * energyPerKwh,
+      annualEnergyCost: annualEnergyBoundary.gridKwh * energyPerKwh,
       annualElectricMaintCost: annElecMaint,
       dailyDieselHeatingLiters: dailyDhLiters,
       annualDieselHeatingLiters: annDhLiters,
@@ -1690,8 +1727,12 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
       dieselHeatingMaintenanceFactor: dhMaintFactor,
       yearlyDieselHeatingLiters: yDhLiters,
       yearlyDieselHeatingFuelKwh: yDhFuelKwh,
+      gridToBusEfficiency: yearlyEnergyBoundary.gridToBusEfficiency,
+      chargingEnergyPolicy: yearlyEnergyBoundary.policy,
     },
     yearlyEnergyKwh: yElecKwh,
+    yearlyGridEnergyKwh: yearlyEnergyBoundary.gridKwh,
+    yearlyChargingLossesKwh: yearlyEnergyBoundary.chargingLossesKwh,
     yearlyDistanceKm: yDistKm,
     electric: {
       energyOpex: electricEnergyOpex,
@@ -1819,9 +1860,19 @@ const renderElectricOpexBreakdown = (el, cd) => {
   const maintKm = km > 0 ? cd.electric.maintOpex / km : null;
   const totalKm = km > 0 ? cd.electric.totalOpex / km : null;
   const avgKwhKm = cd.yearlyEnergyKwh > 0 && km > 0 ? cd.yearlyEnergyKwh / km : null;
+  const gridEfficiencyPct = (toFiniteNumber(cd.assumptions.gridToBusEfficiency) ?? 0) * 100;
 
   const nSc = (cd.scenarioCosts ?? []).length;
-  const energyTip = infoTip(t("yearly_analysis.energy_cost_tooltip", { count: nSc, energy: formatInt(cd.yearlyEnergyKwh), distance: formatInt(km), average: avgKwhKm != null ? formatFixed(avgKwhKm, 3) : "—", price: formatFixed(cd.assumptions.energyPricePerKwh, 2) }));
+  const energyTip = infoTip(t("yearly_analysis.energy_cost_tooltip", {
+    count: nSc,
+    dcEnergy: formatInt(cd.yearlyEnergyKwh),
+    gridEnergy: formatInt(cd.yearlyGridEnergyKwh),
+    chargingLosses: formatInt(cd.yearlyChargingLossesKwh),
+    efficiency: formatFixed(gridEfficiencyPct, 1),
+    distance: formatInt(km),
+    average: avgKwhKm != null ? formatFixed(avgKwhKm, 3) : "—",
+    price: formatFixed(cd.assumptions.energyPricePerKwh, 2),
+  }));
   const maintTip = infoTip(`${formatInt(km)} km × ${formatFixed(cd.assumptions.electricMaintPerKm, 4)} CHF/km.`);
 
   const dhFuel = toFiniteNumber(cd.electric.dieselHeatingFuelOpex) ?? 0;
@@ -1919,6 +1970,7 @@ const renderCostsOpexTables = (el, cd) => {
   const electricPerKm = yearlyKm > 0 ? cd.electric.totalAnnual / yearlyKm : null;
   const dieselPerKm = yearlyKm > 0 ? cd.diesel.totalAnnual / yearlyKm : null;
   const savingCls = cd.annualSaving > 0 ? "ya-costs-kpi-value--positive" : cd.annualSaving < 0 ? "ya-costs-kpi-value--negative" : "";
+  const gridEfficiencyPct = (toFiniteNumber(cd.assumptions.gridToBusEfficiency) ?? 0) * 100;
 
   const dhFuel = toFiniteNumber(cd.electric.dieselHeatingFuelOpex) ?? 0;
   const dhMaint = toFiniteNumber(cd.electric.dieselHeatingMaintOpex) ?? 0;
@@ -1945,7 +1997,7 @@ const renderCostsOpexTables = (el, cd) => {
           <tbody>
             <tr>
               <td>${textContent(t("yearly_analysis.energy_fuel"))}</td>
-              <td>CHF ${formatCHF(Math.round(cd.electric.energyOpex))} <span class="ya-costs-detail">(${formatInt(cd.yearlyEnergyKwh)} kWh DC ÷ 0.94 × ${formatFixed(cd.assumptions.energyPricePerKwh, 2)} CHF/kWh)</span></td>
+              <td>CHF ${formatCHF(Math.round(cd.electric.energyOpex))} <span class="ya-costs-detail">(${formatInt(cd.yearlyGridEnergyKwh)} kWh ${textContent(t("yearly_analysis.grid_energy_short"))} × ${formatFixed(cd.assumptions.energyPricePerKwh, 2)} CHF/kWh; ${formatInt(cd.yearlyEnergyKwh)} kWh DC + ${formatInt(cd.yearlyChargingLossesKwh)} kWh ${textContent(t("yearly_analysis.charging_losses_short"))}, ${formatFixed(gridEfficiencyPct, 1)}%)</span></td>
               <td>CHF ${formatCHF(Math.round(cd.diesel.fuelOpex))} <span class="ya-costs-detail">(${formatInt(yearlyKm)} km × ${formatFixed(cd.assumptions.dieselEfficiencyLPerKm, 3)} l/km × ${formatFixed(cd.assumptions.fuelPricePerL, 2)} CHF/l)</span></td>
             </tr>
             <tr>
@@ -1995,7 +2047,7 @@ const renderCostsScenarioTable = (el, cd) => {
     (toFiniteNumber(sc.annualDieselHeatingMaintCost) ?? 0) > 0
   );
 
-  const baseHeaders = [t("yearly_analysis.scenario"), t("yearly_analysis.temp_celsius_short"), t("yearly_analysis.days_year_short"), t("yearly_analysis.energy_day_kwh"), t("yearly_analysis.aux_day_kwh"), t("yearly_analysis.simulated_distance_day_km"), t("simulation.efficiency_col_per_km"), t("yearly_analysis.annual_energy_kwh"), t("yearly_analysis.annual_energy_cost_chf")];
+  const baseHeaders = [t("yearly_analysis.scenario"), t("yearly_analysis.temp_celsius_short"), t("yearly_analysis.days_year_short"), t("yearly_analysis.energy_day_kwh"), t("yearly_analysis.aux_day_kwh"), t("yearly_analysis.simulated_distance_day_km"), t("simulation.efficiency_col_per_km"), t("yearly_analysis.annual_energy_kwh"), t("yearly_analysis.annual_grid_energy_kwh"), t("yearly_analysis.annual_charging_losses_kwh"), t("yearly_analysis.annual_energy_cost_chf")];
   const dhHeaders = showDh ? [t("yearly_analysis.dh_fuel_chf"), t("yearly_analysis.dh_maintenance_chf")] : [];
   const headers = [...baseHeaders, ...dhHeaders];
 
@@ -2007,12 +2059,14 @@ const renderCostsScenarioTable = (el, cd) => {
       <td>${textContent(sc.label)}</td><td>${formatFixed(sc.temperature, 1)}</td><td>${textContent(sc.occurrences)}</td>
       <td>${formatFixed(sc.dailyEnergy, 1)}</td><td>${formatFixed(sc.dailyAuxiliary, 1)}</td>
       <td>${formatFixed(sc.dailyDistance, 1)}</td><td>${sc.energyPerKm != null ? formatFixed(sc.energyPerKm, 3) : "—"}</td>
-      <td>${formatInt(sc.annualEnergy)}</td><td>${formatCHF(Math.round(sc.annualEnergyCost))}</td>${dhCells}
+      <td>${formatInt(sc.annualEnergy)}</td><td>${formatInt(sc.annualGridEnergy)}</td><td>${formatInt(sc.annualChargingLosses)}</td><td>${formatCHF(Math.round(sc.annualEnergyCost))}</td>${dhCells}
     </tr>`;
   }).join("");
 
   const totalDays = scenarios.reduce((s, sc) => s + sc.occurrences, 0);
   const totalEnergy = scenarios.reduce((s, sc) => s + sc.annualEnergy, 0);
+  const totalGridEnergy = scenarios.reduce((s, sc) => s + sc.annualGridEnergy, 0);
+  const totalChargingLosses = scenarios.reduce((s, sc) => s + sc.annualChargingLosses, 0);
   const totalCost = scenarios.reduce((s, sc) => s + sc.annualEnergyCost, 0);
   const avgEpk = yearlyKm > 0 ? totalEnergy / yearlyKm : null;
   const totalDhFuel = showDh ? scenarios.reduce((s, sc) => s + (toFiniteNumber(sc.annualDieselHeatingFuelCost) ?? 0), 0) : 0;
@@ -2022,7 +2076,7 @@ const renderCostsScenarioTable = (el, cd) => {
   el.innerHTML = `
     <div class="ya-res-section">
       <h3 class="ya-res-section-title">${textContent(t("yearly_analysis.energy_cost_by_temperature"))}</h3>
-      <p class="ya-costs-note">${textContent(t("yearly_analysis.energy_cost_note", { price: formatFixed(cd.assumptions.energyPricePerKwh, 2) }))}</p>
+      <p class="ya-costs-note">${textContent(t("yearly_analysis.energy_cost_note", { efficiency: formatFixed((toFiniteNumber(cd.assumptions.gridToBusEfficiency) ?? 0) * 100, 1), price: formatFixed(cd.assumptions.energyPricePerKwh, 2) }))}</p>
       <div class="ya-costs-table-wrap">
         <table class="ya-costs-table ya-costs-table--scenario">
           <thead><tr>${headers.map((h) => `<th>${textContent(h)}</th>`).join("")}</tr></thead>
@@ -2030,7 +2084,7 @@ const renderCostsScenarioTable = (el, cd) => {
             <tr class="ya-costs-scenario-total">
               <td><strong>${textContent(t("yearly_analysis.total_average"))}</strong></td><td></td><td><strong>${formatInt(totalDays)}</strong></td>
               <td></td><td></td><td></td><td><strong>${avgEpk != null ? formatFixed(avgEpk, 3) : "—"}</strong></td>
-              <td><strong>${formatInt(totalEnergy)}</strong></td><td><strong>${formatCHF(Math.round(totalCost))}</strong></td>${dhTotalCells}
+              <td><strong>${formatInt(totalEnergy)}</strong></td><td><strong>${formatInt(totalGridEnergy)}</strong></td><td><strong>${formatInt(totalChargingLosses)}</strong></td><td><strong>${formatCHF(Math.round(totalCost))}</strong></td>${dhTotalCells}
             </tr>
           </tbody>
         </table>
@@ -3542,10 +3596,11 @@ export const buildExportPayload = (features, effState, costState, emissionsState
       || (cd.electric.dieselHeatingMaintOpex ?? 0) > 0;
 
     const assumptions = {
-      energyPolicy: "grid-to-bus-dc-94-v1",
-      gridToBusEfficiency: 0.94,
-      annualGridEnergy_kWh: gridFromDc(cd.yearlyEnergyKwh),
-      annualChargingLosses_kWh: gridFromDc(cd.yearlyEnergyKwh) - cd.yearlyEnergyKwh,
+      energyPolicy: cd.assumptions.chargingEnergyPolicy,
+      gridToBusEfficiency: round(cd.assumptions.gridToBusEfficiency, 4),
+      electricityPriceBasis: "grid_energy",
+      annualGridEnergy_kWh: round(cd.yearlyGridEnergyKwh, 1),
+      annualChargingLosses_kWh: round(cd.yearlyChargingLossesKwh, 1),
       energyPrice_CHFPerKwh: round(cd.assumptions.energyPricePerKwh, 3),
       fuelPrice_CHFPerL: round(cd.assumptions.fuelPricePerL, 3),
       electricMaintenanceCost_CHFPerKm: round(cd.assumptions.electricMaintPerKm, 4),
@@ -3597,6 +3652,9 @@ export const buildExportPayload = (features, effState, costState, emissionsState
       annualSaving_CHF: round(cd.annualSaving, 0),
       breakEvenYear: cd.breakEvenYear != null ? round(cd.breakEvenYear, 1) : null,
       yearlyEnergy_kWh: round(cd.yearlyEnergyKwh, 1),
+      yearlyBusEnergyDC_kWh: round(cd.yearlyEnergyKwh, 1),
+      yearlyGridEnergy_kWh: round(cd.yearlyGridEnergyKwh, 1),
+      yearlyChargingLosses_kWh: round(cd.yearlyChargingLossesKwh, 1),
       yearlyDistance_km: round(cd.yearlyDistanceKm, 1),
       scenarioCosts: cd.scenarioCosts?.map((sc) => {
         const row = {
@@ -3604,9 +3662,15 @@ export const buildExportPayload = (features, effState, costState, emissionsState
           temperature_C: sc.temperature,
           daysPerYear: sc.occurrences,
           dailyEnergy_kWh: round(sc.dailyEnergy, 1),
+          dailyBusEnergyDC_kWh: round(sc.dailyEnergy, 1),
+          dailyGridEnergy_kWh: round(sc.dailyGridEnergy, 1),
+          dailyChargingLosses_kWh: round(sc.dailyChargingLosses, 1),
           dailyDistance_km: round(sc.dailyDistance, 1),
           energyPerKm_kWhPerKm: round(sc.energyPerKm, 4),
           annualEnergy_kWh: round(sc.annualEnergy, 1),
+          annualBusEnergyDC_kWh: round(sc.annualEnergy, 1),
+          annualGridEnergy_kWh: round(sc.annualGridEnergy, 1),
+          annualChargingLosses_kWh: round(sc.annualChargingLosses, 1),
           annualDistance_km: round(sc.annualDistance, 1),
           annualEnergyCost_CHF: round(sc.annualEnergyCost, 0),
         };

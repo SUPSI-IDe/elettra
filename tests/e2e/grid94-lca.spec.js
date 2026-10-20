@@ -8,14 +8,87 @@ test("scenario and total electricity costs apply exactly the same grid boundary"
   await page.goto("./");
   const values = await page.evaluate(async () => {
     const module = await import("/elettra/src/pages/Simulation/YearlyAnalysis/yearly-analysis-results.js");
+    const boundary = {policy:"grid-to-bus-dc-94-v1",dc_kwh:94,grid_kwh:100,
+      charging_losses_kwh:6,grid_to_bus_efficiency:.94};
     const raw = {auxiliary_heating_type:"default",annual_km:100,
-      assumptions:{yearly_electric_kwh:94,yearly_distance_km:100,energy_price_per_kwh:.2},
+      assumptions:{yearly_electric_kwh:94,yearly_distance_km:100,energy_price_per_kwh:.2,
+        energy_boundary:boundary},
       ebus:{opex_items:[]},diesel_comparator:{opex_items:[]},
-      scenarios:[{annual_electric_kwh:94, annual_distance_km:100,daily_electric_kwh:94,daily_distance_km:100,occurrences:1}]};
-    const mapped = module.mapBackendCostsToLocal(raw,100,94,{bus_length_m:12});
-    return {total:mapped.electric.energyOpex, scenario:mapped.scenarioCosts[0].annualEnergyCost};
+      scenarios:[{label:"Nominal",annual_electric_kwh:94,annual_distance_km:100,
+        daily_electric_kwh:94,daily_distance_km:100,occurrences:1,energy_boundary:boundary}]};
+    const bus = {bus_length_m:12,bus_lifetime:12,battery_pack_lifetime:8};
+    const mapped = module.mapBackendCostsToLocal(raw,100,94,bus);
+    const scaled = module.mapBackendCostsToLocal(raw,100,94,bus,{
+      overrides:{yearlyDistanceKm:200,energyPricePerKwh:.4},
+    });
+    const legacy = structuredClone(raw);
+    delete legacy.assumptions.energy_boundary;
+    delete legacy.scenarios[0].energy_boundary;
+    const mappedLegacy = module.mapBackendCostsToLocal(legacy,100,94,bus);
+    const localFeatures = {results:{optimizedPacks:0,
+      yearlyTotals:{totalEnergyKwh:94,distanceKm:100},
+      scenarioResults:[{label:"Nominal",temperature:20,occurrences:1,
+        kpis:{totalEnergyKwh:94,distanceKm:100,drivetrainEnergyKwh:80,auxiliaryEnergyKwh:14}}]}};
+    const local = module.computeYearlyCosts(localFeatures,bus,{energyPricePerKwh:.2});
+    const exportPayload = module.buildExportPayload(
+      localFeatures,{}, {status:"done",costsData:mapped}, {},bus,"case",
+    );
+    const malformed = structuredClone(raw);
+    malformed.assumptions.energy_boundary.charging_losses_kwh = 5;
+    const mismatched = structuredClone(raw);
+    mismatched.assumptions.energy_boundary.dc_kwh = 188;
+    mismatched.assumptions.energy_boundary.grid_kwh = 200;
+    mismatched.assumptions.energy_boundary.charging_losses_kwh = 12;
+    let malformedRejected = false;
+    let mismatchRejected = false;
+    try {
+      module.mapBackendCostsToLocal(malformed,100,94,bus);
+    } catch {
+      malformedRejected = true;
+    }
+    try {
+      module.mapBackendCostsToLocal(mismatched,100,94,bus);
+    } catch {
+      mismatchRejected = true;
+    }
+    const select = cost => ({
+      dc:cost.yearlyEnergyKwh,
+      grid:cost.yearlyGridEnergyKwh,
+      loss:cost.yearlyChargingLossesKwh,
+      total:cost.electric.energyOpex,
+      scenarioDc:cost.scenarioCosts[0].annualEnergy,
+      scenarioGrid:cost.scenarioCosts[0].annualGridEnergy,
+      scenarioLoss:cost.scenarioCosts[0].annualChargingLosses,
+      scenarioCost:cost.scenarioCosts[0].annualEnergyCost,
+    });
+    return {
+      mapped:select(mapped),scaled:select(scaled),legacy:select(mappedLegacy),local:select(local),
+      malformedRejected,mismatchRejected,
+      exported:exportPayload.costs,
+    };
   });
-  expect(values).toEqual({total:20,scenario:20});
+  expect(values.mapped).toEqual({dc:94,grid:100,loss:6,total:20,
+    scenarioDc:94,scenarioGrid:100,scenarioLoss:6,scenarioCost:20});
+  expect(values.scaled).toEqual({dc:188,grid:200,loss:12,total:80,
+    scenarioDc:188,scenarioGrid:200,scenarioLoss:12,scenarioCost:80});
+  expect(values.legacy).toEqual(values.mapped);
+  expect(values.local).toEqual(values.mapped);
+  expect(values.malformedRejected).toBe(true);
+  expect(values.mismatchRejected).toBe(true);
+  expect(values.exported.assumptions).toMatchObject({
+    energyPolicy:"grid-to-bus-dc-94-v1",gridToBusEfficiency:.94,
+    electricityPriceBasis:"grid_energy",annualGridEnergy_kWh:100,
+    annualChargingLosses_kWh:6,
+  });
+  expect(values.exported).toMatchObject({
+    yearlyEnergy_kWh:94,yearlyBusEnergyDC_kWh:94,yearlyGridEnergy_kWh:100,
+    yearlyChargingLosses_kWh:6,
+  });
+  expect(values.exported.scenarioCosts[0]).toMatchObject({
+    dailyEnergy_kWh:94,dailyBusEnergyDC_kWh:94,dailyGridEnergy_kWh:100,
+    dailyChargingLosses_kWh:6,annualEnergy_kWh:94,annualBusEnergyDC_kWh:94,
+    annualGridEnergy_kWh:100,annualChargingLosses_kWh:6,annualEnergyCost_CHF:20,
+  });
 });
 
 test("annual LCA preserves mileage controls, calls the backend again and keeps costs on failure", async ({page}) => {
@@ -48,10 +121,17 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
   await page.goto("./");
   await page.evaluate(async html => {
     localStorage.setItem("access_token", "fixture-token");
+    localStorage.setItem("elettra_lang", "en");
     const module = await import("/elettra/src/pages/Simulation/YearlyAnalysis/yearly-analysis-results.js");
     document.body.innerHTML = html;
     await module.initializeYearlyAnalysisResults(document, {analysisId:"case"});
   }, html);
+  await page.locator('[data-tab="costs"]').click();
+  const costsPanel = page.locator('[data-panel="costs"]');
+  await expect(costsPanel).toContainText("Annual bus energy (DC kWh)");
+  await expect(costsPanel).toContainText("Annual grid energy (kWh)");
+  await expect(costsPanel).toContainText("Charging losses (kWh)");
+  await expect(costsPanel).toContainText("from the grid");
   await page.locator('[data-tab="emissions"]').click();
   const controls = page.locator('[data-role="ya-env-controls"]');
   await expect(controls).toBeVisible();
