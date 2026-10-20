@@ -30,6 +30,9 @@ const MODE_DECISIONS = Object.freeze({
 const isRecord = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
+const hasOwn = (value, key) =>
+  isRecord(value) && Object.prototype.hasOwnProperty.call(value, key);
+
 const firstText = (...values) => {
   for (const value of values) {
     if (value === null || value === undefined) continue;
@@ -155,7 +158,10 @@ const resolveStationStatus = ({
   hasInstalledResult,
   installedSlots,
 }) => {
-  if (infrastructureDecision === FEASIBILITY_DECISION.FIXED && hasInput) {
+  if (
+    infrastructureDecision === FEASIBILITY_DECISION.FIXED &&
+    (hasInput || hasInstalledResult)
+  ) {
     return FEASIBILITY_STATION_STATUS.FIXED;
   }
   if (hasInstalledResult && installedSlots !== null) {
@@ -200,19 +206,29 @@ const normalizeStations = ({ inputParams, results, infrastructureDecision }) => 
         input.max_power_per_slot_kw ??
         input.power_per_slot_kw,
     );
-    const explicitTotalPowerKw = toNonNegativeNumber(
+    const installedTotalPowerKw = toNonNegativeNumber(
       installed.max_total_power_kw ??
         installed.total_power_kw ??
-        installed.max_power_kw ??
-        input.max_total_power_kw ??
+        installed.max_power_kw,
+    );
+    const configuredTotalPowerKw = toNonNegativeNumber(
+      input.max_total_power_kw ??
         input.total_power_kw ??
         input.max_power_kw,
     );
-    const totalPowerKw = explicitTotalPowerKw ?? (
+    const slotLimitedPowerKw =
       slots !== null && powerPerSlotKw !== null
         ? slots * powerPerSlotKw
-        : null
-    );
+        : null;
+    const totalPowerKw = hasInstalledResult
+      ? installedSlots === 0
+        ? 0
+        : installedTotalPowerKw ?? (
+          slotLimitedPowerKw !== null && configuredTotalPowerKw !== null
+            ? Math.min(slotLimitedPowerKw, configuredTotalPowerKw)
+            : slotLimitedPowerKw ?? configuredTotalPowerKw
+        )
+      : configuredTotalPowerKw ?? slotLimitedPowerKw;
     const status = resolveStationStatus({
       infrastructureDecision,
       hasInput,
@@ -233,7 +249,7 @@ const normalizeStations = ({ inputParams, results, infrastructureDecision }) => 
       selected:
         status === FEASIBILITY_STATION_STATUS.INSTALLED ||
         status === FEASIBILITY_STATION_STATUS.FIXED
-          ? slots !== null && slots > 0
+          ? slots === null ? null : slots > 0
           : status === FEASIBILITY_STATION_STATUS.REJECTED
             ? false
             : null,
@@ -242,8 +258,8 @@ const normalizeStations = ({ inputParams, results, infrastructureDecision }) => 
       slots,
       powerPerSlotKw,
       totalPowerKw,
-      slotCostsChf: Array.isArray(input.slot_costs_chf)
-        ? input.slot_costs_chf
+      slotCostsChf: Array.isArray(installed.slot_costs_chf ?? input.slot_costs_chf)
+        ? (installed.slot_costs_chf ?? input.slot_costs_chf)
             .map(toNonNegativeNumber)
             .filter((value) => value !== null)
         : [],
@@ -353,6 +369,18 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
     results,
     infrastructureDecision: decisions.infrastructure,
   });
+  const infrastructureInputAvailable = hasOwn(inputParams, "charging_stations");
+  const infrastructureResultAvailable = hasOwn(results, "installed_chargers");
+  const infrastructureDataAvailable =
+    infrastructureInputAvailable ||
+    infrastructureResultAvailable ||
+    hasOwn(results, "station_utilization");
+  const infrastructureSelectionComplete =
+    decisions.infrastructure === FEASIBILITY_DECISION.FIXED
+      ? infrastructureInputAvailable && stations.every((station) => station.selected !== null)
+      : decisions.infrastructure === FEASIBILITY_DECISION.OPTIMIZED
+        ? infrastructureResultAvailable && stations.every((station) => station.selected !== null)
+        : false;
 
   return {
     mode,
@@ -377,6 +405,9 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
     infrastructure: {
       scope: "shared",
       decision: decisions.infrastructure,
+      dataAvailable: infrastructureDataAvailable,
+      resultAvailable: infrastructureResultAvailable,
+      selectionComplete: infrastructureSelectionComplete,
       totalInstallationCostChf: toNonNegativeNumber(
         results.total_installation_cost_chf,
       ),

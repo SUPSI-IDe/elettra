@@ -40,7 +40,20 @@ const prediction = (id, shiftId, packs, consumption) => ({
   },
 });
 
-const mountResults = async (page, { shiftIds = ["morning", "evening"] } = {}) => {
+const mountResults = async (page, {
+  shiftIds = ["morning", "evening"],
+  mode = "battery_only",
+  chargingStations = [{
+    stop_id: "depot",
+    stop_name: "Depot",
+    num_slots: 2,
+    max_power_per_slot_kw: 150,
+  }],
+  installedChargers,
+  stationUtilization,
+  totalInstallationCostChf,
+  includeInfrastructureInput = true,
+} = {}) => {
   const shiftNames = {
     morning: "Morning service",
     evening: "Evening service",
@@ -64,19 +77,15 @@ const mountResults = async (page, { shiftIds = ["morning", "evening"] } = {}) =>
         json: {
           id: "level-test",
           name: "Multi-shift feasibility",
-          mode: "battery_only",
+          mode,
           status: "completed",
           input_params: {
             shift_ids: shiftIds,
-            mode: "battery_only",
+            mode,
             min_soc: 0.2,
             max_soc: 0.9,
-            charging_stations: [{
-              stop_id: "depot",
-              stop_name: "Depot",
-              num_slots: 2,
-              max_power_per_slot_kw: 150,
-            }],
+            ...(includeInfrastructureInput ? { charging_stations: chargingStations } : {}),
+            ...(mode === "charging_only" ? { fixed_battery_packs: 12 } : {}),
           },
           prediction_run_ids: shiftIds.map((shiftId) => `prediction-${shiftId}`),
           results: {
@@ -89,6 +98,15 @@ const mountResults = async (page, { shiftIds = ["morning", "evening"] } = {}) =>
               num_charging_sessions: 0,
               charging_sessions: [],
             })),
+            ...(installedChargers === undefined
+              ? {}
+              : { installed_chargers: installedChargers }),
+            ...(stationUtilization === undefined
+              ? {}
+              : { station_utilization: stationUtilization }),
+            ...(totalInstallationCostChf === undefined
+              ? {}
+              : { total_installation_cost_chf: totalInstallationCostChf }),
           },
         },
       });
@@ -156,6 +174,10 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(general.locator('[data-role="feasibility-shared-infrastructure"]')).toContainText("Fixed");
   await expect(general.locator('[data-role="feasibility-shift-count"]')).toContainText("2");
   await expect(general.locator('[data-role="feasibility-limiting-shifts"]')).toContainText("Evening service");
+  await expect(general.locator('[data-station-status="fixed"]')).toContainText("Fixed");
+  await expect(general.locator('[data-role="feasibility-active-locations"]')).toHaveText("1");
+  await expect(general.locator('[data-role="feasibility-total-plugs"]')).toHaveText("2");
+  await expect(general.locator('[data-role="feasibility-total-power"]')).toContainText("300");
 
   await expect(selector).toBeVisible();
   await expect(selector.locator('[data-action="select-shift"]')).toHaveCount(2);
@@ -178,10 +200,95 @@ test("keeps a single shift selected and hides a redundant selector", async ({ pa
 });
 
 test("renders unavailable values safely when a historical result has no shift details", async ({ page }) => {
-  await mountResults(page, { shiftIds: [] });
+  await mountResults(page, {
+    shiftIds: [],
+    includeInfrastructureInput: false,
+  });
 
   await expect(page.locator('[data-role="shift-tabs"]')).toBeHidden();
   await expect(page.locator('[data-role="feasibility-shift-count"]')).toContainText("0");
   await expect(page.locator('[data-role="feasibility-fleet-battery"] .feasibility-general-card__value')).toHaveText("—");
   await expect(page.locator('[data-role="feasibility-selected-shift"]')).toHaveText("—");
+  await expect(page.locator('[data-role="feasibility-infrastructure-unavailable"]')).toBeVisible();
+});
+
+test("shows one complete shared infrastructure for joint optimization across every shift", async ({ page }) => {
+  await mountResults(page, {
+    mode: "joint",
+    chargingStations: [
+      {
+        stop_id: "depot",
+        stop_name: "Depot",
+        num_slots: 3,
+        max_power_per_slot_kw: 150,
+        max_total_power_kw: 400,
+      },
+      {
+        stop_id: "terminal",
+        stop_name: "Terminal",
+        num_slots: 2,
+        max_power_per_slot_kw: 100,
+      },
+    ],
+    installedChargers: {
+      depot: { stop_name: "Depot", num_slots: 2, cost_chf: 30_000 },
+      terminal: { stop_name: "Terminal", num_slots: 0, cost_chf: 0 },
+    },
+    stationUtilization: {
+      depot: { peak_concurrent_buses: 2, total_energy_kwh: 420.5 },
+      terminal: { peak_concurrent_buses: 0, total_energy_kwh: 0 },
+    },
+    totalInstallationCostChf: 30_000,
+  });
+
+  const infrastructure = page.locator('[data-role="feasibility-infrastructure"]');
+  await expect(infrastructure).toContainText("Configuration available");
+  await expect(infrastructure.locator('tbody tr')).toHaveCount(2);
+  await expect(infrastructure.locator('[data-station-status="installed"]')).toContainText("Installed");
+  await expect(infrastructure.locator('[data-station-status="rejected"]')).toContainText("Not installed");
+  await expect(infrastructure.locator('[data-role="feasibility-active-locations"]')).toHaveText("1");
+  await expect(infrastructure.locator('[data-role="feasibility-total-plugs"]')).toHaveText("2");
+  await expect(infrastructure.locator('[data-role="feasibility-total-power"]')).toContainText("300");
+  await expect(infrastructure.locator('[data-role="feasibility-total-installation-cost"]')).toContainText(/30['’]000/);
+  await expect(infrastructure.locator('[data-station-status="installed"]')).toContainText("420.5");
+
+  await page.locator('[data-role="shift-tabs"]').getByRole("button", { name: "Evening service" }).click();
+  await expect(infrastructure.locator('[data-role="feasibility-active-locations"]')).toHaveText("1");
+  await expect(infrastructure.locator('tbody tr')).toHaveCount(2);
+});
+
+test("keeps unresolved candidates visible without presenting partial totals as final", async ({ page }) => {
+  await mountResults(page, {
+    mode: "charging_only",
+    chargingStations: [
+      { stop_id: "resolved", stop_name: "Resolved", num_slots: 2, max_power_per_slot_kw: 100 },
+      { stop_id: "pending", stop_name: "Pending", num_slots: 1, max_power_per_slot_kw: 150 },
+    ],
+    installedChargers: {
+      resolved: { stop_name: "Resolved", num_slots: 1, cost_chf: 10_000 },
+    },
+  });
+
+  const infrastructure = page.locator('[data-role="feasibility-infrastructure"]');
+  await expect(infrastructure).toContainText("Configuration incomplete");
+  await expect(infrastructure.locator('[data-role="feasibility-infrastructure-incomplete"]')).toBeVisible();
+  await expect(infrastructure.locator('[data-station-status="candidate"]')).toContainText("Candidate");
+  await expect(infrastructure.locator('[data-role="feasibility-active-locations"]')).toHaveText("—");
+  await expect(infrastructure.locator('[data-role="feasibility-total-plugs"]')).toHaveText("—");
+  await expect(infrastructure.locator('[data-role="feasibility-total-power"]')).toHaveText("—");
+});
+
+test("distinguishes a resolved configuration with no charging locations from missing data", async ({ page }) => {
+  await mountResults(page, {
+    mode: "joint",
+    chargingStations: [],
+    installedChargers: {},
+    totalInstallationCostChf: 0,
+  });
+
+  await expect(page.locator('[data-role="feasibility-infrastructure-empty"]')).toBeVisible();
+  await expect(page.locator('[data-role="feasibility-active-locations"]')).toHaveText("0");
+  await expect(page.locator('[data-role="feasibility-total-plugs"]')).toHaveText("0");
+  await expect(page.locator('[data-role="feasibility-total-power"]')).toContainText("0");
+  await expect(page.locator('[data-role="feasibility-total-installation-cost"]')).toContainText("CHF 0");
 });

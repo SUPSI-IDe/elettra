@@ -112,6 +112,86 @@ test("missing optional general fields remain empty instead of being inferred", (
   assert.deepEqual(view.general.mostDemandingShiftNames, []);
 });
 
+test("a complete shared infrastructure is summarized from active stations only", () => {
+  const source = model();
+  source.infrastructure = {
+    scope: "shared",
+    dataAvailable: true,
+    selectionComplete: true,
+    totalInstallationCostChf: "45000",
+    stations: [
+      { status: "installed", selected: true, slots: 2, totalPowerKw: 300 },
+      { status: "fixed", selected: true, slots: 1, totalPowerKw: 100 },
+      { status: "rejected", selected: false, slots: 0, totalPowerKw: 0 },
+    ],
+  };
+
+  const summary = buildFeasibilityViewState(source).general.infrastructureSummary;
+  assert.deepEqual(summary, {
+    dataAvailable: true,
+    selectionComplete: true,
+    stations: source.infrastructure.stations,
+    activeStationCount: 2,
+    totalSlots: 3,
+    totalPowerKw: 400,
+    totalInstallationCostChf: 45000,
+    statusCounts: { installed: 1, fixed: 1, rejected: 1 },
+  });
+});
+
+test("candidate or incomplete infrastructure never reports final zero totals", () => {
+  const source = model();
+  source.infrastructure = {
+    dataAvailable: true,
+    selectionComplete: false,
+    stations: [
+      { status: "installed", selected: true, slots: 1, totalPowerKw: 150 },
+      { status: "candidate", selected: null, slots: 2, totalPowerKw: 300 },
+    ],
+  };
+
+  const summary = buildFeasibilityViewState(source).general.infrastructureSummary;
+  assert.equal(summary.dataAvailable, true);
+  assert.equal(summary.selectionComplete, false);
+  assert.equal(summary.activeStationCount, null);
+  assert.equal(summary.totalSlots, null);
+  assert.equal(summary.totalPowerKw, null);
+  assert.deepEqual(summary.statusCounts, { installed: 1, candidate: 1 });
+});
+
+test("a resolved empty infrastructure reports real zero totals", () => {
+  const source = model();
+  source.infrastructure = {
+    dataAvailable: true,
+    selectionComplete: true,
+    totalInstallationCostChf: 0,
+    stations: [],
+  };
+
+  const summary = buildFeasibilityViewState(source).general.infrastructureSummary;
+  assert.equal(summary.activeStationCount, 0);
+  assert.equal(summary.totalSlots, 0);
+  assert.equal(summary.totalPowerKw, 0);
+  assert.equal(summary.totalInstallationCostChf, 0);
+});
+
+test("missing active-station power remains unavailable instead of becoming a partial total", () => {
+  const source = model();
+  source.infrastructure = {
+    dataAvailable: true,
+    selectionComplete: true,
+    stations: [
+      { status: "installed", selected: true, slots: 1, totalPowerKw: 150 },
+      { status: "installed", selected: true, slots: 1, totalPowerKw: null },
+    ],
+  };
+
+  const summary = buildFeasibilityViewState(source).general.infrastructureSummary;
+  assert.equal(summary.activeStationCount, 2);
+  assert.equal(summary.totalSlots, 2);
+  assert.equal(summary.totalPowerKw, null);
+});
+
 test("both feasibility levels are translated in every supported locale", () => {
   const keys = [
     "simulation.feasibility_general_level",
@@ -134,6 +214,24 @@ test("both feasibility levels are translated in every supported locale", () => {
     "simulation.feasibility_shift_level",
     "simulation.feasibility_shift_subtitle",
     "simulation.feasibility_shift_selector",
+    "simulation.feasibility_infrastructure_title",
+    "simulation.feasibility_infrastructure_subtitle",
+    "simulation.feasibility_infrastructure_complete",
+    "simulation.feasibility_infrastructure_incomplete",
+    "simulation.feasibility_infrastructure_unavailable",
+    "simulation.feasibility_infrastructure_empty",
+    "simulation.feasibility_infrastructure_incomplete_note",
+    "simulation.feasibility_active_locations",
+    "simulation.feasibility_station_status",
+    "simulation.feasibility_station_fixed",
+    "simulation.feasibility_station_candidate",
+    "simulation.feasibility_station_installed",
+    "simulation.feasibility_station_rejected",
+    "simulation.feasibility_station_configured",
+    "simulation.feasibility_total_charging_power",
+    "simulation.feasibility_peak_buses",
+    "simulation.feasibility_delivered_energy",
+    "simulation.feasibility_installation_cost",
   ];
 
   for (const [locale, dictionary] of Object.entries(translations)) {

@@ -6135,6 +6135,147 @@ const feasibilityDecisionTone = (decision) =>
     ? decision
     : "unknown";
 
+const feasibilityStationStatusLabel = (status) => {
+  const labels = {
+    fixed: ["simulation.feasibility_station_fixed", "Fixed"],
+    candidate: ["simulation.feasibility_station_candidate", "Candidate"],
+    installed: ["simulation.feasibility_station_installed", "Installed"],
+    rejected: ["simulation.feasibility_station_rejected", "Not installed"],
+    configured: ["simulation.feasibility_station_configured", "Configured"],
+  };
+  const [key, fallback] = labels[status] ?? labels.configured;
+  return translateOr(key, fallback);
+};
+
+const infrastructureMetricValue = (value, suffix = "") =>
+  value === null || value === undefined
+    ? "—"
+    : `${textContent(formatFixed(value, 0))}${suffix ? ` <small>${textContent(suffix)}</small>` : ""}`;
+
+const buildSharedInfrastructureDetailsHtml = (viewState) => {
+  const summary = viewState?.general?.infrastructureSummary ?? {};
+  const stations = Array.isArray(summary.stations) ? summary.stations : [];
+  const configurationState = summary.selectionComplete
+    ? translateOr("simulation.feasibility_infrastructure_complete", "Configuration available")
+    : translateOr("simulation.feasibility_infrastructure_incomplete", "Configuration incomplete");
+  const configurationTone = summary.selectionComplete ? "complete" : "incomplete";
+  let bodyHtml = "";
+
+  if (!summary.dataAvailable) {
+    bodyHtml = `<p class="efficiency-chart-empty" data-role="feasibility-infrastructure-unavailable">${textContent(
+      translateOr(
+        "simulation.feasibility_infrastructure_unavailable",
+        "Charging infrastructure details are not available for this result."
+      )
+    )}</p>`;
+  } else if (!stations.length) {
+    bodyHtml = `<p class="efficiency-chart-empty" data-role="feasibility-infrastructure-empty">${textContent(
+      translateOr(
+        "simulation.feasibility_infrastructure_empty",
+        "No charging locations are part of this configuration."
+      )
+    )}</p>`;
+  } else {
+    const rows = stations.map((station) => `
+      <tr data-station-status="${textContent(station.status ?? "configured")}">
+        <td>${textContent(station.stopName ?? station.stopId ?? "—")}</td>
+        <td>
+          <span class="feasibility-station-status feasibility-station-status--${textContent(
+            station.status ?? "configured"
+          )}">${textContent(feasibilityStationStatusLabel(station.status))}</span>
+        </td>
+        <td class="efficiency-td-num">${station.slots == null ? "—" : textContent(formatFixed(station.slots, 0))}</td>
+        <td class="efficiency-td-num">${station.powerPerSlotKw == null ? "—" : textContent(formatFixed(station.powerPerSlotKw, 0))}</td>
+        <td class="efficiency-td-num">${station.totalPowerKw == null ? "—" : textContent(formatFixed(station.totalPowerKw, 0))}</td>
+        <td class="efficiency-td-num">${station.peakConcurrentBuses == null ? "—" : textContent(formatFixed(station.peakConcurrentBuses, 0))}</td>
+        <td class="efficiency-td-num">${station.totalEnergyKwh == null ? "—" : textContent(formatFixed(station.totalEnergyKwh, 1))}</td>
+        <td class="efficiency-td-num">${station.installationCostChf == null ? "—" : textContent(`CHF ${formatCHF(station.installationCostChf)}`)}</td>
+      </tr>`).join("");
+
+    bodyHtml = `
+      ${summary.selectionComplete ? "" : `<p class="feasibility-infrastructure-notice" data-role="feasibility-infrastructure-incomplete">${textContent(
+        translateOr(
+          "simulation.feasibility_infrastructure_incomplete_note",
+          "The saved result does not contain a final decision for every charging location; final totals are not shown."
+        )
+      )}</p>`}
+      <div class="efficiency-table-wrap">
+        <table class="efficiency-table feasibility-infrastructure-table">
+          <thead>
+            <tr>
+              <th class="efficiency-th-text">${textContent(t("simulation.cs_stop_name") || "Stop")}</th>
+              <th class="efficiency-th-text">${textContent(
+                translateOr("simulation.feasibility_station_status", "Status")
+              )}</th>
+              <th>${textContent(t("simulation.cs_num_plugs") || "Plugs")}</th>
+              <th>${textContent(t("simulation.cs_power_per_plug") || "kW DC / plug")}</th>
+              <th>${textContent(
+                translateOr("simulation.feasibility_total_charging_power", "Total kW DC")
+              )}</th>
+              <th>${textContent(
+                translateOr("simulation.feasibility_peak_buses", "Peak buses")
+              )}</th>
+              <th>${textContent(
+                translateOr("simulation.feasibility_delivered_energy", "Delivered kWh")
+              )}</th>
+              <th>${textContent(
+                translateOr("simulation.feasibility_installation_cost", "Installation cost")
+              )}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  return `
+    <section class="feasibility-infrastructure" data-role="feasibility-infrastructure">
+      <div class="feasibility-infrastructure__header">
+        <div>
+          <h4>${textContent(
+            translateOr("simulation.feasibility_infrastructure_title", "Shared charging infrastructure")
+          )}</h4>
+          <p>${textContent(
+            translateOr(
+              "simulation.feasibility_infrastructure_subtitle",
+              "Global charging resources available to the whole fleet across all selected shifts."
+            )
+          )}</p>
+        </div>
+        <span class="feasibility-configuration-state feasibility-configuration-state--${configurationTone}">${textContent(
+          configurationState
+        )}</span>
+      </div>
+      <div class="feasibility-infrastructure-metrics">
+        <div>
+          <span>${textContent(
+            translateOr("simulation.feasibility_active_locations", "Active locations")
+          )}</span>
+          <strong data-role="feasibility-active-locations">${infrastructureMetricValue(summary.activeStationCount)}</strong>
+        </div>
+        <div>
+          <span>${textContent(t("simulation.cs_num_plugs") || "Plugs")}</span>
+          <strong data-role="feasibility-total-plugs">${infrastructureMetricValue(summary.totalSlots)}</strong>
+        </div>
+        <div>
+          <span>${textContent(
+            translateOr("simulation.feasibility_total_charging_power", "Total charging power")
+          )}</span>
+          <strong data-role="feasibility-total-power">${infrastructureMetricValue(summary.totalPowerKw, "kW DC")}</strong>
+        </div>
+        <div>
+          <span>${textContent(
+            translateOr("simulation.feasibility_installation_cost", "Installation cost")
+          )}</span>
+          <strong data-role="feasibility-total-installation-cost">${summary.totalInstallationCostChf == null
+            ? "—"
+            : textContent(`CHF ${formatCHF(summary.totalInstallationCostChf)}`)}</strong>
+        </div>
+      </div>
+      ${bodyHtml}
+    </section>`;
+};
+
 const buildFeasibilityGeneralLevelHtml = (viewState) => {
   const general = viewState?.general ?? {};
   const battery = general.battery ?? {};
@@ -6244,6 +6385,7 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
           )}</p>
         </article>
       </div>
+      ${buildSharedInfrastructureDetailsHtml(viewState)}
     </section>`;
 };
 

@@ -9,6 +9,53 @@ const text = (value) => {
   return normalized || null;
 };
 
+const nonNegativeNumber = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "boolean" ||
+    (typeof value === "string" && value.trim() === "")
+  ) {
+    return null;
+  }
+  const normalized = Number(value);
+  return Number.isFinite(normalized) && normalized >= 0 ? normalized : null;
+};
+
+const summarizeInfrastructure = (infrastructure) => {
+  const stations = Array.isArray(infrastructure.stations)
+    ? infrastructure.stations.filter(
+        (station) => station !== null && typeof station === "object" && !Array.isArray(station),
+      )
+    : [];
+  const activeStations = stations.filter((station) => station.selected === true);
+  const selectionComplete = infrastructure.selectionComplete === true;
+  const sumWhenComplete = (field) => {
+    if (!selectionComplete) return null;
+    const values = activeStations.map((station) => nonNegativeNumber(station[field]));
+    if (values.some((value) => value === null)) return activeStations.length ? null : 0;
+    return values.reduce((total, value) => total + value, 0);
+  };
+  const statusCounts = {};
+  for (const station of stations) {
+    const status = text(station.status) ?? "configured";
+    statusCounts[status] = (statusCounts[status] ?? 0) + 1;
+  }
+
+  return {
+    dataAvailable: infrastructure.dataAvailable === true || stations.length > 0,
+    selectionComplete,
+    stations,
+    activeStationCount: selectionComplete ? activeStations.length : null,
+    totalSlots: sumWhenComplete("slots"),
+    totalPowerKw: sumWhenComplete("totalPowerKw"),
+    totalInstallationCostChf: nonNegativeNumber(
+      infrastructure.totalInstallationCostChf,
+    ),
+    statusCounts,
+  };
+};
+
 /**
  * Builds the navigation state for the two feasibility-result levels.
  *
@@ -42,12 +89,14 @@ export function buildFeasibilityViewState(feasibilityModel = {}, requestedShiftI
   const fleet = asRecord(model.fleet);
   const battery = asRecord(fleet.battery);
   const infrastructure = asRecord(model.infrastructure);
+  const infrastructureSummary = summarizeInfrastructure(infrastructure);
 
   return {
     general: {
       fleet,
       battery,
       infrastructure,
+      infrastructureSummary,
       shiftCount: shiftOptions.length,
       sizingShiftNames: Array.isArray(battery.sizingShiftNames)
         ? battery.sizingShiftNames.map(text).filter(Boolean)

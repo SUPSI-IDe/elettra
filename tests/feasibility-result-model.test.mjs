@@ -74,6 +74,9 @@ test("a multi-shift battery-only run produces one common worst-case battery", ()
   );
   assert.equal(model.infrastructure.scope, "shared");
   assert.equal(model.infrastructure.decision, FEASIBILITY_DECISION.FIXED);
+  assert.equal(model.infrastructure.dataAvailable, true);
+  assert.equal(model.infrastructure.resultAvailable, false);
+  assert.equal(model.infrastructure.selectionComplete, true);
   assert.deepEqual(model.infrastructure.stations[0], {
     stopId: "depot",
     stopName: "Depot",
@@ -141,6 +144,9 @@ test("a charging-only run keeps the requested battery fixed and optimizes shared
   assert.deepEqual(model.fleet.battery.sizingShiftIds, []);
   assert.deepEqual(model.fleet.battery.mostDemandingShiftIds, ["night"]);
   assert.equal(model.infrastructure.decision, FEASIBILITY_DECISION.OPTIMIZED);
+  assert.equal(model.infrastructure.dataAvailable, true);
+  assert.equal(model.infrastructure.resultAvailable, true);
+  assert.equal(model.infrastructure.selectionComplete, false);
   assert.equal(model.infrastructure.totalInstallationCostChf, 25);
   assert.deepEqual(
     model.infrastructure.stations.map((station) => ({
@@ -160,6 +166,7 @@ test("a charging-only run keeps the requested battery fixed and optimizes shared
   assert.equal(model.infrastructure.stations[0].installationCostChf, 20);
   assert.equal(model.infrastructure.stations[0].peakConcurrentBuses, 2);
   assert.equal(model.infrastructure.stations[0].totalEnergyKwh, 420);
+  assert.equal(model.infrastructure.stations[1].totalPowerKw, 0);
 });
 
 test("joint mode marks both fleet battery and shared infrastructure as optimized", () => {
@@ -319,6 +326,81 @@ test("zero-slot optimized results are rejected while zero-slot fixed stations st
   assert.equal(optimized.infrastructure.stations[0].selected, false);
   assert.equal(fixed.infrastructure.stations[0].status, "fixed");
   assert.equal(fixed.infrastructure.stations[0].selected, false);
+});
+
+test("an optimized infrastructure is complete only when every candidate has a result", () => {
+  const complete = buildFeasibilityResultModel({
+    input_params: {
+      mode: "joint",
+      charging_stations: [
+        { stop_id: "installed", num_slots: 4, max_power_per_slot_kw: 100, max_total_power_kw: 300 },
+        { stop_id: "rejected", num_slots: 3, max_power_per_slot_kw: 150, max_total_power_kw: 400 },
+      ],
+    },
+    results: {
+      installed_chargers: {
+        installed: { num_slots: 2, slot_costs_chf: [20_000, 10_000] },
+        rejected: { num_slots: 0 },
+      },
+    },
+  });
+  const incomplete = buildFeasibilityResultModel({
+    input_params: {
+      mode: "joint",
+      charging_stations: [
+        { stop_id: "installed", num_slots: 2 },
+        { stop_id: "unresolved", num_slots: 1 },
+      ],
+    },
+    results: {
+      installed_chargers: { installed: { num_slots: 1 } },
+    },
+  });
+
+  assert.equal(complete.infrastructure.selectionComplete, true);
+  assert.equal(complete.infrastructure.stations[0].totalPowerKw, 200);
+  assert.deepEqual(complete.infrastructure.stations[0].slotCostsChf, [20_000, 10_000]);
+  assert.equal(complete.infrastructure.stations[1].totalPowerKw, 0);
+  assert.equal(incomplete.infrastructure.selectionComplete, false);
+  assert.equal(incomplete.infrastructure.stations[1].status, "candidate");
+  assert.equal(incomplete.infrastructure.stations[1].selected, null);
+});
+
+test("empty infrastructure data is distinct from unavailable infrastructure data", () => {
+  const fixedEmpty = buildFeasibilityResultModel({
+    input_params: { mode: "battery_only", charging_stations: [] },
+    results: {},
+  });
+  const optimizedEmpty = buildFeasibilityResultModel({
+    input_params: { mode: "joint", charging_stations: [] },
+    results: { installed_chargers: {} },
+  });
+  const unavailable = buildFeasibilityResultModel({
+    input_params: { mode: "joint" },
+    results: {},
+  });
+
+  assert.equal(fixedEmpty.infrastructure.dataAvailable, true);
+  assert.equal(fixedEmpty.infrastructure.selectionComplete, true);
+  assert.equal(optimizedEmpty.infrastructure.dataAvailable, true);
+  assert.equal(optimizedEmpty.infrastructure.selectionComplete, true);
+  assert.equal(unavailable.infrastructure.dataAvailable, false);
+  assert.equal(unavailable.infrastructure.selectionComplete, false);
+});
+
+test("a fixed result-only station keeps fixed provenance and an unknown slot count", () => {
+  const model = buildFeasibilityResultModel({
+    input_params: { mode: "battery_only" },
+    results: {
+      installed_chargers: {
+        legacy: { stop_name: "Legacy depot" },
+      },
+    },
+  });
+
+  assert.equal(model.infrastructure.stations[0].status, "fixed");
+  assert.equal(model.infrastructure.stations[0].selected, null);
+  assert.equal(model.infrastructure.selectionComplete, false);
 });
 
 test("result-only stations and shifts are retained after requested items, and input is never mutated", () => {
