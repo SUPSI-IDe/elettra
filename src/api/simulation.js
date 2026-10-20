@@ -16,6 +16,10 @@ import { selectOptimizationReferences } from "../utils/optimization-references";
 import { readDeleteResponse } from "./delete-response";
 import { createPredictionRunIndex } from "./prediction-run-index";
 import { buildPredictionRunRequestBody } from "./prediction-request";
+import {
+  buildYearlyAnalysisLcaUrl,
+  parameterizedLcaErrorMessage,
+} from "./lca-request";
 
 const SIMULATION_PATH = `${API_ROOT}/api/v1/simulation`;
 const YEARLY_ANALYSIS_PATH = `${API_ROOT}/api/v1/yearly-analysis`;
@@ -1028,14 +1032,10 @@ export const fetchYearlyAnalysisEmissions = async (id, params = {}) => {
 
 export const fetchYearlyAnalysisLca = async (id, params = {}, { signal } = {}) => {
   if (!id) throw new Error("Missing yearly analysis ID.");
-  const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value != null && value !== "") query.set(key, String(value));
-  }
-  const response = await fetch(`${YEARLY_ANALYSIS_PATH}/${encodeURIComponent(id)}/lca?${query}`, {
+  const response = await fetch(buildYearlyAnalysisLcaUrl(YEARLY_ANALYSIS_PATH, id, params), {
     method: "GET", headers: authHeaders(), signal,
   });
   const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(typeof payload?.detail === "string" ? payload.detail : "Unable to load parameterized LCA.");
+  if (!response.ok) throw new Error(parameterizedLcaErrorMessage(payload));
   return payload;
 };
