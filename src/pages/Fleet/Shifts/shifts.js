@@ -313,7 +313,7 @@ const updateSortHeaders = (table, sortState) => {
   });
 };
 
-const renderRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
+export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
   if (!tbody) {
     return;
   }
@@ -331,7 +331,7 @@ const renderRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
       const isSelected = selectedIds.has(rowId);
 
       return `
-                <tr data-id="${rowId}" data-name="${rowName}" data-bus="${rowBus}">
+                <tr data-id="${textContent(rowId)}" data-name="${textContent(rowName)}" data-bus="${textContent(rowBus)}">
                     <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("shifts.select_shift"))}" ${
                       isSelected ? "checked" : ""
                     }></td>
@@ -369,6 +369,11 @@ const getSelectedIdsFrom = (table) =>
   )
     .map((input) => input.closest("tr")?.dataset?.id)
     .filter(Boolean);
+
+const findRowById = (tbody, id) =>
+  Array.from(tbody?.querySelectorAll("tr[data-id]") ?? []).find(
+    (row) => row.dataset.id === text(id)
+  );
 
 export const initializeShifts = async (root = document, options = {}) => {
   const section = root.querySelector("section.shifts");
@@ -558,7 +563,7 @@ export const initializeShifts = async (root = document, options = {}) => {
   const renderCurrentView = () => {
     const selectedIds = new Set(getSelectedIdsFrom(table));
     const visibleShifts = sortShifts(getFilteredShifts(), sortState);
-    renderRows(tbody, visibleShifts, { selectedIds });
+    renderShiftRows(tbody, visibleShifts, { selectedIds });
     updateSortHeaders(table, sortState);
     bindSelectAll(headerCheckbox, table);
   };
@@ -569,7 +574,7 @@ export const initializeShifts = async (root = document, options = {}) => {
       return;
     }
 
-    const row = tbody.querySelector(`tr[data-id="${rowId}"]`);
+    const row = findRowById(tbody, rowId);
     if (!row) {
       return;
     }

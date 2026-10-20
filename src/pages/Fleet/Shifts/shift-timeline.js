@@ -1,4 +1,4 @@
-import { textContent } from "../../../ui-helpers";
+import { toText } from "../../../ui-helpers";
 import { t } from "../../../i18n";
 import { text, parseTimeToMinutes, formatMinutes } from "./shift-utils";
 
@@ -25,7 +25,7 @@ const ensurePlaceholder = (container, message) => {
   container.innerHTML = "";
   const paragraph = document.createElement("p");
   paragraph.className = "timeline__placeholder";
-  paragraph.textContent = textContent(message ?? "");
+  paragraph.textContent = toText(message ?? "");
   container.append(paragraph);
 };
 
@@ -309,7 +309,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     .style("justify-content", "flex-end")
     .style("text-align", "right")
     .style("line-height", "1.2")
-    .text((stop) => textContent(stop));
+    .text((stop) => toText(stop));
 
   const serieGroup = root.append("g").attr("class", "timeline__series");
 

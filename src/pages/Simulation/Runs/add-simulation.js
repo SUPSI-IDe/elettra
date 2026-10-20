@@ -16,6 +16,7 @@ import { getCurrentUserId } from "../../../store";
 import { triggerPartialLoad } from "../../../events";
 import {
   textContent,
+  toText,
   resolveBusModelDisplayName,
 } from "../../../ui-helpers";
 import {
@@ -33,6 +34,11 @@ import { normalizeOptimizationRunName } from "../../../utils/optimization-run";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
+
+const findRowById = (tbody, id) =>
+  Array.from(tbody?.querySelectorAll("tr[data-id]") ?? []).find(
+    (row) => row.dataset.id === text(id)
+  );
 
 const normalizeAuxiliaryHeatingTypeForForm = (value) => {
   const heatingType = text(value).trim().toLowerCase();
@@ -172,7 +178,7 @@ const updateSortHeaders = (table, sortState) => {
   });
 };
 
-const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
+export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
   if (!tbody) return;
   if (!shifts.length) {
     tbody.innerHTML = `<tr><td colspan="5">${textContent(t("simulation.no_shifts_in_table") || "No shifts found.")}</td></tr>`;
@@ -190,7 +196,7 @@ const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) =
         shift._resolved_yearly_distance_label ?? formatShiftDistanceValue(null)
       );
       return `
-        <tr data-id="${shiftId}">
+        <tr data-id="${textContent(shiftId)}">
           <td class="checkbox">
             <input type="checkbox" aria-label="${textContent(t("simulation.select_shift") || "Select shift")}" ${
               selectedIds.has(shiftId) ? "checked" : ""
@@ -681,18 +687,18 @@ export const initializeAddSimulation = async (
             return;
           }
 
-          const row = shiftTbody?.querySelector(`tr[data-id="${text(shift.id)}"]`);
+          const row = findRowById(shiftTbody, shift.id);
           const distanceCell = row?.querySelector('[data-role="shift-distance"]');
           const yearlyDistanceCell = row?.querySelector(
             '[data-role="shift-yearly-distance"]'
           );
           if (distanceCell) {
-            distanceCell.textContent = textContent(
+            distanceCell.textContent = toText(
               shift._resolved_daily_distance_label
             );
           }
           if (yearlyDistanceCell) {
-            yearlyDistanceCell.textContent = textContent(
+            yearlyDistanceCell.textContent = toText(
               shift._resolved_yearly_distance_label
             );
           }
@@ -979,9 +985,7 @@ export const initializeAddSimulation = async (
       selectedShiftIds = new Set(normalizedShiftIds);
       renderCurrentView();
 
-      const row = shiftTbody.querySelector(
-        `tr[data-id="${text(normalizedShiftIds[0])}"]`
-      );
+      const row = findRowById(shiftTbody, normalizedShiftIds[0]);
       if (row) {
         const checkbox = row.querySelector('input[type="checkbox"]');
         if (checkbox) {

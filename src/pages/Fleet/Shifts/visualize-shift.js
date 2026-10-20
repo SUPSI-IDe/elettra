@@ -8,7 +8,7 @@ import {
   fetchBusModelById,
 } from "../../../api";
 import { triggerPartialLoad } from "../../../events";
-import { textContent, resolveBusModelDisplayName } from "../../../ui-helpers";
+import { toText, resolveBusModelDisplayName } from "../../../ui-helpers";
 import {
   extractShiftDistanceKm,
   formatDistanceKm,
@@ -99,7 +99,7 @@ export const initializeVisualizeShift = async (
       return;
     }
     const resolved = text(value).trim() || fallback;
-    node.textContent = textContent(resolved);
+    node.textContent = toText(resolved);
   };
 
   const tripsBody = section.querySelector('tbody[data-role="trips-body"]');
@@ -155,7 +155,7 @@ export const initializeVisualizeShift = async (
       const endName = text(trip?.end_stop_name ?? "");
       routeCell.textContent =
         startName && endName ?
-          `${textContent(startName)} – ${textContent(endName)}`
+          `${toText(startName)} – ${toText(endName)}`
         : startName || endName || "—";
 
       row.append(timeCell, routeCell);

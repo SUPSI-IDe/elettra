@@ -14,6 +14,7 @@ import {
 import { resolveUserId, isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
+import { textContent } from "../../../ui-helpers";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -25,7 +26,7 @@ const getSelectedIdsFrom = (container) =>
     .map((input) => input.closest("tr")?.dataset?.id)
     .filter(Boolean);
 
-const renderRows = (tbody, depots = []) => {
+export const renderCustomStopRows = (tbody, depots = []) => {
   if (!tbody) {
     return;
   }
@@ -34,7 +35,7 @@ const renderRows = (tbody, depots = []) => {
     tbody.innerHTML = `
             <tr class="table-state-row">
                 <td class="checkbox"></td>
-                <td class="id table-state-cell table-empty" colspan="3">${t("custom_stops.no_stops_found")}</td>
+                <td class="id table-state-cell table-empty" colspan="3">${textContent(t("custom_stops.no_stops_found"))}</td>
             </tr>
         `;
     return;
@@ -43,12 +44,12 @@ const renderRows = (tbody, depots = []) => {
   const rows = depots
     .map(
       (depot = {}) => `
-                <tr data-id="${text(depot?.id)}">
-                    <td class="checkbox"><input type="checkbox" aria-label="${t("custom_stops.select_stop")}"></td>
+                <tr data-id="${textContent(depot?.id)}">
+                    <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("custom_stops.select_stop"))}"></td>
 
-                    <td class="name">${text(depot?.name)}</td>
-                    <td class="type">${t("custom_stops.type_depot")}</td>
-                    <td class="address">${text(depot?.address)}</td>
+                    <td class="name">${textContent(depot?.name)}</td>
+                    <td class="type">${textContent(t("custom_stops.type_depot"))}</td>
+                    <td class="address">${textContent(depot?.address)}</td>
                 </tr>
             `
     )
@@ -65,7 +66,7 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
         <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="id table-state-cell table-empty" colspan="3">${t("common.loading")}</td>
+            <td class="id table-state-cell table-empty" colspan="3">${textContent(t("common.loading"))}</td>
         </tr>
     `;
 };
@@ -78,7 +79,7 @@ const renderError = (tbody, message = t("custom_stops.unable_to_load")) => {
   tbody.innerHTML = `
         <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="id table-state-cell table-empty" colspan="3">${text(message)}</td>
+            <td class="id table-state-cell table-empty" colspan="3">${textContent(message)}</td>
         </tr>
     `;
 };
@@ -141,7 +142,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
         )
       : allDepots;
 
-    renderRows(tbody, filtered);
+    renderCustomStopRows(tbody, filtered);
     bindSelectAll(headerCheckbox, table);
   };
 

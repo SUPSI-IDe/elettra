@@ -66,7 +66,7 @@ export const renderShiftTrips = (tbody, trips = []) => {
       const end = text(trip?.end_stop_name ?? trip?.endStopName ?? "");
 
       return `
-                <tr data-trip-id="${tripId}">
+                <tr data-trip-id="${textContent(tripId)}">
                     <td class="start-time">${textContent(departureTime || "—")}</td>
                     <td class="end-time">${textContent(arrivalTime || "—")}</td>
                     <td class="route">${textContent(
@@ -132,7 +132,7 @@ export const renderScheduledTrips = ({
       );
 
       return `
-                <tr data-trip-id="${id}">
+                <tr data-trip-id="${textContent(id)}">
                     <td class="time">${textContent(departureTime || "—")}</td>
                     <td class="end-time">${textContent(arrivalTime || "—")}</td>
                     <td class="route">${textContent(
@@ -176,7 +176,7 @@ export const renderRouteOptions = (select, routes = []) => {
         }
         seenLabels.add(displayLabel);
         map[id] = displayLabel;
-        return `<option value="${id}">${textContent(displayLabel)}</option>`;
+        return `<option value="${textContent(id)}">${textContent(displayLabel)}</option>`;
       })
       .filter(Boolean),
   ].join("");
@@ -210,7 +210,7 @@ export const renderBusOptions = (select, buses = [], modelsById = {}) => {
     const bus = busByModelId[modelId];
     const value = bus ? text(bus.id) : text(modelId);
     modelOptions.push(
-      `<option value="${value}" data-bus-model-id="${textContent(modelId)}">${textContent(label)}</option>`
+      `<option value="${textContent(value)}" data-bus-model-id="${textContent(modelId)}">${textContent(label)}</option>`
     );
   }
 
@@ -236,7 +236,7 @@ export const renderDepotOptions = (select, depots = []) => {
           t("shifts.depot_fallback", { id: depot.id }) ||
           `Depot ${depot.id}`;
         const label = depot?.name ?? depot?.label ?? fallbackLabel;
-        return `<option value="${text(depot.id)}">${textContent(label)}</option>`;
+        return `<option value="${textContent(depot.id)}">${textContent(label)}</option>`;
       }),
   ].join("");
 

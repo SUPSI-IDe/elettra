@@ -54,6 +54,34 @@ const setFlashMessage = (section, message) => {
   }
 };
 
+export const buildYearlyAnalysisRowsMarkup = (analyses = []) =>
+  analyses
+    .map((analysis = {}) => {
+      const id = text(analysis.id);
+      const features = analysis.features ?? {};
+      const meta = features.meta ?? {};
+      const shifts = (meta.shiftNames ?? []).join(", ") || "—";
+      const mode = modeLabel(features.config?.mode, meta.modeLabel);
+      const status = features.status ?? "—";
+      const statusClass =
+        { completed: "completed", partial: "partial", failed: "failed" }[
+          status
+        ] ?? "";
+
+      return `<tr data-id="${textContent(id)}">
+        <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("yearly_analysis.select_analysis"))}" /></td>
+        <td>${textContent(formatDate(analysis.created_at))}</td>
+        <td>${textContent(analysis.name || "—")}</td>
+        <td title="${textContent(shifts)}">${textContent(shifts)}</td>
+        <td>${textContent(mode)}</td>
+        <td><span class="ya-status-badge ${statusClass}">${textContent(statusLabel(status))}</span></td>
+        <td class="ya-actions-cell">
+          <a class="ya-results-link table-action-link" data-action="view-results" data-id="${textContent(id)}">${textContent(t("common.view"))}</a>
+        </td>
+      </tr>`;
+    })
+    .join("");
+
 export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
   const section = root.querySelector("section.yearly-analysis-runs");
   if (!section) return null;
@@ -113,28 +141,7 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
     if (emptyMsg) emptyMsg.hidden = true;
 
     if (tbody) {
-      tbody.innerHTML = filteredAnalyses
-        .map((a) => {
-          const id = text(a.id);
-          const f = a.features ?? {};
-          const meta = f.meta ?? {};
-          const shifts = (meta.shiftNames ?? []).join(", ") || "—";
-          const mode = modeLabel(f.config?.mode, meta.modeLabel);
-          const status = f.status ?? "—";
-          const statusCls = { completed: "completed", partial: "partial", failed: "failed" }[status] ?? "";
-          return `<tr data-id="${textContent(id)}">
-            <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("yearly_analysis.select_analysis"))}" /></td>
-            <td>${textContent(formatDate(a.created_at))}</td>
-            <td>${textContent(a.name || "—")}</td>
-            <td title="${textContent(shifts)}">${textContent(shifts)}</td>
-            <td>${textContent(mode)}</td>
-            <td><span class="ya-status-badge ${statusCls}">${textContent(statusLabel(status))}</span></td>
-            <td class="ya-actions-cell">
-              <a class="ya-results-link table-action-link" data-action="view-results" data-id="${textContent(id)}">${textContent(t("common.view"))}</a>
-            </td>
-          </tr>`;
-        })
-        .join("");
+      tbody.innerHTML = buildYearlyAnalysisRowsMarkup(filteredAnalyses);
     }
 
     if (selectAllCb && table) {

@@ -97,7 +97,7 @@ export const renderModels = (tbody, models = []) => {
       const maxCharging = textContent(specs?.max_charging_power_kw ?? "");
 
       return `
-                <tr data-id="${String(raw?.id ?? "")}">
+                <tr data-id="${textContent(raw?.id ?? "")}">
                     <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("buses.select_bus_model"))}"></td>
                     <td class="name">${name}</td>
                     <td class="model">${categoryLabel}</td>
@@ -138,7 +138,7 @@ export const renderBusesList = (tbody, buses = [], modelsById = {}) => {
         bus?.description ?? bus?.specs?.description ?? modelDescription ?? "";
 
       return `
-                <tr data-id="${String(bus?.id ?? "")}">
+                <tr data-id="${textContent(bus?.id ?? "")}">
                     <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("buses.select_bus"))}"></td>
                     <td class="name">${textContent(bus?.name ?? "")}</td>
                     <td class="model">${textContent(modelName)}</td>

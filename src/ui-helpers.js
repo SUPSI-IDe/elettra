@@ -1,7 +1,11 @@
 import { inferVehicleCategoryFromSpecs } from "./config/vehicle-categories";
+import { escapeHtml, toText } from "./utils/html.js";
 
-export const textContent = (value) =>
-    value === null || value === undefined ? '' : String(value);
+export { escapeHtml, toText };
+
+// Existing template renderers import this name. Keep it as a safe alias while
+// those call sites are migrated independently from the security fix.
+export const textContent = escapeHtml;
 
 const parseSpecs = (specs) => {
     if (!specs) return {};
@@ -29,8 +33,8 @@ export const resolveModelFields = (item = {}) => {
         item.note ??
         '';
     return {
-        model: textContent(model),
-        description: textContent(description),
+        model: toText(model),
+        description: toText(description),
     };
 };
 
@@ -46,7 +50,7 @@ export const resolveBusModelDisplayName = (item = {}) => {
         item.name ??
         item.title ??
         '';
-    return textContent(value);
+    return toText(value);
 };
 
 export const toggleFormDisabled = (form, disabled) => {

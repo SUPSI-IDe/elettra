@@ -677,7 +677,7 @@ const updateMainParametersTooltip = (section) => {
     "Temperature, occupancy, and minimum/maximum SoC used for the simulation.";
 };
 
-const renderRows = (tbody, runs = []) => {
+export const renderSimulationRunRows = (tbody, runs = []) => {
   if (!tbody) return;
 
   if (!Array.isArray(runs) || runs.length === 0) {
@@ -706,10 +706,10 @@ const renderRows = (tbody, runs = []) => {
       const feasibilityLabel = formatFeasibilityLabel(feasible, run);
       const feasibilityCls = feasibilityBadgeClass(feasible);
 
-      const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${rowId}">${t("simulation.col_results") || "Results"}</a>`;
+      const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${textContent(rowId)}">${textContent(t("simulation.col_results") || "Results")}</a>`;
 
       return `
-        <tr data-id="${rowId}">
+        <tr data-id="${textContent(rowId)}">
           <td class="checkbox">
             <input type="checkbox" aria-label="${textContent(t("simulation.select_run") || "Select run")}" />
           </td>
@@ -721,7 +721,7 @@ const renderRows = (tbody, runs = []) => {
           <td class="main-parameters">${textContent(mainParameters)}</td>
           <td class="type">${textContent(mode)}</td>
           <td class="status">
-            <span class="status-badge ${status}">${textContent(formatStatusLabel(status))}</span>
+            <span class="status-badge ${textContent(status)}">${textContent(formatStatusLabel(status))}</span>
           </td>
           <td class="feasibility">
             <span class="status-badge ${feasibilityCls}">${textContent(feasibilityLabel)}</span>
@@ -974,7 +974,7 @@ export const initializeSimulationRuns = async (
         )
       : allRuns;
 
-    renderRows(tbody, sortRuns(filtered, sortState));
+    renderSimulationRunRows(tbody, sortRuns(filtered, sortState));
     updateSortHeaders(table, sortState);
     bindSelectAll(headerCheckbox, table);
   };

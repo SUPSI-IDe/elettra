@@ -3,7 +3,7 @@ import { gridFromDc } from "../../../utils/charging-energy";
 import { mapParameterizedLca, renderParameterizedLca } from "./parameterized-lca";
 import "./yearly-analysis-results.css";
 import { openPartialInNewTab, triggerPartialLoad } from "../../../events";
-import { textContent } from "../../../ui-helpers";
+import { textContent, toText } from "../../../ui-helpers";
 import {
   fetchYearlyAnalysis,
   fetchYearlyAnalysisCosts,
@@ -146,7 +146,7 @@ const formatInt = (v) => {
 
 const formatCHF = (v) => {
   const n = Number(v);
-  return Number.isNaN(n) ? String(v) : n.toLocaleString("de-CH");
+  return Number.isFinite(n) ? n.toLocaleString("de-CH") : "—";
 };
 
 const feasibilityBadge = (v) => {
@@ -657,7 +657,7 @@ const renderBatterySizing = (features, optimizationRunId) => {
 
   const items = [];
   if (sizingTemp != null) items.push(`<div class="ya-non-additive-item"><span class="ya-non-additive-label">${textContent(t("yearly_analysis.sizing_temperature"))}</span><span class="ya-highlight-value">${formatFixed(sizingTemp, 1)} °C</span></div>`);
-  items.push(`<div class="ya-non-additive-item"><span class="ya-non-additive-label">${textContent(t("simulation.inv_opt_packs"))}</span><span class="ya-highlight-value">${packs}</span></div>`);
+  items.push(`<div class="ya-non-additive-item"><span class="ya-non-additive-label">${textContent(t("simulation.inv_opt_packs"))}</span><span class="ya-highlight-value">${textContent(packs)}</span></div>`);
   if (baseFeasible != null) items.push(`<div class="ya-non-additive-item"><span class="ya-non-additive-label">${textContent(t("yearly_analysis.feasibility_result"))}</span><span>${textContent(baseFeasible ? t("simulation.feasibility_feasible") : t("simulation.feasibility_infeasible"))}</span></div>`);
   if (optimizationRunId) items.push(`<div class="ya-non-additive-item"><span class="ya-non-additive-label">${textContent(t("yearly_analysis.base_evaluation"))}</span><span class="ya-mono">${textContent(text(optimizationRunId).slice(0, 8))}…</span></div>`);
 
@@ -689,7 +689,7 @@ const renderScenarioTable = (enriched = []) => {
   const colSpan = headers.length - 2;
   const rows = enriched.map((sr) => {
     if (sr.error) {
-      return `<tr><td>${textContent(sr.label)}</td><td>${formatFixed(sr.temperature, 1)}</td><td>${sr.occurrences}</td><td colspan="${colSpan}" class="ya-scenario-error">${textContent(sr.error)}</td></tr>`;
+      return `<tr><td>${textContent(sr.label)}</td><td>${formatFixed(sr.temperature, 1)}</td><td>${textContent(sr.occurrences)}</td><td colspan="${colSpan}" class="ya-scenario-error">${textContent(sr.error)}</td></tr>`;
     }
     const k = sr.kpis ?? {};
     const d = sr.derived ?? {};
@@ -699,7 +699,7 @@ const renderScenarioTable = (enriched = []) => {
     return `<tr>
       <td>${textContent(sr.label)}</td>
       <td>${formatFixed(sr.temperature, 1)}</td>
-      <td>${sr.occurrences}</td>
+      <td>${textContent(sr.occurrences)}</td>
       <td>${formatFixed(k.totalEnergyKwh, 1)}</td>
       <td>${formatFixed(k.drivetrainEnergyKwh, 1)}</td>
       <td>${formatFixed(k.auxiliaryEnergyKwh, 1)}</td>
@@ -1765,8 +1765,7 @@ const renderCostsKpis = (el, cd) => {
    accessible name. */
 const infoTip = (text) => {
   const value = textContent(text);
-  const label = value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-  return `<button type="button" class="ya-info-icon" aria-label="${label}">i<span class="ya-info-tooltip">${value}</span></button>`;
+  return `<button type="button" class="ya-info-icon" aria-label="${value}">i<span class="ya-info-tooltip">${value}</span></button>`;
 };
 
 let methodologyPopoverSequence = 0;
@@ -1822,7 +1821,7 @@ const renderElectricOpexBreakdown = (el, cd) => {
   const avgKwhKm = cd.yearlyEnergyKwh > 0 && km > 0 ? cd.yearlyEnergyKwh / km : null;
 
   const nSc = (cd.scenarioCosts ?? []).length;
-  const energyTip = infoTip(textContent(t("yearly_analysis.energy_cost_tooltip", { count: nSc, energy: formatInt(cd.yearlyEnergyKwh), distance: formatInt(km), average: avgKwhKm != null ? formatFixed(avgKwhKm, 3) : "—", price: formatFixed(cd.assumptions.energyPricePerKwh, 2) })));
+  const energyTip = infoTip(t("yearly_analysis.energy_cost_tooltip", { count: nSc, energy: formatInt(cd.yearlyEnergyKwh), distance: formatInt(km), average: avgKwhKm != null ? formatFixed(avgKwhKm, 3) : "—", price: formatFixed(cd.assumptions.energyPricePerKwh, 2) }));
   const maintTip = infoTip(`${formatInt(km)} km × ${formatFixed(cd.assumptions.electricMaintPerKm, 4)} CHF/km.`);
 
   const dhFuel = toFiniteNumber(cd.electric.dieselHeatingFuelOpex) ?? 0;
@@ -1833,8 +1832,8 @@ const renderElectricOpexBreakdown = (el, cd) => {
   const dhLiters = toFiniteNumber(cd.assumptions?.yearlyDieselHeatingLiters) ?? 0;
   const dhMaintFactor = toFiniteNumber(cd.assumptions?.dieselHeatingMaintenanceFactor) ?? 0;
 
-  const dhFuelTip = showDh ? infoTip(textContent(t("yearly_analysis.diesel_heating_fuel_tooltip", { liters: formatFixed(dhLiters, 1), price: formatFixed(cd.assumptions.fuelPricePerL, 2) }))) : "";
-  const dhMaintTip = showDh ? infoTip(textContent(t("yearly_analysis.diesel_heating_maintenance_tooltip", { maintenance: formatFixed(cd.assumptions.electricMaintPerKm, 4), factor: dhMaintFactor, distance: formatInt(km) }))) : "";
+  const dhFuelTip = showDh ? infoTip(t("yearly_analysis.diesel_heating_fuel_tooltip", { liters: formatFixed(dhLiters, 1), price: formatFixed(cd.assumptions.fuelPricePerL, 2) })) : "";
+  const dhMaintTip = showDh ? infoTip(t("yearly_analysis.diesel_heating_maintenance_tooltip", { maintenance: formatFixed(cd.assumptions.electricMaintPerKm, 4), factor: dhMaintFactor, distance: formatInt(km) })) : "";
 
   const dhRows = showDh ? `
             <tr>
@@ -1885,7 +1884,7 @@ const renderDieselOpexBreakdown = (el, cd) => {
   const fuelPrice = cd.assumptions?.fuelPricePerL ?? 0;
   const dieselMaintPerKm = cd.assumptions?.dieselMaintPerKm ?? 0;
 
-  const fuelTip = infoTip(textContent(t("yearly_analysis.diesel_fuel_tooltip", { distance: formatInt(km), efficiency: formatFixed(dieselEff, 4), price: formatFixed(fuelPrice, 2) })));
+  const fuelTip = infoTip(t("yearly_analysis.diesel_fuel_tooltip", { distance: formatInt(km), efficiency: formatFixed(dieselEff, 4), price: formatFixed(fuelPrice, 2) }));
   const maintTip = infoTip(`${formatInt(km)} km × ${formatFixed(dieselMaintPerKm, 4)} CHF/km.`);
 
   el.innerHTML = `
@@ -2005,7 +2004,7 @@ const renderCostsScenarioTable = (el, cd) => {
       ? `<td>${formatCHF(Math.round(toFiniteNumber(sc.annualDieselHeatingFuelCost) ?? 0))}</td><td>${formatCHF(Math.round(toFiniteNumber(sc.annualDieselHeatingMaintCost) ?? 0))}</td>`
       : "";
     return `<tr>
-      <td>${textContent(sc.label)}</td><td>${formatFixed(sc.temperature, 1)}</td><td>${sc.occurrences}</td>
+      <td>${textContent(sc.label)}</td><td>${formatFixed(sc.temperature, 1)}</td><td>${textContent(sc.occurrences)}</td>
       <td>${formatFixed(sc.dailyEnergy, 1)}</td><td>${formatFixed(sc.dailyAuxiliary, 1)}</td>
       <td>${formatFixed(sc.dailyDistance, 1)}</td><td>${sc.energyPerKm != null ? formatFixed(sc.energyPerKm, 3) : "—"}</td>
       <td>${formatInt(sc.annualEnergy)}</td><td>${formatCHF(Math.round(sc.annualEnergyCost))}</td>${dhCells}
@@ -2026,10 +2025,10 @@ const renderCostsScenarioTable = (el, cd) => {
       <p class="ya-costs-note">${textContent(t("yearly_analysis.energy_cost_note", { price: formatFixed(cd.assumptions.energyPricePerKwh, 2) }))}</p>
       <div class="ya-costs-table-wrap">
         <table class="ya-costs-table ya-costs-table--scenario">
-          <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+          <thead><tr>${headers.map((h) => `<th>${textContent(h)}</th>`).join("")}</tr></thead>
           <tbody>${rows}
             <tr class="ya-costs-scenario-total">
-              <td><strong>${textContent(t("yearly_analysis.total_average"))}</strong></td><td></td><td><strong>${totalDays}</strong></td>
+              <td><strong>${textContent(t("yearly_analysis.total_average"))}</strong></td><td></td><td><strong>${formatInt(totalDays)}</strong></td>
               <td></td><td></td><td></td><td><strong>${avgEpk != null ? formatFixed(avgEpk, 3) : "—"}</strong></td>
               <td><strong>${formatInt(totalEnergy)}</strong></td><td><strong>${formatCHF(Math.round(totalCost))}</strong></td>${dhTotalCells}
             </tr>
@@ -2835,13 +2834,13 @@ const adaptiveDecimals = (v) => {
 export const setYaCo2PhaseTitle = (chartEl, showMethodologyInfo = false) => {
   const titleEl = chartEl?.closest(".ya-env-chart-section")?.querySelector(".ya-res-section-title");
   if (!titleEl) return;
-  const baseTitle = textContent(t("yearly_analysis.emissions_co2_breakdown_title"));
+  const baseTitle = toText(t("yearly_analysis.emissions_co2_breakdown_title"));
   if (!showMethodologyInfo) {
     titleEl.textContent = baseTitle;
     return;
   }
-  const tooltipText = textContent(t("yearly_analysis.lifecycle_phases_include_dh"));
-  titleEl.innerHTML = `${baseTitle}${infoTip(tooltipText)}`;
+  const tooltipText = toText(t("yearly_analysis.lifecycle_phases_include_dh"));
+  titleEl.innerHTML = `${textContent(baseTitle)}${infoTip(tooltipText)}`;
 };
 
 /**
@@ -3280,7 +3279,7 @@ export const renderEmissionsPanel = (sec, emState) => {
       const dir = comparisonsComplete ? getComparisonDirection(ind) : null;
       const changeCls = dir?.kind === "reduction" ? "ya-env-reduction--positive" : dir?.kind === "increase" ? "ya-env-reduction--negative" : "";
       return `<tr>
-        <td>${textContent(resolveEnvIndicatorLabel(ind))} (${dispUnit})</td>
+        <td>${textContent(resolveEnvIndicatorLabel(ind))} (${textContent(dispUnit)})</td>
         <td>${formatFixed(eVal, dec)}</td>
         ${hasDiesel ? `<td>${dVal != null ? formatFixed(dVal, dec) : "—"}</td>` : ""}
         ${hasDiesel ? `<td>${diff != null ? formatFixed(diff, dec) : "—"}</td>` : ""}
@@ -3296,7 +3295,7 @@ export const renderEmissionsPanel = (sec, emState) => {
       .map((ind) => {
         const normUnit = ind.normalized_unit || "";
         return `<tr>
-          <td>${textContent(resolveEnvIndicatorLabel(ind))} (${normUnit})</td>
+          <td>${textContent(resolveEnvIndicatorLabel(ind))} (${textContent(normUnit)})</td>
           <td>${formatFixed(ind.normalized_ebus_per_km, 1)}</td>
           ${hasDiesel ? `<td>${ind.normalized_diesel_per_km != null ? formatFixed(ind.normalized_diesel_per_km, 1) : "—"}</td>` : ""}
         </tr>`;
@@ -3322,7 +3321,7 @@ export const renderEmissionsPanel = (sec, emState) => {
       : `<th class="ya-env-table__section-title">${yearlyTableTitle}</th><th>${textContent(ebusLabel)}</th>`;
     yearlyTableRows = comparisonRows.map(({ row, yearlyElectric, yearlyDiesel, diff, pct, changeCls }) => `
         <tr>
-          <td>${textContent(t(row.i18n))} (${row.unit})</td>
+          <td>${textContent(t(row.i18n))} (${textContent(row.unit)})</td>
           <td>${formatFixed(yearlyElectric, row.decimals)}</td>
           ${hasDiesel ? `<td>${formatFixed(yearlyDiesel, row.decimals)}</td>` : ""}
           ${hasDiesel ? `<td>${diff != null ? formatFixed(diff, row.decimals) : "—"}</td>` : ""}
@@ -3334,7 +3333,7 @@ export const renderEmissionsPanel = (sec, emState) => {
     perKmTableRows = yearlyDistKm
       ? comparisonRows.map(({ row, perKmElectric, perKmDiesel }) => `
         <tr>
-          <td>${textContent(t(row.i18n))} (${row.perKmUnit})</td>
+          <td>${textContent(t(row.i18n))} (${textContent(row.perKmUnit)})</td>
           <td>${perKmElectric != null ? formatFixed(perKmElectric, 1) : "—"}</td>
           ${hasDiesel ? `<td>${perKmDiesel != null ? formatFixed(perKmDiesel, 1) : "—"}</td>` : ""}
         </tr>`).join("")
@@ -3350,8 +3349,8 @@ export const renderEmissionsPanel = (sec, emState) => {
     const mcdDhLiters = toFiniteNumber(mcd.yearly_diesel_heating_liters);
     const mcdIndicators = mcd.indicators ?? {};
     const MCD_KEYS = ["gwp100a", "nox", "pm10"];
-    const mcdTooltipText = `${textContent(t("yearly_analysis.mixed_case_description"))} ${textContent(t("yearly_analysis.electric_side"))}: ${mcdYearlyKwh ? `${formatInt(mcdYearlyKwh)} kWh/yr` : "—"} (${mcdKwhPer100km ? `${formatFixed(mcdKwhPer100km, 1)} kWh/100km` : "—"}) · ${textContent(t("yearly_analysis.diesel_heating_label"))} ${mcdDhLiters ? `${formatFixed(mcdDhLiters, 1)} l/yr` : "0 l/yr"}`;
-    const mcdInfoTip = `<button type="button" class="ya-info-icon" aria-label="${textContent(mcdTooltipText)}">i<span class="ya-info-tooltip">${textContent(mcdTooltipText)}</span></button>`;
+    const mcdTooltipText = `${toText(t("yearly_analysis.mixed_case_description"))} ${toText(t("yearly_analysis.electric_side"))}: ${mcdYearlyKwh ? `${formatInt(mcdYearlyKwh)} kWh/yr` : "—"} (${mcdKwhPer100km ? `${formatFixed(mcdKwhPer100km, 1)} kWh/100km` : "—"}) · ${toText(t("yearly_analysis.diesel_heating_label"))} ${mcdDhLiters ? `${formatFixed(mcdDhLiters, 1)} l/yr` : "0 l/yr"}`;
+    const mcdInfoTip = infoTip(mcdTooltipText);
     const mcdRows = MCD_KEYS.map((key) => {
       const mi = mcdIndicators[key];
       if (!mi) return "";
@@ -3363,7 +3362,7 @@ export const renderEmissionsPanel = (sec, emState) => {
       const dhVal = (toFiniteNumber(mi.diesel_heating) ?? 0) / div;
       const totVal = (toFiniteNumber(mi.total) ?? 0) / div;
       return `<tr>
-        <td>${textContent(resolveEnvIndicatorLabel(ind ?? { key }))} (${dispUnit})</td>
+        <td>${textContent(resolveEnvIndicatorLabel(ind ?? { key }))} (${textContent(dispUnit)})</td>
         <td>${formatFixed(elVal, dec)}</td>
         <td>${formatFixed(dhVal, dec)}</td>
         <td><strong>${formatFixed(totVal, dec)}</strong></td>

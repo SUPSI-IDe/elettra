@@ -27,7 +27,10 @@ export const renderPaginationMarkup = ({
   const nextLabel = textContent(t("pagination.next") || "Next");
   const sizeLabel = textContent(pageSizeLabel);
   const options = pageSizeOptions
-    .map((size) => `<option value="${size}">${size}</option>`)
+    .map((size) => {
+      const safeSize = textContent(size);
+      return `<option value="${safeSize}">${safeSize}</option>`;
+    })
     .join("");
 
   return `

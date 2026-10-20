@@ -187,8 +187,7 @@ const COST_VARIABLE_REFRESH_DEBOUNCE_MS = 450;
 
 const formatCHF = (value) => {
   const num = Number(value);
-  if (Number.isNaN(num)) return String(value);
-  return num.toLocaleString("de-CH");
+  return Number.isFinite(num) ? num.toLocaleString("de-CH") : "—";
 };
 
 const firstText = (...values) => {
@@ -6183,14 +6182,14 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     {
       label:
         translateOr("simulation.efficiency_heating_type_short", "Heating type"),
-      value: textContent(heatingDisplayValue),
+      value: heatingDisplayValue,
     },
   ];
 
   const conditionsHtml = conditions.map(({ label, value }) => `
     <div class="efficiency-param">
       <span class="efficiency-param-label">${textContent(label)}</span>
-      <span class="efficiency-param-value">${value}</span>
+      <span class="efficiency-param-value">${textContent(value)}</span>
     </div>`).join("");
   const predictionSummaryHtml = renderEfficiencyPredictionSummary(
     viewOptions?.costInputs ?? null

@@ -27,6 +27,7 @@ import { invalidateShiftDistanceCache } from "../../../utils/shift-distance";
 import { getOwnedBuses, setOwnedBuses, getModelsById } from "../../../store";
 import {
   textContent,
+  toText,
   toggleFormDisabled,
   updateFeedback,
 } from "../../../ui-helpers";
@@ -837,7 +838,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     const option = document.createElement("option");
     option.value = candidate;
     option.textContent =
-      fallbackLabel ? textContent(fallbackLabel) : textContent(candidate);
+      fallbackLabel ? toText(fallbackLabel) : toText(candidate);
     select.append(option);
     select.value = candidate;
   };
@@ -867,7 +868,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       shift?.bus_model_id,
       shift?.busModelId
     );
-    const modelLabel = modelId ? textContent(modelsById?.[text(modelId)]?.name ?? "") : "";
+    const modelLabel = modelId ? toText(modelsById?.[text(modelId)]?.name ?? "") : "";
     prefillSelectValue(
       busSelect,
       busId,

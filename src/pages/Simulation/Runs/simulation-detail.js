@@ -77,7 +77,7 @@ const renderResults = (container, runs) => {
         <div class="result-card">
           <div class="result-header">
             <span class="result-shift">${textContent(t("simulation.shift_label", { id: shiftId.slice(0, 8) }) || `Shift: ${shiftId.slice(0, 8)}…`)}</span>
-            <span class="status-badge ${status}">${textContent(formatStatusLabel(status))}</span>
+            <span class="status-badge ${textContent(status)}">${textContent(formatStatusLabel(status))}</span>
           </div>
           ${summaryHtml || `<div class="result-row"><span class="result-label">${textContent(t("simulation.waiting_results") || "Waiting for results…")}</span></div>`}
         </div>`;
