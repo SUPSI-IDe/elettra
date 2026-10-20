@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0] - 2026-10-20
+
+### Security
+
+- User-controlled and backend-provided text is escaped across fleet, simulation and annual-assessment renderers to prevent HTML injection.
+
+### Changed
+
+- Complete parameterized-LCA responses are validated structurally before any environmental total is displayed, including indicators, lifecycle phases, energy boundaries, vehicle inventories and aggregate reconciliation.
+- Annual electricity costs consistently distinguish bus-side DC energy, purchased grid energy and charging losses in totals, scenarios and exports while retaining the fixed 94% grid-to-bus policy.
+- Annual LCA results expose backend provenance, methodological limitations and vehicle warnings in the interface and preserve them in exports.
+- LCA requests omit empty query strings and report FastAPI validation details with a safe fallback for empty or malformed HTTP responses.
+
+### Verification
+
+- Added unit and desktop/mobile browser regressions for HTML safety, malformed and incomplete LCA payloads, energy-boundary edge cases, provenance, exports and HTTP client behavior.
+- Verified 303 Node tests, 90 desktop/mobile browser executions and the production build.
+
 ## [0.2.0] - 2026-09-30
 
 ### Added
