@@ -20,14 +20,18 @@ test("scenario and total electricity costs apply exactly the same grid boundary"
 
 test("annual LCA preserves mileage controls, calls the backend again and keeps costs on failure", async ({page}) => {
   const requests = [];
-  let fail = false;
+  let responseMode = "complete";
   await page.route("**/api/v1/**", async route => {
     const url = new URL(route.request().url());
     let body;
     if (url.pathname.endsWith("/lca")) {
       requests.push(url.searchParams.get("annual_km"));
-      body = fail ? {methodology_version: fixture.base.methodology_version, status:"incomplete", reason:"Controlled timeout", indicators:{}, vehicles:[]} :
-        url.searchParams.has("annual_km") ? fixture.extended : fixture.base;
+      if (responseMode === "incomplete") {
+        body = {methodology_version: fixture.base.methodology_version, status:"incomplete", reason:"Controlled timeout", indicators:{}, vehicles:[]};
+      } else {
+        body = structuredClone(url.searchParams.has("annual_km") ? fixture.extended : fixture.base);
+        if (responseMode === "malformed") body.indicators.gwp100a.phases.direct += 1_000_000;
+      }
     } else if (url.pathname.endsWith("/emissions")) {
       throw new Error("Legacy environmental endpoint must not be used");
     } else if (url.pathname.endsWith("/yearly-analysis/case")) {
@@ -60,8 +64,16 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
   const download = page.waitForEvent("download");
   await page.locator("[data-lca-export]").click();
   expect((await download).suggestedFilename()).toBe("parameterized-lca.json");
-  fail = true;
+
+  responseMode = "malformed";
   await slider.evaluate(el => { el.value="80000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
+  await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("phases do not sum to total");
+  await page.locator('[data-tab="costs"]').click();
+  await expect(page.locator('[data-panel="costs"]')).toContainText("CHF");
+
+  responseMode = "incomplete";
+  await page.locator('[data-tab="emissions"]').click();
+  await slider.evaluate(el => { el.value="70000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("Controlled timeout");
   await page.locator('[data-tab="costs"]').click();
   await expect(page.locator('[data-panel="costs"]')).toContainText("CHF");

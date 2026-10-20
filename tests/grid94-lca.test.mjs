@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { gridFromDc } from '../src/utils/charging-energy.js';
 import { mapParameterizedLca, LCA_METHOD } from '../src/pages/Simulation/YearlyAnalysis/parameterized-lca.js';
+
+const fixture = JSON.parse(
+  readFileSync(new URL('./fixtures/grid94-lca.json', import.meta.url), 'utf8'),
+).base;
 
 test('DC stays DC and electricity is purchased once at 94%', () => {
   assert.equal(gridFromDc(94), 100);
@@ -10,11 +15,9 @@ test('DC stays DC and electricity is purchased once at 94%', () => {
 });
 
 test('LCA adapter preserves vehicle impacts separately from operation', () => {
-  const raw = {methodology_version:LCA_METHOD,status:'complete',annual_km:50000,
-    vehicles:[{diesel_heating_liters:2}],indicators:{gwp100a:{phases:{vehicle:30,energyChain:100},total:130,
-      diesel_comparator_phases:{vehicle:20,energyChain:180},diesel_comparator_total:200,diesel_heating_phases:{direct:2},diesel_heating:2}}};
+  const raw = structuredClone(fixture);
   const state=mapParameterizedLca(raw);
-  assert.equal(state.electricYearly.gwp100a.total,130);
+  assert.equal(state.electricYearly.gwp100a.total,raw.indicators.gwp100a.total);
   assert.equal(state.rawLca,raw);
   assert.equal(state.electricOnlyYearly,null); // never relabel vehicle manufacture as electricity
   assert.equal(state.emissionsMetadata.methodologyVersion,LCA_METHOD);
