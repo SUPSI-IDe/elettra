@@ -24,6 +24,8 @@ const LIFECYCLE_PHASES = [
 const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
 const isFiniteNumber = value => typeof value === "number" && Number.isFinite(value);
 const isNonEmptyString = value => typeof value === "string" && value.trim().length > 0;
+const normalizedString = value => isNonEmptyString(value) ? value.trim() : null;
+const uniqueStrings = values => [...new Set(values.map(normalizedString).filter(Boolean))];
 const nearlyEqual = (left, right) =>
   isFiniteNumber(left) &&
   isFiniteNumber(right) &&
@@ -325,13 +327,38 @@ export function mapParameterizedLca(raw) {
     yearlyImpact: { yearly_distance_km: raw.annual_km },
     isDieselHeating: raw.vehicles.some(v => v.diesel_heating_liters > 0),
     emissionsMetadata: { methodologyVersion: raw.methodology_version, provenance: raw.provenance,
-      energyBoundary: raw.energy_boundary, vehicles: raw.vehicles }, structured: {
+      energyBoundary: raw.energy_boundary, vehicles: raw.vehicles,
+      limitations: [...raw.limitations] }, structured: {
         methodologyVersion: raw.methodology_version,
+        provenance: { ...raw.provenance },
+        limitations: [...raw.limitations],
+        energyBoundary: { ...raw.energy_boundary },
         ebus: { indicators: electricYearly }, dieselComparator: { indicators: dieselYearly },
         dataCompleteness: { status: "complete" },
         scopeCompleteness: { status: "representative_vehicle_lca", limitations: raw.limitations },
         assumptions: { yearly_distance_km: raw.annual_km, energy_boundary: raw.energy_boundary },
       } };
+}
+
+export function getParameterizedLcaDisclosure(raw) {
+  const provenance = isRecord(raw?.provenance) ? raw.provenance : {};
+  const boundary = isRecord(raw?.energy_boundary) ? raw.energy_boundary : {};
+  return {
+    methodologyVersion: normalizedString(raw?.methodology_version),
+    dataVersion: normalizedString(provenance.data_version),
+    dataSource: normalizedString(provenance.base_url),
+    dieselHeatingMethodology: normalizedString(provenance.diesel_heating_methodology),
+    energyPolicy: normalizedString(boundary.policy),
+    gridToBusEfficiency: isFiniteNumber(boundary.grid_to_bus_efficiency)
+      ? boundary.grid_to_bus_efficiency
+      : null,
+    limitations: uniqueStrings(Array.isArray(raw?.limitations) ? raw.limitations : []),
+    warnings: uniqueStrings(
+      Array.isArray(raw?.vehicles)
+        ? raw.vehicles.flatMap(vehicle => Array.isArray(vehicle?.warnings) ? vehicle.warnings : [])
+        : [],
+    ),
+  };
 }
 
 const fmt = value => Number(value).toLocaleString(undefined, {maximumFractionDigits: 2});
@@ -346,6 +373,7 @@ const phases = [
 
 export function renderParameterizedLca(element, raw, t) {
   const label = key => escapeHtml(t(`yearly_analysis.lca_${key}`));
+  const disclosure = getParameterizedLcaDisclosure(raw);
   const displayIndicatorKeys = REQUIRED_INDICATORS.filter(key => isRecord(raw.indicators?.[key]));
   const rows = displayIndicatorKeys.map(key => {
     const v = raw.indicators[key];
@@ -367,7 +395,29 @@ export function renderParameterizedLca(element, raw, t) {
   const vehicleRows = raw.vehicles.map(v => `<tr><td>${escapeHtml(v.shift_id)}</td><td>${fmt(v.annual_km)}</td>
     <td>${fmt(v.battery_capacity_kwh)} / ${escapeHtml(v.battery_chemistry)}</td><td>${fmt(v.passengers)}</td>
     <td>${fmt(v.lifetime_bus)} / ${fmt(v.lifetime_battery)} / ${fmt(v.lifetime_diesel_bus)}</td></tr>`).join("");
-  const warnings = [...new Set(raw.vehicles.flatMap(v => v.warnings ?? []))];
+  const metadataRow = (key, value) => value == null || value === ""
+    ? ""
+    : `<dt>${label(key)}</dt><dd>${escapeHtml(value)}</dd>`;
+  const metadataRows = [
+    metadataRow("methodology_version", disclosure.methodologyVersion),
+    metadataRow("data_version", disclosure.dataVersion),
+    metadataRow("data_source", disclosure.dataSource),
+    metadataRow("diesel_heating_methodology", disclosure.dieselHeatingMethodology),
+    metadataRow("energy_policy", disclosure.energyPolicy),
+    metadataRow(
+      "grid_efficiency",
+      disclosure.gridToBusEfficiency == null
+        ? null
+        : `${fmt(disclosure.gridToBusEfficiency * 100)}%`,
+    ),
+  ].join("");
+  const limitations = disclosure.limitations.length
+    ? `<ul class="ya-lca-list">${disclosure.limitations.map(value => `<li>${escapeHtml(value)}</li>`).join("")}</ul>`
+    : `<p>${label("no_limitations")}</p>`;
+  const warnings = disclosure.warnings.length
+    ? `<section class="ya-lca-disclosure__section" data-role="lca-warnings"><h4>${label("warnings")}</h4>
+      <ul class="ya-lca-list">${disclosure.warnings.map(value => `<li>${escapeHtml(value)}</li>`).join("")}</ul></section>`
+    : "";
   element.innerHTML = `<h3>${label("title")}</h3><p>${label("boundary")}</p>
     <p>${label("dc_energy")}: <strong>${fmt(raw.energy_boundary.dc_kwh)} kWh</strong> · ${label("grid_energy")}: <strong>${fmt(raw.energy_boundary.grid_kwh)} kWh</strong> · ${label("losses")}: ${fmt(raw.energy_boundary.charging_losses_kwh)} kWh</p>
     <p>${label("activity")}: ${fmt(raw.annual_km)} km · ${escapeHtml(raw.vehicle_count)} ${label("vehicles")}</p>
@@ -375,12 +425,14 @@ export function renderParameterizedLca(element, raw, t) {
     <details><summary>${label("per_km")}</summary><table class="ya-table"><thead><tr><th>${label("indicator")}</th><th>ELETTRA</th><th>Diesel</th></tr></thead><tbody>${perKm}</tbody></table></details>
     <h4>${label("phases")}</h4>${bar("ELETTRA", gwp.phases, gwp.total)}${bar("Diesel", gwp.diesel_comparator_phases, gwp.diesel_comparator_total)}
     <div style="display:flex;gap:12px;flex-wrap:wrap">${phases.map(([,translation,color]) => `<span><span style="display:inline-block;width:12px;height:12px;background:${color}"></span> ${escapeHtml(t(`simulation.emissions_phase_${translation}`))}</span>`).join("")}</div>
-    <details><summary>${label("assumptions")}</summary><p>${label("inventory_note")}</p>
+    <details class="ya-lca-disclosure"><summary>${label("assumptions")}</summary><div class="ya-lca-disclosure__body"><p>${label("inventory_note")}</p>
     <div style="overflow-x:auto"><table class="ya-table"><thead><tr><th>${label("vehicle")}</th><th>${label("annual_km")}</th><th>${label("battery")} [kWh]</th><th>${label("passengers")}</th><th>${label("lifetimes")}</th></tr></thead><tbody>${vehicleRows}</tbody></table></div>
-    <p>${escapeHtml(raw.methodology_version)} · Mobitool ${escapeHtml(raw.provenance?.data_version)}</p>
+    <section class="ya-lca-disclosure__section" data-role="lca-provenance"><h4>${label("provenance")}</h4><dl class="ya-lca-metadata">${metadataRows}</dl></section>
+    <section class="ya-lca-disclosure__section" data-role="lca-limitations"><h4>${label("limitations")}</h4>${limitations}</section>
+    ${warnings}
     <p>PE = ${label("primary_energy")}. ${label("primary_note")}</p>
     <p>${label("limits_note")}</p>
-    ${warnings.map(w => `<p>${escapeHtml(w)}</p>`).join("")}<p>${label("export_note")}</p></details>
+    <p>${label("export_note")}</p></div></details>
     <button type="button" data-lca-export>${label("export")}</button>`;
   element.querySelector("[data-lca-export]").addEventListener("click", () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify(raw, null, 2)], {type:"application/json"}));

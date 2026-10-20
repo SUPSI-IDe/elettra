@@ -311,9 +311,11 @@ test("v0.2 annual assessment and comparison renderers keep backend values inert"
           annual_km: 100,
           vehicle_count: attributePayload,
           energy_boundary: {
+            policy: textPayload,
             dc_kwh: 94,
             grid_kwh: 100,
             charging_losses_kwh: 6,
+            grid_to_bus_efficiency: 0.94,
           },
           indicators: {
             gwp100a: {
@@ -339,7 +341,12 @@ test("v0.2 annual assessment and comparison renderers keep backend values inert"
               warnings: [textPayload],
             },
           ],
-          provenance: { data_version: textPayload },
+          provenance: {
+            data_version: textPayload,
+            base_url: attributePayload,
+            diesel_heating_methodology: textPayload,
+          },
+          limitations: [textPayload, attributePayload],
         },
         () => textPayload
       );

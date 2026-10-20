@@ -91,6 +91,35 @@ test("scenario and total electricity costs apply exactly the same grid boundary"
   });
 });
 
+test("LCA disclosure handles absent optional provenance and empty backend lists", async ({page}) => {
+  await page.goto("./");
+  await page.evaluate(async raw => {
+    localStorage.setItem("elettra_lang", "en");
+    const [{renderParameterizedLca}, {t}] = await Promise.all([
+      import("/elettra/src/pages/Simulation/YearlyAnalysis/parameterized-lca.js"),
+      import("/elettra/src/i18n/index.js"),
+    ]);
+    const value = structuredClone(raw);
+    delete value.provenance.base_url;
+    delete value.provenance.diesel_heating_methodology;
+    value.limitations = [];
+    value.vehicles.forEach(vehicle => { vehicle.warnings = []; });
+    const host = document.createElement("section");
+    host.id = "lca-disclosure-test";
+    document.body.replaceChildren(host);
+    renderParameterizedLca(host, value, t);
+  }, fixture.base);
+
+  const disclosure = page.locator(".ya-lca-disclosure");
+  await disclosure.locator("summary").click();
+  await expect(disclosure.locator('[data-role="lca-provenance"]')).not.toContainText("undefined");
+  await expect(disclosure.locator('[data-role="lca-provenance"]')).not.toContainText("null");
+  await expect(disclosure.locator('[data-role="lca-limitations"]')).toContainText(
+    "The backend reported no additional methodological limitations.",
+  );
+  await expect(disclosure.locator('[data-role="lca-warnings"]')).toHaveCount(0);
+});
+
 test("annual LCA preserves mileage controls, calls the backend again and keeps costs on failure", async ({page}) => {
   const requests = [];
   let responseMode = "complete";
@@ -136,14 +165,38 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
   const controls = page.locator('[data-role="ya-env-controls"]');
   await expect(controls).toBeVisible();
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("94%");
+  const disclosure = page.locator(".ya-lca-disclosure");
+  await disclosure.locator("summary").click();
+  const provenance = disclosure.locator('[data-role="lca-provenance"]');
+  await expect(provenance).toContainText("mobitool-parameterized-grid94-v1");
+  await expect(provenance).toContainText(fixture.base.provenance.data_version);
+  await expect(provenance).toContainText(fixture.base.provenance.base_url);
+  await expect(provenance).toContainText(fixture.base.provenance.diesel_heating_methodology);
+  await expect(provenance).toContainText("grid-to-bus-dc-94-v1");
+  const limitations = disclosure.locator('[data-role="lca-limitations"] li');
+  await expect(limitations).toHaveCount(fixture.base.limitations.length);
+  await expect(limitations.first()).toHaveText(fixture.base.limitations[0]);
+  await expect(limitations.last()).toHaveText(fixture.base.limitations.at(-1));
+  await expect(disclosure.locator('[data-role="lca-warnings"]')).toHaveCount(0);
   const slider = page.locator('[data-role="ya-env-yearly-distance"]');
   await slider.evaluate(el => { el.value="90000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
   await expect.poll(() => requests.length).toBe(2);
   await expect(controls).toBeVisible();
   expect(requests[1]).toBe("90000");
+  const updatedDisclosure = page.locator(".ya-lca-disclosure");
+  await updatedDisclosure.locator("summary").click();
+  await expect(updatedDisclosure.locator('[data-role="lca-warnings"]')).toContainText(
+    fixture.extended.vehicles[0].warnings[0],
+  );
   const download = page.waitForEvent("download");
   await page.locator("[data-lca-export]").click();
-  expect((await download).suggestedFilename()).toBe("parameterized-lca.json");
+  const downloadedLca = await download;
+  expect(downloadedLca.suggestedFilename()).toBe("parameterized-lca.json");
+  const downloadedPath = await downloadedLca.path();
+  const exportedLca = JSON.parse(readFileSync(downloadedPath, "utf8"));
+  expect(exportedLca.provenance).toEqual(fixture.extended.provenance);
+  expect(exportedLca.limitations).toEqual(fixture.extended.limitations);
+  expect(exportedLca.vehicles[0].warnings).toEqual(fixture.extended.vehicles[0].warnings);
 
   responseMode = "malformed";
   await slider.evaluate(el => { el.value="80000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
