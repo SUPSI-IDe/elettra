@@ -192,6 +192,140 @@ test("missing active-station power remains unavailable instead of becoming a par
   assert.equal(summary.totalPowerKw, null);
 });
 
+test("the selected shift summary compares its requirement with the common fleet battery", () => {
+  const source = model();
+  source.shifts = [
+    {
+      shiftId: "morning",
+      shiftName: "Morning",
+      battery: {
+        requiredPacks: 8,
+        commonPacks: 12,
+        commonPackMargin: 4,
+        maxPhysicalPacks: 16,
+        excessPacks: 0,
+        physicalFeasible: true,
+        feasibilityStatus: "feasible",
+        isSizing: false,
+      },
+      operation: {
+        minSocKwh: 120,
+        maxSocKwh: 500,
+        totalChargedKwh: 80,
+        numChargingSessions: 2,
+      },
+    },
+    {
+      shiftId: "evening",
+      shiftName: "Evening",
+      battery: {
+        requiredPacks: 12,
+        commonPacks: 12,
+        commonPackMargin: 0,
+        maxPhysicalPacks: 16,
+        physicalFeasible: true,
+        isSizing: true,
+      },
+      operation: {
+        minSocKwh: 50,
+        maxSocKwh: 520,
+        totalChargedKwh: 140,
+        numChargingSessions: 3,
+      },
+    },
+  ];
+
+  const morning = buildFeasibilityViewState(source, "morning").selectedShiftSummary;
+  const evening = buildFeasibilityViewState(source, "evening").selectedShiftSummary;
+
+  assert.deepEqual(morning, {
+    shiftId: "morning",
+    shiftName: "Morning",
+    battery: {
+      requiredPacks: 8,
+      commonPacks: 12,
+      commonPackMargin: 4,
+      maxPhysicalPacks: 16,
+      excessPacks: 0,
+      physicalFeasible: true,
+      feasibilityStatus: "feasible",
+      isSizing: false,
+    },
+    operation: {
+      minSocKwh: 120,
+      maxSocKwh: 500,
+      totalChargedKwh: 80,
+      numChargingSessions: 2,
+    },
+  });
+  assert.equal(evening.battery.requiredPacks, 12);
+  assert.equal(evening.battery.commonPackMargin, 0);
+  assert.equal(evening.battery.isSizing, true);
+  assert.equal(evening.operation.numChargingSessions, 3);
+});
+
+test("an infeasible shift preserves a negative common-battery margin", () => {
+  const source = model();
+  source.shifts = [{
+    shiftId: "hard",
+    shiftName: "Hard shift",
+    battery: {
+      requiredPacks: 18,
+      commonPacks: 16,
+      commonPackMargin: -2,
+      maxPhysicalPacks: 16,
+      excessPacks: 2,
+      physicalFeasible: false,
+      feasibilityStatus: "infeasible",
+    },
+  }];
+
+  const detail = buildFeasibilityViewState(source, "hard").selectedShiftSummary;
+  assert.equal(detail.battery.requiredPacks, 18);
+  assert.equal(detail.battery.commonPacks, 16);
+  assert.equal(detail.battery.commonPackMargin, -2);
+  assert.equal(detail.battery.physicalFeasible, false);
+  assert.equal(detail.operation.totalChargedKwh, null);
+});
+
+test("historical shift results fall back to optimized packs and derive the margin", () => {
+  const source = model();
+  source.fleet.battery.packs = 10;
+  source.shifts = [{
+    shiftId: "legacy",
+    battery: {
+      optimizedPacks: "7",
+      commonPackMargin: "",
+      physicalFeasible: "true",
+    },
+    operation: {
+      minSocKwh: -1,
+      maxSocKwh: "invalid",
+      totalChargedKwh: "0",
+      numChargingSessions: "0",
+    },
+  }];
+
+  const detail = buildFeasibilityViewState(source, "legacy").selectedShiftSummary;
+  assert.equal(detail.battery.requiredPacks, 7);
+  assert.equal(detail.battery.commonPacks, 10);
+  assert.equal(detail.battery.commonPackMargin, 3);
+  assert.equal(detail.battery.physicalFeasible, null);
+  assert.equal(detail.operation.minSocKwh, null);
+  assert.equal(detail.operation.maxSocKwh, null);
+  assert.equal(detail.operation.totalChargedKwh, 0);
+  assert.equal(detail.operation.numChargingSessions, 0);
+});
+
+test("no selected shift produces no operational summary", () => {
+  const view = buildFeasibilityViewState({
+    fleet: { battery: { packs: 12 } },
+    shifts: [],
+  });
+
+  assert.equal(view.selectedShiftSummary, null);
+});
+
 test("both feasibility levels are translated in every supported locale", () => {
   const keys = [
     "simulation.feasibility_general_level",
@@ -232,6 +366,19 @@ test("both feasibility levels are translated in every supported locale", () => {
     "simulation.feasibility_peak_buses",
     "simulation.feasibility_delivered_energy",
     "simulation.feasibility_installation_cost",
+    "simulation.feasibility_shift_summary_title",
+    "simulation.feasibility_shift_summary_subtitle",
+    "simulation.feasibility_shift_data_unavailable",
+    "simulation.feasibility_shift_status_unknown",
+    "simulation.feasibility_shift_shortfall",
+    "simulation.feasibility_shift_is_sizing",
+    "simulation.feasibility_shift_covered",
+    "simulation.feasibility_shift_required_battery",
+    "simulation.feasibility_shift_common_battery",
+    "simulation.feasibility_shift_battery_margin",
+    "simulation.feasibility_shift_physical_limit",
+    "simulation.feasibility_shift_charged_energy",
+    "simulation.feasibility_shift_charging_sessions",
   ];
 
   for (const [locale, dictionary] of Object.entries(translations)) {

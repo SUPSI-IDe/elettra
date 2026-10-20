@@ -9,7 +9,7 @@ const text = (value) => {
   return normalized || null;
 };
 
-const nonNegativeNumber = (value) => {
+const finiteNumber = (value) => {
   if (
     value === null ||
     value === undefined ||
@@ -19,7 +19,12 @@ const nonNegativeNumber = (value) => {
     return null;
   }
   const normalized = Number(value);
-  return Number.isFinite(normalized) && normalized >= 0 ? normalized : null;
+  return Number.isFinite(normalized) ? normalized : null;
+};
+
+const nonNegativeNumber = (value) => {
+  const normalized = finiteNumber(value);
+  return normalized !== null && normalized >= 0 ? normalized : null;
 };
 
 const summarizeInfrastructure = (infrastructure) => {
@@ -53,6 +58,50 @@ const summarizeInfrastructure = (infrastructure) => {
       infrastructure.totalInstallationCostChf,
     ),
     statusCounts,
+  };
+};
+
+const summarizeSelectedShift = (selectedShift, commonBattery) => {
+  if (!selectedShift) return null;
+  const shift = asRecord(selectedShift.shift);
+  const battery = asRecord(shift.battery);
+  const operation = asRecord(shift.operation);
+  const requiredPacks =
+    nonNegativeNumber(battery.requiredPacks) ??
+    nonNegativeNumber(battery.optimizedPacks);
+  const commonPacks = nonNegativeNumber(
+    battery.commonPacks ?? commonBattery.packs,
+  );
+  const explicitMargin = finiteNumber(battery.commonPackMargin);
+  const commonPackMargin =
+    explicitMargin !== null
+      ? explicitMargin
+      : commonPacks !== null && requiredPacks !== null
+        ? commonPacks - requiredPacks
+        : null;
+
+  return {
+    shiftId: selectedShift.shiftId,
+    shiftName: selectedShift.shiftName,
+    battery: {
+      requiredPacks,
+      commonPacks,
+      commonPackMargin,
+      maxPhysicalPacks: nonNegativeNumber(battery.maxPhysicalPacks),
+      excessPacks: nonNegativeNumber(battery.excessPacks),
+      physicalFeasible:
+        typeof battery.physicalFeasible === "boolean"
+          ? battery.physicalFeasible
+          : null,
+      feasibilityStatus: text(battery.feasibilityStatus),
+      isSizing: battery.isSizing === true,
+    },
+    operation: {
+      minSocKwh: nonNegativeNumber(operation.minSocKwh),
+      maxSocKwh: nonNegativeNumber(operation.maxSocKwh),
+      totalChargedKwh: nonNegativeNumber(operation.totalChargedKwh),
+      numChargingSessions: nonNegativeNumber(operation.numChargingSessions),
+    },
   };
 };
 
@@ -90,6 +139,7 @@ export function buildFeasibilityViewState(feasibilityModel = {}, requestedShiftI
   const battery = asRecord(fleet.battery);
   const infrastructure = asRecord(model.infrastructure);
   const infrastructureSummary = summarizeInfrastructure(infrastructure);
+  const selectedShiftSummary = summarizeSelectedShift(selectedShift, battery);
 
   return {
     general: {
@@ -108,6 +158,7 @@ export function buildFeasibilityViewState(feasibilityModel = {}, requestedShiftI
     shiftOptions,
     showShiftSelector: shiftOptions.length > 1,
     selectedShift,
+    selectedShiftSummary,
     selectedShiftId: selectedShift?.shiftId ?? null,
     selectedShiftName: selectedShift?.shiftName ?? null,
   };

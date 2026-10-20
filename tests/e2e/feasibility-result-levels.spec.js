@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const battery = (shiftName, packs) => ({
+const battery = (shiftName, packs, overrides = {}) => ({
   shift_name: shiftName,
   reference_packs: 6,
   base_packs: 6,
@@ -12,6 +12,7 @@ const battery = (shiftName, packs) => ({
   max_physical_kwh: 800,
   physical_feasible: true,
   feasibility_status: "feasible",
+  ...overrides,
 });
 
 const prediction = (id, shiftId, packs, consumption) => ({
@@ -53,6 +54,7 @@ const mountResults = async (page, {
   stationUtilization,
   totalInstallationCostChf,
   includeInfrastructureInput = true,
+  batteryResultOverrides = {},
 } = {}) => {
   const shiftNames = {
     morning: "Morning service",
@@ -65,7 +67,11 @@ const mountResults = async (page, {
   const batteryResults = Object.fromEntries(
     shiftIds.map((shiftId) => [
       shiftId,
-      battery(shiftNames[shiftId], shiftId === "evening" ? 12 : 8),
+      battery(
+        shiftNames[shiftId],
+        shiftId === "evening" ? 12 : 8,
+        batteryResultOverrides[shiftId] ?? {},
+      ),
     ]),
   );
 
@@ -94,8 +100,10 @@ const mountResults = async (page, {
             per_bus_summary: shiftIds.map((shiftId) => ({
               shift_id: shiftId,
               shift_name: shiftNames[shiftId],
-              total_charged_kwh: 0,
-              num_charging_sessions: 0,
+              min_soc_kwh: shiftId === "evening" ? 60 : 120,
+              max_soc_kwh: shiftId === "evening" ? 500 : 400,
+              total_charged_kwh: shiftId === "evening" ? 140 : 80,
+              num_charging_sessions: shiftId === "evening" ? 3 : 2,
               charging_sessions: [],
             })),
             ...(installedChargers === undefined
@@ -179,6 +187,15 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(general.locator('[data-role="feasibility-total-plugs"]')).toHaveText("2");
   await expect(general.locator('[data-role="feasibility-total-power"]')).toContainText("300");
 
+  const shiftSummary = shiftDetail.locator('[data-role="feasibility-shift-summary"]');
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Covered by common battery");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-required-packs"]')).toContainText("8");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-common-packs"]')).toContainText("12");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-pack-margin"]')).toContainText("+4");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-min-soc"]')).toContainText("120.0");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-charged-energy"]')).toContainText("80.0");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("2");
+
   await expect(selector).toBeVisible();
   await expect(selector.locator('[data-action="select-shift"]')).toHaveCount(2);
   await expect(selector).not.toContainText("All");
@@ -186,6 +203,12 @@ test("separates the common result from one selected shift without an aggregate o
 
   await selector.getByRole("button", { name: "Evening service" }).click();
   await expect(shiftDetail.locator('[data-role="feasibility-selected-shift"]')).toHaveText("Evening service");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Sizing shift");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-required-packs"]')).toContainText("12");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-pack-margin"]')).toContainText("0");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-min-soc"]')).toContainText("60.0");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-charged-energy"]')).toContainText("140.0");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("3");
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-limiting-shifts"]')).toContainText("Evening service");
 });
@@ -210,6 +233,32 @@ test("renders unavailable values safely when a historical result has no shift de
   await expect(page.locator('[data-role="feasibility-fleet-battery"] .feasibility-general-card__value')).toHaveText("—");
   await expect(page.locator('[data-role="feasibility-selected-shift"]')).toHaveText("—");
   await expect(page.locator('[data-role="feasibility-infrastructure-unavailable"]')).toBeVisible();
+  await expect(page.locator('[data-role="feasibility-shift-summary"]')).toContainText("Operational details are not available");
+});
+
+test("shows an infeasible shift as a shortfall against the common physical battery", async ({ page }) => {
+  await mountResults(page, {
+    shiftIds: ["morning"],
+    batteryResultOverrides: {
+      morning: {
+        optimized_packs: 16,
+        required_total_packs: 18,
+        optimized_kwh: 900,
+        max_physical_packs: 16,
+        max_physical_kwh: 800,
+        excess_packs: 2,
+        physical_feasible: false,
+        feasibility_status: "infeasible",
+      },
+    },
+  });
+
+  const summary = page.locator('[data-role="feasibility-shift-summary"]');
+  await expect(summary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Battery shortfall");
+  await expect(summary.locator('[data-role="feasibility-shift-required-packs"]')).toContainText("18");
+  await expect(summary.locator('[data-role="feasibility-shift-common-packs"]')).toContainText("16");
+  await expect(summary.locator('[data-role="feasibility-shift-pack-margin"]')).toContainText("-2");
+  await expect(summary.locator('[data-role="feasibility-shift-physical-limit"]')).toContainText("Exceeds physical pack limit");
 });
 
 test("shows one complete shared infrastructure for joint optimization across every shift", async ({ page }) => {

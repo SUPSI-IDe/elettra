@@ -6407,6 +6407,141 @@ const buildFeasibilityShiftLevelHeaderHtml = (viewState, selectedShiftName) => `
     </div>
   </header>`;
 
+const shiftMetricValue = (value, unit = "", { signed = false, decimals = 0 } = {}) => {
+  const numeric = toOptionalFiniteNumber(value);
+  if (numeric === null) return "—";
+  const prefix = signed && numeric > 0 ? "+" : "";
+  return `${textContent(`${prefix}${formatFixed(numeric, decimals)}`)}${unit ? ` <small>${textContent(unit)}</small>` : ""}`;
+};
+
+const buildShiftOperationalSummaryHtml = (viewState) => {
+  const detail = viewState?.selectedShiftSummary;
+  if (!detail) {
+    return `
+      <section class="feasibility-shift-summary" data-role="feasibility-shift-summary">
+        <p class="efficiency-chart-empty">${textContent(
+          translateOr(
+            "simulation.feasibility_shift_data_unavailable",
+            "Operational details are not available for this shift."
+          )
+        )}</p>
+      </section>`;
+  }
+
+  const battery = detail.battery ?? {};
+  const operation = detail.operation ?? {};
+  const margin = toOptionalFiniteNumber(battery.commonPackMargin);
+  let coverageLabel = translateOr(
+    "simulation.feasibility_shift_status_unknown",
+    "Status not available"
+  );
+  let coverageTone = "unknown";
+  if (battery.physicalFeasible === false || (margin !== null && margin < 0)) {
+    coverageLabel = translateOr(
+      "simulation.feasibility_shift_shortfall",
+      "Battery shortfall"
+    );
+    coverageTone = "negative";
+  } else if (battery.isSizing) {
+    coverageLabel = translateOr(
+      "simulation.feasibility_shift_is_sizing",
+      "Sizing shift"
+    );
+    coverageTone = "sizing";
+  } else if (margin !== null && margin >= 0) {
+    coverageLabel = translateOr(
+      "simulation.feasibility_shift_covered",
+      "Covered by common battery"
+    );
+    coverageTone = "positive";
+  }
+
+  const physicalStatus = battery.physicalFeasible === true
+    ? translateOr("simulation.feasibility_physical_within_limit", "Within physical pack limit")
+    : battery.physicalFeasible === false
+      ? translateOr("simulation.feasibility_physical_exceeds_limit", "Exceeds physical pack limit")
+      : translateOr("simulation.feasibility_shift_status_unknown", "Status not available");
+  const physicalTone = battery.physicalFeasible === true
+    ? "positive"
+    : battery.physicalFeasible === false
+      ? "negative"
+      : "unknown";
+  const packUnit = t("simulation.unit_packs") || "packs";
+
+  return `
+    <section class="feasibility-shift-summary" data-role="feasibility-shift-summary">
+      <div class="feasibility-shift-summary__header">
+        <div>
+          <h4>${textContent(
+            translateOr("simulation.feasibility_shift_summary_title", "Shift operational summary")
+          )}</h4>
+          <p>${textContent(
+            translateOr(
+              "simulation.feasibility_shift_summary_subtitle",
+              "The shift requirement is evaluated against the common fleet configuration."
+            )
+          )}</p>
+        </div>
+        <span class="feasibility-shift-status feasibility-shift-status--${coverageTone}" data-role="feasibility-shift-coverage-status">${textContent(
+          coverageLabel
+        )}</span>
+      </div>
+      <div class="feasibility-shift-metrics">
+        <article data-role="feasibility-shift-required-packs">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_required_battery", "Shift battery requirement")
+          )}</span>
+          <strong>${shiftMetricValue(battery.requiredPacks, packUnit)}</strong>
+        </article>
+        <article data-role="feasibility-shift-common-packs">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_common_battery", "Common fleet battery")
+          )}</span>
+          <strong>${shiftMetricValue(battery.commonPacks, packUnit)}</strong>
+        </article>
+        <article data-role="feasibility-shift-pack-margin">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_battery_margin", "Battery margin")
+          )}</span>
+          <strong class="feasibility-shift-metric--${margin === null ? "unknown" : margin < 0 ? "negative" : "positive"}">${shiftMetricValue(
+            margin,
+            packUnit,
+            { signed: true }
+          )}</strong>
+        </article>
+        <article data-role="feasibility-shift-physical-limit">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_physical_limit", "Physical pack limit")
+          )}</span>
+          <strong>${shiftMetricValue(battery.maxPhysicalPacks, packUnit)}</strong>
+          <small class="feasibility-shift-physical-status feasibility-shift-physical-status--${physicalTone}">${textContent(
+            physicalStatus
+          )}</small>
+        </article>
+        <article data-role="feasibility-shift-min-soc">
+          <span>${textContent(t("simulation.opt_col_min_soc") || "Min SoC")}</span>
+          <strong>${shiftMetricValue(operation.minSocKwh, "kWh", { decimals: 1 })}</strong>
+        </article>
+        <article data-role="feasibility-shift-max-soc">
+          <span>${textContent(t("simulation.opt_col_max_soc") || "Max SoC")}</span>
+          <strong>${shiftMetricValue(operation.maxSocKwh, "kWh", { decimals: 1 })}</strong>
+        </article>
+        <article data-role="feasibility-shift-charged-energy">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_charged_energy", "Energy charged")
+          )}</span>
+          <strong>${shiftMetricValue(operation.totalChargedKwh, "kWh", { decimals: 1 })}</strong>
+        </article>
+        <article data-role="feasibility-shift-session-count">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_charging_sessions", "Charging sessions")
+          )}</span>
+          <strong>${shiftMetricValue(operation.numChargingSessions)}</strong>
+        </article>
+      </div>
+    </section>`;
+};
+
 const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (!el) return;
 
@@ -6653,6 +6788,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         viewOptions?.selectedShiftName
       )}
       <div class="feasibility-level__content">
+        ${buildShiftOperationalSummaryHtml(feasibilityViewState)}
         ${isFeasible ? chartsHtml : ""}
         ${sensitivityFeasibilityCardHtml}
         <details class="ya-more-information">

@@ -1320,12 +1320,142 @@
   line-height: 1.45;
 }
 
+.feasibility-shift-summary {
+  padding: var(--space-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.feasibility-shift-summary__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.feasibility-shift-summary__header h4 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.feasibility-shift-summary__header p {
+  margin: var(--space-2xs) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.feasibility-shift-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: var(--space-2xs) var(--space-xs);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.feasibility-shift-status--positive,
+.feasibility-shift-status--sizing {
+  border-color: color-mix(in srgb, #5f8f2f 38%, var(--border-light));
+  background: color-mix(in srgb, #5f8f2f 10%, var(--color-surface));
+  color: #426821;
+}
+
+.feasibility-shift-status--sizing {
+  border-color: color-mix(in srgb, var(--brand-teal) 38%, var(--border-light));
+  background: color-mix(in srgb, var(--brand-teal) 9%, var(--color-surface));
+  color: var(--brand-teal-dark);
+}
+
+.feasibility-shift-status--negative {
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--border-light));
+  background: color-mix(in srgb, var(--danger) 8%, var(--color-surface));
+  color: var(--danger);
+}
+
+.feasibility-shift-status--unknown {
+  color: var(--text-secondary);
+}
+
+.feasibility-shift-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.feasibility-shift-metrics article {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.feasibility-shift-metrics article > span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.feasibility-shift-metrics article > strong {
+  overflow-wrap: anywhere;
+  color: var(--text-main);
+  font-size: var(--font-size-xl);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.feasibility-shift-metrics article > strong small {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.feasibility-shift-metrics .feasibility-shift-metric--positive {
+  color: #426821;
+}
+
+.feasibility-shift-metrics .feasibility-shift-metric--negative {
+  color: var(--danger);
+}
+
+.feasibility-shift-physical-status {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.feasibility-shift-physical-status--positive {
+  color: #426821;
+}
+
+.feasibility-shift-physical-status--negative {
+  color: var(--danger);
+}
+
 @media (max-width: 1100px) {
   .feasibility-general-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .feasibility-infrastructure-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .feasibility-shift-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1348,6 +1478,18 @@
   }
 
   .feasibility-infrastructure-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .feasibility-shift-summary {
+    padding: var(--space-sm);
+  }
+
+  .feasibility-shift-summary__header {
+    flex-direction: column;
+  }
+
+  .feasibility-shift-metrics {
     grid-template-columns: minmax(0, 1fr);
   }
 }
