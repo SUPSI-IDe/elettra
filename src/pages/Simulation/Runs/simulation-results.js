@@ -68,6 +68,7 @@ import {
   FEASIBILITY_DECISION,
 } from "../../../utils/feasibility-result-model";
 import { buildFeasibilityViewState } from "../../../utils/feasibility-view-state";
+import { formatFeasibilityClockMinute } from "../../../utils/feasibility-charging-plan";
 import "./simulation-results.css";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
@@ -6542,6 +6543,163 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
     </section>`;
 };
 
+const chargingSessionClockHtml = (minute, role) => {
+  const point = formatFeasibilityClockMinute(minute);
+  if (!point) {
+    return `<span class="feasibility-charging-session__clock" data-role="${role}">—</span>`;
+  }
+
+  const dayLabel = point.dayOffset === 1
+    ? translateOr("simulation.feasibility_charging_next_day", "next day")
+    : point.dayOffset > 1
+      ? translateOr(
+          "simulation.feasibility_charging_day_offset",
+          `+${point.dayOffset} days`,
+          { days: point.dayOffset }
+        )
+      : "";
+
+  return `
+    <span class="feasibility-charging-session__clock" data-role="${role}" data-day-offset="${point.dayOffset}">
+      <strong>${textContent(point.clock)}</strong>
+      ${dayLabel ? `<small>${textContent(dayLabel)}</small>` : ""}
+    </span>`;
+};
+
+const buildChargingPlanStateHtml = (plan) => {
+  if (plan.status === "empty") {
+    return `<p class="feasibility-charging-plan__state feasibility-charging-plan__state--empty" data-role="feasibility-charging-plan-empty">${textContent(
+      translateOr(
+        "simulation.feasibility_charging_plan_empty",
+        "No charging sessions are required for this shift."
+      )
+    )}</p>`;
+  }
+
+  if (plan.status === "unavailable") {
+    const count = toOptionalFiniteNumber(plan.reportedSessionCount);
+    const message = count !== null && count > 0
+      ? translateOr(
+          "simulation.feasibility_charging_plan_unavailable_count",
+          `${formatFixed(count, 0)} charging sessions are reported, but their times and locations are not available.`,
+          { count: formatFixed(count, 0) }
+        )
+      : translateOr(
+          "simulation.feasibility_charging_plan_unavailable",
+          "Charging times and locations are not available for this shift."
+        );
+    return `<p class="feasibility-charging-plan__state" data-role="feasibility-charging-plan-unavailable">${textContent(
+      message
+    )}</p>`;
+  }
+
+  if (plan.status !== "partial") return "";
+  const reported = toOptionalFiniteNumber(plan.reportedSessionCount);
+  const detailed = toOptionalFiniteNumber(plan.detailedSessionCount) ?? 0;
+  const message = reported !== null && reported !== detailed
+    ? translateOr(
+        "simulation.feasibility_charging_plan_partial_count",
+        `${formatFixed(detailed, 0)} of ${formatFixed(reported, 0)} reported charging sessions include detailed information.`,
+        {
+          available: formatFixed(detailed, 0),
+          total: formatFixed(reported, 0),
+        }
+      )
+    : translateOr(
+        "simulation.feasibility_charging_plan_incomplete",
+        "Some charging-session details are incomplete."
+      );
+  return `<p class="feasibility-charging-plan__state feasibility-charging-plan__state--partial" data-role="feasibility-charging-plan-partial">${textContent(
+    message
+  )}</p>`;
+};
+
+const buildShiftChargingPlanHtml = (viewState) => {
+  const plan = viewState?.selectedShiftSummary?.operation?.chargingPlan;
+  if (!plan) return "";
+  const sessions = Array.isArray(plan.sessions) ? plan.sessions : [];
+  const count = toOptionalFiniteNumber(plan.reportedSessionCount) ??
+    (sessions.length > 0 || plan.status === "empty" ? sessions.length : null);
+  const countBadge = count === null
+    ? ""
+    : `<span class="feasibility-charging-plan__count" data-role="feasibility-charging-plan-count">${textContent(
+        formatFixed(count, 0)
+      )}</span>`;
+  const sessionsHtml = sessions.map((session, index) => {
+    const sequence = index + 1;
+    const location = session.stationName || session.stationStopId ||
+      translateOr("simulation.feasibility_charging_location_unknown", "Location not available");
+    const sessionLabel = translateOr(
+      "simulation.feasibility_charging_session_label",
+      `Charging session ${sequence}`,
+      { number: sequence }
+    );
+
+    return `
+      <li class="feasibility-charging-session${session.detailsComplete ? "" : " feasibility-charging-session--incomplete"}" data-role="feasibility-charging-session">
+        <div class="feasibility-charging-session__sequence" aria-hidden="true">${sequence}</div>
+        <div class="feasibility-charging-session__body">
+          <div class="feasibility-charging-session__header">
+            <div>
+              <span class="feasibility-charging-session__label">${textContent(sessionLabel)}</span>
+              <h5 data-role="feasibility-charging-session-location">${textContent(location)}</h5>
+            </div>
+            <div class="feasibility-charging-session__time" aria-label="${textContent(
+              translateOr("simulation.feasibility_charging_time", "Charging time")
+            )}" data-role="feasibility-charging-session-time">
+              ${chargingSessionClockHtml(session.startMinute, "feasibility-charging-session-start")}
+              <span class="feasibility-charging-session__time-separator" aria-hidden="true">→</span>
+              ${chargingSessionClockHtml(session.endMinute, "feasibility-charging-session-end")}
+            </div>
+          </div>
+          <dl class="feasibility-charging-session__metrics">
+            <div data-role="feasibility-charging-session-duration">
+              <dt>${textContent(
+                translateOr("simulation.feasibility_charging_duration", "Duration")
+              )}</dt>
+              <dd>${shiftMetricValue(
+                session.durationMinutes,
+                translateOr("simulation.feasibility_minutes_short", "min")
+              )}</dd>
+            </div>
+            <div data-role="feasibility-charging-session-energy">
+              <dt>${textContent(
+                translateOr("simulation.feasibility_charging_energy", "Energy")
+              )}</dt>
+              <dd>${shiftMetricValue(session.energyKwh, "kWh", { decimals: 1 })}</dd>
+            </div>
+            <div data-role="feasibility-charging-session-average-power">
+              <dt>${textContent(
+                translateOr("simulation.feasibility_charging_average_power", "Average power")
+              )}</dt>
+              <dd>${shiftMetricValue(session.averagePowerKw, "kW", { decimals: 1 })}</dd>
+            </div>
+          </dl>
+        </div>
+      </li>`;
+  }).join("");
+
+  return `
+    <section class="feasibility-charging-plan" data-role="feasibility-charging-plan" data-status="${textContent(plan.status)}">
+      <div class="feasibility-charging-plan__header">
+        <div>
+          <h4>${textContent(
+            translateOr("simulation.feasibility_charging_plan_title", "Charging plan")
+          )}</h4>
+          <p>${textContent(
+            translateOr(
+              "simulation.feasibility_charging_plan_subtitle",
+              "Where and when charging takes place during the selected shift."
+            )
+          )}</p>
+        </div>
+        ${countBadge}
+      </div>
+      ${buildChargingPlanStateHtml(plan)}
+      ${sessionsHtml ? `<ol class="feasibility-charging-plan__sessions" data-role="feasibility-charging-session-list">${sessionsHtml}</ol>` : ""}
+    </section>`;
+};
+
 const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (!el) return;
 
@@ -6789,6 +6947,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       )}
       <div class="feasibility-level__content">
         ${buildShiftOperationalSummaryHtml(feasibilityViewState)}
+        ${buildShiftChargingPlanHtml(feasibilityViewState)}
         ${isFeasible ? chartsHtml : ""}
         ${sensitivityFeasibilityCardHtml}
         <details class="ya-more-information">

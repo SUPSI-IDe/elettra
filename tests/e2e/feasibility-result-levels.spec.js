@@ -55,6 +55,7 @@ const mountResults = async (page, {
   totalInstallationCostChf,
   includeInfrastructureInput = true,
   batteryResultOverrides = {},
+  perBusSummaryOverrides = {},
 } = {}) => {
   const shiftNames = {
     morning: "Morning service",
@@ -74,6 +75,52 @@ const mountResults = async (page, {
       ),
     ]),
   );
+  const defaultChargingSessions = {
+    morning: [
+      {
+        start_minute: 60,
+        end_minute: 90,
+        duration_minutes: 30,
+        station_stop_id: "depot",
+        station_name: "Depot",
+        energy_kwh: 60,
+      },
+      {
+        start_minute: 720,
+        end_minute: 730,
+        duration_minutes: 10,
+        station_stop_id: "depot",
+        station_name: "Depot",
+        energy_kwh: 20,
+      },
+    ],
+    evening: [
+      {
+        start_minute: 1430,
+        end_minute: 10,
+        duration_minutes: 20,
+        station_stop_id: "depot",
+        station_name: "Depot",
+        energy_kwh: 50,
+      },
+      {
+        start_minute: 1500,
+        end_minute: 1530,
+        duration_minutes: 30,
+        station_stop_id: "depot",
+        station_name: "Depot",
+        energy_kwh: 60,
+      },
+      {
+        start_minute: 1600,
+        end_minute: 1615,
+        duration_minutes: 15,
+        station_stop_id: "depot",
+        station_name: "Depot",
+        energy_kwh: 30,
+      },
+    ],
+  };
 
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -104,7 +151,8 @@ const mountResults = async (page, {
               max_soc_kwh: shiftId === "evening" ? 500 : 400,
               total_charged_kwh: shiftId === "evening" ? 140 : 80,
               num_charging_sessions: shiftId === "evening" ? 3 : 2,
-              charging_sessions: [],
+              charging_sessions: defaultChargingSessions[shiftId] ?? [],
+              ...(perBusSummaryOverrides[shiftId] ?? {}),
             })),
             ...(installedChargers === undefined
               ? {}
@@ -195,6 +243,17 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(shiftSummary.locator('[data-role="feasibility-shift-min-soc"]')).toContainText("120.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-charged-energy"]')).toContainText("80.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("2");
+  const chargingPlan = shiftDetail.locator('[data-role="feasibility-charging-plan"]');
+  const chargingSessions = chargingPlan.locator('[data-role="feasibility-charging-session"]');
+  await expect(chargingPlan).toHaveAttribute("data-status", "complete");
+  await expect(chargingPlan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveText("2");
+  await expect(chargingSessions).toHaveCount(2);
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-location"]')).toHaveText("Depot");
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-start"]')).toContainText("01:00");
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-end"]')).toContainText("01:30");
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-duration"]')).toContainText("30");
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-energy"]')).toContainText("60.0");
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toContainText("120.0");
 
   await expect(selector).toBeVisible();
   await expect(selector.locator('[data-action="select-shift"]')).toHaveCount(2);
@@ -209,6 +268,13 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(shiftSummary.locator('[data-role="feasibility-shift-min-soc"]')).toContainText("60.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-charged-energy"]')).toContainText("140.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("3");
+  await expect(chargingPlan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveText("3");
+  await expect(chargingSessions).toHaveCount(3);
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-start"]')).toContainText("23:50");
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-end"]')).toContainText("00:10");
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-end"]')).toContainText("next day");
+  await expect(chargingSessions.nth(1).locator('[data-role="feasibility-charging-session-start"]')).toContainText("01:00");
+  await expect(chargingSessions.nth(1).locator('[data-role="feasibility-charging-session-start"]')).toContainText("next day");
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-limiting-shifts"]')).toContainText("Evening service");
 });
@@ -234,6 +300,113 @@ test("renders unavailable values safely when a historical result has no shift de
   await expect(page.locator('[data-role="feasibility-selected-shift"]')).toHaveText("—");
   await expect(page.locator('[data-role="feasibility-infrastructure-unavailable"]')).toBeVisible();
   await expect(page.locator('[data-role="feasibility-shift-summary"]')).toContainText("Operational details are not available");
+  await expect(page.locator('[data-role="feasibility-charging-plan"]')).toHaveCount(0);
+});
+
+test("distinguishes a shift with no required charging from missing schedule details", async ({ page }) => {
+  await mountResults(page, {
+    shiftIds: ["morning"],
+    perBusSummaryOverrides: {
+      morning: {
+        total_charged_kwh: 0,
+        num_charging_sessions: 0,
+        charging_sessions: [],
+      },
+    },
+  });
+
+  const plan = page.locator('[data-role="feasibility-charging-plan"]');
+  await expect(plan).toHaveAttribute("data-status", "empty");
+  await expect(plan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveText("0");
+  await expect(plan.locator('[data-role="feasibility-charging-plan-empty"]')).toContainText("No charging sessions are required");
+  await expect(plan.locator('[data-role="feasibility-charging-session-list"]')).toHaveCount(0);
+});
+
+test("explains when sessions are reported without time and location rows", async ({ page }) => {
+  await mountResults(page, {
+    shiftIds: ["morning"],
+    perBusSummaryOverrides: {
+      morning: {
+        num_charging_sessions: 2,
+        charging_sessions: [],
+      },
+    },
+  });
+
+  const plan = page.locator('[data-role="feasibility-charging-plan"]');
+  await expect(plan).toHaveAttribute("data-status", "unavailable");
+  await expect(plan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveText("2");
+  await expect(plan.locator('[data-role="feasibility-charging-plan-unavailable"]')).toContainText("2 charging sessions are reported");
+  await expect(plan.locator('[data-role="feasibility-charging-session-list"]')).toHaveCount(0);
+});
+
+test("does not present missing historical charging fields as a zero-session result", async ({ page }) => {
+  await mountResults(page, {
+    shiftIds: ["morning"],
+    perBusSummaryOverrides: {
+      morning: {
+        num_charging_sessions: undefined,
+        charging_sessions: undefined,
+      },
+    },
+  });
+
+  const plan = page.locator('[data-role="feasibility-charging-plan"]');
+  await expect(plan).toHaveAttribute("data-status", "unavailable");
+  await expect(plan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveCount(0);
+  await expect(plan.locator('[data-role="feasibility-charging-plan-unavailable"]')).toContainText("Charging times and locations are not available");
+  await expect(plan.locator('[data-role="feasibility-charging-plan-empty"]')).toHaveCount(0);
+});
+
+test("keeps available rows visible when the reported charging plan is partial", async ({ page }) => {
+  await mountResults(page, {
+    shiftIds: ["morning"],
+    perBusSummaryOverrides: {
+      morning: {
+        num_charging_sessions: 2,
+        charging_sessions: [{
+          start_minute: 720,
+          end_minute: 730,
+          duration_minutes: 10,
+          station_stop_id: "terminal",
+          station_name: "Central terminal",
+          energy_kwh: 25,
+        }],
+      },
+    },
+  });
+
+  const plan = page.locator('[data-role="feasibility-charging-plan"]');
+  await expect(plan).toHaveAttribute("data-status", "partial");
+  await expect(plan.locator('[data-role="feasibility-charging-plan-partial"]')).toContainText("1 of 2 reported charging sessions");
+  await expect(plan.locator('[data-role="feasibility-charging-session"]')).toHaveCount(1);
+  await expect(plan.locator('[data-role="feasibility-charging-session-location"]')).toHaveText("Central terminal");
+  await expect(plan.locator('[data-role="feasibility-charging-session-start"]')).toContainText("12:00");
+  await expect(plan.locator('[data-role="feasibility-charging-session-end"]')).toContainText("12:10");
+});
+
+test("renders charging locations as text without interpreting backend HTML", async ({ page }) => {
+  await mountResults(page, {
+    shiftIds: ["morning"],
+    perBusSummaryOverrides: {
+      morning: {
+        num_charging_sessions: 1,
+        charging_sessions: [{
+          start_minute: 720,
+          end_minute: 730,
+          duration_minutes: 10,
+          station_stop_id: '<svg onload="window.__chargingXss = true">',
+          station_name: '<img src=x onerror="window.__chargingXss = true">Depot',
+          energy_kwh: 25,
+        }],
+      },
+    },
+  });
+
+  const plan = page.locator('[data-role="feasibility-charging-plan"]');
+  await expect(plan.locator('[data-role="feasibility-charging-session-location"]')).toHaveText('<img src=x onerror="window.__chargingXss = true">Depot');
+  await expect(plan.locator("img, svg")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__chargingXss)).toBeUndefined();
 });
 
 test("shows an infeasible shift as a shortfall against the common physical battery", async ({ page }) => {

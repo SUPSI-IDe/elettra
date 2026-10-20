@@ -319,6 +319,7 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
     const requiredPacks = toNonNegativeNumber(
       battery.required_total_packs ?? summary.required_total_packs,
     );
+    const hasChargingSessionRows = hasOwn(summary, "charging_sessions");
     const chargingSessions = normalizeChargingSessions(summary.charging_sessions);
 
     return {
@@ -351,7 +352,8 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
         maxSocKwh: toNonNegativeNumber(summary.max_soc_kwh),
         totalChargedKwh: toNonNegativeNumber(summary.total_charged_kwh),
         numChargingSessions:
-          toNonNegativeNumber(summary.num_charging_sessions) ?? chargingSessions.length,
+          toNonNegativeNumber(summary.num_charging_sessions) ??
+          (hasChargingSessionRows ? chargingSessions.length : null),
         chargingSessions,
       },
     };

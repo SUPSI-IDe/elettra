@@ -245,6 +245,28 @@ test("per-shift charging sessions keep their shift association and chronological
   assert.equal(model.shifts[1].operation.numChargingSessions, 0);
 });
 
+test("missing historical charging-session fields remain unavailable instead of becoming zero", () => {
+  const missing = buildFeasibilityResultModel({
+    input_params: { mode: "battery_only", shift_ids: ["legacy"] },
+    results: {
+      battery_results: { legacy: battery("Legacy", 8) },
+      per_bus_summary: [{ shift_id: "legacy" }],
+    },
+  });
+  const explicitEmpty = buildFeasibilityResultModel({
+    input_params: { mode: "battery_only", shift_ids: ["empty"] },
+    results: {
+      battery_results: { empty: battery("Empty", 8) },
+      per_bus_summary: [{ shift_id: "empty", charging_sessions: [] }],
+    },
+  });
+
+  assert.equal(missing.shifts[0].operation.numChargingSessions, null);
+  assert.deepEqual(missing.shifts[0].operation.chargingSessions, []);
+  assert.equal(explicitEmpty.shifts[0].operation.numChargingSessions, 0);
+  assert.deepEqual(explicitEmpty.shifts[0].operation.chargingSessions, []);
+});
+
 test("legacy aliases and object-shaped summaries are normalized without inventing missing values", () => {
   const model = buildFeasibilityResultModel({
     optimization_mode: "battery_only",

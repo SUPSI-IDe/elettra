@@ -256,6 +256,13 @@ test("the selected shift summary compares its requirement with the common fleet 
       maxSocKwh: 500,
       totalChargedKwh: 80,
       numChargingSessions: 2,
+      chargingPlan: {
+        status: "unavailable",
+        reportedSessionCount: 2,
+        detailedSessionCount: 0,
+        expectedSessionCount: 2,
+        sessions: [],
+      },
     },
   });
   assert.equal(evening.battery.requiredPacks, 12);
@@ -315,6 +322,7 @@ test("historical shift results fall back to optimized packs and derive the margi
   assert.equal(detail.operation.maxSocKwh, null);
   assert.equal(detail.operation.totalChargedKwh, 0);
   assert.equal(detail.operation.numChargingSessions, 0);
+  assert.equal(detail.operation.chargingPlan.status, "empty");
 });
 
 test("no selected shift produces no operational summary", () => {
@@ -379,6 +387,22 @@ test("both feasibility levels are translated in every supported locale", () => {
     "simulation.feasibility_shift_physical_limit",
     "simulation.feasibility_shift_charged_energy",
     "simulation.feasibility_shift_charging_sessions",
+    "simulation.feasibility_charging_plan_title",
+    "simulation.feasibility_charging_plan_subtitle",
+    "simulation.feasibility_charging_plan_empty",
+    "simulation.feasibility_charging_plan_unavailable",
+    "simulation.feasibility_charging_plan_unavailable_count",
+    "simulation.feasibility_charging_plan_partial_count",
+    "simulation.feasibility_charging_plan_incomplete",
+    "simulation.feasibility_charging_session_label",
+    "simulation.feasibility_charging_location_unknown",
+    "simulation.feasibility_charging_time",
+    "simulation.feasibility_charging_duration",
+    "simulation.feasibility_charging_energy",
+    "simulation.feasibility_charging_average_power",
+    "simulation.feasibility_minutes_short",
+    "simulation.feasibility_charging_next_day",
+    "simulation.feasibility_charging_day_offset",
   ];
 
   for (const [locale, dictionary] of Object.entries(translations)) {
@@ -389,6 +413,23 @@ test("both feasibility levels are translated in every supported locale", () => {
     assert.ok(
       dictionary["simulation.feasibility_nominal_capacity"].includes("{capacity}"),
       `${locale}: missing capacity placeholder`,
+    );
+    assert.ok(
+      dictionary["simulation.feasibility_charging_plan_unavailable_count"].includes("{count}"),
+      `${locale}: missing charging count placeholder`,
+    );
+    assert.ok(
+      dictionary["simulation.feasibility_charging_plan_partial_count"].includes("{available}") &&
+        dictionary["simulation.feasibility_charging_plan_partial_count"].includes("{total}"),
+      `${locale}: missing partial-plan placeholders`,
+    );
+    assert.ok(
+      dictionary["simulation.feasibility_charging_session_label"].includes("{number}"),
+      `${locale}: missing session number placeholder`,
+    );
+    assert.ok(
+      dictionary["simulation.feasibility_charging_day_offset"].includes("{days}"),
+      `${locale}: missing day offset placeholder`,
     );
   }
 });

@@ -1,3 +1,5 @@
+import { buildFeasibilityChargingPlan } from "./feasibility-charging-plan.js";
+
 const asRecord = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value)
     ? value
@@ -25,6 +27,11 @@ const finiteNumber = (value) => {
 const nonNegativeNumber = (value) => {
   const normalized = finiteNumber(value);
   return normalized !== null && normalized >= 0 ? normalized : null;
+};
+
+const nonNegativeInteger = (value) => {
+  const normalized = nonNegativeNumber(value);
+  return normalized !== null && Number.isInteger(normalized) ? normalized : null;
 };
 
 const summarizeInfrastructure = (infrastructure) => {
@@ -66,6 +73,7 @@ const summarizeSelectedShift = (selectedShift, commonBattery) => {
   const shift = asRecord(selectedShift.shift);
   const battery = asRecord(shift.battery);
   const operation = asRecord(shift.operation);
+  const chargingPlan = buildFeasibilityChargingPlan(operation);
   const requiredPacks =
     nonNegativeNumber(battery.requiredPacks) ??
     nonNegativeNumber(battery.optimizedPacks);
@@ -100,7 +108,8 @@ const summarizeSelectedShift = (selectedShift, commonBattery) => {
       minSocKwh: nonNegativeNumber(operation.minSocKwh),
       maxSocKwh: nonNegativeNumber(operation.maxSocKwh),
       totalChargedKwh: nonNegativeNumber(operation.totalChargedKwh),
-      numChargingSessions: nonNegativeNumber(operation.numChargingSessions),
+      numChargingSessions: nonNegativeInteger(operation.numChargingSessions),
+      chargingPlan,
     },
   };
 };
