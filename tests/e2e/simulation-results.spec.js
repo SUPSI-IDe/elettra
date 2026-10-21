@@ -51,7 +51,7 @@ test("loaded feasibility results use mean for the decision and show the full dis
           mode: "battery_only",
           status: "completed",
           input_params: {
-            shift_ids: [],
+            shift_ids: ["test-shift"],
             mode: "battery_only",
             min_soc: 0.2,
             max_soc: 0.9,
@@ -79,6 +79,14 @@ test("loaded feasibility results use mean for the decision and show the full dis
                 feasibility_status: "feasible",
               },
             },
+            per_bus_summary: [{
+              shift_id: "test-shift",
+              min_soc_kwh: 120,
+              max_soc_kwh: 540,
+              total_charged_kwh: 0,
+              num_charging_sessions: 0,
+              charging_sessions: [],
+            }],
           },
         },
       });
@@ -118,6 +126,17 @@ test("loaded feasibility results use mean for the decision and show the full dis
       return;
     }
 
+    if (path.endsWith("/api/v1/user/shifts/test-shift/info")) {
+      await route.fulfill({
+        json: {
+          id: "test-shift",
+          name: "Test shift",
+          structure: [],
+        },
+      });
+      return;
+    }
+
     if (path.endsWith("/api/v1/economic/defaults")) {
       await route.fulfill({ json: {} });
       return;
@@ -140,42 +159,49 @@ test("loaded feasibility results use mean for the decision and show the full dis
     });
   });
 
-  await expect(page.locator(".efficiency-sensitivity-card__chips")).toContainText(
+  await page
+    .locator('[data-action="select-result-scope"][data-shift-id="test-shift"]')
+    .click();
+
+  const energyAdequacy = page.locator(
+    '[data-role="feasibility-shift-energy-adequacy"]',
+  );
+  await expect(energyAdequacy.locator(".efficiency-sensitivity-card__chips")).toContainText(
     "Heating type: Diesel",
   );
-  await expect(page.locator(".efficiency-sensitivity-card__header")).toContainText(
-    "Feasible — mean-based demand scenario",
-  );
-  const sensitivityBody = page.locator(".efficiency-sensitivity-card__body");
-  await expect(sensitivityBody).toContainText(
+  await expect(energyAdequacy).toHaveAttribute("data-feasibility", "feasible");
+  await expect(energyAdequacy).toContainText("Shift energy adequacy");
+  await expect(page.locator('[data-role="feasibility-shift-sensitivity"]')).toHaveCount(0);
+  const adequacyGrid = energyAdequacy.locator(".efficiency-adequacy-grid");
+  await expect(adequacyGrid).toContainText(
     "Q05 demand",
   );
-  await expect(sensitivityBody).toContainText(
+  await expect(adequacyGrid).toContainText(
     "Mean demand — decision basis",
   );
-  await expect(sensitivityBody).toContainText(
+  await expect(adequacyGrid).toContainText(
     "Q50 demand",
   );
-  await expect(sensitivityBody).toContainText(
+  await expect(adequacyGrid).toContainText(
     "Q95 demand",
   );
-  await expect(sensitivityBody).toContainText(
-    "Battery margin — mean basis",
+  await expect(adequacyGrid).toContainText(
+    "Operational energy margin — mean basis",
   );
-  await expect(sensitivityBody).toContainText("8.4 kWh (2.0%)");
-  await expect(sensitivityBody).toContainText(
-    "Q50 demand exceeds usable energy; the feasibility decision uses mean demand.",
+  await expect(adequacyGrid).toContainText("8.4 kWh (2.0%)");
+  await expect(adequacyGrid.locator('[data-role="battery-adequacy-q50"]')).toContainText(
+    "above available operational energy",
   );
 
-  const sensitivityText = await sensitivityBody.innerText();
-  expect(sensitivityText.indexOf("Q05 demand")).toBeLessThan(
-    sensitivityText.indexOf("Mean demand — decision basis"),
+  const adequacyText = await adequacyGrid.innerText();
+  expect(adequacyText.indexOf("Q05 demand")).toBeLessThan(
+    adequacyText.indexOf("Mean demand — decision basis"),
   );
-  expect(sensitivityText.indexOf("Mean demand — decision basis")).toBeLessThan(
-    sensitivityText.indexOf("Q50 demand"),
+  expect(adequacyText.indexOf("Mean demand — decision basis")).toBeLessThan(
+    adequacyText.indexOf("Q50 demand"),
   );
-  expect(sensitivityText.indexOf("Q50 demand")).toBeLessThan(
-    sensitivityText.indexOf("Q95 demand"),
+  expect(adequacyText.indexOf("Q50 demand")).toBeLessThan(
+    adequacyText.indexOf("Q95 demand"),
   );
 
   const efficiencyTable = page.locator("[data-role='efficiency-table']");

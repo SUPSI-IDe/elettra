@@ -63,6 +63,27 @@ import {
   FEASIBILITY_DEMAND_BASIS,
   resolveFeasibilityDemandBasis,
 } from "../../../utils/feasibility-demand-basis";
+import {
+  ENERGY_BALANCE_TOLERANCE_KWH,
+  buildShiftEnergyBalance,
+} from "../../../utils/feasibility-energy-balance";
+import {
+  buildFeasibilityResultModel,
+  FEASIBILITY_DECISION,
+} from "../../../utils/feasibility-result-model";
+import { buildFeasibilityViewState } from "../../../utils/feasibility-view-state";
+import { formatFeasibilityClockMinute } from "../../../utils/feasibility-charging-plan";
+import {
+  hasShiftSelection,
+  matchesShiftRecord,
+  scopePredictionRunsByShift,
+} from "../../../utils/feasibility-shift-scope";
+import {
+  FEASIBILITY_GENERAL_SCOPE_KEY,
+  buildFeasibilityResultScopes,
+  resolveFeasibilityResultScope,
+  resolveFeasibilityScopeKeyboardTarget,
+} from "../../../utils/feasibility-result-navigation";
 import "./simulation-results.css";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
@@ -933,7 +954,8 @@ const resolveOptimizedPackCountForView = (batteryResults = {}, viewOptions = {})
   const scopedEntries = entries.filter(([shiftKey, result]) =>
     matchesSelectedShift(result, shiftKey, viewOptions)
   );
-  const optimizedPacks = (scopedEntries.length ? scopedEntries : entries)
+  const sourceEntries = hasShiftSelection(viewOptions) ? scopedEntries : entries;
+  const optimizedPacks = sourceEntries
     .map(([, result]) => toFiniteNumber(result?.optimized_packs))
     .filter((value) => value != null);
 
@@ -3130,19 +3152,8 @@ const OPTIMIZATION_BATTERY_COLORS = {
   optimized: "#abe828",
 };
 
-const matchesSelectedShift = (batteryResult = {}, shiftKey = "", viewOptions = {}) => {
-  const selectedShiftId = firstText(viewOptions?.selectedShiftId);
-  const selectedShiftName = firstText(viewOptions?.selectedShiftName);
-
-  if (!selectedShiftId && !selectedShiftName) return true;
-  if (selectedShiftId && firstText(batteryResult?.shift_id, shiftKey) === selectedShiftId) {
-    return true;
-  }
-  if (selectedShiftName && firstText(batteryResult?.shift_name) === selectedShiftName) {
-    return true;
-  }
-  return false;
-};
+const matchesSelectedShift = (record = {}, shiftKey = "", viewOptions = {}) =>
+  matchesShiftRecord(record, shiftKey, viewOptions);
 
 const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {}) => {
   if (!results || typeof results !== "object" || !Object.keys(results).length) return "";
@@ -3160,13 +3171,19 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
   let electrificationSummaryHtml = "";
   if (electSummary.status === "infeasible") {
     const infeasibleBuses = Array.isArray(electSummary.infeasible_buses) ? electSummary.infeasible_buses : [];
+    const scopedInfeasibleBuses = infeasibleBuses.filter((bus) =>
+      matchesSelectedShift(bus, "", viewOptions)
+    );
+    const visibleInfeasibleBuses = hasShiftSelection(viewOptions)
+      ? scopedInfeasibleBuses
+      : infeasibleBuses;
     const predictedShiftConsumptionKwh = toOptionalFiniteNumber(
       viewOptions?.predictedShiftConsumptionKwh ??
       viewOptions?.costInputs?.predictedShiftConsumptionKwh
     );
     const uniqueByShift = [];
     const seenShifts = new Set();
-    for (const bus of infeasibleBuses) {
+    for (const bus of visibleInfeasibleBuses) {
       const key = bus.shift_id ?? bus.shift_name ?? "";
       if (key && seenShifts.has(key)) continue;
       if (key) seenShifts.add(key);
@@ -3363,27 +3380,22 @@ const deriveSocKwh = (batteryCapacityKwh, socFraction) => {
 
 const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResults = {}, viewOptions = {}) => {
   const allRuns = [...(predictionRuns ?? [])];
-  const selectedShiftId = firstText(viewOptions?.selectedShiftId);
   const minSocFraction = toFiniteNumber(viewOptions?.inputParams?.min_soc);
   const maxSocFraction = toFiniteNumber(viewOptions?.inputParams?.max_soc);
 
-  const filtered = selectedShiftId
-    ? allRuns.filter((run) => firstText(run?.shift_id) === selectedShiftId)
-    : allRuns;
-
-  const sorted = filtered.sort((a, b) =>
-    Number(a?.contextual_parameters?.num_battery_packs ?? 0) - Number(b?.contextual_parameters?.num_battery_packs ?? 0)
-  );
+  const sorted = scopePredictionRunsByShift(allRuns, viewOptions);
 
   const perBusArr = Array.isArray(perBusSummary) ? perBusSummary : [];
-  const filteredPerBus = selectedShiftId
-    ? perBusArr.filter((entry) => firstText(entry?.shift_id) === selectedShiftId)
+  const filteredPerBus = hasShiftSelection(viewOptions)
+    ? perBusArr.filter((entry) =>
+        matchesSelectedShift(entry, "", viewOptions)
+      )
     : perBusArr;
 
   const optimizedPackSet = new Set(
     Object.entries(batteryResults ?? {})
       .filter(([shiftKey, result]) =>
-        !selectedShiftId || firstText(result?.shift_id, shiftKey) === selectedShiftId
+        matchesSelectedShift(result, shiftKey, viewOptions)
       )
       .map(([, result]) => toFiniteNumber(result?.optimized_packs))
       .filter((value) => value != null)
@@ -4281,55 +4293,25 @@ const renderTripUncertaintySection = (run = {}, { tripStopLookup = new Map() } =
     </details>`;
 };
 
-const computeBatteryAdequacyStatus = ({
-  usableEnergyKwh,
-  q05DemandKwh,
-  meanDemandKwh,
-  q50DemandKwh,
-  q95DemandKwh,
-} = {}) => {
-  const usableEnergy = toOptionalFiniteNumber(usableEnergyKwh);
-  const q05Demand = toOptionalFiniteNumber(q05DemandKwh);
-  const meanDemand = toOptionalFiniteNumber(meanDemandKwh);
-  const q50Demand = toOptionalFiniteNumber(q50DemandKwh);
-  const q95Demand = toOptionalFiniteNumber(q95DemandKwh);
-
-  return {
-    usableEnergy,
-    q05Demand,
-    meanDemand,
-    q50Demand,
-    q95Demand,
-    canEvaluateEnergy: usableEnergy != null,
-    canEvaluateQuantiles:
-      q05Demand != null &&
-      meanDemand != null &&
-      q50Demand != null &&
-      q95Demand != null,
-    q05Covered: usableEnergy != null && q05Demand != null ? usableEnergy >= q05Demand : null,
-    meanCovered:
-      usableEnergy != null && meanDemand != null
-        ? usableEnergy >= meanDemand
-        : null,
-    q50Covered: usableEnergy != null && q50Demand != null ? usableEnergy >= q50Demand : null,
-    q95Covered: usableEnergy != null && q95Demand != null ? usableEnergy >= q95Demand : null,
-  };
-};
-
 const renderBatteryAdequacyPanel = (status = {}) => {
   const title = translateOr(
     "simulation.battery_adequacy_title",
-    "Battery adequacy check"
+    "Shift energy adequacy"
   );
-  const note = translateOr(
-    "simulation.battery_adequacy_note",
-    "The feasibility decision uses mean demand. Q05, Q50, and Q95 are comparison scenarios and are not true exceedance probabilities."
-  );
+  const note = status.chargingDataAvailable
+    ? translateOr(
+        "simulation.battery_adequacy_note_operational",
+        "Mean feasibility follows the optimized SOC schedule. Quantiles compare demand with usable battery energy plus planned charging; charging timing is not re-optimized for them."
+      )
+    : translateOr(
+        "simulation.battery_adequacy_note_missing_charging",
+        "Mean feasibility follows the optimized result when available. Charging energy is unavailable, so quantiles are compared with usable battery energy only."
+      );
 
   if (!status.canEvaluateEnergy) {
     return `
       <div class="efficiency-adequacy-panel">
-        <h5>${textContent(title)}</h5>
+        <h3 class="efficiency-section-title">${textContent(title)}</h3>
         <p>${textContent(
           translateOr(
             "simulation.battery_adequacy_missing_energy",
@@ -4340,72 +4322,149 @@ const renderBatteryAdequacyPanel = (status = {}) => {
       </div>`;
   }
 
-  if (!status.canEvaluateQuantiles) {
-    return `
-      <div class="efficiency-adequacy-panel">
-        <h5>${textContent(title)}</h5>
-        <p>${textContent(
-          translateOr(
-            "simulation.battery_adequacy_missing_quantiles",
-            "Battery adequacy cannot be evaluated because mean or quantile demand data are unavailable."
+  const coverageLabel = (covered) => {
+    if (covered === null) {
+      return translateOr("simulation.feasibility_status_unavailable", "Status unavailable");
+    }
+    if (status.comparisonUsesOperationalEnergy) {
+      return covered
+        ? translateOr(
+            "simulation.battery_adequacy_within_operational",
+            "within available operational energy"
           )
-        )}</p>
-        <p class="efficiency-adequacy-note">${textContent(note)}</p>
-      </div>`;
-  }
+        : translateOr(
+            "simulation.battery_adequacy_above_operational",
+            "above available operational energy"
+          );
+    }
+    return covered
+      ? translateOr(
+          "simulation.battery_adequacy_within_battery",
+          "within usable battery energy"
+        )
+      : translateOr(
+          "simulation.battery_adequacy_above_battery",
+          "above usable battery energy"
+        );
+  };
+  const badgeClass = (covered) =>
+    covered === true
+      ? "badge--positive"
+      : covered === false
+        ? "badge--negative"
+        : "badge--neutral";
+  const demandRow = (labelKey, fallbackLabel, demand, covered, role) => `
+    <span>${textContent(translateOr(labelKey, fallbackLabel))}</span>
+    <strong data-role="${role}">${textContent(formatFixed(demand, 1))} kWh <span class="badge badge--compact ${badgeClass(covered)}">${textContent(coverageLabel(covered))}</span></strong>`;
+  const meanLabel = status.meanDecisionUsesOptimizedSchedule
+    ? status.meanCovered
+      ? translateOr(
+          "simulation.battery_adequacy_mean_schedule_feasible",
+          "feasible in optimized schedule"
+        )
+      : translateOr(
+          "simulation.battery_adequacy_mean_schedule_infeasible",
+          "infeasible in optimized schedule"
+        )
+    : coverageLabel(status.meanCovered);
 
-  const q50Label = status.q50Covered
+  const minimumSocPercent = status.minimumSocFraction != null
+    ? formatPct(status.minimumSocFraction)
+    : null;
+  const maximumSocPercent = status.maximumSocFraction != null
+    ? formatPct(status.maximumSocFraction)
+    : null;
+  const usableSocValue = minimumSocPercent && maximumSocPercent
     ? translateOr(
-        "simulation.battery_adequacy_q50_covered",
-        "covered"
+        "simulation.battery_adequacy_usable_value",
+        `${formatFixed(status.usableBatteryEnergyKwh, 1)} kWh (${minimumSocPercent}–${maximumSocPercent})`,
+        {
+          value: formatFixed(status.usableBatteryEnergyKwh, 1),
+          min_soc: minimumSocPercent,
+          max_soc: maximumSocPercent,
+        }
       )
-    : translateOr(
-        "simulation.battery_adequacy_q50_above",
-        "above usable energy"
-      );
-  const meanLabel = status.meanCovered
-    ? translateOr(
-        "simulation.battery_adequacy_mean_covered",
-        "covered"
-      )
-    : translateOr(
-        "simulation.battery_adequacy_mean_above",
-        "above usable energy"
-      );
-  const q05Label = status.q05Covered
-    ? translateOr(
-        "simulation.battery_adequacy_q05_covered",
-        "covered"
-      )
-    : translateOr(
-        "simulation.battery_adequacy_q05_above",
-        "above usable energy"
-      );
-  const q95Label = status.q95Covered
-    ? translateOr(
-        "simulation.battery_adequacy_q95_covered",
-        "within usable battery energy"
-      )
-    : translateOr(
-        "simulation.battery_adequacy_q95_above",
-        "above usable energy"
-      );
+    : `${formatFixed(status.usableBatteryEnergyKwh, 1)} kWh`;
+
+  const energyRows = [`
+        <span>${textContent(translateOr("simulation.battery_adequacy_usable", "Usable SOC window"))}</span>
+        <strong data-role="battery-adequacy-usable">${textContent(usableSocValue)}</strong>`];
+  if (status.minimumSocKwh != null && status.minimumAllowedSocKwh != null) {
+    const minimumValue = minimumSocPercent
+      ? translateOr(
+          "simulation.battery_adequacy_minimum_soc_value",
+          `${formatFixed(status.minimumSocKwh, 1)} kWh — limit ≥ ${formatFixed(status.minimumAllowedSocKwh, 1)} kWh (${minimumSocPercent})`,
+          {
+            reached: formatFixed(status.minimumSocKwh, 1),
+            limit: formatFixed(status.minimumAllowedSocKwh, 1),
+            percent: minimumSocPercent,
+          }
+        )
+      : `${formatFixed(status.minimumSocKwh, 1)} kWh — limit ≥ ${formatFixed(status.minimumAllowedSocKwh, 1)} kWh`;
+    energyRows.push(`
+        <span>${textContent(translateOr("simulation.battery_adequacy_minimum_soc", "Minimum SOC reached"))}</span>
+        <strong data-role="battery-adequacy-minimum-soc">${textContent(minimumValue)}</strong>`);
+  }
+  if (status.maximumSocKwh != null && status.maximumAllowedSocKwh != null) {
+    const maximumValue = maximumSocPercent
+      ? translateOr(
+          "simulation.battery_adequacy_maximum_soc_value",
+          `${formatFixed(status.maximumSocKwh, 1)} kWh — limit ≤ ${formatFixed(status.maximumAllowedSocKwh, 1)} kWh (${maximumSocPercent})`,
+          {
+            reached: formatFixed(status.maximumSocKwh, 1),
+            limit: formatFixed(status.maximumAllowedSocKwh, 1),
+            percent: maximumSocPercent,
+          }
+        )
+      : `${formatFixed(status.maximumSocKwh, 1)} kWh — limit ≤ ${formatFixed(status.maximumAllowedSocKwh, 1)} kWh`;
+    energyRows.push(`
+        <span>${textContent(translateOr("simulation.battery_adequacy_maximum_soc", "Maximum SOC reached"))}</span>
+        <strong data-role="battery-adequacy-maximum-soc">${textContent(maximumValue)}</strong>`);
+  }
+  if (status.chargingDataAvailable) {
+    energyRows.push(`
+        <span>${textContent(translateOr("simulation.battery_adequacy_planned_charging", "Planned charging"))}</span>
+        <strong data-role="battery-adequacy-charging">${textContent(formatFixed(status.plannedChargingEnergyKwh, 1))} kWh</strong>
+        <span>${textContent(translateOr("simulation.battery_adequacy_operational_energy", "Available operational energy"))}</span>
+        <strong data-role="battery-adequacy-operational">${textContent(formatFixed(status.operationalEnergyKwh, 1))} kWh</strong>`);
+  }
+  const marginSummary = formatBatteryMarginSummary(status);
+  if (marginSummary) {
+    energyRows.push(`
+        <span>${textContent(translateOr(
+          status.comparisonUsesOperationalEnergy
+            ? "simulation.sensitivity_operational_margin_mean"
+            : "simulation.sensitivity_margin_mean",
+          status.comparisonUsesOperationalEnergy
+            ? "Operational energy margin — mean basis"
+            : "Battery margin — mean basis"
+        ))}</span>
+        <strong class="${marginSummary.marginClass}" data-role="battery-adequacy-margin">${textContent(marginSummary.text)}</strong>`);
+  }
+  const demandRows = status.canEvaluateQuantiles
+    ? [
+        demandRow("simulation.battery_adequacy_q05", "Q05 demand", status.q05DemandKwh, status.q05Covered, "battery-adequacy-q05"),
+        `
+        <span>${textContent(translateOr("simulation.battery_adequacy_mean", "Mean demand — decision basis"))}</span>
+        <strong data-role="battery-adequacy-mean">${textContent(formatFixed(status.meanDemandKwh, 1))} kWh <span class="badge badge--compact ${badgeClass(status.meanCovered)}">${textContent(meanLabel)}</span></strong>`,
+        demandRow("simulation.battery_adequacy_q50", "Q50 demand", status.q50DemandKwh, status.q50Covered, "battery-adequacy-q50"),
+        demandRow("simulation.battery_adequacy_q95", "Q95 demand", status.q95DemandKwh, status.q95Covered, "battery-adequacy-q95"),
+      ]
+    : [];
 
   return `
     <div class="efficiency-adequacy-panel">
-      <h5>${textContent(title)}</h5>
+      <h3 class="efficiency-section-title">${textContent(title)}</h3>
       <div class="efficiency-adequacy-grid">
-        <span>${textContent(translateOr("simulation.battery_adequacy_usable", "Usable energy"))}</span>
-        <strong>${textContent(formatFixed(status.usableEnergy, 1))} kWh</strong>
-        <span>${textContent(translateOr("simulation.battery_adequacy_q05", "Q05 demand"))}</span>
-        <strong>${textContent(formatFixed(status.q05Demand, 1))} kWh <span class="badge badge--compact ${status.q05Covered ? "badge--positive" : "badge--negative"}">${textContent(q05Label)}</span></strong>
-        <span>${textContent(translateOr("simulation.battery_adequacy_mean", "Mean demand — decision basis"))}</span>
-        <strong>${textContent(formatFixed(status.meanDemand, 1))} kWh <span class="badge badge--compact ${status.meanCovered ? "badge--positive" : "badge--negative"}">${textContent(meanLabel)}</span></strong>
-        <span>${textContent(translateOr("simulation.battery_adequacy_q50", "Q50 demand"))}</span>
-        <strong>${textContent(formatFixed(status.q50Demand, 1))} kWh <span class="badge badge--compact ${status.q50Covered ? "badge--positive" : "badge--negative"}">${textContent(q50Label)}</span></strong>
-        <span>${textContent(translateOr("simulation.battery_adequacy_q95", "Q95 demand"))}</span>
-        <strong>${textContent(formatFixed(status.q95Demand, 1))} kWh <span class="badge badge--compact ${status.q95Covered ? "badge--positive" : "badge--negative"}">${textContent(q95Label)}</span></strong>
+        ${energyRows.join("")}
+        ${demandRows.join("")}
       </div>
+      ${status.canEvaluateQuantiles ? "" : `<p>${textContent(
+        translateOr(
+          "simulation.battery_adequacy_missing_quantiles",
+          "Energy adequacy cannot be evaluated because mean or quantile demand data are unavailable."
+        )
+      )}</p>`}
       <p class="efficiency-adequacy-note">${textContent(note)}</p>
     </div>`;
 };
@@ -5742,7 +5801,7 @@ const resolveOptimizedBatteryCoverageMarker = (
   };
 };
 
-/* ── Sensitivity / Feasibility Insight Card ──────────────── */
+/* ── Shift energy adequacy and sensitivity drivers ───────── */
 
 const MARGIN_ADEQUATE_PCT = 0.15;
 const MARGIN_TIGHT_PCT = 0.05;
@@ -5809,228 +5868,55 @@ const overviewMarginToneClass = (marginClass = "") => {
   return "overview-highlight--neutral";
 };
 
-const resolveSensitivityFeasibilityCardData = (
+const resolveShiftEnergyAdequacyData = (
   results,
   ip,
   firstRun,
   viewOptions,
-  { optimizedCoverageMarker = null, adequacyScenario = null } = {}
+  { selectedShiftFeasible = null } = {}
 ) => {
-  const feasibility = results?.electrification_feasible;
-  if (feasibility === null || feasibility === undefined) return null;
-
   const batteryResults = results?.battery_results ?? {};
-  const batteryEntries = Object.entries(batteryResults).filter(
+  const batteryEntry = Object.entries(batteryResults).find(
     ([shiftKey, result]) => matchesSelectedShift(result, shiftKey, viewOptions)
-  );
-  const batteryEntry = batteryEntries[0]?.[1] ?? Object.values(batteryResults)[0] ?? null;
-  if (!batteryEntry) return null;
-
-  const mode = ip?.mode ?? "";
-  const optimizedPacks = toOptionalFiniteNumber(batteryEntry?.optimized_packs);
-  const optimizedNominalKwh =
-    toOptionalFiniteNumber(optimizedCoverageMarker?.nominalKwh) ??
-    resolveOptimizedInstalledNominalKwh({
-      batteryEntry,
-      batteryResults,
-      viewOptions,
-    });
-  const usableSocFraction = resolveUsableSocFraction(ip);
-  const optimizedUsableKwh =
-    toOptionalFiniteNumber(optimizedCoverageMarker?.value) ??
-    applyUsableSocWindow(optimizedNominalKwh, usableSocFraction);
-  const maxPhysicalPacks = toOptionalFiniteNumber(batteryEntry?.max_physical_packs);
-
-  const externalTempCelsius = toOptionalFiniteNumber(firstRun?.external_temp_celsius);
-  const heatingType = firstRun?.auxiliary_heating_type ?? null;
-  const occupancyPercent = toOptionalFiniteNumber(firstRun?.occupancy_percent);
-
-  const q05DemandKwh =
-    toOptionalFiniteNumber(adequacyScenario?.q05) ??
-    readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
-      kind: "absolute",
-      quantileKey: "q05",
-    });
-  const meanDemandKwh =
-    toOptionalFiniteNumber(adequacyScenario?.mean) ??
-    toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh);
-  const q50DemandKwh =
-    toOptionalFiniteNumber(adequacyScenario?.q50) ??
-    readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
-      kind: "absolute",
-      quantileKey: "q50",
-    });
-  const q95DemandKwh =
-    toOptionalFiniteNumber(adequacyScenario?.q95) ??
-    readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
-      kind: "absolute",
-      quantileKey: "q95",
-    });
-
-  let marginKwh = null;
-  let marginPct = null;
-  if (optimizedUsableKwh != null && meanDemandKwh != null) {
-    marginKwh = optimizedUsableKwh - meanDemandKwh;
-    marginPct = meanDemandKwh > 0 ? marginKwh / meanDemandKwh : null;
-  }
-
-  const atPhysicalLimit =
-    optimizedPacks != null &&
-    maxPhysicalPacks != null &&
-    optimizedPacks >= maxPhysicalPacks;
-
+  )?.[1] ?? {};
   const chargingStations = Array.isArray(ip?.charging_stations)
     ? ip.charging_stations
     : [];
-  const chargingStationsCount = chargingStations.length > 0
-    ? chargingStations.length
-    : null;
-
-  const yearlyDistanceKm = toOptionalFiniteNumber(
-    viewOptions?.costInputs?.yearlyDistanceKm
-  );
 
   return {
-    feasibility,
-    mode,
-    optimizedPacks,
-    optimizedNominalKwh,
-    usableSocFraction,
-    optimizedUsableKwh,
-    maxPhysicalPacks,
-    externalTempCelsius,
-    heatingType,
-    occupancyPercent,
+    feasibility:
+      typeof selectedShiftFeasible === "boolean"
+        ? selectedShiftFeasible
+        : null,
+    mode: ip?.mode ?? "",
+    optimizedPacks: toOptionalFiniteNumber(batteryEntry?.optimized_packs),
+    usableSocFraction: resolveUsableSocFraction(ip),
+    externalTempCelsius: toOptionalFiniteNumber(firstRun?.external_temp_celsius),
+    heatingType: firstRun?.auxiliary_heating_type ?? null,
+    occupancyPercent: toOptionalFiniteNumber(firstRun?.occupancy_percent),
     demandBasis: resolveFeasibilityDemandBasis(ip),
-    q05DemandKwh,
-    meanDemandKwh,
-    q50DemandKwh,
-    q95DemandKwh,
-    marginKwh,
-    marginPct,
-    atPhysicalLimit,
-    chargingStationsCount,
-    yearlyDistanceKm,
+    chargingStationsCount:
+      chargingStations.length > 0 ? chargingStations.length : null,
+    yearlyDistanceKm: toOptionalFiniteNumber(
+      viewOptions?.costInputs?.yearlyDistanceKm
+    ),
   };
 };
 
-const buildSensitivityFeasibilityCardHtml = (data) => {
-  if (!data) return "";
+const buildShiftEnergyAdequacyCardHtml = (data, energyBalance) => {
+  if (!data && !energyBalance) return "";
 
-  const isFeasible = data.feasibility !== false;
-  const feasBadgeClass = isFeasible ? "badge--positive" : "badge--negative";
-  const feasLabel = feasibilityScenarioLabel(isFeasible, {
-    quantile_consumption:
-      data.demandBasis === FEASIBILITY_DEMAND_BASIS.Q50
-        ? "median"
-        : data.demandBasis === FEASIBILITY_DEMAND_BASIS.MEAN
-          ? "mean"
-          : "configured",
-  });
-
-  const marginPresentation = resolveBatteryMarginPresentation({
-    marginKwh: data.marginKwh,
-    marginPct: data.marginPct,
-  });
-  const marginLabel = marginPresentation?.marginLabel ?? "";
-  const marginClass = marginPresentation?.marginClass ?? "";
-
-  const energyRows = [];
-
-  if (data.optimizedUsableKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_usable_energy", "Usable energy"))}</span>
-        <strong>${textContent(formatFixed(data.optimizedUsableKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.q05DemandKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_q05_demand", "Q05 demand"))}</span>
-        <strong>${textContent(formatFixed(data.q05DemandKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.meanDemandKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_mean_demand", "Mean demand — decision basis"))}</span>
-        <strong>${textContent(formatFixed(data.meanDemandKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.q50DemandKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_median_demand", "Q50 demand"))}</span>
-        <strong>${textContent(formatFixed(data.q50DemandKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.q95DemandKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_q95_demand", "Q95 demand"))}</span>
-        <strong>${textContent(formatFixed(data.q95DemandKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.marginKwh != null) {
-    const pctStr = data.marginPct != null
-      ? ` (${(data.marginPct * 100).toFixed(1)}%)`
-      : "";
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_margin_mean", "Battery margin — mean basis"))}</span>
-        <strong class="${marginClass}">${textContent(formatFixed(data.marginKwh, 1))} kWh${textContent(pctStr)} \u2014 ${textContent(marginLabel)}</strong>
-      </div>`);
-  }
-
-  const warningRows = [];
-
-  if (
-    data.q50DemandKwh != null &&
-    data.optimizedUsableKwh != null &&
-    data.q50DemandKwh > data.optimizedUsableKwh
-  ) {
-    warningRows.push(`
-      <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-tight">
-        \u26a0 ${textContent(translateOr("simulation.sensitivity_q50_exceeds_mean_decision", "Q50 demand exceeds usable energy; the feasibility decision uses mean demand."))}
-      </div>`);
-  }
-
-  if (
-    data.q95DemandKwh != null &&
-    data.optimizedUsableKwh != null &&
-    data.q95DemandKwh > data.optimizedUsableKwh
-  ) {
-    warningRows.push(`
-      <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-tight">
-        \u26a0 ${textContent(translateOr("simulation.sensitivity_q95_exceeds", "Q95 demand exceeds usable energy."))}
-      </div>`);
-  }
-
-  if (data.atPhysicalLimit) {
-    warningRows.push(`
-      <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-danger">
-        \u26a0 ${textContent(translateOr("simulation.sensitivity_physical_limit_warning", "Optimized pack count reaches the physical pack limit."))}
-      </div>`);
-  }
-
-  const bodyRows = [...energyRows, ...warningRows];
-  const bodyHtml = bodyRows.length
-    ? `<div class="efficiency-sensitivity-card__body">${bodyRows.join("")}</div>`
-    : "";
-
+  const feasibilityState = data?.feasibility === true
+    ? "feasible"
+    : data?.feasibility === false
+      ? "infeasible"
+      : "unknown";
   const drivers = [];
-
   const demandBasisInputParams = {
     quantile_consumption:
-      data.demandBasis === FEASIBILITY_DEMAND_BASIS.Q50
+      data?.demandBasis === FEASIBILITY_DEMAND_BASIS.Q50
         ? "median"
-        : data.demandBasis === FEASIBILITY_DEMAND_BASIS.MEAN
+        : data?.demandBasis === FEASIBILITY_DEMAND_BASIS.MEAN
           ? "mean"
           : "configured",
   };
@@ -6041,32 +5927,32 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
     )}: ${textContent(feasibilityDemandBasisLabel(demandBasisInputParams))}</span>`
   );
 
-  if (data.mode) {
+  if (data?.mode) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(t("simulation.var_optimization_mode") || "Mode")}: ${textContent(modeLabel(data.mode))}</span>`);
   }
 
-  if (data.usableSocFraction != null) {
+  if (data?.usableSocFraction != null) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.sensitivity_driver_usable_soc", "Usable SoC"))}: ${textContent(formatPct(data.usableSocFraction))}</span>`);
   }
 
-  if (data.externalTempCelsius != null) {
+  if (data?.externalTempCelsius != null) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_external_temp_short", "External temperature"))}: ${textContent(String(data.externalTempCelsius))} \u00b0C</span>`);
   }
 
-  if (data.heatingType) {
-    const htLabel = formatHeatingTypeValue(data.heatingType) ?? data.heatingType;
-    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_heating_type_short", "Heating type"))}: ${textContent(htLabel)}</span>`);
+  if (data?.heatingType) {
+    const heatingTypeLabel = formatHeatingTypeValue(data.heatingType) ?? data.heatingType;
+    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_heating_type_short", "Heating type"))}: ${textContent(heatingTypeLabel)}</span>`);
   }
 
-  if (data.occupancyPercent != null) {
+  if (data?.occupancyPercent != null) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_occupancy_short", "Occupancy"))}: ${textContent(String(data.occupancyPercent))}%</span>`);
   }
 
-  if (data.optimizedPacks != null) {
+  if (data?.optimizedPacks != null) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.sensitivity_driver_opt_packs", "Optimized packs"))}: ${textContent(String(data.optimizedPacks))}</span>`);
   }
 
-  if (data.chargingStationsCount != null) {
+  if (data?.chargingStationsCount != null) {
     const chargingChipLabel =
       data.chargingStationsCount === 1
         ? translateOr(
@@ -6083,7 +5969,7 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
     );
   }
 
-  if (data.yearlyDistanceKm != null) {
+  if (data?.yearlyDistanceKm != null) {
     drivers.push(
       `<span class="efficiency-sensitivity-card__chip">${textContent(
         translateOr(
@@ -6103,19 +5989,658 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
     : "";
 
   return `
-  <div class="efficiency-sensitivity-card">
-    <div class="efficiency-sensitivity-card__header">
-      <span class="efficiency-sensitivity-card__title">${textContent(translateOr("simulation.sensitivity_card_title", "Sensitivity / Feasibility Insight"))}</span>
-      <span class="badge badge--compact ${feasBadgeClass}">${textContent(feasLabel)}</span>
-    </div>
-    ${bodyHtml}
+  <section
+    class="efficiency-section feasibility-shift-energy-adequacy"
+    data-role="feasibility-shift-energy-adequacy"
+    data-feasibility="${feasibilityState}"
+  >
+    ${renderBatteryAdequacyPanel(energyBalance ?? {})}
     ${driversHtml}
-    <p class="efficiency-sensitivity-card__disclaimer">${textContent(translateOr("simulation.sensitivity_disclaimer", "Indicative summary only. The detailed tables and charts below are the source of truth."))}</p>
-  </div>`;
+  </section>`;
+};
+
+const feasibilityDecisionLabel = (decision) => {
+  if (decision === FEASIBILITY_DECISION.FIXED) {
+    return translateOr("simulation.feasibility_decision_fixed", "Fixed");
+  }
+  if (decision === FEASIBILITY_DECISION.OPTIMIZED) {
+    return translateOr("simulation.feasibility_decision_optimized", "Optimized");
+  }
+  return translateOr("simulation.feasibility_decision_unknown", "Not available");
+};
+
+const feasibilityDecisionTone = (decision) =>
+  decision === FEASIBILITY_DECISION.FIXED ||
+  decision === FEASIBILITY_DECISION.OPTIMIZED
+    ? decision
+    : "unknown";
+
+const feasibilityOverallStatus = (value) => {
+  if (value === true) {
+    return {
+      tone: "feasible",
+      label: translateOr(
+        "simulation.feasibility_all_shifts_feasible",
+        "All shifts are feasible"
+      ),
+    };
+  }
+  if (value === false) {
+    return {
+      tone: "infeasible",
+      label: translateOr(
+        "simulation.feasibility_not_all_shifts_feasible",
+        "Not all shifts are feasible"
+      ),
+    };
+  }
+  return {
+    tone: "unknown",
+    label: translateOr(
+      "simulation.feasibility_status_unavailable",
+      "Feasibility status unavailable"
+    ),
+  };
+};
+
+const feasibilityStationStatusLabel = (status) => {
+  const labels = {
+    fixed: ["simulation.feasibility_station_fixed", "Fixed"],
+    candidate: ["simulation.feasibility_station_candidate", "Candidate"],
+    installed: ["simulation.feasibility_station_installed", "Installed"],
+    rejected: ["simulation.feasibility_station_rejected", "Not installed"],
+    configured: ["simulation.feasibility_station_configured", "Configured"],
+  };
+  const [key, fallback] = labels[status] ?? labels.configured;
+  return translateOr(key, fallback);
+};
+
+const infrastructureMetricValue = (value, suffix = "") =>
+  value === null || value === undefined
+    ? "—"
+    : textContent(`${formatFixed(value, 0)}${suffix ? ` ${suffix}` : ""}`);
+
+const buildSharedInfrastructureDetailsHtml = (viewState) => {
+  const summary = viewState?.general?.infrastructureSummary ?? {};
+  const stations = Array.isArray(summary.stations) ? summary.stations : [];
+  const configurationState = summary.selectionComplete
+    ? translateOr("simulation.feasibility_infrastructure_complete", "Configuration available")
+    : translateOr("simulation.feasibility_infrastructure_incomplete", "Configuration incomplete");
+  const configurationTone = summary.selectionComplete ? "complete" : "incomplete";
+  let bodyHtml = "";
+
+  if (!summary.dataAvailable) {
+    bodyHtml = `<p class="efficiency-chart-empty" data-role="feasibility-infrastructure-unavailable">${textContent(
+      translateOr(
+        "simulation.feasibility_infrastructure_unavailable",
+        "Charging infrastructure details are not available for this result."
+      )
+    )}</p>`;
+  } else if (!stations.length) {
+    bodyHtml = `<p class="efficiency-chart-empty" data-role="feasibility-infrastructure-empty">${textContent(
+      translateOr(
+        "simulation.feasibility_infrastructure_empty",
+        "No charging locations are part of this configuration."
+      )
+    )}</p>`;
+  } else {
+    const rows = stations.map((station) => `
+      <tr data-station-status="${textContent(station.status ?? "configured")}">
+        <td>${textContent(station.stopName ?? station.stopId ?? "—")}</td>
+        <td>
+          <span class="feasibility-station-status feasibility-station-status--${textContent(
+            station.status ?? "configured"
+          )}">${textContent(feasibilityStationStatusLabel(station.status))}</span>
+        </td>
+        <td class="efficiency-td-num">${station.slots == null ? "—" : textContent(formatFixed(station.slots, 0))}</td>
+        <td class="efficiency-td-num">${station.powerPerSlotKw == null ? "—" : textContent(formatFixed(station.powerPerSlotKw, 0))}</td>
+        <td class="efficiency-td-num">${station.totalPowerKw == null ? "—" : textContent(formatFixed(station.totalPowerKw, 0))}</td>
+        <td class="efficiency-td-num">${station.peakConcurrentBuses == null ? "—" : textContent(formatFixed(station.peakConcurrentBuses, 0))}</td>
+        <td class="efficiency-td-num">${station.totalEnergyKwh == null ? "—" : textContent(formatFixed(station.totalEnergyKwh, 1))}</td>
+        <td class="efficiency-td-num">${station.installationCostChf == null ? "—" : textContent(`CHF ${formatCHF(station.installationCostChf)}`)}</td>
+      </tr>`).join("");
+
+    bodyHtml = `
+      ${summary.selectionComplete ? "" : `<p class="feasibility-infrastructure-notice" data-role="feasibility-infrastructure-incomplete">${textContent(
+        translateOr(
+          "simulation.feasibility_infrastructure_incomplete_note",
+          "The saved result does not contain a final decision for every charging location; final totals are not shown."
+        )
+      )}</p>`}
+      <div class="efficiency-table-wrap">
+        <table class="efficiency-table feasibility-infrastructure-table">
+          <thead>
+            <tr>
+              <th class="efficiency-th-text">${textContent(t("simulation.cs_stop_name") || "Stop")}</th>
+              <th class="efficiency-th-text">${textContent(
+                translateOr("simulation.feasibility_station_status", "Status")
+              )}</th>
+              <th>${textContent(t("simulation.cs_num_plugs") || "Plugs")}</th>
+              <th>${textContent(t("simulation.cs_power_per_plug") || "kW DC / plug")}</th>
+              <th>${textContent(
+                translateOr("simulation.feasibility_total_charging_power", "Total kW DC")
+              )}</th>
+              <th>${textContent(
+                translateOr("simulation.feasibility_peak_buses", "Peak buses")
+              )}</th>
+              <th>${textContent(
+                translateOr("simulation.feasibility_delivered_energy", "Delivered kWh")
+              )}</th>
+              <th>${textContent(
+                translateOr("simulation.feasibility_installation_cost", "Installation cost")
+              )}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  return `
+    <section class="feasibility-infrastructure" data-role="feasibility-infrastructure">
+      <div class="feasibility-infrastructure__header">
+        <div>
+          <h4>${textContent(
+            translateOr("simulation.feasibility_infrastructure_title", "Shared charging infrastructure")
+          )}</h4>
+          <p>${textContent(
+            translateOr(
+              "simulation.feasibility_infrastructure_subtitle",
+              "Global charging resources available to the whole fleet across all selected shifts."
+            )
+          )}</p>
+        </div>
+        <span class="feasibility-configuration-state feasibility-configuration-state--${configurationTone}">${textContent(
+          configurationState
+        )}</span>
+      </div>
+      <div class="feasibility-infrastructure-metrics">
+        <div>
+          <span>${textContent(
+            translateOr("simulation.feasibility_active_locations", "Active locations")
+          )}</span>
+          <strong data-role="feasibility-active-locations">${infrastructureMetricValue(summary.activeStationCount)}</strong>
+        </div>
+        <div>
+          <span>${textContent(t("simulation.cs_num_plugs") || "Plugs")}</span>
+          <strong data-role="feasibility-total-plugs">${infrastructureMetricValue(summary.totalSlots)}</strong>
+        </div>
+        <div>
+          <span>${textContent(
+            translateOr("simulation.feasibility_total_charging_power", "Total charging power")
+          )}</span>
+          <strong data-role="feasibility-total-power">${infrastructureMetricValue(summary.totalPowerKw, "kW DC")}</strong>
+        </div>
+        <div>
+          <span>${textContent(
+            translateOr("simulation.feasibility_installation_cost", "Installation cost")
+          )}</span>
+          <strong data-role="feasibility-total-installation-cost">${summary.totalInstallationCostChf == null
+            ? "—"
+            : textContent(`CHF ${formatCHF(summary.totalInstallationCostChf)}`)}</strong>
+        </div>
+      </div>
+      ${bodyHtml}
+    </section>`;
+};
+
+const buildFeasibilityGeneralLevelHtml = (viewState) => {
+  const general = viewState?.general ?? {};
+  const battery = general.battery ?? {};
+  const infrastructure = general.infrastructure ?? {};
+  const batteryPacks = toOptionalFiniteNumber(battery.packs);
+  const nominalKwh = toOptionalFiniteNumber(battery.nominalKwh);
+  const batteryDecision = feasibilityDecisionLabel(battery.decision);
+  const infrastructureDecision = feasibilityDecisionLabel(infrastructure.decision);
+  const limitingNames = battery.decision === FEASIBILITY_DECISION.OPTIMIZED
+    ? general.sizingShiftNames ?? []
+    : general.mostDemandingShiftNames ?? [];
+  const limitingLabel = battery.decision === FEASIBILITY_DECISION.OPTIMIZED
+    ? translateOr("simulation.feasibility_sizing_shifts", "Sizing shift")
+    : translateOr("simulation.feasibility_most_demanding_shifts", "Most demanding shift");
+  const packUnit = t("simulation.unit_packs") || "packs";
+  const overallStatus = feasibilityOverallStatus(
+    general.electrificationFeasible
+  );
+  const optimizationMode = modeLabel(general.mode) ||
+    translateOr("simulation.feasibility_decision_unknown", "Not available");
+
+  return `
+    <section class="feasibility-level feasibility-level--general" data-role="feasibility-general-level">
+      <header class="feasibility-level__header">
+        <div>
+          <p class="feasibility-level__eyebrow">${textContent(
+            translateOr("simulation.feasibility_general_level", "General result")
+          )}</p>
+          <h3 class="feasibility-level__title">${textContent(
+            translateOr("simulation.feasibility_general_title", "Common fleet configuration")
+          )}</h3>
+          <p class="feasibility-level__subtitle">${textContent(
+            translateOr(
+              "simulation.feasibility_general_subtitle",
+              "One bus configuration and one charging infrastructure shared by every selected shift."
+            )
+          )}</p>
+        </div>
+        <div class="feasibility-level__header-meta">
+          <span
+            class="feasibility-mode"
+            data-role="feasibility-mode"
+          >${textContent(
+            translateOr(
+              "simulation.feasibility_optimization_mode",
+              "Optimization mode: {mode}",
+              { mode: optimizationMode }
+            )
+          )}</span>
+          <span
+            class="feasibility-overall-status feasibility-overall-status--${overallStatus.tone}"
+            data-role="feasibility-overall-status"
+          >${textContent(overallStatus.label)}</span>
+        </div>
+      </header>
+      <div class="feasibility-general-grid feasibility-general-grid--configuration">
+        <article class="feasibility-general-card" data-role="feasibility-fleet-battery">
+          <div class="feasibility-general-card__heading">
+            <span>${textContent(
+              translateOr("simulation.feasibility_fleet_battery", "Fleet battery")
+            )}</span>
+            <div class="feasibility-general-card__result">
+              <strong class="feasibility-general-card__value">
+                ${batteryPacks === null ? "—" : textContent(`${formatFixed(batteryPacks, 0)} ${packUnit}`)}
+              </strong>
+              <span class="feasibility-decision feasibility-decision--${feasibilityDecisionTone(
+                battery.decision
+              )}">${textContent(batteryDecision)}</span>
+            </div>
+          </div>
+          <p>${nominalKwh === null
+            ? textContent(translateOr("simulation.feasibility_capacity_unavailable", "Nominal capacity not available"))
+            : textContent(
+                translateOr(
+                  "simulation.feasibility_nominal_capacity",
+                  "{capacity} kWh nominal capacity",
+                  { capacity: formatFixed(nominalKwh, 0) }
+                )
+              )}</p>
+        </article>
+        <article class="feasibility-general-card" data-role="feasibility-shared-infrastructure">
+          <div class="feasibility-general-card__heading">
+            <span>${textContent(
+              translateOr("simulation.feasibility_shared_infrastructure", "Charging infrastructure")
+            )}</span>
+            <div class="feasibility-general-card__result">
+              <strong class="feasibility-general-card__value feasibility-general-card__value--text">
+                ${textContent(translateOr("simulation.feasibility_shared_value", "Shared"))}
+              </strong>
+              <span class="feasibility-decision feasibility-decision--${feasibilityDecisionTone(
+                infrastructure.decision
+              )}">${textContent(infrastructureDecision)}</span>
+            </div>
+          </div>
+          <p>${textContent(
+            translateOr(
+              "simulation.feasibility_shared_infrastructure_note",
+              "The same charging network serves every selected shift."
+            )
+          )}</p>
+        </article>
+      </div>
+      ${buildSharedInfrastructureDetailsHtml(viewState)}
+      <div class="feasibility-general-grid feasibility-general-grid--coverage">
+        <article class="feasibility-general-card" data-role="feasibility-shift-count">
+          <div class="feasibility-general-card__heading">
+            <span>${textContent(
+              translateOr("simulation.feasibility_shifts_covered", "Shifts covered")
+            )}</span>
+            <strong class="feasibility-general-card__value">${textContent(
+              String(general.shiftCount ?? 0)
+            )}</strong>
+          </div>
+          <p>${textContent(
+            translateOr(
+              "simulation.feasibility_one_configuration_note",
+              "The common configuration must work on every shift."
+            )
+          )}</p>
+        </article>
+        <article class="feasibility-general-card" data-role="feasibility-limiting-shifts">
+          <div class="feasibility-general-card__heading">
+            <span>${textContent(limitingLabel)}</span>
+            <strong class="feasibility-general-card__value feasibility-general-card__value--text">
+              ${limitingNames.length ? textContent(limitingNames.join(", ")) : "—"}
+            </strong>
+          </div>
+          <p>${textContent(
+            translateOr(
+              "simulation.feasibility_limiting_shift_note",
+              "This shift sets the highest battery requirement."
+            )
+          )}</p>
+        </article>
+      </div>
+    </section>`;
+};
+
+const buildFeasibilityShiftLevelHeaderHtml = (viewState, selectedShiftName) => `
+  <header class="feasibility-level__header feasibility-level__header--shift">
+    <div>
+      <p class="feasibility-level__eyebrow">${textContent(
+        translateOr("simulation.feasibility_shift_level", "Shift detail")
+      )}</p>
+      <h3 class="feasibility-level__title" data-role="feasibility-selected-shift">${textContent(
+        selectedShiftName || viewState?.selectedShiftName || "—"
+      )}</h3>
+      <p class="feasibility-level__subtitle">${textContent(
+        translateOr(
+          "simulation.feasibility_shift_subtitle",
+          "Energy demand and operating details for the selected shift."
+        )
+      )}</p>
+    </div>
+  </header>`;
+
+const shiftMetricValue = (value, unit = "", { signed = false, decimals = 0 } = {}) => {
+  const numeric = toOptionalFiniteNumber(value);
+  if (numeric === null) return "—";
+  const prefix = signed && numeric > 0 ? "+" : "";
+  return textContent(`${prefix}${formatFixed(numeric, decimals)}${unit ? ` ${unit}` : ""}`);
+};
+
+const buildShiftOperationalSummaryHtml = (viewState) => {
+  const detail = viewState?.selectedShiftSummary;
+  if (!detail) {
+    return `
+      <section class="feasibility-shift-summary" data-role="feasibility-shift-summary">
+        <p class="efficiency-chart-empty">${textContent(
+          translateOr(
+            "simulation.feasibility_shift_data_unavailable",
+            "Operational details are not available for this shift."
+          )
+        )}</p>
+      </section>`;
+  }
+
+  const battery = detail.battery ?? {};
+  const operation = detail.operation ?? {};
+  const margin = toOptionalFiniteNumber(battery.commonPackMargin);
+  let coverageLabel = translateOr(
+    "simulation.feasibility_shift_status_unknown",
+    "Status not available"
+  );
+  let coverageTone = "unknown";
+  if (battery.physicalFeasible === false || (margin !== null && margin < 0)) {
+    coverageLabel = translateOr(
+      "simulation.feasibility_shift_shortfall",
+      "Battery shortfall"
+    );
+    coverageTone = "negative";
+  } else if (battery.isSizing) {
+    coverageLabel = translateOr(
+      "simulation.feasibility_shift_is_sizing",
+      "Sizing shift"
+    );
+    coverageTone = "sizing";
+  } else if (margin !== null && margin >= 0) {
+    coverageLabel =
+      toOptionalFiniteNumber(operation.totalChargedKwh) > ENERGY_BALANCE_TOLERANCE_KWH
+        ? translateOr(
+            "simulation.feasibility_shift_covered_with_charging",
+            "Covered by common battery and planned charging"
+          )
+        : translateOr(
+            "simulation.feasibility_shift_covered",
+            "Covered by common battery"
+          );
+    coverageTone = "positive";
+  }
+
+  const physicalStatus = battery.physicalFeasible === true
+    ? translateOr("simulation.feasibility_physical_within_limit", "Within physical pack limit")
+    : battery.physicalFeasible === false
+      ? translateOr("simulation.feasibility_physical_exceeds_limit", "Exceeds physical pack limit")
+      : translateOr("simulation.feasibility_shift_status_unknown", "Status not available");
+  const physicalTone = battery.physicalFeasible === true
+    ? "positive"
+    : battery.physicalFeasible === false
+      ? "negative"
+      : "unknown";
+  const packUnit = t("simulation.unit_packs") || "packs";
+
+  return `
+    <section class="feasibility-shift-summary" data-role="feasibility-shift-summary">
+      <div class="feasibility-shift-summary__header">
+        <div>
+          <h4>${textContent(
+            translateOr("simulation.feasibility_shift_summary_title", "Shift operational summary")
+          )}</h4>
+          <p>${textContent(
+            translateOr(
+              "simulation.feasibility_shift_summary_subtitle",
+              "The shift requirement is evaluated against the common fleet configuration."
+            )
+          )}</p>
+        </div>
+        <span class="feasibility-shift-status feasibility-shift-status--${coverageTone}" data-role="feasibility-shift-coverage-status">${textContent(
+          coverageLabel
+        )}</span>
+      </div>
+      <div class="feasibility-shift-metrics">
+        <article data-role="feasibility-shift-required-packs">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_required_battery", "Shift battery requirement")
+          )}</span>
+          <strong>${shiftMetricValue(battery.requiredPacks, packUnit)}</strong>
+        </article>
+        <article data-role="feasibility-shift-common-packs">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_common_battery", "Common fleet battery")
+          )}</span>
+          <strong>${shiftMetricValue(battery.commonPacks, packUnit)}</strong>
+        </article>
+        <article data-role="feasibility-shift-pack-margin">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_battery_margin", "Battery margin")
+          )}</span>
+          <strong class="feasibility-shift-metric--${margin === null ? "unknown" : margin < 0 ? "negative" : "positive"}">${shiftMetricValue(
+            margin,
+            packUnit,
+            { signed: true }
+          )}</strong>
+        </article>
+        <article data-role="feasibility-shift-physical-limit">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_physical_limit", "Physical pack limit")
+          )}</span>
+          <span class="feasibility-shift-metric__result">
+            <strong>${shiftMetricValue(battery.maxPhysicalPacks, packUnit)}</strong>
+            <small class="feasibility-shift-physical-status feasibility-shift-physical-status--${physicalTone}">${textContent(
+              physicalStatus
+            )}</small>
+          </span>
+        </article>
+        <article data-role="feasibility-shift-min-soc">
+          <span>${textContent(t("simulation.opt_col_min_soc") || "Min SoC")}</span>
+          <strong>${shiftMetricValue(operation.minSocKwh, "kWh", { decimals: 1 })}</strong>
+        </article>
+        <article data-role="feasibility-shift-max-soc">
+          <span>${textContent(t("simulation.opt_col_max_soc") || "Max SoC")}</span>
+          <strong>${shiftMetricValue(operation.maxSocKwh, "kWh", { decimals: 1 })}</strong>
+        </article>
+        <article data-role="feasibility-shift-charged-energy">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_charged_energy", "Energy charged")
+          )}</span>
+          <strong>${shiftMetricValue(operation.totalChargedKwh, "kWh", { decimals: 1 })}</strong>
+        </article>
+        <article data-role="feasibility-shift-session-count">
+          <span>${textContent(
+            translateOr("simulation.feasibility_shift_charging_sessions", "Charging sessions")
+          )}</span>
+          <strong>${shiftMetricValue(operation.numChargingSessions)}</strong>
+        </article>
+      </div>
+    </section>`;
+};
+
+const chargingSessionClockHtml = (minute, role) => {
+  const point = formatFeasibilityClockMinute(minute);
+  if (!point) {
+    return `<span class="feasibility-charging-session__clock" data-role="${role}">—</span>`;
+  }
+
+  const dayLabel = point.dayOffset === 1
+    ? translateOr("simulation.feasibility_charging_next_day", "next day")
+    : point.dayOffset > 1
+      ? translateOr(
+          "simulation.feasibility_charging_day_offset",
+          `+${point.dayOffset} days`,
+          { days: point.dayOffset }
+        )
+      : "";
+
+  return `
+    <span class="feasibility-charging-session__clock" data-role="${role}" data-day-offset="${point.dayOffset}">
+      <strong>${textContent(point.clock)}</strong>
+      ${dayLabel ? `<small>${textContent(dayLabel)}</small>` : ""}
+    </span>`;
+};
+
+const buildChargingPlanStateHtml = (plan) => {
+  if (plan.status === "empty") {
+    return `<p class="feasibility-charging-plan__state feasibility-charging-plan__state--empty" data-role="feasibility-charging-plan-empty">${textContent(
+      translateOr(
+        "simulation.feasibility_charging_plan_empty",
+        "No charging sessions are required for this shift."
+      )
+    )}</p>`;
+  }
+
+  if (plan.status === "unavailable") {
+    const count = toOptionalFiniteNumber(plan.reportedSessionCount);
+    const message = count !== null && count > 0
+      ? translateOr(
+          "simulation.feasibility_charging_plan_unavailable_count",
+          `${formatFixed(count, 0)} charging sessions are reported, but their times and locations are not available.`,
+          { count: formatFixed(count, 0) }
+        )
+      : translateOr(
+          "simulation.feasibility_charging_plan_unavailable",
+          "Charging times and locations are not available for this shift."
+        );
+    return `<p class="feasibility-charging-plan__state" data-role="feasibility-charging-plan-unavailable">${textContent(
+      message
+    )}</p>`;
+  }
+
+  if (plan.status !== "partial") return "";
+  const reported = toOptionalFiniteNumber(plan.reportedSessionCount);
+  const detailed = toOptionalFiniteNumber(plan.detailedSessionCount) ?? 0;
+  const message = reported !== null && reported !== detailed
+    ? translateOr(
+        "simulation.feasibility_charging_plan_partial_count",
+        `${formatFixed(detailed, 0)} of ${formatFixed(reported, 0)} reported charging sessions include detailed information.`,
+        {
+          available: formatFixed(detailed, 0),
+          total: formatFixed(reported, 0),
+        }
+      )
+    : translateOr(
+        "simulation.feasibility_charging_plan_incomplete",
+        "Some charging-session details are incomplete."
+      );
+  return `<p class="feasibility-charging-plan__state feasibility-charging-plan__state--partial" data-role="feasibility-charging-plan-partial">${textContent(
+    message
+  )}</p>`;
+};
+
+const buildShiftChargingPlanHtml = (viewState) => {
+  const plan = viewState?.selectedShiftSummary?.operation?.chargingPlan;
+  if (!plan) return "";
+  const sessions = Array.isArray(plan.sessions) ? plan.sessions : [];
+  const count = toOptionalFiniteNumber(plan.reportedSessionCount) ??
+    (sessions.length > 0 || plan.status === "empty" ? sessions.length : null);
+  const countBadge = count === null
+    ? ""
+    : `<span class="feasibility-charging-plan__count" data-role="feasibility-charging-plan-count">${textContent(
+        formatFixed(count, 0)
+      )}</span>`;
+  const sessionsHtml = sessions.map((session, index) => {
+    const sequence = index + 1;
+    const location = session.stationName || session.stationStopId ||
+      translateOr("simulation.feasibility_charging_location_unknown", "Location not available");
+    const sessionLabel = translateOr(
+      "simulation.feasibility_charging_session_label",
+      `Charging session ${sequence}`,
+      { number: sequence }
+    );
+
+    return `
+      <li class="feasibility-charging-session${session.detailsComplete ? "" : " feasibility-charging-session--incomplete"}" data-role="feasibility-charging-session" aria-label="${textContent(sessionLabel)}">
+        <div class="feasibility-charging-session__sequence" aria-hidden="true">${sequence}</div>
+        <div class="feasibility-charging-session__location">
+          <span class="feasibility-charging-session__label">${textContent(sessionLabel)}:</span>
+          <strong data-role="feasibility-charging-session-location" title="${textContent(location)}">${textContent(location)}</strong>
+        </div>
+        <div class="feasibility-charging-session__time" aria-label="${textContent(
+          translateOr("simulation.feasibility_charging_time", "Charging time")
+        )}" data-role="feasibility-charging-session-time">
+          ${chargingSessionClockHtml(session.startMinute, "feasibility-charging-session-start")}
+          <span class="feasibility-charging-session__time-separator" aria-hidden="true">→</span>
+          ${chargingSessionClockHtml(session.endMinute, "feasibility-charging-session-end")}
+        </div>
+        <dl class="feasibility-charging-session__metrics">
+          <div data-role="feasibility-charging-session-duration">
+            <dt>${textContent(
+              translateOr("simulation.feasibility_charging_duration", "Duration")
+            )}:</dt>
+            <dd>${shiftMetricValue(
+              session.durationMinutes,
+              translateOr("simulation.feasibility_minutes_short", "min")
+            )}</dd>
+          </div>
+          <div data-role="feasibility-charging-session-energy">
+            <dt>${textContent(
+              translateOr("simulation.feasibility_charging_energy", "Energy")
+            )}:</dt>
+            <dd>${shiftMetricValue(session.energyKwh, "kWh", { decimals: 1 })}</dd>
+          </div>
+          <div data-role="feasibility-charging-session-average-power">
+            <dt>${textContent(
+              translateOr("simulation.feasibility_charging_average_power", "Average power")
+            )}:</dt>
+            <dd>${shiftMetricValue(session.averagePowerKw, "kW", { decimals: 1 })}</dd>
+          </div>
+        </dl>
+      </li>`;
+  }).join("");
+
+  return `
+    <section class="feasibility-charging-plan" data-role="feasibility-charging-plan" data-status="${textContent(plan.status)}">
+      <div class="feasibility-charging-plan__header">
+        <div>
+          <h4>${textContent(
+            translateOr("simulation.feasibility_charging_plan_title", "Charging plan")
+          )}</h4>
+          <p>${textContent(
+            translateOr(
+              "simulation.feasibility_charging_plan_subtitle",
+              "Where and when charging takes place during the selected shift."
+            )
+          )}</p>
+        </div>
+        ${countBadge}
+      </div>
+      ${buildChargingPlanStateHtml(plan)}
+      ${sessionsHtml ? `<ol class="feasibility-charging-plan__sessions" data-role="feasibility-charging-session-list">${sessionsHtml}</ol>` : ""}
+    </section>`;
 };
 
 const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (!el) return;
+
+  const keepMoreInformationOpen =
+    el.querySelector(".ya-more-information")?.open === true;
 
   if (state.status === "idle" || state.status === "loading") {
     el.innerHTML = `<p class="efficiency-state-msg">${textContent(t("simulation.efficiency_loading") || "Loading efficiency data…")}</p>`;
@@ -6132,13 +6657,19 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   }
 
   const { optimizationRun, predictionRuns } = state;
+  const resultScope = viewOptions?.resultScope === "shift" ? "shift" : "general";
+  const feasibilityModel = buildFeasibilityResultModel(optimizationRun);
+  const feasibilityViewState = buildFeasibilityViewState(
+    feasibilityModel,
+    resultScope === "shift" ? viewOptions?.selectedShiftId : null
+  );
   const scopedPredictionRuns = scopePredictionRunsByShift(
     predictionRuns,
     viewOptions
   );
   const ip = optimizationRun?.input_params ?? {};
   const results = optimizationRun?.results ?? {};
-  const firstRun = scopedPredictionRuns[0] ?? predictionRuns?.[0] ?? {};
+  const firstRun = scopedPredictionRuns[0] ?? {};
   const perBusSummary = results.per_bus_summary ?? [];
   const batteryResults = results.battery_results ?? {};
   const singlePackCapacityKwh = resolveSinglePackCapacityKwh(
@@ -6227,17 +6758,59 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         (item) => item?.scenarioLabel === optimizedCoverageMarker.scenarioLabel
       ) ?? null
     : null;
-  const batteryAdequacyHtml = optimizedCoverageMarker
-    ? renderBatteryAdequacyPanel(
-        computeBatteryAdequacyStatus({
-          usableEnergyKwh: optimizedCoverageMarker.value,
-          q05DemandKwh: adequacyScenario?.q05,
-          meanDemandKwh: adequacyScenario?.mean,
-          q50DemandKwh: adequacyScenario?.q50,
-          q95DemandKwh: adequacyScenario?.q95,
-        })
-      )
-    : "";
+  const selectedShiftSummary = feasibilityViewState?.selectedShiftSummary ?? null;
+  const minimumSocFraction = normalizeSocFraction(ip?.min_soc);
+  const maximumSocFraction = normalizeSocFraction(ip?.max_soc);
+  const optimizedNominalKwh = toOptionalFiniteNumber(
+    optimizedCoverageMarker?.nominalKwh
+  );
+  const minimumAllowedSocKwh =
+    optimizedNominalKwh != null &&
+    minimumSocFraction != null
+      ? optimizedNominalKwh * minimumSocFraction
+      : null;
+  const maximumAllowedSocKwh =
+    optimizedNominalKwh != null &&
+    maximumSocFraction != null
+      ? optimizedNominalKwh * maximumSocFraction
+      : null;
+  const energyBalance = optimizedCoverageMarker
+    ? buildShiftEnergyBalance({
+        usableBatteryEnergyKwh: optimizedCoverageMarker.value,
+        plannedChargingEnergyKwh:
+          selectedShiftSummary?.operation?.totalChargedKwh,
+        q05DemandKwh: adequacyScenario?.q05,
+        meanDemandKwh: adequacyScenario?.mean,
+        q50DemandKwh: adequacyScenario?.q50,
+        q95DemandKwh: adequacyScenario?.q95,
+        meanScheduleFeasible: selectedShiftSummary?.battery?.physicalFeasible,
+        minimumSocKwh: selectedShiftSummary?.operation?.minSocKwh,
+        minimumAllowedSocKwh,
+        maximumSocKwh: selectedShiftSummary?.operation?.maxSocKwh,
+        maximumAllowedSocKwh,
+        minimumSocFraction,
+        maximumSocFraction,
+      })
+    : null;
+  const energyCoverageMarker = optimizedCoverageMarker && energyBalance
+    ? {
+        ...optimizedCoverageMarker,
+        value: energyBalance.comparisonEnergyKwh,
+        label: energyBalance.usesPlannedCharging
+          ? translateOr(
+              "simulation.efficiency_operational_coverage_legend",
+              "Usable battery and planned charging"
+            )
+          : optimizedCoverageMarker.label,
+        tooltipLines: energyBalance.usesPlannedCharging
+          ? [
+              ...(optimizedCoverageMarker.tooltipLines ?? []),
+              `${translateOr("simulation.battery_adequacy_usable", "Usable battery energy")}: ${formatFixed(energyBalance.usableBatteryEnergyKwh, 1)} kWh`,
+              `${translateOr("simulation.battery_adequacy_planned_charging", "Planned charging")}: ${formatFixed(energyBalance.plannedChargingEnergyKwh, 1)} kWh`,
+            ]
+          : optimizedCoverageMarker.tooltipLines,
+      }
+    : optimizedCoverageMarker;
   const hasPerBus = perBusSummary.length > 0;
   const unifiedRows = buildUnifiedPredictionRows(predictionData, {
     includePerBus: hasPerBus,
@@ -6265,20 +6838,20 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         </div>`);
   }
 
-  if (consumptionOverviewData.length || optimizedCoverageMarker) {
+  if (consumptionOverviewData.length) {
     chartCards.unshift(`
         <div class="chart-section efficiency-chart-card">
           <div class="efficiency-chart-copy">
             <h4>${textContent(
               translateOr(
                 "simulation.efficiency_consumption_coverage_title",
-                "Consumption distribution and battery-covered energy"
+                "Consumption distribution and available operational energy"
               )
             )}</h4>
             <p>${textContent(
               translateOr(
                 "simulation.efficiency_consumption_coverage_subtitle",
-                "Compare simulated Q05, mean, Q50, and Q95 total consumption with the energy available from the optimized battery-pack setup."
+                "Compare simulated Q05, mean, Q50, and Q95 total consumption with usable battery energy and the planned charging for the selected shift."
               )
             )}</p>
             <p>${textContent(quantileHelpText())}</p>
@@ -6291,7 +6864,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
             class="chart-legend efficiency-chart-legend"
             data-role="efficiency-consumption-coverage-legend"
           ></div>
-          ${batteryAdequacyHtml}
         </div>`);
   }
 
@@ -6299,15 +6871,20 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     chartCards.length === 2
       ? "efficiency-chart-grid efficiency-chart-grid--two"
       : "efficiency-chart-grid";
-  const chartsHtml = chartCards.length > 0
-    ? `
-    <div class="efficiency-section">
+  const chartsHtml = `
+    <section
+      class="efficiency-section feasibility-shift-visual-analysis"
+      data-role="feasibility-shift-visual-analysis"
+      data-status="${chartCards.length > 0 ? "available" : "unavailable"}"
+    >
       <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_graphical_analysis") || "Visual analysis")}</h3>
-      <div class="${chartGridClass}">
-        ${chartCards.join("")}
-      </div>
-    </div>`
-    : "";
+      ${chartCards.length > 0
+        ? `<div class="${chartGridClass}">${chartCards.join("")}</div>`
+        : `<p class="efficiency-chart-empty" data-role="feasibility-shift-visual-analysis-empty">${textContent(
+            t("simulation.efficiency_no_predictions") ||
+              "No prediction data available."
+          )}</p>`}
+    </section>`;
 
   const predictionTableHtml = isFeasible || predictionData.length > 0
     ? `
@@ -6340,28 +6917,51 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     </section>`
     : "";
 
-  const sensitivityFeasibilityCardHtml = buildSensitivityFeasibilityCardHtml(
-    resolveSensitivityFeasibilityCardData(results, ip, firstRun, viewOptions, {
-      optimizedCoverageMarker,
-      adequacyScenario,
-    })
+  const shiftEnergyAdequacyHtml = buildShiftEnergyAdequacyCardHtml(
+    resolveShiftEnergyAdequacyData(results, ip, firstRun, viewOptions, {
+      selectedShiftFeasible:
+        selectedShiftSummary?.battery?.feasible ?? null,
+    }),
+    energyBalance
   );
 
-  el.innerHTML = `
-    ${isFeasible ? chartsHtml : ""}
-    ${sensitivityFeasibilityCardHtml}
-    <details class="ya-more-information">
-      <summary class="ya-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
-      <div class="ya-more-information__content">
-        <div class="efficiency-section">
-          <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
-          <div class="kpi-grid efficiency-params-grid">${conditionsHtml}</div>
-          ${predictionSummaryHtml}
-        </div>
-        ${optimizationHtml}
-        ${predictionTableHtml}
+  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(feasibilityViewState);
+  const shiftLevelHtml = `
+    <section class="feasibility-level feasibility-level--shift" data-role="feasibility-shift-level">
+      ${buildFeasibilityShiftLevelHeaderHtml(
+        feasibilityViewState,
+        viewOptions?.selectedShiftName
+      )}
+      <div class="feasibility-level__content">
+        ${buildShiftOperationalSummaryHtml(feasibilityViewState)}
+        ${chartsHtml}
+        ${shiftEnergyAdequacyHtml}
+        ${buildShiftChargingPlanHtml(feasibilityViewState)}
+        <details class="ya-more-information"${keepMoreInformationOpen ? " open" : ""}>
+          <summary class="ya-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
+          <div class="ya-more-information__content">
+            <div class="efficiency-section">
+              <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
+              <div class="kpi-grid efficiency-params-grid">${conditionsHtml}</div>
+              ${predictionSummaryHtml}
+            </div>
+            ${optimizationHtml}
+            ${predictionTableHtml}
+            <section
+              class="feasibility-shift-predictions"
+              data-role="feasibility-shift-predictions"
+            >
+              <h3 class="feasibility-shift-predictions__title">${textContent(
+                t("simulation.tab_predictions") || "Predictions"
+              )}</h3>
+              <div class="predictions-panel" data-role="predictions-panel"></div>
+            </section>
+          </div>
+        </details>
       </div>
-    </details>`;
+    </section>`;
+
+  el.innerHTML = resultScope === "shift" ? shiftLevelHtml : generalLevelHtml;
 
   renderEfficiencyEnergySplitChart(
     el.querySelector('[data-role="efficiency-energy-chart"]'),
@@ -6377,27 +6977,34 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       unit: "kWh",
       ariaLabel: translateOr(
         "simulation.chart_aria_consumption_coverage",
-        "Consumption distribution and battery-covered energy chart"
+        "Consumption distribution and available operational energy chart"
       ),
       yAxisLabel: t("simulation.axis_energy_kwh") || "kWh",
       decimals: 1,
-      markers: optimizedCoverageMarker ? [optimizedCoverageMarker] : [],
+      markers: energyCoverageMarker ? [energyCoverageMarker] : [],
     }
   );
   renderPredictionOverviewLegend(
     el.querySelector('[data-role="efficiency-consumption-coverage-legend"]'),
     {
       seriesKeys: resolvePredictionOverviewSeriesKeys(consumptionOverviewData),
-      extraItems: optimizedCoverageMarker
+      extraItems: energyCoverageMarker
         ? [
             {
-              label: optimizedCoverageMarker.label,
-              color: optimizedCoverageMarker.color,
+              label: energyCoverageMarker.label,
+              color: energyCoverageMarker.color,
             },
           ]
         : [],
     }
   );
+  if (resultScope === "shift") {
+    renderPredictionsPanel(
+      el.querySelector('[data-role="predictions-panel"]'),
+      state,
+      viewOptions
+    );
+  }
 };
 
 const firstFiniteValue = (...values) =>
@@ -6423,100 +7030,11 @@ const extractYearlyDistanceKm = (payload) =>
     payload?.data?.km
   );
 
-const resolvePredictionRunShiftIds = (predictionRun = {}) => {
-  const directIds = [
-    predictionRun?.shift_ids,
-    predictionRun?.shiftIds,
-    predictionRun?.summary?.shift_ids,
-    predictionRun?.summary?.shiftIds,
-    predictionRun?.contextual_parameters?.shift_ids,
-    predictionRun?.contextual_parameters?.shiftIds,
-  ].find((value) => Array.isArray(value) && value.length);
-
-  if (Array.isArray(directIds) && directIds.length) {
-    return directIds.map((value) => firstText(value)).filter(Boolean);
-  }
-
-  const directId = firstText(
-    predictionRun?.shift_id,
-    predictionRun?.shiftId,
-    predictionRun?.summary?.shift_id,
-    predictionRun?.summary?.shiftId,
-    predictionRun?.contextual_parameters?.shift_id,
-    predictionRun?.contextual_parameters?.shiftId
-  );
-
-  return directId ? [directId] : [];
-};
-
-const resolvePredictionRunShiftNames = (predictionRun = {}) => {
-  const directNames = [
-    predictionRun?.shift_names,
-    predictionRun?.shiftNames,
-    predictionRun?.summary?.shift_names,
-    predictionRun?.summary?.shiftNames,
-    predictionRun?.contextual_parameters?.shift_names,
-    predictionRun?.contextual_parameters?.shiftNames,
-  ].find((value) => Array.isArray(value) && value.length);
-
-  if (Array.isArray(directNames) && directNames.length) {
-    return directNames.map((value) => firstText(value)).filter(Boolean);
-  }
-
-  const directName = firstText(
-    predictionRun?.shift_name,
-    predictionRun?.shiftName,
-    predictionRun?.summary?.shift_name,
-    predictionRun?.summary?.shiftName,
-    predictionRun?.contextual_parameters?.shift_name,
-    predictionRun?.contextual_parameters?.shiftName
-  );
-
-  return directName ? [directName] : [];
-};
-
-const matchesPredictionRunShift = (predictionRun = {}, options = {}) => {
-  const selectedShiftId = firstText(options?.selectedShiftId, options?.shiftId);
-  const selectedShiftName = firstText(options?.selectedShiftName, options?.shiftName);
-
-  if (!selectedShiftId && !selectedShiftName) return true;
-
-  const runShiftIds = resolvePredictionRunShiftIds(predictionRun);
-  if (selectedShiftId && runShiftIds.includes(selectedShiftId)) {
-    return true;
-  }
-
-  const runShiftNames = resolvePredictionRunShiftNames(predictionRun);
-  if (selectedShiftName && runShiftNames.includes(selectedShiftName)) {
-    return true;
-  }
-
-  return false;
-};
-
-const scopePredictionRunsByShift = (predictionRuns = [], options = {}) => {
-  const runs = Array.isArray(predictionRuns) ? predictionRuns : [];
-  const shiftMatchedRuns = runs.filter((run) =>
-    matchesPredictionRunShift(run, options)
-  );
-  const scopedRuns = shiftMatchedRuns.length ? shiftMatchedRuns : runs;
-
-  return [...scopedRuns].sort(
-    (a, b) =>
-      (toFiniteNumber(a?.contextual_parameters?.num_battery_packs) ??
-        Number.MAX_SAFE_INTEGER) -
-      (toFiniteNumber(b?.contextual_parameters?.num_battery_packs) ??
-        Number.MAX_SAFE_INTEGER)
-  );
-};
-
 const selectCostPredictionRun = (predictionRuns = [], batteryResults = {}, options = {}) => {
   if (!Array.isArray(predictionRuns) || !predictionRuns.length) return null;
 
-  const shiftMatchedRuns = predictionRuns.filter((run) =>
-    matchesPredictionRunShift(run, options)
-  );
-  const candidateRuns = shiftMatchedRuns.length ? shiftMatchedRuns : predictionRuns;
+  const candidateRuns = scopePredictionRunsByShift(predictionRuns, options);
+  if (!candidateRuns.length) return null;
   const targetPacks = resolveOptimizedPackCount(batteryResults);
   if (targetPacks != null) {
     const exactMatch = candidateRuns.find(
@@ -7065,7 +7583,10 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
     const results = optRun?.results ?? {};
     const ip = optRun?.input_params ?? {};
     const batteryResults = results.battery_results ?? {};
-    const batteryEntry = Object.values(batteryResults)[0] ?? {};
+    const batteryEntry = Object.entries(batteryResults)
+      .find(([shiftKey, result]) =>
+        matchesSelectedShift(result, shiftKey, opts)
+      )?.[1] ?? {};
 
     const feasible = results.electrification_feasible;
     const feasBadge =
@@ -8369,7 +8890,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   if (!section) return null;
 
   const cleanupHandlers = [];
-  const renderedTabs = new Set();
+  const renderedTabs = new Set(["efficiency"]);
   const costOverrides = {
     fuelCostPerL: normalizeFuelCostPerL(options?.costOverrides?.fuelCostPerL),
     energyPricePerKwh: normalizeEnergyPricePerKwh(
@@ -8398,6 +8919,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   let activeShiftId = options.shiftId || "";
   let activeShiftName = options.shiftName || "";
   let availableShiftTabs = [];
+  let resultScopes = buildFeasibilityResultScopes([], {
+    generalLabel: translateOr("simulation.feasibility_scope_general", "General"),
+  });
+  let activeResultScopeKey = FEASIBILITY_GENERAL_SCOPE_KEY;
   let loadedOptimizationRun = null;
   let loadedPredictionRuns = [];
   let shiftRefreshSeq = 0;
@@ -8429,6 +8954,24 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const isElectrificationFeasible = () =>
     loadedOptimizationRun?.results?.electrification_feasible !== false;
 
+  const getActiveResultScope = () =>
+    resolveFeasibilityResultScope(resultScopes, activeResultScopeKey);
+
+  const getActiveResultViewOptions = () => {
+    const scope = getActiveResultScope();
+    if (scope?.kind !== "shift") {
+      return { resultScope: "general" };
+    }
+    const activeShift =
+      availableShiftTabs.find((shift) => shift.id === scope.shiftId) ?? null;
+    return {
+      resultScope: "shift",
+      selectedShiftId: scope.shiftId,
+      selectedShiftName: scope.shiftName,
+      tripStopLookup: activeShift?.tripStopLookup,
+    };
+  };
+
   const renderInfeasibleNotice = (container) => {
     if (!container) return;
     const msg =
@@ -8444,7 +8987,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       loadedOptimizationRun?.input_params ?? {}
     );
 
-    const maxPhysicalRows = (scopedEntries.length ? scopedEntries : batteryEntries)
+    const visibleEntries = activeShiftId ? scopedEntries : batteryEntries;
+    const maxPhysicalRows = visibleEntries
       .map(([shiftKey, result], index) => {
         const maxNominalKwh = toOptionalFiniteNumber(result?.max_physical_kwh);
         return {
@@ -8520,7 +9064,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     renderOpexInputsTable(scenarioScalingContentEl, costState, options);
     renderInvestmentSection(investmentContentEl, costState, options);
     refreshEfficiencyTab();
-    refreshPredictionsTab();
     refreshOverviewTab();
     if (!renderedTabs.has("costs")) return;
     if (!isElectrificationFeasible()) {
@@ -8545,28 +9088,14 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const refreshEfficiencyTab = () => {
     if (!renderedTabs.has("efficiency")) return;
+    const scopeOptions = getActiveResultViewOptions();
     renderEfficiencyTable(
       section.querySelector('[data-role="efficiency-table"]'),
       efficiencyState,
       {
-        selectedShiftId: activeShiftId,
-        selectedShiftName: activeShiftName,
-        costInputs: costState.costInputs,
-      }
-    );
-  };
-
-  const refreshPredictionsTab = () => {
-    if (!renderedTabs.has("predictions")) return;
-    const activeShift =
-      availableShiftTabs.find((shift) => shift.id === activeShiftId) ?? null;
-    renderPredictionsPanel(
-      section.querySelector('[data-role="predictions-panel"]'),
-      efficiencyState,
-      {
-        selectedShiftId: activeShiftId,
-        selectedShiftName: activeShiftName,
-        tripStopLookup: activeShift?.tripStopLookup,
+        ...scopeOptions,
+        costInputs:
+          scopeOptions.resultScope === "shift" ? costState.costInputs : null,
       }
     );
   };
@@ -8622,58 +9151,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       emissionsState,
       options
     );
-  };
-
-  const TAB_RENDERERS = {
-    overview: (sec) => {
-      renderOverviewPanel(
-        sec.querySelector('[data-role="overview-panel"]'),
-        efficiencyState,
-        costState,
-        emissionsState,
-        options
-      );
-    },
-    costs: (sec) => {
-      const panel = sec.querySelector('[data-panel="costs"]') ?? sec;
-      if (!isElectrificationFeasible()) {
-        renderInfeasibleNotice(panel);
-        return;
-      }
-      renderCostsSection(panel, costState, options);
-    },
-    efficiency: (sec) => {
-      renderEfficiencyTable(
-        sec.querySelector('[data-role="efficiency-table"]'),
-        efficiencyState,
-        {
-          selectedShiftId: activeShiftId,
-          selectedShiftName: activeShiftName,
-          costInputs: costState.costInputs,
-        }
-      );
-    },
-    predictions: (sec) => {
-      const activeShift =
-        availableShiftTabs.find((shift) => shift.id === activeShiftId) ?? null;
-      renderPredictionsPanel(
-        sec.querySelector('[data-role="predictions-panel"]'),
-        efficiencyState,
-        {
-          selectedShiftId: activeShiftId,
-          selectedShiftName: activeShiftName,
-          tripStopLookup: activeShift?.tripStopLookup,
-        }
-      );
-    },
-    emissions: (sec) => {
-      if (!isElectrificationFeasible()) {
-        const panel = sec.querySelector('[data-panel="emissions"]');
-        renderInfeasibleNotice(panel);
-        return;
-      }
-      renderEmissionsPanel(sec);
-    },
   };
 
   const pageTitleEl = section.querySelector('[data-role="results-page-title"]');
@@ -8768,29 +9245,51 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     );
   };
 
-  const renderShiftTabs = () => {
+  const renderResultScopeTabs = () => {
     if (!shiftTabsEl) return;
-    if (!availableShiftTabs.length) {
-      shiftTabsEl.hidden = true;
-      shiftTabsEl.innerHTML = "";
-      return;
-    }
-
     shiftTabsEl.hidden = false;
-    shiftTabsEl.innerHTML = availableShiftTabs
+    shiftTabsEl.setAttribute(
+      "aria-label",
+      translateOr("simulation.feasibility_scope_selector", "Feasibility result scope")
+    );
+    shiftTabsEl.innerHTML = resultScopes
       .map(
-        (shift) => `
+        (scope, index) => {
+          const active = scope.key === activeResultScopeKey;
+          const shiftAttribute = scope.kind === "shift"
+            ? ` data-shift-id="${textContent(scope.shiftId)}"`
+            : "";
+          return `
           <button
+            id="feasibility-scope-tab-${index}"
             type="button"
-            class="results-shift-tab${shift.id === activeShiftId ? " active" : ""}"
-            data-action="select-shift"
-            data-shift-id="${textContent(shift.id)}"
-            aria-pressed="${shift.id === activeShiftId ? "true" : "false"}"
+            role="tab"
+            class="results-shift-tab${active ? " active" : ""}"
+            data-action="select-result-scope"
+            data-scope-key="${textContent(scope.key)}"
+            data-scope-kind="${textContent(scope.kind)}"
+            ${shiftAttribute}
+            aria-selected="${active ? "true" : "false"}"
+            aria-controls="feasibility-scope-content"
+            tabindex="${active ? "0" : "-1"}"
+            title="${textContent(scope.label)}"
           >
-            ${textContent(shift.shiftName)}
-          </button>`
+            ${textContent(scope.label)}
+          </button>`;
+        }
       )
       .join("");
+
+    const activeScopeIndex = resultScopes.findIndex(
+      (scope) => scope.key === activeResultScopeKey
+    );
+    const scopeContent = section.querySelector("#feasibility-scope-content");
+    if (scopeContent && activeScopeIndex >= 0) {
+      scopeContent.setAttribute(
+        "aria-labelledby",
+        `feasibility-scope-tab-${activeScopeIndex}`
+      );
+    }
   };
 
   const refreshShiftScopedData = async ({ preserveExistingCostData = false } = {}) => {
@@ -8802,7 +9301,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       activeShift?.shiftName || options.shiftName || activeShiftId || "—";
     options.shiftId = activeShiftId;
     options.shiftName = activeShiftName;
-    renderShiftTabs();
+    renderResultScopeTabs();
 
     if (simNameEl) simNameEl.textContent = activeShiftName;
     if (subtitleEl) {
@@ -8812,7 +9311,13 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     }
     renderEvaluationName();
 
-    const firstPredictionRun = loadedPredictionRuns[0] ?? {};
+    const firstPredictionRun = scopePredictionRunsByShift(
+      loadedPredictionRuns,
+      {
+        selectedShiftId: activeShiftId,
+        selectedShiftName: activeShiftName,
+      }
+    )[0] ?? {};
     renderGeneralInfo({
       optimization_id: resolveOptimizationId(loadedOptimizationRun, options),
       simulation_type: resolveSimulationType(loadedOptimizationRun, options),
@@ -8832,7 +9337,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     });
 
     refreshEfficiencyTab();
-    refreshPredictionsTab();
 
     if (!loadedOptimizationRun) return;
 
@@ -8912,35 +9416,23 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     loading: true,
   });
 
-  const activateTab = (tabName) => {
-    section.querySelectorAll(".results-tab").forEach((btn) => {
-      const active = btn.dataset.tab === tabName;
-      btn.classList.toggle("active", active);
-      btn.setAttribute("aria-selected", String(active));
-    });
-    section.querySelectorAll(".tab-panel").forEach((panel) => {
-      const active = panel.dataset.panel === tabName;
-      panel.classList.toggle("active", active);
-      panel.hidden = !active;
-    });
-    if (!renderedTabs.has(tabName)) {
-      renderedTabs.add(tabName);
-      TAB_RENDERERS[tabName]?.(section);
+  const activateResultScope = async (requestedScopeKey) => {
+    const scope = resolveFeasibilityResultScope(resultScopes, requestedScopeKey);
+    if (!scope) return;
+
+    activeResultScopeKey = scope.key;
+    renderResultScopeTabs();
+
+    if (scope.kind !== "shift") {
+      ++shiftRefreshSeq;
+      refreshEfficiencyTab();
+      return;
     }
-  };
 
-  activateTab("efficiency");
-
-  const handleTabClick = (e) => {
-    const btn = e.target.closest(".results-tab");
-    if (!btn) return;
-    activateTab(btn.dataset.tab);
+    activeShiftId = scope.shiftId;
+    activeShiftName = scope.shiftName;
+    await refreshShiftScopedData({ preserveExistingCostData: false });
   };
-  const tabList = section.querySelector(".results-tabs");
-  if (tabList) {
-    tabList.addEventListener("click", handleTabClick);
-    cleanupHandlers.push(() => tabList.removeEventListener("click", handleTabClick));
-  }
 
   const handleBack = () => triggerPartialLoad("simulation-runs");
   section.querySelectorAll('[data-action="back"]').forEach((btn) => {
@@ -8991,19 +9483,47 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   }
 
   if (shiftTabsEl) {
-    const handleShiftTabClick = (event) => {
-      const btn = event.target.closest('[data-action="select-shift"]');
+    const handleResultScopeClick = (event) => {
+      const btn = event.target.closest('[data-action="select-result-scope"]');
       if (!btn) return;
-      const nextShiftId = firstText(btn.dataset.shiftId);
-      if (!nextShiftId || nextShiftId === activeShiftId) return;
-      activeShiftId = nextShiftId;
-      refreshShiftScopedData({ preserveExistingCostData: false }).catch((error) => {
-        console.error("[elettra] Unable to refresh shift-specific results:", error);
+      const nextScopeKey = firstText(btn.dataset.scopeKey);
+      if (!nextScopeKey || nextScopeKey === activeResultScopeKey) return;
+      activateResultScope(nextScopeKey).catch((error) => {
+        console.error("[elettra] Unable to refresh feasibility result scope:", error);
       });
     };
-    shiftTabsEl.addEventListener("click", handleShiftTabClick);
+
+    const handleResultScopeKeydown = (event) => {
+      const btn = event.target.closest('[data-action="select-result-scope"]');
+      if (!btn) return;
+      const targetScope = resolveFeasibilityScopeKeyboardTarget(
+        resultScopes,
+        firstText(btn.dataset.scopeKey, activeResultScopeKey),
+        event.key
+      );
+      if (!targetScope) return;
+
+      event.preventDefault();
+      activateResultScope(targetScope.key)
+        .then(() => {
+          const activeButton = shiftTabsEl.querySelector(
+            '[data-action="select-result-scope"][tabindex="0"]'
+          );
+          activeButton?.focus();
+          activeButton?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+        })
+        .catch((error) => {
+          console.error("[elettra] Unable to refresh feasibility result scope:", error);
+        });
+    };
+
+    shiftTabsEl.addEventListener("click", handleResultScopeClick);
+    shiftTabsEl.addEventListener("keydown", handleResultScopeKeydown);
     cleanupHandlers.push(() =>
-      shiftTabsEl.removeEventListener("click", handleShiftTabClick)
+      shiftTabsEl.removeEventListener("click", handleResultScopeClick)
+    );
+    cleanupHandlers.push(() =>
+      shiftTabsEl.removeEventListener("keydown", handleResultScopeKeydown)
     );
   }
 
@@ -9275,7 +9795,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     efficiencyState.status = "loading";
     efficiencyState.error = null;
     refreshEfficiencyTab();
-    refreshPredictionsTab();
     refreshCostsTab();
 
     try {
@@ -9362,6 +9881,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
         fallbackShiftId: options.shiftId,
         fallbackShiftName: options.shiftName,
       });
+      resultScopes = buildFeasibilityResultScopes(availableShiftTabs, {
+        generalLabel: translateOr("simulation.feasibility_scope_general", "General"),
+      });
+      activeResultScopeKey = FEASIBILITY_GENERAL_SCOPE_KEY;
       activeShiftId =
         availableShiftTabs.find((shift) => shift.id === activeShiftId)?.id ??
         availableShiftTabs[0]?.id ??
@@ -9369,7 +9892,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       activeShiftName =
         availableShiftTabs.find((shift) => shift.id === activeShiftId)?.shiftName ??
         activeShiftName;
-      renderShiftTabs();
+      renderResultScopeTabs();
 
       efficiencyState.status = "done";
       efficiencyState.optimizationRun = optimizationRun;
@@ -9395,7 +9918,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
     refreshCostsTab();
     refreshEfficiencyTab();
-    refreshPredictionsTab();
     refreshEmissionsTab();
   };
 
