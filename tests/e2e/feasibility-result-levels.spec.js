@@ -43,6 +43,9 @@ const prediction = (id, shiftId, packs, consumption) => ({
 
 const mountResults = async (page, {
   shiftIds = ["morning", "evening"],
+  shiftNames: shiftNameOverrides = {},
+  predictionRunIds,
+  predictionOverrides = {},
   mode = "battery_only",
   chargingStations = [{
     stop_id: "depot",
@@ -60,10 +63,12 @@ const mountResults = async (page, {
   const shiftNames = {
     morning: "Morning service",
     evening: "Evening service",
+    ...shiftNameOverrides,
   };
   const predictions = {
     "prediction-morning": prediction("prediction-morning", "morning", 8, 350),
     "prediction-evening": prediction("prediction-evening", "evening", 12, 550),
+    ...predictionOverrides,
   };
   const batteryResults = Object.fromEntries(
     shiftIds.map((shiftId) => [
@@ -140,7 +145,8 @@ const mountResults = async (page, {
             ...(includeInfrastructureInput ? { charging_stations: chargingStations } : {}),
             ...(mode === "charging_only" ? { fixed_battery_packs: 12 } : {}),
           },
-          prediction_run_ids: shiftIds.map((shiftId) => `prediction-${shiftId}`),
+          prediction_run_ids:
+            predictionRunIds ?? shiftIds.map((shiftId) => `prediction-${shiftId}`),
           results: {
             electrification_feasible: true,
             battery_results: batteryResults,
@@ -277,6 +283,64 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(chargingSessions.nth(1).locator('[data-role="feasibility-charging-session-start"]')).toContainText("next day");
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-limiting-shifts"]')).toContainText("Evening service");
+});
+
+test("never reuses another shift prediction when the selected shift has none", async ({ page }) => {
+  await mountResults(page, {
+    predictionRunIds: ["prediction-morning"],
+  });
+
+  await page.locator('[data-action="select-shift"][data-shift-id="evening"]').click();
+
+  const sensitivity = page.locator(".efficiency-sensitivity-card");
+  await expect(sensitivity).toBeVisible();
+  await expect(sensitivity).not.toContainText("350.0 kWh");
+  await expect(sensitivity).not.toContainText("-10 °C");
+
+  await page.locator('.results-tab[data-tab="predictions"]').click();
+  const predictionsPanel = page.locator('[data-panel="predictions"]');
+  await expect(predictionsPanel).toContainText("No prediction summaries available");
+  await expect(predictionsPanel).not.toContainText("350.0");
+});
+
+test("does not match predictions from an equally named but differently identified shift", async ({ page }) => {
+  await mountResults(page, {
+    shiftNames: {
+      morning: "Shared service name",
+      evening: "Shared service name",
+    },
+    predictionRunIds: ["prediction-morning"],
+    predictionOverrides: {
+      "prediction-morning": {
+        ...prediction("prediction-morning", "morning", 8, 350),
+        shift_name: "Shared service name",
+      },
+    },
+  });
+
+  await page.locator('[data-action="select-shift"][data-shift-id="evening"]').click();
+  await page.locator('.results-tab[data-tab="predictions"]').click();
+
+  await expect(page.locator('[data-panel="predictions"]')).toContainText(
+    "No prediction summaries available",
+  );
+});
+
+test("does not present an aggregate multi-shift prediction as one physical shift", async ({ page }) => {
+  await mountResults(page, {
+    predictionRunIds: ["prediction-aggregate"],
+    predictionOverrides: {
+      "prediction-aggregate": {
+        ...prediction("prediction-aggregate", undefined, 12, 900),
+        shift_ids: ["morning", "evening"],
+      },
+    },
+  });
+
+  await page.locator('.results-tab[data-tab="predictions"]').click();
+  const predictionsPanel = page.locator('[data-panel="predictions"]');
+  await expect(predictionsPanel).toContainText("No prediction summaries available");
+  await expect(predictionsPanel).not.toContainText("900.0");
 });
 
 test("keeps a single shift selected and hides a redundant selector", async ({ page }) => {

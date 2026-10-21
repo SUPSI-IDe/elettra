@@ -69,6 +69,11 @@ import {
 } from "../../../utils/feasibility-result-model";
 import { buildFeasibilityViewState } from "../../../utils/feasibility-view-state";
 import { formatFeasibilityClockMinute } from "../../../utils/feasibility-charging-plan";
+import {
+  hasShiftSelection,
+  matchesShiftRecord,
+  scopePredictionRunsByShift,
+} from "../../../utils/feasibility-shift-scope";
 import "./simulation-results.css";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
@@ -939,7 +944,8 @@ const resolveOptimizedPackCountForView = (batteryResults = {}, viewOptions = {})
   const scopedEntries = entries.filter(([shiftKey, result]) =>
     matchesSelectedShift(result, shiftKey, viewOptions)
   );
-  const optimizedPacks = (scopedEntries.length ? scopedEntries : entries)
+  const sourceEntries = hasShiftSelection(viewOptions) ? scopedEntries : entries;
+  const optimizedPacks = sourceEntries
     .map(([, result]) => toFiniteNumber(result?.optimized_packs))
     .filter((value) => value != null);
 
@@ -3136,19 +3142,8 @@ const OPTIMIZATION_BATTERY_COLORS = {
   optimized: "#abe828",
 };
 
-const matchesSelectedShift = (batteryResult = {}, shiftKey = "", viewOptions = {}) => {
-  const selectedShiftId = firstText(viewOptions?.selectedShiftId);
-  const selectedShiftName = firstText(viewOptions?.selectedShiftName);
-
-  if (!selectedShiftId && !selectedShiftName) return true;
-  if (selectedShiftId && firstText(batteryResult?.shift_id, shiftKey) === selectedShiftId) {
-    return true;
-  }
-  if (selectedShiftName && firstText(batteryResult?.shift_name) === selectedShiftName) {
-    return true;
-  }
-  return false;
-};
+const matchesSelectedShift = (record = {}, shiftKey = "", viewOptions = {}) =>
+  matchesShiftRecord(record, shiftKey, viewOptions);
 
 const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {}) => {
   if (!results || typeof results !== "object" || !Object.keys(results).length) return "";
@@ -3166,13 +3161,19 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
   let electrificationSummaryHtml = "";
   if (electSummary.status === "infeasible") {
     const infeasibleBuses = Array.isArray(electSummary.infeasible_buses) ? electSummary.infeasible_buses : [];
+    const scopedInfeasibleBuses = infeasibleBuses.filter((bus) =>
+      matchesSelectedShift(bus, "", viewOptions)
+    );
+    const visibleInfeasibleBuses = hasShiftSelection(viewOptions)
+      ? scopedInfeasibleBuses
+      : infeasibleBuses;
     const predictedShiftConsumptionKwh = toOptionalFiniteNumber(
       viewOptions?.predictedShiftConsumptionKwh ??
       viewOptions?.costInputs?.predictedShiftConsumptionKwh
     );
     const uniqueByShift = [];
     const seenShifts = new Set();
-    for (const bus of infeasibleBuses) {
+    for (const bus of visibleInfeasibleBuses) {
       const key = bus.shift_id ?? bus.shift_name ?? "";
       if (key && seenShifts.has(key)) continue;
       if (key) seenShifts.add(key);
@@ -3369,27 +3370,22 @@ const deriveSocKwh = (batteryCapacityKwh, socFraction) => {
 
 const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResults = {}, viewOptions = {}) => {
   const allRuns = [...(predictionRuns ?? [])];
-  const selectedShiftId = firstText(viewOptions?.selectedShiftId);
   const minSocFraction = toFiniteNumber(viewOptions?.inputParams?.min_soc);
   const maxSocFraction = toFiniteNumber(viewOptions?.inputParams?.max_soc);
 
-  const filtered = selectedShiftId
-    ? allRuns.filter((run) => firstText(run?.shift_id) === selectedShiftId)
-    : allRuns;
-
-  const sorted = filtered.sort((a, b) =>
-    Number(a?.contextual_parameters?.num_battery_packs ?? 0) - Number(b?.contextual_parameters?.num_battery_packs ?? 0)
-  );
+  const sorted = scopePredictionRunsByShift(allRuns, viewOptions);
 
   const perBusArr = Array.isArray(perBusSummary) ? perBusSummary : [];
-  const filteredPerBus = selectedShiftId
-    ? perBusArr.filter((entry) => firstText(entry?.shift_id) === selectedShiftId)
+  const filteredPerBus = hasShiftSelection(viewOptions)
+    ? perBusArr.filter((entry) =>
+        matchesSelectedShift(entry, "", viewOptions)
+      )
     : perBusArr;
 
   const optimizedPackSet = new Set(
     Object.entries(batteryResults ?? {})
       .filter(([shiftKey, result]) =>
-        !selectedShiftId || firstText(result?.shift_id, shiftKey) === selectedShiftId
+        matchesSelectedShift(result, shiftKey, viewOptions)
       )
       .map(([, result]) => toFiniteNumber(result?.optimized_packs))
       .filter((value) => value != null)
@@ -5829,7 +5825,7 @@ const resolveSensitivityFeasibilityCardData = (
   const batteryEntries = Object.entries(batteryResults).filter(
     ([shiftKey, result]) => matchesSelectedShift(result, shiftKey, viewOptions)
   );
-  const batteryEntry = batteryEntries[0]?.[1] ?? Object.values(batteryResults)[0] ?? null;
+  const batteryEntry = batteryEntries[0]?.[1] ?? null;
   if (!batteryEntry) return null;
 
   const mode = ip?.mode ?? "";
@@ -6729,7 +6725,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   );
   const ip = optimizationRun?.input_params ?? {};
   const results = optimizationRun?.results ?? {};
-  const firstRun = scopedPredictionRuns[0] ?? predictionRuns?.[0] ?? {};
+  const firstRun = scopedPredictionRuns[0] ?? {};
   const perBusSummary = results.per_bus_summary ?? [];
   const batteryResults = results.battery_results ?? {};
   const singlePackCapacityKwh = resolveSinglePackCapacityKwh(
@@ -7025,100 +7021,11 @@ const extractYearlyDistanceKm = (payload) =>
     payload?.data?.km
   );
 
-const resolvePredictionRunShiftIds = (predictionRun = {}) => {
-  const directIds = [
-    predictionRun?.shift_ids,
-    predictionRun?.shiftIds,
-    predictionRun?.summary?.shift_ids,
-    predictionRun?.summary?.shiftIds,
-    predictionRun?.contextual_parameters?.shift_ids,
-    predictionRun?.contextual_parameters?.shiftIds,
-  ].find((value) => Array.isArray(value) && value.length);
-
-  if (Array.isArray(directIds) && directIds.length) {
-    return directIds.map((value) => firstText(value)).filter(Boolean);
-  }
-
-  const directId = firstText(
-    predictionRun?.shift_id,
-    predictionRun?.shiftId,
-    predictionRun?.summary?.shift_id,
-    predictionRun?.summary?.shiftId,
-    predictionRun?.contextual_parameters?.shift_id,
-    predictionRun?.contextual_parameters?.shiftId
-  );
-
-  return directId ? [directId] : [];
-};
-
-const resolvePredictionRunShiftNames = (predictionRun = {}) => {
-  const directNames = [
-    predictionRun?.shift_names,
-    predictionRun?.shiftNames,
-    predictionRun?.summary?.shift_names,
-    predictionRun?.summary?.shiftNames,
-    predictionRun?.contextual_parameters?.shift_names,
-    predictionRun?.contextual_parameters?.shiftNames,
-  ].find((value) => Array.isArray(value) && value.length);
-
-  if (Array.isArray(directNames) && directNames.length) {
-    return directNames.map((value) => firstText(value)).filter(Boolean);
-  }
-
-  const directName = firstText(
-    predictionRun?.shift_name,
-    predictionRun?.shiftName,
-    predictionRun?.summary?.shift_name,
-    predictionRun?.summary?.shiftName,
-    predictionRun?.contextual_parameters?.shift_name,
-    predictionRun?.contextual_parameters?.shiftName
-  );
-
-  return directName ? [directName] : [];
-};
-
-const matchesPredictionRunShift = (predictionRun = {}, options = {}) => {
-  const selectedShiftId = firstText(options?.selectedShiftId, options?.shiftId);
-  const selectedShiftName = firstText(options?.selectedShiftName, options?.shiftName);
-
-  if (!selectedShiftId && !selectedShiftName) return true;
-
-  const runShiftIds = resolvePredictionRunShiftIds(predictionRun);
-  if (selectedShiftId && runShiftIds.includes(selectedShiftId)) {
-    return true;
-  }
-
-  const runShiftNames = resolvePredictionRunShiftNames(predictionRun);
-  if (selectedShiftName && runShiftNames.includes(selectedShiftName)) {
-    return true;
-  }
-
-  return false;
-};
-
-const scopePredictionRunsByShift = (predictionRuns = [], options = {}) => {
-  const runs = Array.isArray(predictionRuns) ? predictionRuns : [];
-  const shiftMatchedRuns = runs.filter((run) =>
-    matchesPredictionRunShift(run, options)
-  );
-  const scopedRuns = shiftMatchedRuns.length ? shiftMatchedRuns : runs;
-
-  return [...scopedRuns].sort(
-    (a, b) =>
-      (toFiniteNumber(a?.contextual_parameters?.num_battery_packs) ??
-        Number.MAX_SAFE_INTEGER) -
-      (toFiniteNumber(b?.contextual_parameters?.num_battery_packs) ??
-        Number.MAX_SAFE_INTEGER)
-  );
-};
-
 const selectCostPredictionRun = (predictionRuns = [], batteryResults = {}, options = {}) => {
   if (!Array.isArray(predictionRuns) || !predictionRuns.length) return null;
 
-  const shiftMatchedRuns = predictionRuns.filter((run) =>
-    matchesPredictionRunShift(run, options)
-  );
-  const candidateRuns = shiftMatchedRuns.length ? shiftMatchedRuns : predictionRuns;
+  const candidateRuns = scopePredictionRunsByShift(predictionRuns, options);
+  if (!candidateRuns.length) return null;
   const targetPacks = resolveOptimizedPackCount(batteryResults);
   if (targetPacks != null) {
     const exactMatch = candidateRuns.find(
@@ -7667,7 +7574,10 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
     const results = optRun?.results ?? {};
     const ip = optRun?.input_params ?? {};
     const batteryResults = results.battery_results ?? {};
-    const batteryEntry = Object.values(batteryResults)[0] ?? {};
+    const batteryEntry = Object.entries(batteryResults)
+      .find(([shiftKey, result]) =>
+        matchesSelectedShift(result, shiftKey, opts)
+      )?.[1] ?? {};
 
     const feasible = results.electrification_feasible;
     const feasBadge =
@@ -9046,7 +8956,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       loadedOptimizationRun?.input_params ?? {}
     );
 
-    const maxPhysicalRows = (scopedEntries.length ? scopedEntries : batteryEntries)
+    const visibleEntries = activeShiftId ? scopedEntries : batteryEntries;
+    const maxPhysicalRows = visibleEntries
       .map(([shiftKey, result], index) => {
         const maxNominalKwh = toOptionalFiniteNumber(result?.max_physical_kwh);
         return {
@@ -9418,7 +9329,13 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     }
     renderEvaluationName();
 
-    const firstPredictionRun = loadedPredictionRuns[0] ?? {};
+    const firstPredictionRun = scopePredictionRunsByShift(
+      loadedPredictionRuns,
+      {
+        selectedShiftId: activeShiftId,
+        selectedShiftName: activeShiftName,
+      }
+    )[0] ?? {};
     renderGeneralInfo({
       optimization_id: resolveOptimizationId(loadedOptimizationRun, options),
       simulation_type: resolveSimulationType(loadedOptimizationRun, options),
