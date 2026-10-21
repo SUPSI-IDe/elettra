@@ -118,6 +118,48 @@ const predictionRun = ({ id, shiftId, temperature, energy, distance, status = "c
   },
 });
 
+const sourceFeasibilityRun = {
+  id: "source-feasibility",
+  input_params: {
+    mode: "joint",
+    bus_model_id: "bus-1",
+    shift_ids: ["morning", "evening"],
+    min_soc: 0.2,
+    max_soc: 0.9,
+    charging_stations: [{
+      stop_id: "depot",
+      stop_name: "Depot",
+      num_slots: 3,
+      max_power_per_slot_kw: 150,
+    }],
+  },
+  results: {
+    battery_results: {
+      morning: {
+        optimized_packs: 8,
+        optimized_kwh: 400,
+        required_total_packs: 8,
+      },
+      evening: {
+        optimized_packs: 12,
+        optimized_kwh: 600,
+        required_total_packs: 10,
+      },
+    },
+    installed_chargers: {
+      depot: {
+        stop_name: "Depot",
+        num_slots: 2,
+        max_power_per_slot_kw: 150,
+      },
+    },
+    per_bus_summary: [
+      { shift_id: "morning", charging_sessions: [] },
+      { shift_id: "evening", charging_sessions: [] },
+    ],
+  },
+};
+
 const multishiftAnalysis = {
   id: "case",
   name: "Two-shift annual analysis",
@@ -233,7 +275,11 @@ const multishiftAnalysis = {
   },
 };
 
-const mountResults = async (page, analysis, { predictionRuns = [] } = {}) => {
+const mountResults = async (
+  page,
+  analysis,
+  { predictionRuns = [], optimizationRun = null } = {},
+) => {
   const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
   const lca = analysis.features?.results?.shiftResults || configuredShiftCount > 1
     ? multiShiftLca()
@@ -249,6 +295,11 @@ const mountResults = async (page, analysis, { predictionRuns = [] } = {}) => {
       await route.fulfill({ json: analysis });
     } else if (path.endsWith("/simulation/prediction-runs/")) {
       await route.fulfill({ json: predictionRuns });
+    } else if (
+      optimizationRun &&
+      path.endsWith(`/simulation/optimization-runs/${optimizationRun.id}`)
+    ) {
+      await route.fulfill({ json: optimizationRun });
     } else if (path.endsWith("/user/bus-models/bus-1")) {
       await route.fulfill({ json: {
         id: "bus-1",
@@ -290,14 +341,19 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(content).toContainText("Deployed configuration");
   await expect(content).toContainText("Common bus configuration");
   await expect(content).toContainText("Shared charging infrastructure");
-  await expect(content).toContainText("Annual overview");
-  await expect(content).toContainText("Annual efficiency");
-  await expect(content).toContainText("Annual costs");
-  await expect(content).toContainText("Annual emissions");
-  await expect(page.locator('[data-role="ya-env-controls"]')).toBeVisible();
+  await expect(page.locator('[data-panel="overview"]')).toBeVisible();
+  await expect(page.locator('[data-panel="overview"] .ya-scope-section-title')).toBeHidden();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+  await expect(page.locator('[data-role="overview-panel"] .ya-overview-grid')).toHaveCount(0);
 
   await tabs.getByText("Morning service", { exact: true }).click();
   await expect(page.getByRole("tab", { name: "Morning service" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[data-panel="overview"] .ya-scope-section-title')).toBeVisible();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
+  await expect(page.locator('[data-panel="costs"]')).toBeVisible();
+  await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
   await expect(content).toContainText("Annual detail · Morning service");
   await expect(content).toContainText("12 packs");
   await expect(content).toContainText("8 packs");
@@ -313,6 +369,11 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(content).toContainText(/18['’,]250 kWh/);
   await expect(content).toContainText("The source feasibility evaluation contains no charging sessions");
   await expect(content).not.toContainText("Charging session 1: Depot");
+
+  await page.getByRole("tab", { name: "General" }).click();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
 
   await page.getByRole("tab", { name: "General" }).focus();
   await page.getByRole("tab", { name: "General" }).press("ArrowRight");
@@ -354,11 +415,78 @@ test("historical single-shift results expose General and the configured shift", 
   await expect(page.getByRole("tab")).toHaveCount(2);
   await expect(page.getByRole("tab")).toHaveText(["General", "Legacy shift"]);
   await expect(page.getByRole("tab", { name: "General" })).toHaveAttribute("aria-selected", "true");
+  const generalConfiguration = page.locator('[data-role="ya-deployed-configuration"]');
+  await expect(generalConfiguration).toBeVisible();
+  await expect(generalConfiguration).toContainText("Reference bus");
+  await expect(generalConfiguration).toContainText("10 packs");
+  await expect(generalConfiguration).toContainText("Legacy shift");
+  await expect(generalConfiguration).toContainText(
+    "Shared charging infrastructure details are unavailable",
+  );
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   await page.getByRole("tab", { name: "Legacy shift" }).click();
   await expect(page.getByRole("tab", { name: "Legacy shift" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
+  await expect(page.locator('[data-panel="costs"]')).toBeVisible();
+  await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Historical cold");
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Annual costs");
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Annual emissions");
+});
+
+test("historical General recovers its physical configuration from the source feasibility", async ({ page }) => {
+  const legacy = structuredClone(multishiftAnalysis);
+  legacy.id = "legacy-source-configuration";
+  legacy.optimization_run_id = sourceFeasibilityRun.id;
+  delete legacy.features.config.fixedConfiguration;
+
+  await mountResults(page, legacy, { optimizationRun: sourceFeasibilityRun });
+
+  const generalConfiguration = page.locator('[data-role="ya-deployed-configuration"]');
+  await expect(generalConfiguration).toBeVisible();
+  await expect(generalConfiguration).toContainText("12 packs");
+  await expect(generalConfiguration).toContainText("600.0 kWh");
+  await expect(generalConfiguration).toContainText("Depot");
+  await expect(generalConfiguration).toContainText("2");
+  await expect(generalConfiguration).toContainText("300 kW");
+  await expect(generalConfiguration).not.toContainText(
+    "Shared charging infrastructure details are unavailable",
+  );
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+});
+
+test("General keeps fixed battery-only charging infrastructure visible without optimizer output", async ({ page }) => {
+  const batteryOnly = structuredClone(multishiftAnalysis);
+  batteryOnly.id = "battery-only-fixed-infrastructure";
+  batteryOnly.features.config.mode = "battery_only";
+  batteryOnly.features.config.fixedConfiguration.mode = "battery_only";
+  batteryOnly.features.config.fixedConfiguration.infrastructure = {
+    decision: "fixed",
+    dataAvailable: true,
+    resultAvailable: false,
+    stations: [{
+      stopId: "depot",
+      stopName: "Fixed depot",
+      status: "fixed",
+      selected: true,
+      slots: 3,
+      powerPerSlotKw: 150,
+      totalPowerKw: 450,
+    }],
+  };
+
+  await mountResults(page, batteryOnly);
+
+  const generalConfiguration = page.locator('[data-role="ya-deployed-configuration"]');
+  await expect(generalConfiguration).toContainText("Fixed depot");
+  await expect(generalConfiguration).toContainText("450 kW");
+  await expect(generalConfiguration).not.toContainText(
+    "Shared charging infrastructure details are unavailable",
+  );
 });
 
 test("historical multi-shift results are reconstructed by shift ID", async ({ page }) => {

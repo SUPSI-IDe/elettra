@@ -80,11 +80,15 @@ import {
   buildScopedYearlyFeatures,
   buildShiftParameterizedLca,
   buildYearlyResultScopes,
+  getYearlyScopeSectionVisibility,
   getFixedYearlyShift,
   resolveYearlyResultScope,
   resolveYearlyScopeKeyboardTarget,
 } from "../../../utils/yearly-analysis-result-scope";
-import { backfillYearlyShiftResults } from "../../../utils/yearly-analysis-model";
+import {
+  backfillYearlyShiftResults,
+  buildFixedYearlyConfiguration,
+} from "../../../utils/yearly-analysis-model";
 
 /* ── Shared helpers ────────────────────────────────────────────── */
 
@@ -3781,6 +3785,18 @@ const configurationRoleHtml = (decision) => {
   )}</span>`;
 };
 
+const configurationDecisionForMode = (mode, target) => {
+  const normalizedMode = mode === "charging" ? "charging_only" : mode;
+  if (target === "battery") {
+    if (normalizedMode === "charging_only") return "fixed";
+    if (normalizedMode === "battery_only" || normalizedMode === "joint") return "optimized";
+    return null;
+  }
+  if (normalizedMode === "battery_only") return "fixed";
+  if (normalizedMode === "charging_only" || normalizedMode === "joint") return "optimized";
+  return null;
+};
+
 const definitionRowsHtml = (rows = [], className = "ya-deployed-card") =>
   `<dl class="${className}__rows">${rows.map(({ label, value, raw = false }) => `
     <div class="${className}__row">
@@ -3812,29 +3828,50 @@ const stationStatusLabel = (status) => {
 };
 
 const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
-  const fixed = features?.config?.fixedConfiguration;
-  if (!fixed || typeof fixed !== "object") return "";
+  const config = features?.config ?? {};
+  const results = features?.results ?? {};
+  const storedFixed = config.fixedConfiguration;
+  const fixed = storedFixed && typeof storedFixed === "object"
+    ? storedFixed
+    : {};
+  const mode = fixed.mode ?? config.mode;
   const battery = fixed.battery ?? {};
   const infrastructure = fixed.infrastructure ?? {};
+  const infrastructureDecision =
+    infrastructure.decision ?? configurationDecisionForMode(mode, "infrastructure");
+  const hasInfrastructureSnapshot =
+    fixed.infrastructure !== null &&
+    typeof fixed.infrastructure === "object";
   const infrastructureAvailable =
+    hasInfrastructureSnapshot &&
     infrastructure.dataAvailable !== false &&
-    infrastructure.resultAvailable !== false;
+    (infrastructureDecision === "fixed" || infrastructure.resultAvailable !== false);
   const stations = activeInfrastructureStations(infrastructure);
-  const shiftNames = (Array.isArray(fixed.shifts) ? fixed.shifts : [])
-    .map((shift) => text(shift?.shiftName || shift?.shiftId).trim())
-    .filter(Boolean);
+  const storedShifts = Array.isArray(fixed.shifts) ? fixed.shifts : [];
+  const shiftNames = storedShifts.length
+    ? storedShifts
+        .map((shift) => text(shift?.shiftName || shift?.shiftId).trim())
+        .filter(Boolean)
+    : buildYearlyResultScopes(features)
+        .filter((scope) => scope.kind === "shift")
+        .map((scope) => text(scope.shiftName || scope.shiftId).trim())
+        .filter(Boolean);
   const sizingShiftNames = (
     Array.isArray(battery.sizingShiftNames) && battery.sizingShiftNames.length
       ? battery.sizingShiftNames
       : battery.mostDemandingShiftNames
   ) ?? [];
-  const packs = toFiniteNumber(battery.packs);
+  const packs =
+    toFiniteNumber(battery.packs) ??
+    toFiniteNumber(results.optimizedPacks);
   const packSizeKwh =
     toFiniteNumber(battery.packSizeKwh) ??
     toFiniteNumber(busModelData?.battery_pack_size_kwh);
   const nominalKwh =
     toFiniteNumber(battery.nominalKwh) ??
     (packs != null && packSizeKwh != null ? packs * packSizeKwh : null);
+  const minSoc = toFiniteNumber(config.min_soc ?? fixed.soc?.minFraction);
+  const maxSoc = toFiniteNumber(config.max_soc ?? fixed.soc?.maxFraction);
   const installedSlots = sumAvailable(stations, (station) =>
     toFiniteNumber(station?.slots),
   );
@@ -3855,7 +3892,9 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
   const batteryRows = [
     {
       label: translateOr("yearly_analysis.configuration_role", "Configuration role"),
-      value: configurationRoleHtml(battery.decision),
+      value: configurationRoleHtml(
+        battery.decision ?? configurationDecisionForMode(mode, "battery"),
+      ),
       raw: true,
     },
     {
@@ -3880,7 +3919,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
     },
     {
       label: t("yearly_analysis.col_mode"),
-      value: modeLabel(fixed.mode ?? features?.config?.mode, features?.meta?.modeLabel),
+      value: modeLabel(mode, features?.meta?.modeLabel),
     },
     {
       label: translateOr("yearly_analysis.covered_shifts", "Covered shifts"),
@@ -3890,11 +3929,31 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
       label: t("yearly_analysis.col_shifts"),
       value: shiftNames.join(", ") || "—",
     },
+    {
+      label: t("yearly_analysis.occupancy"),
+      value: config.occupancy_percent != null ? `${config.occupancy_percent}%` : "—",
+    },
+    {
+      label: t("yearly_analysis.heating"),
+      value: heatingLabel(config.auxiliary_heating_type),
+    },
+    {
+      label: t("yearly_analysis.soc_range"),
+      value: minSoc != null && maxSoc != null
+        ? `${(minSoc * 100).toFixed(0)}–${(maxSoc * 100).toFixed(0)}%`
+        : "—",
+    },
+    {
+      label: t("yearly_analysis.sizing_temperature"),
+      value: toFiniteNumber(features?.meta?.sizingTemp) != null
+        ? `${formatFixed(features.meta.sizingTemp, 1)} °C`
+        : "—",
+    },
   ];
   const infrastructureRows = [
     {
       label: translateOr("yearly_analysis.configuration_role", "Configuration role"),
-      value: configurationRoleHtml(infrastructure.decision),
+      value: configurationRoleHtml(infrastructureDecision),
       raw: true,
     },
     {
@@ -4226,6 +4285,11 @@ const renderOverviewPanel = (
 ) => {
   if (!el) return;
 
+  if (scope?.kind !== "shift") {
+    el.innerHTML = buildGeneralDeploymentHtml(sourceFeatures, busModelData);
+    return;
+  }
+
   const cfg = features.config ?? {};
   const meta = features.meta ?? {};
   const results = features.results ?? {};
@@ -4358,9 +4422,7 @@ const renderOverviewPanel = (
     }
   }
 
-  const scopeSummary = scope?.kind === "shift"
-    ? buildShiftReferenceHtml(sourceFeatures, scope)
-    : buildGeneralDeploymentHtml(sourceFeatures, busModelData);
+  const scopeSummary = buildShiftReferenceHtml(sourceFeatures, scope);
   el.innerHTML = `${scopeSummary}<div class="ya-overview-grid">${columns.join("")}</div>`;
 
   el.querySelectorAll('[data-action="open-simulation-results"]').forEach((simLink) => {
@@ -4422,6 +4484,15 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const configContent = section.querySelector('[data-role="ya-configuration-content"]');
   const resultScopeTabsEl = section.querySelector('[data-role="ya-result-scope-tabs"]');
   const resultScopeContentEl = section.querySelector("#yearly-result-scope-content");
+  const scopeSectionPanels = Object.fromEntries(
+    ["overview", "efficiency", "costs", "emissions"].map((name) => [
+      name,
+      section.querySelector(`[data-panel="${name}"]`),
+    ]),
+  );
+  const overviewSectionTitle = scopeSectionPanels.overview?.querySelector(
+    ".ya-scope-section-title",
+  );
 
   const analysisId = options.analysisId ?? "";
   if (!analysisId) {
@@ -4827,15 +4898,27 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     },
   };
 
+  const applyScopeSectionVisibility = () => {
+    const visibility = getYearlyScopeSectionVisibility(activeScope);
+    Object.entries(scopeSectionPanels).forEach(([name, panel]) => {
+      if (panel) panel.hidden = !visibility[name];
+    });
+    if (overviewSectionTitle) {
+      overviewSectionTitle.hidden = activeScope?.kind !== "shift";
+    }
+    return visibility;
+  };
+
   const refreshAllSections = () => {
-    TAB_RENDERERS.overview();
-    TAB_RENDERERS.efficiency();
-    TAB_RENDERERS.costs();
-    TAB_RENDERERS.emissions();
+    const visibility = applyScopeSectionVisibility();
+    Object.entries(TAB_RENDERERS).forEach(([name, render]) => {
+      if (visibility[name]) render();
+    });
   };
 
   const refreshDerivedEmissionsViews = () => {
-    TAB_RENDERERS.emissions();
+    const visibility = applyScopeSectionVisibility();
+    if (visibility.emissions) TAB_RENDERERS.emissions();
     TAB_RENDERERS.overview();
   };
 
@@ -5172,6 +5255,36 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   /* ── Initial render and data loading ─────────────────────── */
   await loadDeps();
+
+  // Analyses saved before the physical-configuration snapshot was introduced
+  // can still recover it from their source feasibility evaluation. This is a
+  // read-only in-memory upgrade; the stored analysis and database are untouched.
+  if (
+    !features.config?.fixedConfiguration &&
+    optimizationRun &&
+    typeof optimizationRun === "object" &&
+    !Array.isArray(optimizationRun)
+  ) {
+    const shiftNamesById = new Map(
+      resultScopes
+        .filter((scope) => scope.kind === "shift")
+        .map((scope) => [scope.shiftId, scope.shiftName]),
+    );
+    const fixedConfiguration = buildFixedYearlyConfiguration(optimizationRun, {
+      shiftNamesById,
+      packSizeKwh: busModelData?.battery_pack_size_kwh,
+    });
+    if (fixedConfiguration.shiftIds.length) {
+      features.config = {
+        ...(features.config ?? {}),
+        fixedConfiguration,
+      };
+      activeFeatures = buildScopedYearlyFeatures(features, activeScope);
+      scenarioResults = activeFeatures.results?.scenarioResults ?? [];
+      yearlyTotals = activeFeatures.results?.yearlyTotals ?? {};
+      if (configContent) configContent.innerHTML = renderConfig(features);
+    }
+  }
 
   /* Try backend yearly-analysis costs first; fall back to client-side */
   const busLengthForCosts = toFiniteNumber(busModelData?.bus_length_m);

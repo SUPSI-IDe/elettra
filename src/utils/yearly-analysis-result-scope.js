@@ -160,6 +160,20 @@ export const resolveYearlyResultScope = (
   );
 };
 
+/**
+ * General describes the one physical configuration shared by all shifts.
+ * Annual outcomes are meaningful only after selecting an individual shift.
+ */
+export const getYearlyScopeSectionVisibility = (scope = {}) => {
+  const isShift = scope?.kind === "shift";
+  return {
+    overview: true,
+    efficiency: isShift,
+    costs: isShift,
+    emissions: isShift,
+  };
+};
+
 export const resolveYearlyScopeKeyboardTarget = (
   scopes = [],
   currentKey = YEARLY_GENERAL_SCOPE_KEY,

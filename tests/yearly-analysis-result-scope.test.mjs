@@ -10,6 +10,7 @@ import {
   buildShiftParameterizedLca,
   buildYearlyResultScopes,
   getFixedYearlyShift,
+  getYearlyScopeSectionVisibility,
   resolveYearlyResultScope,
   resolveYearlyScopeKeyboardTarget,
 } from "../src/utils/yearly-analysis-result-scope.js";
@@ -201,6 +202,30 @@ test("scope resolution falls back safely to General", () => {
   assert.equal(resolveYearlyResultScope(scopes, "shift:evening").shiftId, "evening");
   assert.equal(resolveYearlyResultScope(scopes, "missing").key, "general");
   assert.equal(resolveYearlyResultScope([], "missing"), null);
+});
+
+test("General exposes only the common configuration section", () => {
+  assert.deepEqual(getYearlyScopeSectionVisibility({ kind: "general" }), {
+    overview: true,
+    efficiency: false,
+    costs: false,
+    emissions: false,
+  });
+  assert.deepEqual(getYearlyScopeSectionVisibility(), {
+    overview: true,
+    efficiency: false,
+    costs: false,
+    emissions: false,
+  });
+});
+
+test("a shift exposes its overview, efficiency, costs, and emissions", () => {
+  assert.deepEqual(getYearlyScopeSectionVisibility({ kind: "shift" }), {
+    overview: true,
+    efficiency: true,
+    costs: true,
+    emissions: true,
+  });
 });
 
 test("keyboard navigation wraps and supports Home and End", () => {
