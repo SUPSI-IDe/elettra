@@ -477,6 +477,7 @@ test("both feasibility levels are translated in every supported locale", () => {
     "simulation.feasibility_shift_shortfall",
     "simulation.feasibility_shift_is_sizing",
     "simulation.feasibility_shift_covered",
+    "simulation.feasibility_shift_covered_with_charging",
     "simulation.feasibility_shift_required_battery",
     "simulation.feasibility_shift_common_battery",
     "simulation.feasibility_shift_battery_margin",

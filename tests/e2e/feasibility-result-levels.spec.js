@@ -59,6 +59,7 @@ const mountResults = async (page, {
   includeInfrastructureInput = true,
   includeElectrificationFeasible = true,
   electrificationFeasible = true,
+  fixedBatteryPacks = 12,
   batteryResultOverrides = {},
   perBusSummaryOverrides = {},
 } = {}) => {
@@ -145,7 +146,7 @@ const mountResults = async (page, {
             min_soc: 0.2,
             max_soc: 0.9,
             ...(includeInfrastructureInput ? { charging_stations: chargingStations } : {}),
-            ...(mode === "charging_only" ? { fixed_battery_packs: 12 } : {}),
+            ...(mode === "charging_only" ? { fixed_battery_packs: fixedBatteryPacks } : {}),
           },
           prediction_run_ids:
             predictionRunIds ?? shiftIds.map((shiftId) => `prediction-${shiftId}`),
@@ -233,6 +234,69 @@ test.afterEach(async ({ page }) => {
   await page.evaluate(() => window.__cleanupSimulationResults?.());
 });
 
+for (const mode of ["battery_only", "charging_only", "joint"]) {
+  test(`accounts for the optimized charging plan in ${mode} energy adequacy`, async ({ page }) => {
+    const meanDemandKwh = 644.0907143001715;
+    const plannedChargingKwh = 84.09071430017156;
+    await mountResults(page, {
+      shiftIds: ["morning"],
+      mode,
+      fixedBatteryPacks: 16,
+      predictionOverrides: {
+        "prediction-morning": prediction(
+          "prediction-morning",
+          "morning",
+          16,
+          meanDemandKwh,
+        ),
+      },
+      batteryResultOverrides: {
+        morning: {
+          reference_packs: 16,
+          base_packs: 10,
+          optimized_packs: 16,
+          required_total_packs: 16,
+          optimized_kwh: 800,
+          max_physical_packs: 16,
+          max_physical_kwh: 800,
+          physical_feasible: true,
+          feasibility_status: "feasible",
+        },
+      },
+      perBusSummaryOverrides: {
+        morning: {
+          min_soc_kwh: 160,
+          max_soc_kwh: 720,
+          total_charged_kwh: plannedChargingKwh,
+          num_charging_sessions: 2,
+        },
+      },
+    });
+
+    await selectShiftScope(page, "morning");
+
+    const adequacy = page.locator(".efficiency-adequacy-panel");
+    await expect(adequacy).toContainText("Shift energy adequacy");
+    await expect(adequacy.locator('[data-role="battery-adequacy-usable"]')).toContainText("560.0 kWh");
+    await expect(adequacy.locator('[data-role="battery-adequacy-charging"]')).toContainText("84.1 kWh");
+    await expect(adequacy.locator('[data-role="battery-adequacy-operational"]')).toContainText("644.1 kWh");
+    await expect(adequacy.locator('[data-role="battery-adequacy-minimum-soc"]')).toContainText("160.0 / 160.0 kWh");
+    await expect(adequacy.locator('[data-role="battery-adequacy-mean"]')).toContainText("feasible in optimized schedule");
+    await expect(adequacy.locator('[data-role="battery-adequacy-mean"] .badge')).toHaveClass(/badge--positive/);
+
+    const sensitivity = page.locator('[data-role="feasibility-shift-sensitivity"]');
+    await expect(sensitivity).toContainText("Available operational energy");
+    await expect(sensitivity).toContainText("Operational energy margin — mean basis");
+    await expect(sensitivity).toContainText("0.0 kWh");
+
+    if (mode === "charging_only") {
+      await expect(
+        page.locator('[data-role="feasibility-shift-coverage-status"]'),
+      ).toHaveText("Covered by common battery and planned charging");
+    }
+  });
+}
+
 test("separates the common result from one selected shift without an aggregate option", async ({ page }) => {
   await mountResults(page);
 
@@ -279,7 +343,7 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(page.locator(".results-tabs, .results-tab")).toHaveCount(0);
 
   const shiftSummary = shiftDetail.locator('[data-role="feasibility-shift-summary"]');
-  await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Covered by common battery");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Covered by common battery and planned charging");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-required-packs"]')).toContainText("8");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-common-packs"]')).toContainText("12");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-pack-margin"]')).toContainText("+4");
@@ -297,6 +361,10 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-duration"]')).toContainText("30");
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-energy"]')).toContainText("60.0");
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toContainText("120.0");
+  await expect(chargingSessions.first().locator(".feasibility-charging-session__location")).toContainText(/Charging session 1:\s*Depot/);
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-duration"]')).toContainText(/Duration:\s*30 min/);
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-energy"]')).toContainText(/Energy:\s*60\.0 kWh/);
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toContainText(/Average power:\s*120\.0 kW/);
 
   const visualAnalysis = shiftDetail.locator('[data-role="feasibility-shift-visual-analysis"]');
   const sensitivity = shiftDetail.locator('[data-role="feasibility-shift-sensitivity"]');
@@ -313,10 +381,52 @@ test("separates the common result from one selected shift without an aggregate o
     .evaluateAll((elements) => elements.slice(0, 4).map((element) => element.dataset.role));
   expect(shiftSectionOrder).toEqual([
     "feasibility-shift-summary",
-    "feasibility-charging-plan",
     "feasibility-shift-visual-analysis",
     "feasibility-shift-sensitivity",
+    "feasibility-charging-plan",
   ]);
+
+  const chargingLayout = await chargingPlan.evaluate((plan) => {
+    const list = plan.querySelector('[data-role="feasibility-charging-session-list"]');
+    const session = plan.querySelector('[data-role="feasibility-charging-session"]');
+    const visual = plan.parentElement?.querySelector(
+      '[data-role="feasibility-shift-visual-analysis"]',
+    );
+    const sensitivityCard = plan.parentElement?.querySelector(
+      '[data-role="feasibility-shift-sensitivity"]',
+    );
+    if (!list || !session || !visual || !sensitivityCard) return null;
+    const sessionStyle = getComputedStyle(session);
+    const location = session.querySelector(".feasibility-charging-session__location");
+    const duration = session.querySelector(
+      '[data-role="feasibility-charging-session-duration"]',
+    );
+    const sessionRows = sessionStyle.gridTemplateRows
+      .split(" ")
+      .filter(Boolean);
+    return {
+      listOverflowX: getComputedStyle(list).overflowX,
+      sessionDisplay: sessionStyle.display,
+      locationDisplay: location ? getComputedStyle(location).display : null,
+      durationDisplay: duration ? getComputedStyle(duration).display : null,
+      sessionRows,
+      sessionHeight: session.getBoundingClientRect().height,
+      visualBeforePlan:
+        visual.getBoundingClientRect().top < plan.getBoundingClientRect().top,
+      sensitivityBeforePlan:
+        sensitivityCard.getBoundingClientRect().top < plan.getBoundingClientRect().top,
+    };
+  });
+  expect(chargingLayout).toMatchObject({
+    listOverflowX: "auto",
+    sessionDisplay: "grid",
+    locationDisplay: "flex",
+    durationDisplay: "flex",
+    visualBeforePlan: true,
+    sensitivityBeforePlan: true,
+  });
+  expect(chargingLayout?.sessionRows).toHaveLength(1);
+  expect(chargingLayout?.sessionHeight).toBeLessThanOrEqual(48);
 
   const moreInformation = shiftDetail.locator("details.ya-more-information");
   const inlinePredictions = moreInformation.locator(

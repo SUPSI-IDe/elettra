@@ -79,6 +79,14 @@ test("loaded feasibility results use mean for the decision and show the full dis
                 feasibility_status: "feasible",
               },
             },
+            per_bus_summary: [{
+              shift_id: "test-shift",
+              min_soc_kwh: 120,
+              max_soc_kwh: 540,
+              total_charged_kwh: 0,
+              num_charging_sessions: 0,
+              charging_sessions: [],
+            }],
           },
         },
       });
@@ -175,11 +183,11 @@ test("loaded feasibility results use mean for the decision and show the full dis
     "Q95 demand",
   );
   await expect(sensitivityBody).toContainText(
-    "Battery margin — mean basis",
+    "Operational energy margin — mean basis",
   );
   await expect(sensitivityBody).toContainText("8.4 kWh (2.0%)");
   await expect(sensitivityBody).toContainText(
-    "Q50 demand exceeds usable energy; the feasibility decision uses mean demand.",
+    "Q50 demand exceeds available operational energy; the feasibility decision uses the optimized mean-demand schedule.",
   );
 
   const sensitivityText = await sensitivityBody.innerText();

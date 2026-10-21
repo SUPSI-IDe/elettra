@@ -64,6 +64,10 @@ import {
   resolveFeasibilityDemandBasis,
 } from "../../../utils/feasibility-demand-basis";
 import {
+  ENERGY_BALANCE_TOLERANCE_KWH,
+  buildShiftEnergyBalance,
+} from "../../../utils/feasibility-energy-balance";
+import {
   buildFeasibilityResultModel,
   FEASIBILITY_DECISION,
 } from "../../../utils/feasibility-result-model";
@@ -4289,50 +4293,20 @@ const renderTripUncertaintySection = (run = {}, { tripStopLookup = new Map() } =
     </details>`;
 };
 
-const computeBatteryAdequacyStatus = ({
-  usableEnergyKwh,
-  q05DemandKwh,
-  meanDemandKwh,
-  q50DemandKwh,
-  q95DemandKwh,
-} = {}) => {
-  const usableEnergy = toOptionalFiniteNumber(usableEnergyKwh);
-  const q05Demand = toOptionalFiniteNumber(q05DemandKwh);
-  const meanDemand = toOptionalFiniteNumber(meanDemandKwh);
-  const q50Demand = toOptionalFiniteNumber(q50DemandKwh);
-  const q95Demand = toOptionalFiniteNumber(q95DemandKwh);
-
-  return {
-    usableEnergy,
-    q05Demand,
-    meanDemand,
-    q50Demand,
-    q95Demand,
-    canEvaluateEnergy: usableEnergy != null,
-    canEvaluateQuantiles:
-      q05Demand != null &&
-      meanDemand != null &&
-      q50Demand != null &&
-      q95Demand != null,
-    q05Covered: usableEnergy != null && q05Demand != null ? usableEnergy >= q05Demand : null,
-    meanCovered:
-      usableEnergy != null && meanDemand != null
-        ? usableEnergy >= meanDemand
-        : null,
-    q50Covered: usableEnergy != null && q50Demand != null ? usableEnergy >= q50Demand : null,
-    q95Covered: usableEnergy != null && q95Demand != null ? usableEnergy >= q95Demand : null,
-  };
-};
-
 const renderBatteryAdequacyPanel = (status = {}) => {
   const title = translateOr(
     "simulation.battery_adequacy_title",
-    "Battery adequacy check"
+    "Shift energy adequacy"
   );
-  const note = translateOr(
-    "simulation.battery_adequacy_note",
-    "The feasibility decision uses mean demand. Q05, Q50, and Q95 are comparison scenarios and are not true exceedance probabilities."
-  );
+  const note = status.chargingDataAvailable
+    ? translateOr(
+        "simulation.battery_adequacy_note_operational",
+        "Mean feasibility follows the optimized SOC schedule. Quantiles compare demand with usable battery energy plus planned charging; charging timing is not re-optimized for them."
+      )
+    : translateOr(
+        "simulation.battery_adequacy_note_missing_charging",
+        "Mean feasibility follows the optimized result when available. Charging energy is unavailable, so quantiles are compared with usable battery energy only."
+      );
 
   if (!status.canEvaluateEnergy) {
     return `
@@ -4348,72 +4322,92 @@ const renderBatteryAdequacyPanel = (status = {}) => {
       </div>`;
   }
 
-  if (!status.canEvaluateQuantiles) {
-    return `
-      <div class="efficiency-adequacy-panel">
-        <h5>${textContent(title)}</h5>
-        <p>${textContent(
-          translateOr(
-            "simulation.battery_adequacy_missing_quantiles",
-            "Battery adequacy cannot be evaluated because mean or quantile demand data are unavailable."
+  const coverageLabel = (covered) => {
+    if (covered === null) {
+      return translateOr("simulation.feasibility_status_unavailable", "Status unavailable");
+    }
+    if (status.comparisonUsesOperationalEnergy) {
+      return covered
+        ? translateOr(
+            "simulation.battery_adequacy_within_operational",
+            "within available operational energy"
           )
-        )}</p>
-        <p class="efficiency-adequacy-note">${textContent(note)}</p>
-      </div>`;
+        : translateOr(
+            "simulation.battery_adequacy_above_operational",
+            "above available operational energy"
+          );
+    }
+    return covered
+      ? translateOr(
+          "simulation.battery_adequacy_within_battery",
+          "within usable battery energy"
+        )
+      : translateOr(
+          "simulation.battery_adequacy_above_battery",
+          "above usable battery energy"
+        );
+  };
+  const badgeClass = (covered) =>
+    covered === true
+      ? "badge--positive"
+      : covered === false
+        ? "badge--negative"
+        : "badge--neutral";
+  const demandRow = (labelKey, fallbackLabel, demand, covered, role) => `
+    <span>${textContent(translateOr(labelKey, fallbackLabel))}</span>
+    <strong data-role="${role}">${textContent(formatFixed(demand, 1))} kWh <span class="badge badge--compact ${badgeClass(covered)}">${textContent(coverageLabel(covered))}</span></strong>`;
+  const meanLabel = status.meanDecisionUsesOptimizedSchedule
+    ? status.meanCovered
+      ? translateOr(
+          "simulation.battery_adequacy_mean_schedule_feasible",
+          "feasible in optimized schedule"
+        )
+      : translateOr(
+          "simulation.battery_adequacy_mean_schedule_infeasible",
+          "infeasible in optimized schedule"
+        )
+    : coverageLabel(status.meanCovered);
+
+  const energyRows = [`
+        <span>${textContent(translateOr("simulation.battery_adequacy_usable", "Usable battery energy"))}</span>
+        <strong data-role="battery-adequacy-usable">${textContent(formatFixed(status.usableBatteryEnergyKwh, 1))} kWh</strong>`];
+  if (status.chargingDataAvailable) {
+    energyRows.push(`
+        <span>${textContent(translateOr("simulation.battery_adequacy_planned_charging", "Planned charging"))}</span>
+        <strong data-role="battery-adequacy-charging">${textContent(formatFixed(status.plannedChargingEnergyKwh, 1))} kWh</strong>
+        <span>${textContent(translateOr("simulation.battery_adequacy_operational_energy", "Available operational energy"))}</span>
+        <strong data-role="battery-adequacy-operational">${textContent(formatFixed(status.operationalEnergyKwh, 1))} kWh</strong>`);
+  }
+  if (status.minimumSocKwh != null && status.minimumAllowedSocKwh != null) {
+    energyRows.push(`
+        <span>${textContent(translateOr("simulation.battery_adequacy_minimum_soc", "Minimum SOC reached / allowed"))}</span>
+        <strong data-role="battery-adequacy-minimum-soc">${textContent(formatFixed(status.minimumSocKwh, 1))} / ${textContent(formatFixed(status.minimumAllowedSocKwh, 1))} kWh</strong>`);
   }
 
-  const q50Label = status.q50Covered
-    ? translateOr(
-        "simulation.battery_adequacy_q50_covered",
-        "covered"
-      )
-    : translateOr(
-        "simulation.battery_adequacy_q50_above",
-        "above usable energy"
-      );
-  const meanLabel = status.meanCovered
-    ? translateOr(
-        "simulation.battery_adequacy_mean_covered",
-        "covered"
-      )
-    : translateOr(
-        "simulation.battery_adequacy_mean_above",
-        "above usable energy"
-      );
-  const q05Label = status.q05Covered
-    ? translateOr(
-        "simulation.battery_adequacy_q05_covered",
-        "covered"
-      )
-    : translateOr(
-        "simulation.battery_adequacy_q05_above",
-        "above usable energy"
-      );
-  const q95Label = status.q95Covered
-    ? translateOr(
-        "simulation.battery_adequacy_q95_covered",
-        "within usable battery energy"
-      )
-    : translateOr(
-        "simulation.battery_adequacy_q95_above",
-        "above usable energy"
-      );
+  const demandRows = status.canEvaluateQuantiles
+    ? [
+        demandRow("simulation.battery_adequacy_q05", "Q05 demand", status.q05DemandKwh, status.q05Covered, "battery-adequacy-q05"),
+        `
+        <span>${textContent(translateOr("simulation.battery_adequacy_mean", "Mean demand — decision basis"))}</span>
+        <strong data-role="battery-adequacy-mean">${textContent(formatFixed(status.meanDemandKwh, 1))} kWh <span class="badge badge--compact ${badgeClass(status.meanCovered)}">${textContent(meanLabel)}</span></strong>`,
+        demandRow("simulation.battery_adequacy_q50", "Q50 demand", status.q50DemandKwh, status.q50Covered, "battery-adequacy-q50"),
+        demandRow("simulation.battery_adequacy_q95", "Q95 demand", status.q95DemandKwh, status.q95Covered, "battery-adequacy-q95"),
+      ]
+    : [];
 
   return `
     <div class="efficiency-adequacy-panel">
       <h5>${textContent(title)}</h5>
       <div class="efficiency-adequacy-grid">
-        <span>${textContent(translateOr("simulation.battery_adequacy_usable", "Usable energy"))}</span>
-        <strong>${textContent(formatFixed(status.usableEnergy, 1))} kWh</strong>
-        <span>${textContent(translateOr("simulation.battery_adequacy_q05", "Q05 demand"))}</span>
-        <strong>${textContent(formatFixed(status.q05Demand, 1))} kWh <span class="badge badge--compact ${status.q05Covered ? "badge--positive" : "badge--negative"}">${textContent(q05Label)}</span></strong>
-        <span>${textContent(translateOr("simulation.battery_adequacy_mean", "Mean demand — decision basis"))}</span>
-        <strong>${textContent(formatFixed(status.meanDemand, 1))} kWh <span class="badge badge--compact ${status.meanCovered ? "badge--positive" : "badge--negative"}">${textContent(meanLabel)}</span></strong>
-        <span>${textContent(translateOr("simulation.battery_adequacy_q50", "Q50 demand"))}</span>
-        <strong>${textContent(formatFixed(status.q50Demand, 1))} kWh <span class="badge badge--compact ${status.q50Covered ? "badge--positive" : "badge--negative"}">${textContent(q50Label)}</span></strong>
-        <span>${textContent(translateOr("simulation.battery_adequacy_q95", "Q95 demand"))}</span>
-        <strong>${textContent(formatFixed(status.q95Demand, 1))} kWh <span class="badge badge--compact ${status.q95Covered ? "badge--positive" : "badge--negative"}">${textContent(q95Label)}</span></strong>
+        ${energyRows.join("")}
+        ${demandRows.join("")}
       </div>
+      ${status.canEvaluateQuantiles ? "" : `<p>${textContent(
+        translateOr(
+          "simulation.battery_adequacy_missing_quantiles",
+          "Energy adequacy cannot be evaluated because mean or quantile demand data are unavailable."
+        )
+      )}</p>`}
       <p class="efficiency-adequacy-note">${textContent(note)}</p>
     </div>`;
 };
@@ -5825,6 +5819,7 @@ const resolveSensitivityFeasibilityCardData = (
   {
     optimizedCoverageMarker = null,
     adequacyScenario = null,
+    energyBalance = null,
     selectedShiftFeasible = null,
   } = {}
 ) => {
@@ -5848,8 +5843,20 @@ const resolveSensitivityFeasibilityCardData = (
     });
   const usableSocFraction = resolveUsableSocFraction(ip);
   const optimizedUsableKwh =
+    toOptionalFiniteNumber(energyBalance?.usableBatteryEnergyKwh) ??
     toOptionalFiniteNumber(optimizedCoverageMarker?.value) ??
     applyUsableSocWindow(optimizedNominalKwh, usableSocFraction);
+  const plannedChargingKwh = toOptionalFiniteNumber(
+    energyBalance?.plannedChargingEnergyKwh
+  );
+  const operationalEnergyKwh = toOptionalFiniteNumber(
+    energyBalance?.operationalEnergyKwh
+  );
+  const comparisonEnergyKwh =
+    toOptionalFiniteNumber(energyBalance?.comparisonEnergyKwh) ??
+    optimizedUsableKwh;
+  const comparisonUsesOperationalEnergy =
+    energyBalance?.comparisonUsesOperationalEnergy === true;
   const maxPhysicalPacks = toOptionalFiniteNumber(batteryEntry?.max_physical_packs);
 
   const externalTempCelsius = toOptionalFiniteNumber(firstRun?.external_temp_celsius);
@@ -5878,12 +5885,8 @@ const resolveSensitivityFeasibilityCardData = (
       quantileKey: "q95",
     });
 
-  let marginKwh = null;
-  let marginPct = null;
-  if (optimizedUsableKwh != null && meanDemandKwh != null) {
-    marginKwh = optimizedUsableKwh - meanDemandKwh;
-    marginPct = meanDemandKwh > 0 ? marginKwh / meanDemandKwh : null;
-  }
+  const marginKwh = toOptionalFiniteNumber(energyBalance?.marginKwh);
+  const marginPct = toOptionalFiniteNumber(energyBalance?.marginPct);
 
   const atPhysicalLimit =
     optimizedPacks != null &&
@@ -5908,6 +5911,10 @@ const resolveSensitivityFeasibilityCardData = (
     optimizedNominalKwh,
     usableSocFraction,
     optimizedUsableKwh,
+    plannedChargingKwh,
+    operationalEnergyKwh,
+    comparisonEnergyKwh,
+    comparisonUsesOperationalEnergy,
     maxPhysicalPacks,
     externalTempCelsius,
     heatingType,
@@ -5969,6 +5976,22 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
       </div>`);
   }
 
+  if (data.plannedChargingKwh != null) {
+    energyRows.push(`
+      <div class="efficiency-sensitivity-card__row">
+        <span>${textContent(translateOr("simulation.sensitivity_planned_charging", "Planned charging"))}</span>
+        <strong>${textContent(formatFixed(data.plannedChargingKwh, 1))} kWh</strong>
+      </div>`);
+  }
+
+  if (data.operationalEnergyKwh != null) {
+    energyRows.push(`
+      <div class="efficiency-sensitivity-card__row">
+        <span>${textContent(translateOr("simulation.sensitivity_operational_energy", "Available operational energy"))}</span>
+        <strong>${textContent(formatFixed(data.operationalEnergyKwh, 1))} kWh</strong>
+      </div>`);
+  }
+
   if (data.q05DemandKwh != null) {
     energyRows.push(`
       <div class="efficiency-sensitivity-card__row">
@@ -6007,7 +6030,14 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
       : "";
     energyRows.push(`
       <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_margin_mean", "Battery margin — mean basis"))}</span>
+        <span>${textContent(translateOr(
+          data.comparisonUsesOperationalEnergy
+            ? "simulation.sensitivity_operational_margin_mean"
+            : "simulation.sensitivity_margin_mean",
+          data.comparisonUsesOperationalEnergy
+            ? "Operational energy margin — mean basis"
+            : "Battery margin — mean basis"
+        ))}</span>
         <strong class="${marginClass}">${textContent(formatFixed(data.marginKwh, 1))} kWh${textContent(pctStr)} \u2014 ${textContent(marginLabel)}</strong>
       </div>`);
   }
@@ -6016,23 +6046,37 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
 
   if (
     data.q50DemandKwh != null &&
-    data.optimizedUsableKwh != null &&
-    data.q50DemandKwh > data.optimizedUsableKwh
+    data.comparisonEnergyKwh != null &&
+    data.q50DemandKwh > data.comparisonEnergyKwh + ENERGY_BALANCE_TOLERANCE_KWH
   ) {
     warningRows.push(`
       <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-tight">
-        \u26a0 ${textContent(translateOr("simulation.sensitivity_q50_exceeds_mean_decision", "Q50 demand exceeds usable energy; the feasibility decision uses mean demand."))}
+        \u26a0 ${textContent(translateOr(
+          data.comparisonUsesOperationalEnergy
+            ? "simulation.sensitivity_q50_exceeds_operational"
+            : "simulation.sensitivity_q50_exceeds_mean_decision",
+          data.comparisonUsesOperationalEnergy
+            ? "Q50 demand exceeds available operational energy; the feasibility decision uses the optimized mean-demand schedule."
+            : "Q50 demand exceeds usable energy; the feasibility decision uses mean demand."
+        ))}
       </div>`);
   }
 
   if (
     data.q95DemandKwh != null &&
-    data.optimizedUsableKwh != null &&
-    data.q95DemandKwh > data.optimizedUsableKwh
+    data.comparisonEnergyKwh != null &&
+    data.q95DemandKwh > data.comparisonEnergyKwh + ENERGY_BALANCE_TOLERANCE_KWH
   ) {
     warningRows.push(`
       <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-tight">
-        \u26a0 ${textContent(translateOr("simulation.sensitivity_q95_exceeds", "Q95 demand exceeds usable energy."))}
+        \u26a0 ${textContent(translateOr(
+          data.comparisonUsesOperationalEnergy
+            ? "simulation.sensitivity_q95_exceeds_operational"
+            : "simulation.sensitivity_q95_exceeds",
+          data.comparisonUsesOperationalEnergy
+            ? "Q95 demand exceeds available operational energy."
+            : "Q95 demand exceeds usable energy."
+        ))}
       </div>`);
   }
 
@@ -6523,10 +6567,16 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
     );
     coverageTone = "sizing";
   } else if (margin !== null && margin >= 0) {
-    coverageLabel = translateOr(
-      "simulation.feasibility_shift_covered",
-      "Covered by common battery"
-    );
+    coverageLabel =
+      toOptionalFiniteNumber(operation.totalChargedKwh) > ENERGY_BALANCE_TOLERANCE_KWH
+        ? translateOr(
+            "simulation.feasibility_shift_covered_with_charging",
+            "Covered by common battery and planned charging"
+          )
+        : translateOr(
+            "simulation.feasibility_shift_covered",
+            "Covered by common battery"
+          );
     coverageTone = "positive";
   }
 
@@ -6709,46 +6759,42 @@ const buildShiftChargingPlanHtml = (viewState) => {
     );
 
     return `
-      <li class="feasibility-charging-session${session.detailsComplete ? "" : " feasibility-charging-session--incomplete"}" data-role="feasibility-charging-session">
+      <li class="feasibility-charging-session${session.detailsComplete ? "" : " feasibility-charging-session--incomplete"}" data-role="feasibility-charging-session" aria-label="${textContent(sessionLabel)}">
         <div class="feasibility-charging-session__sequence" aria-hidden="true">${sequence}</div>
-        <div class="feasibility-charging-session__body">
-          <div class="feasibility-charging-session__header">
-            <div>
-              <span class="feasibility-charging-session__label">${textContent(sessionLabel)}</span>
-              <h5 data-role="feasibility-charging-session-location">${textContent(location)}</h5>
-            </div>
-            <div class="feasibility-charging-session__time" aria-label="${textContent(
-              translateOr("simulation.feasibility_charging_time", "Charging time")
-            )}" data-role="feasibility-charging-session-time">
-              ${chargingSessionClockHtml(session.startMinute, "feasibility-charging-session-start")}
-              <span class="feasibility-charging-session__time-separator" aria-hidden="true">→</span>
-              ${chargingSessionClockHtml(session.endMinute, "feasibility-charging-session-end")}
-            </div>
-          </div>
-          <dl class="feasibility-charging-session__metrics">
-            <div data-role="feasibility-charging-session-duration">
-              <dt>${textContent(
-                translateOr("simulation.feasibility_charging_duration", "Duration")
-              )}</dt>
-              <dd>${shiftMetricValue(
-                session.durationMinutes,
-                translateOr("simulation.feasibility_minutes_short", "min")
-              )}</dd>
-            </div>
-            <div data-role="feasibility-charging-session-energy">
-              <dt>${textContent(
-                translateOr("simulation.feasibility_charging_energy", "Energy")
-              )}</dt>
-              <dd>${shiftMetricValue(session.energyKwh, "kWh", { decimals: 1 })}</dd>
-            </div>
-            <div data-role="feasibility-charging-session-average-power">
-              <dt>${textContent(
-                translateOr("simulation.feasibility_charging_average_power", "Average power")
-              )}</dt>
-              <dd>${shiftMetricValue(session.averagePowerKw, "kW", { decimals: 1 })}</dd>
-            </div>
-          </dl>
+        <div class="feasibility-charging-session__location">
+          <span class="feasibility-charging-session__label">${textContent(sessionLabel)}:</span>
+          <strong data-role="feasibility-charging-session-location" title="${textContent(location)}">${textContent(location)}</strong>
         </div>
+        <div class="feasibility-charging-session__time" aria-label="${textContent(
+          translateOr("simulation.feasibility_charging_time", "Charging time")
+        )}" data-role="feasibility-charging-session-time">
+          ${chargingSessionClockHtml(session.startMinute, "feasibility-charging-session-start")}
+          <span class="feasibility-charging-session__time-separator" aria-hidden="true">→</span>
+          ${chargingSessionClockHtml(session.endMinute, "feasibility-charging-session-end")}
+        </div>
+        <dl class="feasibility-charging-session__metrics">
+          <div data-role="feasibility-charging-session-duration">
+            <dt>${textContent(
+              translateOr("simulation.feasibility_charging_duration", "Duration")
+            )}:</dt>
+            <dd>${shiftMetricValue(
+              session.durationMinutes,
+              translateOr("simulation.feasibility_minutes_short", "min")
+            )}</dd>
+          </div>
+          <div data-role="feasibility-charging-session-energy">
+            <dt>${textContent(
+              translateOr("simulation.feasibility_charging_energy", "Energy")
+            )}:</dt>
+            <dd>${shiftMetricValue(session.energyKwh, "kWh", { decimals: 1 })}</dd>
+          </div>
+          <div data-role="feasibility-charging-session-average-power">
+            <dt>${textContent(
+              translateOr("simulation.feasibility_charging_average_power", "Average power")
+            )}:</dt>
+            <dd>${shiftMetricValue(session.averagePowerKw, "kW", { decimals: 1 })}</dd>
+          </div>
+        </dl>
       </li>`;
   }).join("");
 
@@ -6895,16 +6941,48 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         (item) => item?.scenarioLabel === optimizedCoverageMarker.scenarioLabel
       ) ?? null
     : null;
-  const batteryAdequacyHtml = optimizedCoverageMarker
-    ? renderBatteryAdequacyPanel(
-        computeBatteryAdequacyStatus({
-          usableEnergyKwh: optimizedCoverageMarker.value,
-          q05DemandKwh: adequacyScenario?.q05,
-          meanDemandKwh: adequacyScenario?.mean,
-          q50DemandKwh: adequacyScenario?.q50,
-          q95DemandKwh: adequacyScenario?.q95,
-        })
-      )
+  const selectedShiftSummary = feasibilityViewState?.selectedShiftSummary ?? null;
+  const minimumSocFraction = normalizeSocFraction(ip?.min_soc);
+  const minimumAllowedSocKwh =
+    toOptionalFiniteNumber(optimizedCoverageMarker?.nominalKwh) != null &&
+    minimumSocFraction != null
+      ? optimizedCoverageMarker.nominalKwh * minimumSocFraction
+      : null;
+  const energyBalance = optimizedCoverageMarker
+    ? buildShiftEnergyBalance({
+        usableBatteryEnergyKwh: optimizedCoverageMarker.value,
+        plannedChargingEnergyKwh:
+          selectedShiftSummary?.operation?.totalChargedKwh,
+        q05DemandKwh: adequacyScenario?.q05,
+        meanDemandKwh: adequacyScenario?.mean,
+        q50DemandKwh: adequacyScenario?.q50,
+        q95DemandKwh: adequacyScenario?.q95,
+        meanScheduleFeasible: selectedShiftSummary?.battery?.physicalFeasible,
+        minimumSocKwh: selectedShiftSummary?.operation?.minSocKwh,
+        minimumAllowedSocKwh,
+      })
+    : null;
+  const energyCoverageMarker = optimizedCoverageMarker && energyBalance
+    ? {
+        ...optimizedCoverageMarker,
+        value: energyBalance.comparisonEnergyKwh,
+        label: energyBalance.usesPlannedCharging
+          ? translateOr(
+              "simulation.efficiency_operational_coverage_legend",
+              "Usable battery and planned charging"
+            )
+          : optimizedCoverageMarker.label,
+        tooltipLines: energyBalance.usesPlannedCharging
+          ? [
+              ...(optimizedCoverageMarker.tooltipLines ?? []),
+              `${translateOr("simulation.battery_adequacy_usable", "Usable battery energy")}: ${formatFixed(energyBalance.usableBatteryEnergyKwh, 1)} kWh`,
+              `${translateOr("simulation.battery_adequacy_planned_charging", "Planned charging")}: ${formatFixed(energyBalance.plannedChargingEnergyKwh, 1)} kWh`,
+            ]
+          : optimizedCoverageMarker.tooltipLines,
+      }
+    : optimizedCoverageMarker;
+  const batteryAdequacyHtml = energyBalance
+    ? renderBatteryAdequacyPanel(energyBalance)
     : "";
   const hasPerBus = perBusSummary.length > 0;
   const unifiedRows = buildUnifiedPredictionRows(predictionData, {
@@ -6940,13 +7018,13 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
             <h4>${textContent(
               translateOr(
                 "simulation.efficiency_consumption_coverage_title",
-                "Consumption distribution and battery-covered energy"
+                "Consumption distribution and available operational energy"
               )
             )}</h4>
             <p>${textContent(
               translateOr(
                 "simulation.efficiency_consumption_coverage_subtitle",
-                "Compare simulated Q05, mean, Q50, and Q95 total consumption with the energy available from the optimized battery-pack setup."
+                "Compare simulated Q05, mean, Q50, and Q95 total consumption with usable battery energy and the planned charging for the selected shift."
               )
             )}</p>
             <p>${textContent(quantileHelpText())}</p>
@@ -7017,8 +7095,9 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     resolveSensitivityFeasibilityCardData(results, ip, firstRun, viewOptions, {
       optimizedCoverageMarker,
       adequacyScenario,
+      energyBalance,
       selectedShiftFeasible:
-        feasibilityViewState?.selectedShiftSummary?.battery?.feasible ?? null,
+        selectedShiftSummary?.battery?.feasible ?? null,
     })
   );
 
@@ -7031,9 +7110,9 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       )}
       <div class="feasibility-level__content">
         ${buildShiftOperationalSummaryHtml(feasibilityViewState)}
-        ${buildShiftChargingPlanHtml(feasibilityViewState)}
         ${chartsHtml}
         ${sensitivityFeasibilityCardHtml}
+        ${buildShiftChargingPlanHtml(feasibilityViewState)}
         <details class="ya-more-information"${keepMoreInformationOpen ? " open" : ""}>
           <summary class="ya-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
           <div class="ya-more-information__content">
@@ -7074,22 +7153,22 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       unit: "kWh",
       ariaLabel: translateOr(
         "simulation.chart_aria_consumption_coverage",
-        "Consumption distribution and battery-covered energy chart"
+        "Consumption distribution and available operational energy chart"
       ),
       yAxisLabel: t("simulation.axis_energy_kwh") || "kWh",
       decimals: 1,
-      markers: optimizedCoverageMarker ? [optimizedCoverageMarker] : [],
+      markers: energyCoverageMarker ? [energyCoverageMarker] : [],
     }
   );
   renderPredictionOverviewLegend(
     el.querySelector('[data-role="efficiency-consumption-coverage-legend"]'),
     {
       seriesKeys: resolvePredictionOverviewSeriesKeys(consumptionOverviewData),
-      extraItems: optimizedCoverageMarker
+      extraItems: energyCoverageMarker
         ? [
             {
-              label: optimizedCoverageMarker.label,
-              color: optimizedCoverageMarker.color,
+              label: energyCoverageMarker.label,
+              color: energyCoverageMarker.color,
             },
           ]
         : [],
