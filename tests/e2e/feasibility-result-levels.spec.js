@@ -277,10 +277,11 @@ for (const mode of ["battery_only", "charging_only", "joint"]) {
 
     const adequacy = page.locator(".efficiency-adequacy-panel");
     await expect(adequacy).toContainText("Shift energy adequacy");
-    await expect(adequacy.locator('[data-role="battery-adequacy-usable"]')).toContainText("560.0 kWh");
+    await expect(adequacy.locator('[data-role="battery-adequacy-usable"]')).toHaveText("560.0 kWh (20%–90%)");
     await expect(adequacy.locator('[data-role="battery-adequacy-charging"]')).toContainText("84.1 kWh");
     await expect(adequacy.locator('[data-role="battery-adequacy-operational"]')).toContainText("644.1 kWh");
-    await expect(adequacy.locator('[data-role="battery-adequacy-minimum-soc"]')).toContainText("160.0 / 160.0 kWh");
+    await expect(adequacy.locator('[data-role="battery-adequacy-minimum-soc"]')).toHaveText("160.0 kWh — limit ≥ 160.0 kWh (20%)");
+    await expect(adequacy.locator('[data-role="battery-adequacy-maximum-soc"]')).toHaveText("720.0 kWh — limit ≤ 720.0 kWh (90%)");
     await expect(adequacy.locator('[data-role="battery-adequacy-mean"]')).toContainText("feasible in optimized schedule");
     await expect(adequacy.locator('[data-role="battery-adequacy-mean"] .badge')).toHaveClass(/badge--positive/);
 
@@ -296,6 +297,58 @@ for (const mode of ["battery_only", "charging_only", "joint"]) {
     }
   });
 }
+
+test("explains reached and configured SOC limits for the selected shift", async ({ page }) => {
+  await mountResults(page, {
+    shiftIds: ["morning"],
+    mode: "joint",
+    predictionOverrides: {
+      "prediction-morning": prediction(
+        "prediction-morning",
+        "morning",
+        10,
+        350,
+      ),
+    },
+    batteryResultOverrides: {
+      morning: {
+        reference_packs: 10,
+        base_packs: 6,
+        optimized_packs: 10,
+        required_total_packs: 10,
+        optimized_kwh: 500,
+        max_physical_packs: 16,
+        max_physical_kwh: 800,
+        physical_feasible: true,
+        feasibility_status: "feasible",
+      },
+    },
+    perBusSummaryOverrides: {
+      morning: {
+        min_soc_kwh: 100,
+        max_soc_kwh: 450,
+        total_charged_kwh: 263.0127454632992,
+        num_charging_sessions: 2,
+      },
+    },
+  });
+
+  await selectShiftScope(page, "morning");
+
+  const adequacy = page.locator(".efficiency-adequacy-panel");
+  await expect(adequacy).toContainText("Usable SOC window");
+  await expect(adequacy.locator('[data-role="battery-adequacy-usable"]')).toHaveText(
+    "350.0 kWh (20%–90%)",
+  );
+  await expect(adequacy).toContainText("Minimum SOC reached");
+  await expect(adequacy.locator('[data-role="battery-adequacy-minimum-soc"]')).toHaveText(
+    "100.0 kWh — limit ≥ 100.0 kWh (20%)",
+  );
+  await expect(adequacy).toContainText("Maximum SOC reached");
+  await expect(adequacy.locator('[data-role="battery-adequacy-maximum-soc"]')).toHaveText(
+    "450.0 kWh — limit ≤ 450.0 kWh (90%)",
+  );
+});
 
 test("separates the common result from one selected shift without an aggregate option", async ({ page }) => {
   await mountResults(page);

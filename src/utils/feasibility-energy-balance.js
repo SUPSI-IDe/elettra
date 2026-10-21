@@ -43,6 +43,10 @@ export function buildShiftEnergyBalance({
   meanScheduleFeasible,
   minimumSocKwh,
   minimumAllowedSocKwh,
+  maximumSocKwh,
+  maximumAllowedSocKwh,
+  minimumSocFraction,
+  maximumSocFraction,
   toleranceKwh = ENERGY_BALANCE_TOLERANCE_KWH,
 } = {}) {
   const usableBatteryEnergy = nonNegativeFiniteNumber(usableBatteryEnergyKwh);
@@ -67,11 +71,23 @@ export function buildShiftEnergyBalance({
   const marginKwh = normalizeNearZero(rawMargin, tolerance);
   const minimumSoc = nonNegativeFiniteNumber(minimumSocKwh);
   const minimumAllowedSoc = nonNegativeFiniteNumber(minimumAllowedSocKwh);
+  const maximumSoc = nonNegativeFiniteNumber(maximumSocKwh);
+  const maximumAllowedSoc = nonNegativeFiniteNumber(maximumAllowedSocKwh);
+  const minimumFraction = nonNegativeFiniteNumber(minimumSocFraction);
+  const maximumFraction = nonNegativeFiniteNumber(maximumSocFraction);
   const rawMinimumSocReserve =
     minimumSoc !== null && minimumAllowedSoc !== null
       ? minimumSoc - minimumAllowedSoc
       : null;
   const minimumSocReserveKwh = normalizeNearZero(rawMinimumSocReserve, tolerance);
+  const rawMaximumSocHeadroom =
+    maximumSoc !== null && maximumAllowedSoc !== null
+      ? maximumAllowedSoc - maximumSoc
+      : null;
+  const maximumSocHeadroomKwh = normalizeNearZero(
+    rawMaximumSocHeadroom,
+    tolerance
+  );
 
   return {
     usableBatteryEnergyKwh: usableBatteryEnergy,
@@ -107,7 +123,16 @@ export function buildShiftEnergyBalance({
         : null,
     minimumSocKwh: minimumSoc,
     minimumAllowedSocKwh: minimumAllowedSoc,
+    maximumSocKwh: maximumSoc,
+    maximumAllowedSocKwh: maximumAllowedSoc,
+    minimumSocFraction: minimumFraction,
+    maximumSocFraction: maximumFraction,
     minimumSocReserveKwh,
     minimumSocCovered: isCovered(minimumSoc, minimumAllowedSoc, tolerance),
+    maximumSocHeadroomKwh,
+    maximumSocCovered:
+      maximumSoc !== null && maximumAllowedSoc !== null
+        ? maximumSoc <= maximumAllowedSoc + tolerance
+        : null,
   };
 }

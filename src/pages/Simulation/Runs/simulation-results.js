@@ -4368,9 +4368,59 @@ const renderBatteryAdequacyPanel = (status = {}) => {
         )
     : coverageLabel(status.meanCovered);
 
+  const minimumSocPercent = status.minimumSocFraction != null
+    ? formatPct(status.minimumSocFraction)
+    : null;
+  const maximumSocPercent = status.maximumSocFraction != null
+    ? formatPct(status.maximumSocFraction)
+    : null;
+  const usableSocValue = minimumSocPercent && maximumSocPercent
+    ? translateOr(
+        "simulation.battery_adequacy_usable_value",
+        `${formatFixed(status.usableBatteryEnergyKwh, 1)} kWh (${minimumSocPercent}–${maximumSocPercent})`,
+        {
+          value: formatFixed(status.usableBatteryEnergyKwh, 1),
+          min_soc: minimumSocPercent,
+          max_soc: maximumSocPercent,
+        }
+      )
+    : `${formatFixed(status.usableBatteryEnergyKwh, 1)} kWh`;
+
   const energyRows = [`
-        <span>${textContent(translateOr("simulation.battery_adequacy_usable", "Usable battery energy"))}</span>
-        <strong data-role="battery-adequacy-usable">${textContent(formatFixed(status.usableBatteryEnergyKwh, 1))} kWh</strong>`];
+        <span>${textContent(translateOr("simulation.battery_adequacy_usable", "Usable SOC window"))}</span>
+        <strong data-role="battery-adequacy-usable">${textContent(usableSocValue)}</strong>`];
+  if (status.minimumSocKwh != null && status.minimumAllowedSocKwh != null) {
+    const minimumValue = minimumSocPercent
+      ? translateOr(
+          "simulation.battery_adequacy_minimum_soc_value",
+          `${formatFixed(status.minimumSocKwh, 1)} kWh — limit ≥ ${formatFixed(status.minimumAllowedSocKwh, 1)} kWh (${minimumSocPercent})`,
+          {
+            reached: formatFixed(status.minimumSocKwh, 1),
+            limit: formatFixed(status.minimumAllowedSocKwh, 1),
+            percent: minimumSocPercent,
+          }
+        )
+      : `${formatFixed(status.minimumSocKwh, 1)} kWh — limit ≥ ${formatFixed(status.minimumAllowedSocKwh, 1)} kWh`;
+    energyRows.push(`
+        <span>${textContent(translateOr("simulation.battery_adequacy_minimum_soc", "Minimum SOC reached"))}</span>
+        <strong data-role="battery-adequacy-minimum-soc">${textContent(minimumValue)}</strong>`);
+  }
+  if (status.maximumSocKwh != null && status.maximumAllowedSocKwh != null) {
+    const maximumValue = maximumSocPercent
+      ? translateOr(
+          "simulation.battery_adequacy_maximum_soc_value",
+          `${formatFixed(status.maximumSocKwh, 1)} kWh — limit ≤ ${formatFixed(status.maximumAllowedSocKwh, 1)} kWh (${maximumSocPercent})`,
+          {
+            reached: formatFixed(status.maximumSocKwh, 1),
+            limit: formatFixed(status.maximumAllowedSocKwh, 1),
+            percent: maximumSocPercent,
+          }
+        )
+      : `${formatFixed(status.maximumSocKwh, 1)} kWh — limit ≤ ${formatFixed(status.maximumAllowedSocKwh, 1)} kWh`;
+    energyRows.push(`
+        <span>${textContent(translateOr("simulation.battery_adequacy_maximum_soc", "Maximum SOC reached"))}</span>
+        <strong data-role="battery-adequacy-maximum-soc">${textContent(maximumValue)}</strong>`);
+  }
   if (status.chargingDataAvailable) {
     energyRows.push(`
         <span>${textContent(translateOr("simulation.battery_adequacy_planned_charging", "Planned charging"))}</span>
@@ -4378,12 +4428,6 @@ const renderBatteryAdequacyPanel = (status = {}) => {
         <span>${textContent(translateOr("simulation.battery_adequacy_operational_energy", "Available operational energy"))}</span>
         <strong data-role="battery-adequacy-operational">${textContent(formatFixed(status.operationalEnergyKwh, 1))} kWh</strong>`);
   }
-  if (status.minimumSocKwh != null && status.minimumAllowedSocKwh != null) {
-    energyRows.push(`
-        <span>${textContent(translateOr("simulation.battery_adequacy_minimum_soc", "Minimum SOC reached / allowed"))}</span>
-        <strong data-role="battery-adequacy-minimum-soc">${textContent(formatFixed(status.minimumSocKwh, 1))} / ${textContent(formatFixed(status.minimumAllowedSocKwh, 1))} kWh</strong>`);
-  }
-
   const demandRows = status.canEvaluateQuantiles
     ? [
         demandRow("simulation.battery_adequacy_q05", "Q05 demand", status.q05DemandKwh, status.q05Covered, "battery-adequacy-q05"),
@@ -6943,10 +6987,19 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     : null;
   const selectedShiftSummary = feasibilityViewState?.selectedShiftSummary ?? null;
   const minimumSocFraction = normalizeSocFraction(ip?.min_soc);
+  const maximumSocFraction = normalizeSocFraction(ip?.max_soc);
+  const optimizedNominalKwh = toOptionalFiniteNumber(
+    optimizedCoverageMarker?.nominalKwh
+  );
   const minimumAllowedSocKwh =
-    toOptionalFiniteNumber(optimizedCoverageMarker?.nominalKwh) != null &&
+    optimizedNominalKwh != null &&
     minimumSocFraction != null
-      ? optimizedCoverageMarker.nominalKwh * minimumSocFraction
+      ? optimizedNominalKwh * minimumSocFraction
+      : null;
+  const maximumAllowedSocKwh =
+    optimizedNominalKwh != null &&
+    maximumSocFraction != null
+      ? optimizedNominalKwh * maximumSocFraction
       : null;
   const energyBalance = optimizedCoverageMarker
     ? buildShiftEnergyBalance({
@@ -6960,6 +7013,10 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         meanScheduleFeasible: selectedShiftSummary?.battery?.physicalFeasible,
         minimumSocKwh: selectedShiftSummary?.operation?.minSocKwh,
         minimumAllowedSocKwh,
+        maximumSocKwh: selectedShiftSummary?.operation?.maxSocKwh,
+        maximumAllowedSocKwh,
+        minimumSocFraction,
+        maximumSocFraction,
       })
     : null;
   const energyCoverageMarker = optimizedCoverageMarker && energyBalance

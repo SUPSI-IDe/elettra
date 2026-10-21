@@ -17,6 +17,10 @@ test("includes planned charging in the mean energy balance used by 40501", () =>
     meanScheduleFeasible: true,
     minimumSocKwh: 160,
     minimumAllowedSocKwh: 160,
+    maximumSocKwh: 720,
+    maximumAllowedSocKwh: 720,
+    minimumSocFraction: 0.2,
+    maximumSocFraction: 0.9,
   });
 
   assert.equal(balance.usesPlannedCharging, true);
@@ -26,6 +30,10 @@ test("includes planned charging in the mean energy balance used by 40501", () =>
   assert.equal(balance.marginKwh, 0);
   assert.equal(balance.minimumSocReserveKwh, 0);
   assert.equal(balance.minimumSocCovered, true);
+  assert.equal(balance.maximumSocHeadroomKwh, 0);
+  assert.equal(balance.maximumSocCovered, true);
+  assert.equal(balance.minimumSocFraction, 0.2);
+  assert.equal(balance.maximumSocFraction, 0.9);
   assert.equal(balance.q05Covered, true);
   assert.equal(balance.q50Covered, false);
   assert.equal(balance.q95Covered, false);
@@ -108,6 +116,10 @@ test("rejects malformed and negative energy values without hiding valid fields",
     q95DemandKwh: 200,
     minimumSocKwh: 10,
     minimumAllowedSocKwh: -5,
+    maximumSocKwh: "bad",
+    maximumAllowedSocKwh: -10,
+    minimumSocFraction: -0.2,
+    maximumSocFraction: "bad",
   });
 
   assert.equal(balance.usableBatteryEnergyKwh, null);
@@ -117,4 +129,24 @@ test("rejects malformed and negative energy values without hiding valid fields",
   assert.equal(balance.q05DemandKwh, 100);
   assert.equal(balance.q95DemandKwh, 200);
   assert.equal(balance.minimumSocReserveKwh, null);
+  assert.equal(balance.maximumSocHeadroomKwh, null);
+  assert.equal(balance.minimumSocFraction, null);
+  assert.equal(balance.maximumSocFraction, null);
+});
+
+test("reports independent reserve against both SOC limits", () => {
+  const balance = buildShiftEnergyBalance({
+    usableBatteryEnergyKwh: 350,
+    minimumSocKwh: 110,
+    minimumAllowedSocKwh: 100,
+    maximumSocKwh: 440,
+    maximumAllowedSocKwh: 450,
+    minimumSocFraction: 0.2,
+    maximumSocFraction: 0.9,
+  });
+
+  assert.equal(balance.minimumSocReserveKwh, 10);
+  assert.equal(balance.minimumSocCovered, true);
+  assert.equal(balance.maximumSocHeadroomKwh, 10);
+  assert.equal(balance.maximumSocCovered, true);
 });
