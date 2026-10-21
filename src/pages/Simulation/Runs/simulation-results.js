@@ -6058,7 +6058,7 @@ const feasibilityStationStatusLabel = (status) => {
 const infrastructureMetricValue = (value, suffix = "") =>
   value === null || value === undefined
     ? "—"
-    : `${textContent(formatFixed(value, 0))}${suffix ? ` <small>${textContent(suffix)}</small>` : ""}`;
+    : textContent(`${formatFixed(value, 0)}${suffix ? ` ${suffix}` : ""}`);
 
 const buildSharedInfrastructureDetailsHtml = (viewState) => {
   const summary = viewState?.general?.infrastructureSummary ?? {};
@@ -6245,12 +6245,14 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
             <span>${textContent(
               translateOr("simulation.feasibility_fleet_battery", "Fleet battery")
             )}</span>
-            <span class="feasibility-decision feasibility-decision--${feasibilityDecisionTone(
-              battery.decision
-            )}">${textContent(batteryDecision)}</span>
-          </div>
-          <div class="feasibility-general-card__value">
-            ${batteryPacks === null ? "—" : `${textContent(formatFixed(batteryPacks, 0))} <small>${textContent(packUnit)}</small>`}
+            <div class="feasibility-general-card__result">
+              <strong class="feasibility-general-card__value">
+                ${batteryPacks === null ? "—" : textContent(`${formatFixed(batteryPacks, 0)} ${packUnit}`)}
+              </strong>
+              <span class="feasibility-decision feasibility-decision--${feasibilityDecisionTone(
+                battery.decision
+              )}">${textContent(batteryDecision)}</span>
+            </div>
           </div>
           <p>${nominalKwh === null
             ? textContent(translateOr("simulation.feasibility_capacity_unavailable", "Nominal capacity not available"))
@@ -6267,14 +6269,14 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
             <span>${textContent(
               translateOr("simulation.feasibility_shared_infrastructure", "Charging infrastructure")
             )}</span>
-            <span class="feasibility-decision feasibility-decision--${feasibilityDecisionTone(
-              infrastructure.decision
-            )}">${textContent(infrastructureDecision)}</span>
-          </div>
-          <div class="feasibility-general-card__value feasibility-general-card__value--text">
-            ${textContent(
-              translateOr("simulation.feasibility_shared_value", "Shared")
-            )}
+            <div class="feasibility-general-card__result">
+              <strong class="feasibility-general-card__value feasibility-general-card__value--text">
+                ${textContent(translateOr("simulation.feasibility_shared_value", "Shared"))}
+              </strong>
+              <span class="feasibility-decision feasibility-decision--${feasibilityDecisionTone(
+                infrastructure.decision
+              )}">${textContent(infrastructureDecision)}</span>
+            </div>
           </div>
           <p>${textContent(
             translateOr(
@@ -6291,10 +6293,10 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
             <span>${textContent(
               translateOr("simulation.feasibility_shifts_covered", "Shifts covered")
             )}</span>
+            <strong class="feasibility-general-card__value">${textContent(
+              String(general.shiftCount ?? 0)
+            )}</strong>
           </div>
-          <div class="feasibility-general-card__value">${textContent(
-            String(general.shiftCount ?? 0)
-          )}</div>
           <p>${textContent(
             translateOr(
               "simulation.feasibility_one_configuration_note",
@@ -6305,9 +6307,9 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
         <article class="feasibility-general-card" data-role="feasibility-limiting-shifts">
           <div class="feasibility-general-card__heading">
             <span>${textContent(limitingLabel)}</span>
-          </div>
-          <div class="feasibility-general-card__value feasibility-general-card__value--text">
-            ${limitingNames.length ? textContent(limitingNames.join(", ")) : "—"}
+            <strong class="feasibility-general-card__value feasibility-general-card__value--text">
+              ${limitingNames.length ? textContent(limitingNames.join(", ")) : "—"}
+            </strong>
           </div>
           <p>${textContent(
             translateOr(
@@ -6342,7 +6344,7 @@ const shiftMetricValue = (value, unit = "", { signed = false, decimals = 0 } = {
   const numeric = toOptionalFiniteNumber(value);
   if (numeric === null) return "—";
   const prefix = signed && numeric > 0 ? "+" : "";
-  return `${textContent(`${prefix}${formatFixed(numeric, decimals)}`)}${unit ? ` <small>${textContent(unit)}</small>` : ""}`;
+  return textContent(`${prefix}${formatFixed(numeric, decimals)}${unit ? ` ${unit}` : ""}`);
 };
 
 const buildShiftOperationalSummaryHtml = (viewState) => {
@@ -6450,10 +6452,12 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
           <span>${textContent(
             translateOr("simulation.feasibility_shift_physical_limit", "Physical pack limit")
           )}</span>
-          <strong>${shiftMetricValue(battery.maxPhysicalPacks, packUnit)}</strong>
-          <small class="feasibility-shift-physical-status feasibility-shift-physical-status--${physicalTone}">${textContent(
-            physicalStatus
-          )}</small>
+          <span class="feasibility-shift-metric__result">
+            <strong>${shiftMetricValue(battery.maxPhysicalPacks, packUnit)}</strong>
+            <small class="feasibility-shift-physical-status feasibility-shift-physical-status--${physicalTone}">${textContent(
+              physicalStatus
+            )}</small>
+          </span>
         </article>
         <article data-role="feasibility-shift-min-soc">
           <span>${textContent(t("simulation.opt_col_min_soc") || "Min SoC")}</span>

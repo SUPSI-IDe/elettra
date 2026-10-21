@@ -382,7 +382,44 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(general.locator('[data-station-status="fixed"]')).toContainText("Fixed");
   await expect(general.locator('[data-role="feasibility-active-locations"]')).toHaveText("1");
   await expect(general.locator('[data-role="feasibility-total-plugs"]')).toHaveText("2");
-  await expect(general.locator('[data-role="feasibility-total-power"]')).toContainText("300");
+  await expect(general.locator('[data-role="feasibility-total-power"]')).toHaveText("300 kW DC");
+  await expect(
+    general.locator('[data-role="feasibility-fleet-battery"] .feasibility-general-card__value'),
+  ).toHaveText("12 packs");
+  await expect(general.locator(".feasibility-general-card__value small")).toHaveCount(0);
+  await expect(general.locator(".feasibility-infrastructure-metrics small")).toHaveCount(0);
+  const generalMetricLayout = await general.evaluate((section) => {
+    const pairs = [
+      ...section.querySelectorAll(".feasibility-general-card__heading"),
+      ...section.querySelectorAll(".feasibility-infrastructure-metrics > div"),
+    ].map((row) => {
+      const label = row.querySelector(":scope > span");
+      const value = row.querySelector(
+        ":scope > .feasibility-general-card__value, :scope > .feasibility-general-card__result .feasibility-general-card__value, :scope > strong",
+      );
+      if (!label || !value) return null;
+      const labelStyle = getComputedStyle(label);
+      const valueStyle = getComputedStyle(value);
+      const labelBox = label.getBoundingClientRect();
+      const valueBox = value.getBoundingClientRect();
+      return {
+        labelFontFamily: labelStyle.fontFamily,
+        valueFontFamily: valueStyle.fontFamily,
+        labelFontSize: labelStyle.fontSize,
+        valueFontSize: valueStyle.fontSize,
+        topDifference: Math.abs(labelBox.top - valueBox.top),
+      };
+    }).filter(Boolean);
+    return { pairs, viewportWidth: window.innerWidth };
+  });
+  expect(generalMetricLayout.pairs).toHaveLength(8);
+  generalMetricLayout.pairs.forEach((pair) => {
+    expect(pair.labelFontFamily).toBe(pair.valueFontFamily);
+    expect(pair.labelFontSize).toBe(pair.valueFontSize);
+    if (generalMetricLayout.viewportWidth > 620) {
+      expect(pair.topDifference).toBeLessThanOrEqual(1);
+    }
+  });
 
   await expect(selector).toBeVisible();
   await expect(selector).toHaveAttribute("role", "tablist");
@@ -405,6 +442,39 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(shiftSummary.locator('[data-role="feasibility-shift-min-soc"]')).toContainText("120.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-charged-energy"]')).toContainText("80.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("2");
+  await expect(
+    shiftSummary.locator('[data-role="feasibility-shift-required-packs"]'),
+  ).toHaveText(/Shift battery requirement\s+8 packs/);
+  await expect(shiftSummary.locator(".feasibility-shift-metrics strong small")).toHaveCount(0);
+  const shiftMetricLayout = await shiftSummary
+    .locator(".feasibility-shift-metrics")
+    .evaluate((grid) => {
+      const rows = [...grid.querySelectorAll(":scope > article")].map((row) => {
+        const label = row.querySelector(":scope > span:first-child");
+        const value = row.querySelector("strong");
+        if (!label || !value) return null;
+        const labelStyle = getComputedStyle(label);
+        const valueStyle = getComputedStyle(value);
+        const labelBox = label.getBoundingClientRect();
+        const valueBox = value.getBoundingClientRect();
+        return {
+          labelFontFamily: labelStyle.fontFamily,
+          valueFontFamily: valueStyle.fontFamily,
+          labelFontSize: labelStyle.fontSize,
+          valueFontSize: valueStyle.fontSize,
+          topDifference: Math.abs(labelBox.top - valueBox.top),
+        };
+      }).filter(Boolean);
+      return { rows, viewportWidth: window.innerWidth };
+    });
+  expect(shiftMetricLayout.rows).toHaveLength(8);
+  shiftMetricLayout.rows.forEach((row) => {
+    expect(row.labelFontFamily).toBe(row.valueFontFamily);
+    expect(row.labelFontSize).toBe(row.valueFontSize);
+    if (shiftMetricLayout.viewportWidth > 620) {
+      expect(row.topDifference).toBeLessThanOrEqual(1);
+    }
+  });
   const chargingPlan = shiftDetail.locator('[data-role="feasibility-charging-plan"]');
   const chargingSessions = chargingPlan.locator('[data-role="feasibility-charging-session"]');
   await expect(chargingPlan).toHaveAttribute("data-status", "complete");
