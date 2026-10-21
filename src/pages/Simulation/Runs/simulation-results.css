@@ -899,66 +899,18 @@
   text-align: center;
 }
 
-/* ── Sensitivity / Feasibility Insight Card ───────────────────── */
+/* ── Shift energy adequacy and sensitivity drivers ────────────── */
 
-.efficiency-sensitivity-card {
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  background: var(--color-background-alt);
-  padding: var(--space-md);
-  /* Direct child of the gapped .efficiency-panel — no margin of its own. */
-  margin-bottom: 0;
-}
-
-.efficiency-sensitivity-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-sm);
-}
-
-.efficiency-sensitivity-card__title {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.efficiency-sensitivity-card__body {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: var(--space-sm);
-}
-
-.efficiency-sensitivity-card__row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  font-size: var(--font-size-sm);
-  padding: var(--space-2xs) 0;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.efficiency-sensitivity-card__row:last-child {
-  border-bottom: none;
-}
-
-.efficiency-sensitivity-card__row > span {
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.efficiency-sensitivity-card__row > strong {
-  font-variant-numeric: tabular-nums;
-  color: var(--text-main);
-  font-weight: 600;
-  text-align: right;
+.feasibility-shift-energy-adequacy > .efficiency-adequacy-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .efficiency-sensitivity-card__drivers {
-  margin-top: var(--space-xs);
-  margin-bottom: var(--space-sm);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-light);
 }
 
 .efficiency-sensitivity-card__drivers-label {
@@ -987,15 +939,6 @@
   font-weight: 500;
   color: var(--text-main);
   white-space: nowrap;
-}
-
-.efficiency-sensitivity-card__disclaimer {
-  margin: 0;
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-  font-style: italic;
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--border-light);
 }
 
 .efficiency-sensitivity-card__margin-ok {
@@ -1942,13 +1885,6 @@
   border-radius: var(--radius-sm);
   background: var(--background-alt);
   padding: var(--space-2sm) var(--space-2sm);
-}
-
-.efficiency-adequacy-panel h5 {
-  margin: 0 0 var(--space-sm);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  color: var(--text-main);
 }
 
 .efficiency-adequacy-panel p {

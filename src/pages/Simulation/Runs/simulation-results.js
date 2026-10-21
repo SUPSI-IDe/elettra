@@ -4311,7 +4311,7 @@ const renderBatteryAdequacyPanel = (status = {}) => {
   if (!status.canEvaluateEnergy) {
     return `
       <div class="efficiency-adequacy-panel">
-        <h5>${textContent(title)}</h5>
+        <h3 class="efficiency-section-title">${textContent(title)}</h3>
         <p>${textContent(
           translateOr(
             "simulation.battery_adequacy_missing_energy",
@@ -4428,6 +4428,19 @@ const renderBatteryAdequacyPanel = (status = {}) => {
         <span>${textContent(translateOr("simulation.battery_adequacy_operational_energy", "Available operational energy"))}</span>
         <strong data-role="battery-adequacy-operational">${textContent(formatFixed(status.operationalEnergyKwh, 1))} kWh</strong>`);
   }
+  const marginSummary = formatBatteryMarginSummary(status);
+  if (marginSummary) {
+    energyRows.push(`
+        <span>${textContent(translateOr(
+          status.comparisonUsesOperationalEnergy
+            ? "simulation.sensitivity_operational_margin_mean"
+            : "simulation.sensitivity_margin_mean",
+          status.comparisonUsesOperationalEnergy
+            ? "Operational energy margin — mean basis"
+            : "Battery margin — mean basis"
+        ))}</span>
+        <strong class="${marginSummary.marginClass}" data-role="battery-adequacy-margin">${textContent(marginSummary.text)}</strong>`);
+  }
   const demandRows = status.canEvaluateQuantiles
     ? [
         demandRow("simulation.battery_adequacy_q05", "Q05 demand", status.q05DemandKwh, status.q05Covered, "battery-adequacy-q05"),
@@ -4441,7 +4454,7 @@ const renderBatteryAdequacyPanel = (status = {}) => {
 
   return `
     <div class="efficiency-adequacy-panel">
-      <h5>${textContent(title)}</h5>
+      <h3 class="efficiency-section-title">${textContent(title)}</h3>
       <div class="efficiency-adequacy-grid">
         ${energyRows.join("")}
         ${demandRows.join("")}
@@ -5788,7 +5801,7 @@ const resolveOptimizedBatteryCoverageMarker = (
   };
 };
 
-/* ── Sensitivity / Feasibility Insight Card ──────────────── */
+/* ── Shift energy adequacy and sensitivity drivers ───────── */
 
 const MARGIN_ADEQUATE_PCT = 0.15;
 const MARGIN_TIGHT_PCT = 0.05;
@@ -5855,294 +5868,55 @@ const overviewMarginToneClass = (marginClass = "") => {
   return "overview-highlight--neutral";
 };
 
-const resolveSensitivityFeasibilityCardData = (
+const resolveShiftEnergyAdequacyData = (
   results,
   ip,
   firstRun,
   viewOptions,
-  {
-    optimizedCoverageMarker = null,
-    adequacyScenario = null,
-    energyBalance = null,
-    selectedShiftFeasible = null,
-  } = {}
+  { selectedShiftFeasible = null } = {}
 ) => {
   const batteryResults = results?.battery_results ?? {};
-  const batteryEntries = Object.entries(batteryResults).filter(
+  const batteryEntry = Object.entries(batteryResults).find(
     ([shiftKey, result]) => matchesSelectedShift(result, shiftKey, viewOptions)
-  );
-  const batteryEntry = batteryEntries[0]?.[1] ?? {};
-  const feasibility = typeof selectedShiftFeasible === "boolean"
-    ? selectedShiftFeasible
-    : null;
-
-  const mode = ip?.mode ?? "";
-  const optimizedPacks = toOptionalFiniteNumber(batteryEntry?.optimized_packs);
-  const optimizedNominalKwh =
-    toOptionalFiniteNumber(optimizedCoverageMarker?.nominalKwh) ??
-    resolveOptimizedInstalledNominalKwh({
-      batteryEntry,
-      batteryResults,
-      viewOptions,
-    });
-  const usableSocFraction = resolveUsableSocFraction(ip);
-  const optimizedUsableKwh =
-    toOptionalFiniteNumber(energyBalance?.usableBatteryEnergyKwh) ??
-    toOptionalFiniteNumber(optimizedCoverageMarker?.value) ??
-    applyUsableSocWindow(optimizedNominalKwh, usableSocFraction);
-  const plannedChargingKwh = toOptionalFiniteNumber(
-    energyBalance?.plannedChargingEnergyKwh
-  );
-  const operationalEnergyKwh = toOptionalFiniteNumber(
-    energyBalance?.operationalEnergyKwh
-  );
-  const comparisonEnergyKwh =
-    toOptionalFiniteNumber(energyBalance?.comparisonEnergyKwh) ??
-    optimizedUsableKwh;
-  const comparisonUsesOperationalEnergy =
-    energyBalance?.comparisonUsesOperationalEnergy === true;
-  const maxPhysicalPacks = toOptionalFiniteNumber(batteryEntry?.max_physical_packs);
-
-  const externalTempCelsius = toOptionalFiniteNumber(firstRun?.external_temp_celsius);
-  const heatingType = firstRun?.auxiliary_heating_type ?? null;
-  const occupancyPercent = toOptionalFiniteNumber(firstRun?.occupancy_percent);
-
-  const q05DemandKwh =
-    toOptionalFiniteNumber(adequacyScenario?.q05) ??
-    readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
-      kind: "absolute",
-      quantileKey: "q05",
-    });
-  const meanDemandKwh =
-    toOptionalFiniteNumber(adequacyScenario?.mean) ??
-    toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh);
-  const q50DemandKwh =
-    toOptionalFiniteNumber(adequacyScenario?.q50) ??
-    readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
-      kind: "absolute",
-      quantileKey: "q50",
-    });
-  const q95DemandKwh =
-    toOptionalFiniteNumber(adequacyScenario?.q95) ??
-    readPredictionTotalQuantileValue(firstRun?.summary ?? {}, {
-      kind: "absolute",
-      quantileKey: "q95",
-    });
-
-  const marginKwh = toOptionalFiniteNumber(energyBalance?.marginKwh);
-  const marginPct = toOptionalFiniteNumber(energyBalance?.marginPct);
-
-  const atPhysicalLimit =
-    optimizedPacks != null &&
-    maxPhysicalPacks != null &&
-    optimizedPacks >= maxPhysicalPacks;
-
+  )?.[1] ?? {};
   const chargingStations = Array.isArray(ip?.charging_stations)
     ? ip.charging_stations
     : [];
-  const chargingStationsCount = chargingStations.length > 0
-    ? chargingStations.length
-    : null;
-
-  const yearlyDistanceKm = toOptionalFiniteNumber(
-    viewOptions?.costInputs?.yearlyDistanceKm
-  );
 
   return {
-    feasibility,
-    mode,
-    optimizedPacks,
-    optimizedNominalKwh,
-    usableSocFraction,
-    optimizedUsableKwh,
-    plannedChargingKwh,
-    operationalEnergyKwh,
-    comparisonEnergyKwh,
-    comparisonUsesOperationalEnergy,
-    maxPhysicalPacks,
-    externalTempCelsius,
-    heatingType,
-    occupancyPercent,
+    feasibility:
+      typeof selectedShiftFeasible === "boolean"
+        ? selectedShiftFeasible
+        : null,
+    mode: ip?.mode ?? "",
+    optimizedPacks: toOptionalFiniteNumber(batteryEntry?.optimized_packs),
+    usableSocFraction: resolveUsableSocFraction(ip),
+    externalTempCelsius: toOptionalFiniteNumber(firstRun?.external_temp_celsius),
+    heatingType: firstRun?.auxiliary_heating_type ?? null,
+    occupancyPercent: toOptionalFiniteNumber(firstRun?.occupancy_percent),
     demandBasis: resolveFeasibilityDemandBasis(ip),
-    q05DemandKwh,
-    meanDemandKwh,
-    q50DemandKwh,
-    q95DemandKwh,
-    marginKwh,
-    marginPct,
-    atPhysicalLimit,
-    chargingStationsCount,
-    yearlyDistanceKm,
+    chargingStationsCount:
+      chargingStations.length > 0 ? chargingStations.length : null,
+    yearlyDistanceKm: toOptionalFiniteNumber(
+      viewOptions?.costInputs?.yearlyDistanceKm
+    ),
   };
 };
 
-const buildSensitivityFeasibilityCardHtml = (data) => {
-  if (!data) return "";
+const buildShiftEnergyAdequacyCardHtml = (data, energyBalance) => {
+  if (!data && !energyBalance) return "";
 
-  const feasibilityState = data.feasibility === true
+  const feasibilityState = data?.feasibility === true
     ? "feasible"
-    : data.feasibility === false
+    : data?.feasibility === false
       ? "infeasible"
       : "unknown";
-  const feasBadgeClass = data.feasibility === true
-    ? "badge--positive"
-    : data.feasibility === false
-      ? "badge--negative"
-      : "badge--neutral";
-  const feasLabel = typeof data.feasibility === "boolean"
-    ? feasibilityScenarioLabel(data.feasibility, {
-        quantile_consumption:
-          data.demandBasis === FEASIBILITY_DEMAND_BASIS.Q50
-            ? "median"
-            : data.demandBasis === FEASIBILITY_DEMAND_BASIS.MEAN
-              ? "mean"
-              : "configured",
-      })
-    : translateOr(
-        "simulation.feasibility_status_unavailable",
-        "Feasibility status unavailable"
-      );
-
-  const marginPresentation = resolveBatteryMarginPresentation({
-    marginKwh: data.marginKwh,
-    marginPct: data.marginPct,
-  });
-  const marginLabel = marginPresentation?.marginLabel ?? "";
-  const marginClass = marginPresentation?.marginClass ?? "";
-
-  const energyRows = [];
-
-  if (data.optimizedUsableKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_usable_energy", "Usable energy"))}</span>
-        <strong>${textContent(formatFixed(data.optimizedUsableKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.plannedChargingKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_planned_charging", "Planned charging"))}</span>
-        <strong>${textContent(formatFixed(data.plannedChargingKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.operationalEnergyKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_operational_energy", "Available operational energy"))}</span>
-        <strong>${textContent(formatFixed(data.operationalEnergyKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.q05DemandKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_q05_demand", "Q05 demand"))}</span>
-        <strong>${textContent(formatFixed(data.q05DemandKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.meanDemandKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_mean_demand", "Mean demand — decision basis"))}</span>
-        <strong>${textContent(formatFixed(data.meanDemandKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.q50DemandKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_median_demand", "Q50 demand"))}</span>
-        <strong>${textContent(formatFixed(data.q50DemandKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.q95DemandKwh != null) {
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr("simulation.sensitivity_q95_demand", "Q95 demand"))}</span>
-        <strong>${textContent(formatFixed(data.q95DemandKwh, 1))} kWh</strong>
-      </div>`);
-  }
-
-  if (data.marginKwh != null) {
-    const pctStr = data.marginPct != null
-      ? ` (${(data.marginPct * 100).toFixed(1)}%)`
-      : "";
-    energyRows.push(`
-      <div class="efficiency-sensitivity-card__row">
-        <span>${textContent(translateOr(
-          data.comparisonUsesOperationalEnergy
-            ? "simulation.sensitivity_operational_margin_mean"
-            : "simulation.sensitivity_margin_mean",
-          data.comparisonUsesOperationalEnergy
-            ? "Operational energy margin — mean basis"
-            : "Battery margin — mean basis"
-        ))}</span>
-        <strong class="${marginClass}">${textContent(formatFixed(data.marginKwh, 1))} kWh${textContent(pctStr)} \u2014 ${textContent(marginLabel)}</strong>
-      </div>`);
-  }
-
-  const warningRows = [];
-
-  if (
-    data.q50DemandKwh != null &&
-    data.comparisonEnergyKwh != null &&
-    data.q50DemandKwh > data.comparisonEnergyKwh + ENERGY_BALANCE_TOLERANCE_KWH
-  ) {
-    warningRows.push(`
-      <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-tight">
-        \u26a0 ${textContent(translateOr(
-          data.comparisonUsesOperationalEnergy
-            ? "simulation.sensitivity_q50_exceeds_operational"
-            : "simulation.sensitivity_q50_exceeds_mean_decision",
-          data.comparisonUsesOperationalEnergy
-            ? "Q50 demand exceeds available operational energy; the feasibility decision uses the optimized mean-demand schedule."
-            : "Q50 demand exceeds usable energy; the feasibility decision uses mean demand."
-        ))}
-      </div>`);
-  }
-
-  if (
-    data.q95DemandKwh != null &&
-    data.comparisonEnergyKwh != null &&
-    data.q95DemandKwh > data.comparisonEnergyKwh + ENERGY_BALANCE_TOLERANCE_KWH
-  ) {
-    warningRows.push(`
-      <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-tight">
-        \u26a0 ${textContent(translateOr(
-          data.comparisonUsesOperationalEnergy
-            ? "simulation.sensitivity_q95_exceeds_operational"
-            : "simulation.sensitivity_q95_exceeds",
-          data.comparisonUsesOperationalEnergy
-            ? "Q95 demand exceeds available operational energy."
-            : "Q95 demand exceeds usable energy."
-        ))}
-      </div>`);
-  }
-
-  if (data.atPhysicalLimit) {
-    warningRows.push(`
-      <div class="efficiency-sensitivity-card__row efficiency-sensitivity-card__margin-danger">
-        \u26a0 ${textContent(translateOr("simulation.sensitivity_physical_limit_warning", "Optimized pack count reaches the physical pack limit."))}
-      </div>`);
-  }
-
-  const bodyRows = [...energyRows, ...warningRows];
-  const bodyHtml = bodyRows.length
-    ? `<div class="efficiency-sensitivity-card__body">${bodyRows.join("")}</div>`
-    : "";
-
   const drivers = [];
-
   const demandBasisInputParams = {
     quantile_consumption:
-      data.demandBasis === FEASIBILITY_DEMAND_BASIS.Q50
+      data?.demandBasis === FEASIBILITY_DEMAND_BASIS.Q50
         ? "median"
-        : data.demandBasis === FEASIBILITY_DEMAND_BASIS.MEAN
+        : data?.demandBasis === FEASIBILITY_DEMAND_BASIS.MEAN
           ? "mean"
           : "configured",
   };
@@ -6153,32 +5927,32 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
     )}: ${textContent(feasibilityDemandBasisLabel(demandBasisInputParams))}</span>`
   );
 
-  if (data.mode) {
+  if (data?.mode) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(t("simulation.var_optimization_mode") || "Mode")}: ${textContent(modeLabel(data.mode))}</span>`);
   }
 
-  if (data.usableSocFraction != null) {
+  if (data?.usableSocFraction != null) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.sensitivity_driver_usable_soc", "Usable SoC"))}: ${textContent(formatPct(data.usableSocFraction))}</span>`);
   }
 
-  if (data.externalTempCelsius != null) {
+  if (data?.externalTempCelsius != null) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_external_temp_short", "External temperature"))}: ${textContent(String(data.externalTempCelsius))} \u00b0C</span>`);
   }
 
-  if (data.heatingType) {
-    const htLabel = formatHeatingTypeValue(data.heatingType) ?? data.heatingType;
-    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_heating_type_short", "Heating type"))}: ${textContent(htLabel)}</span>`);
+  if (data?.heatingType) {
+    const heatingTypeLabel = formatHeatingTypeValue(data.heatingType) ?? data.heatingType;
+    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_heating_type_short", "Heating type"))}: ${textContent(heatingTypeLabel)}</span>`);
   }
 
-  if (data.occupancyPercent != null) {
+  if (data?.occupancyPercent != null) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.efficiency_occupancy_short", "Occupancy"))}: ${textContent(String(data.occupancyPercent))}%</span>`);
   }
 
-  if (data.optimizedPacks != null) {
+  if (data?.optimizedPacks != null) {
     drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.sensitivity_driver_opt_packs", "Optimized packs"))}: ${textContent(String(data.optimizedPacks))}</span>`);
   }
 
-  if (data.chargingStationsCount != null) {
+  if (data?.chargingStationsCount != null) {
     const chargingChipLabel =
       data.chargingStationsCount === 1
         ? translateOr(
@@ -6195,7 +5969,7 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
     );
   }
 
-  if (data.yearlyDistanceKm != null) {
+  if (data?.yearlyDistanceKm != null) {
     drivers.push(
       `<span class="efficiency-sensitivity-card__chip">${textContent(
         translateOr(
@@ -6215,19 +5989,14 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
     : "";
 
   return `
-  <div
-    class="efficiency-sensitivity-card"
-    data-role="feasibility-shift-sensitivity"
+  <section
+    class="efficiency-section feasibility-shift-energy-adequacy"
+    data-role="feasibility-shift-energy-adequacy"
     data-feasibility="${feasibilityState}"
   >
-    <div class="efficiency-sensitivity-card__header">
-      <span class="efficiency-sensitivity-card__title">${textContent(translateOr("simulation.sensitivity_card_title", "Sensitivity / Feasibility Insight"))}</span>
-      <span class="badge badge--compact ${feasBadgeClass}">${textContent(feasLabel)}</span>
-    </div>
-    ${bodyHtml}
+    ${renderBatteryAdequacyPanel(energyBalance ?? {})}
     ${driversHtml}
-    <p class="efficiency-sensitivity-card__disclaimer">${textContent(translateOr("simulation.sensitivity_disclaimer", "Indicative summary only. The detailed tables and charts below are the source of truth."))}</p>
-  </div>`;
+  </section>`;
 };
 
 const feasibilityDecisionLabel = (decision) => {
@@ -7038,9 +6807,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           : optimizedCoverageMarker.tooltipLines,
       }
     : optimizedCoverageMarker;
-  const batteryAdequacyHtml = energyBalance
-    ? renderBatteryAdequacyPanel(energyBalance)
-    : "";
   const hasPerBus = perBusSummary.length > 0;
   const unifiedRows = buildUnifiedPredictionRows(predictionData, {
     includePerBus: hasPerBus,
@@ -7094,7 +6860,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
             class="chart-legend efficiency-chart-legend"
             data-role="efficiency-consumption-coverage-legend"
           ></div>
-          ${batteryAdequacyHtml}
         </div>`);
   }
 
@@ -7148,14 +6913,12 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     </section>`
     : "";
 
-  const sensitivityFeasibilityCardHtml = buildSensitivityFeasibilityCardHtml(
-    resolveSensitivityFeasibilityCardData(results, ip, firstRun, viewOptions, {
-      optimizedCoverageMarker,
-      adequacyScenario,
-      energyBalance,
+  const shiftEnergyAdequacyHtml = buildShiftEnergyAdequacyCardHtml(
+    resolveShiftEnergyAdequacyData(results, ip, firstRun, viewOptions, {
       selectedShiftFeasible:
         selectedShiftSummary?.battery?.feasible ?? null,
-    })
+    }),
+    energyBalance
   );
 
   const generalLevelHtml = buildFeasibilityGeneralLevelHtml(feasibilityViewState);
@@ -7168,7 +6931,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       <div class="feasibility-level__content">
         ${buildShiftOperationalSummaryHtml(feasibilityViewState)}
         ${chartsHtml}
-        ${sensitivityFeasibilityCardHtml}
+        ${shiftEnergyAdequacyHtml}
         ${buildShiftChargingPlanHtml(feasibilityViewState)}
         <details class="ya-more-information"${keepMoreInformationOpen ? " open" : ""}>
           <summary class="ya-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>

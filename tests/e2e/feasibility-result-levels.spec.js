@@ -285,10 +285,12 @@ for (const mode of ["battery_only", "charging_only", "joint"]) {
     await expect(adequacy.locator('[data-role="battery-adequacy-mean"]')).toContainText("feasible in optimized schedule");
     await expect(adequacy.locator('[data-role="battery-adequacy-mean"] .badge')).toHaveClass(/badge--positive/);
 
-    const sensitivity = page.locator('[data-role="feasibility-shift-sensitivity"]');
-    await expect(sensitivity).toContainText("Available operational energy");
-    await expect(sensitivity).toContainText("Operational energy margin — mean basis");
-    await expect(sensitivity).toContainText("0.0 kWh");
+    const energyAdequacy = page.locator('[data-role="feasibility-shift-energy-adequacy"]');
+    await expect(energyAdequacy).toContainText("Available operational energy");
+    await expect(energyAdequacy).toContainText("Operational energy margin — mean basis");
+    await expect(energyAdequacy).toContainText("0.0 kWh");
+    await expect(energyAdequacy).toContainText("Sensitivity drivers");
+    await expect(page.locator('[data-role="feasibility-shift-sensitivity"]')).toHaveCount(0);
 
     if (mode === "charging_only") {
       await expect(
@@ -420,14 +422,32 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toContainText(/Average power:\s*120\.0 kW/);
 
   const visualAnalysis = shiftDetail.locator('[data-role="feasibility-shift-visual-analysis"]');
-  const sensitivity = shiftDetail.locator('[data-role="feasibility-shift-sensitivity"]');
+  const energyAdequacy = shiftDetail.locator('[data-role="feasibility-shift-energy-adequacy"]');
   await expect(visualAnalysis).toHaveAttribute("data-status", "available");
   await expect(visualAnalysis.locator("h3")).toHaveText("Visual analysis");
   await expect(visualAnalysis.locator("svg")).toHaveCount(2);
-  await expect(sensitivity).toHaveAttribute("data-feasibility", "feasible");
-  await expect(sensitivity).toContainText("Sensitivity / Feasibility Insight");
-  await expect(sensitivity).toContainText("350.0 kWh");
-  await expect(sensitivity).not.toContainText("550.0 kWh");
+  const chartCardLayout = await visualAnalysis
+    .locator(".efficiency-chart-card")
+    .evaluateAll((cards) => ({
+      viewportWidth: window.innerWidth,
+      cards: cards.map((card) => {
+        const box = card.getBoundingClientRect();
+        return { top: box.top, height: box.height };
+      }),
+    }));
+  expect(chartCardLayout.cards).toHaveLength(2);
+  if (chartCardLayout.viewportWidth > 900) {
+    expect(Math.abs(chartCardLayout.cards[0].top - chartCardLayout.cards[1].top)).toBeLessThanOrEqual(1);
+    expect(Math.abs(chartCardLayout.cards[0].height - chartCardLayout.cards[1].height)).toBeLessThanOrEqual(1);
+  }
+  await expect(energyAdequacy).toHaveAttribute("data-feasibility", "feasible");
+  await expect(energyAdequacy).toContainText("Shift energy adequacy");
+  await expect(energyAdequacy).toContainText("Sensitivity drivers");
+  await expect(energyAdequacy).toContainText("350.0 kWh");
+  await expect(energyAdequacy).not.toContainText("550.0 kWh");
+  await expect(visualAnalysis.locator(".efficiency-adequacy-panel")).toHaveCount(0);
+  await expect(energyAdequacy.locator(".efficiency-adequacy-panel")).toHaveCount(1);
+  await expect(shiftDetail).not.toContainText("Sensitivity / Feasibility Insight");
 
   const shiftSectionOrder = await shiftDetail
     .locator(".feasibility-level__content > *")
@@ -435,7 +455,7 @@ test("separates the common result from one selected shift without an aggregate o
   expect(shiftSectionOrder).toEqual([
     "feasibility-shift-summary",
     "feasibility-shift-visual-analysis",
-    "feasibility-shift-sensitivity",
+    "feasibility-shift-energy-adequacy",
     "feasibility-charging-plan",
   ]);
 
@@ -446,7 +466,7 @@ test("separates the common result from one selected shift without an aggregate o
       '[data-role="feasibility-shift-visual-analysis"]',
     );
     const sensitivityCard = plan.parentElement?.querySelector(
-      '[data-role="feasibility-shift-sensitivity"]',
+      '[data-role="feasibility-shift-energy-adequacy"]',
     );
     if (!list || !session || !visual || !sensitivityCard) return null;
     const sessionStyle = getComputedStyle(session);
@@ -518,9 +538,9 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(chargingSessions.nth(1).locator('[data-role="feasibility-charging-session-start"]')).toContainText("01:00");
   await expect(chargingSessions.nth(1).locator('[data-role="feasibility-charging-session-start"]')).toContainText("next day");
   await expect(visualAnalysis).toHaveAttribute("data-status", "available");
-  await expect(sensitivity).toHaveAttribute("data-feasibility", "feasible");
-  await expect(sensitivity).toContainText("550.0 kWh");
-  await expect(sensitivity).not.toContainText("350.0 kWh");
+  await expect(energyAdequacy).toHaveAttribute("data-feasibility", "feasible");
+  await expect(energyAdequacy).toContainText("550.0 kWh");
+  await expect(energyAdequacy).not.toContainText("350.0 kWh");
   await expect(moreInformation).toHaveAttribute("open", "");
   await expect(inlinePredictions).toBeVisible();
   await expect(inlinePredictions).toContainText("550.0 kWh");
@@ -581,10 +601,10 @@ test("never reuses another shift prediction when the selected shift has none", a
 
   await selectShiftScope(page, "evening");
 
-  const sensitivity = page.locator(".efficiency-sensitivity-card");
-  await expect(sensitivity).toBeVisible();
-  await expect(sensitivity).not.toContainText("350.0 kWh");
-  await expect(sensitivity).not.toContainText("-10 °C");
+  const energyAdequacy = page.locator('[data-role="feasibility-shift-energy-adequacy"]');
+  await expect(energyAdequacy).toBeVisible();
+  await expect(energyAdequacy).not.toContainText("350.0 kWh");
+  await expect(energyAdequacy).not.toContainText("-10 °C");
 
   const visualAnalysis = page.locator('[data-role="feasibility-shift-visual-analysis"]');
   await expect(visualAnalysis).toHaveAttribute("data-status", "unavailable");
@@ -835,7 +855,7 @@ test("shows an infeasible shift as a shortfall against the common physical batte
     "data-status",
     "available",
   );
-  await expect(page.locator('[data-role="feasibility-shift-sensitivity"]')).toHaveAttribute(
+  await expect(page.locator('[data-role="feasibility-shift-energy-adequacy"]')).toHaveAttribute(
     "data-feasibility",
     "infeasible",
   );
@@ -853,14 +873,12 @@ test("keeps each shift feasibility independent from an infeasible overall result
   });
 
   await selectShiftScope(page, "morning");
-  const sensitivity = page.locator('[data-role="feasibility-shift-sensitivity"]');
-  await expect(sensitivity).toHaveAttribute("data-feasibility", "feasible");
-  await expect(sensitivity.locator(".badge")).toContainText("Feasible");
+  const energyAdequacy = page.locator('[data-role="feasibility-shift-energy-adequacy"]');
+  await expect(energyAdequacy).toHaveAttribute("data-feasibility", "feasible");
   await expect(page.locator('[data-role="feasibility-shift-visual-analysis"] svg')).toHaveCount(2);
 
   await selectShiftScope(page, "evening");
-  await expect(sensitivity).toHaveAttribute("data-feasibility", "infeasible");
-  await expect(sensitivity.locator(".badge")).toContainText("Infeasible");
+  await expect(energyAdequacy).toHaveAttribute("data-feasibility", "infeasible");
   await expect(page.locator('[data-role="feasibility-shift-visual-analysis"] svg')).toHaveCount(2);
 });
 
@@ -880,9 +898,8 @@ test("shows an unknown shift status without hiding available visual analysis", a
 
   await selectShiftScope(page, "morning");
 
-  const sensitivity = page.locator('[data-role="feasibility-shift-sensitivity"]');
-  await expect(sensitivity).toHaveAttribute("data-feasibility", "unknown");
-  await expect(sensitivity.locator(".badge")).toHaveText("Feasibility status unavailable");
+  const energyAdequacy = page.locator('[data-role="feasibility-shift-energy-adequacy"]');
+  await expect(energyAdequacy).toHaveAttribute("data-feasibility", "unknown");
   await expect(page.locator('[data-role="feasibility-shift-visual-analysis"]')).toHaveAttribute(
     "data-status",
     "available",
