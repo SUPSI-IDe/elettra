@@ -57,6 +57,8 @@ const mountResults = async (page, {
   stationUtilization,
   totalInstallationCostChf,
   includeInfrastructureInput = true,
+  includeElectrificationFeasible = true,
+  electrificationFeasible = true,
   batteryResultOverrides = {},
   perBusSummaryOverrides = {},
 } = {}) => {
@@ -148,7 +150,9 @@ const mountResults = async (page, {
           prediction_run_ids:
             predictionRunIds ?? shiftIds.map((shiftId) => `prediction-${shiftId}`),
           results: {
-            electrification_feasible: true,
+            ...(includeElectrificationFeasible
+              ? { electrification_feasible: electrificationFeasible }
+              : {}),
             battery_results: batteryResults,
             per_bus_summary: shiftIds.map((shiftId) => ({
               shift_id: shiftId,
@@ -238,7 +242,17 @@ test("separates the common result from one selected shift without an aggregate o
 
   await expect(general).toBeVisible();
   await expect(shiftDetail).toHaveCount(0);
+  await expect(page.locator(".results-tabs")).toBeHidden();
   await expect(general).toContainText("Common fleet configuration");
+  await expect(general.locator('[data-role="feasibility-mode"]')).toHaveText(
+    "Optimization mode: Battery only",
+  );
+  await expect(general.locator('[data-role="feasibility-overall-status"]')).toHaveText(
+    "All shifts are feasible",
+  );
+  await expect(general.locator('[data-role="feasibility-overall-status"]')).toHaveClass(
+    /feasibility-overall-status--feasible/,
+  );
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("Optimized");
   await expect(general.locator('[data-role="feasibility-shared-infrastructure"]')).toContainText("Fixed");
@@ -261,6 +275,7 @@ test("separates the common result from one selected shift without an aggregate o
   await selectShiftScope(page, "morning");
   await expect(general).toHaveCount(0);
   await expect(shiftDetail).toBeVisible();
+  await expect(page.locator(".results-tabs")).toBeVisible();
   await expect(page.locator('.results-tab[data-tab="predictions"]')).toBeVisible();
 
   const shiftSummary = shiftDetail.locator('[data-role="feasibility-shift-summary"]');
@@ -305,6 +320,7 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-limiting-shifts"]')).toContainText("Evening service");
   await expect(shiftDetail).toHaveCount(0);
+  await expect(page.locator(".results-tabs")).toBeHidden();
   await expect(page.locator('.results-tab[data-tab="efficiency"]')).toHaveAttribute("aria-selected", "true");
   await expect(page.locator('.results-tab[data-tab="predictions"]')).toBeHidden();
 });
@@ -438,6 +454,25 @@ test("renders unavailable values safely when a historical result has no shift de
   await expect(page.locator('[data-role="feasibility-infrastructure-unavailable"]')).toBeVisible();
   await expect(page.locator('[data-role="feasibility-shift-summary"]')).toHaveCount(0);
   await expect(page.locator('[data-role="feasibility-charging-plan"]')).toHaveCount(0);
+});
+
+test("shows an explicit overall infeasible status without replacing the general configuration", async ({ page }) => {
+  await mountResults(page, { electrificationFeasible: false });
+
+  const general = page.locator('[data-role="feasibility-general-level"]');
+  const status = general.locator('[data-role="feasibility-overall-status"]');
+  await expect(status).toHaveText("Not all shifts are feasible");
+  await expect(status).toHaveClass(/feasibility-overall-status--infeasible/);
+  await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
+  await expect(general.locator('[data-role="feasibility-infrastructure"]')).toBeVisible();
+});
+
+test("keeps a missing historical overall status visibly unknown", async ({ page }) => {
+  await mountResults(page, { includeElectrificationFeasible: false });
+
+  const status = page.locator('[data-role="feasibility-overall-status"]');
+  await expect(status).toHaveText("Feasibility status unavailable");
+  await expect(status).toHaveClass(/feasibility-overall-status--unknown/);
 });
 
 test("distinguishes a shift with no required charging from missing schedule details", async ({ page }) => {
@@ -613,6 +648,11 @@ test("shows one complete shared infrastructure for joint optimization across eve
   });
 
   const infrastructure = page.locator('[data-role="feasibility-infrastructure"]');
+  await expect(page.locator('[data-role="feasibility-mode"]')).toHaveText(
+    "Optimization mode: Joint",
+  );
+  await expect(page.locator('[data-role="feasibility-fleet-battery"]')).toContainText("Optimized");
+  await expect(page.locator('[data-role="feasibility-shared-infrastructure"]')).toContainText("Optimized");
   await expect(infrastructure).toContainText("Configuration available");
   await expect(infrastructure.locator('tbody tr')).toHaveCount(2);
   await expect(infrastructure.locator('[data-station-status="installed"]')).toContainText("Installed");
@@ -642,6 +682,11 @@ test("keeps unresolved candidates visible without presenting partial totals as f
   });
 
   const infrastructure = page.locator('[data-role="feasibility-infrastructure"]');
+  await expect(page.locator('[data-role="feasibility-mode"]')).toHaveText(
+    "Optimization mode: Charging",
+  );
+  await expect(page.locator('[data-role="feasibility-fleet-battery"]')).toContainText("Fixed");
+  await expect(page.locator('[data-role="feasibility-shared-infrastructure"]')).toContainText("Optimized");
   await expect(infrastructure).toContainText("Configuration incomplete");
   await expect(infrastructure.locator('[data-role="feasibility-infrastructure-incomplete"]')).toBeVisible();
   await expect(infrastructure.locator('[data-station-status="candidate"]')).toContainText("Candidate");

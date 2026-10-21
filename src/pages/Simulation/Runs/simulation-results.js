@@ -6138,6 +6138,34 @@ const feasibilityDecisionTone = (decision) =>
     ? decision
     : "unknown";
 
+const feasibilityOverallStatus = (value) => {
+  if (value === true) {
+    return {
+      tone: "feasible",
+      label: translateOr(
+        "simulation.feasibility_all_shifts_feasible",
+        "All shifts are feasible"
+      ),
+    };
+  }
+  if (value === false) {
+    return {
+      tone: "infeasible",
+      label: translateOr(
+        "simulation.feasibility_not_all_shifts_feasible",
+        "Not all shifts are feasible"
+      ),
+    };
+  }
+  return {
+    tone: "unknown",
+    label: translateOr(
+      "simulation.feasibility_status_unavailable",
+      "Feasibility status unavailable"
+    ),
+  };
+};
+
 const feasibilityStationStatusLabel = (status) => {
   const labels = {
     fixed: ["simulation.feasibility_station_fixed", "Fixed"],
@@ -6294,6 +6322,11 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
     ? translateOr("simulation.feasibility_sizing_shifts", "Sizing shift")
     : translateOr("simulation.feasibility_most_demanding_shifts", "Most demanding shift");
   const packUnit = t("simulation.unit_packs") || "packs";
+  const overallStatus = feasibilityOverallStatus(
+    general.electrificationFeasible
+  );
+  const optimizationMode = modeLabel(general.mode) ||
+    translateOr("simulation.feasibility_decision_unknown", "Not available");
 
   return `
     <section class="feasibility-level feasibility-level--general" data-role="feasibility-general-level">
@@ -6312,8 +6345,24 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
             )
           )}</p>
         </div>
+        <div class="feasibility-level__header-meta">
+          <span
+            class="feasibility-mode"
+            data-role="feasibility-mode"
+          >${textContent(
+            translateOr(
+              "simulation.feasibility_optimization_mode",
+              "Optimization mode: {mode}",
+              { mode: optimizationMode }
+            )
+          )}</span>
+          <span
+            class="feasibility-overall-status feasibility-overall-status--${overallStatus.tone}"
+            data-role="feasibility-overall-status"
+          >${textContent(overallStatus.label)}</span>
+        </div>
       </header>
-      <div class="feasibility-general-grid">
+      <div class="feasibility-general-grid feasibility-general-grid--configuration">
         <article class="feasibility-general-card" data-role="feasibility-fleet-battery">
           <div class="feasibility-general-card__heading">
             <span>${textContent(
@@ -6357,6 +6406,9 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
             )
           )}</p>
         </article>
+      </div>
+      ${buildSharedInfrastructureDetailsHtml(viewState)}
+      <div class="feasibility-general-grid feasibility-general-grid--coverage">
         <article class="feasibility-general-card" data-role="feasibility-shift-count">
           <div class="feasibility-general-card__heading">
             <span>${textContent(
@@ -6388,7 +6440,6 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
           )}</p>
         </article>
       </div>
-      ${buildSharedInfrastructureDetailsHtml(viewState)}
     </section>`;
 };
 
@@ -9506,7 +9557,9 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const syncFunctionalTabsForScope = () => {
     const isShiftScope = getActiveResultScope()?.kind === "shift";
+    const functionalTabs = section.querySelector(".results-tabs");
     const predictionsTab = section.querySelector('.results-tab[data-tab="predictions"]');
+    if (functionalTabs) functionalTabs.hidden = !isShiftScope;
     if (predictionsTab) predictionsTab.hidden = !isShiftScope;
 
     const activeFunctionalTab = section.querySelector(".results-tab.active")?.dataset.tab;

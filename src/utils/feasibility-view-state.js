@@ -152,6 +152,11 @@ export function buildFeasibilityViewState(feasibilityModel = {}, requestedShiftI
 
   return {
     general: {
+      mode: text(model.mode),
+      electrificationFeasible:
+        typeof model.electrificationFeasible === "boolean"
+          ? model.electrificationFeasible
+          : null,
       fleet,
       battery,
       infrastructure,

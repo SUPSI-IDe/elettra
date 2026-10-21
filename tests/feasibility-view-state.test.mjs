@@ -102,6 +102,34 @@ test("changing the selected shift never changes the common general configuration
   assert.deepEqual(source, snapshot);
 });
 
+test("the general result preserves the run mode and explicit overall feasibility", () => {
+  const feasibleSource = model();
+  feasibleSource.mode = "joint";
+  feasibleSource.electrificationFeasible = true;
+  const infeasibleSource = model();
+  infeasibleSource.mode = "charging_only";
+  infeasibleSource.electrificationFeasible = false;
+
+  const feasible = buildFeasibilityViewState(feasibleSource).general;
+  const infeasible = buildFeasibilityViewState(infeasibleSource).general;
+
+  assert.equal(feasible.mode, "joint");
+  assert.equal(feasible.electrificationFeasible, true);
+  assert.equal(infeasible.mode, "charging_only");
+  assert.equal(infeasible.electrificationFeasible, false);
+});
+
+test("missing or malformed overall feasibility remains unknown", () => {
+  for (const value of [undefined, null, "true", 1, 0, {}, []]) {
+    const source = model();
+    source.electrificationFeasible = value;
+    assert.equal(
+      buildFeasibilityViewState(source).general.electrificationFeasible,
+      null,
+    );
+  }
+});
+
 test("missing optional general fields remain empty instead of being inferred", () => {
   const view = buildFeasibilityViewState({ shifts: [{ shiftId: "s" }] }, "s");
 
@@ -341,6 +369,10 @@ test("both feasibility levels are translated in every supported locale", () => {
     "simulation.feasibility_general_level",
     "simulation.feasibility_general_title",
     "simulation.feasibility_general_subtitle",
+    "simulation.feasibility_optimization_mode",
+    "simulation.feasibility_all_shifts_feasible",
+    "simulation.feasibility_not_all_shifts_feasible",
+    "simulation.feasibility_status_unavailable",
     "simulation.feasibility_fleet_battery",
     "simulation.feasibility_shared_infrastructure",
     "simulation.feasibility_shared_value",
@@ -412,6 +444,10 @@ test("both feasibility levels are translated in every supported locale", () => {
       assert.equal(typeof dictionary[key], "string", `${locale}: missing ${key}`);
       assert.notEqual(dictionary[key].trim(), "", `${locale}: empty ${key}`);
     }
+    assert.ok(
+      dictionary["simulation.feasibility_optimization_mode"].includes("{mode}"),
+      `${locale}: missing optimization mode placeholder`,
+    );
     assert.ok(
       dictionary["simulation.feasibility_nominal_capacity"].includes("{capacity}"),
       `${locale}: missing capacity placeholder`,
