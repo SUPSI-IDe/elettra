@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.4.0] - 2026-10-21
+
+### Added
+
+- Feasibility results now separate the common fleet configuration from dedicated tabs for every physical shift, with no ambiguous aggregate-shift view.
+- The General view reports the shared battery, charging infrastructure, covered shifts, limiting shifts and detailed charger configuration.
+- Every shift view includes its operational summary, visual energy analysis, SOC limits, charging sessions, sensitivity drivers and optional prediction details.
+
+### Changed
+
+- Battery-only, charging-only and joint results distinguish fixed and optimized battery and infrastructure decisions while applying one common bus configuration to every selected shift.
+- Shift energy adequacy reconciles mean demand with planned charging, keeps prediction quantiles as context and reports minimum, maximum and usable SOC limits explicitly.
+- General and shift summaries use compact, consistent data typography and charging sessions use one concise row per phase.
+
+### Fixed
+
+- Predictions and operational details are scoped strictly by shift identity, preventing equally named, aggregate or unrelated shift data from being reused.
+- Missing, partial, historical, infeasible and no-charging results remain explicit without presenting incomplete totals as final decisions.
+
+### Verification
+
+- Added dedicated unit and desktop/mobile browser coverage for all optimization modes, multi-shift navigation, shared infrastructure, charging plans, energy balance, SOC limits, responsive layout and incomplete historical results.
+- Verified 383 Node tests, 138 desktop/mobile browser executions, the 52-test feasibility regression set and the production build.
+
 ## [0.3.0] - 2026-10-20
 
 ### Security
