@@ -4,7 +4,7 @@ import {
 } from "../../../utils/charging-energy";
 import { mapParameterizedLca, renderParameterizedLca } from "./parameterized-lca";
 import "./yearly-analysis-results.css";
-import { openPartialInNewTab, triggerPartialLoad } from "../../../events";
+import { triggerPartialLoad } from "../../../events";
 import { textContent, toText } from "../../../ui-helpers";
 import {
   fetchYearlyAnalysis,
@@ -165,12 +165,6 @@ const formatCHF = (v) => {
   return Number.isFinite(n) ? n.toLocaleString("de-CH") : "—";
 };
 
-const feasibilityBadge = (v) => {
-  if (v === true) return `<span class="badge badge--success">${textContent(t("simulation.feasibility_feasible"))}</span>`;
-  if (v === false) return `<span class="badge badge--danger">${textContent(t("simulation.feasibility_infeasible"))}</span>`;
-  return `<span class="badge badge--neutral">—</span>`;
-};
-
 const MOBITOOL_URL = "https://www.i14y.admin.ch/en/catalog/dataservices/171b09a4-5b5f-4577-8921-3af7fc6eee39/description";
 const MOBITOOL_LINK_HTML = `<a href="${MOBITOOL_URL}" target="_blank" rel="noopener noreferrer">Mobitool</a>`;
 const linkifyMobitoolHtml = (value) => text(value).replace(/Mobitool/g, MOBITOOL_LINK_HTML);
@@ -180,68 +174,6 @@ const VECTO_URL = "https://code.europa.eu/vecto/vecto/-/tags";
 const VECTO_LINK_HTML = `<a href="${VECTO_URL}" target="_blank" rel="noopener noreferrer">VECTO 5.1.3</a>`;
 const HUMPHRIES_URL = "https://doi.org/10.4271/2024-01-5011";
 const HUMPHRIES_LINK_HTML = `<a href="${HUMPHRIES_URL}" target="_blank" rel="noopener noreferrer">Humphries et al. (2024)</a>`;
-
-/* ── Overview helpers ──────────────────────────────────────────── */
-
-const overviewRowHtml = (label, value, raw = false) =>
-  `<div class="ya-overview-row">
-    <span class="ya-overview-row__label">${textContent(label)}</span>
-    <span class="ya-overview-row__value">${raw ? value : textContent(value)}</span>
-  </div>`;
-
-const overviewColShell = (icon, title, bodyHtml) =>
-  `<div class="ya-overview-col">
-    <div class="ya-overview-col__header">
-      <span class="ya-overview-col__icon" aria-hidden="true">${icon}</span>
-      <h3 class="ya-overview-col__title">${textContent(title)}</h3>
-    </div>
-    ${bodyHtml}
-  </div>`;
-
-const summarizeShiftNames = (names = []) => {
-  const items = (Array.isArray(names) ? names : []).map((name) => text(name).trim()).filter(Boolean);
-  if (!items.length) return "—";
-  if (items.length === 1) return items[0];
-  return `${items[0]} +${items.length - 1}`;
-};
-
-const formatCompactNumber = (value, decimals = 1) => {
-  const numeric = toFiniteNumber(value);
-  if (numeric == null) return "—";
-  if (Number.isInteger(numeric)) return formatInt(numeric);
-  return formatFixed(numeric, decimals);
-};
-
-const formatBatterySummary = (busModelData, optimizedPacks) => {
-  const packSizeKwh = toFiniteNumber(busModelData?.battery_pack_size_kwh);
-  const packs = toFiniteNumber(optimizedPacks);
-  if (packSizeKwh != null && packs != null) {
-    const totalCapacityKwh = packSizeKwh * packs;
-    return t("yearly_analysis.battery_capacity_summary", {
-      packSize: formatCompactNumber(packSizeKwh),
-      packs: formatCompactNumber(packs, 0),
-      total: formatCompactNumber(totalCapacityKwh),
-    });
-  }
-  if (packSizeKwh != null) return t("yearly_analysis.battery_pack_only", { packSize: formatCompactNumber(packSizeKwh) });
-  if (packs != null) return t("yearly_analysis.packs_value", { count: formatCompactNumber(packs, 0) });
-  return "—";
-};
-
-const buildShiftLink = (features) => {
-  const cfg = features.config ?? {};
-  const meta = features.meta ?? {};
-  const shiftIds = Array.isArray(cfg.shift_ids) ? cfg.shift_ids.map((id) => text(id).trim()).filter(Boolean) : [];
-  const label = summarizeShiftNames(meta.shiftNames ?? []);
-  if (!label || label === "—") return "—";
-  if (shiftIds.length === 1) {
-    return `<a class="ya-overview-link" href="#visualize-shift" data-action="open-partial" data-partial="visualize-shift" data-shift-id="${textContent(shiftIds[0])}">${textContent(label)}</a>`;
-  }
-  if (shiftIds.length > 1) {
-    return `<a class="ya-overview-link" href="#shifts" data-action="open-partial" data-partial="shifts">${textContent(label)}</a>`;
-  }
-  return textContent(label);
-};
 
 /* ── Chart / slider helpers ─────────────────────────────────────── */
 
@@ -3779,7 +3711,11 @@ const configurationRoleLabel = (decision) =>
       : translateOr("yearly_analysis.configuration_available", "Available configuration");
 
 const configurationRoleHtml = (decision) => {
-  const normalized = decision === "optimized" ? "optimized" : "fixed";
+  const normalized = decision === "optimized"
+    ? "optimized"
+    : decision === "fixed"
+      ? "fixed"
+      : "unknown";
   return `<span class="ya-configuration-role ya-configuration-role--${normalized}">${textContent(
     configurationRoleLabel(decision),
   )}</span>`;
@@ -3888,6 +3824,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
     text(busModelData?.name).trim() ||
     text(busModelData?.model).trim() ||
     "—";
+  const modeName = modeLabel(mode, features?.meta?.modeLabel);
 
   const batteryRows = [
     {
@@ -3918,10 +3855,6 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
       value: busName,
     },
     {
-      label: t("yearly_analysis.col_mode"),
-      value: modeLabel(mode, features?.meta?.modeLabel),
-    },
-    {
       label: translateOr("yearly_analysis.covered_shifts", "Covered shifts"),
       value: shiftNames.length ? String(shiftNames.length) : "—",
     },
@@ -3929,6 +3862,8 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
       label: t("yearly_analysis.col_shifts"),
       value: shiftNames.join(", ") || "—",
     },
+  ];
+  const operatingRows = [
     {
       label: t("yearly_analysis.occupancy"),
       value: config.occupancy_percent != null ? `${config.occupancy_percent}%` : "—",
@@ -4008,7 +3943,30 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
             ),
       )}</p>`;
 
-  return `<section class="ya-deployed-configuration" data-role="ya-deployed-configuration">
+  return `<section class="ya-deployed-configuration ya-scope-level ya-scope-level--general" data-role="ya-deployed-configuration">
+    <header class="ya-scope-level__header">
+      <div>
+        <p class="ya-scope-level__eyebrow">${textContent(
+          translateOr("simulation.feasibility_general_level", "General result"),
+        )}</p>
+        <h3 class="ya-scope-level__title">${textContent(
+          translateOr("yearly_analysis.deployed_configuration", "Deployed configuration"),
+        )}</h3>
+        <p class="ya-scope-level__subtitle">${textContent(
+          translateOr(
+            "simulation.feasibility_general_subtitle",
+            "One bus configuration and one charging infrastructure shared by every selected shift.",
+          ),
+        )}</p>
+      </div>
+      <span class="ya-scope-mode">${textContent(
+        translateOr(
+          "simulation.feasibility_optimization_mode",
+          "Optimization mode: {mode}",
+          { mode: modeName },
+        ),
+      )}</span>
+    </header>
     <p class="ya-annual-assumption"><strong>${textContent(
       translateOr("yearly_analysis.annual_assumption_title", "Annual analysis assumption"),
     )}:</strong> ${textContent(
@@ -4017,17 +3975,18 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
         "The annual analysis uses the configuration determined by the source feasibility evaluation. Weather scenarios change consumption estimates; they do not resize the battery, alter the charging infrastructure, or reassess feasibility.",
       ),
     )}</p>
-    <div class="ya-deployed-configuration__header">
-      <h3 class="ya-deployed-configuration__title">${textContent(
-        translateOr("yearly_analysis.deployed_configuration", "Deployed configuration"),
-      )}</h3>
-    </div>
     <div class="ya-deployed-configuration__grid">
       <article class="ya-deployed-card">
         <h3 class="ya-deployed-card__title">${textContent(
           translateOr("yearly_analysis.common_bus_configuration", "Common bus configuration"),
         )}</h3>
         ${definitionRowsHtml(fleetRows)}
+      </article>
+      <article class="ya-deployed-card">
+        <h3 class="ya-deployed-card__title">${textContent(
+          translateOr("simulation.efficiency_operating_conditions", "Operating conditions"),
+        )}</h3>
+        ${definitionRowsHtml(operatingRows)}
       </article>
       <article class="ya-deployed-card">
         <h3 class="ya-deployed-card__title">${textContent(
@@ -4147,13 +4106,24 @@ const buildShiftReferenceHtml = (features, scope) => {
     ? status
     : "unknown";
 
-  return `<section class="ya-shift-reference" data-role="ya-shift-reference" data-shift-id="${textContent(scope.shiftId)}">
-    <div class="ya-shift-reference__header">
-      <h3 class="ya-shift-reference__title">${textContent(
-        t("yearly_analysis.shift_annual_detail", { shift: scope.shiftName }),
-      )}</h3>
+  return `<section class="ya-shift-reference ya-scope-level ya-scope-level--shift" data-role="ya-shift-reference" data-shift-id="${textContent(scope.shiftId)}">
+    <header class="ya-scope-level__header ya-scope-level__header--shift">
+      <div>
+        <p class="ya-scope-level__eyebrow">${textContent(
+          translateOr("simulation.feasibility_shift_level", "Shift detail"),
+        )}</p>
+        <h3 class="ya-scope-level__title" data-role="ya-selected-shift">${textContent(
+          scope.shiftName || scope.shiftId || "—",
+        )}</h3>
+        <p class="ya-scope-level__subtitle">${textContent(
+          translateOr(
+            "simulation.feasibility_shift_subtitle",
+            "Energy demand and operating details for the selected shift.",
+          ),
+        )}</p>
+      </div>
       <span class="ya-scope-status ya-scope-status--${statusTone}">${textContent(statusLabel)}</span>
-    </div>
+    </header>
     <div class="ya-shift-reference__grid">
       <article class="ya-shift-reference-card">
         <h3 class="ya-shift-reference-card__title">${textContent(
@@ -4215,18 +4185,25 @@ const buildShiftReferenceHtml = (features, scope) => {
         ], "ya-shift-reference-card")}
       </article>
     </div>
-    <div>
-      <h3 class="ya-shift-reference-card__title">${textContent(
-        translateOr("yearly_analysis.reference_charging_plan", "Reference charging plan"),
-      )}</h3>
-      <p class="ya-charging-plan-note">${textContent(
-        translateOr(
-          "yearly_analysis.reference_charging_plan_note",
-          "This fixed plan comes from the source feasibility evaluation and is shown once as context. It is not recalculated for each temperature cluster.",
-        ),
-      )}</p>
+    <div class="ya-reference-charging-plan">
+      <div class="ya-reference-charging-plan__header">
+        <div>
+          <h3 class="ya-shift-reference-card__title">${textContent(
+            translateOr("yearly_analysis.reference_charging_plan", "Reference charging plan"),
+          )}</h3>
+          <p class="ya-charging-plan-note">${textContent(
+            translateOr(
+              "yearly_analysis.reference_charging_plan_note",
+              "This fixed plan comes from the source feasibility evaluation and is shown once as context. It is not recalculated for each temperature cluster.",
+            ),
+          )}</p>
+        </div>
+        ${hasChargingPlan
+          ? `<span class="ya-reference-charging-plan__count">${textContent(String(sessions.length))}</span>`
+          : ""}
+      </div>
+      ${chargingPlan}
     </div>
-    ${chargingPlan}
   </section>`;
 };
 
@@ -4275,175 +4252,14 @@ const buildScopedEmissionsState = (state, scope) => {
 
 const renderOverviewPanel = (
   el,
-  features,
-  effState,
-  costState,
-  emissionsState,
   busModelData = {},
   scope = { kind: "general", key: YEARLY_GENERAL_SCOPE_KEY },
-  sourceFeatures = features,
+  sourceFeatures = {},
 ) => {
   if (!el) return;
-
-  if (scope?.kind !== "shift") {
-    el.innerHTML = buildGeneralDeploymentHtml(sourceFeatures, busModelData);
-    return;
-  }
-
-  const cfg = features.config ?? {};
-  const meta = features.meta ?? {};
-  const results = features.results ?? {};
-  const yearlyTotals = results.yearlyTotals ?? {};
-  const scenarioResults = results.scenarioResults ?? [];
-  const efficiencySummary = effState?.summary ?? null;
-  const columns = [];
-
-  /* ── Column 1: Inputs ──────────────────────────────────────── */
-  {
-    const shiftNames = meta.shiftNames ?? [];
-    const sizingTemp = toFiniteNumber(meta.sizingTemp);
-    const simulationLink = results.baseOptimizationRunId
-      ? `<a class="ya-overview-link ya-mono" href="#simulation-results" data-action="open-simulation-results" data-run-id="${textContent(text(results.baseOptimizationRunId))}">${textContent(text(results.baseOptimizationRunId).slice(0, 8))}...</a>`
-      : "—";
-    const body = [
-      overviewRowHtml(t("yearly_analysis.base_evaluation"), simulationLink, true),
-      overviewRowHtml(t("yearly_analysis.col_shifts"), buildShiftLink(features), true),
-      overviewRowHtml(t("yearly_analysis.col_mode"), modeLabel(cfg.mode, meta.modeLabel)),
-      overviewRowHtml(t("yearly_analysis.occupancy"), cfg.occupancy_percent != null ? `${cfg.occupancy_percent}%` : "—"),
-      overviewRowHtml(t("yearly_analysis.heating"), heatingLabel(cfg.auxiliary_heating_type)),
-      overviewRowHtml(t("yearly_analysis.soc_range"), `${((cfg.min_soc ?? 0) * 100).toFixed(0)}–${((cfg.max_soc ?? 1) * 100).toFixed(0)}%`),
-      overviewRowHtml(t("yearly_analysis.battery"), formatBatterySummary(busModelData, results.optimizedPacks)),
-      overviewRowHtml(t("yearly_analysis.sizing_temperature"), sizingTemp != null ? `${formatFixed(sizingTemp, 1)} °C` : "—"),
-    ].join("");
-
-    columns.push(overviewColShell("🧩", t("yearly_analysis.inputs"), body));
-  }
-
-  /* ── Column 2: Efficiency ──────────────────────────────────── */
-  {
-    const feasible = results.baseFeasible;
-    const feasBadge = feasible === true ? "badge--positive"
-      : feasible === false ? "badge--negative" : "badge--neutral";
-    const feasLabel = feasible === true ? t("simulation.feasibility_feasible") : feasible === false ? t("simulation.feasibility_infeasible") : "—";
-
-    const yearlyEnergy = toFiniteNumber(efficiencySummary?.energy ?? yearlyTotals.totalEnergyKwh);
-    const yearlyDist = toFiniteNumber(efficiencySummary?.dist ?? yearlyTotals.distanceKm);
-    const avgEpk = toFiniteNumber(efficiencySummary?.avgEfficiency)
-      ?? (yearlyEnergy != null && yearlyDist > 0 ? yearlyEnergy / yearlyDist : null);
-
-    const valid = scenarioResults.filter((sr) => !sr.error && sr.kpis?.energyPerKm != null);
-    const epkValues = valid.map((sr) => sr.kpis.energyPerKm);
-    const bestEpk = toFiniteNumber(efficiencySummary?.minEfficiency)
-      ?? (epkValues.length ? Math.min(...epkValues) : null);
-    const worstEpk = toFiniteNumber(efficiencySummary?.maxEfficiency)
-      ?? (epkValues.length ? Math.max(...epkValues) : null);
-
-    const body = [
-      overviewRowHtml(t("yearly_analysis.base_feasibility"), `<span class="badge badge--compact ${feasBadge}">${textContent(feasLabel)}</span>`, true),
-      overviewRowHtml(t("yearly_analysis.yearly_energy"), yearlyEnergy != null ? `${formatInt(yearlyEnergy)} kWh` : "—"),
-      overviewRowHtml(t("yearly_analysis.yearly_simulated_distance"), yearlyDist != null ? `${formatInt(yearlyDist)} km` : "—"),
-      overviewRowHtml(t("yearly_analysis.avg_consumption_per_km"), avgEpk != null ? `${formatFixed(avgEpk, 3)} kWh/km` : "—"),
-      overviewRowHtml(t("yearly_analysis.best_scenario_per_km"), bestEpk != null ? `${formatFixed(bestEpk, 3)} kWh/km` : "—"),
-      overviewRowHtml(t("yearly_analysis.worst_scenario_per_km"), worstEpk != null ? `${formatFixed(worstEpk, 3)} kWh/km` : "—"),
-    ].join("");
-
-    columns.push(overviewColShell("⚡", t("simulation.tab_efficiency"), body));
-  }
-
-  /* ── Column 3: Costs ───────────────────────────────────────── */
-  {
-    if (costState.status === "error") {
-      columns.push(overviewColShell("💰", t("simulation.tab_costs"), `<p class="ya-overview-col__msg">${textContent(costState.error || t("yearly_analysis.unable_compute_costs"))}</p>`));
-    } else if (costState.costsData) {
-      const cd = costState.costsData;
-      const yearlyKm = toFiniteNumber(cd.yearlyDistanceKm);
-      const electricPerKm = yearlyKm > 0 ? cd.electric.totalAnnual / yearlyKm : null;
-      const dieselPerKm = yearlyKm > 0 ? cd.diesel.totalAnnual / yearlyKm : null;
-      const toneCls = (val) => val > 0 ? "ya-overview-highlight--positive" : val < 0 ? "ya-overview-highlight--negative" : "ya-overview-highlight--neutral";
-
-      const body = [
-        overviewRowHtml(t("yearly_analysis.energy_opex_electric"), `CHF ${formatCHF(Math.round(cd.electric.energyOpex))}`),
-        overviewRowHtml(t("yearly_analysis.maintenance_opex_electric"), `CHF ${formatCHF(Math.round(cd.electric.maintOpex))}`),
-        overviewRowHtml(t("yearly_analysis.fuel_opex_diesel"), `CHF ${formatCHF(Math.round(cd.diesel.fuelOpex))}`),
-        overviewRowHtml(t("yearly_analysis.maintenance_opex_diesel"), `CHF ${formatCHF(Math.round(cd.diesel.maintOpex))}`),
-        overviewRowHtml(t("yearly_analysis.total_annual_electric"), `CHF ${formatCHF(Math.round(cd.electric.totalAnnual))}`),
-        overviewRowHtml(t("yearly_analysis.total_annual_diesel"), `CHF ${formatCHF(Math.round(cd.diesel.totalAnnual))}`),
-        overviewRowHtml(t("yearly_analysis.cost_per_km_electric"), electricPerKm != null ? `${formatFixed(electricPerKm, 3)} CHF` : "—"),
-        overviewRowHtml(t("yearly_analysis.cost_per_km_diesel"), dieselPerKm != null ? `${formatFixed(dieselPerKm, 3)} CHF` : "—"),
-        overviewRowHtml(t("simulation.costs_kpi_annual_saving"), `<span class="ya-overview-highlight ${toneCls(cd.annualSaving)}">CHF ${formatCHF(Math.round(cd.annualSaving))}</span>`, true),
-      ].join("");
-
-      columns.push(overviewColShell("💰", t("simulation.tab_costs"), body));
-    } else {
-      columns.push(overviewColShell("💰", t("simulation.tab_costs"), `<p class="ya-overview-col__msg">${textContent(t("simulation.costs_empty"))}</p>`));
-    }
-  }
-
-  /* ── Column 4: Emissions ───────────────────────────────────── */
-  {
-    if (emissionsState.status === "loading" || emissionsState.status === "idle") {
-      columns.push(overviewColShell("🌿", t("simulation.tab_emissions"), `<p class="ya-overview-col__msg">${textContent(t("common.loading"))}</p>`));
-    } else if (emissionsState.status === "error") {
-      columns.push(overviewColShell("🌿", t("simulation.tab_emissions"), `<p class="ya-overview-col__msg">${textContent(emissionsState.error || t("simulation.emissions_error"))}</p>`));
-    } else if (emissionsState.status === "done" && emissionsState.electricYearly) {
-      const electricY = emissionsState.electricYearly;
-      const dieselY = emissionsState.dieselYearly;
-      const hasDiesel = !!dieselY;
-
-      const emissionDefs = [
-        { key: "gwp100a", i18n: "simulation.env_kpi_co2", label: "CO₂", unit: "t/yr", divisor: 1e6 },
-        { key: "nox", i18n: "simulation.env_kpi_nox", label: "NOx", unit: "kg/yr", divisor: 1e6 },
-        { key: "pm10", i18n: "simulation.env_kpi_pm10", label: "PM₁₀", unit: "kg/yr", divisor: 1e6 },
-      ];
-
-      const body = emissionDefs
-        .filter((def) => electricY[def.key]?.total != null)
-        .map((def) => {
-          const eRaw = toFiniteNumber(electricY[def.key]?.total) ?? 0;
-          const dRaw = hasDiesel ? (toFiniteNumber(dieselY[def.key]?.total) ?? 0) : null;
-          const eVal = eRaw / def.divisor;
-          const pctChange = dRaw != null && dRaw !== 0 ? ((dRaw - eRaw) / Math.abs(dRaw)) * 100 : null;
-          const pctStr = pctChange != null ? `${pctChange > 0 ? "↓" : "↑"} ${formatFixed(Math.abs(pctChange), 0)}%` : "";
-          const toneCls = pctChange != null && pctChange > 0 ? "ya-overview-highlight--positive"
-            : pctChange != null && pctChange < 0 ? "ya-overview-highlight--negative"
-              : "ya-overview-highlight--neutral";
-
-          const valueStr = pctStr
-            ? `${formatFixed(eVal, 1)} <span class="ya-overview-highlight ${toneCls}">${textContent(pctStr)}</span>`
-            : `${formatFixed(eVal, 1)}`;
-
-          return overviewRowHtml(`${t(def.i18n)} (${def.unit})`, valueStr, true);
-        })
-        .join("");
-
-      columns.push(overviewColShell("🌿", t("simulation.tab_emissions"), body));
-    } else {
-      columns.push(overviewColShell("🌿", t("simulation.tab_emissions"), `<p class="ya-overview-col__msg">${textContent(t("simulation.emissions_no_data"))}</p>`));
-    }
-  }
-
-  const scopeSummary = buildShiftReferenceHtml(sourceFeatures, scope);
-  el.innerHTML = `${scopeSummary}<div class="ya-overview-grid">${columns.join("")}</div>`;
-
-  el.querySelectorAll('[data-action="open-simulation-results"]').forEach((simLink) => {
-    simLink.addEventListener("click", (event) => {
-      event.preventDefault();
-      const runId = text(simLink.dataset.runId).trim();
-      if (!runId) return;
-      openPartialInNewTab("simulation-results", { runId });
-    });
-  });
-
-  el.querySelectorAll('[data-action="open-partial"]').forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      const partial = text(link.dataset.partial).trim();
-      if (!partial) return;
-      const payload = {};
-      if (link.dataset.shiftId) payload.shiftId = text(link.dataset.shiftId).trim();
-      openPartialInNewTab(partial, payload);
-    });
-  });
+  el.innerHTML = scope?.kind === "shift"
+    ? buildShiftReferenceHtml(sourceFeatures, scope)
+    : buildGeneralDeploymentHtml(sourceFeatures, busModelData);
 };
 
 /* ── Bus model data helpers ────────────────────────────────────── */
@@ -4489,9 +4305,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       name,
       section.querySelector(`[data-panel="${name}"]`),
     ]),
-  );
-  const overviewSectionTitle = scopeSectionPanels.overview?.querySelector(
-    ".ya-scope-section-title",
   );
 
   const analysisId = options.analysisId ?? "";
@@ -4792,16 +4605,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     if (costState.costsData) {
       refreshCostsPanelElements(section, costState.costsData);
     }
-    renderOverviewPanel(
-      overviewPanel,
-      activeFeatures,
-      effState,
-      costState,
-      getDisplayedEmissionsState(),
-      busModelData,
-      activeScope,
-      features,
-    );
   };
 
   let costRefreshTimer = null;
@@ -4876,10 +4679,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const TAB_RENDERERS = {
     overview: () => renderOverviewPanel(
       overviewPanel,
-      activeFeatures,
-      effState,
-      costState,
-      getDisplayedEmissionsState(),
       busModelData,
       activeScope,
       features,
@@ -4903,9 +4702,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     Object.entries(scopeSectionPanels).forEach(([name, panel]) => {
       if (panel) panel.hidden = !visibility[name];
     });
-    if (overviewSectionTitle) {
-      overviewSectionTitle.hidden = activeScope?.kind !== "shift";
-    }
     return visibility;
   };
 
@@ -4919,7 +4715,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const refreshDerivedEmissionsViews = () => {
     const visibility = applyScopeSectionVisibility();
     if (visibility.emissions) TAB_RENDERERS.emissions();
-    TAB_RENDERERS.overview();
   };
 
   /* ── Back/close handler ──────────────────────────────────── */

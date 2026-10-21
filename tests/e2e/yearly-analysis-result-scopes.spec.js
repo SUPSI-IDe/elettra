@@ -342,7 +342,12 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(content).toContainText("Common bus configuration");
   await expect(content).toContainText("Shared charging infrastructure");
   await expect(page.locator('[data-panel="overview"]')).toBeVisible();
-  await expect(page.locator('[data-panel="overview"] .ya-scope-section-title')).toBeHidden();
+  const generalLevel = page.locator('[data-role="ya-deployed-configuration"]');
+  await expect(generalLevel).toHaveClass(/ya-scope-level--general/);
+  await expect(generalLevel.locator(".ya-scope-level__eyebrow")).toHaveText("General result");
+  await expect(generalLevel.locator(".ya-scope-level__title")).toHaveText("Deployed configuration");
+  await expect(generalLevel.locator(".ya-scope-mode")).toHaveText("Optimization mode: Joint");
+  await expect(generalLevel.locator(".ya-deployed-card")).toHaveCount(4);
   await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
@@ -350,11 +355,15 @@ test("yearly results use General and one primary tab per shift", async ({ page }
 
   await tabs.getByText("Morning service", { exact: true }).click();
   await expect(page.getByRole("tab", { name: "Morning service" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator('[data-panel="overview"] .ya-scope-section-title')).toBeVisible();
   await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
   await expect(page.locator('[data-panel="costs"]')).toBeVisible();
   await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
-  await expect(content).toContainText("Annual detail · Morning service");
+  const shiftLevel = page.locator('[data-role="ya-shift-reference"]');
+  await expect(shiftLevel).toHaveClass(/ya-scope-level--shift/);
+  await expect(shiftLevel.locator(".ya-scope-level__eyebrow")).toHaveText("Shift detail");
+  await expect(shiftLevel.locator('[data-role="ya-selected-shift"]')).toHaveText("Morning service");
+  await expect(shiftLevel.locator(".ya-reference-charging-plan")).toBeVisible();
+  await expect(shiftLevel.locator(".ya-reference-charging-plan__count")).toHaveText("1");
   await expect(content).toContainText("12 packs");
   await expect(content).toContainText("8 packs");
   await expect(content).toContainText("Charging session 1: Depot");
@@ -365,7 +374,8 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(page.locator('[data-role="ya-env-controls"]')).toBeHidden();
 
   await page.getByRole("tab", { name: "Evening service" }).click();
-  await expect(content).toContainText("Annual detail · Evening service");
+  await expect(page.locator('[data-role="ya-selected-shift"]')).toHaveText("Evening service");
+  await expect(page.locator(".ya-reference-charging-plan__count")).toHaveText("0");
   await expect(content).toContainText(/18['’,]250 kWh/);
   await expect(content).toContainText("The source feasibility evaluation contains no charging sessions");
   await expect(content).not.toContainText("Charging session 1: Depot");
