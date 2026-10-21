@@ -6776,6 +6776,9 @@ const buildShiftChargingPlanHtml = (viewState) => {
 const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (!el) return;
 
+  const keepMoreInformationOpen =
+    el.querySelector(".ya-more-information")?.open === true;
+
   if (state.status === "idle" || state.status === "loading") {
     el.innerHTML = `<p class="efficiency-state-msg">${textContent(t("simulation.efficiency_loading") || "Loading efficiency data…")}</p>`;
     return;
@@ -7031,7 +7034,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         ${buildShiftChargingPlanHtml(feasibilityViewState)}
         ${chartsHtml}
         ${sensitivityFeasibilityCardHtml}
-        <details class="ya-more-information">
+        <details class="ya-more-information"${keepMoreInformationOpen ? " open" : ""}>
           <summary class="ya-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
           <div class="ya-more-information__content">
             <div class="efficiency-section">
@@ -7041,6 +7044,15 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
             </div>
             ${optimizationHtml}
             ${predictionTableHtml}
+            <section
+              class="feasibility-shift-predictions"
+              data-role="feasibility-shift-predictions"
+            >
+              <h3 class="feasibility-shift-predictions__title">${textContent(
+                t("simulation.tab_predictions") || "Predictions"
+              )}</h3>
+              <div class="predictions-panel" data-role="predictions-panel"></div>
+            </section>
           </div>
         </details>
       </div>
@@ -7083,6 +7095,13 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         : [],
     }
   );
+  if (resultScope === "shift") {
+    renderPredictionsPanel(
+      el.querySelector('[data-role="predictions-panel"]'),
+      state,
+      viewOptions
+    );
+  }
 };
 
 const firstFiniteValue = (...values) =>
@@ -8968,7 +8987,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   if (!section) return null;
 
   const cleanupHandlers = [];
-  const renderedTabs = new Set();
+  const renderedTabs = new Set(["efficiency"]);
   const costOverrides = {
     fuelCostPerL: normalizeFuelCostPerL(options?.costOverrides?.fuelCostPerL),
     energyPricePerKwh: normalizeEnergyPricePerKwh(
@@ -9040,10 +9059,13 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     if (scope?.kind !== "shift") {
       return { resultScope: "general" };
     }
+    const activeShift =
+      availableShiftTabs.find((shift) => shift.id === scope.shiftId) ?? null;
     return {
       resultScope: "shift",
       selectedShiftId: scope.shiftId,
       selectedShiftName: scope.shiftName,
+      tripStopLookup: activeShift?.tripStopLookup,
     };
   };
 
@@ -9139,7 +9161,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     renderOpexInputsTable(scenarioScalingContentEl, costState, options);
     renderInvestmentSection(investmentContentEl, costState, options);
     refreshEfficiencyTab();
-    refreshPredictionsTab();
     refreshOverviewTab();
     if (!renderedTabs.has("costs")) return;
     if (!isElectrificationFeasible()) {
@@ -9172,23 +9193,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
         ...scopeOptions,
         costInputs:
           scopeOptions.resultScope === "shift" ? costState.costInputs : null,
-      }
-    );
-  };
-
-  const refreshPredictionsTab = () => {
-    if (!renderedTabs.has("predictions")) return;
-    const scope = getActiveResultScope();
-    const activeShift = scope?.kind === "shift"
-      ? availableShiftTabs.find((shift) => shift.id === scope.shiftId) ?? null
-      : null;
-    renderPredictionsPanel(
-      section.querySelector('[data-role="predictions-panel"]'),
-      efficiencyState,
-      {
-        selectedShiftId: activeShift?.id,
-        selectedShiftName: activeShift?.shiftName,
-        tripStopLookup: activeShift?.tripStopLookup,
       }
     );
   };
@@ -9244,61 +9248,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       emissionsState,
       options
     );
-  };
-
-  const TAB_RENDERERS = {
-    overview: (sec) => {
-      renderOverviewPanel(
-        sec.querySelector('[data-role="overview-panel"]'),
-        efficiencyState,
-        costState,
-        emissionsState,
-        options
-      );
-    },
-    costs: (sec) => {
-      const panel = sec.querySelector('[data-panel="costs"]') ?? sec;
-      if (!isElectrificationFeasible()) {
-        renderInfeasibleNotice(panel);
-        return;
-      }
-      renderCostsSection(panel, costState, options);
-    },
-    efficiency: (sec) => {
-      const scopeOptions = getActiveResultViewOptions();
-      renderEfficiencyTable(
-        sec.querySelector('[data-role="efficiency-table"]'),
-        efficiencyState,
-        {
-          ...scopeOptions,
-          costInputs:
-            scopeOptions.resultScope === "shift" ? costState.costInputs : null,
-        }
-      );
-    },
-    predictions: (sec) => {
-      const scope = getActiveResultScope();
-      const activeShift = scope?.kind === "shift"
-        ? availableShiftTabs.find((shift) => shift.id === scope.shiftId) ?? null
-        : null;
-      renderPredictionsPanel(
-        sec.querySelector('[data-role="predictions-panel"]'),
-        efficiencyState,
-        {
-          selectedShiftId: activeShift?.id,
-          selectedShiftName: activeShift?.shiftName,
-          tripStopLookup: activeShift?.tripStopLookup,
-        }
-      );
-    },
-    emissions: (sec) => {
-      if (!isElectrificationFeasible()) {
-        const panel = sec.querySelector('[data-panel="emissions"]');
-        renderInfeasibleNotice(panel);
-        return;
-      }
-      renderEmissionsPanel(sec);
-    },
   };
 
   const pageTitleEl = section.querySelector('[data-role="results-page-title"]');
@@ -9485,7 +9434,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     });
 
     refreshEfficiencyTab();
-    refreshPredictionsTab();
 
     if (!loadedOptimizationRun) return;
 
@@ -9565,43 +9513,12 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     loading: true,
   });
 
-  const activateTab = (tabName) => {
-    section.querySelectorAll(".results-tab").forEach((btn) => {
-      const active = btn.dataset.tab === tabName;
-      btn.classList.toggle("active", active);
-      btn.setAttribute("aria-selected", String(active));
-    });
-    section.querySelectorAll(".tab-panel").forEach((panel) => {
-      const active = panel.dataset.panel === tabName;
-      panel.classList.toggle("active", active);
-      panel.hidden = !active;
-    });
-    if (!renderedTabs.has(tabName)) {
-      renderedTabs.add(tabName);
-      TAB_RENDERERS[tabName]?.(section);
-    }
-  };
-
-  const syncFunctionalTabsForScope = () => {
-    const isShiftScope = getActiveResultScope()?.kind === "shift";
-    const functionalTabs = section.querySelector(".results-tabs");
-    const predictionsTab = section.querySelector('.results-tab[data-tab="predictions"]');
-    if (functionalTabs) functionalTabs.hidden = !isShiftScope;
-    if (predictionsTab) predictionsTab.hidden = !isShiftScope;
-
-    const activeFunctionalTab = section.querySelector(".results-tab.active")?.dataset.tab;
-    if (!isShiftScope && activeFunctionalTab === "predictions") {
-      activateTab("efficiency");
-    }
-  };
-
   const activateResultScope = async (requestedScopeKey) => {
     const scope = resolveFeasibilityResultScope(resultScopes, requestedScopeKey);
     if (!scope) return;
 
     activeResultScopeKey = scope.key;
     renderResultScopeTabs();
-    syncFunctionalTabsForScope();
 
     if (scope.kind !== "shift") {
       ++shiftRefreshSeq;
@@ -9613,20 +9530,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     activeShiftName = scope.shiftName;
     await refreshShiftScopedData({ preserveExistingCostData: false });
   };
-
-  activateTab("efficiency");
-  syncFunctionalTabsForScope();
-
-  const handleTabClick = (e) => {
-    const btn = e.target.closest(".results-tab");
-    if (!btn) return;
-    activateTab(btn.dataset.tab);
-  };
-  const tabList = section.querySelector(".results-tabs");
-  if (tabList) {
-    tabList.addEventListener("click", handleTabClick);
-    cleanupHandlers.push(() => tabList.removeEventListener("click", handleTabClick));
-  }
 
   const handleBack = () => triggerPartialLoad("simulation-runs");
   section.querySelectorAll('[data-action="back"]').forEach((btn) => {
@@ -9989,7 +9892,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     efficiencyState.status = "loading";
     efficiencyState.error = null;
     refreshEfficiencyTab();
-    refreshPredictionsTab();
     refreshCostsTab();
 
     try {
@@ -10088,7 +9990,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
         availableShiftTabs.find((shift) => shift.id === activeShiftId)?.shiftName ??
         activeShiftName;
       renderResultScopeTabs();
-      syncFunctionalTabsForScope();
 
       efficiencyState.status = "done";
       efficiencyState.optimizationRun = optimizationRun;
@@ -10114,7 +10015,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
     refreshCostsTab();
     refreshEfficiencyTab();
-    refreshPredictionsTab();
     refreshEmissionsTab();
   };
 

@@ -242,7 +242,9 @@ test("separates the common result from one selected shift without an aggregate o
 
   await expect(general).toBeVisible();
   await expect(shiftDetail).toHaveCount(0);
-  await expect(page.locator(".results-tabs")).toBeHidden();
+  await expect(page.locator(".results-tabs")).toHaveCount(0);
+  await expect(page.locator(".results-tab")).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-shift-predictions"]')).toHaveCount(0);
   await expect(general).toContainText("Common fleet configuration");
   await expect(general.locator('[data-role="feasibility-mode"]')).toHaveText(
     "Optimization mode: Battery only",
@@ -270,13 +272,11 @@ test("separates the common result from one selected shift without an aggregate o
   const generalTab = selector.getByRole("tab", { name: "General" });
   await expect(generalTab).toHaveAttribute("aria-selected", "true");
   await expect(generalTab).toHaveAttribute("tabindex", "0");
-  await expect(page.locator('.results-tab[data-tab="predictions"]')).toBeHidden();
 
   await selectShiftScope(page, "morning");
   await expect(general).toHaveCount(0);
   await expect(shiftDetail).toBeVisible();
-  await expect(page.locator(".results-tabs")).toBeVisible();
-  await expect(page.locator('.results-tab[data-tab="predictions"]')).toBeVisible();
+  await expect(page.locator(".results-tabs, .results-tab")).toHaveCount(0);
 
   const shiftSummary = shiftDetail.locator('[data-role="feasibility-shift-summary"]');
   await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Covered by common battery");
@@ -318,6 +318,25 @@ test("separates the common result from one selected shift without an aggregate o
     "feasibility-shift-sensitivity",
   ]);
 
+  const moreInformation = shiftDetail.locator("details.ya-more-information");
+  const inlinePredictions = moreInformation.locator(
+    '[data-role="feasibility-shift-predictions"]',
+  );
+  await expect(moreInformation).not.toHaveAttribute("open", "");
+  await expect(inlinePredictions).toBeHidden();
+  await moreInformation.locator(":scope > summary").click();
+  await expect(moreInformation).toHaveAttribute("open", "");
+  await expect(inlinePredictions).toBeVisible();
+  await expect(inlinePredictions.locator("h3").first()).toHaveText("Predictions");
+  await expect(inlinePredictions).toContainText("350.0 kWh");
+  await expect(inlinePredictions).not.toContainText("550.0 kWh");
+  await expect(inlinePredictions.locator("svg")).not.toHaveCount(0);
+  const lastMoreInformationSection = await moreInformation
+    .locator(".ya-more-information__content > *")
+    .last()
+    .getAttribute("data-role");
+  expect(lastMoreInformationSection).toBe("feasibility-shift-predictions");
+
   await expect(shiftDetail.locator('[data-role="feasibility-selected-shift"]')).toHaveText("Morning service");
 
   await selector.getByRole("tab", { name: "Evening service" }).click();
@@ -339,14 +358,16 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(sensitivity).toHaveAttribute("data-feasibility", "feasible");
   await expect(sensitivity).toContainText("550.0 kWh");
   await expect(sensitivity).not.toContainText("350.0 kWh");
-  await page.locator('.results-tab[data-tab="predictions"]').click();
+  await expect(moreInformation).toHaveAttribute("open", "");
+  await expect(inlinePredictions).toBeVisible();
+  await expect(inlinePredictions).toContainText("550.0 kWh");
+  await expect(inlinePredictions).not.toContainText("350.0 kWh");
   await generalTab.click();
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-limiting-shifts"]')).toContainText("Evening service");
   await expect(shiftDetail).toHaveCount(0);
-  await expect(page.locator(".results-tabs")).toBeHidden();
-  await expect(page.locator('.results-tab[data-tab="efficiency"]')).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator('.results-tab[data-tab="predictions"]')).toBeHidden();
+  await expect(page.locator(".results-tabs, .results-tab")).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-shift-predictions"]')).toHaveCount(0);
 });
 
 test("supports keyboard navigation, duplicate names, safe labels, and horizontal overflow", async ({ page }) => {
@@ -409,8 +430,8 @@ test("never reuses another shift prediction when the selected shift has none", a
   );
   await expect(visualAnalysis.locator("svg")).toHaveCount(0);
 
-  await page.locator('.results-tab[data-tab="predictions"]').click();
-  const predictionsPanel = page.locator('[data-panel="predictions"]');
+  await page.locator("details.ya-more-information > summary").click();
+  const predictionsPanel = page.locator('[data-role="feasibility-shift-predictions"]');
   await expect(predictionsPanel).toContainText("No prediction summaries available");
   await expect(predictionsPanel).not.toContainText("350.0");
 });
@@ -431,9 +452,9 @@ test("does not match predictions from an equally named but differently identifie
   });
 
   await selectShiftScope(page, "evening");
-  await page.locator('.results-tab[data-tab="predictions"]').click();
+  await page.locator("details.ya-more-information > summary").click();
 
-  await expect(page.locator('[data-panel="predictions"]')).toContainText(
+  await expect(page.locator('[data-role="feasibility-shift-predictions"]')).toContainText(
     "No prediction summaries available",
   );
 });
@@ -450,8 +471,8 @@ test("does not present an aggregate multi-shift prediction as one physical shift
   });
 
   await selectShiftScope(page, "morning");
-  await page.locator('.results-tab[data-tab="predictions"]').click();
-  const predictionsPanel = page.locator('[data-panel="predictions"]');
+  await page.locator("details.ya-more-information > summary").click();
+  const predictionsPanel = page.locator('[data-role="feasibility-shift-predictions"]');
   await expect(predictionsPanel).toContainText("No prediction summaries available");
   await expect(predictionsPanel).not.toContainText("900.0");
 });
