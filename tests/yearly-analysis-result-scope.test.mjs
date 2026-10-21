@@ -346,6 +346,7 @@ test("general and per-shift annual result labels exist in every supported locale
     "yearly_analysis.scope_general",
     "yearly_analysis.scope_shift",
     "yearly_analysis.result_scope_selector",
+    "yearly_analysis.result_view_selector",
     "yearly_analysis.annual_overview",
     "yearly_analysis.annual_efficiency",
     "yearly_analysis.annual_costs",

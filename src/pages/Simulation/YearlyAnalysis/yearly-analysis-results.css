@@ -90,6 +90,8 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.ya-result-view-tabs { margin-bottom: 0; }
+
 .ya-tab {
   padding: var(--space-2sm) var(--space-2md);
   font-size: var(--font-size-sm);
@@ -117,20 +119,19 @@
 
 /* ── Tab panels ────────────────────────────────────────────────── */
 
-.ya-tab-panels {
+.ya-result-scope-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
+  gap: var(--layout-gap);
   min-height: 300px;
 }
 
-.ya-tab-panel { display: flex; flex-direction: column; gap: var(--space-md); }
-.ya-tab-panel[hidden] { display: none; }
+.ya-tab-panels { min-height: 300px; }
 
-.ya-tab-panel + .ya-tab-panel {
-  padding-top: var(--space-xl);
-  border-top: 1px solid var(--border-light);
-}
+.ya-scope-overview,
+.ya-tab-panel { display: flex; flex-direction: column; gap: var(--space-md); }
+.ya-scope-overview[hidden],
+.ya-tab-panel[hidden] { display: none; }
 
 .ya-scope-section-title {
   margin: 0;

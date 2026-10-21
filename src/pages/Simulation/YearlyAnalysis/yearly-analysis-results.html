@@ -38,12 +38,62 @@
       </div>
     </div>
 
-    <div class="ya-tab-panels" id="yearly-result-scope-content" role="tabpanel" tabindex="0">
-      <section class="ya-tab-panel active" data-panel="overview">
+    <div class="ya-result-scope-content" id="yearly-result-scope-content" role="tabpanel" tabindex="0">
+      <section class="ya-scope-overview" data-panel="overview">
         <div data-role="overview-panel"></div>
       </section>
 
-      <section class="ya-tab-panel" data-panel="efficiency" hidden>
+      <div
+        class="ya-tabs ya-result-view-tabs"
+        data-role="ya-result-view-tabs"
+        role="tablist"
+        aria-label="Annual result section"
+        data-i18n-aria-label="yearly_analysis.result_view_selector"
+        hidden
+      >
+        <button
+          id="yearly-result-view-tab-efficiency"
+          class="ya-tab active"
+          type="button"
+          role="tab"
+          data-result-view="efficiency"
+          aria-selected="true"
+          aria-controls="yearly-result-view-panel-efficiency"
+          tabindex="0"
+          data-i18n="simulation.tab_efficiency"
+        >Efficiency</button>
+        <button
+          id="yearly-result-view-tab-costs"
+          class="ya-tab"
+          type="button"
+          role="tab"
+          data-result-view="costs"
+          aria-selected="false"
+          aria-controls="yearly-result-view-panel-costs"
+          tabindex="-1"
+          data-i18n="simulation.tab_costs"
+        >Costs</button>
+        <button
+          id="yearly-result-view-tab-emissions"
+          class="ya-tab"
+          type="button"
+          role="tab"
+          data-result-view="emissions"
+          aria-selected="false"
+          aria-controls="yearly-result-view-panel-emissions"
+          tabindex="-1"
+          data-i18n="simulation.tab_emissions"
+        >Emissions</button>
+      </div>
+
+      <div class="ya-tab-panels" data-role="ya-result-view-panels" hidden>
+      <section
+        id="yearly-result-view-panel-efficiency"
+        class="ya-tab-panel active"
+        data-panel="efficiency"
+        role="tabpanel"
+        aria-labelledby="yearly-result-view-tab-efficiency"
+      >
         <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_efficiency">Annual efficiency</h2>
         <!-- D3 chart slots (appended to, not via innerHTML) -->
         <div class="ya-eff-charts-grid">
@@ -81,7 +131,14 @@
         </details>
       </section>
 
-      <section class="ya-tab-panel ya-costs-panel" data-panel="costs" hidden>
+      <section
+        id="yearly-result-view-panel-costs"
+        class="ya-tab-panel ya-costs-panel"
+        data-panel="costs"
+        role="tabpanel"
+        aria-labelledby="yearly-result-view-tab-costs"
+        hidden
+      >
         <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_costs">Annual costs</h2>
         <p class="ya-scope-context-note" data-role="ya-cost-scope-note" hidden></p>
         <!-- Full-width cost assumptions -->
@@ -193,7 +250,14 @@
         </details>
       </section>
 
-      <section class="ya-tab-panel ya-env-panel" data-panel="emissions" hidden>
+      <section
+        id="yearly-result-view-panel-emissions"
+        class="ya-tab-panel ya-env-panel"
+        data-panel="emissions"
+        role="tabpanel"
+        aria-labelledby="yearly-result-view-tab-emissions"
+        hidden
+      >
         <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_emissions">Annual emissions</h2>
         <p class="ya-scope-context-note" data-role="ya-emissions-scope-note" hidden></p>
         <div class="ya-env-content" data-role="emissions-content">
@@ -248,6 +312,7 @@
           </details>
         </div>
       </section>
+      </div>
     </div>
 
     <div class="ya-results-actions">

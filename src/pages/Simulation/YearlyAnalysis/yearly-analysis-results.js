@@ -90,6 +90,8 @@ import {
   buildFixedYearlyConfiguration,
 } from "../../../utils/yearly-analysis-model";
 
+const YEARLY_RESULT_VIEW_KEYS = Object.freeze(["efficiency", "costs", "emissions"]);
+
 /* ── Shared helpers ────────────────────────────────────────────── */
 
 const text = (v) => (v === null || v === undefined ? "" : String(v));
@@ -4300,6 +4302,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const configContent = section.querySelector('[data-role="ya-configuration-content"]');
   const resultScopeTabsEl = section.querySelector('[data-role="ya-result-scope-tabs"]');
   const resultScopeContentEl = section.querySelector("#yearly-result-scope-content");
+  const resultViewTabsEl = section.querySelector('[data-role="ya-result-view-tabs"]');
+  const resultViewPanelsEl = section.querySelector('[data-role="ya-result-view-panels"]');
   const scopeSectionPanels = Object.fromEntries(
     ["overview", "efficiency", "costs", "emissions"].map((name) => [
       name,
@@ -4349,6 +4353,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   });
   let activeScopeKey = YEARLY_GENERAL_SCOPE_KEY;
   let activeScope = resolveYearlyResultScope(resultScopes, activeScopeKey);
+  let activeResultViewKey = YEARLY_RESULT_VIEW_KEYS[0];
   let activeFeatures = buildScopedYearlyFeatures(features, activeScope);
   let scenarioResults = activeFeatures.results?.scenarioResults ?? [];
   let yearlyTotals = activeFeatures.results?.yearlyTotals ?? {};
@@ -4698,9 +4703,34 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   };
 
   const applyScopeSectionVisibility = () => {
-    const visibility = getYearlyScopeSectionVisibility(activeScope);
+    const available = getYearlyScopeSectionVisibility(activeScope);
+    const isShift = activeScope?.kind === "shift";
+    const visibility = {};
+
+    if (resultViewTabsEl) {
+      resultViewTabsEl.hidden = !isShift;
+      resultViewTabsEl.setAttribute(
+        "aria-label",
+        translateOr("yearly_analysis.result_view_selector", "Annual result section"),
+      );
+      resultViewTabsEl.querySelectorAll("[data-result-view]").forEach((button) => {
+        const isActive = isShift && button.dataset.resultView === activeResultViewKey;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-selected", String(isActive));
+        button.tabIndex = isActive ? 0 : -1;
+      });
+    }
+    if (resultViewPanelsEl) resultViewPanelsEl.hidden = !isShift;
+
     Object.entries(scopeSectionPanels).forEach(([name, panel]) => {
-      if (panel) panel.hidden = !visibility[name];
+      const isVisible = name === "overview"
+        ? available[name]
+        : isShift && available[name] && name === activeResultViewKey;
+      visibility[name] = Boolean(isVisible);
+      if (panel) {
+        panel.hidden = !isVisible;
+        panel.classList.toggle("active", Boolean(isVisible));
+      }
     });
     return visibility;
   };
@@ -4715,6 +4745,39 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const refreshDerivedEmissionsViews = () => {
     const visibility = applyScopeSectionVisibility();
     if (visibility.emissions) TAB_RENDERERS.emissions();
+  };
+
+  const activateResultView = (requestedKey, { focus = false } = {}) => {
+    if (activeScope?.kind !== "shift" || !YEARLY_RESULT_VIEW_KEYS.includes(requestedKey)) return;
+    activeResultViewKey = requestedKey;
+    const visibility = applyScopeSectionVisibility();
+    if (visibility[requestedKey]) TAB_RENDERERS[requestedKey]?.();
+    if (focus) {
+      resultViewTabsEl
+        ?.querySelector(`[data-result-view="${requestedKey}"]`)
+        ?.focus();
+    }
+  };
+
+  const resultViewClickHandler = (event) => {
+    const button = event.target.closest("[data-result-view]");
+    if (!button || !resultViewTabsEl?.contains(button)) return;
+    activateResultView(button.dataset.resultView);
+  };
+
+  const resultViewKeyHandler = (event) => {
+    const button = event.target.closest("[data-result-view]");
+    if (!button || !resultViewTabsEl?.contains(button)) return;
+    const currentIndex = YEARLY_RESULT_VIEW_KEYS.indexOf(button.dataset.resultView);
+    if (currentIndex < 0) return;
+    let nextIndex = null;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % YEARLY_RESULT_VIEW_KEYS.length;
+    if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + YEARLY_RESULT_VIEW_KEYS.length) % YEARLY_RESULT_VIEW_KEYS.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = YEARLY_RESULT_VIEW_KEYS.length - 1;
+    if (nextIndex == null) return;
+    event.preventDefault();
+    activateResultView(YEARLY_RESULT_VIEW_KEYS[nextIndex], { focus: true });
   };
 
   /* ── Back/close handler ──────────────────────────────────── */
@@ -5107,9 +5170,15 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   syncEmissionsDistanceControl = wireEmissionsDistanceSlider();
   resultScopeTabsEl?.addEventListener("click", resultScopeClickHandler);
   resultScopeTabsEl?.addEventListener("keydown", resultScopeKeyHandler);
+  resultViewTabsEl?.addEventListener("click", resultViewClickHandler);
+  resultViewTabsEl?.addEventListener("keydown", resultViewKeyHandler);
   if (resultScopeTabsEl) {
     cleanups.push(() => resultScopeTabsEl.removeEventListener("click", resultScopeClickHandler));
     cleanups.push(() => resultScopeTabsEl.removeEventListener("keydown", resultScopeKeyHandler));
+  }
+  if (resultViewTabsEl) {
+    cleanups.push(() => resultViewTabsEl.removeEventListener("click", resultViewClickHandler));
+    cleanups.push(() => resultViewTabsEl.removeEventListener("keydown", resultViewKeyHandler));
   }
   refreshAllSections();
 

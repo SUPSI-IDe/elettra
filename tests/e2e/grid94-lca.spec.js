@@ -158,13 +158,17 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
     await module.initializeYearlyAnalysisResults(document, {analysisId:"case"});
   }, html);
   await page.getByRole("tab", {name:"Acceptance shift"}).click();
+  const resultViews = page.locator('[data-role="ya-result-view-tabs"]');
+  await resultViews.getByRole("tab", {name:"Costs"}).click();
   const costsPanel = page.locator('[data-panel="costs"]');
+  await expect(costsPanel).toBeVisible();
   await expect(costsPanel).toContainText("Annual bus energy (DC kWh)");
   await expect(costsPanel).toContainText("Annual grid energy (kWh)");
   await expect(costsPanel).toContainText("Charging losses (kWh)");
   await expect(costsPanel).toContainText("from the grid");
   const distanceControl = page.locator('[data-role="ya-var-yearly-distance"]');
   await expect(distanceControl).toBeVisible();
+  await resultViews.getByRole("tab", {name:"Emissions"}).click();
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("94%");
   const disclosure = page.locator(".ya-lca-disclosure");
   await disclosure.locator("summary").click();
@@ -182,10 +186,12 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
   );
   await expect(disclosure.locator('[data-role="lca-warnings"]')).toHaveCount(0);
   const slider = distanceControl;
+  await resultViews.getByRole("tab", {name:"Costs"}).click();
   await slider.evaluate(el => { el.value="90000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
   await expect.poll(() => requests.length).toBe(2);
   await expect(distanceControl).toBeVisible();
   expect(requests[1]).toBe("90000");
+  await resultViews.getByRole("tab", {name:"Emissions"}).click();
   const updatedDisclosure = page.locator(".ya-lca-disclosure");
   await updatedDisclosure.locator("summary").click();
   await expect(updatedDisclosure.locator('[data-role="lca-warnings"]')).toContainText(
@@ -203,12 +209,17 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
   expect(exportedLca.vehicles[0].warnings).toEqual(fixture.extended.vehicles[0].warnings);
 
   responseMode = "malformed";
+  await resultViews.getByRole("tab", {name:"Costs"}).click();
   await slider.evaluate(el => { el.value="80000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
+  await resultViews.getByRole("tab", {name:"Emissions"}).click();
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("phases do not sum to total");
+  await resultViews.getByRole("tab", {name:"Costs"}).click();
   await expect(page.locator('[data-panel="costs"]')).toContainText("CHF");
 
   responseMode = "incomplete";
   await slider.evaluate(el => { el.value="70000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
+  await resultViews.getByRole("tab", {name:"Emissions"}).click();
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("Controlled timeout");
+  await resultViews.getByRole("tab", {name:"Costs"}).click();
   await expect(page.locator('[data-panel="costs"]')).toContainText("CHF");
 });

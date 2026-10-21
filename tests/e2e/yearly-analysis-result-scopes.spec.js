@@ -331,7 +331,10 @@ const mountResults = async (
 test("yearly results use General and one primary tab per shift", async ({ page }) => {
   await mountResults(page, multishiftAnalysis);
 
-  const tabs = page.getByRole("tab");
+  const scopeTablist = page.locator('[data-role="ya-result-scope-tabs"]');
+  const tabs = scopeTablist.getByRole("tab");
+  const resultViewTablist = page.locator('[data-role="ya-result-view-tabs"]');
+  const resultViewTabs = resultViewTablist.getByRole("tab");
   await expect(tabs).toHaveCount(3);
   await expect(tabs).toHaveText(["General", "Morning service", "Evening service"]);
   await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
@@ -351,13 +354,18 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+  await expect(resultViewTablist).toBeHidden();
   await expect(page.locator('[data-role="overview-panel"] .ya-overview-grid')).toHaveCount(0);
 
   await tabs.getByText("Morning service", { exact: true }).click();
-  await expect(page.getByRole("tab", { name: "Morning service" })).toHaveAttribute("aria-selected", "true");
+  await expect(tabs.getByText("Morning service", { exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(resultViewTablist).toBeVisible();
+  await expect(resultViewTabs).toHaveCount(3);
+  await expect(resultViewTabs).toHaveText(["Efficiency", "Costs", "Emissions"]);
+  await expect(resultViewTabs.nth(0)).toHaveAttribute("aria-selected", "true");
   await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
-  await expect(page.locator('[data-panel="costs"]')).toBeVisible();
-  await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   const shiftLevel = page.locator('[data-role="ya-shift-reference"]');
   await expect(shiftLevel).toHaveClass(/ya-scope-level--shift/);
   await expect(shiftLevel.locator(".ya-scope-level__eyebrow")).toHaveText("Shift detail");
@@ -369,9 +377,27 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(content).toContainText("Charging session 1: Depot");
   await expect(content).toContainText(/36['’,]500 kWh/);
   await expect(content).not.toContainText("Cold evening");
+  await expect(page.locator('[data-role="ya-cost-scope-note"]')).toBeHidden();
+  await expect(page.locator('[data-role="ya-emissions-scope-note"]')).toBeHidden();
+
+  await resultViewTabs.getByText("Costs", { exact: true }).click();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeVisible();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   await expect(page.locator('[data-role="ya-cost-scope-note"]')).toBeVisible();
+
+  await resultViewTabs.getByText("Emissions", { exact: true }).click();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
   await expect(page.locator('[data-role="ya-emissions-scope-note"]')).toBeVisible();
   await expect(page.locator('[data-role="ya-env-controls"]')).toBeHidden();
+
+  await resultViewTabs.getByText("Emissions", { exact: true }).focus();
+  await resultViewTabs.getByText("Emissions", { exact: true }).press("Home");
+  await expect(resultViewTabs.getByText("Efficiency", { exact: true })).toBeFocused();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
 
   await page.getByRole("tab", { name: "Evening service" }).click();
   await expect(page.locator('[data-role="ya-selected-shift"]')).toHaveText("Evening service");
@@ -381,6 +407,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(content).not.toContainText("Charging session 1: Depot");
 
   await page.getByRole("tab", { name: "General" }).click();
+  await expect(resultViewTablist).toBeHidden();
   await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
@@ -389,6 +416,8 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await page.getByRole("tab", { name: "General" }).press("ArrowRight");
   await expect(page.getByRole("tab", { name: "Morning service" })).toBeFocused();
   await expect(page.getByRole("tab", { name: "Morning service" })).toHaveAttribute("aria-selected", "true");
+  await expect(resultViewTablist).toBeVisible();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
 
   await page.setViewportSize({ width: 320, height: 700 });
   const overflow = await page.locator('[data-role="ya-result-scope-tabs"]').evaluate((element) => ({
@@ -398,6 +427,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   }));
   expect(overflow.overflowX).toBe("auto");
   expect(overflow.bodyScrollWidth).toBe(overflow.bodyClientWidth);
+  await expect(resultViewTablist).toHaveCSS("overflow-x", "auto");
 });
 
 test("historical single-shift results expose General and the configured shift", async ({ page }) => {
@@ -422,8 +452,10 @@ test("historical single-shift results expose General and the configured shift", 
     },
   };
   await mountResults(page, legacy);
-  await expect(page.getByRole("tab")).toHaveCount(2);
-  await expect(page.getByRole("tab")).toHaveText(["General", "Legacy shift"]);
+  const scopeTabs = page.locator('[data-role="ya-result-scope-tabs"]').getByRole("tab");
+  const resultViewTabs = page.locator('[data-role="ya-result-view-tabs"]').getByRole("tab");
+  await expect(scopeTabs).toHaveCount(2);
+  await expect(scopeTabs).toHaveText(["General", "Legacy shift"]);
   await expect(page.getByRole("tab", { name: "General" })).toHaveAttribute("aria-selected", "true");
   const generalConfiguration = page.locator('[data-role="ya-deployed-configuration"]');
   await expect(generalConfiguration).toBeVisible();
@@ -438,11 +470,20 @@ test("historical single-shift results expose General and the configured shift", 
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   await page.getByRole("tab", { name: "Legacy shift" }).click();
   await expect(page.getByRole("tab", { name: "Legacy shift" })).toHaveAttribute("aria-selected", "true");
+  await expect(resultViewTabs).toHaveText(["Efficiency", "Costs", "Emissions"]);
   await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
-  await expect(page.locator('[data-panel="costs"]')).toBeVisible();
-  await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Historical cold");
+
+  await resultViewTabs.getByText("Costs", { exact: true }).click();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeVisible();
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Annual costs");
+
+  await resultViewTabs.getByText("Emissions", { exact: true }).click();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Annual emissions");
 });
 
