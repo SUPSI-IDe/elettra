@@ -74,6 +74,12 @@ import {
   matchesShiftRecord,
   scopePredictionRunsByShift,
 } from "../../../utils/feasibility-shift-scope";
+import {
+  FEASIBILITY_GENERAL_SCOPE_KEY,
+  buildFeasibilityResultScopes,
+  resolveFeasibilityResultScope,
+  resolveFeasibilityScopeKeyboardTarget,
+} from "../../../utils/feasibility-result-navigation";
 import "./simulation-results.css";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
@@ -6714,10 +6720,11 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   }
 
   const { optimizationRun, predictionRuns } = state;
+  const resultScope = viewOptions?.resultScope === "shift" ? "shift" : "general";
   const feasibilityModel = buildFeasibilityResultModel(optimizationRun);
   const feasibilityViewState = buildFeasibilityViewState(
     feasibilityModel,
-    viewOptions?.selectedShiftId
+    resultScope === "shift" ? viewOptions?.selectedShiftId : null
   );
   const scopedPredictionRuns = scopePredictionRunsByShift(
     predictionRuns,
@@ -6934,8 +6941,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     })
   );
 
-  el.innerHTML = `
-    ${buildFeasibilityGeneralLevelHtml(feasibilityViewState)}
+  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(feasibilityViewState);
+  const shiftLevelHtml = `
     <section class="feasibility-level feasibility-level--shift" data-role="feasibility-shift-level">
       ${buildFeasibilityShiftLevelHeaderHtml(
         feasibilityViewState,
@@ -6960,6 +6967,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         </details>
       </div>
     </section>`;
+
+  el.innerHTML = resultScope === "shift" ? shiftLevelHtml : generalLevelHtml;
 
   renderEfficiencyEnergySplitChart(
     el.querySelector('[data-role="efficiency-energy-chart"]'),
@@ -8910,6 +8919,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   let activeShiftId = options.shiftId || "";
   let activeShiftName = options.shiftName || "";
   let availableShiftTabs = [];
+  let resultScopes = buildFeasibilityResultScopes([], {
+    generalLabel: translateOr("simulation.feasibility_scope_general", "General"),
+  });
+  let activeResultScopeKey = FEASIBILITY_GENERAL_SCOPE_KEY;
   let loadedOptimizationRun = null;
   let loadedPredictionRuns = [];
   let shiftRefreshSeq = 0;
@@ -8940,6 +8953,21 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const isElectrificationFeasible = () =>
     loadedOptimizationRun?.results?.electrification_feasible !== false;
+
+  const getActiveResultScope = () =>
+    resolveFeasibilityResultScope(resultScopes, activeResultScopeKey);
+
+  const getActiveResultViewOptions = () => {
+    const scope = getActiveResultScope();
+    if (scope?.kind !== "shift") {
+      return { resultScope: "general" };
+    }
+    return {
+      resultScope: "shift",
+      selectedShiftId: scope.shiftId,
+      selectedShiftName: scope.shiftName,
+    };
+  };
 
   const renderInfeasibleNotice = (container) => {
     if (!container) return;
@@ -9058,27 +9086,30 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const refreshEfficiencyTab = () => {
     if (!renderedTabs.has("efficiency")) return;
+    const scopeOptions = getActiveResultViewOptions();
     renderEfficiencyTable(
       section.querySelector('[data-role="efficiency-table"]'),
       efficiencyState,
       {
-        selectedShiftId: activeShiftId,
-        selectedShiftName: activeShiftName,
-        costInputs: costState.costInputs,
+        ...scopeOptions,
+        costInputs:
+          scopeOptions.resultScope === "shift" ? costState.costInputs : null,
       }
     );
   };
 
   const refreshPredictionsTab = () => {
     if (!renderedTabs.has("predictions")) return;
-    const activeShift =
-      availableShiftTabs.find((shift) => shift.id === activeShiftId) ?? null;
+    const scope = getActiveResultScope();
+    const activeShift = scope?.kind === "shift"
+      ? availableShiftTabs.find((shift) => shift.id === scope.shiftId) ?? null
+      : null;
     renderPredictionsPanel(
       section.querySelector('[data-role="predictions-panel"]'),
       efficiencyState,
       {
-        selectedShiftId: activeShiftId,
-        selectedShiftName: activeShiftName,
+        selectedShiftId: activeShift?.id,
+        selectedShiftName: activeShift?.shiftName,
         tripStopLookup: activeShift?.tripStopLookup,
       }
     );
@@ -9156,25 +9187,28 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       renderCostsSection(panel, costState, options);
     },
     efficiency: (sec) => {
+      const scopeOptions = getActiveResultViewOptions();
       renderEfficiencyTable(
         sec.querySelector('[data-role="efficiency-table"]'),
         efficiencyState,
         {
-          selectedShiftId: activeShiftId,
-          selectedShiftName: activeShiftName,
-          costInputs: costState.costInputs,
+          ...scopeOptions,
+          costInputs:
+            scopeOptions.resultScope === "shift" ? costState.costInputs : null,
         }
       );
     },
     predictions: (sec) => {
-      const activeShift =
-        availableShiftTabs.find((shift) => shift.id === activeShiftId) ?? null;
+      const scope = getActiveResultScope();
+      const activeShift = scope?.kind === "shift"
+        ? availableShiftTabs.find((shift) => shift.id === scope.shiftId) ?? null
+        : null;
       renderPredictionsPanel(
         sec.querySelector('[data-role="predictions-panel"]'),
         efficiencyState,
         {
-          selectedShiftId: activeShiftId,
-          selectedShiftName: activeShiftName,
+          selectedShiftId: activeShift?.id,
+          selectedShiftName: activeShift?.shiftName,
           tripStopLookup: activeShift?.tripStopLookup,
         }
       );
@@ -9281,33 +9315,51 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     );
   };
 
-  const renderShiftTabs = () => {
+  const renderResultScopeTabs = () => {
     if (!shiftTabsEl) return;
-    if (availableShiftTabs.length <= 1) {
-      shiftTabsEl.hidden = true;
-      shiftTabsEl.innerHTML = "";
-      return;
-    }
-
     shiftTabsEl.hidden = false;
     shiftTabsEl.setAttribute(
       "aria-label",
-      translateOr("simulation.feasibility_shift_selector", "Select shift")
+      translateOr("simulation.feasibility_scope_selector", "Feasibility result scope")
     );
-    shiftTabsEl.innerHTML = availableShiftTabs
+    shiftTabsEl.innerHTML = resultScopes
       .map(
-        (shift) => `
+        (scope, index) => {
+          const active = scope.key === activeResultScopeKey;
+          const shiftAttribute = scope.kind === "shift"
+            ? ` data-shift-id="${textContent(scope.shiftId)}"`
+            : "";
+          return `
           <button
+            id="feasibility-scope-tab-${index}"
             type="button"
-            class="results-shift-tab${shift.id === activeShiftId ? " active" : ""}"
-            data-action="select-shift"
-            data-shift-id="${textContent(shift.id)}"
-            aria-pressed="${shift.id === activeShiftId ? "true" : "false"}"
+            role="tab"
+            class="results-shift-tab${active ? " active" : ""}"
+            data-action="select-result-scope"
+            data-scope-key="${textContent(scope.key)}"
+            data-scope-kind="${textContent(scope.kind)}"
+            ${shiftAttribute}
+            aria-selected="${active ? "true" : "false"}"
+            aria-controls="feasibility-scope-content"
+            tabindex="${active ? "0" : "-1"}"
+            title="${textContent(scope.label)}"
           >
-            ${textContent(shift.shiftName)}
-          </button>`
+            ${textContent(scope.label)}
+          </button>`;
+        }
       )
       .join("");
+
+    const activeScopeIndex = resultScopes.findIndex(
+      (scope) => scope.key === activeResultScopeKey
+    );
+    const scopeContent = section.querySelector("#feasibility-scope-content");
+    if (scopeContent && activeScopeIndex >= 0) {
+      scopeContent.setAttribute(
+        "aria-labelledby",
+        `feasibility-scope-tab-${activeScopeIndex}`
+      );
+    }
   };
 
   const refreshShiftScopedData = async ({ preserveExistingCostData = false } = {}) => {
@@ -9319,7 +9371,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       activeShift?.shiftName || options.shiftName || activeShiftId || "—";
     options.shiftId = activeShiftId;
     options.shiftName = activeShiftName;
-    renderShiftTabs();
+    renderResultScopeTabs();
 
     if (simNameEl) simNameEl.textContent = activeShiftName;
     if (subtitleEl) {
@@ -9452,7 +9504,38 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     }
   };
 
+  const syncFunctionalTabsForScope = () => {
+    const isShiftScope = getActiveResultScope()?.kind === "shift";
+    const predictionsTab = section.querySelector('.results-tab[data-tab="predictions"]');
+    if (predictionsTab) predictionsTab.hidden = !isShiftScope;
+
+    const activeFunctionalTab = section.querySelector(".results-tab.active")?.dataset.tab;
+    if (!isShiftScope && activeFunctionalTab === "predictions") {
+      activateTab("efficiency");
+    }
+  };
+
+  const activateResultScope = async (requestedScopeKey) => {
+    const scope = resolveFeasibilityResultScope(resultScopes, requestedScopeKey);
+    if (!scope) return;
+
+    activeResultScopeKey = scope.key;
+    renderResultScopeTabs();
+    syncFunctionalTabsForScope();
+
+    if (scope.kind !== "shift") {
+      ++shiftRefreshSeq;
+      refreshEfficiencyTab();
+      return;
+    }
+
+    activeShiftId = scope.shiftId;
+    activeShiftName = scope.shiftName;
+    await refreshShiftScopedData({ preserveExistingCostData: false });
+  };
+
   activateTab("efficiency");
+  syncFunctionalTabsForScope();
 
   const handleTabClick = (e) => {
     const btn = e.target.closest(".results-tab");
@@ -9514,19 +9597,47 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   }
 
   if (shiftTabsEl) {
-    const handleShiftTabClick = (event) => {
-      const btn = event.target.closest('[data-action="select-shift"]');
+    const handleResultScopeClick = (event) => {
+      const btn = event.target.closest('[data-action="select-result-scope"]');
       if (!btn) return;
-      const nextShiftId = firstText(btn.dataset.shiftId);
-      if (!nextShiftId || nextShiftId === activeShiftId) return;
-      activeShiftId = nextShiftId;
-      refreshShiftScopedData({ preserveExistingCostData: false }).catch((error) => {
-        console.error("[elettra] Unable to refresh shift-specific results:", error);
+      const nextScopeKey = firstText(btn.dataset.scopeKey);
+      if (!nextScopeKey || nextScopeKey === activeResultScopeKey) return;
+      activateResultScope(nextScopeKey).catch((error) => {
+        console.error("[elettra] Unable to refresh feasibility result scope:", error);
       });
     };
-    shiftTabsEl.addEventListener("click", handleShiftTabClick);
+
+    const handleResultScopeKeydown = (event) => {
+      const btn = event.target.closest('[data-action="select-result-scope"]');
+      if (!btn) return;
+      const targetScope = resolveFeasibilityScopeKeyboardTarget(
+        resultScopes,
+        firstText(btn.dataset.scopeKey, activeResultScopeKey),
+        event.key
+      );
+      if (!targetScope) return;
+
+      event.preventDefault();
+      activateResultScope(targetScope.key)
+        .then(() => {
+          const activeButton = shiftTabsEl.querySelector(
+            '[data-action="select-result-scope"][tabindex="0"]'
+          );
+          activeButton?.focus();
+          activeButton?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+        })
+        .catch((error) => {
+          console.error("[elettra] Unable to refresh feasibility result scope:", error);
+        });
+    };
+
+    shiftTabsEl.addEventListener("click", handleResultScopeClick);
+    shiftTabsEl.addEventListener("keydown", handleResultScopeKeydown);
     cleanupHandlers.push(() =>
-      shiftTabsEl.removeEventListener("click", handleShiftTabClick)
+      shiftTabsEl.removeEventListener("click", handleResultScopeClick)
+    );
+    cleanupHandlers.push(() =>
+      shiftTabsEl.removeEventListener("keydown", handleResultScopeKeydown)
     );
   }
 
@@ -9885,6 +9996,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
         fallbackShiftId: options.shiftId,
         fallbackShiftName: options.shiftName,
       });
+      resultScopes = buildFeasibilityResultScopes(availableShiftTabs, {
+        generalLabel: translateOr("simulation.feasibility_scope_general", "General"),
+      });
+      activeResultScopeKey = FEASIBILITY_GENERAL_SCOPE_KEY;
       activeShiftId =
         availableShiftTabs.find((shift) => shift.id === activeShiftId)?.id ??
         availableShiftTabs[0]?.id ??
@@ -9892,7 +10007,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       activeShiftName =
         availableShiftTabs.find((shift) => shift.id === activeShiftId)?.shiftName ??
         activeShiftName;
-      renderShiftTabs();
+      renderResultScopeTabs();
+      syncFunctionalTabsForScope();
 
       efficiencyState.status = "done";
       efficiencyState.optimizationRun = optimizationRun;

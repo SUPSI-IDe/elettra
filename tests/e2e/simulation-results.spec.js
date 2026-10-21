@@ -51,7 +51,7 @@ test("loaded feasibility results use mean for the decision and show the full dis
           mode: "battery_only",
           status: "completed",
           input_params: {
-            shift_ids: [],
+            shift_ids: ["test-shift"],
             mode: "battery_only",
             min_soc: 0.2,
             max_soc: 0.9,
@@ -118,6 +118,17 @@ test("loaded feasibility results use mean for the decision and show the full dis
       return;
     }
 
+    if (path.endsWith("/api/v1/user/shifts/test-shift/info")) {
+      await route.fulfill({
+        json: {
+          id: "test-shift",
+          name: "Test shift",
+          structure: [],
+        },
+      });
+      return;
+    }
+
     if (path.endsWith("/api/v1/economic/defaults")) {
       await route.fulfill({ json: {} });
       return;
@@ -139,6 +150,10 @@ test("loaded feasibility results use mean for the decision and show the full dis
       runId: "test-run",
     });
   });
+
+  await page
+    .locator('[data-action="select-result-scope"][data-shift-id="test-shift"]')
+    .click();
 
   await expect(page.locator(".efficiency-sensitivity-card__chips")).toContainText(
     "Heating type: Diesel",

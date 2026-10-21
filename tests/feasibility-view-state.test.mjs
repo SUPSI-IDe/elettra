@@ -336,6 +336,8 @@ test("no selected shift produces no operational summary", () => {
 
 test("both feasibility levels are translated in every supported locale", () => {
   const keys = [
+    "simulation.feasibility_scope_selector",
+    "simulation.feasibility_scope_general",
     "simulation.feasibility_general_level",
     "simulation.feasibility_general_title",
     "simulation.feasibility_general_subtitle",

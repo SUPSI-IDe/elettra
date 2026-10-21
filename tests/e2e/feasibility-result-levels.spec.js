@@ -217,6 +217,14 @@ const mountResults = async (page, {
   });
 };
 
+const scopeSelector = (page) => page.locator('[data-role="shift-tabs"]');
+
+const selectShiftScope = async (page, shiftId) => {
+  await scopeSelector(page)
+    .locator(`[data-action="select-result-scope"][data-shift-id="${shiftId}"]`)
+    .click();
+};
+
 test.afterEach(async ({ page }) => {
   await page.evaluate(() => window.__cleanupSimulationResults?.());
 });
@@ -229,7 +237,7 @@ test("separates the common result from one selected shift without an aggregate o
   const selector = page.locator('[data-role="shift-tabs"]');
 
   await expect(general).toBeVisible();
-  await expect(shiftDetail).toBeVisible();
+  await expect(shiftDetail).toHaveCount(0);
   await expect(general).toContainText("Common fleet configuration");
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("Optimized");
@@ -240,6 +248,20 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(general.locator('[data-role="feasibility-active-locations"]')).toHaveText("1");
   await expect(general.locator('[data-role="feasibility-total-plugs"]')).toHaveText("2");
   await expect(general.locator('[data-role="feasibility-total-power"]')).toContainText("300");
+
+  await expect(selector).toBeVisible();
+  await expect(selector).toHaveAttribute("role", "tablist");
+  await expect(selector.locator('[data-action="select-result-scope"]')).toHaveCount(3);
+  await expect(selector).not.toContainText("All");
+  const generalTab = selector.getByRole("tab", { name: "General" });
+  await expect(generalTab).toHaveAttribute("aria-selected", "true");
+  await expect(generalTab).toHaveAttribute("tabindex", "0");
+  await expect(page.locator('.results-tab[data-tab="predictions"]')).toBeHidden();
+
+  await selectShiftScope(page, "morning");
+  await expect(general).toHaveCount(0);
+  await expect(shiftDetail).toBeVisible();
+  await expect(page.locator('.results-tab[data-tab="predictions"]')).toBeVisible();
 
   const shiftSummary = shiftDetail.locator('[data-role="feasibility-shift-summary"]');
   await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Covered by common battery");
@@ -261,12 +283,9 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-energy"]')).toContainText("60.0");
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toContainText("120.0");
 
-  await expect(selector).toBeVisible();
-  await expect(selector.locator('[data-action="select-shift"]')).toHaveCount(2);
-  await expect(selector).not.toContainText("All");
   await expect(shiftDetail.locator('[data-role="feasibility-selected-shift"]')).toHaveText("Morning service");
 
-  await selector.getByRole("button", { name: "Evening service" }).click();
+  await selector.getByRole("tab", { name: "Evening service" }).click();
   await expect(shiftDetail.locator('[data-role="feasibility-selected-shift"]')).toHaveText("Evening service");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Sizing shift");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-required-packs"]')).toContainText("12");
@@ -281,8 +300,54 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-end"]')).toContainText("next day");
   await expect(chargingSessions.nth(1).locator('[data-role="feasibility-charging-session-start"]')).toContainText("01:00");
   await expect(chargingSessions.nth(1).locator('[data-role="feasibility-charging-session-start"]')).toContainText("next day");
+  await page.locator('.results-tab[data-tab="predictions"]').click();
+  await generalTab.click();
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-limiting-shifts"]')).toContainText("Evening service");
+  await expect(shiftDetail).toHaveCount(0);
+  await expect(page.locator('.results-tab[data-tab="efficiency"]')).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('.results-tab[data-tab="predictions"]')).toBeHidden();
+});
+
+test("supports keyboard navigation, duplicate names, safe labels, and horizontal overflow", async ({ page }) => {
+  const unsafeName = '<img src=x onerror="window.__scopeXss = true">Shared service';
+  await mountResults(page, {
+    shiftNames: {
+      morning: unsafeName,
+      evening: unsafeName,
+    },
+  });
+
+  const selector = scopeSelector(page);
+  const tabs = selector.getByRole("tab");
+  const generalTab = selector.getByRole("tab", { name: "General" });
+  const morningTab = selector.getByRole("tab", { name: `${unsafeName} (1)` });
+  const eveningTab = selector.getByRole("tab", { name: `${unsafeName} (2)` });
+
+  await expect(tabs).toHaveCount(3);
+  await expect(selector.locator("img")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__scopeXss)).toBeUndefined();
+  await expect(selector).toHaveCSS("overflow-x", "auto");
+  await expect(morningTab).toHaveCSS("white-space", "nowrap");
+
+  await generalTab.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(morningTab).toHaveAttribute("aria-selected", "true");
+  await expect(morningTab).toBeFocused();
+  await expect(page.locator('[data-role="feasibility-selected-shift"]')).toHaveText(unsafeName);
+
+  await page.keyboard.press("End");
+  await expect(eveningTab).toHaveAttribute("aria-selected", "true");
+  await expect(eveningTab).toBeFocused();
+
+  await page.keyboard.press("ArrowRight");
+  await expect(generalTab).toHaveAttribute("aria-selected", "true");
+  await expect(generalTab).toBeFocused();
+
+  await page.keyboard.press("ArrowLeft");
+  await expect(eveningTab).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Home");
+  await expect(generalTab).toHaveAttribute("aria-selected", "true");
 });
 
 test("never reuses another shift prediction when the selected shift has none", async ({ page }) => {
@@ -290,7 +355,7 @@ test("never reuses another shift prediction when the selected shift has none", a
     predictionRunIds: ["prediction-morning"],
   });
 
-  await page.locator('[data-action="select-shift"][data-shift-id="evening"]').click();
+  await selectShiftScope(page, "evening");
 
   const sensitivity = page.locator(".efficiency-sensitivity-card");
   await expect(sensitivity).toBeVisible();
@@ -318,7 +383,7 @@ test("does not match predictions from an equally named but differently identifie
     },
   });
 
-  await page.locator('[data-action="select-shift"][data-shift-id="evening"]').click();
+  await selectShiftScope(page, "evening");
   await page.locator('.results-tab[data-tab="predictions"]').click();
 
   await expect(page.locator('[data-panel="predictions"]')).toContainText(
@@ -337,19 +402,25 @@ test("does not present an aggregate multi-shift prediction as one physical shift
     },
   });
 
+  await selectShiftScope(page, "morning");
   await page.locator('.results-tab[data-tab="predictions"]').click();
   const predictionsPanel = page.locator('[data-panel="predictions"]');
   await expect(predictionsPanel).toContainText("No prediction summaries available");
   await expect(predictionsPanel).not.toContainText("900.0");
 });
 
-test("keeps a single shift selected and hides a redundant selector", async ({ page }) => {
+test("keeps general and the physical shift available for a single-shift result", async ({ page }) => {
   await mountResults(page, { shiftIds: ["morning"] });
 
-  await expect(page.locator('[data-role="shift-tabs"]')).toBeHidden();
+  const selector = scopeSelector(page);
+  await expect(selector).toBeVisible();
+  await expect(selector.getByRole("tab")).toHaveCount(2);
+  await expect(selector.getByRole("tab", { name: "General" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator('[data-role="feasibility-shift-count"]')).toContainText("1");
+  await expect(page.locator('[data-role="feasibility-selected-shift"]')).toHaveCount(0);
+  await selectShiftScope(page, "morning");
   await expect(page.locator('[data-role="feasibility-selected-shift"]')).toHaveText("Morning service");
-  await expect(page.locator('[data-role="feasibility-fleet-battery"]')).toContainText("8");
+  await expect(page.locator('[data-role="feasibility-fleet-battery"]')).toHaveCount(0);
 });
 
 test("renders unavailable values safely when a historical result has no shift details", async ({ page }) => {
@@ -358,12 +429,14 @@ test("renders unavailable values safely when a historical result has no shift de
     includeInfrastructureInput: false,
   });
 
-  await expect(page.locator('[data-role="shift-tabs"]')).toBeHidden();
+  const selector = scopeSelector(page);
+  await expect(selector).toBeVisible();
+  await expect(selector.getByRole("tab")).toHaveCount(1);
+  await expect(selector.getByRole("tab", { name: "General" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator('[data-role="feasibility-shift-count"]')).toContainText("0");
   await expect(page.locator('[data-role="feasibility-fleet-battery"] .feasibility-general-card__value')).toHaveText("—");
-  await expect(page.locator('[data-role="feasibility-selected-shift"]')).toHaveText("—");
   await expect(page.locator('[data-role="feasibility-infrastructure-unavailable"]')).toBeVisible();
-  await expect(page.locator('[data-role="feasibility-shift-summary"]')).toContainText("Operational details are not available");
+  await expect(page.locator('[data-role="feasibility-shift-summary"]')).toHaveCount(0);
   await expect(page.locator('[data-role="feasibility-charging-plan"]')).toHaveCount(0);
 });
 
@@ -378,6 +451,8 @@ test("distinguishes a shift with no required charging from missing schedule deta
       },
     },
   });
+
+  await selectShiftScope(page, "morning");
 
   const plan = page.locator('[data-role="feasibility-charging-plan"]');
   await expect(plan).toHaveAttribute("data-status", "empty");
@@ -397,6 +472,8 @@ test("explains when sessions are reported without time and location rows", async
     },
   });
 
+  await selectShiftScope(page, "morning");
+
   const plan = page.locator('[data-role="feasibility-charging-plan"]');
   await expect(plan).toHaveAttribute("data-status", "unavailable");
   await expect(plan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveText("2");
@@ -414,6 +491,8 @@ test("does not present missing historical charging fields as a zero-session resu
       },
     },
   });
+
+  await selectShiftScope(page, "morning");
 
   const plan = page.locator('[data-role="feasibility-charging-plan"]');
   await expect(plan).toHaveAttribute("data-status", "unavailable");
@@ -439,6 +518,8 @@ test("keeps available rows visible when the reported charging plan is partial", 
       },
     },
   });
+
+  await selectShiftScope(page, "morning");
 
   const plan = page.locator('[data-role="feasibility-charging-plan"]');
   await expect(plan).toHaveAttribute("data-status", "partial");
@@ -467,6 +548,8 @@ test("renders charging locations as text without interpreting backend HTML", asy
     },
   });
 
+  await selectShiftScope(page, "morning");
+
   const plan = page.locator('[data-role="feasibility-charging-plan"]');
   await expect(plan.locator('[data-role="feasibility-charging-session-location"]')).toHaveText('<img src=x onerror="window.__chargingXss = true">Depot');
   await expect(plan.locator("img, svg")).toHaveCount(0);
@@ -489,6 +572,8 @@ test("shows an infeasible shift as a shortfall against the common physical batte
       },
     },
   });
+
+  await selectShiftScope(page, "morning");
 
   const summary = page.locator('[data-role="feasibility-shift-summary"]');
   await expect(summary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Battery shortfall");
@@ -538,7 +623,8 @@ test("shows one complete shared infrastructure for joint optimization across eve
   await expect(infrastructure.locator('[data-role="feasibility-total-installation-cost"]')).toContainText(/30['’]000/);
   await expect(infrastructure.locator('[data-station-status="installed"]')).toContainText("420.5");
 
-  await page.locator('[data-role="shift-tabs"]').getByRole("button", { name: "Evening service" }).click();
+  await selectShiftScope(page, "evening");
+  await scopeSelector(page).getByRole("tab", { name: "General" }).click();
   await expect(infrastructure.locator('[data-role="feasibility-active-locations"]')).toHaveText("1");
   await expect(infrastructure.locator('tbody tr')).toHaveCount(2);
 });
