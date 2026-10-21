@@ -75,6 +75,15 @@ import {
   getAuxiliaryHeatingTranslationKey,
   normalizeAuxiliaryHeatingType,
 } from "../../../utils/heating-type";
+import {
+  YEARLY_GENERAL_SCOPE_KEY,
+  buildScopedYearlyFeatures,
+  buildShiftParameterizedLca,
+  buildYearlyResultScopes,
+  getFixedYearlyShift,
+  resolveYearlyResultScope,
+  resolveYearlyScopeKeyboardTarget,
+} from "../../../utils/yearly-analysis-result-scope";
 
 /* ── Shared helpers ────────────────────────────────────────────── */
 
@@ -3757,7 +3766,463 @@ const downloadJson = (data, filename) => {
 
 /* ── Overview rendering ────────────────────────────────────────── */
 
-const renderOverviewPanel = (el, features, effState, costState, emissionsState, busModelData = {}) => {
+const configurationRoleLabel = (decision) =>
+  decision === "optimized"
+    ? translateOr("yearly_analysis.optimizer_decision", "Optimizer decision")
+    : decision === "fixed"
+      ? translateOr("yearly_analysis.fixed_configuration", "Fixed configuration")
+      : translateOr("yearly_analysis.configuration_available", "Available configuration");
+
+const configurationRoleHtml = (decision) => {
+  const normalized = decision === "optimized" ? "optimized" : "fixed";
+  return `<span class="ya-configuration-role ya-configuration-role--${normalized}">${textContent(
+    configurationRoleLabel(decision),
+  )}</span>`;
+};
+
+const definitionRowsHtml = (rows = [], className = "ya-deployed-card") =>
+  `<dl class="${className}__rows">${rows.map(({ label, value, raw = false }) => `
+    <div class="${className}__row">
+      <dt>${textContent(label)}</dt>
+      <dd>${raw ? value : textContent(value)}</dd>
+    </div>`).join("")}</dl>`;
+
+const activeInfrastructureStations = (infrastructure = {}) =>
+  (Array.isArray(infrastructure?.stations) ? infrastructure.stations : [])
+    .filter((station) =>
+      station?.selected === true ||
+      (["fixed", "installed", "configured"].includes(station?.status) &&
+        (toFiniteNumber(station?.slots) ?? 0) > 0),
+    );
+
+const sumAvailable = (rows, reader) => {
+  const values = rows.map(reader).filter((value) => value != null);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
+};
+
+const stationStatusLabel = (status) => {
+  const labels = {
+    fixed: ["simulation.feasibility_station_fixed", "Fixed"],
+    installed: ["simulation.feasibility_station_installed", "Installed"],
+    configured: ["simulation.feasibility_station_configured", "Configured"],
+  };
+  const [key, fallback] = labels[status] ?? labels.configured;
+  return translateOr(key, fallback);
+};
+
+const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
+  const fixed = features?.config?.fixedConfiguration;
+  if (!fixed || typeof fixed !== "object") return "";
+  const battery = fixed.battery ?? {};
+  const infrastructure = fixed.infrastructure ?? {};
+  const infrastructureAvailable =
+    infrastructure.dataAvailable !== false &&
+    infrastructure.resultAvailable !== false;
+  const stations = activeInfrastructureStations(infrastructure);
+  const shiftNames = (Array.isArray(fixed.shifts) ? fixed.shifts : [])
+    .map((shift) => text(shift?.shiftName || shift?.shiftId).trim())
+    .filter(Boolean);
+  const sizingShiftNames = (
+    Array.isArray(battery.sizingShiftNames) && battery.sizingShiftNames.length
+      ? battery.sizingShiftNames
+      : battery.mostDemandingShiftNames
+  ) ?? [];
+  const packs = toFiniteNumber(battery.packs);
+  const packSizeKwh =
+    toFiniteNumber(battery.packSizeKwh) ??
+    toFiniteNumber(busModelData?.battery_pack_size_kwh);
+  const nominalKwh =
+    toFiniteNumber(battery.nominalKwh) ??
+    (packs != null && packSizeKwh != null ? packs * packSizeKwh : null);
+  const installedSlots = sumAvailable(stations, (station) =>
+    toFiniteNumber(station?.slots),
+  );
+  const totalPowerKw = sumAvailable(stations, (station) =>
+    toFiniteNumber(station?.totalPowerKw),
+  );
+  const installationCostChf =
+    toFiniteNumber(infrastructure.totalInstallationCostChf) ??
+    sumAvailable(stations, (station) =>
+      toFiniteNumber(station?.installationCostChf),
+    );
+  const busName =
+    text(features?.meta?.busModelName).trim() ||
+    text(busModelData?.name).trim() ||
+    text(busModelData?.model).trim() ||
+    "—";
+
+  const batteryRows = [
+    {
+      label: translateOr("yearly_analysis.configuration_role", "Configuration role"),
+      value: configurationRoleHtml(battery.decision),
+      raw: true,
+    },
+    {
+      label: translateOr("yearly_analysis.fleet_battery_packs", "Common battery"),
+      value: packs != null
+        ? t("yearly_analysis.packs_value", { count: formatFixed(packs, 0) })
+        : "—",
+    },
+    {
+      label: translateOr("yearly_analysis.nominal_capacity", "Nominal capacity"),
+      value: nominalKwh != null ? `${formatFixed(nominalKwh, 1)} kWh` : "—",
+    },
+    {
+      label: translateOr("yearly_analysis.sizing_shifts", "Sizing shift"),
+      value: sizingShiftNames.length ? sizingShiftNames.join(", ") : "—",
+    },
+  ];
+  const fleetRows = [
+    {
+      label: translateOr("yearly_analysis.bus_model", "Bus model"),
+      value: busName,
+    },
+    {
+      label: t("yearly_analysis.col_mode"),
+      value: modeLabel(fixed.mode ?? features?.config?.mode, features?.meta?.modeLabel),
+    },
+    {
+      label: translateOr("yearly_analysis.covered_shifts", "Covered shifts"),
+      value: shiftNames.length ? String(shiftNames.length) : "—",
+    },
+    {
+      label: t("yearly_analysis.col_shifts"),
+      value: shiftNames.join(", ") || "—",
+    },
+  ];
+  const infrastructureRows = [
+    {
+      label: translateOr("yearly_analysis.configuration_role", "Configuration role"),
+      value: configurationRoleHtml(infrastructure.decision),
+      raw: true,
+    },
+    {
+      label: translateOr("yearly_analysis.installed_locations", "Charging locations"),
+      value: infrastructureAvailable ? String(stations.length) : "—",
+    },
+    {
+      label: translateOr("yearly_analysis.installed_slots", "Installed slots"),
+      value: infrastructureAvailable && installedSlots != null ? formatFixed(installedSlots, 0) : "—",
+    },
+    {
+      label: translateOr("yearly_analysis.total_power", "Total power"),
+      value: infrastructureAvailable && totalPowerKw != null ? `${formatFixed(totalPowerKw, 0)} kW` : "—",
+    },
+    {
+      label: translateOr("yearly_analysis.installation_cost", "Installation cost"),
+      value: infrastructureAvailable && installationCostChf != null
+        ? `CHF ${formatCHF(installationCostChf)}`
+        : "—",
+    },
+  ];
+  const stationRows = stations.map((station) => `
+    <tr>
+      <td>${textContent(station.stopName || station.stopId || "—")}</td>
+      <td>${textContent(stationStatusLabel(station.status))}</td>
+      <td>${station.slots == null ? "—" : textContent(formatFixed(station.slots, 0))}</td>
+      <td>${station.powerPerSlotKw == null ? "—" : `${textContent(formatFixed(station.powerPerSlotKw, 0))} kW`}</td>
+      <td>${station.totalPowerKw == null ? "—" : `${textContent(formatFixed(station.totalPowerKw, 0))} kW`}</td>
+    </tr>`).join("");
+  const infrastructureTable = infrastructureAvailable && stationRows
+    ? `<div class="ya-infrastructure-table-wrap">
+        <table class="ya-infrastructure-table">
+          <thead><tr>
+            <th>${textContent(translateOr("yearly_analysis.charging_location", "Charging location"))}</th>
+            <th>${textContent(translateOr("yearly_analysis.station_status", "Status"))}</th>
+            <th>${textContent(translateOr("yearly_analysis.installed_slots", "Installed slots"))}</th>
+            <th>${textContent(translateOr("yearly_analysis.power_per_slot", "Power per slot"))}</th>
+            <th>${textContent(translateOr("yearly_analysis.total_power", "Total power"))}</th>
+          </tr></thead>
+          <tbody>${stationRows}</tbody>
+        </table>
+      </div>`
+    : `<p class="ya-empty-reference">${textContent(
+        infrastructureAvailable
+          ? translateOr(
+              "yearly_analysis.no_shared_charging_locations",
+              "No charging locations are part of the inherited configuration.",
+            )
+          : translateOr(
+              "yearly_analysis.shared_charging_infrastructure_unavailable",
+              "Shared charging infrastructure details are unavailable in this saved analysis.",
+            ),
+      )}</p>`;
+
+  return `<section class="ya-deployed-configuration" data-role="ya-deployed-configuration">
+    <p class="ya-annual-assumption"><strong>${textContent(
+      translateOr("yearly_analysis.annual_assumption_title", "Annual analysis assumption"),
+    )}:</strong> ${textContent(
+      translateOr(
+        "yearly_analysis.annual_assumption_note",
+        "The annual analysis uses the configuration determined by the source feasibility evaluation. Weather scenarios change consumption estimates; they do not resize the battery, alter the charging infrastructure, or reassess feasibility.",
+      ),
+    )}</p>
+    <div class="ya-deployed-configuration__header">
+      <h3 class="ya-deployed-configuration__title">${textContent(
+        translateOr("yearly_analysis.deployed_configuration", "Deployed configuration"),
+      )}</h3>
+    </div>
+    <div class="ya-deployed-configuration__grid">
+      <article class="ya-deployed-card">
+        <h3 class="ya-deployed-card__title">${textContent(
+          translateOr("yearly_analysis.common_bus_configuration", "Common bus configuration"),
+        )}</h3>
+        ${definitionRowsHtml(fleetRows)}
+      </article>
+      <article class="ya-deployed-card">
+        <h3 class="ya-deployed-card__title">${textContent(
+          translateOr("yearly_analysis.battery_configuration", "Battery configuration"),
+        )}</h3>
+        ${definitionRowsHtml(batteryRows)}
+      </article>
+      <article class="ya-deployed-card">
+        <h3 class="ya-deployed-card__title">${textContent(
+          translateOr("yearly_analysis.shared_charging_infrastructure", "Shared charging infrastructure"),
+        )}</h3>
+        ${definitionRowsHtml(infrastructureRows)}
+      </article>
+    </div>
+    ${infrastructureTable}
+  </section>`;
+};
+
+const formatMinuteOfService = (value) => {
+  const minute = toFiniteNumber(value);
+  if (minute == null || minute < 0) return "—";
+  const whole = Math.round(minute);
+  const day = Math.floor(whole / 1440);
+  const minuteOfDay = whole % 1440;
+  const hh = String(Math.floor(minuteOfDay / 60)).padStart(2, "0");
+  const mm = String(minuteOfDay % 60).padStart(2, "0");
+  return day > 0
+    ? `${hh}:${mm} (+${day} ${translateOr("yearly_analysis.day_short", "day")})`
+    : `${hh}:${mm}`;
+};
+
+const formatDurationMinutes = (value) => {
+  const minutes = toFiniteNumber(value);
+  if (minutes == null) return "—";
+  const rounded = Math.round(minutes);
+  const hours = Math.floor(rounded / 60);
+  const remainder = rounded % 60;
+  if (!hours) return `${remainder} min`;
+  if (!remainder) return `${hours} h`;
+  return `${hours} h ${remainder} min`;
+};
+
+const buildShiftReferenceHtml = (features, scope) => {
+  if (scope?.kind !== "shift") return "";
+  const fixed = features?.config?.fixedConfiguration ?? {};
+  const shift = getFixedYearlyShift(features, scope.shiftId) ?? {};
+  const battery = shift.battery ?? {};
+  const operation = shift.operation ?? {};
+  const commonBattery = fixed.battery ?? {};
+  const result = (Array.isArray(features?.results?.shiftResults)
+    ? features.results.shiftResults
+    : []).find((row) => text(row?.shiftId).trim() === text(scope.shiftId).trim()) ?? {};
+  const hasChargingPlan = Array.isArray(operation.chargingSessions);
+  const sessions = hasChargingPlan
+    ? operation.chargingSessions
+    : [];
+  const commonPacks =
+    toFiniteNumber(commonBattery.packs) ?? toFiniteNumber(battery.commonPacks);
+  const requiredPacks = toFiniteNumber(battery.requiredPacks);
+  const packMargin =
+    toFiniteNumber(battery.commonPackMargin) ??
+    (commonPacks != null && requiredPacks != null
+      ? commonPacks - requiredPacks
+      : null);
+  const totals = result.yearlyTotals ?? {};
+  const status = text(result.status).trim() || "unknown";
+  const statusLabel = translateOr(
+    `yearly_analysis.scope_status_${status}`,
+    status === "completed" ? "Complete" : status === "partial" ? "Partial" : status === "failed" ? "Failed" : "Unknown",
+  );
+  const sessionRows = sessions.map((session, index) => {
+    const duration =
+      toFiniteNumber(session.durationMinutes) ??
+      (toFiniteNumber(session.startMinute) != null && toFiniteNumber(session.endMinute) != null
+        ? Math.max(0, toFiniteNumber(session.endMinute) - toFiniteNumber(session.startMinute))
+        : null);
+    const energy = toFiniteNumber(session.energyKwh);
+    const averagePower =
+      energy != null && duration != null && duration > 0
+        ? energy / (duration / 60)
+        : null;
+    const sessionName = t("yearly_analysis.charging_session_label", { index: index + 1 });
+    return `<tr>
+      <td>${textContent(`${sessionName}: ${session.stationName || session.stationStopId || "—"}`)}</td>
+      <td>${textContent(`${formatMinuteOfService(session.startMinute)}–${formatMinuteOfService(session.endMinute)}`)}</td>
+      <td>${textContent(formatDurationMinutes(duration))}</td>
+      <td>${energy == null ? "—" : `${textContent(formatFixed(energy, 1))} kWh`}</td>
+      <td>${averagePower == null ? "—" : `${textContent(formatFixed(averagePower, 1))} kW`}</td>
+    </tr>`;
+  }).join("");
+  const chargingPlan = sessionRows
+    ? `<div class="ya-charging-plan-wrap">
+        <table class="ya-charging-plan-table">
+          <thead><tr>
+            <th>${textContent(translateOr("yearly_analysis.charging_session", "Charging session"))}</th>
+            <th>${textContent(translateOr("yearly_analysis.session_time", "Time"))}</th>
+            <th>${textContent(translateOr("yearly_analysis.session_duration", "Duration"))}</th>
+            <th>${textContent(translateOr("yearly_analysis.session_energy", "Energy"))}</th>
+            <th>${textContent(translateOr("yearly_analysis.session_average_power", "Average power"))}</th>
+          </tr></thead>
+          <tbody>${sessionRows}</tbody>
+        </table>
+      </div>`
+    : `<p class="ya-empty-reference">${textContent(
+        hasChargingPlan
+          ? translateOr(
+              "yearly_analysis.no_reference_charging_sessions",
+              "The source feasibility evaluation contains no charging sessions for this shift.",
+            )
+          : translateOr(
+              "yearly_analysis.reference_charging_plan_unavailable",
+              "Reference charging-plan details are unavailable in this saved analysis.",
+            ),
+      )}</p>`;
+
+  const statusTone = ["completed", "partial", "failed"].includes(status)
+    ? status
+    : "unknown";
+
+  return `<section class="ya-shift-reference" data-role="ya-shift-reference" data-shift-id="${textContent(scope.shiftId)}">
+    <div class="ya-shift-reference__header">
+      <h3 class="ya-shift-reference__title">${textContent(
+        t("yearly_analysis.shift_annual_detail", { shift: scope.shiftName }),
+      )}</h3>
+      <span class="ya-scope-status ya-scope-status--${statusTone}">${textContent(statusLabel)}</span>
+    </div>
+    <div class="ya-shift-reference__grid">
+      <article class="ya-shift-reference-card">
+        <h3 class="ya-shift-reference-card__title">${textContent(
+          translateOr("yearly_analysis.common_bus_configuration", "Common bus configuration"),
+        )}</h3>
+        ${definitionRowsHtml([
+          {
+            label: translateOr("yearly_analysis.fleet_battery_packs", "Common battery"),
+            value: commonPacks != null ? t("yearly_analysis.packs_value", { count: formatFixed(commonPacks, 0) }) : "—",
+          },
+          {
+            label: translateOr("yearly_analysis.minimum_required_packs", "Minimum required by this shift"),
+            value: requiredPacks != null ? t("yearly_analysis.packs_value", { count: formatFixed(requiredPacks, 0) }) : "—",
+          },
+          {
+            label: translateOr("yearly_analysis.fleet_pack_margin", "Common battery margin"),
+            value: packMargin != null ? `${packMargin >= 0 ? "+" : ""}${formatFixed(packMargin, 0)} ${t("simulation.unit_packs") || "packs"}` : "—",
+          },
+        ], "ya-shift-reference-card")}
+      </article>
+      <article class="ya-shift-reference-card">
+        <h3 class="ya-shift-reference-card__title">${textContent(
+          translateOr("yearly_analysis.yearly_aggregated_summary", "Yearly aggregated summary"),
+        )}</h3>
+        ${definitionRowsHtml([
+          {
+            label: t("yearly_analysis.yearly_energy"),
+            value: toFiniteNumber(totals.totalEnergyKwh) != null ? `${formatInt(totals.totalEnergyKwh)} kWh` : "—",
+          },
+          {
+            label: t("yearly_analysis.yearly_simulated_distance"),
+            value: toFiniteNumber(totals.distanceKm) != null ? `${formatInt(totals.distanceKm)} km` : "—",
+          },
+          {
+            label: translateOr("yearly_analysis.average_yearly_efficiency", "Average yearly efficiency"),
+            value: toFiniteNumber(totals.totalEnergyKwh) != null && toFiniteNumber(totals.distanceKm) > 0
+              ? `${formatFixed(totals.totalEnergyKwh / totals.distanceKm, 3)} kWh/km`
+              : "—",
+          },
+        ], "ya-shift-reference-card")}
+      </article>
+      <article class="ya-shift-reference-card">
+        <h3 class="ya-shift-reference-card__title">${textContent(
+          translateOr("yearly_analysis.feasibility_reference", "Feasibility reference"),
+        )}</h3>
+        ${definitionRowsHtml([
+          {
+            label: translateOr("yearly_analysis.minimum_soc_reached", "Minimum SOC reached"),
+            value: toFiniteNumber(operation.minSocKwh) != null ? `${formatFixed(operation.minSocKwh, 1)} kWh` : "—",
+          },
+          {
+            label: translateOr("yearly_analysis.maximum_soc_reached", "Maximum SOC reached"),
+            value: toFiniteNumber(operation.maxSocKwh) != null ? `${formatFixed(operation.maxSocKwh, 1)} kWh` : "—",
+          },
+          {
+            label: translateOr("yearly_analysis.reference_charged_energy", "Charged energy in feasibility"),
+            value: toFiniteNumber(operation.totalChargedKwh) != null ? `${formatFixed(operation.totalChargedKwh, 1)} kWh` : "—",
+          },
+        ], "ya-shift-reference-card")}
+      </article>
+    </div>
+    <div>
+      <h3 class="ya-shift-reference-card__title">${textContent(
+        translateOr("yearly_analysis.reference_charging_plan", "Reference charging plan"),
+      )}</h3>
+      <p class="ya-charging-plan-note">${textContent(
+        translateOr(
+          "yearly_analysis.reference_charging_plan_note",
+          "This fixed plan comes from the source feasibility evaluation and is shown once as context. It is not recalculated for each temperature cluster.",
+        ),
+      )}</p>
+    </div>
+    ${chargingPlan}
+  </section>`;
+};
+
+const buildEfficiencyState = (features = {}) => {
+  const scenarioResults = features?.results?.scenarioResults ?? [];
+  const yearlyTotals = features?.results?.yearlyTotals ?? {};
+  const enriched = enrichAllScenarios(scenarioResults);
+  return {
+    enriched,
+    summary: computeYearlySummary(enriched, yearlyTotals),
+    effByTemp: buildEfficiencyByTemp(enriched),
+    annualContrib: buildAnnualContribution(enriched),
+    annualContributionMode: "yearly",
+  };
+};
+
+const buildScopedEmissionsState = (state, scope) => {
+  if (scope?.kind !== "shift" || state?.status !== "done") return state;
+  if (!state.rawLca) {
+    return {
+      ...state,
+      status: "error",
+      error: translateOr(
+        "yearly_analysis.shift_emissions_unavailable",
+        "Shift-level emissions are unavailable for this historical analysis.",
+      ),
+    };
+  }
+  const scopedRaw = buildShiftParameterizedLca(state.rawLca, scope.shiftId);
+  if (!scopedRaw) {
+    return {
+      ...state,
+      status: "error",
+      error: translateOr(
+        "yearly_analysis.shift_emissions_unavailable",
+        "Shift-level emissions are unavailable for this historical analysis.",
+      ),
+    };
+  }
+  try {
+    return { ...state, ...mapParameterizedLca(scopedRaw), rawLca: scopedRaw };
+  } catch (error) {
+    return { ...state, status: "error", error: error?.message ?? String(error) };
+  }
+};
+
+const renderOverviewPanel = (
+  el,
+  features,
+  effState,
+  costState,
+  emissionsState,
+  busModelData = {},
+  scope = { kind: "general", key: YEARLY_GENERAL_SCOPE_KEY },
+  sourceFeatures = features,
+) => {
   if (!el) return;
 
   const cfg = features.config ?? {};
@@ -3892,7 +4357,10 @@ const renderOverviewPanel = (el, features, effState, costState, emissionsState, 
     }
   }
 
-  el.innerHTML = `<div class="ya-overview-grid">${columns.join("")}</div>`;
+  const scopeSummary = scope?.kind === "shift"
+    ? buildShiftReferenceHtml(sourceFeatures, scope)
+    : buildGeneralDeploymentHtml(sourceFeatures, busModelData);
+  el.innerHTML = `${scopeSummary}<div class="ya-overview-grid">${columns.join("")}</div>`;
 
   el.querySelectorAll('[data-action="open-simulation-results"]').forEach((simLink) => {
     simLink.addEventListener("click", (event) => {
@@ -3951,6 +4419,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const emissionsContent = section.querySelector('[data-role="emissions-content"]');
   const configOverlay = section.querySelector('[data-role="ya-config-overlay"]');
   const configContent = section.querySelector('[data-role="ya-configuration-content"]');
+  const resultScopeTabsEl = section.querySelector('[data-role="ya-result-scope-tabs"]');
+  const resultScopeContentEl = section.querySelector("#yearly-result-scope-content");
 
   const analysisId = options.analysisId ?? "";
   if (!analysisId) {
@@ -3976,8 +4446,15 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   if (analysisNameEl) analysisNameEl.textContent = analysisName || "—";
 
   const features = analysis.features ?? {};
-  const scenarioResults = features.results?.scenarioResults ?? [];
-  const yearlyTotals = features.results?.yearlyTotals ?? {};
+  const resultScopes = buildYearlyResultScopes(features, {
+    generalLabel: translateOr("yearly_analysis.scope_general", "General"),
+    shiftFallback: translateOr("yearly_analysis.scope_shift", "Shift"),
+  });
+  let activeScopeKey = YEARLY_GENERAL_SCOPE_KEY;
+  let activeScope = resolveYearlyResultScope(resultScopes, activeScopeKey);
+  let activeFeatures = buildScopedYearlyFeatures(features, activeScope);
+  let scenarioResults = activeFeatures.results?.scenarioResults ?? [];
+  let yearlyTotals = activeFeatures.results?.yearlyTotals ?? {};
   const config = features.config ?? {};
 
   /* ── State objects for async data ────────────────────────── */
@@ -4002,34 +4479,62 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     yearlyDistanceKm: null, structured: null, isDieselHeating: false,
     emissionsMetadata: null, error: null,
   };
-  const renderedTabs = new Set();
+  let generalCostsData = null;
+  let generalCostsError = null;
+  let syncCostSliders = () => {};
+  let syncEmissionsDistanceControl = () => {};
 
-  /* ── Tab switching ───────────────────────────────────────── */
-  const activateTab = (tabKey) => {
-    section.querySelectorAll(".ya-tab").forEach((btn) => {
-      const isActive = btn.dataset.tab === tabKey;
-      btn.classList.toggle("active", isActive);
-      btn.setAttribute("aria-selected", String(isActive));
-    });
-    section.querySelectorAll(".ya-tab-panel").forEach((panel) => {
-      const isActive = panel.dataset.panel === tabKey;
-      panel.classList.toggle("active", isActive);
-      panel.hidden = !isActive;
-    });
-
-    if (!renderedTabs.has(tabKey)) {
-      renderedTabs.add(tabKey);
-      TAB_RENDERERS[tabKey]?.();
+  const renderResultScopeTabs = () => {
+    if (!resultScopeTabsEl) return;
+    resultScopeTabsEl.hidden = false;
+    resultScopeTabsEl.setAttribute(
+      "aria-label",
+      translateOr("yearly_analysis.result_scope_selector", "Yearly result scope"),
+    );
+    resultScopeTabsEl.innerHTML = resultScopes.map((scope, index) => {
+      const isActive = scope.key === activeScopeKey;
+      const status = text(scope.status).trim().toLowerCase();
+      const statusDot = scope.kind === "shift" && status
+        ? `<span class="ya-result-scope-tab__status" aria-hidden="true"></span>`
+        : "";
+      return `<button
+        id="yearly-result-scope-tab-${index}"
+        type="button"
+        role="tab"
+        class="ya-result-scope-tab${isActive ? " active" : ""}"
+        data-action="select-yearly-result-scope"
+        data-scope-key="${textContent(scope.key)}"
+        data-status="${textContent(status)}"
+        aria-selected="${isActive ? "true" : "false"}"
+        aria-controls="yearly-result-scope-content"
+        tabindex="${isActive ? "0" : "-1"}"
+        title="${textContent(scope.label)}"
+      >${textContent(scope.label)}${statusDot}</button>`;
+    }).join("");
+    const activeIndex = resultScopes.findIndex((scope) => scope.key === activeScopeKey);
+    if (resultScopeContentEl && activeIndex >= 0) {
+      resultScopeContentEl.setAttribute(
+        "aria-labelledby",
+        `yearly-result-scope-tab-${activeIndex}`,
+      );
     }
   };
 
+  renderResultScopeTabs();
+
   /* ── Download handler (captures live state) ──────────────── */
   const handleDownload = () => {
+    const exportCostState = {
+      ...costState,
+      costsData: generalCostsData ?? costState.costsData,
+      error: generalCostsError,
+      status: generalCostsData ? "done" : costState.status,
+    };
     const payload = buildExportPayload(
       features,
-      effState,
-      costState,
-      getDisplayedEmissionsState(),
+      buildEfficiencyState(features),
+      exportCostState,
+      getGeneralDisplayedEmissionsState(),
       busModelData,
       analysisId,
     );
@@ -4099,7 +4604,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       detailContent.scenarios.innerHTML = renderScenarioTable(effState.enriched);
     }
     if (detailContent.battery) {
-      detailContent.battery.innerHTML = renderBatterySizing(features, analysis.optimization_run_id);
+      detailContent.battery.innerHTML = renderBatterySizing(activeFeatures, analysis.optimization_run_id);
     }
     if (detailContent.yearlySummary) {
       detailContent.yearlySummary.innerHTML = renderYearlySummary(effState.summary);
@@ -4159,8 +4664,11 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   /* ── Cost computation with slider overrides ────────────── */
   const computeCosts = () => {
+    costState.costsData = null;
+    costState.error = null;
+    costState.status = "loading";
     try {
-      const result = computeYearlyCosts(features, busModelData, costOverrides);
+      const result = computeYearlyCosts(activeFeatures, busModelData, costOverrides);
       if (!result) {
         costState.status = "error";
         costState.error = t("yearly_analysis.insufficient_cost_data");
@@ -4175,7 +4683,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   };
 
   const refreshCosts = () => {
-    if (backendCostsRaw) {
+    costState.error = null;
+    if (activeScope?.kind === "general" && backendCostsRaw) {
       try {
         const yearlyDistKm = toFiniteNumber(yearlyTotals.distanceKm);
         const yearlyEngKwh = toFiniteNumber(yearlyTotals.totalEnergyKwh);
@@ -4192,19 +4701,23 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     } else {
       computeCosts();
     }
+    if (activeScope?.kind === "general") {
+      generalCostsData = costState.costsData;
+      generalCostsError = costState.error;
+    }
     if (costState.costsData) {
       refreshCostsPanelElements(section, costState.costsData);
     }
-    if (renderedTabs.has("overview")) {
-      renderOverviewPanel(
-        overviewPanel,
-        features,
-        effState,
-        costState,
-        getDisplayedEmissionsState(),
-        busModelData,
-      );
-    }
+    renderOverviewPanel(
+      overviewPanel,
+      activeFeatures,
+      effState,
+      costState,
+      getDisplayedEmissionsState(),
+      busModelData,
+      activeScope,
+      features,
+    );
   };
 
   let costRefreshTimer = null;
@@ -4217,8 +4730,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     resolveYearlyDistanceKm(
       null,
       yearlyTotals.distanceKm,
-      emissionsState.yearlyDistanceKm,
-      emissionsState.yearlyImpact?.yearly_distance_km,
+      getDisplayedEmissionsState({ applyDistanceOverride: false })?.yearlyDistanceKm,
+      getDisplayedEmissionsState({ applyDistanceOverride: false })?.yearlyImpact?.yearly_distance_km,
     );
 
   const getSelectedEmissionsYearlyDistanceKm = () =>
@@ -4227,47 +4740,91 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       getBaseEmissionsYearlyDistanceKm(),
     );
 
-  const getDisplayedEmissionsState = () => emissionsState.rawLca ? emissionsState :
-    deriveCompleteScaledEmissionsState(
-      emissionsState,
-      getBaseEmissionsYearlyDistanceKm(),
-      getSelectedEmissionsYearlyDistanceKm(),
+  const getGeneralDisplayedEmissionsState = ({ applyDistanceOverride = true } = {}) =>
+    emissionsState.rawLca || !applyDistanceOverride
+      ? emissionsState
+      : deriveCompleteScaledEmissionsState(
+          emissionsState,
+          resolveYearlyDistanceKm(
+            null,
+            features?.results?.yearlyTotals?.distanceKm,
+            emissionsState.yearlyDistanceKm,
+            emissionsState.yearlyImpact?.yearly_distance_km,
+          ),
+          resolveYearlyDistanceKm(
+            emissionsOverrides.yearlyDistanceKm,
+            features?.results?.yearlyTotals?.distanceKm,
+            emissionsState.yearlyDistanceKm,
+            emissionsState.yearlyImpact?.yearly_distance_km,
+          ),
+        );
+
+  const getDisplayedEmissionsState = ({ applyDistanceOverride = true } = {}) =>
+    buildScopedEmissionsState(
+      getGeneralDisplayedEmissionsState({ applyDistanceOverride }),
+      activeScope,
     );
 
-  /* ── Tab renderers (lazy) ────────────────────────────────── */
+  const renderScopeContextNotes = () => {
+    const costNote = section.querySelector('[data-role="ya-cost-scope-note"]');
+    const emissionsNote = section.querySelector('[data-role="ya-emissions-scope-note"]');
+    const isShift = activeScope?.kind === "shift";
+
+    if (costNote) {
+      costNote.hidden = !isShift && costState.status !== "error";
+      costNote.textContent = costState.status === "error"
+        ? costState.error || t("yearly_analysis.unable_compute_costs")
+        : translateOr(
+            "yearly_analysis.shift_cost_scope_note",
+            "These costs use this shift's annual energy and distance with the common bus configuration. They are a mission-level estimate and must not be summed across shifts to infer fleet investment costs.",
+          );
+    }
+    if (emissionsNote) {
+      emissionsNote.hidden = !isShift;
+      emissionsNote.textContent = translateOr(
+        "yearly_analysis.shift_emissions_scope_note",
+        "Shift impacts use the backend vehicle record for this shift. Electricity follows its energy use, diesel heating follows its fuel use, and the remaining lifecycle impacts follow its vehicle and distance assumptions.",
+      );
+    }
+  };
+
+  /* ── Scope section renderers ─────────────────────────────── */
   const TAB_RENDERERS = {
     overview: () => renderOverviewPanel(
       overviewPanel,
-      features,
+      activeFeatures,
       effState,
       costState,
       getDisplayedEmissionsState(),
       busModelData,
+      activeScope,
+      features,
     ),
     efficiency: () => renderEfficiency(),
     costs: () => {
-      if (costState.status === "error") return;
-      refreshCostsPanelElements(section, costState.costsData);
+      renderScopeContextNotes();
+      if (costState.status !== "error" && costState.costsData) {
+        refreshCostsPanelElements(section, costState.costsData);
+      }
     },
-    emissions: () => renderEmissionsPanel(emissionsContent, getDisplayedEmissionsState()),
+    emissions: () => {
+      renderScopeContextNotes();
+      renderEmissionsPanel(emissionsContent, getDisplayedEmissionsState());
+      syncEmissionsDistanceControl();
+    },
+  };
+
+  const refreshAllSections = () => {
+    TAB_RENDERERS.overview();
+    TAB_RENDERERS.efficiency();
+    TAB_RENDERERS.costs();
+    TAB_RENDERERS.emissions();
   };
 
   const refreshDerivedEmissionsViews = () => {
-    if (renderedTabs.has("emissions")) TAB_RENDERERS.emissions();
-    if (renderedTabs.has("overview")) TAB_RENDERERS.overview();
+    TAB_RENDERERS.emissions();
+    TAB_RENDERERS.overview();
   };
-
-  /* ── Tab click handler ───────────────────────────────────── */
-  const tabClickHandler = (e) => {
-    const tab = e.target.closest("[data-tab]");
-    if (!tab) return;
-    activateTab(tab.dataset.tab);
-  };
-  const tabBar = section.querySelector(".ya-tabs");
-  if (tabBar) {
-    tabBar.addEventListener("click", tabClickHandler);
-    cleanups.push(() => tabBar.removeEventListener("click", tabClickHandler));
-  }
 
   /* ── Back/close handler ──────────────────────────────────── */
   const backHandler = () => triggerPartialLoad("yearly-analysis-runs");
@@ -4362,12 +4919,14 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     const defaultDieselMaint = busLengthM != null ? getDieselMaintenanceCostForLength(busLengthM) : busDefaults.diesel_maintenance_chf_per_km.default;
     const defaultElecMaint = busLengthM != null ? getElectricMaintenanceCostForLength(busLengthM) : busDefaults.electric_maintenance_chf_per_km.default;
     const defaultDieselCapex = getEquivalentDieselBusCapexForLength(busLengthM) ?? 350000;
-    const defaultYearlyDistance =
-      toFiniteNumber(yearlyTotals.distanceKm) ?? toFiniteNumber(costState.costsData?.yearlyDistanceKm);
-
-    applyYaSliderRange(yearlyDistanceInput, buildYearlyDistanceSliderRange(defaultYearlyDistance));
-
     const syncAll = () => {
+      const defaultYearlyDistance =
+        toFiniteNumber(yearlyTotals.distanceKm) ??
+        toFiniteNumber(costState.costsData?.yearlyDistanceKm);
+      applyYaSliderRange(
+        yearlyDistanceInput,
+        buildYearlyDistanceSliderRange(defaultYearlyDistance),
+      );
       syncYaRangeInput(fuelInput, fuelValueEl, costOverrides.fuelCostPerL ?? defaultFuel, (v) => formatFixed(v, 2));
       syncYaRangeInput(energyInput, energyValueEl, costOverrides.energyPricePerKwh ?? defaultEnergy, (v) => formatFixed(v, 2));
       syncYaRangeInput(interestInput, interestValueEl, costOverrides.interestRate ?? defaultInterest, (v) => `${(v * 100).toFixed(1)}%`);
@@ -4378,6 +4937,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       syncYaRangeInput(yearlyDistanceInput, yearlyDistanceValueEl, costOverrides.yearlyDistanceKm ?? defaultYearlyDistance, (v) => formatInt(v));
     };
 
+    syncCostSliders = syncAll;
     syncAll();
 
     const onSlider = (input, valueEl, overrideKey, fmt) => {
@@ -4439,6 +4999,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
     const syncControl = () => {
       const baseYearlyDistanceKm = getBaseEmissionsYearlyDistanceKm();
+      const isShift = activeScope?.kind === "shift";
       applyYaSliderRange(
         yearlyDistanceInput,
         buildYearlyDistanceSliderRange(baseYearlyDistanceKm),
@@ -4449,10 +5010,10 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         getSelectedEmissionsYearlyDistanceKm(),
         (v) => formatInt(v),
       );
-      if (yearlyDistanceInput) yearlyDistanceInput.disabled = emissionsState.status !== "done";
-      if (yearlyDistanceReset) yearlyDistanceReset.disabled = emissionsState.status !== "done";
+      if (yearlyDistanceInput) yearlyDistanceInput.disabled = isShift || emissionsState.status !== "done";
+      if (yearlyDistanceReset) yearlyDistanceReset.disabled = isShift || emissionsState.status !== "done";
       if (controlsEl) {
-        controlsEl.hidden = emissionsState.status !== "done" || baseYearlyDistanceKm == null;
+        controlsEl.hidden = isShift || emissionsState.status !== "done" || baseYearlyDistanceKm == null;
       }
     };
 
@@ -4495,7 +5056,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     emissionsState.status = "loading";
     emissionsState.error = null;
     syncEmissionsDistanceControl();
-    refreshActiveTab();
+    refreshDerivedEmissionsViews();
     try {
       // Physical inputs and lifetimes are resolved per vehicle from backend snapshots.
       const backendEmissionsRaw = await fetchYearlyAnalysisLca(analysisId, {
@@ -4536,17 +5097,66 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     refreshDerivedEmissionsViews();
   };
 
-  const refreshActiveTab = () => {
-    const activePanel = section.querySelector(".ya-tab-panel.active");
-    const activeKey = activePanel?.dataset?.panel;
-    if (activeKey && renderedTabs.has(activeKey)) {
-      TAB_RENDERERS[activeKey]?.();
+  const activateResultScope = (requestedKey, { focus = false } = {}) => {
+    const nextScope = resolveYearlyResultScope(resultScopes, requestedKey);
+    if (!nextScope) return;
+    const focusScopeTab = () => {
+      const target = Array.from(
+        resultScopeTabsEl?.querySelectorAll('[data-scope-key]') ?? [],
+      ).find((button) => button.dataset.scopeKey === nextScope.key);
+      target?.focus();
+    };
+    if (nextScope.key === activeScopeKey) {
+      if (focus) focusScopeTab();
+      return;
+    }
+
+    const hadDistanceOverride =
+      costOverrides.yearlyDistanceKm != null ||
+      emissionsOverrides.yearlyDistanceKm != null;
+    activeScopeKey = nextScope.key;
+    activeScope = nextScope;
+    activeFeatures = buildScopedYearlyFeatures(features, activeScope);
+    scenarioResults = activeFeatures.results?.scenarioResults ?? [];
+    yearlyTotals = activeFeatures.results?.yearlyTotals ?? {};
+    costOverrides.yearlyDistanceKm = null;
+    emissionsOverrides.yearlyDistanceKm = null;
+
+    recomputeEfficiency(scenarioResults);
+    renderResultScopeTabs();
+    refreshCosts();
+    syncCostSliders();
+    syncEmissionsDistanceControl();
+    refreshAllSections();
+
+    if (focus) focusScopeTab();
+
+    if (hadDistanceOverride && emissionsState.status !== "idle") {
+      if (lcaRefreshTimer) clearTimeout(lcaRefreshTimer);
+      lcaRefreshTimer = null;
+      void loadEmissions();
     }
   };
 
-  /* ── Initial render and data loading ─────────────────────── */
-  activateTab("overview");
+  const resultScopeClickHandler = (event) => {
+    const button = event.target.closest('[data-action="select-yearly-result-scope"]');
+    if (!button || !resultScopeTabsEl?.contains(button)) return;
+    activateResultScope(button.dataset.scopeKey);
+  };
+  const resultScopeKeyHandler = (event) => {
+    const button = event.target.closest('[data-action="select-yearly-result-scope"]');
+    if (!button || !resultScopeTabsEl?.contains(button)) return;
+    const targetScope = resolveYearlyScopeKeyboardTarget(
+      resultScopes,
+      button.dataset.scopeKey,
+      event.key,
+    );
+    if (!targetScope) return;
+    event.preventDefault();
+    activateResultScope(targetScope.key, { focus: true });
+  };
 
+  /* ── Initial render and data loading ─────────────────────── */
   await loadDeps();
 
   /* Try backend yearly-analysis costs first; fall back to client-side */
@@ -4559,6 +5169,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       const mapped = mapBackendCostsToLocal(backendCostsRaw, yearlyDistKm, yearlyEngKwh, busModelData, { optimizedPacks: features.results?.optimizedPacks, overrides: {} });
       costState.costsData = mapped;
       costState.status = "done";
+      generalCostsData = mapped;
+      generalCostsError = null;
     } catch (err) {
       console.warn("[ya-results] Backend costs fetch failed, using client-side:", err);
       computeCosts();
@@ -4566,10 +5178,18 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   } else {
     computeCosts();
   }
+  generalCostsData = costState.costsData;
+  generalCostsError = costState.error;
 
   wireSliders();
-  const syncEmissionsDistanceControl = wireEmissionsDistanceSlider();
-  refreshActiveTab();
+  syncEmissionsDistanceControl = wireEmissionsDistanceSlider();
+  resultScopeTabsEl?.addEventListener("click", resultScopeClickHandler);
+  resultScopeTabsEl?.addEventListener("keydown", resultScopeKeyHandler);
+  if (resultScopeTabsEl) {
+    cleanups.push(() => resultScopeTabsEl.removeEventListener("click", resultScopeClickHandler));
+    cleanups.push(() => resultScopeTabsEl.removeEventListener("keydown", resultScopeKeyHandler));
+  }
+  refreshAllSections();
 
   /* Backfill quantiles from prediction runs (best-effort, async) */
   try {
@@ -4579,9 +5199,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     );
     if (anyNew) {
       recomputeEfficiency(backfilled);
-      renderYearlyDetails();
-      renderedTabs.delete("efficiency");
-      refreshActiveTab();
+      refreshAllSections();
     }
   } catch (e) {
     console.warn("[YA] Quantile backfill skipped:", e);

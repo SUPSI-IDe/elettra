@@ -246,23 +246,24 @@ test("yearly result tabs contain localized overflow on narrow screens", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 700 });
-  await mountSourceElement(page, yearlyAnalysisResultsHtml, ".ya-tabs", true);
+  await mountSourceElement(page, yearlyAnalysisResultsHtml, ".ya-result-scope-tabs", true);
 
   const translations = [
-    ["Overview", "Efficiency", "Costs", "Emissions"],
-    ["Überblick", "Effizienz", "Kosten", "Emissionen"],
-    ["Aperçu", "Efficacité", "Coûts", "Émissions"],
-    ["Riepilogo", "Efficienza", "Costi", "Emissioni"],
+    ["General", "Early morning service", "School service", "Evening service"],
+    ["Allgemein", "Frühmorgendlicher Dienst", "Schuldienst", "Abenddienst"],
+    ["Général", "Service du petit matin", "Service scolaire", "Service du soir"],
+    ["Generale", "Servizio primo mattino", "Servizio scolastico", "Servizio serale"],
   ];
 
   for (const labels of translations) {
-    await page.locator(".ya-tab").evaluateAll((tabs, values) => {
-      tabs.forEach((tab, index) => {
-        tab.textContent = values[index];
-      });
+    await page.locator(".ya-result-scope-tabs").evaluate((tabs, values) => {
+      tabs.hidden = false;
+      tabs.innerHTML = values.map((label, index) =>
+        `<button type="button" class="ya-result-scope-tab${index === 0 ? " active" : ""}">${label}</button>`,
+      ).join("");
     }, labels);
 
-    const metrics = await page.locator(".ya-tabs").evaluate((tabs) => ({
+    const metrics = await page.locator(".ya-result-scope-tabs").evaluate((tabs) => ({
       clientWidth: tabs.clientWidth,
       scrollWidth: tabs.scrollWidth,
       overflowX: getComputedStyle(tabs).overflowX,

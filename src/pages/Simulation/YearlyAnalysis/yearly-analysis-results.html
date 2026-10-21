@@ -3,6 +3,14 @@
     <div class="header-with-close">
       <div class="title-container">
         <h1 class="page-title" data-role="page-title" data-i18n="yearly_analysis.results_title">Yearly analysis results</h1>
+        <div
+          class="ya-result-scope-tabs"
+          data-role="ya-result-scope-tabs"
+          role="tablist"
+          aria-label="Yearly result scope"
+          data-i18n-aria-label="yearly_analysis.result_scope_selector"
+          hidden
+        ></div>
       </div>
       <button type="button" class="close-button" data-action="back" aria-label="Back" data-i18n-aria-label="common.back">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -30,21 +38,14 @@
       </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="ya-tabs" role="tablist">
-      <button class="ya-tab active" role="tab" aria-selected="true" data-tab="overview" data-i18n="simulation.tab_overview">Overview</button>
-      <button class="ya-tab" role="tab" aria-selected="false" data-tab="efficiency" data-i18n="simulation.tab_efficiency">Efficiency</button>
-      <button class="ya-tab" role="tab" aria-selected="false" data-tab="costs" data-i18n="simulation.tab_costs">Costs</button>
-      <button class="ya-tab" role="tab" aria-selected="false" data-tab="emissions" data-i18n="simulation.tab_emissions">Emissions</button>
-    </div>
-
-    <!-- Tab panels -->
-    <div class="ya-tab-panels">
-      <div class="ya-tab-panel active" data-panel="overview" role="tabpanel">
+    <div class="ya-tab-panels" id="yearly-result-scope-content" role="tabpanel" tabindex="0">
+      <section class="ya-tab-panel active" data-panel="overview">
+        <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_overview">Annual overview</h2>
         <div data-role="overview-panel"></div>
-      </div>
+      </section>
 
-      <div class="ya-tab-panel" data-panel="efficiency" role="tabpanel" hidden>
+      <section class="ya-tab-panel" data-panel="efficiency">
+        <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_efficiency">Annual efficiency</h2>
         <!-- D3 chart slots (appended to, not via innerHTML) -->
         <div class="ya-eff-charts-grid">
           <div class="ya-res-section ya-eff-chart-section">
@@ -79,9 +80,11 @@
             <div data-role="ya-detail-yearly-uncertainty"></div>
           </div>
         </details>
-      </div>
+      </section>
 
-      <div class="ya-tab-panel ya-costs-panel" data-panel="costs" role="tabpanel" hidden>
+      <section class="ya-tab-panel ya-costs-panel" data-panel="costs">
+        <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_costs">Annual costs</h2>
+        <p class="ya-scope-context-note" data-role="ya-cost-scope-note" hidden></p>
         <!-- Full-width cost assumptions -->
         <div class="ya-res-section ya-cost-variables ya-costs-inputs-section">
           <div class="ya-res-section-header">
@@ -189,9 +192,11 @@
             <div data-role="ya-costs-scenario-table"></div>
           </div>
         </details>
-      </div>
+      </section>
 
-      <div class="ya-tab-panel ya-env-panel" data-panel="emissions" role="tabpanel" hidden>
+      <section class="ya-tab-panel ya-env-panel" data-panel="emissions">
+        <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_emissions">Annual emissions</h2>
+        <p class="ya-scope-context-note" data-role="ya-emissions-scope-note" hidden></p>
         <div class="ya-env-content" data-role="emissions-content">
           <!-- Full-width annual distance control -->
           <div class="ya-res-section ya-cost-variables ya-env-controls" data-role="ya-env-controls" hidden>
@@ -243,7 +248,7 @@
             </div>
           </details>
         </div>
-      </div>
+      </section>
     </div>
 
     <div class="ya-results-actions">

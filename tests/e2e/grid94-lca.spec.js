@@ -155,13 +155,11 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
     document.body.innerHTML = html;
     await module.initializeYearlyAnalysisResults(document, {analysisId:"case"});
   }, html);
-  await page.locator('[data-tab="costs"]').click();
   const costsPanel = page.locator('[data-panel="costs"]');
   await expect(costsPanel).toContainText("Annual bus energy (DC kWh)");
   await expect(costsPanel).toContainText("Annual grid energy (kWh)");
   await expect(costsPanel).toContainText("Charging losses (kWh)");
   await expect(costsPanel).toContainText("from the grid");
-  await page.locator('[data-tab="emissions"]').click();
   const controls = page.locator('[data-role="ya-env-controls"]');
   await expect(controls).toBeVisible();
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("94%");
@@ -201,13 +199,10 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
   responseMode = "malformed";
   await slider.evaluate(el => { el.value="80000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("phases do not sum to total");
-  await page.locator('[data-tab="costs"]').click();
   await expect(page.locator('[data-panel="costs"]')).toContainText("CHF");
 
   responseMode = "incomplete";
-  await page.locator('[data-tab="emissions"]').click();
   await slider.evaluate(el => { el.value="70000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("Controlled timeout");
-  await page.locator('[data-tab="costs"]').click();
   await expect(page.locator('[data-panel="costs"]')).toContainText("CHF");
 });
