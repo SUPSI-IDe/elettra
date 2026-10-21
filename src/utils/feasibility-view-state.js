@@ -34,6 +34,30 @@ const nonNegativeInteger = (value) => {
   return normalized !== null && Number.isInteger(normalized) ? normalized : null;
 };
 
+const resolveShiftFeasibility = ({
+  physicalFeasible,
+  feasibilityStatus,
+  commonPackMargin,
+} = {}) => {
+  const normalizedStatus = text(feasibilityStatus)?.toLowerCase() ?? null;
+
+  if (
+    physicalFeasible === false ||
+    (commonPackMargin !== null && commonPackMargin < 0) ||
+    normalizedStatus === "infeasible"
+  ) {
+    return false;
+  }
+  if (
+    physicalFeasible === true ||
+    (commonPackMargin !== null && commonPackMargin >= 0) ||
+    normalizedStatus === "feasible"
+  ) {
+    return true;
+  }
+  return null;
+};
+
 const summarizeInfrastructure = (infrastructure) => {
   const stations = Array.isArray(infrastructure.stations)
     ? infrastructure.stations.filter(
@@ -87,6 +111,11 @@ const summarizeSelectedShift = (selectedShift, commonBattery) => {
       : commonPacks !== null && requiredPacks !== null
         ? commonPacks - requiredPacks
         : null;
+  const physicalFeasible =
+    typeof battery.physicalFeasible === "boolean"
+      ? battery.physicalFeasible
+      : null;
+  const feasibilityStatus = text(battery.feasibilityStatus);
 
   return {
     shiftId: selectedShift.shiftId,
@@ -97,11 +126,13 @@ const summarizeSelectedShift = (selectedShift, commonBattery) => {
       commonPackMargin,
       maxPhysicalPacks: nonNegativeNumber(battery.maxPhysicalPacks),
       excessPacks: nonNegativeNumber(battery.excessPacks),
-      physicalFeasible:
-        typeof battery.physicalFeasible === "boolean"
-          ? battery.physicalFeasible
-          : null,
-      feasibilityStatus: text(battery.feasibilityStatus),
+      physicalFeasible,
+      feasibilityStatus,
+      feasible: resolveShiftFeasibility({
+        physicalFeasible,
+        feasibilityStatus,
+        commonPackMargin,
+      }),
       isSizing: battery.isSizing === true,
     },
     operation: {

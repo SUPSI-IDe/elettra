@@ -1960,6 +1960,12 @@
   font-size: var(--font-size-md);
 }
 
+.feasibility-shift-visual-analysis > .efficiency-chart-empty {
+  border-radius: var(--radius-md);
+  background: var(--background-alt);
+  text-align: center;
+}
+
 .efficiency-adequacy-panel {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);

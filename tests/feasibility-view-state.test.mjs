@@ -277,6 +277,7 @@ test("the selected shift summary compares its requirement with the common fleet 
       excessPacks: 0,
       physicalFeasible: true,
       feasibilityStatus: "feasible",
+      feasible: true,
       isSizing: false,
     },
     operation: {
@@ -320,6 +321,7 @@ test("an infeasible shift preserves a negative common-battery margin", () => {
   assert.equal(detail.battery.commonPacks, 16);
   assert.equal(detail.battery.commonPackMargin, -2);
   assert.equal(detail.battery.physicalFeasible, false);
+  assert.equal(detail.battery.feasible, false);
   assert.equal(detail.operation.totalChargedKwh, null);
 });
 
@@ -346,11 +348,71 @@ test("historical shift results fall back to optimized packs and derive the margi
   assert.equal(detail.battery.commonPacks, 10);
   assert.equal(detail.battery.commonPackMargin, 3);
   assert.equal(detail.battery.physicalFeasible, null);
+  assert.equal(detail.battery.feasible, true);
   assert.equal(detail.operation.minSocKwh, null);
   assert.equal(detail.operation.maxSocKwh, null);
   assert.equal(detail.operation.totalChargedKwh, 0);
   assert.equal(detail.operation.numChargingSessions, 0);
   assert.equal(detail.operation.chargingPlan.status, "empty");
+});
+
+test("selected-shift feasibility is independent from the overall run status", () => {
+  const source = model();
+  source.electrificationFeasible = false;
+  source.shifts = [
+    {
+      shiftId: "covered",
+      battery: {
+        requiredPacks: 8,
+        commonPacks: 12,
+        commonPackMargin: 4,
+        physicalFeasible: true,
+        feasibilityStatus: "feasible",
+      },
+    },
+    {
+      shiftId: "shortfall",
+      battery: {
+        requiredPacks: 14,
+        commonPacks: 12,
+        commonPackMargin: -2,
+        physicalFeasible: false,
+        feasibilityStatus: "infeasible",
+      },
+    },
+  ];
+
+  assert.equal(
+    buildFeasibilityViewState(source, "covered").selectedShiftSummary.battery.feasible,
+    true,
+  );
+  assert.equal(
+    buildFeasibilityViewState(source, "shortfall").selectedShiftSummary.battery.feasible,
+    false,
+  );
+});
+
+test("selected-shift feasibility handles explicit status, margin, and unknown data", () => {
+  const cases = [
+    [{ feasibilityStatus: "feasible" }, true],
+    [{ feasibilityStatus: "INFEASIBLE" }, false],
+    [{ commonPackMargin: 0 }, true],
+    [{ commonPackMargin: -1 }, false],
+    [{ physicalFeasible: true, commonPackMargin: -1 }, false],
+    [{ physicalFeasible: false, commonPackMargin: 2 }, false],
+    [{ feasibilityStatus: "unverified" }, null],
+    [{ physicalFeasible: "true", commonPackMargin: "" }, null],
+  ];
+
+  for (const [battery, expected] of cases) {
+    const source = model();
+    source.fleet.battery.packs = null;
+    source.shifts = [{ shiftId: "case", battery }];
+    assert.equal(
+      buildFeasibilityViewState(source, "case").selectedShiftSummary.battery.feasible,
+      expected,
+    );
+  }
 });
 
 test("no selected shift produces no operational summary", () => {

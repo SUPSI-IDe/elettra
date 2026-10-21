@@ -5822,17 +5822,20 @@ const resolveSensitivityFeasibilityCardData = (
   ip,
   firstRun,
   viewOptions,
-  { optimizedCoverageMarker = null, adequacyScenario = null } = {}
+  {
+    optimizedCoverageMarker = null,
+    adequacyScenario = null,
+    selectedShiftFeasible = null,
+  } = {}
 ) => {
-  const feasibility = results?.electrification_feasible;
-  if (feasibility === null || feasibility === undefined) return null;
-
   const batteryResults = results?.battery_results ?? {};
   const batteryEntries = Object.entries(batteryResults).filter(
     ([shiftKey, result]) => matchesSelectedShift(result, shiftKey, viewOptions)
   );
-  const batteryEntry = batteryEntries[0]?.[1] ?? null;
-  if (!batteryEntry) return null;
+  const batteryEntry = batteryEntries[0]?.[1] ?? {};
+  const feasibility = typeof selectedShiftFeasible === "boolean"
+    ? selectedShiftFeasible
+    : null;
 
   const mode = ip?.mode ?? "";
   const optimizedPacks = toOptionalFiniteNumber(batteryEntry?.optimized_packs);
@@ -5925,16 +5928,29 @@ const resolveSensitivityFeasibilityCardData = (
 const buildSensitivityFeasibilityCardHtml = (data) => {
   if (!data) return "";
 
-  const isFeasible = data.feasibility !== false;
-  const feasBadgeClass = isFeasible ? "badge--positive" : "badge--negative";
-  const feasLabel = feasibilityScenarioLabel(isFeasible, {
-    quantile_consumption:
-      data.demandBasis === FEASIBILITY_DEMAND_BASIS.Q50
-        ? "median"
-        : data.demandBasis === FEASIBILITY_DEMAND_BASIS.MEAN
-          ? "mean"
-          : "configured",
-  });
+  const feasibilityState = data.feasibility === true
+    ? "feasible"
+    : data.feasibility === false
+      ? "infeasible"
+      : "unknown";
+  const feasBadgeClass = data.feasibility === true
+    ? "badge--positive"
+    : data.feasibility === false
+      ? "badge--negative"
+      : "badge--neutral";
+  const feasLabel = typeof data.feasibility === "boolean"
+    ? feasibilityScenarioLabel(data.feasibility, {
+        quantile_consumption:
+          data.demandBasis === FEASIBILITY_DEMAND_BASIS.Q50
+            ? "median"
+            : data.demandBasis === FEASIBILITY_DEMAND_BASIS.MEAN
+              ? "mean"
+              : "configured",
+      })
+    : translateOr(
+        "simulation.feasibility_status_unavailable",
+        "Feasibility status unavailable"
+      );
 
   const marginPresentation = resolveBatteryMarginPresentation({
     marginKwh: data.marginKwh,
@@ -6111,7 +6127,11 @@ const buildSensitivityFeasibilityCardHtml = (data) => {
     : "";
 
   return `
-  <div class="efficiency-sensitivity-card">
+  <div
+    class="efficiency-sensitivity-card"
+    data-role="feasibility-shift-sensitivity"
+    data-feasibility="${feasibilityState}"
+  >
     <div class="efficiency-sensitivity-card__header">
       <span class="efficiency-sensitivity-card__title">${textContent(translateOr("simulation.sensitivity_card_title", "Sensitivity / Feasibility Insight"))}</span>
       <span class="badge badge--compact ${feasBadgeClass}">${textContent(feasLabel)}</span>
@@ -6910,7 +6930,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         </div>`);
   }
 
-  if (consumptionOverviewData.length || optimizedCoverageMarker) {
+  if (consumptionOverviewData.length) {
     chartCards.unshift(`
         <div class="chart-section efficiency-chart-card">
           <div class="efficiency-chart-copy">
@@ -6944,15 +6964,20 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     chartCards.length === 2
       ? "efficiency-chart-grid efficiency-chart-grid--two"
       : "efficiency-chart-grid";
-  const chartsHtml = chartCards.length > 0
-    ? `
-    <div class="efficiency-section">
+  const chartsHtml = `
+    <section
+      class="efficiency-section feasibility-shift-visual-analysis"
+      data-role="feasibility-shift-visual-analysis"
+      data-status="${chartCards.length > 0 ? "available" : "unavailable"}"
+    >
       <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_graphical_analysis") || "Visual analysis")}</h3>
-      <div class="${chartGridClass}">
-        ${chartCards.join("")}
-      </div>
-    </div>`
-    : "";
+      ${chartCards.length > 0
+        ? `<div class="${chartGridClass}">${chartCards.join("")}</div>`
+        : `<p class="efficiency-chart-empty" data-role="feasibility-shift-visual-analysis-empty">${textContent(
+            t("simulation.efficiency_no_predictions") ||
+              "No prediction data available."
+          )}</p>`}
+    </section>`;
 
   const predictionTableHtml = isFeasible || predictionData.length > 0
     ? `
@@ -6989,6 +7014,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     resolveSensitivityFeasibilityCardData(results, ip, firstRun, viewOptions, {
       optimizedCoverageMarker,
       adequacyScenario,
+      selectedShiftFeasible:
+        feasibilityViewState?.selectedShiftSummary?.battery?.feasible ?? null,
     })
   );
 
@@ -7002,7 +7029,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       <div class="feasibility-level__content">
         ${buildShiftOperationalSummaryHtml(feasibilityViewState)}
         ${buildShiftChargingPlanHtml(feasibilityViewState)}
-        ${isFeasible ? chartsHtml : ""}
+        ${chartsHtml}
         ${sensitivityFeasibilityCardHtml}
         <details class="ya-more-information">
           <summary class="ya-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
