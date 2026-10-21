@@ -145,6 +145,23 @@ test("buildYearlyResultScopes keeps historical analyses on General only", () => 
   assert.equal(scopes[0].key, YEARLY_GENERAL_SCOPE_KEY);
 });
 
+test("buildYearlyResultScopes discovers legacy shifts from configuration and metadata", () => {
+  const legacy = {
+    status: "completed",
+    config: { shift_ids: ["morning", "evening", "morning", " "] },
+    meta: { shiftNames: ["Morning service", "Evening service"] },
+    results: { yearlyTotals: {} },
+  };
+  assert.deepEqual(
+    buildYearlyResultScopes(legacy).map(({ key, label, status }) => ({ key, label, status })),
+    [
+      { key: "general", label: "General", status: "completed" },
+      { key: "shift:morning", label: "Morning service", status: null },
+      { key: "shift:evening", label: "Evening service", status: null },
+    ],
+  );
+});
+
 test("buildYearlyResultScopes rejects blank and duplicate shift identifiers", () => {
   const copy = structuredClone(features);
   copy.results.shiftResults.push(
@@ -165,6 +182,17 @@ test("duplicate shift names remain distinguishable by their identifiers", () => 
   assert.deepEqual(
     buildYearlyResultScopes(copy).slice(1).map((scope) => scope.label),
     ["Same service (morning)", "Same service (evening)"],
+  );
+});
+
+test("duplicate legacy shift names remain distinguishable by their identifiers", () => {
+  const legacy = {
+    config: { shift_ids: ["first", "second"] },
+    meta: { shiftNames: ["Same service", "Same service"] },
+  };
+  assert.deepEqual(
+    buildYearlyResultScopes(legacy).slice(1).map((scope) => scope.label),
+    ["Same service (first)", "Same service (second)"],
   );
 });
 
@@ -211,6 +239,44 @@ test("an unavailable shift scope leaves historical data intact", () => {
     buildScopedYearlyFeatures(features, { kind: "shift", shiftId: "missing" }),
     features,
   );
+});
+
+test("a legacy single-shift scope safely reuses its exact aggregate", () => {
+  const legacy = {
+    status: "completed",
+    config: { shift_ids: ["only"] },
+    meta: { shiftNames: ["Only shift"] },
+    results: {
+      scenarioResults: [{ scenarioId: "cold", kpis: { totalEnergyKwh: 100 } }],
+      yearlyTotals: { totalEnergyKwh: 36500 },
+    },
+  };
+  const scoped = buildScopedYearlyFeatures(legacy, {
+    kind: "shift",
+    shiftId: "only",
+    shiftName: "Only shift",
+  });
+  assert.deepEqual(scoped.results.yearlyTotals, { totalEnergyKwh: 36500 });
+  assert.equal(scoped.results.scenarioResults[0].shiftId, "only");
+  assert.equal(scoped.results.status, "completed");
+});
+
+test("a legacy multi-shift scope never presents the aggregate as one shift", () => {
+  const legacy = {
+    config: { shift_ids: ["morning", "evening"] },
+    results: {
+      scenarioResults: [{ scenarioId: "aggregate" }],
+      yearlyTotals: { totalEnergyKwh: 99999 },
+    },
+  };
+  const scoped = buildScopedYearlyFeatures(legacy, {
+    kind: "shift",
+    shiftId: "morning",
+    shiftName: "Morning",
+  });
+  assert.deepEqual(scoped.results.scenarioResults, []);
+  assert.deepEqual(scoped.results.yearlyTotals, {});
+  assert.equal(scoped.results.status, "unavailable");
 });
 
 test("getFixedYearlyShift resolves normalized identifiers", () => {

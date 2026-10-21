@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   YEARLY_ANALYSIS_SCHEMA_VERSION,
   aggregatePredictionKpis,
+  backfillYearlyShiftResults,
   buildFixedYearlyConfiguration,
   buildYearlyAnalysisResults,
   buildYearlyScenarioOutcome,
@@ -538,6 +539,119 @@ test("retains legacy partial-total behavior only when strict completeness is not
     computeYearlyTotals(rows, { requireComplete: true }).totalEnergyKwh,
     null,
   );
+});
+
+test("keeps stored schema-v2 shift results unchanged", () => {
+  const stored = {
+    config: { shift_ids: ["morning"] },
+    results: { shiftResults: [{ shiftId: "morning" }] },
+  };
+  assert.equal(backfillYearlyShiftResults(stored, []), stored);
+});
+
+test("uses the exact saved aggregate for a historical single-shift analysis", () => {
+  const historical = {
+    status: "completed",
+    config: { shift_ids: ["single"] },
+    meta: { shiftNames: ["Single service"] },
+    results: {
+      yearlyTotals: { totalEnergyKwh: 36500, distanceKm: 18250 },
+      scenarioResults: [{
+        scenarioId: "cold",
+        label: "Cold",
+        temperature: -5,
+        occurrences: 365,
+        kpis: { totalEnergyKwh: 100, distanceKm: 50, energyPerKm: 2 },
+      }],
+    },
+  };
+  const before = structuredClone(historical);
+  const hydrated = backfillYearlyShiftResults(historical, []);
+
+  assert.deepEqual(historical, before);
+  assert.equal(hydrated.results.shiftResults.length, 1);
+  assert.equal(hydrated.results.shiftResults[0].shiftId, "single");
+  assert.equal(hydrated.results.shiftResults[0].shiftName, "Single service");
+  assert.equal(hydrated.results.shiftResults[0].status, "completed");
+  assert.deepEqual(
+    hydrated.results.shiftResults[0].yearlyTotals,
+    historical.results.yearlyTotals,
+  );
+});
+
+test("reconstructs historical multi-shift results by shift ID despite reversed run order", () => {
+  const historical = {
+    status: "completed",
+    config: { shift_ids: ["morning", "evening"] },
+    meta: { shiftNames: ["Morning", "Evening"] },
+    scenarios: [
+      { scenarioId: "cold", label: "Cold", temperature: -5, occurrences: 100 },
+      { scenarioId: "warm", label: "Warm", temperature: 20, occurrences: 265 },
+    ],
+    results: {
+      scenarioResults: [],
+      yearlyTotals: { totalEnergyKwh: 59750, distanceKm: 36500 },
+    },
+  };
+  const runs = [
+    { ...prediction({ id: "cold-evening", shiftId: "evening", energy: 80, distance: 40 }), external_temp_celsius: -5, status: "completed" },
+    { ...prediction({ id: "cold-morning", shiftId: "morning", energy: 120, distance: 60 }), external_temp_celsius: -5, status: "completed" },
+    { ...prediction({ id: "warm-evening", shiftId: "evening", energy: 60, distance: 40 }), external_temp_celsius: 20.0004, status: "completed" },
+    { ...prediction({ id: "warm-morning", shiftId: "morning", energy: 90, distance: 60 }), external_temp_celsius: 20, status: "completed" },
+  ];
+
+  const hydrated = backfillYearlyShiftResults(historical, runs);
+  const [morning, evening] = hydrated.results.shiftResults;
+
+  assert.deepEqual(historical.results.shiftResults, undefined);
+  assert.equal(morning.shiftId, "morning");
+  assert.equal(morning.status, "completed");
+  assert.equal(morning.scenarioResults[0].predRunId, "cold-morning");
+  assert.equal(morning.yearlyTotals.totalEnergyKwh, 120 * 100 + 90 * 265);
+  assert.equal(evening.shiftId, "evening");
+  assert.equal(evening.scenarioResults[0].predRunId, "cold-evening");
+  assert.equal(evening.yearlyTotals.totalEnergyKwh, 80 * 100 + 60 * 265);
+});
+
+test("marks only the affected historical shift partial when one prediction is missing", () => {
+  const historical = {
+    config: { shift_ids: ["morning", "evening"] },
+    meta: { shiftNames: ["Morning", "Evening"] },
+    scenarios: [
+      { scenarioId: "cold", temperature: -5, occurrences: 100 },
+      { scenarioId: "warm", temperature: 20, occurrences: 265 },
+    ],
+    results: {},
+  };
+  const runs = [
+    { ...prediction({ id: "cold-morning", shiftId: "morning", energy: 120, distance: 60 }), external_temp_celsius: -5 },
+    { ...prediction({ id: "cold-evening", shiftId: "evening", energy: 80, distance: 40 }), external_temp_celsius: -5 },
+    { ...prediction({ id: "warm-morning", shiftId: "morning", energy: 90, distance: 60 }), external_temp_celsius: 20 },
+  ];
+
+  const hydrated = backfillYearlyShiftResults(historical, runs);
+  assert.equal(hydrated.results.shiftResults[0].status, "completed");
+  assert.equal(hydrated.results.shiftResults[1].status, "partial");
+  assert.equal(hydrated.results.shiftResults[1].yearlyTotals.totalEnergyKwh, null);
+  assert.match(hydrated.results.shiftResults[1].scenarioResults[1].error, /No prediction result/);
+});
+
+test("treats failed historical prediction rows as unavailable data", () => {
+  const historical = {
+    config: { shift_ids: ["morning", "evening"] },
+    scenarios: [{ scenarioId: "cold", temperature: -5, occurrences: 365 }],
+    results: {},
+  };
+  const failed = {
+    ...prediction({ id: "failed", shiftId: "morning", energy: 100, distance: 50 }),
+    external_temp_celsius: -5,
+    status: "failed",
+  };
+  const hydrated = backfillYearlyShiftResults(historical, [failed]);
+
+  assert.equal(hydrated.results.shiftResults[0].status, "failed");
+  assert.equal(hydrated.results.shiftResults[1].status, "failed");
+  assert.match(hydrated.results.shiftResults[0].scenarioResults[0].error, /unavailable/);
 });
 
 test("strict yearly totals reject a missing KPI without discarding complete metrics", () => {

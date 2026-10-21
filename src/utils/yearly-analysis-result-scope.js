@@ -80,6 +80,26 @@ export const buildYearlyResultScopes = (
   const shiftResults = Array.isArray(features?.results?.shiftResults)
     ? features.results.shiftResults
     : [];
+  const shiftResultsById = new Map(
+    shiftResults
+      .map((shift) => [text(shift?.shiftId), shift])
+      .filter(([shiftId]) => shiftId),
+  );
+  const shiftIds = uniqueStrings([
+    ...(Array.isArray(features?.config?.shift_ids)
+      ? features.config.shift_ids
+      : []),
+    ...(Array.isArray(features?.config?.fixedConfiguration?.shiftIds)
+      ? features.config.fixedConfiguration.shiftIds
+      : []),
+    ...(Array.isArray(features?.config?.fixedConfiguration?.shifts)
+      ? features.config.fixedConfiguration.shifts.map((shift) => shift?.shiftId)
+      : []),
+    ...(Array.isArray(features?.meta?.shifts)
+      ? features.meta.shifts.map((shift) => shift?.shiftId)
+      : []),
+    ...shiftResults.map((shift) => shift?.shiftId),
+  ]).map(text);
   const seen = new Set();
   const scopes = [
     {
@@ -88,14 +108,14 @@ export const buildYearlyResultScopes = (
       label: text(generalLabel) || "General",
       shiftId: null,
       shiftName: null,
-      status: text(features?.results?.status) || null,
+      status: text(features?.results?.status ?? features?.status) || null,
     },
   ];
 
-  shiftResults.forEach((shift, index) => {
-    const shiftId = text(shift?.shiftId);
+  shiftIds.forEach((shiftId, index) => {
     if (!shiftId || seen.has(shiftId)) return;
     seen.add(shiftId);
+    const shift = shiftResultsById.get(shiftId) ?? { shiftId };
     const shiftName = resolveShiftLabel(
       shift,
       index,
@@ -176,7 +196,45 @@ export const buildScopedYearlyFeatures = (
     ? features.results.shiftResults
     : [])
     .find((candidate) => text(candidate?.shiftId) === shiftId);
-  if (!shift) return features;
+  if (!shift) {
+    const configuredShiftIds = uniqueStrings([
+      ...(Array.isArray(features?.config?.shift_ids)
+        ? features.config.shift_ids
+        : []),
+      ...(Array.isArray(features?.config?.fixedConfiguration?.shiftIds)
+        ? features.config.fixedConfiguration.shiftIds
+        : []),
+    ]).map(text);
+    if (!configuredShiftIds.includes(shiftId)) {
+      return features;
+    }
+    const shiftName = text(scope.shiftName) || shiftId;
+    const exactSingleShift = configuredShiftIds.length === 1;
+    return {
+      ...features,
+      config: { ...(features.config ?? {}), shift_ids: [shiftId] },
+      meta: {
+        ...(features.meta ?? {}),
+        shiftNames: [shiftName],
+        selectedShiftId: shiftId,
+        selectedShiftName: shiftName,
+      },
+      results: {
+        ...(features.results ?? {}),
+        scenarioResults: exactSingleShift && Array.isArray(features?.results?.scenarioResults)
+          ? features.results.scenarioResults.map((row) => ({ ...row, shiftId }))
+          : [],
+        yearlyTotals: exactSingleShift && isRecord(features?.results?.yearlyTotals)
+          ? { ...features.results.yearlyTotals }
+          : {},
+        status: exactSingleShift
+          ? text(features?.results?.status ?? features?.status) || null
+          : "unavailable",
+        selectedShiftId: shiftId,
+        selectedShiftName: shiftName,
+      },
+    };
+  }
 
   const fixedConfiguration = features?.config?.fixedConfiguration ?? {};
   const commonPacks =

@@ -95,6 +95,29 @@ const scenario = (id, label, energy, distance) => ({
   },
 });
 
+const predictionRun = ({ id, shiftId, temperature, energy, distance, status = "completed" }) => ({
+  id,
+  shift_id: shiftId,
+  bus_model_id: "bus-1",
+  external_temp_celsius: temperature,
+  status,
+  summary: {
+    total_consumption_kwh: energy,
+    total_drivetrain_kwh: energy * 0.75,
+    total_auxiliary_kwh: energy * 0.25,
+    total_distance_km: distance,
+    consumption_per_km_kwh: energy / distance,
+    drivetrain_per_km_kwh: energy * 0.75 / distance,
+    auxiliary_per_km_kwh: energy * 0.25 / distance,
+    quantiles: { q05: energy * 0.9, q50: energy, q95: energy * 1.1 },
+    consumption_per_km_kwh_quantiles: {
+      q05: energy * 0.9 / distance,
+      q50: energy / distance,
+      q95: energy * 1.1 / distance,
+    },
+  },
+});
+
 const multishiftAnalysis = {
   id: "case",
   name: "Two-shift annual analysis",
@@ -210,8 +233,9 @@ const multishiftAnalysis = {
   },
 };
 
-const mountResults = async (page, analysis) => {
-  const lca = analysis.features?.results?.shiftResults
+const mountResults = async (page, analysis, { predictionRuns = [] } = {}) => {
+  const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
+  const lca = analysis.features?.results?.shiftResults || configuredShiftCount > 1
     ? multiShiftLca()
     : lcaFixture;
   await page.route("**/api/v1/**", async (route) => {
@@ -223,6 +247,8 @@ const mountResults = async (page, analysis) => {
       await route.fulfill({ status: 503, json: { detail: "Use deterministic local costs" } });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}`)) {
       await route.fulfill({ json: analysis });
+    } else if (path.endsWith("/simulation/prediction-runs/")) {
+      await route.fulfill({ json: predictionRuns });
     } else if (path.endsWith("/user/bus-models/bus-1")) {
       await route.fulfill({ json: {
         id: "bus-1",
@@ -303,7 +329,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   expect(overflow.bodyScrollWidth).toBe(overflow.bodyClientWidth);
 });
 
-test("historical yearly results remain available as a General-only view", async ({ page }) => {
+test("historical single-shift results expose General and the configured shift", async ({ page }) => {
   const legacy = {
     id: "legacy",
     name: "Historical annual analysis",
@@ -325,11 +351,77 @@ test("historical yearly results remain available as a General-only view", async 
     },
   };
   await mountResults(page, legacy);
-  await expect(page.getByRole("tab")).toHaveCount(1);
+  await expect(page.getByRole("tab")).toHaveCount(2);
+  await expect(page.getByRole("tab")).toHaveText(["General", "Legacy shift"]);
   await expect(page.getByRole("tab", { name: "General" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "Legacy shift" }).click();
+  await expect(page.getByRole("tab", { name: "Legacy shift" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Historical cold");
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Annual costs");
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Annual emissions");
+});
+
+test("historical multi-shift results are reconstructed by shift ID", async ({ page }) => {
+  const legacy = structuredClone(multishiftAnalysis);
+  legacy.id = "legacy-multi";
+  legacy.name = "Historical two-shift analysis";
+  delete legacy.features.config.fixedConfiguration;
+  legacy.features.scenarios = [{
+    scenarioId: "cold",
+    label: "Historical cold",
+    temperature: -5,
+    occurrences: 365,
+  }];
+  delete legacy.features.results.shiftResults;
+  legacy.features.results.scenarioResults = [
+    scenario("aggregate-cold", "Historical cold", 150, 100),
+  ];
+
+  const reversedRuns = [
+    predictionRun({ id: "evening-cold", shiftId: "evening", temperature: -5, energy: 50, distance: 40 }),
+    predictionRun({ id: "morning-cold", shiftId: "morning", temperature: -5, energy: 100, distance: 60 }),
+  ];
+  await mountResults(page, legacy, { predictionRuns: reversedRuns });
+
+  await expect(page.getByRole("tab")).toHaveText([
+    "General",
+    "Morning service",
+    "Evening service",
+  ]);
+  await page.getByRole("tab", { name: "Morning service" }).click();
+  const shiftReference = page.locator('[data-role="ya-shift-reference"]');
+  await expect(shiftReference).toContainText(/36['’,]500 kWh/);
+  await expect(shiftReference).toContainText(/21['’,]900 km/);
+
+  await page.getByRole("tab", { name: "Evening service" }).click();
+  await expect(shiftReference).toContainText(/18['’,]250 kWh/);
+  await expect(shiftReference).toContainText(/14['’,]600 km/);
+  await expect(shiftReference).not.toContainText(/36['’,]500 kWh/);
+});
+
+test("historical multi-shift tabs remain visible when one shift is incomplete", async ({ page }) => {
+  const legacy = structuredClone(multishiftAnalysis);
+  legacy.id = "legacy-partial";
+  delete legacy.features.config.fixedConfiguration;
+  legacy.features.scenarios = [{
+    scenarioId: "cold",
+    label: "Cold",
+    temperature: -5,
+    occurrences: 365,
+  }];
+  delete legacy.features.results.shiftResults;
+
+  await mountResults(page, legacy, {
+    predictionRuns: [
+      predictionRun({ id: "morning-only", shiftId: "morning", temperature: -5, energy: 100, distance: 60 }),
+    ],
+  });
+
+  await expect(page.getByRole("tab")).toHaveCount(3);
+  const eveningTab = page.getByRole("tab", { name: "Evening service" });
+  await expect(eveningTab).toHaveAttribute("data-status", "failed");
+  await eveningTab.click();
+  await expect(page.locator('[data-role="ya-shift-reference"]')).toContainText("Failed");
 });
 
 test("shift tab labels and reference locations keep backend HTML inert", async ({ page }) => {

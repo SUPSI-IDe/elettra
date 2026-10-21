@@ -84,6 +84,7 @@ import {
   resolveYearlyResultScope,
   resolveYearlyScopeKeyboardTarget,
 } from "../../../utils/yearly-analysis-result-scope";
+import { backfillYearlyShiftResults } from "../../../utils/yearly-analysis-model";
 
 /* ── Shared helpers ────────────────────────────────────────────── */
 
@@ -4445,7 +4446,19 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   if (pageTitleEl) pageTitleEl.textContent = t("yearly_analysis.results_title");
   if (analysisNameEl) analysisNameEl.textContent = analysisName || "—";
 
-  const features = analysis.features ?? {};
+  let analysisPredictionRuns = [];
+  try {
+    const response = await fetchPredictionRuns({ yearly_analysis_id: analysisId });
+    analysisPredictionRuns = Array.isArray(response)
+      ? response
+      : response?.items ?? response?.results ?? [];
+  } catch (error) {
+    console.warn("[ya-results] Prediction runs unavailable for shift reconstruction:", error);
+  }
+  const features = backfillYearlyShiftResults(
+    analysis.features ?? {},
+    analysisPredictionRuns,
+  );
   const resultScopes = buildYearlyResultScopes(features, {
     generalLabel: translateOr("yearly_analysis.scope_general", "General"),
     shiftFallback: translateOr("yearly_analysis.scope_shift", "Shift"),
@@ -4860,8 +4873,9 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     // The assessment must not silently follow bus specifications edited after
     // prediction. Apply common frozen values for this economic reference bus.
     try {
-      const runs = await fetchPredictionRuns({ yearly_analysis_id: analysisId });
-      const selected = runs.filter(r => !busModelId || String(r.bus_model_id) === busModelId);
+      const selected = analysisPredictionRuns.filter(
+        (r) => !busModelId || String(r.bus_model_id) === busModelId,
+      );
       const assumptions = features.assessment_assumptions ?? {};
       for (const [field, read] of [
         ["bus_length_m", cp => cp.bus_length_m],

@@ -640,3 +640,174 @@ export const buildYearlyAnalysisResults = ({
     status,
   };
 };
+
+const configuredYearlyShiftIds = (features = {}) =>
+  uniqueTexts([
+    ...(Array.isArray(features?.config?.shift_ids)
+      ? features.config.shift_ids
+      : []),
+    ...(Array.isArray(features?.config?.fixedConfiguration?.shiftIds)
+      ? features.config.fixedConfiguration.shiftIds
+      : []),
+    ...(Array.isArray(features?.config?.fixedConfiguration?.shifts)
+      ? features.config.fixedConfiguration.shifts.map((shift) => shift?.shiftId)
+      : []),
+    ...(Array.isArray(features?.meta?.shifts)
+      ? features.meta.shifts.map((shift) => shift?.shiftId)
+      : []),
+  ]);
+
+const yearlyShiftNamesById = (features, shiftIds) => {
+  const names = new Map();
+  const add = (shiftId, shiftName) => {
+    const id = text(shiftId);
+    const name = text(shiftName);
+    if (id && name && !names.has(id)) names.set(id, name);
+  };
+
+  for (const shift of Array.isArray(features?.config?.fixedConfiguration?.shifts)
+    ? features.config.fixedConfiguration.shifts
+    : []) {
+    add(shift?.shiftId, shift?.shiftName);
+  }
+  for (const shift of Array.isArray(features?.meta?.shifts)
+    ? features.meta.shifts
+    : []) {
+    add(shift?.shiftId, shift?.shiftName);
+  }
+  const legacyNames = Array.isArray(features?.meta?.shiftNames)
+    ? features.meta.shiftNames
+    : [];
+  shiftIds.forEach((shiftId, index) => add(shiftId, legacyNames[index]));
+  return names;
+};
+
+const predictionRunTemperature = (run = {}) =>
+  toFiniteNumber(
+    run.external_temp_celsius ??
+    run.contextual_parameters?.external_temp_celsius ??
+    run.input_params?.external_temp_celsius,
+  );
+
+const sameTemperature = (left, right) => {
+  const a = toFiniteNumber(left);
+  const b = toFiniteNumber(right);
+  return a !== null && b !== null && Math.abs(a - b) <= 0.001;
+};
+
+const statusForLegacyRows = (rows = []) => {
+  if (!rows.length) return "failed";
+  const completed = rows.filter((row) => !row?.error && row?.kpis).length;
+  if (completed === rows.length) return "completed";
+  return completed === 0 ? "failed" : "partial";
+};
+
+/**
+ * Reconstructs per-shift annual results for analyses saved before schema v2.
+ * The result is an in-memory view only: callers never need to patch the saved
+ * analysis or write compatibility data back to the database.
+ */
+export const backfillYearlyShiftResults = (
+  features = {},
+  predictionRuns = [],
+) => {
+  if (!isRecord(features)) return features;
+  const existing = features?.results?.shiftResults;
+  if (Array.isArray(existing) && existing.length > 0) return features;
+
+  const shiftIds = configuredYearlyShiftIds(features);
+  if (!shiftIds.length) return features;
+
+  const namesById = yearlyShiftNamesById(features, shiftIds);
+  const generalScenarioResults = Array.isArray(features?.results?.scenarioResults)
+    ? features.results.scenarioResults
+    : [];
+  const generalYearlyTotals = isRecord(features?.results?.yearlyTotals)
+    ? features.results.yearlyTotals
+    : {};
+
+  // With one physical shift, the historical aggregate is already the exact
+  // shift result. Prefer it over a reconstruction so temporary API failures do
+  // not hide otherwise valid saved data.
+  if (shiftIds.length === 1 && generalScenarioResults.length) {
+    const shiftId = shiftIds[0];
+    const scenarioResults = generalScenarioResults.map((row) => ({
+      ...row,
+      shiftId,
+    }));
+    const storedStatus = text(features?.results?.status ?? features?.status);
+    const shiftResults = [{
+      shiftId,
+      shiftName: namesById.get(shiftId) || shiftId,
+      status: storedStatus || statusForLegacyRows(scenarioResults),
+      nominalDailyDistanceKm:
+        toFiniteNumber(features?.results?.nominalDailyDistanceKm) ??
+        toFiniteNumber(scenarioResults[0]?.kpis?.distanceKm),
+      yearlyTotals: { ...generalYearlyTotals },
+      scenarioResults,
+    }];
+    return {
+      ...features,
+      results: { ...(features.results ?? {}), shiftResults },
+    };
+  }
+
+  const scenariosSource = Array.isArray(features?.scenarios) && features.scenarios.length
+    ? features.scenarios
+    : generalScenarioResults;
+  const scenarios = normalizeYearlyScenarios(scenariosSource);
+  const runs = Array.isArray(predictionRuns)
+    ? predictionRuns.filter((run) => run && typeof run === "object")
+    : [];
+  const outcomes = scenarios.map((scenario) => {
+    const matchingRuns = runs.filter((run) =>
+      sameTemperature(predictionRunTemperature(run), scenario.temperature),
+    );
+    const usableRuns = matchingRuns.filter((run) =>
+      isRecord(run?.summary) &&
+      !["failed", "cancelled", "canceled"].includes(text(run?.status).toLowerCase()),
+    );
+    return buildYearlyScenarioOutcome({
+      scenario,
+      shiftIds,
+      predictionRuns: usableRuns,
+      failure: usableRuns.length
+        ? null
+        : `Prediction results are unavailable for scenario ${scenario.scenarioId}.`,
+    });
+  });
+  const nominalDailyDistanceKmByShiftId = Object.fromEntries(
+    shiftIds.map((shiftId) => {
+      const matchingRun = runs.find((run) =>
+        resolvePredictionRunShiftIds(run).includes(shiftId) &&
+        isRecord(run?.summary) &&
+        toFiniteNumber(run?.summary?.total_distance_km) !== null,
+      );
+      return [shiftId, toFiniteNumber(matchingRun?.summary?.total_distance_km)];
+    }),
+  );
+  const fixedConfiguration = {
+    ...(isRecord(features?.config?.fixedConfiguration)
+      ? features.config.fixedConfiguration
+      : {}),
+    shiftIds,
+    shifts: shiftIds.map((shiftId) => ({
+      shiftId,
+      shiftName: namesById.get(shiftId) || shiftId,
+    })),
+  };
+  const reconstructed = buildYearlyAnalysisResults({
+    scenarios,
+    outcomes,
+    fixedConfiguration,
+    nominalDailyDistanceKmByShiftId,
+  });
+
+  return {
+    ...features,
+    results: {
+      ...(features.results ?? {}),
+      shiftResults: reconstructed.shiftResults,
+    },
+  };
+};
