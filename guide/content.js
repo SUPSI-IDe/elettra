@@ -1,5 +1,5 @@
-export const GUIDE_BASELINE_VERSION = "0.1.9";
-export const GUIDE_UPDATED_AT = "17 September 2026";
+export const GUIDE_BASELINE_VERSION = "0.4.0";
+export const GUIDE_UPDATED_AT = "22 October 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -52,37 +52,37 @@ const GUIDE_FIGURES = {
   feasibilityEfficiency: {
     src: feasibilityEfficiencyImage,
     captions: {
-      en: "Efficiency view comparing consumption quantiles, battery-covered energy and drivetrain and auxiliary demand across pack scenarios.",
-      de: "Effizienzansicht zum Vergleich von Verbrauchsquantilen, batterieabgedeckter Energie sowie Antriebs- und Nebenverbrauch für verschiedene Packszenarien.",
-      fr: "Vue Efficacité comparant les quantiles de consommation, l’énergie couverte par la batterie et les demandes de traction et auxiliaire selon les scénarios de packs.",
-      it: "Vista Efficienza con il confronto tra quantili di consumo, energia coperta dalla batteria e domanda di trazione e ausiliaria nei diversi scenari di pacchi.",
+      en: "General feasibility tab with the common battery configuration, shared charging infrastructure and the tabs for each assessed shift.",
+      de: "Allgemeine Machbarkeitsregisterkarte mit gemeinsamer Batteriekonfiguration, gemeinsam genutzter Ladeinfrastruktur und den Registern der bewerteten Dienste.",
+      fr: "Onglet Général de la faisabilité avec la batterie commune, l’infrastructure de recharge partagée et les onglets des services évalués.",
+      it: "Scheda Generale della fattibilità con configurazione comune della batteria, infrastruttura di ricarica condivisa e schede dei turni valutati.",
     },
   },
   feasibilitySizing: {
     src: feasibilitySizingImage,
     captions: {
-      en: "Feasibility insight and battery-sizing detail, including the verdict, assumptions and required versus physical pack limits.",
-      de: "Machbarkeitshinweis und Batteriedimensionierung mit Urteil, Annahmen und Vergleich der erforderlichen Packs mit der physischen Grenze.",
-      fr: "Synthèse de faisabilité et détail du dimensionnement de la batterie, avec verdict, hypothèses et comparaison des packs requis à la limite physique.",
-      it: "Sintesi della fattibilità e dettaglio del dimensionamento della batteria, con verdetto, ipotesi e confronto tra pacchi richiesti e limite fisico.",
+      en: "A shift tab with its operational summary and visual energy analysis against the common fleet battery and planned charging.",
+      de: "Registerkarte eines Dienstes mit Betriebsübersicht und visueller Energieanalyse gegenüber der gemeinsamen Flottenbatterie und dem geplanten Laden.",
+      fr: "Onglet d’un service avec son résumé opérationnel et son analyse énergétique visuelle par rapport à la batterie commune et à la recharge planifiée.",
+      it: "Scheda di un turno con riepilogo operativo e analisi energetica visiva rispetto alla batteria comune e alla ricarica pianificata.",
     },
   },
   yearlyEfficiency: {
     src: yearlyEfficiencyImage,
     captions: {
-      en: "Yearly Efficiency view with temperature-dependent consumption and occurrence-weighted annual energy contributions.",
-      de: "Jährliche Effizienzansicht mit temperaturabhängigem Verbrauch und nach Häufigkeit gewichteten jährlichen Energiebeiträgen.",
-      fr: "Vue Efficacité annuelle avec consommation dépendant de la température et contributions énergétiques annuelles pondérées par occurrence.",
-      it: "Vista Efficienza annuale con consumo dipendente dalla temperatura e contributi energetici annuali ponderati per occorrenza.",
+      en: "General yearly-analysis tab with the inherited common configuration, shared infrastructure and investment context, followed by one tab per shift.",
+      de: "Allgemeine Registerkarte der Jahresanalyse mit übernommener gemeinsamer Konfiguration, geteilter Infrastruktur und Investitionskontext sowie je einer Registerkarte pro Dienst.",
+      fr: "Onglet Général de l’analyse annuelle avec la configuration commune héritée, l’infrastructure et le contexte d’investissement partagés, puis un onglet par service.",
+      it: "Scheda Generale dell’analisi annuale con configurazione comune ereditata, infrastruttura e contesto degli investimenti condivisi, seguita da una scheda per turno.",
     },
   },
   yearlyEmissions: {
     src: yearlyEmissionsImage,
     captions: {
-      en: "Yearly Emissions view comparing annual pollutant savings and lifecycle CO₂-equivalent contributions.",
-      de: "Jährliche Emissionsansicht zum Vergleich der Schadstoffeinsparungen und der Lebenszyklusbeiträge in CO₂-Äquivalenten.",
-      fr: "Vue Émissions annuelles comparant les réductions de polluants et les contributions au cycle de vie en équivalent CO₂.",
-      it: "Vista Emissioni annuali con il confronto dei risparmi di inquinanti e dei contributi del ciclo di vita in CO₂ equivalente.",
+      en: "A yearly shift tab where Efficiency, Costs and Emissions come first, followed by the compact annual energy, distance and efficiency summary; Emissions is selected here.",
+      de: "Registerkarte eines Jahresdienstes, in der Effizienz, Kosten und Emissionen zuerst erscheinen, gefolgt von der kompakten Übersicht zu Jahresenergie, Distanz und Effizienz; hier ist Emissionen ausgewählt.",
+      fr: "Onglet annuel d’un service où Efficacité, Coûts et Émissions apparaissent en premier, suivis du résumé compact de l’énergie, de la distance et de l’efficacité annuelles; Émissions est sélectionné ici.",
+      it: "Scheda annuale di un turno in cui Efficienza, Costi ed Emissioni compaiono per prime, seguite dal riepilogo compatto di energia, distanza ed efficienza annuali; qui è selezionata Emissioni.",
     },
   },
 };
@@ -269,23 +269,27 @@ export const guideContent = {
         id: "results",
         title: "6. Interpreting feasibility results",
         intro:
-          "Treat the result as a decision gate supported by energy and charging evidence.",
+          "Use the General tab for the common fleet design, then open each shift tab to verify that the same design works on every selected shift.",
         items: [
           {
-            title: "Feasibility verdict",
-            text: "Feasible — mean-based demand scenario means that the analysed configuration satisfies the implemented energy, state-of-charge, timing and charging constraints using mean demand. Q05, Q50 and Q95 remain comparison scenarios for understanding uncertainty. Infeasible means that one or more assumptions or design choices must be revised.",
+            title: "Start with General",
+            text: "General shows the one bus configuration used by every selected shift. The common battery is sized for the highest shift requirement, while the charging infrastructure is shared. Fixed and optimised labels reflect the selected Battery only, Charging or Joint mode.",
           },
           {
-            title: "Energy and uncertainty",
-            text: "Compare prediction quantiles, drivetrain and auxiliary demand, and usable battery energy. A wider prediction range indicates greater uncertainty in the expected trip demand.",
+            title: "Check every shift tab",
+            text: "Each shift tab compares that shift’s battery requirement with the common battery and reports its margin, physical pack limit, minimum and maximum state of charge, charged energy and number of sessions. The common design is suitable only when it covers every shift.",
           },
           {
-            title: "Battery and charging",
-            text: "Review optimised and maximum physical pack counts, minimum and maximum state of charge, charged energy, charging sessions and station use where available.",
+            title: "Read visual analysis and energy adequacy together",
+            text: "The feasibility decision uses mean demand and includes the energy delivered by the planned charging sessions. Compare Q05, mean, Q50 and Q95 with the operational energy available; Q05–Q95 are sensitivity scenarios rather than exceedance probabilities.",
           },
           {
-            title: "Iterate",
-            text: "Duplicate or create a new evaluation to test another vehicle, service, state-of-charge window, temperature, occupancy or charging configuration. Keep each case under a distinct name.",
+            title: "Inspect the charging plan",
+            text: "For Charging and Joint evaluations, verify where and when each session occurs, its duration, delivered energy and average power. Battery-only evaluations can show a fixed or absent charging plan instead of an optimised one.",
+          },
+          {
+            title: "Open More information when needed",
+            text: "Use More information for prediction details, operating assumptions and supporting values. If any shift fails, revise the vehicle, state-of-charge window, scenario or charging design and run a separately named evaluation.",
           },
         ],
         figures: getGuideFigures("en", "feasibilityEfficiency", "feasibilitySizing"),
@@ -294,7 +298,7 @@ export const guideContent = {
         id: "yearly",
         title: "7. Yearly analysis",
         intro:
-          "A yearly analysis keeps the feasible technical design fixed and evaluates it across representative annual temperature conditions.",
+          "A yearly analysis keeps one feasible bus and charging design fixed, then reports the common configuration in General and annual operation separately for every available shift.",
         ordered: true,
         items: [
           {
@@ -302,20 +306,32 @@ export const guideContent = {
             text: "Open Simulations → Yearly analyses, create a new analysis and select the completed feasibility evaluation that defines the vehicle, shifts, battery and charging design.",
           },
           {
-            title: "Review the inherited configuration",
-            text: "Check the selected evaluation, operating assumptions, representative temperatures and their occurrences before starting the calculation.",
+            title: "Review the inherited inputs",
+            text: "Check the selected evaluation, operating assumptions, representative temperatures and their occurrences before starting. Temperature scenarios change consumption estimates; they do not resize the battery, change the charging infrastructure or repeat the feasibility decision.",
           },
           {
-            title: "Read Overview and Efficiency",
-            text: "Use the headline annual indicators, temperature-dependent consumption, uncertainty intervals and occurrence-weighted energy contributions to understand yearly operation.",
+            title: "Start with General",
+            text: "General shows the inherited bus, operating assumptions, common battery, shared charging infrastructure and shared investment context once for the whole analysis. These common assets are not duplicated for every shift.",
           },
           {
-            title: "Review Costs and Emissions",
-            text: "Inspect the economic and environmental tabs, their editable assumptions and methodology information. Missing inputs and incomplete assessment boundaries are reported rather than silently treated as zero.",
+            title: "Select a shift",
+            text: "Each shift shows Efficiency, Costs and Emissions immediately below the General / shift selector, followed by one compact row for yearly energy, simulated distance and average efficiency. Shared configuration and feasibility details remain in their dedicated General and feasibility views.",
           },
           {
-            title: "Inspect or download the configuration",
-            text: "Use View configuration data to verify provenance and Download all results to save the complete JSON result.",
+            title: "Use Efficiency, Costs and Emissions",
+            text: "Within a shift, Efficiency covers temperature-dependent consumption, uncertainty and occurrence-weighted energy; Costs covers that shift’s operating costs and its analytical share of shared capital; Emissions covers that shift’s annual energy boundary and lifecycle impacts.",
+          },
+          {
+            title: "Interpret shift costs in their stated scope",
+            text: "Shared infrastructure, vehicle and battery investments remain counted once in General. Their shift-level CAPEX values are analytical allocations based on the shift’s share of annual DC energy shown in Emissions; operating costs use the shift’s own energy and distance.",
+          },
+          {
+            title: "Inspect the configuration and export from General",
+            text: "Use View configuration data in the page header to verify the saved inputs and provenance. Download all results is available only in General and saves General plus a separate entry for every available shift.",
+          },
+          {
+            title: "Recognise aggregate-only historical results",
+            text: "An older analysis that contains no per-shift breakdown can show General only. ELETTRA leaves unavailable shift details absent instead of inventing them from aggregate totals.",
           },
         ],
         figures: getGuideFigures("en", "yearlyEfficiency", "yearlyEmissions"),
@@ -340,7 +356,7 @@ export const guideContent = {
           },
           {
             title: "Export evidence",
-            text: "Use the Details / Export area to export comparison data as CSV or JSON. Yearly result pages also provide the complete analysis result as JSON.",
+            text: "Use the Details / Export area to export comparison data as CSV or JSON.",
           },
         ],
         note: {
@@ -484,26 +500,30 @@ export const guideContent = {
       {
         id: "results",
         title: "6. Machbarkeitsergebnisse interpretieren",
-        intro: "Behandeln Sie das Ergebnis als Entscheidungspunkt, der durch Energie- und Ladeinformationen gestützt wird.",
+        intro: "Verwenden Sie Allgemein für die gemeinsame Flottenauslegung und öffnen Sie danach jeden Dienst, um zu prüfen, dass dieselbe Auslegung alle ausgewählten Dienste abdeckt.",
         items: [
-          { title: "Machbarkeitsurteil", text: "Machbar — mittelwertbasiertes Bedarfsszenario bedeutet, dass die analysierte Konfiguration die implementierten Energie-, Ladezustands-, Zeit- und Ladebedingungen mit dem Mittelwertbedarf erfüllt. Q05, Q50 und Q95 bleiben Vergleichsszenarien zur Einordnung der Unsicherheit. Nicht machbar bedeutet, dass Annahmen oder Designentscheidungen geändert werden müssen." },
-          { title: "Energie und Unsicherheit", text: "Vergleichen Sie Prognosequantile, Antriebs- und Nebenverbrauch sowie nutzbare Batterieenergie. Eine breitere Prognosespanne weist auf eine grössere Unsicherheit hin." },
-          { title: "Batterie und Laden", text: "Prüfen Sie optimierte und maximal physische Packzahl, minimalen und maximalen Ladezustand, geladene Energie, Ladevorgänge und Stationsnutzung, sofern verfügbar." },
-          { title: "Iterieren", text: "Duplizieren oder erstellen Sie Bewertungen für andere Fahrzeuge, Dienste, Ladezustandsfenster, Temperaturen, Belegungen oder Ladekonfigurationen. Verwenden Sie eindeutige Namen." },
+          { title: "Mit Allgemein beginnen", text: "Allgemein zeigt die eine Buskonfiguration für alle ausgewählten Dienste. Die gemeinsame Batterie richtet sich nach dem höchsten Dienstbedarf, die Ladeinfrastruktur wird geteilt. Die Kennzeichnungen Fest und Optimiert folgen dem Modus Nur Batterie, Laden oder Gemeinsam." },
+          { title: "Jeden Dienst prüfen", text: "Jede Dienstregisterkarte vergleicht ihren Batteriebedarf mit der gemeinsamen Batterie und zeigt Reserve, physische Packgrenze, minimalen und maximalen Ladezustand, geladene Energie und Anzahl Ladevorgänge. Die gemeinsame Auslegung ist nur geeignet, wenn sie jeden Dienst abdeckt." },
+          { title: "Visuelle Analyse und Energieeignung zusammen lesen", text: "Die Machbarkeitsentscheidung verwendet den Mittelwertbedarf und berücksichtigt die Energie der geplanten Ladevorgänge. Vergleichen Sie Q05, Mittelwert, Q50 und Q95 mit der verfügbaren Betriebsenergie; Q05–Q95 sind Sensitivitätsszenarien und keine Überschreitungswahrscheinlichkeiten." },
+          { title: "Ladeplan prüfen", text: "Prüfen Sie bei Laden und Gemeinsam Ort und Zeit jedes Ladevorgangs sowie Dauer, geladene Energie und mittlere Leistung. Bei Nur Batterie kann statt eines optimierten Plans ein fester oder kein Ladeplan erscheinen." },
+          { title: "Bei Bedarf Weitere Informationen öffnen", text: "Dort finden Sie Prognosedetails, Betriebsannahmen und unterstützende Werte. Wenn ein Dienst nicht abgedeckt ist, ändern Sie Fahrzeug, Ladezustandsfenster, Szenario oder Ladeauslegung und führen Sie eine separat benannte Bewertung aus." },
         ],
         figures: getGuideFigures("de", "feasibilityEfficiency", "feasibilitySizing"),
       },
       {
         id: "yearly",
         title: "7. Jahresanalyse",
-        intro: "Die Jahresanalyse hält das machbare technische Design fest und bewertet es unter repräsentativen Jahrestemperaturen.",
+        intro: "Die Jahresanalyse hält eine machbare Bus- und Ladeauslegung fest, zeigt die gemeinsame Konfiguration unter Allgemein und den Jahresbetrieb getrennt für jeden verfügbaren Dienst.",
         ordered: true,
         items: [
           { title: "Analyse aus einer geeigneten Bewertung erstellen", text: "Öffnen Sie Simulationen → Jahresanalysen, erstellen Sie eine Analyse und wählen Sie die abgeschlossene Machbarkeitsbewertung, die Fahrzeug, Dienste, Batterie und Laden festlegt." },
-          { title: "Übernommene Konfiguration prüfen", text: "Prüfen Sie Bewertung, Betriebsannahmen, repräsentative Temperaturen und deren Häufigkeiten vor dem Start." },
-          { title: "Übersicht und Effizienz lesen", text: "Nutzen Sie Jahreskennzahlen, temperaturabhängigen Verbrauch, Unsicherheitsintervalle und gewichtete Energiebeiträge zur Beurteilung des Jahresbetriebs." },
-          { title: "Kosten und Emissionen prüfen", text: "Prüfen Sie Wirtschafts- und Umweltregister, veränderbare Annahmen und Methodeninformationen. Fehlende Eingaben und unvollständige Grenzen werden ausgewiesen und nicht als null behandelt." },
-          { title: "Konfiguration prüfen oder herunterladen", text: "Mit Konfigurationsdaten anzeigen prüfen Sie die Herkunft; mit Alle Ergebnisse herunterladen speichern Sie das vollständige JSON-Ergebnis." },
+          { title: "Übernommene Eingaben prüfen", text: "Prüfen Sie Bewertung, Betriebsannahmen, repräsentative Temperaturen und deren Häufigkeiten vor dem Start. Temperaturszenarien verändern Verbrauchsschätzungen; sie dimensionieren die Batterie nicht neu, ändern die Ladeinfrastruktur nicht und wiederholen die Machbarkeitsentscheidung nicht." },
+          { title: "Mit Allgemein beginnen", text: "Allgemein zeigt Bus, Betriebsannahmen, gemeinsame Batterie, geteilte Ladeinfrastruktur und den gemeinsamen Investitionskontext einmal für die gesamte Analyse. Diese gemeinsamen Anlagen werden nicht pro Dienst dupliziert." },
+          { title: "Einen Dienst auswählen", text: "Jeder Dienst zeigt Effizienz, Kosten und Emissionen direkt unter der Auswahl Allgemein / Dienst, gefolgt von einer kompakten Zeile mit Jahresenergie, simulierter Distanz und mittlerer Effizienz. Gemeinsame Konfiguration und Machbarkeitsdetails bleiben in den dafür vorgesehenen Ansichten Allgemein und Machbarkeit." },
+          { title: "Effizienz, Kosten und Emissionen verwenden", text: "Innerhalb eines Dienstes zeigt Effizienz temperaturabhängigen Verbrauch, Unsicherheit und häufigkeitsgewichtete Energie; Kosten zeigt Betriebskosten und den analytischen Anteil am gemeinsamen Kapital; Emissionen zeigt die jährliche Energiegrenze und Lebenszykluswirkungen dieses Dienstes." },
+          { title: "Dienstkosten im angegebenen Umfang interpretieren", text: "Investitionen in gemeinsame Infrastruktur, Fahrzeug und Batterie werden unter Allgemein einmal gezählt. Die CAPEX-Werte eines Dienstes sind analytische Zuweisungen nach seinem Anteil an der unter Emissionen gezeigten jährlichen DC-Energie; Betriebskosten verwenden seine eigene Energie und Distanz." },
+          { title: "Konfiguration prüfen und unter Allgemein exportieren", text: "Mit Konfigurationsdaten anzeigen im Seitenkopf prüfen Sie die gespeicherten Eingaben und ihre Herkunft. Alle Ergebnisse herunterladen ist nur unter Allgemein verfügbar und speichert Allgemein sowie einen eigenen Eintrag für jeden verfügbaren Dienst." },
+          { title: "Nur aggregierte historische Ergebnisse erkennen", text: "Eine ältere Analyse ohne Aufschlüsselung nach Diensten kann nur Allgemein anzeigen. ELETTRA lässt nicht verfügbare Dienstdetails weg, statt sie aus Gesamtsummen zu erfinden." },
         ],
         figures: getGuideFigures("de", "yearlyEfficiency", "yearlyEmissions"),
         note: { title: "Fahrzeug hier nicht neu dimensionieren", text: "Die Jahresanalyse beschreibt den Betrieb des an der Machbarkeitsschwelle gewählten Designs. Kehren Sie zur Machbarkeitsbewertung zurück, wenn Fahrzeug, Batterie oder Laden geändert werden sollen." },
@@ -515,7 +535,7 @@ export const guideContent = {
         items: [
           { title: "Zwei Jahresanalysen auswählen", text: "Öffnen Sie Simulationen → Analysenvergleich und wählen Sie Analyse A und B. Die Kompatibilitätsübersicht zeigt, ob ein direkter Vergleich möglich ist." },
           { title: "Konsistente Indikatoren vergleichen", text: "Prüfen Sie für beide Analysen Übersicht, Effizienz, Kosten und Emissionen. Bei unterschiedlichen Diensten oder Annahmen sind aggregierte Unterschiede vorsichtig zu interpretieren." },
-          { title: "Nachweise exportieren", text: "Im Bereich Details / Export können Vergleichsdaten als CSV oder JSON exportiert werden. Jahresergebnisse bieten zusätzlich das vollständige Ergebnis als JSON." },
+          { title: "Nachweise exportieren", text: "Im Bereich Details / Export können Vergleichsdaten als CSV oder JSON exportiert werden." },
         ],
         note: { title: "Szenarien eindeutig benennen", text: "Nehmen Sie den wichtigsten Unterschied in den Namen auf, beispielsweise Fahrzeug, Heizung, Belegung oder Ladestrategie." },
       },
@@ -628,26 +648,30 @@ export const guideContent = {
       {
         id: "results",
         title: "6. Interpréter les résultats de faisabilité",
-        intro: "Interprétez le résultat comme une décision technique étayée par des informations d’énergie et de recharge.",
+        intro: "Utilisez Général pour le dimensionnement commun, puis ouvrez chaque service afin de vérifier que le même dimensionnement couvre tous les services sélectionnés.",
         items: [
-          { title: "Verdict de faisabilité", text: "Faisable — scénario de demande basé sur la moyenne signifie que la configuration respecte les contraintes implémentées d’énergie, d’état de charge, de temps et de recharge avec la demande moyenne. Q05, Q50 et Q95 restent des scénarios de comparaison pour apprécier l’incertitude. Infaisable signifie qu’une hypothèse ou un choix de conception doit être revu." },
-          { title: "Énergie et incertitude", text: "Comparez les quantiles de prédiction, la demande de traction et auxiliaire et l’énergie utile de la batterie. Une plage plus large indique une incertitude plus élevée." },
-          { title: "Batterie et recharge", text: "Examinez les packs optimisés et la limite physique, les états de charge minimal et maximal, l’énergie chargée, les sessions et l’utilisation des stations lorsqu’ils sont disponibles." },
-          { title: "Itérer", text: "Dupliquez ou créez une évaluation pour tester un autre véhicule, service, état de charge, température, occupation ou dispositif de recharge. Donnez un nom distinct à chaque cas." },
+          { title: "Commencer par Général", text: "Général montre l’unique configuration de bus utilisée par tous les services sélectionnés. La batterie commune est dimensionnée sur le besoin maximal, tandis que l’infrastructure de recharge est partagée. Les mentions Fixe et Optimisé dépendent du mode Batterie uniquement, Recharge ou Conjoint." },
+          { title: "Vérifier chaque service", text: "Chaque onglet de service compare son besoin de batterie à la batterie commune et indique la marge, la limite physique de packs, les états de charge minimal et maximal, l’énergie chargée et le nombre de sessions. Le dimensionnement commun ne convient que s’il couvre chaque service." },
+          { title: "Lire ensemble l’analyse visuelle et l’adéquation énergétique", text: "La décision de faisabilité utilise la demande moyenne et inclut l’énergie fournie par les recharges planifiées. Comparez Q05, moyenne, Q50 et Q95 à l’énergie opérationnelle disponible; Q05–Q95 sont des scénarios de sensibilité, pas des probabilités de dépassement." },
+          { title: "Contrôler le plan de recharge", text: "Pour les modes Recharge et Conjoint, vérifiez le lieu et l’heure de chaque session, sa durée, l’énergie fournie et la puissance moyenne. Le mode Batterie uniquement peut présenter un plan fixe ou aucun plan au lieu d’un plan optimisé." },
+          { title: "Ouvrir Plus d’informations si nécessaire", text: "Cette zone contient les détails des prédictions, les hypothèses d’exploitation et les valeurs justificatives. Si un service échoue, modifiez le véhicule, la fenêtre d’état de charge, le scénario ou la recharge et lancez une évaluation portant un autre nom." },
         ],
         figures: getGuideFigures("fr", "feasibilityEfficiency", "feasibilitySizing"),
       },
       {
         id: "yearly",
         title: "7. Analyse annuelle",
-        intro: "L’analyse annuelle maintient fixe le design technique faisable et l’évalue pour des températures annuelles représentatives.",
+        intro: "L’analyse annuelle conserve un seul dimensionnement faisable du bus et de la recharge, puis présente la configuration commune dans Général et l’exploitation annuelle séparément pour chaque service disponible.",
         ordered: true,
         items: [
           { title: "Créer une analyse à partir d’une évaluation admissible", text: "Ouvrez Simulations → Analyses annuelles, créez une analyse et sélectionnez l’évaluation terminée qui définit le véhicule, les services, la batterie et la recharge." },
-          { title: "Vérifier la configuration héritée", text: "Contrôlez l’évaluation sélectionnée, les hypothèses d’exploitation, les températures représentatives et leurs occurrences avant le calcul." },
-          { title: "Lire Aperçu et Efficacité", text: "Utilisez les indicateurs annuels, la consommation selon la température, les intervalles d’incertitude et les contributions pondérées pour comprendre l’exploitation annuelle." },
-          { title: "Examiner Coûts et Émissions", text: "Examinez les onglets économiques et environnementaux, les hypothèses modifiables et les informations méthodologiques. Les entrées manquantes et les périmètres incomplets sont signalés au lieu d’être traités comme zéro." },
-          { title: "Examiner ou télécharger la configuration", text: "Utilisez Afficher les données de configuration pour vérifier la provenance et Télécharger tous les résultats pour enregistrer le résultat JSON complet." },
+          { title: "Vérifier les données héritées", text: "Contrôlez l’évaluation, les hypothèses d’exploitation, les températures représentatives et leurs occurrences avant le calcul. Les scénarios de température modifient la consommation; ils ne redimensionnent pas la batterie, ne changent pas l’infrastructure et ne répètent pas la décision de faisabilité." },
+          { title: "Commencer par Général", text: "Général présente une fois pour toute l’analyse le bus, les hypothèses d’exploitation, la batterie commune, l’infrastructure partagée et le contexte des investissements communs. Ces actifs ne sont pas dupliqués pour chaque service." },
+          { title: "Sélectionner un service", text: "Chaque service affiche Efficacité, Coûts et Émissions directement sous le sélecteur Général / service, puis une ligne compacte indiquant l’énergie annuelle, la distance simulée et l’efficacité moyenne. La configuration commune et les détails de faisabilité restent dans les vues Général et Faisabilité prévues à cet effet." },
+          { title: "Utiliser Efficacité, Coûts et Émissions", text: "Dans un service, Efficacité couvre la consommation selon la température, l’incertitude et l’énergie pondérée; Coûts couvre les charges d’exploitation et la quote-part analytique du capital commun; Émissions couvre le bilan énergétique annuel et les impacts du cycle de vie du service." },
+          { title: "Interpréter les coûts du service dans leur périmètre", text: "Les investissements partagés dans l’infrastructure, le véhicule et la batterie ne sont comptés qu’une fois dans Général. Les CAPEX du service sont des allocations analytiques selon sa part de l’énergie DC annuelle affichée dans Émissions; les charges d’exploitation utilisent son énergie et sa distance propres." },
+          { title: "Examiner la configuration et exporter depuis Général", text: "Afficher les données de configuration dans l’en-tête permet de vérifier les entrées enregistrées et leur provenance. Télécharger tous les résultats est disponible uniquement dans Général et enregistre Général ainsi qu’une entrée distincte pour chaque service disponible." },
+          { title: "Reconnaître les anciens résultats uniquement agrégés", text: "Une ancienne analyse sans ventilation par service peut n’afficher que Général. ELETTRA laisse absents les détails indisponibles au lieu de les inventer à partir des totaux." },
         ],
         figures: getGuideFigures("fr", "yearlyEfficiency", "yearlyEmissions"),
         note: { title: "Ne pas redimensionner le véhicule ici", text: "L’analyse annuelle représente l’exploitation du design retenu lors de l’évaluation de faisabilité. Revenez à cette évaluation si le véhicule, la batterie ou la recharge doivent changer." },
@@ -659,7 +683,7 @@ export const guideContent = {
         items: [
           { title: "Sélectionner deux analyses annuelles", text: "Ouvrez Simulations → Comparaison d’analyses et choisissez Analyse A et Analyse B. Le résumé de compatibilité indique si la comparaison peut être directe." },
           { title: "Comparer des indicateurs cohérents", text: "Examinez Aperçu, Efficacité, Coûts et Émissions pour les deux analyses. Si les services ou hypothèses diffèrent, interprétez les écarts agrégés avec prudence." },
-          { title: "Exporter les éléments probants", text: "Utilisez la zone Détails / Export pour exporter les données en CSV ou JSON. Les pages de résultats annuels proposent également le résultat complet au format JSON." },
+          { title: "Exporter les éléments probants", text: "Utilisez la zone Détails / Export pour exporter les données de comparaison en CSV ou JSON." },
         ],
         note: { title: "Nommer clairement les scénarios", text: "Incluez la principale différence dans le nom enregistré, par exemple le véhicule, le chauffage, l’occupation ou la stratégie de recharge." },
       },
@@ -772,26 +796,30 @@ export const guideContent = {
       {
         id: "results",
         title: "6. Interpretare i risultati di fattibilità",
-        intro: "Trattare il risultato come un controllo decisionale supportato da evidenze energetiche e di ricarica.",
+        intro: "Usare Generale per il progetto comune della flotta, quindi aprire ogni turno per verificare che lo stesso progetto funzioni su tutti i turni selezionati.",
         items: [
-          { title: "Verdetto di fattibilità", text: "Fattibile — scenario di domanda basato sulla media significa che la configurazione rispetta i vincoli implementati di energia, stato di carica, tempo e ricarica usando la domanda media. Q05, Q50 e Q95 restano scenari di confronto per valutare l’incertezza. Non fattibile significa che occorre rivedere ipotesi o scelte progettuali." },
-          { title: "Energia e incertezza", text: "Confrontare quantili di previsione, domanda di trazione e ausiliaria ed energia utilizzabile. Un intervallo più ampio indica maggiore incertezza nella domanda prevista." },
-          { title: "Batteria e ricarica", text: "Esaminare pacchi ottimizzati e limite fisico, stato di carica minimo e massimo, energia caricata, sessioni e uso delle stazioni quando disponibili." },
-          { title: "Iterare", text: "Duplicare o creare valutazioni per provare un altro veicolo, servizio, intervallo SOC, temperatura, occupazione o configurazione di ricarica. Usare un nome distinto per ogni caso." },
+          { title: "Iniziare da Generale", text: "Generale mostra l’unica configurazione di autobus usata da tutti i turni selezionati. La batteria comune è dimensionata sul turno con il fabbisogno maggiore, mentre l’infrastruttura di ricarica è condivisa. Le indicazioni Fissa e Ottimizzata dipendono dalla modalità Solo batteria, Ricarica o Congiunta." },
+          { title: "Controllare ogni turno", text: "Ogni scheda di turno confronta il fabbisogno di quel turno con la batteria comune e mostra margine, limite fisico dei pacchi, SOC minimo e massimo, energia caricata e numero di sessioni. Il progetto comune è adeguato soltanto se copre tutti i turni." },
+          { title: "Leggere insieme analisi visiva e adeguatezza energetica", text: "La decisione di fattibilità usa la domanda media e include l’energia fornita dalle ricariche pianificate. Confrontare Q05, media, Q50 e Q95 con l’energia operativa disponibile; Q05–Q95 sono scenari di sensibilità, non probabilità di superamento." },
+          { title: "Verificare il piano di ricarica", text: "Per le modalità Ricarica e Congiunta, controllare dove e quando avviene ogni sessione, la durata, l’energia fornita e la potenza media. In Solo batteria può comparire un piano fisso o assente invece di uno ottimizzato." },
+          { title: "Aprire Maggiori informazioni quando serve", text: "La sezione raccoglie dettagli delle previsioni, ipotesi operative e valori di supporto. Se un turno non è coperto, modificare veicolo, intervallo SOC, scenario o progetto di ricarica ed eseguire una valutazione con un nome distinto." },
         ],
         figures: getGuideFigures("it", "feasibilityEfficiency", "feasibilitySizing"),
       },
       {
         id: "yearly",
         title: "7. Analisi annuale",
-        intro: "L’analisi annuale mantiene fisso il progetto tecnico fattibile e lo valuta con condizioni di temperatura annuali rappresentative.",
+        intro: "L’analisi annuale mantiene fisso un unico progetto fattibile di autobus e ricarica, quindi mostra la configurazione comune in Generale e l’esercizio annuale separatamente per ogni turno disponibile.",
         ordered: true,
         items: [
           { title: "Creare un’analisi da una valutazione idonea", text: "Aprire Simulazioni → Analisi annuali, creare una nuova analisi e selezionare la valutazione completata che definisce veicolo, turni, batteria e ricarica." },
-          { title: "Verificare la configurazione ereditata", text: "Controllare la valutazione selezionata, le ipotesi operative, le temperature rappresentative e le loro occorrenze prima dell’avvio." },
-          { title: "Leggere Panoramica ed Efficienza", text: "Usare indicatori annuali, consumo in funzione della temperatura, intervalli d’incertezza e contributi energetici ponderati per comprendere l’esercizio annuale." },
-          { title: "Esaminare Costi ed Emissioni", text: "Esaminare le schede economiche e ambientali, le ipotesi modificabili e le informazioni metodologiche. Input mancanti e perimetri incompleti sono segnalati invece di essere trattati come zero." },
-          { title: "Esaminare o scaricare la configurazione", text: "Usare Visualizza dati di configurazione per verificare la provenienza e Scarica tutti i risultati per salvare il risultato JSON completo." },
+          { title: "Verificare gli input ereditati", text: "Controllare la valutazione, le ipotesi operative, le temperature rappresentative e le loro occorrenze prima dell’avvio. Gli scenari di temperatura cambiano le stime di consumo; non ridimensionano la batteria, non modificano l’infrastruttura e non ripetono la decisione di fattibilità." },
+          { title: "Iniziare da Generale", text: "Generale mostra una sola volta per l’intera analisi l’autobus, le condizioni operative, la batteria comune, l’infrastruttura condivisa e il contesto degli investimenti comuni. Questi elementi non vengono duplicati per ogni turno." },
+          { title: "Selezionare un turno", text: "Ogni turno mostra Efficienza, Costi ed Emissioni subito sotto il selettore Generale / turno, seguite da una riga compatta con energia annuale, distanza simulata ed efficienza media. Configurazione comune e dettagli di fattibilità restano nelle rispettive viste Generale e Fattibilità." },
+          { title: "Usare Efficienza, Costi ed Emissioni", text: "Nel singolo turno, Efficienza mostra consumo in funzione della temperatura, incertezza ed energia ponderata; Costi mostra OPEX del turno e quota analitica del capitale condiviso; Emissioni mostra il bilancio energetico annuale e gli impatti di ciclo di vita del turno." },
+          { title: "Interpretare i costi del turno nel loro perimetro", text: "Gli investimenti condivisi in infrastruttura, veicolo e batteria sono conteggiati una sola volta in Generale. I CAPEX del turno sono allocazioni analitiche basate sulla sua quota di energia DC annuale mostrata in Emissioni; gli OPEX usano energia e distanza proprie del turno." },
+          { title: "Esaminare la configurazione ed esportare da Generale", text: "Visualizza dati di configurazione nell’intestazione permette di verificare gli input salvati e la loro provenienza. Scarica tutti i risultati è disponibile solo in Generale e salva Generale più una voce separata per ogni turno disponibile." },
+          { title: "Riconoscere i risultati storici solo aggregati", text: "Un’analisi precedente priva del dettaglio per turno può mostrare soltanto Generale. ELETTRA lascia assenti i dettagli non disponibili invece di ricavarli artificialmente dai totali." },
         ],
         figures: getGuideFigures("it", "yearlyEfficiency", "yearlyEmissions"),
         note: { title: "Non ridimensionare qui il veicolo", text: "L’analisi annuale rappresenta l’esercizio del progetto scelto nella valutazione di fattibilità. Tornare alla fattibilità se occorre cambiare veicolo, batteria o ricarica." },
@@ -803,7 +831,7 @@ export const guideContent = {
         items: [
           { title: "Selezionare due analisi annuali", text: "Aprire Simulazioni → Confronto analisi e scegliere Analisi A e Analisi B. Il riepilogo di compatibilità indica se i casi possono essere confrontati direttamente." },
           { title: "Confrontare indicatori coerenti", text: "Esaminare Panoramica, Efficienza, Costi ed Emissioni per entrambe le analisi. Se turni o ipotesi differiscono, interpretare con cautela le differenze aggregate." },
-          { title: "Esportare le evidenze", text: "Usare Dettagli / Esporta per esportare i dati in CSV o JSON. Le pagine dei risultati annuali permettono inoltre di scaricare il risultato completo in JSON." },
+          { title: "Esportare le evidenze", text: "Usare Dettagli / Esporta per esportare i dati di confronto in CSV o JSON." },
         ],
         note: { title: "Nominare chiaramente gli scenari", text: "Includere nel nome salvato la differenza principale, ad esempio veicolo, riscaldamento, occupazione o strategia di ricarica." },
       },

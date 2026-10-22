@@ -2,7 +2,15 @@
   <header class="page-header">
     <div class="header-with-close">
       <div class="title-container">
-        <h1 class="page-title" data-role="page-title" data-i18n="yearly_analysis.results_title">Yearly analysis results</h1>
+        <div class="ya-page-heading-row">
+          <h1 class="page-title" data-role="page-title">Yearly analysis results</h1>
+          <button
+            type="button"
+            class="ya-header-action"
+            data-action="view-configuration"
+            data-i18n="yearly_analysis.view_configuration_data"
+          >View configuration data</button>
+        </div>
         <div
           class="ya-result-scope-tabs"
           data-role="ya-result-scope-tabs"
@@ -23,26 +31,7 @@
   <main class="ya-results-main">
     <p class="form-feedback" data-role="feedback" hidden></p>
 
-    <div class="ya-results-toolbar">
-      <div class="ya-analysis-summary">
-        <span data-i18n="yearly_analysis.results_analysis_label">Yearly analysis:</span>
-        <strong data-role="ya-analysis-name">—</strong>
-        <div class="ya-analysis-summary__actions">
-          <button type="button" class="ya-toolbar-btn" data-action="view-configuration" data-i18n="yearly_analysis.view_configuration_data">
-            View configuration data
-          </button>
-          <button type="button" class="ya-toolbar-btn" data-action="download-json" data-i18n="yearly_analysis.download_json">
-            Download all results (JSON)
-          </button>
-        </div>
-      </div>
-    </div>
-
     <div class="ya-result-scope-content" id="yearly-result-scope-content" role="tabpanel" tabindex="0">
-      <section class="ya-scope-overview" data-panel="overview">
-        <div data-role="overview-panel"></div>
-      </section>
-
       <div
         class="ya-tabs ya-result-view-tabs"
         data-role="ya-result-view-tabs"
@@ -86,6 +75,10 @@
         >Emissions</button>
       </div>
 
+      <section class="ya-scope-overview" data-panel="overview">
+        <div data-role="overview-panel"></div>
+      </section>
+
       <div class="ya-tab-panels" data-role="ya-result-view-panels" hidden>
       <section
         id="yearly-result-view-panel-efficiency"
@@ -99,7 +92,6 @@
         <div class="ya-eff-charts-grid">
           <div class="ya-res-section ya-eff-chart-section">
             <h3 class="ya-res-section-title" data-i18n="yearly_analysis.efficiency_by_temperature_title">Scenario efficiency by temperature</h3>
-            <p class="ya-sizing-note" data-role="ya-eff-chart-1-note"></p>
             <div class="ya-chart-container" data-role="ya-eff-chart-1"></div>
             <div class="ya-chart-legend" data-role="ya-eff-chart-1-legend"></div>
           </div>
@@ -111,7 +103,6 @@
                 <button type="button" class="ya-chart-unit-button" data-unit-mode="daily" aria-pressed="false" data-i18n="yearly_analysis.energy_unit_day">kWh/day</button>
               </div>
             </div>
-            <p class="ya-sizing-note" data-role="ya-eff-chart-2-note"></p>
             <div class="ya-chart-container" data-role="ya-eff-chart-2"></div>
             <div class="ya-chart-legend" data-role="ya-eff-chart-2-legend"></div>
           </div>
@@ -140,13 +131,13 @@
         hidden
       >
         <h2 class="ya-scope-section-title ya-scope-section-title--with-info">
-          <span data-i18n="yearly_analysis.shift_annual_operating_costs">Annual operating costs</span>
+          <span data-i18n="yearly_analysis.shift_annual_operating_costs">Shift costs</span>
           <button
             type="button"
             class="ya-info-icon"
-            aria-label="This shift includes only operating costs attributable to its energy use and distance. Shared charging infrastructure, vehicle and battery investments are shown in General and are not charged again here."
+            aria-label="Operating costs use this shift's energy and distance. Shared investments remain counted once in General and an analytical CAPEX share is attributed here using the shift's annual DC energy."
             data-i18n-aria-label="yearly_analysis.shift_cost_scope_tooltip"
-          >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.shift_cost_scope_tooltip">This shift includes only operating costs attributable to its energy use and distance. Shared charging infrastructure, vehicle and battery investments are shown in General and are not charged again here.</span></button>
+          >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.shift_cost_scope_tooltip">Operating costs use this shift's energy and distance. Shared investments remain counted once in General and an analytical CAPEX share is attributed here using the shift's annual DC energy.</span></button>
         </h2>
         <p class="ya-scope-context-note" data-role="ya-cost-scope-note" hidden></p>
         <!-- Full-width cost assumptions -->
@@ -207,11 +198,37 @@
           </div>
         </div>
 
-        <div class="ya-costs-charts-grid ya-costs-charts-grid--operating">
+        <div class="ya-res-section ya-capex-allocation-section" data-role="ya-costs-capex-section">
+          <h3 class="ya-res-section-title ya-scope-section-title--with-info">
+            <span data-i18n="yearly_analysis.allocated_capex_title">Allocated shared CAPEX</span>
+            <button
+              type="button"
+              class="ya-info-icon"
+              aria-label="The shared vehicle, battery and charging infrastructure investments are purchased once. Their shift-level values are analytical allocations based on annual DC energy and are used for the shift break-even comparison."
+              data-i18n-aria-label="yearly_analysis.allocated_capex_tooltip"
+            >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.allocated_capex_tooltip">The shared vehicle, battery and charging infrastructure investments are purchased once. Their shift-level values are analytical allocations based on annual DC energy and are used for the shift break-even comparison.</span></button>
+          </h3>
+          <div data-role="ya-costs-capex-allocation"></div>
+        </div>
+
+        <div class="ya-costs-charts-grid">
           <div class="ya-res-section ya-costs-bar-section">
             <h3 class="ya-res-section-title" data-i18n="yearly_analysis.shift_annual_opex_comparison">Annual shift OPEX comparison</h3>
             <div class="ya-chart-container" data-role="ya-costs-bar-chart"></div>
             <div class="ya-chart-legend" data-role="ya-costs-bar-legend"></div>
+          </div>
+          <div class="ya-res-section ya-costs-line-section">
+            <h3 class="ya-res-section-title ya-scope-section-title--with-info">
+              <span data-i18n="yearly_analysis.allocated_cost_trend">Cumulative cost and break-even</span>
+              <button
+                type="button"
+                class="ya-info-icon"
+                aria-label="Cumulative discounted cost for this shift combines its exact yearly OPEX with its allocated share of common CAPEX, replacements and charging infrastructure."
+                data-i18n-aria-label="yearly_analysis.allocated_cost_trend_tooltip"
+              >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.allocated_cost_trend_tooltip">Cumulative discounted cost for this shift combines its exact yearly OPEX with its allocated share of common CAPEX, replacements and charging infrastructure.</span></button>
+            </h3>
+            <div class="ya-chart-container" data-role="ya-costs-line-chart"></div>
+            <div class="ya-chart-legend" data-role="ya-costs-line-legend"></div>
           </div>
         </div>
 
@@ -242,7 +259,6 @@
         hidden
       >
         <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_emissions">Annual emissions</h2>
-        <p class="ya-scope-context-note" data-role="ya-emissions-scope-note" hidden></p>
         <div class="ya-env-content" data-role="emissions-content">
           <!-- Full-width annual distance control -->
           <div class="ya-res-section ya-cost-variables ya-env-controls" data-role="ya-env-controls" hidden>

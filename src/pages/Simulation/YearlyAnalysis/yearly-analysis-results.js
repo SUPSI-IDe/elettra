@@ -90,8 +90,10 @@ import {
   buildFixedYearlyConfiguration,
 } from "../../../utils/yearly-analysis-model";
 import {
+  applyShiftCapitalAllocation,
   buildGeneralSharedCostContext,
   buildOperatingCostExport,
+  resolveShiftCapitalAllocationBasis,
 } from "../../../utils/yearly-analysis-cost-scope";
 
 const YEARLY_RESULT_VIEW_KEYS = Object.freeze(["efficiency", "costs", "emissions"]);
@@ -126,18 +128,6 @@ const resolveEnvIndicatorLabel = (ind) => {
   }
   return ind?.label || key || "—";
 };
-
-const quantileHelpText = () =>
-  translateOr(
-    "yearly_analysis.quantile_help",
-    "Q50 is the median scenario prediction. Q05 is a low-demand estimate and Q95 is a high-demand estimate. Q05-Q95 shows the prediction spread across simulations; wider intervals indicate higher uncertainty."
-  );
-
-const annualContributionHelpText = () =>
-  translateOr(
-    "yearly_analysis.annual_contribution_uncertainty_help",
-    "Yearly-scaled Q05/Q50/Q95 values are obtained by weighting temperature scenarios by their annual occurrence. This is a scenario-weighted prediction-spread envelope, not a true annual exceedance probability."
-  );
 
 const scenarioTableUncertaintyHelpText = () =>
   translateOr(
@@ -183,6 +173,7 @@ const HUMPHRIES_LINK_HTML = `<a href="${HUMPHRIES_URL}" target="_blank" rel="noo
 
 /* ── Chart / slider helpers ─────────────────────────────────────── */
 
+const FUEL_COLORS = { diesel: "var(--color-danger)", electric: "#2e7d32" };
 const COST_COLORS = { energy: "#d4881f", maintenance: "#5f8f2f" };
 const COST_STACK_KEYS = ["energy", "maintenance"];
 const COST_VARIABLE_DEBOUNCE_MS = 300;
@@ -251,6 +242,53 @@ const gridLines = (g, scale, innerW, ticks = 5) => {
 
 const formatKChfAxis = (value) => String(Math.round(value / 1000));
 const formatKChfLabel = (value) => `${Math.round(value / 1000)} kCHF`;
+
+const formatChfAxis = (value) => {
+  if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+  if (Math.abs(value) >= 1e3) return `${Math.round(value / 1e3)}k`;
+  return String(Math.round(value));
+};
+
+const formatChfAxisWithUnit = (value) => `${formatChfAxis(value)} CHF`;
+
+const findClosestPointOnPath = (pathNode, pointer) => {
+  const totalLength = pathNode.getTotalLength();
+  if (!Number.isFinite(totalLength) || totalLength <= 0) return null;
+  const samples = Math.max(48, Math.ceil(totalLength / 8));
+  let bestLength = 0;
+  let bestDistSq = Infinity;
+  for (let index = 0; index <= samples; index += 1) {
+    const length = (totalLength * index) / samples;
+    const point = pathNode.getPointAtLength(length);
+    const distanceSq =
+      (point.x - pointer[0]) ** 2 + (point.y - pointer[1]) ** 2;
+    if (distanceSq < bestDistSq) {
+      bestLength = length;
+      bestDistSq = distanceSq;
+    }
+  }
+  let step = totalLength / samples;
+  while (step > 0.5) {
+    const beforeLength = Math.max(0, bestLength - step);
+    const afterLength = Math.min(totalLength, bestLength + step);
+    const before = pathNode.getPointAtLength(beforeLength);
+    const after = pathNode.getPointAtLength(afterLength);
+    const beforeDistance =
+      (before.x - pointer[0]) ** 2 + (before.y - pointer[1]) ** 2;
+    const afterDistance =
+      (after.x - pointer[0]) ** 2 + (after.y - pointer[1]) ** 2;
+    if (beforeDistance < bestDistSq) {
+      bestLength = beforeLength;
+      bestDistSq = beforeDistance;
+    } else if (afterDistance < bestDistSq) {
+      bestLength = afterLength;
+      bestDistSq = afterDistance;
+    } else {
+      step /= 2;
+    }
+  }
+  return pathNode.getPointAtLength(bestLength);
+};
 
 /* ── Stacked bar chart: annual cost comparison ─────────────────── */
 
@@ -370,6 +408,143 @@ const renderYaCostsBarLegend = (el) => {
   if (!el) return;
   el.innerHTML = Object.entries(COST_COLORS).map(([key, color]) =>
     `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${color}"></span>${textContent(costStackLabel(key))}</div>`
+  ).join("");
+};
+
+/* ── Line chart: projected cost trend with attributed CAPEX ───── */
+
+const attachLineHover = ({
+  layer,
+  lineData,
+  lineGen,
+  x,
+  y,
+  iW,
+  color,
+  seriesLabel,
+}) => {
+  if (!lineData.length) return;
+  layer.append("path").datum(lineData).attr("d", lineGen)
+    .attr("fill", "none").attr("stroke", color).attr("stroke-width", 2.5);
+  const hitPath = layer.append("path").datum(lineData).attr("d", lineGen)
+    .attr("fill", "none").attr("stroke", "transparent").attr("stroke-width", 14)
+    .style("cursor", "pointer");
+  const focus = layer.append("g").style("display", "none")
+    .attr("pointer-events", "none");
+  focus.append("circle").attr("r", 4).attr("fill", "var(--color-surface)")
+    .attr("stroke", color).attr("stroke-width", 2);
+  const tooltip = focus.append("g");
+  const tooltipBg = tooltip.append("rect")
+    .attr("fill", "var(--color-tooltip-surface)").attr("stroke", color)
+    .attr("stroke-width", 1).attr("rx", 6).attr("ry", 6).attr("opacity", 0.96);
+  const tooltipText = tooltip.append("text")
+    .attr("fill", "var(--color-tooltip-text)").attr("font-size", CHART_FONT_TOOLTIP);
+
+  const update = (event) => {
+    const pointer = d3.pointer(event, layer.node());
+    const closest = findClosestPointOnPath(hitPath.node(), pointer);
+    if (!closest) return;
+    const year = x.invert(closest.x);
+    const cost = y.invert(closest.y);
+    focus.attr("transform", `translate(${closest.x},${closest.y})`);
+    tooltipText.selectAll("*").remove();
+    tooltipText.append("tspan").attr("x", 8).attr("y", 14)
+      .attr("font-weight", "700").text(seriesLabel);
+    tooltipText.append("tspan").attr("x", 8).attr("dy", "1.25em")
+      .text(`${t("simulation.general_year")} ${formatFixed(Math.round(year), 0)}`);
+    tooltipText.append("tspan").attr("x", 8).attr("dy", "1.25em")
+      .text(`CHF ${formatCHF(Math.round(cost))}`);
+    const box = tooltipText.node().getBBox();
+    const width = box.width + 16;
+    const height = box.height + 10;
+    tooltipBg.attr("width", width).attr("height", height);
+    let tx = closest.x + 12;
+    let ty = closest.y - height - 12;
+    if (tx + width > iW) tx = closest.x - width - 12;
+    if (tx < 0) tx = Math.max(0, iW - width);
+    if (ty < 0) ty = closest.y + 12;
+    tooltip.attr("transform", `translate(${tx - closest.x},${ty - closest.y})`);
+    focus.style("display", null);
+  };
+
+  hitPath.on("pointerenter", update).on("pointermove", update)
+    .on("pointerleave", () => focus.style("display", "none"));
+};
+
+const renderYaCostsLine = (el, data, cd) => {
+  if (!el) return;
+  el.innerHTML = "";
+  if (!Array.isArray(data) || data.length === 0) return;
+
+  const margin = { top: 20, right: 24, bottom: 30, left: 84 };
+  const W = chartCanvasWidth(el, () => renderYaCostsLine(el, data, cd));
+  const H = CHART_PLOT_HEIGHT;
+  const iW = W - margin.left - margin.right;
+  const iH = H - margin.top - margin.bottom;
+  const svg = svgBase(W, H, t("simulation.chart_aria_cost_trend"));
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+  const tickYears = Array.from(new Set(data.map((point) => point.year)));
+  const yearExtent = d3.extent(data, (point) => point.year);
+  const yearDomain = yearExtent[0] === yearExtent[1]
+    ? [yearExtent[0], yearExtent[0] + 1]
+    : yearExtent;
+  const x = d3.scaleLinear().domain(yearDomain).range([0, iW]);
+  const maximum = d3.max(data, (point) => Math.max(point.diesel, point.electric)) ?? 0;
+  const y = d3.scaleLinear().domain([0, Math.max(1, maximum * 1.1)]).nice().range([iH, 0]);
+
+  g.append("g").attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(x).tickValues(tickYears).tickFormat(String))
+    .selectAll("text").attr("font-size", CHART_FONT_TICK);
+  g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(formatChfAxisWithUnit))
+    .selectAll("text").attr("font-size", CHART_FONT_TICK);
+  gridLines(g, y, iW);
+
+  attachLineHover({
+    layer: g.append("g"),
+    lineData: data,
+    lineGen: d3.line().x((point) => x(point.year)).y((point) => y(point.diesel)),
+    x,
+    y,
+    iW,
+    color: FUEL_COLORS.diesel,
+    seriesLabel: getDieselCostLabel(),
+  });
+  attachLineHover({
+    layer: g.append("g"),
+    lineData: data,
+    lineGen: d3.line().x((point) => x(point.year)).y((point) => y(point.electric)),
+    x,
+    y,
+    iW,
+    color: FUEL_COLORS.electric,
+    seriesLabel: getElectricCostLabel(cd),
+  });
+
+  const crossing = toFiniteNumber(cd?.breakEvenYear);
+  const domain = x.domain();
+  if (crossing !== null && crossing >= domain[0] && crossing <= domain[1]) {
+    const markerX = x(crossing);
+    g.append("line")
+      .attr("x1", markerX).attr("x2", markerX).attr("y1", 0).attr("y2", iH)
+      .attr("stroke", "var(--text-secondary)").attr("stroke-dasharray", "4,4");
+    g.append("text")
+      .attr("x", Math.min(iW - 4, markerX + 5)).attr("y", 12)
+      .attr("text-anchor", markerX > iW * 0.75 ? "end" : "start")
+      .attr("font-size", CHART_FONT_LABEL).attr("fill", "var(--text-secondary)")
+      .text(`${t("simulation.costs_kpi_break_even")}: ${formatFixed(crossing, 1)}`);
+  }
+
+  el.appendChild(svg.node());
+};
+
+const renderYaCostsLineLegend = (el, cd) => {
+  if (!el) return;
+  if (!cd) {
+    el.innerHTML = "";
+    return;
+  }
+  el.innerHTML = ["diesel", "electric"].map((key) =>
+    `<div class="ya-chart-legend-item"><span class="ya-chart-legend-swatch" style="background:${FUEL_COLORS[key]}"></span>${textContent(key === "diesel" ? getDieselCostLabel() : getElectricCostLabel(cd))}</div>`
   ).join("");
 };
 
@@ -1330,6 +1505,7 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
       dieselEfficiencyLPerKm,
       dieselMaintPerKm,
       electricMaintPerKm,
+      annualizationRate,
       gridToBusEfficiency: yearlyEnergyBoundary.gridToBusEfficiency,
       chargingEnergyPolicy: yearlyEnergyBoundary.policy,
     },
@@ -1539,6 +1715,7 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
       dieselEfficiencyLPerKm: dieselEffLPerKm,
       dieselMaintPerKm: dieselMaintPerKm,
       electricMaintPerKm: elecMaintPerKm,
+      annualizationRate,
       dieselHeatingMaintenanceFactor: dhMaintFactor,
       yearlyDieselHeatingLiters: yDhLiters,
       yearlyDieselHeatingFuelKwh: yDhFuelKwh,
@@ -1616,6 +1793,92 @@ const renderCostsKpis = (el, cd) => {
       <span class="ya-costs-kpi-label">${textContent(t("yearly_analysis.yearly_simulated_distance"))}</span>
       <span class="ya-costs-kpi-value">${yearlyKm != null ? `${formatInt(yearlyKm)} km` : "—"}</span>
     </div>`;
+};
+
+const renderShiftCapitalAllocation = (section, cd) => {
+  const wrapper = section?.querySelector('[data-role="ya-costs-capex-section"]');
+  const content = section?.querySelector('[data-role="ya-costs-capex-allocation"]');
+  const allocation = cd?.capitalAllocation;
+  if (!wrapper || !content) return;
+  if (!allocation) {
+    wrapper.dataset.allocationMethod = "unavailable";
+    content.innerHTML = `<p class="ya-status-msg">${textContent(
+      translateOr(
+        "yearly_analysis.shift_capex_allocation_unavailable",
+        "Allocated CAPEX is unavailable because a complete annual energy or distance basis could not be resolved.",
+      ),
+    )}</p>`;
+    return;
+  }
+
+  wrapper.dataset.allocationMethod = allocation.method;
+  const usesEnergy = allocation.method === "annual_dc_energy";
+  const basisValue = usesEnergy
+    ? `${formatInt(allocation.shiftAnnualDcEnergyKwh)} / ${formatInt(allocation.totalAnnualDcEnergyKwh)} kWh DC`
+    : `${formatInt(allocation.shiftAnnualDistanceKm)} / ${formatInt(allocation.totalAnnualDistanceKm)} km`;
+  const breakEvenValue = allocation.breakEvenYear == null
+    ? translateOr("yearly_analysis.break_even_not_reached", "Not reached within the analysis horizon")
+    : t("yearly_analysis.year_short_value", {
+        year: formatFixed(allocation.breakEvenYear, 1),
+      });
+  const infrastructure = allocation.electric?.allocatedInfrastructureCapexChf;
+  const infrastructureText = infrastructure == null
+    ? translateOr(
+        "yearly_analysis.allocated_infrastructure_unavailable",
+        "Charging infrastructure investment is unavailable and is not included in the allocated e-bus CAPEX.",
+      )
+    : t("yearly_analysis.allocated_infrastructure_detail", {
+        value: formatCHF(Math.round(infrastructure)),
+      });
+  const basisNote = usesEnergy
+    ? translateOr(
+        "yearly_analysis.annual_dc_energy_allocation_note",
+        "The percentage is this shift's share of the annual DC energy shown in Emissions. Shared assets are purchased once; this is an analytical attribution for the shift comparison.",
+      )
+    : translateOr(
+        "yearly_analysis.annual_distance_allocation_note",
+        "Annual DC energy was unavailable, so the percentage uses annual distance as a fallback. Shared assets are still purchased only once.",
+      );
+  const metrics = [
+    {
+      key: "basis",
+      label: usesEnergy
+        ? translateOr("yearly_analysis.annual_dc_energy_basis", "Annual DC energy basis")
+        : translateOr("yearly_analysis.annual_distance_basis", "Annual distance fallback"),
+      value: basisValue,
+    },
+    {
+      key: "share",
+      label: translateOr("yearly_analysis.capex_allocation_share", "CAPEX allocation share"),
+      value: `${formatFixed(allocation.share * 100, 1)}%`,
+    },
+    {
+      key: "ebus",
+      label: translateOr("yearly_analysis.allocated_ebus_capex", "Allocated e-bus CAPEX"),
+      value: `CHF ${formatCHF(Math.round(allocation.electric?.allocatedInitialCapexChf ?? 0))}`,
+    },
+    {
+      key: "diesel",
+      label: translateOr("yearly_analysis.allocated_diesel_capex", "Allocated diesel CAPEX"),
+      value: `CHF ${formatCHF(Math.round(allocation.diesel?.allocatedInitialCapexChf ?? 0))}`,
+    },
+    {
+      key: "break-even",
+      label: t("simulation.costs_kpi_break_even"),
+      value: breakEvenValue,
+    },
+  ];
+
+  content.innerHTML = `
+    <div class="ya-compact-metrics ya-capex-allocation-summary">
+      <table class="ya-compact-metrics__table" aria-label="${textContent(
+        translateOr("yearly_analysis.allocated_capex_title", "Allocated shared CAPEX"),
+      )}">
+        <thead><tr>${metrics.map((metric) => `<th scope="col" data-metric="${metric.key}">${textContent(metric.label)}</th>`).join("")}</tr></thead>
+        <tbody><tr>${metrics.map((metric) => `<td data-metric="${metric.key}">${textContent(metric.value)}</td>`).join("")}</tr></tbody>
+      </table>
+    </div>
+    <p class="ya-capex-allocation-note">${textContent(basisNote)} ${textContent(infrastructureText)}</p>`;
 };
 
 /* The shared tooltip is `display: none` until hovered, so its text is not in
@@ -1900,9 +2163,19 @@ const renderCostsScenarioTable = (el, cd) => {
 };
 
 const refreshCostsPanelElements = (section, cd) => {
+  renderShiftCapitalAllocation(section, cd);
   renderCostsKpis(section.querySelector('[data-role="ya-costs-kpis"]'), cd);
   renderYaCostsBar(section.querySelector('[data-role="ya-costs-bar-chart"]'), cd);
   renderYaCostsBarLegend(section.querySelector('[data-role="ya-costs-bar-legend"]'));
+  renderYaCostsLine(
+    section.querySelector('[data-role="ya-costs-line-chart"]'),
+    cd?.capitalAllocation ? cd?.yearly ?? [] : [],
+    cd,
+  );
+  renderYaCostsLineLegend(
+    section.querySelector('[data-role="ya-costs-line-legend"]'),
+    cd?.capitalAllocation ? cd : null,
+  );
   renderElectricOpexBreakdown(section.querySelector('[data-role="ya-costs-electric-opex"]'), cd);
   renderDieselOpexBreakdown(section.querySelector('[data-role="ya-costs-diesel-opex"]'), cd);
   renderCostsOpexTables(section.querySelector('[data-role="ya-costs-opex-tables"]'), cd);
@@ -3411,6 +3684,7 @@ export const buildExportPayload = (features, effState, costState, emissionsState
       electricMaintenanceCost_CHFPerKm: round(cd.assumptions.electricMaintPerKm, 4),
       dieselComparator_efficiency_LPerKm: round(cd.assumptions.dieselEfficiencyLPerKm, 4),
       dieselComparator_maintenanceCost_CHFPerKm: round(cd.assumptions.dieselMaintPerKm, 4),
+      annualizationRate: round(cd.assumptions.annualizationRate, 4),
     };
     if (hasDH) {
       assumptions.dieselHeatingMaintenanceFactor = round(cd.assumptions.dieselHeatingMaintenanceFactor, 4);
@@ -3496,6 +3770,62 @@ export const buildExportPayload = (features, effState, costState, emissionsState
         diesel_CHF: round(pt.diesel, 0),
       })) ?? [],
     };
+    if (cd.capitalAllocation) {
+      const allocation = cd.capitalAllocation;
+      costs.capitalAllocation = {
+        method: allocation.method,
+        source: allocation.source,
+        shiftId: allocation.shiftId,
+        share: round(allocation.share, 6),
+        share_pct: round(allocation.share * 100, 3),
+        shiftAnnualDcEnergy_kWh: round(allocation.shiftAnnualDcEnergyKwh, 1),
+        totalAnnualDcEnergy_kWh: round(allocation.totalAnnualDcEnergyKwh, 1),
+        shiftAnnualDistance_km: round(allocation.shiftAnnualDistanceKm, 1),
+        totalAnnualDistance_km: round(allocation.totalAnnualDistanceKm, 1),
+        infrastructureIncluded: allocation.infrastructureIncluded,
+        electric: {
+          referenceVehicleAndBatteryCAPEX_CHF: round(
+            allocation.electric?.referenceVehicleAndBatteryCapexChf,
+            0,
+          ),
+          sharedInfrastructureCAPEX_CHF: round(
+            allocation.electric?.sharedInfrastructureCapexChf,
+            0,
+          ),
+          allocatedVehicleAndBatteryCAPEX_CHF: round(
+            allocation.electric?.allocatedVehicleAndBatteryCapexChf,
+            0,
+          ),
+          allocatedInfrastructureCAPEX_CHF: round(
+            allocation.electric?.allocatedInfrastructureCapexChf,
+            0,
+          ),
+          allocatedInitialCAPEX_CHF: round(
+            allocation.electric?.allocatedInitialCapexChf,
+            0,
+          ),
+          allocatedCAPEXWithReplacements_CHF: round(
+            allocation.electric?.allocatedCapexWithReplacementsChf,
+            0,
+          ),
+          allocatedAnnualizedCAPEX_CHF: round(
+            allocation.electric?.allocatedAnnualizedCapexChf,
+            0,
+          ),
+        },
+        diesel: {
+          referenceCAPEX_CHF: round(allocation.diesel?.referenceCapexChf, 0),
+          allocatedInitialCAPEX_CHF: round(
+            allocation.diesel?.allocatedInitialCapexChf,
+            0,
+          ),
+          allocatedAnnualizedCAPEX_CHF: round(
+            allocation.diesel?.allocatedAnnualizedCapexChf,
+            0,
+          ),
+        },
+      };
+    }
   }
 
   /* ── Emissions ──────────────────────────────────────────────── */
@@ -3668,6 +3998,19 @@ export const buildCompleteYearlyExportPayload = ({
           busModelData,
           shiftCostOverrides,
         );
+        const allocationBasis = resolveShiftCapitalAllocationBasis(
+          features,
+          scope.shiftId,
+          generalEmissionsState?.rawLca,
+        );
+        scopedCostsData = applyShiftCapitalAllocation(
+          scopedCostsData,
+          allocationBasis,
+          {
+            infrastructureInvestmentChf:
+              generalSharedCosts.chargingInfrastructure.investmentChf,
+          },
+        );
       } catch {
         scopedCostsData = null;
       }
@@ -3716,12 +4059,12 @@ const downloadJson = (data, filename) => {
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
   URL.revokeObjectURL(url);
 };
 
@@ -3960,7 +4303,10 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
     },
     {
       label: translateOr("yearly_analysis.shift_capex_allocation", "Allocation to shifts"),
-      value: translateOr("yearly_analysis.not_allocated", "Not allocated"),
+      value: translateOr(
+        "yearly_analysis.allocated_by_annual_dc_energy",
+        "Allocated by annual DC energy",
+      ),
     },
   ];
   const stationRows = stations.map((station) => `
@@ -4012,13 +4358,18 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
           ),
         )}</p>
       </div>
-      <span class="ya-scope-mode">${textContent(
-        translateOr(
-          "simulation.feasibility_optimization_mode",
-          "Optimization mode: {mode}",
-          { mode: modeName },
-        ),
-      )}</span>
+      <div class="ya-general-header-actions">
+        <span class="ya-scope-mode">${textContent(
+          translateOr(
+            "simulation.feasibility_optimization_mode",
+            "Optimization mode: {mode}",
+            { mode: modeName },
+          ),
+        )}</span>
+        <button type="button" class="ya-general-download" data-action="download-json">${textContent(
+          translateOr("yearly_analysis.download_json", "Download all results (JSON)"),
+        )}</button>
+      </div>
     </header>
     <p class="ya-annual-assumption"><strong>${textContent(
       translateOr("yearly_analysis.annual_assumption_title", "Annual analysis assumption"),
@@ -4074,205 +4425,51 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
   </section>`;
 };
 
-const formatMinuteOfService = (value) => {
-  const minute = toFiniteNumber(value);
-  if (minute == null || minute < 0) return "—";
-  const whole = Math.round(minute);
-  const day = Math.floor(whole / 1440);
-  const minuteOfDay = whole % 1440;
-  const hh = String(Math.floor(minuteOfDay / 60)).padStart(2, "0");
-  const mm = String(minuteOfDay % 60).padStart(2, "0");
-  return day > 0
-    ? `${hh}:${mm} (+${day} ${translateOr("yearly_analysis.day_short", "day")})`
-    : `${hh}:${mm}`;
-};
-
-const formatDurationMinutes = (value) => {
-  const minutes = toFiniteNumber(value);
-  if (minutes == null) return "—";
-  const rounded = Math.round(minutes);
-  const hours = Math.floor(rounded / 60);
-  const remainder = rounded % 60;
-  if (!hours) return `${remainder} min`;
-  if (!remainder) return `${hours} h`;
-  return `${hours} h ${remainder} min`;
-};
-
 const buildShiftReferenceHtml = (features, scope) => {
   if (scope?.kind !== "shift") return "";
-  const fixed = features?.config?.fixedConfiguration ?? {};
-  const shift = getFixedYearlyShift(features, scope.shiftId) ?? {};
-  const battery = shift.battery ?? {};
-  const operation = shift.operation ?? {};
-  const commonBattery = fixed.battery ?? {};
   const result = (Array.isArray(features?.results?.shiftResults)
     ? features.results.shiftResults
     : []).find((row) => text(row?.shiftId).trim() === text(scope.shiftId).trim()) ?? {};
-  const hasChargingPlan = Array.isArray(operation.chargingSessions);
-  const sessions = hasChargingPlan
-    ? operation.chargingSessions
-    : [];
-  const commonPacks =
-    toFiniteNumber(commonBattery.packs) ?? toFiniteNumber(battery.commonPacks);
-  const requiredPacks = toFiniteNumber(battery.requiredPacks);
-  const packMargin =
-    toFiniteNumber(battery.commonPackMargin) ??
-    (commonPacks != null && requiredPacks != null
-      ? commonPacks - requiredPacks
-      : null);
   const totals = result.yearlyTotals ?? {};
-  const status = text(result.status).trim() || "unknown";
-  const statusLabel = translateOr(
-    `yearly_analysis.scope_status_${status}`,
-    status === "completed" ? "Complete" : status === "partial" ? "Partial" : status === "failed" ? "Failed" : "Unknown",
+  const annualMetrics = [
+    {
+      key: "energy",
+      label: t("yearly_analysis.yearly_energy"),
+      value: toFiniteNumber(totals.totalEnergyKwh) != null
+        ? `${formatInt(totals.totalEnergyKwh)} kWh`
+        : "—",
+    },
+    {
+      key: "distance",
+      label: t("yearly_analysis.yearly_simulated_distance"),
+      value: toFiniteNumber(totals.distanceKm) != null
+        ? `${formatInt(totals.distanceKm)} km`
+        : "—",
+    },
+    {
+      key: "efficiency",
+      label: translateOr("yearly_analysis.average_yearly_efficiency", "Average yearly efficiency"),
+      value: toFiniteNumber(totals.totalEnergyKwh) != null && toFiniteNumber(totals.distanceKm) > 0
+        ? `${formatFixed(totals.totalEnergyKwh / totals.distanceKm, 3)} kWh/km`
+        : "—",
+    },
+  ];
+  const summaryLabel = translateOr(
+    "yearly_analysis.yearly_aggregated_summary",
+    "Yearly aggregated summary",
   );
-  const sessionRows = sessions.map((session, index) => {
-    const duration =
-      toFiniteNumber(session.durationMinutes) ??
-      (toFiniteNumber(session.startMinute) != null && toFiniteNumber(session.endMinute) != null
-        ? Math.max(0, toFiniteNumber(session.endMinute) - toFiniteNumber(session.startMinute))
-        : null);
-    const energy = toFiniteNumber(session.energyKwh);
-    const averagePower =
-      energy != null && duration != null && duration > 0
-        ? energy / (duration / 60)
-        : null;
-    const sessionName = t("yearly_analysis.charging_session_label", { index: index + 1 });
-    return `<tr>
-      <td>${textContent(`${sessionName}: ${session.stationName || session.stationStopId || "—"}`)}</td>
-      <td>${textContent(`${formatMinuteOfService(session.startMinute)}–${formatMinuteOfService(session.endMinute)}`)}</td>
-      <td>${textContent(formatDurationMinutes(duration))}</td>
-      <td>${energy == null ? "—" : `${textContent(formatFixed(energy, 1))} kWh`}</td>
-      <td>${averagePower == null ? "—" : `${textContent(formatFixed(averagePower, 1))} kW`}</td>
-    </tr>`;
-  }).join("");
-  const chargingPlan = sessionRows
-    ? `<div class="ya-charging-plan-wrap">
-        <table class="ya-charging-plan-table">
-          <thead><tr>
-            <th>${textContent(translateOr("yearly_analysis.charging_session", "Charging session"))}</th>
-            <th>${textContent(translateOr("yearly_analysis.session_time", "Time"))}</th>
-            <th>${textContent(translateOr("yearly_analysis.session_duration", "Duration"))}</th>
-            <th>${textContent(translateOr("yearly_analysis.session_energy", "Energy"))}</th>
-            <th>${textContent(translateOr("yearly_analysis.session_average_power", "Average power"))}</th>
-          </tr></thead>
-          <tbody>${sessionRows}</tbody>
-        </table>
-      </div>`
-    : `<p class="ya-empty-reference">${textContent(
-        hasChargingPlan
-          ? translateOr(
-              "yearly_analysis.no_reference_charging_sessions",
-              "The source feasibility evaluation contains no charging sessions for this shift.",
-            )
-          : translateOr(
-              "yearly_analysis.reference_charging_plan_unavailable",
-              "Reference charging-plan details are unavailable in this saved analysis.",
-            ),
-      )}</p>`;
-
-  const statusTone = ["completed", "partial", "failed"].includes(status)
-    ? status
-    : "unknown";
 
   return `<section class="ya-shift-reference ya-scope-level ya-scope-level--shift" data-role="ya-shift-reference" data-shift-id="${textContent(scope.shiftId)}">
-    <header class="ya-scope-level__header ya-scope-level__header--shift">
-      <div>
-        <p class="ya-scope-level__eyebrow">${textContent(
-          translateOr("simulation.feasibility_shift_level", "Shift detail"),
-        )}</p>
-        <h3 class="ya-scope-level__title" data-role="ya-selected-shift">${textContent(
-          scope.shiftName || scope.shiftId || "—",
-        )}</h3>
-        <p class="ya-scope-level__subtitle">${textContent(
-          translateOr(
-            "simulation.feasibility_shift_subtitle",
-            "Energy demand and operating details for the selected shift.",
-          ),
-        )}</p>
+    <section class="ya-shift-yearly-summary" data-role="ya-shift-yearly-summary">
+      <div class="ya-compact-metrics">
+        <table class="ya-compact-metrics__table" aria-label="${textContent(summaryLabel)}">
+          <tbody><tr>
+            <th scope="row" class="ya-shift-yearly-summary__title">${textContent(summaryLabel)}</th>
+            ${annualMetrics.map((metric) => `<td data-metric="${metric.key}"><span>${textContent(metric.label)}:</span> <strong>${textContent(metric.value)}</strong></td>`).join("")}
+          </tr></tbody>
+        </table>
       </div>
-      <span class="ya-scope-status ya-scope-status--${statusTone}">${textContent(statusLabel)}</span>
-    </header>
-    <div class="ya-shift-reference__grid">
-      <article class="ya-shift-reference-card">
-        <h3 class="ya-shift-reference-card__title">${textContent(
-          translateOr("yearly_analysis.common_bus_configuration", "Common bus configuration"),
-        )}</h3>
-        ${definitionRowsHtml([
-          {
-            label: translateOr("yearly_analysis.fleet_battery_packs", "Common battery"),
-            value: commonPacks != null ? t("yearly_analysis.packs_value", { count: formatFixed(commonPacks, 0) }) : "—",
-          },
-          {
-            label: translateOr("yearly_analysis.minimum_required_packs", "Minimum required by this shift"),
-            value: requiredPacks != null ? t("yearly_analysis.packs_value", { count: formatFixed(requiredPacks, 0) }) : "—",
-          },
-          {
-            label: translateOr("yearly_analysis.fleet_pack_margin", "Common battery margin"),
-            value: packMargin != null ? `${packMargin >= 0 ? "+" : ""}${formatFixed(packMargin, 0)} ${t("simulation.unit_packs") || "packs"}` : "—",
-          },
-        ], "ya-shift-reference-card")}
-      </article>
-      <article class="ya-shift-reference-card">
-        <h3 class="ya-shift-reference-card__title">${textContent(
-          translateOr("yearly_analysis.yearly_aggregated_summary", "Yearly aggregated summary"),
-        )}</h3>
-        ${definitionRowsHtml([
-          {
-            label: t("yearly_analysis.yearly_energy"),
-            value: toFiniteNumber(totals.totalEnergyKwh) != null ? `${formatInt(totals.totalEnergyKwh)} kWh` : "—",
-          },
-          {
-            label: t("yearly_analysis.yearly_simulated_distance"),
-            value: toFiniteNumber(totals.distanceKm) != null ? `${formatInt(totals.distanceKm)} km` : "—",
-          },
-          {
-            label: translateOr("yearly_analysis.average_yearly_efficiency", "Average yearly efficiency"),
-            value: toFiniteNumber(totals.totalEnergyKwh) != null && toFiniteNumber(totals.distanceKm) > 0
-              ? `${formatFixed(totals.totalEnergyKwh / totals.distanceKm, 3)} kWh/km`
-              : "—",
-          },
-        ], "ya-shift-reference-card")}
-      </article>
-      <article class="ya-shift-reference-card">
-        <h3 class="ya-shift-reference-card__title">${textContent(
-          translateOr("yearly_analysis.feasibility_reference", "Feasibility reference"),
-        )}</h3>
-        ${definitionRowsHtml([
-          {
-            label: translateOr("yearly_analysis.minimum_soc_reached", "Minimum SOC reached"),
-            value: toFiniteNumber(operation.minSocKwh) != null ? `${formatFixed(operation.minSocKwh, 1)} kWh` : "—",
-          },
-          {
-            label: translateOr("yearly_analysis.maximum_soc_reached", "Maximum SOC reached"),
-            value: toFiniteNumber(operation.maxSocKwh) != null ? `${formatFixed(operation.maxSocKwh, 1)} kWh` : "—",
-          },
-          {
-            label: translateOr("yearly_analysis.reference_charged_energy", "Charged energy in feasibility"),
-            value: toFiniteNumber(operation.totalChargedKwh) != null ? `${formatFixed(operation.totalChargedKwh, 1)} kWh` : "—",
-          },
-        ], "ya-shift-reference-card")}
-      </article>
-    </div>
-    <div class="ya-reference-charging-plan">
-      <div class="ya-reference-charging-plan__header">
-        <div>
-          <h3 class="ya-shift-reference-card__title">${textContent(
-            translateOr("yearly_analysis.reference_charging_plan", "Reference charging plan"),
-          )}</h3>
-          <p class="ya-charging-plan-note">${textContent(
-            translateOr(
-              "yearly_analysis.reference_charging_plan_note",
-              "This fixed plan comes from the source feasibility evaluation and is shown once as context. It is not recalculated for each temperature cluster.",
-            ),
-          )}</p>
-        </div>
-        ${hasChargingPlan
-          ? `<span class="ya-reference-charging-plan__count">${textContent(String(sessions.length))}</span>`
-          : ""}
-      </div>
-      ${chargingPlan}
-    </div>
+    </section>
   </section>`;
 };
 
@@ -4367,7 +4564,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   const cleanups = [];
   const pageTitleEl = section.querySelector('[data-role="page-title"]');
-  const analysisNameEl = section.querySelector('[data-role="ya-analysis-name"]');
   const feedbackEl = section.querySelector('[data-role="feedback"]');
   const overviewPanel = section.querySelector('[data-role="overview-panel"]');
   const emissionsContent = section.querySelector('[data-role="emissions-content"]');
@@ -4404,8 +4600,11 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   }
 
   const analysisName = text(analysis.name).trim();
-  if (pageTitleEl) pageTitleEl.textContent = t("yearly_analysis.results_title");
-  if (analysisNameEl) analysisNameEl.textContent = analysisName || "—";
+  if (pageTitleEl) {
+    const fullTitle = `${t("yearly_analysis.results_title")} - ${analysisName || "—"}`;
+    pageTitleEl.textContent = fullTitle;
+    pageTitleEl.title = fullTitle;
+  }
 
   let analysisPredictionRuns = [];
   try {
@@ -4469,9 +4668,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     resultScopeTabsEl.innerHTML = resultScopes.map((scope, index) => {
       const isActive = scope.key === activeScopeKey;
       const status = text(scope.status).trim().toLowerCase();
-      const statusDot = scope.kind === "shift" && status
-        ? `<span class="ya-result-scope-tab__status" aria-hidden="true"></span>`
-        : "";
       return `<button
         id="yearly-result-scope-tab-${index}"
         type="button"
@@ -4484,7 +4680,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         aria-controls="yearly-result-scope-content"
         tabindex="${isActive ? "0" : "-1"}"
         title="${textContent(scope.label)}"
-      >${textContent(scope.label)}${statusDot}</button>`;
+      >${textContent(scope.label)}</button>`;
     }).join("");
     const activeIndex = resultScopes.findIndex((scope) => scope.key === activeScopeKey);
     if (resultScopeContentEl && activeIndex >= 0) {
@@ -4497,26 +4693,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   renderResultScopeTabs();
 
-  /* ── Download handler (captures live state) ──────────────── */
-  const handleDownload = () => {
-    const exportCostState = {
-      ...costState,
-      costsData: generalCostsData ?? costState.costsData,
-      error: generalCostsError,
-      status: generalCostsData ? "done" : costState.status,
-    };
-    const payload = buildCompleteYearlyExportPayload({
-      features,
-      busModelData,
-      analysisId,
-      generalCostState: exportCostState,
-      generalEmissionsState: getGeneralDisplayedEmissionsState(),
-      costOverrides,
-      resultScopes,
-    });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    downloadJson(payload, `yearly-analysis-${timestamp}.json`);
-  };
   if (configContent) configContent.innerHTML = renderConfig(features);
 
   const openConfiguration = () => {
@@ -4536,11 +4712,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     btn.addEventListener("click", closeConfiguration);
     cleanups.push(() => btn.removeEventListener("click", closeConfiguration));
   });
-  section.querySelectorAll('[data-action="download-json"]').forEach((btn) => {
-    btn.addEventListener("click", handleDownload);
-    cleanups.push(() => btn.removeEventListener("click", handleDownload));
-  });
-
   const overlayClickHandler = (event) => {
     if (event.target === configOverlay) closeConfiguration();
   };
@@ -4595,8 +4766,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const effChart2El = section.querySelector('[data-role="ya-eff-chart-2"]');
   const effChart2Legend = section.querySelector('[data-role="ya-eff-chart-2-legend"]');
   const effChart2UnitToggle = section.querySelector('[data-role="ya-eff-chart-2-unit-toggle"]');
-  const effChart1NoteEl = section.querySelector('[data-role="ya-eff-chart-1-note"]');
-  const effChart2NoteEl = section.querySelector('[data-role="ya-eff-chart-2-note"]');
 
   const updateAnnualContributionToggle = () => {
     if (!effChart2UnitToggle) return;
@@ -4618,9 +4787,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   const renderEfficiency = () => {
     renderYearlyDetails();
-    if (effChart1NoteEl) effChart1NoteEl.textContent = quantileHelpText();
-    if (effChart2NoteEl) effChart2NoteEl.textContent = annualContributionHelpText();
-
     try { renderEfficiencyByTempChart(effChart1El, effChart1Legend, effState.effByTemp); } catch (e) { console.error("[YA-Eff] Chart 1 error:", e); }
     renderAnnualContribution();
   };
@@ -4658,6 +4824,24 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     }
   };
 
+  const allocateActiveShiftCapital = () => {
+    if (activeScope?.kind !== "shift" || !costState.costsData) return;
+    const basis = resolveShiftCapitalAllocationBasis(
+      features,
+      activeScope.shiftId,
+      emissionsState.rawLca,
+    );
+    const sharedCosts = buildGeneralSharedCostContext(features, busModelData);
+    costState.costsData = applyShiftCapitalAllocation(
+      costState.costsData,
+      basis,
+      {
+        infrastructureInvestmentChf:
+          sharedCosts.chargingInfrastructure.investmentChf,
+      },
+    );
+  };
+
   const refreshCosts = () => {
     costState.error = null;
     if (activeScope?.kind === "general" && backendCostsRaw) {
@@ -4677,6 +4861,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     } else {
       computeCosts();
     }
+    allocateActiveShiftCapital();
     if (activeScope?.kind === "general") {
       generalCostsData = costState.costsData;
       generalCostsError = costState.error;
@@ -4733,7 +4918,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   const renderScopeContextNotes = () => {
     const costNote = section.querySelector('[data-role="ya-cost-scope-note"]');
-    const emissionsNote = section.querySelector('[data-role="ya-emissions-scope-note"]');
     const isShift = activeScope?.kind === "shift";
 
     if (costNote) {
@@ -4742,15 +4926,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         ? costState.error || t("yearly_analysis.unable_compute_costs")
         : translateOr(
             "yearly_analysis.shift_cost_scope_note",
-            "Only operating costs attributable to this shift's energy use and distance are included. Shared charging infrastructure, vehicle and battery investments are excluded and shown once in General.",
+            "Operating costs use this shift's energy and distance. Shared CAPEX remains counted once in General and is attributed here by the shift's share of annual DC energy for comparison and break-even analysis.",
           );
-    }
-    if (emissionsNote) {
-      emissionsNote.hidden = !isShift;
-      emissionsNote.textContent = translateOr(
-        "yearly_analysis.shift_emissions_scope_note",
-        "Shift impacts use the backend vehicle record for this shift. Electricity follows its energy use, diesel heating follows its fuel use, and the remaining lifecycle impacts follow its vehicle and distance assumptions.",
-      );
     }
   };
 
@@ -4780,6 +4957,10 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     const available = getYearlyScopeSectionVisibility(activeScope);
     const isShift = activeScope?.kind === "shift";
     const visibility = {};
+
+    if (resultScopeContentEl) {
+      resultScopeContentEl.dataset.scopeKind = isShift ? "shift" : "general";
+    }
 
     if (resultViewTabsEl) {
       resultViewTabsEl.hidden = !isShift;
@@ -4864,6 +5045,30 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   /* ── Load bus model and optimization run ─────────────────── */
   let busModelData = {};
   let optimizationRun = null;
+
+  const downloadClickHandler = (event) => {
+    const button = event.target.closest('[data-action="download-json"]');
+    if (!button || !section.contains(button) || activeScope?.kind !== "general") return;
+    const exportCostState = {
+      ...costState,
+      costsData: generalCostsData ?? costState.costsData,
+      error: generalCostsError,
+      status: generalCostsData ? "done" : costState.status,
+    };
+    const payload = buildCompleteYearlyExportPayload({
+      features,
+      busModelData,
+      analysisId,
+      generalCostState: exportCostState,
+      generalEmissionsState: getGeneralDisplayedEmissionsState(),
+      costOverrides,
+      resultScopes,
+    });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    downloadJson(payload, `yearly-analysis-${timestamp}.json`);
+  };
+  section.addEventListener("click", downloadClickHandler);
+  cleanups.push(() => section.removeEventListener("click", downloadClickHandler));
 
   const busModelId = text(config.bus_model_id ?? "");
   const optRunId = text(features.results?.baseOptimizationRunId ?? analysis.optimization_run_id ?? "");
@@ -5108,6 +5313,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       emissionsState.emissionsMetadata = null;
       emissionsState.structured = null;
     }
+    if (activeScope?.kind === "shift") refreshCosts();
     syncEmissionsDistanceControl();
     refreshDerivedEmissionsViews();
   };
