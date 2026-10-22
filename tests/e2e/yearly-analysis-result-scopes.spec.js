@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
+const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === "1";
+
 const html = readFileSync(
   new URL("../../src/pages/Simulation/YearlyAnalysis/yearly-analysis-results.html", import.meta.url),
   "utf8",
@@ -370,7 +372,8 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(page.locator('[data-panel="overview"]')).toBeVisible();
   const generalLevel = page.locator('[data-role="ya-deployed-configuration"]');
   await expect(generalLevel).toHaveClass(/ya-scope-level--general/);
-  await expect(generalLevel.locator(".ya-scope-level__eyebrow")).toHaveText("General result");
+  await expect(generalLevel).toHaveClass(/result-card/);
+  await expect(generalLevel.locator(".ya-scope-level__eyebrow")).toHaveCount(0);
   await expect(generalLevel.locator(".ya-scope-level__title")).toHaveText("Deployed configuration");
   await expect(generalLevel.locator(".ya-scope-mode")).toHaveText("Optimization mode: Joint");
   const generalDownload = generalLevel.getByRole("button", { name: "Download all results (JSON)" });
@@ -397,11 +400,46 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   );
   await generalCostTooltip.hover();
   await expect(generalCostTooltip.locator(".ya-info-tooltip")).toBeVisible();
+  const generalPresentation = await generalLevel.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const role = element.querySelector(".ya-configuration-role");
+    const roleStyle = getComputedStyle(role);
+    const nestedCards = [...element.querySelectorAll(".ya-deployed-card")];
+    return {
+      background: style.backgroundColor,
+      borderStyle: style.borderStyle,
+      shadow: style.boxShadow,
+      roleBackground: roleStyle.backgroundColor,
+      roleBorderWidth: roleStyle.borderWidth,
+      nestedBackgrounds: [...new Set(nestedCards.map((card) => getComputedStyle(card).backgroundColor))],
+      hasHorizontalOverflow:
+        document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
+  expect(generalPresentation.background).toBe("rgb(255, 255, 255)");
+  expect(generalPresentation.borderStyle).toBe("solid");
+  expect(generalPresentation.shadow).not.toBe("none");
+  expect(generalPresentation.roleBackground).toBe("rgba(0, 0, 0, 0)");
+  expect(generalPresentation.roleBorderWidth).toBe("0px");
+  expect(generalPresentation.nestedBackgrounds).toEqual(["rgb(255, 255, 255)"]);
+  expect(generalPresentation.hasHorizontalOverflow).toBe(false);
   await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   await expect(resultViewTablist).toBeHidden();
   await expect(page.locator('[data-role="overview-panel"] .ya-overview-grid')).toHaveCount(0);
+
+  if (updateGuideScreenshots) {
+    await page.setViewportSize({ width: 1440, height: 1020 });
+    await generalCostTooltip.evaluate((button) => button.blur());
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(250);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator(".ya-results-main").evaluate((main) => {
+      main.scrollTop = 0;
+    });
+    await page.screenshot({ path: "guide/images/yearly-efficiency.png" });
+  }
 
   await tabs.getByText("Morning service", { exact: true }).click();
   await expect(tabs.getByText("Morning service", { exact: true })).toHaveAttribute("aria-selected", "true");
@@ -457,6 +495,23 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(shiftLevel).not.toContainText("Charging session 1: Depot");
   await expect(page.locator('[data-role="ya-eff-chart-1-note"]')).toHaveCount(0);
   await expect(page.locator('[data-role="ya-eff-chart-2-note"]')).toHaveCount(0);
+  const efficiencyCardPresentation = await page.locator(".ya-eff-chart-section").evaluateAll(
+    (cards) => cards.map((card) => {
+      const style = getComputedStyle(card);
+      const titleStyle = getComputedStyle(card.querySelector(".ya-res-section-title"));
+      return {
+        background: style.backgroundColor,
+        borderStyle: style.borderStyle,
+        titleSize: Number.parseFloat(titleStyle.fontSize),
+      };
+    }),
+  );
+  expect(efficiencyCardPresentation).toHaveLength(2);
+  efficiencyCardPresentation.forEach((card) => {
+    expect(card.background).toBe("rgb(255, 255, 255)");
+    expect(card.borderStyle).toBe("solid");
+    expect(card.titleSize).toBeLessThanOrEqual(16);
+  });
   await expect(content).not.toContainText("Cold evening");
   await expect(page.locator('[data-role="ya-cost-scope-note"]')).toBeHidden();
   await expect(page.locator('[data-role="ya-emissions-scope-note"]')).toHaveCount(0);
@@ -505,6 +560,38 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(page.locator('[data-role="ya-emissions-scope-note"]')).toHaveCount(0);
   await expect(page.locator('[data-panel="emissions"]')).not.toContainText("Shift impacts use");
   await expect(page.locator('[data-role="ya-env-controls"]')).toBeHidden();
+  await expect(page.locator('[data-role="ya-lca-overview"]')).toBeVisible();
+  await expect(page.locator('[data-role="ya-lca-energy-summary"] .result-metric')).toHaveCount(4);
+  await expect(page.locator('[data-role="ya-lca-indicators"]')).toBeVisible();
+  await expect(page.locator('[data-role="ya-lca-phases"]')).toBeVisible();
+  const emissionsPresentation = await page.locator('[data-role="ya-lca-overview"]').evaluate(
+    (element) => {
+      const style = getComputedStyle(element);
+      const metrics = [...element.querySelectorAll(".result-metric")].map((metric) =>
+        getComputedStyle(metric).backgroundColor,
+      );
+      return {
+        background: style.backgroundColor,
+        borderStyle: style.borderStyle,
+        metricBackgrounds: [...new Set(metrics)],
+        hasHorizontalOverflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    },
+  );
+  expect(emissionsPresentation.background).toBe("rgb(255, 255, 255)");
+  expect(emissionsPresentation.borderStyle).toBe("solid");
+  expect(emissionsPresentation.metricBackgrounds).toEqual(["rgba(0, 0, 0, 0)"]);
+  expect(emissionsPresentation.hasHorizontalOverflow).toBe(false);
+
+  if (updateGuideScreenshots) {
+    await page.setViewportSize({ width: 1440, height: 990 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator(".ya-results-main").evaluate((main) => {
+      main.scrollTop = 0;
+    });
+    await page.screenshot({ path: "guide/images/yearly-emissions.png" });
+  }
 
   await resultViewTabs.getByText("Emissions", { exact: true }).focus();
   await resultViewTabs.getByText("Emissions", { exact: true }).press("Home");
@@ -547,6 +634,22 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   const mobileShiftContext = await shiftLevel.boundingBox();
   expect(mobileShiftContext.height).toBeLessThan(40);
   await expect(yearlySummary.locator(".ya-compact-metrics")).toHaveCSS("overflow-x", "auto");
+  await resultViewTabs.getByText("Emissions", { exact: true }).click();
+  const mobileActivityMetric = page
+    .locator('[data-role="ya-lca-energy-summary"] .result-metric')
+    .last();
+  await expect(mobileActivityMetric).toHaveCSS("flex-direction", "column");
+  const mobileActivityLayout = await mobileActivityMetric.evaluate((metric) => {
+    const label = metric.querySelector(".result-metric__label").getBoundingClientRect();
+    const value = metric.querySelector(".result-metric__value").getBoundingClientRect();
+    return {
+      separated: value.top >= label.bottom,
+      bodyClientWidth: document.body.clientWidth,
+      bodyScrollWidth: document.body.scrollWidth,
+    };
+  });
+  expect(mobileActivityLayout.separated).toBe(true);
+  expect(mobileActivityLayout.bodyScrollWidth).toBe(mobileActivityLayout.bodyClientWidth);
 });
 
 test("historical single-shift results expose General and the configured shift", async ({ page }) => {

@@ -1342,6 +1342,205 @@ table input[type="checkbox"] {
   padding: var(--panel-padding);
 }
 
+/* Shared presentation primitives for feasibility and yearly result pages.
+   They mirror the restrained Fleet cards: one surface, one heading hierarchy
+   and compact label/value rows. */
+.result-page-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.result-page-heading .page-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-header-action {
+  flex: 0 0 auto;
+  padding: var(--space-2xs) var(--space-xs);
+  border: 1px solid currentcolor;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.result-header-action:hover {
+  background: color-mix(in srgb, currentcolor 8%, transparent);
+}
+
+.result-header-action:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--shadow-focus-ring);
+}
+
+.result-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border-dim);
+  border-radius: var(--panel-radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.result-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin: 0 var(--space-lg);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.result-card__heading {
+  min-width: 0;
+}
+
+.result-card__title {
+  margin: 0;
+  color: var(--text-main);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.result-card__subtitle {
+  max-width: 60ch;
+  margin: var(--space-xs) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+}
+
+.result-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: var(--space-md) var(--space-lg);
+}
+
+.result-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  width: fit-content;
+  padding: var(--space-2xs) var(--space-xs);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.result-status--positive {
+  border-color: color-mix(in srgb, var(--color-success) 28%, var(--border-light));
+  background: color-mix(in srgb, var(--color-success) 7%, var(--color-surface));
+  color: var(--color-success);
+}
+
+.result-status--negative {
+  border-color: color-mix(in srgb, var(--color-danger) 28%, var(--border-light));
+  background: color-mix(in srgb, var(--color-danger) 7%, var(--color-surface));
+  color: var(--color-danger);
+}
+
+.result-status--warning {
+  border-color: color-mix(in srgb, var(--color-warning-text) 28%, var(--border-light));
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface));
+  color: var(--color-warning-text);
+}
+
+.result-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.result-metric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-main);
+  font-size: var(--font-size-md);
+  line-height: 1.4;
+}
+
+.result-metric:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.result-metric:nth-child(odd) {
+  border-right: 1px solid var(--border-light);
+}
+
+.result-metric__label {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.result-metric__value {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--text-main);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (width <= 700px) {
+  .result-page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .result-page-heading .page-title {
+    white-space: normal;
+  }
+
+  .result-card__header {
+    margin-inline: var(--space-md);
+  }
+
+  .result-card__body {
+    padding: var(--space-md);
+  }
+
+  .result-metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .result-metric,
+  .result-metric:nth-child(odd),
+  .result-metric:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .result-metric:last-child {
+    border-bottom: 0;
+  }
+}
+
 .form-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

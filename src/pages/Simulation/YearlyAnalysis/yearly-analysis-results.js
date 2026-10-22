@@ -4342,16 +4342,13 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
             ),
       )}</p>`;
 
-  return `<section class="ya-deployed-configuration ya-scope-level ya-scope-level--general" data-role="ya-deployed-configuration">
-    <header class="ya-scope-level__header">
-      <div>
-        <p class="ya-scope-level__eyebrow">${textContent(
-          translateOr("simulation.feasibility_general_level", "General result"),
-        )}</p>
-        <h3 class="ya-scope-level__title">${textContent(
+  return `<section class="ya-deployed-configuration ya-scope-level ya-scope-level--general result-card" data-role="ya-deployed-configuration">
+    <header class="ya-scope-level__header result-card__header">
+      <div class="result-card__heading">
+        <h3 class="ya-scope-level__title result-card__title">${textContent(
           translateOr("yearly_analysis.deployed_configuration", "Deployed configuration"),
         )}</h3>
-        <p class="ya-scope-level__subtitle">${textContent(
+        <p class="ya-scope-level__subtitle result-card__subtitle">${textContent(
           translateOr(
             "simulation.feasibility_general_subtitle",
             "One bus configuration and one charging infrastructure shared by every selected shift.",
@@ -4366,11 +4363,12 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
             { mode: modeName },
           ),
         )}</span>
-        <button type="button" class="ya-general-download" data-action="download-json">${textContent(
+        <button type="button" class="ya-general-download result-header-action" data-action="download-json">${textContent(
           translateOr("yearly_analysis.download_json", "Download all results (JSON)"),
         )}</button>
       </div>
     </header>
+    <div class="ya-deployed-configuration__body result-card__body">
     <p class="ya-annual-assumption"><strong>${textContent(
       translateOr("yearly_analysis.annual_assumption_title", "Annual analysis assumption"),
     )}:</strong> ${textContent(
@@ -4422,6 +4420,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
       ${definitionRowsHtml(sharedCostRows)}
     </article>
     ${infrastructureTable}
+    </div>
   </section>`;
 };
 

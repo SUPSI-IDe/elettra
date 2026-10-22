@@ -2,11 +2,11 @@
   <header class="page-header">
     <div class="header-with-close">
       <div class="title-container">
-        <div class="ya-page-heading-row">
+        <div class="ya-page-heading-row result-page-heading">
           <h1 class="page-title" data-role="page-title">Yearly analysis results</h1>
           <button
             type="button"
-            class="ya-header-action"
+            class="ya-header-action result-header-action"
             data-action="view-configuration"
             data-i18n="yearly_analysis.view_configuration_data"
           >View configuration data</button>
@@ -90,12 +90,12 @@
         <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_efficiency">Annual efficiency</h2>
         <!-- D3 chart slots (appended to, not via innerHTML) -->
         <div class="ya-eff-charts-grid">
-          <div class="ya-res-section ya-eff-chart-section">
+          <div class="ya-res-section ya-eff-chart-section result-card">
             <h3 class="ya-res-section-title" data-i18n="yearly_analysis.efficiency_by_temperature_title">Scenario efficiency by temperature</h3>
             <div class="ya-chart-container" data-role="ya-eff-chart-1"></div>
             <div class="ya-chart-legend" data-role="ya-eff-chart-1-legend"></div>
           </div>
-          <div class="ya-res-section ya-eff-chart-section">
+          <div class="ya-res-section ya-eff-chart-section result-card">
             <div class="ya-res-section-header">
               <h3 class="ya-res-section-title" data-i18n="yearly_analysis.annual_energy_by_temperature_title">Annual energy contribution by temperature scenario</h3>
               <div class="ya-chart-unit-toggle" data-role="ya-eff-chart-2-unit-toggle" role="group" aria-label="Energy unit" data-i18n-aria-label="yearly_analysis.energy_unit_toggle_label">
@@ -141,7 +141,7 @@
         </h2>
         <p class="ya-scope-context-note" data-role="ya-cost-scope-note" hidden></p>
         <!-- Full-width cost assumptions -->
-        <div class="ya-res-section ya-cost-variables ya-costs-inputs-section">
+        <div class="ya-res-section ya-cost-variables ya-costs-inputs-section result-card">
           <div class="ya-res-section-header">
             <h3 class="ya-res-section-title" data-i18n="yearly_analysis.costs_estimate_values">Set values to estimate yearly costs</h3>
             <button type="button" class="ya-cost-variables__reset-all" data-role="ya-var-reset-all" data-i18n="yearly_analysis.costs_reset_all_parameters">Reset all parameters</button>
@@ -198,7 +198,7 @@
           </div>
         </div>
 
-        <div class="ya-res-section ya-capex-allocation-section" data-role="ya-costs-capex-section">
+        <div class="ya-res-section ya-capex-allocation-section result-card" data-role="ya-costs-capex-section">
           <h3 class="ya-res-section-title ya-scope-section-title--with-info">
             <span data-i18n="yearly_analysis.allocated_capex_title">Allocated shared CAPEX</span>
             <button
@@ -212,12 +212,12 @@
         </div>
 
         <div class="ya-costs-charts-grid">
-          <div class="ya-res-section ya-costs-bar-section">
+          <div class="ya-res-section ya-costs-bar-section result-card">
             <h3 class="ya-res-section-title" data-i18n="yearly_analysis.shift_annual_opex_comparison">Annual shift OPEX comparison</h3>
             <div class="ya-chart-container" data-role="ya-costs-bar-chart"></div>
             <div class="ya-chart-legend" data-role="ya-costs-bar-legend"></div>
           </div>
-          <div class="ya-res-section ya-costs-line-section">
+          <div class="ya-res-section ya-costs-line-section result-card">
             <h3 class="ya-res-section-title ya-scope-section-title--with-info">
               <span data-i18n="yearly_analysis.allocated_cost_trend">Cumulative cost and break-even</span>
               <button
@@ -236,7 +236,7 @@
         <details class="ya-more-information">
           <summary class="ya-more-information__toggle" data-i18n="simulation.efficiency_more_information">More information</summary>
           <div class="ya-more-information__content">
-            <div class="ya-res-section ya-costs-kpis-section">
+            <div class="ya-res-section ya-costs-kpis-section result-card">
               <h3 class="ya-res-section-title" data-i18n="yearly_analysis.shift_operating_cost_summary">Shift operating cost summary</h3>
               <div class="kpi-grid ya-costs-kpi-grid" data-role="ya-costs-kpis"></div>
             </div>
@@ -261,7 +261,7 @@
         <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_emissions">Annual emissions</h2>
         <div class="ya-env-content" data-role="emissions-content">
           <!-- Full-width annual distance control -->
-          <div class="ya-res-section ya-cost-variables ya-env-controls" data-role="ya-env-controls" hidden>
+          <div class="ya-res-section ya-cost-variables ya-env-controls result-card" data-role="ya-env-controls" hidden>
             <div class="ya-res-section-header">
               <h3 class="ya-res-section-title" data-i18n="yearly_analysis.emissions_set_annual_distance">Set the annual distance to estimate yearly emissions</h3>
               <button type="button" class="ya-cost-variables__reset-all" data-role="ya-env-yearly-distance-reset" data-i18n="simulation.costs_variable_reset">Reset</button>
@@ -280,12 +280,12 @@
 
           <!-- Equal-width emissions charts -->
           <div class="ya-env-chart-grid">
-            <div class="ya-res-section ya-env-chart-section ya-env-chart-section--prominent">
+            <div class="ya-res-section ya-env-chart-section ya-env-chart-section--prominent result-card">
               <h3 class="ya-res-section-title" data-i18n="simulation.emissions_saved_title">Emissions saved</h3>
               <div class="ya-chart-container" data-role="ya-env-histogram"></div>
               <div class="ya-chart-legend" data-role="ya-env-histogram-legend"></div>
             </div>
-            <div class="ya-res-section ya-env-chart-section">
+            <div class="ya-res-section ya-env-chart-section result-card">
               <h3 class="ya-res-section-title" data-i18n="yearly_analysis.emissions_co2_breakdown_title">CO₂ emissions breakdown</h3>
               <div class="ya-chart-container" data-role="ya-env-co2-phase"></div>
               <div class="ya-chart-legend" data-role="ya-env-co2-phase-legend"></div>
@@ -301,7 +301,7 @@
             <div class="ya-more-information__content">
               <div data-role="ya-env-header"></div>
               <div data-role="ya-env-table"></div>
-              <div class="ya-res-section" data-role="ya-env-primary-energy-section" hidden>
+              <div class="ya-res-section result-card" data-role="ya-env-primary-energy-section" hidden>
                 <h3 class="ya-res-section-title" data-i18n="yearly_analysis.primary_energy_title">Primary energy</h3>
                 <div class="ya-chart-container" data-role="ya-env-primary-energy"></div>
                 <div class="ya-chart-legend" data-role="ya-env-primary-energy-legend"></div>

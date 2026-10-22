@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === "1";
+
 const battery = (shiftName, packs, overrides = {}) => ({
   shift_name: shiftName,
   reference_packs: 6,
@@ -359,6 +361,13 @@ test("separates the common result from one selected shift without an aggregate o
   const shiftDetail = page.locator('[data-role="feasibility-shift-level"]');
   const selector = page.locator('[data-role="shift-tabs"]');
 
+  await expect(page.locator(".results-toolbar")).toHaveCount(0);
+  await expect(page.locator('[data-role="results-page-title"]')).toHaveText(
+    "Feasibility evaluation results - Multi-shift feasibility",
+  );
+  await expect(
+    page.locator(".page-header .result-header-action"),
+  ).toHaveText("View raw feasibility data");
   await expect(general).toBeVisible();
   await expect(shiftDetail).toHaveCount(0);
   await expect(page.locator(".results-tabs")).toHaveCount(0);
@@ -385,9 +394,34 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(general.locator('[data-role="feasibility-total-power"]')).toHaveText("300 kW DC");
   await expect(
     general.locator('[data-role="feasibility-fleet-battery"] .feasibility-general-card__value'),
-  ).toHaveText("12 packs");
+  ).toHaveText("12 packs · 600 kWh");
   await expect(general.locator(".feasibility-general-card__value small")).toHaveCount(0);
   await expect(general.locator(".feasibility-infrastructure-metrics small")).toHaveCount(0);
+  await expect(general.locator(".feasibility-level__eyebrow")).toHaveCount(0);
+  const generalPresentation = await general.evaluate((section) => {
+    const cardStyle = getComputedStyle(section);
+    const metricGrid = section.querySelector(".result-metric-grid");
+    const metric = section.querySelector(".result-metric");
+    const decision = section.querySelector(".feasibility-decision");
+    return {
+      background: cardStyle.backgroundColor,
+      borderStyle: cardStyle.borderStyle,
+      shadow: cardStyle.boxShadow,
+      metricGridColumns: metricGrid ? getComputedStyle(metricGrid).gridTemplateColumns : "",
+      metricBackground: metric ? getComputedStyle(metric).backgroundColor : "",
+      decisionBorderWidth: decision ? getComputedStyle(decision).borderWidth : "",
+      decisionBackground: decision ? getComputedStyle(decision).backgroundColor : "",
+    };
+  });
+  expect(generalPresentation).toMatchObject({
+    background: "rgb(255, 255, 255)",
+    borderStyle: "solid",
+    metricBackground: "rgba(0, 0, 0, 0)",
+    decisionBorderWidth: "0px",
+    decisionBackground: "rgba(0, 0, 0, 0)",
+  });
+  expect(generalPresentation.shadow).not.toBe("none");
+  expect(generalPresentation.metricGridColumns).not.toBe("");
   const generalMetricLayout = await general.evaluate((section) => {
     const pairs = [
       ...section.querySelectorAll(".feasibility-general-card__heading"),
@@ -420,6 +454,17 @@ test("separates the common result from one selected shift without an aggregate o
       expect(pair.topDifference).toBeLessThanOrEqual(1);
     }
   });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    ),
+  ).toBe(false);
+
+  if (updateGuideScreenshots) {
+    await page.setViewportSize({ width: 1000, height: 850 });
+    await page.locator(".results-main").evaluate((main) => { main.scrollTop = 0; });
+    await page.screenshot({ path: "guide/images/feasibility-efficiency.png" });
+  }
 
   await expect(selector).toBeVisible();
   await expect(selector).toHaveAttribute("role", "tablist");
@@ -433,6 +478,13 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(general).toHaveCount(0);
   await expect(shiftDetail).toBeVisible();
   await expect(page.locator(".results-tabs, .results-tab")).toHaveCount(0);
+  await expect(
+    shiftDetail.locator('[data-role="feasibility-selected-shift"]'),
+  ).toHaveClass(/sr-only/);
+  await expect(shiftDetail).not.toContainText("Shift detail");
+  await expect(shiftDetail).not.toContainText(
+    "Energy demand and operating details for the selected shift.",
+  );
 
   const shiftSummary = shiftDetail.locator('[data-role="feasibility-shift-summary"]');
   await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Covered by common battery and planned charging");
@@ -519,6 +571,12 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(energyAdequacy.locator(".efficiency-adequacy-panel")).toHaveCount(1);
   await expect(shiftDetail).not.toContainText("Sensitivity / Feasibility Insight");
 
+  if (updateGuideScreenshots) {
+    await page.setViewportSize({ width: 1900, height: 1000 });
+    await page.locator(".results-main").evaluate((main) => { main.scrollTop = 0; });
+    await page.screenshot({ path: "guide/images/feasibility-sizing.png" });
+  }
+
   const shiftSectionOrder = await shiftDetail
     .locator(".feasibility-level__content > *")
     .evaluateAll((elements) => elements.slice(0, 4).map((element) => element.dataset.role));
@@ -558,6 +616,8 @@ test("separates the common result from one selected shift without an aggregate o
         visual.getBoundingClientRect().top < plan.getBoundingClientRect().top,
       sensitivityBeforePlan:
         sensitivityCard.getBoundingClientRect().top < plan.getBoundingClientRect().top,
+      metricValuesFit: [...session.querySelectorAll(".feasibility-charging-session__metrics dd")]
+        .every((value) => value.scrollWidth <= value.clientWidth),
     };
   });
   expect(chargingLayout).toMatchObject({
@@ -567,6 +627,7 @@ test("separates the common result from one selected shift without an aggregate o
     durationDisplay: "flex",
     visualBeforePlan: true,
     sensitivityBeforePlan: true,
+    metricValuesFit: true,
   });
   expect(chargingLayout?.sessionRows).toHaveLength(1);
   expect(chargingLayout?.sessionHeight).toBeLessThanOrEqual(48);
