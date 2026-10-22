@@ -6108,7 +6108,7 @@ const buildSharedInfrastructureDetailsHtml = (viewState) => {
         )
       )}</p>`}
       <div class="efficiency-table-wrap">
-        <table class="efficiency-table feasibility-infrastructure-table">
+        <table class="table-standard feasibility-infrastructure-table">
           <thead>
             <tr>
               <th class="efficiency-th-text">${textContent(t("simulation.cs_stop_name") || "Stop")}</th>
@@ -6150,32 +6150,32 @@ const buildSharedInfrastructureDetailsHtml = (viewState) => {
             )
           )}</p>
         </div>
-        <span class="feasibility-configuration-state feasibility-configuration-state--${configurationTone}">${textContent(
+        <span class="feasibility-configuration-state feasibility-configuration-state--${configurationTone} result-status${configurationTone === "incomplete" ? " result-status--warning" : ""}">${textContent(
           configurationState
         )}</span>
       </div>
-      <div class="feasibility-infrastructure-metrics">
-        <div>
-          <span>${textContent(
+      <div class="feasibility-infrastructure-metrics result-metric-grid">
+        <div class="result-metric">
+          <span class="result-metric__label">${textContent(
             translateOr("simulation.feasibility_active_locations", "Active locations")
           )}</span>
-          <strong data-role="feasibility-active-locations">${infrastructureMetricValue(summary.activeStationCount)}</strong>
+          <strong class="result-metric__value" data-role="feasibility-active-locations">${infrastructureMetricValue(summary.activeStationCount)}</strong>
         </div>
-        <div>
-          <span>${textContent(t("simulation.cs_num_plugs") || "Plugs")}</span>
-          <strong data-role="feasibility-total-plugs">${infrastructureMetricValue(summary.totalSlots)}</strong>
+        <div class="result-metric">
+          <span class="result-metric__label">${textContent(t("simulation.cs_num_plugs") || "Plugs")}</span>
+          <strong class="result-metric__value" data-role="feasibility-total-plugs">${infrastructureMetricValue(summary.totalSlots)}</strong>
         </div>
-        <div>
-          <span>${textContent(
+        <div class="result-metric">
+          <span class="result-metric__label">${textContent(
             translateOr("simulation.feasibility_total_charging_power", "Total charging power")
           )}</span>
-          <strong data-role="feasibility-total-power">${infrastructureMetricValue(summary.totalPowerKw, "kW DC")}</strong>
+          <strong class="result-metric__value" data-role="feasibility-total-power">${infrastructureMetricValue(summary.totalPowerKw, "kW DC")}</strong>
         </div>
-        <div>
-          <span>${textContent(
+        <div class="result-metric">
+          <span class="result-metric__label">${textContent(
             translateOr("simulation.feasibility_installation_cost", "Installation cost")
           )}</span>
-          <strong data-role="feasibility-total-installation-cost">${summary.totalInstallationCostChf == null
+          <strong class="result-metric__value" data-role="feasibility-total-installation-cost">${summary.totalInstallationCostChf == null
             ? "—"
             : textContent(`CHF ${formatCHF(summary.totalInstallationCostChf)}`)}</strong>
         </div>
@@ -6190,6 +6190,14 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
   const infrastructure = general.infrastructure ?? {};
   const batteryPacks = toOptionalFiniteNumber(battery.packs);
   const nominalKwh = toOptionalFiniteNumber(battery.nominalKwh);
+  const nominalCapacityValue = nominalKwh === null
+    ? ""
+    : `${formatFixed(nominalKwh, 0)} kWh`;
+  const batteryConfigurationValue = batteryPacks === null
+    ? "—"
+    : `${formatFixed(batteryPacks, 0)} ${t("simulation.unit_packs") || "packs"}${
+        nominalCapacityValue ? ` · ${nominalCapacityValue}` : ""
+      }`;
   const batteryDecision = feasibilityDecisionLabel(battery.decision);
   const infrastructureDecision = feasibilityDecisionLabel(infrastructure.decision);
   const limitingNames = battery.decision === FEASIBILITY_DECISION.OPTIMIZED
@@ -6198,7 +6206,6 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
   const limitingLabel = battery.decision === FEASIBILITY_DECISION.OPTIMIZED
     ? translateOr("simulation.feasibility_sizing_shifts", "Sizing shift")
     : translateOr("simulation.feasibility_most_demanding_shifts", "Most demanding shift");
-  const packUnit = t("simulation.unit_packs") || "packs";
   const overallStatus = feasibilityOverallStatus(
     general.electrificationFeasible
   );
@@ -6206,16 +6213,13 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
     translateOr("simulation.feasibility_decision_unknown", "Not available");
 
   return `
-    <section class="feasibility-level feasibility-level--general" data-role="feasibility-general-level">
-      <header class="feasibility-level__header">
-        <div>
-          <p class="feasibility-level__eyebrow">${textContent(
-            translateOr("simulation.feasibility_general_level", "General result")
-          )}</p>
-          <h3 class="feasibility-level__title">${textContent(
+    <section class="feasibility-level feasibility-level--general result-card" data-role="feasibility-general-level">
+      <header class="feasibility-level__header result-card__header">
+        <div class="result-card__heading">
+          <h3 class="feasibility-level__title result-card__title">${textContent(
             translateOr("simulation.feasibility_general_title", "Common fleet configuration")
           )}</h3>
-          <p class="feasibility-level__subtitle">${textContent(
+          <p class="feasibility-level__subtitle result-card__subtitle">${textContent(
             translateOr(
               "simulation.feasibility_general_subtitle",
               "One bus configuration and one charging infrastructure shared by every selected shift."
@@ -6234,43 +6238,35 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
             )
           )}</span>
           <span
-            class="feasibility-overall-status feasibility-overall-status--${overallStatus.tone}"
+            class="feasibility-overall-status feasibility-overall-status--${overallStatus.tone} result-status result-status--${overallStatus.tone === "feasible" ? "positive" : overallStatus.tone === "infeasible" ? "negative" : "neutral"}"
             data-role="feasibility-overall-status"
           >${textContent(overallStatus.label)}</span>
         </div>
       </header>
-      <div class="feasibility-general-grid feasibility-general-grid--configuration">
-        <article class="feasibility-general-card" data-role="feasibility-fleet-battery">
+      <div class="feasibility-level__content result-card__body">
+      <div class="feasibility-general-grid feasibility-general-grid--configuration result-metric-grid">
+        <article class="feasibility-general-card result-metric" data-role="feasibility-fleet-battery">
           <div class="feasibility-general-card__heading">
-            <span>${textContent(
+            <span class="result-metric__label">${textContent(
               translateOr("simulation.feasibility_fleet_battery", "Fleet battery")
             )}</span>
             <div class="feasibility-general-card__result">
-              <strong class="feasibility-general-card__value">
-                ${batteryPacks === null ? "—" : textContent(`${formatFixed(batteryPacks, 0)} ${packUnit}`)}
+              <strong class="feasibility-general-card__value result-metric__value">
+                ${textContent(batteryConfigurationValue)}
               </strong>
               <span class="feasibility-decision feasibility-decision--${feasibilityDecisionTone(
                 battery.decision
               )}">${textContent(batteryDecision)}</span>
             </div>
           </div>
-          <p>${nominalKwh === null
-            ? textContent(translateOr("simulation.feasibility_capacity_unavailable", "Nominal capacity not available"))
-            : textContent(
-                translateOr(
-                  "simulation.feasibility_nominal_capacity",
-                  "{capacity} kWh nominal capacity",
-                  { capacity: formatFixed(nominalKwh, 0) }
-                )
-              )}</p>
         </article>
-        <article class="feasibility-general-card" data-role="feasibility-shared-infrastructure">
+        <article class="feasibility-general-card result-metric" data-role="feasibility-shared-infrastructure">
           <div class="feasibility-general-card__heading">
-            <span>${textContent(
+            <span class="result-metric__label">${textContent(
               translateOr("simulation.feasibility_shared_infrastructure", "Charging infrastructure")
             )}</span>
             <div class="feasibility-general-card__result">
-              <strong class="feasibility-general-card__value feasibility-general-card__value--text">
+              <strong class="feasibility-general-card__value feasibility-general-card__value--text result-metric__value">
                 ${textContent(translateOr("simulation.feasibility_shared_value", "Shared"))}
               </strong>
               <span class="feasibility-decision feasibility-decision--${feasibilityDecisionTone(
@@ -6278,67 +6274,37 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
               )}">${textContent(infrastructureDecision)}</span>
             </div>
           </div>
-          <p>${textContent(
-            translateOr(
-              "simulation.feasibility_shared_infrastructure_note",
-              "The same charging network serves every selected shift."
-            )
-          )}</p>
         </article>
       </div>
       ${buildSharedInfrastructureDetailsHtml(viewState)}
-      <div class="feasibility-general-grid feasibility-general-grid--coverage">
-        <article class="feasibility-general-card" data-role="feasibility-shift-count">
+      <div class="feasibility-general-grid feasibility-general-grid--coverage result-metric-grid">
+        <article class="feasibility-general-card result-metric" data-role="feasibility-shift-count">
           <div class="feasibility-general-card__heading">
-            <span>${textContent(
+            <span class="result-metric__label">${textContent(
               translateOr("simulation.feasibility_shifts_covered", "Shifts covered")
             )}</span>
-            <strong class="feasibility-general-card__value">${textContent(
+            <strong class="feasibility-general-card__value result-metric__value">${textContent(
               String(general.shiftCount ?? 0)
             )}</strong>
           </div>
-          <p>${textContent(
-            translateOr(
-              "simulation.feasibility_one_configuration_note",
-              "The common configuration must work on every shift."
-            )
-          )}</p>
         </article>
-        <article class="feasibility-general-card" data-role="feasibility-limiting-shifts">
+        <article class="feasibility-general-card result-metric" data-role="feasibility-limiting-shifts">
           <div class="feasibility-general-card__heading">
-            <span>${textContent(limitingLabel)}</span>
-            <strong class="feasibility-general-card__value feasibility-general-card__value--text">
+            <span class="result-metric__label">${textContent(limitingLabel)}</span>
+            <strong class="feasibility-general-card__value feasibility-general-card__value--text result-metric__value">
               ${limitingNames.length ? textContent(limitingNames.join(", ")) : "—"}
             </strong>
           </div>
-          <p>${textContent(
-            translateOr(
-              "simulation.feasibility_limiting_shift_note",
-              "This shift sets the highest battery requirement."
-            )
-          )}</p>
         </article>
+      </div>
       </div>
     </section>`;
 };
 
 const buildFeasibilityShiftLevelHeaderHtml = (viewState, selectedShiftName) => `
-  <header class="feasibility-level__header feasibility-level__header--shift">
-    <div>
-      <p class="feasibility-level__eyebrow">${textContent(
-        translateOr("simulation.feasibility_shift_level", "Shift detail")
-      )}</p>
-      <h3 class="feasibility-level__title" data-role="feasibility-selected-shift">${textContent(
-        selectedShiftName || viewState?.selectedShiftName || "—"
-      )}</h3>
-      <p class="feasibility-level__subtitle">${textContent(
-        translateOr(
-          "simulation.feasibility_shift_subtitle",
-          "Energy demand and operating details for the selected shift."
-        )
-      )}</p>
-    </div>
-  </header>`;
+  <h2 class="sr-only" data-role="feasibility-selected-shift">${textContent(
+    selectedShiftName || viewState?.selectedShiftName || "—"
+  )}</h2>`;
 
 const shiftMetricValue = (value, unit = "", { signed = false, decimals = 0 } = {}) => {
   const numeric = toOptionalFiniteNumber(value);
@@ -6351,13 +6317,15 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
   const detail = viewState?.selectedShiftSummary;
   if (!detail) {
     return `
-      <section class="feasibility-shift-summary" data-role="feasibility-shift-summary">
-        <p class="efficiency-chart-empty">${textContent(
-          translateOr(
-            "simulation.feasibility_shift_data_unavailable",
-            "Operational details are not available for this shift."
-          )
-        )}</p>
+      <section class="feasibility-shift-summary result-card" data-role="feasibility-shift-summary">
+        <div class="result-card__body">
+          <p class="efficiency-chart-empty">${textContent(
+            translateOr(
+              "simulation.feasibility_shift_data_unavailable",
+              "Operational details are not available for this shift."
+            )
+          )}</p>
+        </div>
       </section>`;
   }
 
@@ -6408,48 +6376,43 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
   const packUnit = t("simulation.unit_packs") || "packs";
 
   return `
-    <section class="feasibility-shift-summary" data-role="feasibility-shift-summary">
-      <div class="feasibility-shift-summary__header">
-        <div>
+    <section class="feasibility-shift-summary result-card" data-role="feasibility-shift-summary">
+      <div class="feasibility-shift-summary__header result-card__header">
+        <div class="result-card__heading">
           <h4>${textContent(
             translateOr("simulation.feasibility_shift_summary_title", "Shift operational summary")
           )}</h4>
-          <p>${textContent(
-            translateOr(
-              "simulation.feasibility_shift_summary_subtitle",
-              "The shift requirement is evaluated against the common fleet configuration."
-            )
-          )}</p>
         </div>
-        <span class="feasibility-shift-status feasibility-shift-status--${coverageTone}" data-role="feasibility-shift-coverage-status">${textContent(
+        <span class="feasibility-shift-status feasibility-shift-status--${coverageTone} result-status result-status--${coverageTone === "negative" ? "negative" : coverageTone === "unknown" ? "neutral" : "positive"}" data-role="feasibility-shift-coverage-status">${textContent(
           coverageLabel
         )}</span>
       </div>
-      <div class="feasibility-shift-metrics">
-        <article data-role="feasibility-shift-required-packs">
-          <span>${textContent(
+      <div class="result-card__body">
+      <div class="feasibility-shift-metrics result-metric-grid">
+        <article class="result-metric" data-role="feasibility-shift-required-packs">
+          <span class="result-metric__label">${textContent(
             translateOr("simulation.feasibility_shift_required_battery", "Shift battery requirement")
           )}</span>
-          <strong>${shiftMetricValue(battery.requiredPacks, packUnit)}</strong>
+          <strong class="result-metric__value">${shiftMetricValue(battery.requiredPacks, packUnit)}</strong>
         </article>
-        <article data-role="feasibility-shift-common-packs">
-          <span>${textContent(
+        <article class="result-metric" data-role="feasibility-shift-common-packs">
+          <span class="result-metric__label">${textContent(
             translateOr("simulation.feasibility_shift_common_battery", "Common fleet battery")
           )}</span>
-          <strong>${shiftMetricValue(battery.commonPacks, packUnit)}</strong>
+          <strong class="result-metric__value">${shiftMetricValue(battery.commonPacks, packUnit)}</strong>
         </article>
-        <article data-role="feasibility-shift-pack-margin">
-          <span>${textContent(
+        <article class="result-metric" data-role="feasibility-shift-pack-margin">
+          <span class="result-metric__label">${textContent(
             translateOr("simulation.feasibility_shift_battery_margin", "Battery margin")
           )}</span>
-          <strong class="feasibility-shift-metric--${margin === null ? "unknown" : margin < 0 ? "negative" : "positive"}">${shiftMetricValue(
+          <strong class="result-metric__value feasibility-shift-metric--${margin === null ? "unknown" : margin < 0 ? "negative" : "positive"}">${shiftMetricValue(
             margin,
             packUnit,
             { signed: true }
           )}</strong>
         </article>
-        <article data-role="feasibility-shift-physical-limit">
-          <span>${textContent(
+        <article class="result-metric" data-role="feasibility-shift-physical-limit">
+          <span class="result-metric__label">${textContent(
             translateOr("simulation.feasibility_shift_physical_limit", "Physical pack limit")
           )}</span>
           <span class="feasibility-shift-metric__result">
@@ -6459,26 +6422,27 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
             )}</small>
           </span>
         </article>
-        <article data-role="feasibility-shift-min-soc">
-          <span>${textContent(t("simulation.opt_col_min_soc") || "Min SoC")}</span>
-          <strong>${shiftMetricValue(operation.minSocKwh, "kWh", { decimals: 1 })}</strong>
+        <article class="result-metric" data-role="feasibility-shift-min-soc">
+          <span class="result-metric__label">${textContent(t("simulation.opt_col_min_soc") || "Min SoC")}</span>
+          <strong class="result-metric__value">${shiftMetricValue(operation.minSocKwh, "kWh", { decimals: 1 })}</strong>
         </article>
-        <article data-role="feasibility-shift-max-soc">
-          <span>${textContent(t("simulation.opt_col_max_soc") || "Max SoC")}</span>
-          <strong>${shiftMetricValue(operation.maxSocKwh, "kWh", { decimals: 1 })}</strong>
+        <article class="result-metric" data-role="feasibility-shift-max-soc">
+          <span class="result-metric__label">${textContent(t("simulation.opt_col_max_soc") || "Max SoC")}</span>
+          <strong class="result-metric__value">${shiftMetricValue(operation.maxSocKwh, "kWh", { decimals: 1 })}</strong>
         </article>
-        <article data-role="feasibility-shift-charged-energy">
-          <span>${textContent(
+        <article class="result-metric" data-role="feasibility-shift-charged-energy">
+          <span class="result-metric__label">${textContent(
             translateOr("simulation.feasibility_shift_charged_energy", "Energy charged")
           )}</span>
-          <strong>${shiftMetricValue(operation.totalChargedKwh, "kWh", { decimals: 1 })}</strong>
+          <strong class="result-metric__value">${shiftMetricValue(operation.totalChargedKwh, "kWh", { decimals: 1 })}</strong>
         </article>
-        <article data-role="feasibility-shift-session-count">
-          <span>${textContent(
+        <article class="result-metric" data-role="feasibility-shift-session-count">
+          <span class="result-metric__label">${textContent(
             translateOr("simulation.feasibility_shift_charging_sessions", "Charging sessions")
           )}</span>
-          <strong>${shiftMetricValue(operation.numChargingSessions)}</strong>
+          <strong class="result-metric__value">${shiftMetricValue(operation.numChargingSessions)}</strong>
         </article>
+      </div>
       </div>
     </section>`;
 };
@@ -6577,7 +6541,6 @@ const buildShiftChargingPlanHtml = (viewState) => {
 
     return `
       <li class="feasibility-charging-session${session.detailsComplete ? "" : " feasibility-charging-session--incomplete"}" data-role="feasibility-charging-session" aria-label="${textContent(sessionLabel)}">
-        <div class="feasibility-charging-session__sequence" aria-hidden="true">${sequence}</div>
         <div class="feasibility-charging-session__location">
           <span class="feasibility-charging-session__label">${textContent(sessionLabel)}:</span>
           <strong data-role="feasibility-charging-session-location" title="${textContent(location)}">${textContent(location)}</strong>
@@ -6616,23 +6579,19 @@ const buildShiftChargingPlanHtml = (viewState) => {
   }).join("");
 
   return `
-    <section class="feasibility-charging-plan" data-role="feasibility-charging-plan" data-status="${textContent(plan.status)}">
-      <div class="feasibility-charging-plan__header">
-        <div>
+    <section class="feasibility-charging-plan result-card" data-role="feasibility-charging-plan" data-status="${textContent(plan.status)}">
+      <div class="feasibility-charging-plan__header result-card__header">
+        <div class="result-card__heading">
           <h4>${textContent(
             translateOr("simulation.feasibility_charging_plan_title", "Charging plan")
           )}</h4>
-          <p>${textContent(
-            translateOr(
-              "simulation.feasibility_charging_plan_subtitle",
-              "Where and when charging takes place during the selected shift."
-            )
-          )}</p>
         </div>
         ${countBadge}
       </div>
-      ${buildChargingPlanStateHtml(plan)}
-      ${sessionsHtml ? `<ol class="feasibility-charging-plan__sessions" data-role="feasibility-charging-session-list">${sessionsHtml}</ol>` : ""}
+      <div class="result-card__body">
+        ${buildChargingPlanStateHtml(plan)}
+        ${sessionsHtml ? `<ol class="feasibility-charging-plan__sessions" data-role="feasibility-charging-session-list">${sessionsHtml}</ol>` : ""}
+      </div>
     </section>`;
 };
 
@@ -6831,7 +6790,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         <div class="chart-section efficiency-chart-card">
           <div class="efficiency-chart-copy">
             <h4>${textContent(t("simulation.efficiency_energy_breakdown_title") || "Energy consumption breakdown")}</h4>
-            <p>${textContent(t("simulation.efficiency_energy_breakdown_subtitle") || "Compare drivetrain and auxiliary demand for each battery-pack scenario.")}</p>
           </div>
           <div class="chart-container efficiency-chart-container" data-role="efficiency-energy-chart"></div>
       <div class="chart-legend efficiency-chart-legend" data-role="efficiency-energy-legend"></div>
@@ -6848,13 +6806,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
                 "Consumption distribution and available operational energy"
               )
             )}</h4>
-            <p>${textContent(
-              translateOr(
-                "simulation.efficiency_consumption_coverage_subtitle",
-                "Compare simulated Q05, mean, Q50, and Q95 total consumption with usable battery energy and the planned charging for the selected shift."
-              )
-            )}</p>
-            <p>${textContent(quantileHelpText())}</p>
           </div>
           <div
             class="chart-container efficiency-chart-container"
@@ -9155,7 +9106,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const pageTitleEl = section.querySelector('[data-role="results-page-title"]');
   const simNameEl = section.querySelector('[data-role="sim-name"]');
-  const evaluationNameEl = section.querySelector('[data-role="results-evaluation-name"]');
   const busModelEl = section.querySelector('[data-role="sim-bus-model"]');
   const shiftTabsEl = section.querySelector('[data-role="shift-tabs"]');
   const overlay = section.querySelector('[data-role="sim-data-overlay"]');
@@ -9182,19 +9132,17 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const busModelName = options.busModelName || "";
   const renderPageTitle = () => {
     if (!pageTitleEl) return;
-    pageTitleEl.textContent =
+    const baseTitle =
       t("simulation.results_page_title") || "Feasibility evaluation results";
-  };
-  const renderEvaluationName = () => {
-    if (!evaluationNameEl) return;
-    evaluationNameEl.textContent =
-      resolveSimulationName(loadedOptimizationRun, options) || "—";
+    const evaluationName = resolveSimulationName(loadedOptimizationRun, options);
+    const fullTitle = evaluationName ? `${baseTitle} - ${evaluationName}` : baseTitle;
+    pageTitleEl.textContent = fullTitle;
+    pageTitleEl.title = fullTitle;
   };
   const getResultsSubtitle = () =>
     firstText(options.simulationName, activeShiftName);
 
   renderPageTitle();
-  renderEvaluationName();
   if (simNameEl) simNameEl.textContent = activeShiftName;
   if (busModelEl) busModelEl.textContent = busModelName;
   if (subtitleEl) {
@@ -9309,7 +9257,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       subtitleEl.textContent = subtitle;
       subtitleEl.hidden = !subtitle;
     }
-    renderEvaluationName();
 
     const firstPredictionRun = scopePredictionRunsByShift(
       loadedPredictionRuns,
@@ -9852,7 +9799,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       loadedOptimizationRun = optimizationRun;
       options.simulationName = resolveSimulationName(optimizationRun, options);
       renderPageTitle();
-      renderEvaluationName();
       const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
         ? optimizationRun.prediction_run_ids
         : [];

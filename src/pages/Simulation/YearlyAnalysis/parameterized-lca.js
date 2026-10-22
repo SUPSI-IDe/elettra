@@ -388,10 +388,17 @@ export function renderParameterizedLca(element, raw, t) {
   }).join("");
   const gwp = raw.indicators.gwp100a;
   const maximum = Math.max(gwp.total, gwp.diesel_comparator_total, 1);
-  const bar = (name, values, total) => `<div style="margin:12px 0"><strong>${name}: ${fmt(total/1e6)} t CO₂-eq</strong>
-    <div style="display:flex;height:28px;width:100%;background:#f3f4f6">${phases.map(([key, translation, color]) =>
-      `<span title="${escapeHtml(t(`simulation.emissions_phase_${translation}`))}: ${fmt(values[key]/1e6)} t CO₂-eq"
-       style="display:block;background:${color};width:${Math.max(0, values[key])/maximum*100}%"></span>`).join("")}</div></div>`;
+  const bar = (name, values, total) => `<div class="ya-lca-phase-bar">
+    <strong class="ya-lca-phase-bar__label">${name}: ${fmt(total/1e6)} t CO₂-eq</strong>
+    <div class="ya-lca-phase-bar__track">${phases.map(([key, translation, color]) => {
+      const width = Math.max(0, values[key]) / maximum * 100;
+      return `<span
+        class="ya-lca-phase-bar__segment"
+        title="${escapeHtml(t(`simulation.emissions_phase_${translation}`))}: ${fmt(values[key]/1e6)} t CO₂-eq"
+        style="--ya-lca-segment-color:${color};--ya-lca-segment-width:${width}%"
+      ></span>`;
+    }).join("")}</div>
+  </div>`;
   const vehicleRows = raw.vehicles.map(v => `<tr><td>${escapeHtml(v.shift_id)}</td><td>${fmt(v.annual_km)}</td>
     <td>${fmt(v.battery_capacity_kwh)} / ${escapeHtml(v.battery_chemistry)}</td><td>${fmt(v.passengers)}</td>
     <td>${fmt(v.lifetime_bus)} / ${fmt(v.lifetime_battery)} / ${fmt(v.lifetime_diesel_bus)}</td></tr>`).join("");
@@ -418,22 +425,40 @@ export function renderParameterizedLca(element, raw, t) {
     ? `<section class="ya-lca-disclosure__section" data-role="lca-warnings"><h4>${label("warnings")}</h4>
       <ul class="ya-lca-list">${disclosure.warnings.map(value => `<li>${escapeHtml(value)}</li>`).join("")}</ul></section>`
     : "";
-  element.innerHTML = `<h3>${label("title")}</h3><p>${label("boundary")}</p>
-    <p>${label("dc_energy")}: <strong>${fmt(raw.energy_boundary.dc_kwh)} kWh</strong> · ${label("grid_energy")}: <strong>${fmt(raw.energy_boundary.grid_kwh)} kWh</strong> · ${label("losses")}: ${fmt(raw.energy_boundary.charging_losses_kwh)} kWh</p>
-    <p>${label("activity")}: ${fmt(raw.annual_km)} km · ${escapeHtml(raw.vehicle_count)} ${label("vehicles")}</p>
-    <div style="overflow-x:auto"><table class="ya-table"><thead><tr><th>${label("indicator")}</th><th>${label("electricity")}</th><th>${label("heater")}</th><th>${label("other")}</th><th>ELETTRA — ${label("total")}</th><th>Diesel — ${label("total")}</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <details><summary>${label("per_km")}</summary><table class="ya-table"><thead><tr><th>${label("indicator")}</th><th>ELETTRA</th><th>Diesel</th></tr></thead><tbody>${perKm}</tbody></table></details>
-    <h4>${label("phases")}</h4>${bar("ELETTRA", gwp.phases, gwp.total)}${bar("Diesel", gwp.diesel_comparator_phases, gwp.diesel_comparator_total)}
-    <div style="display:flex;gap:12px;flex-wrap:wrap">${phases.map(([,translation,color]) => `<span><span style="display:inline-block;width:12px;height:12px;background:${color}"></span> ${escapeHtml(t(`simulation.emissions_phase_${translation}`))}</span>`).join("")}</div>
-    <details class="ya-lca-disclosure"><summary>${label("assumptions")}</summary><div class="ya-lca-disclosure__body"><p>${label("inventory_note")}</p>
-    <div style="overflow-x:auto"><table class="ya-table"><thead><tr><th>${label("vehicle")}</th><th>${label("annual_km")}</th><th>${label("battery")} [kWh]</th><th>${label("passengers")}</th><th>${label("lifetimes")}</th></tr></thead><tbody>${vehicleRows}</tbody></table></div>
+  element.innerHTML = `<div class="ya-lca-result">
+    <section class="ya-res-section ya-lca-phases result-card" data-role="ya-lca-phases">
+      <h3 class="ya-res-section-title">${label("phases")}</h3>
+      <div class="ya-lca-phase-bars">${bar("ELETTRA", gwp.phases, gwp.total)}${bar("Diesel", gwp.diesel_comparator_phases, gwp.diesel_comparator_total)}</div>
+      <div class="ya-lca-phase-legend">${phases.map(([,translation,color]) => `<span class="ya-lca-phase-legend__item"><span class="ya-lca-phase-legend__swatch" style="--ya-lca-segment-color:${color}"></span>${escapeHtml(t(`simulation.emissions_phase_${translation}`))}</span>`).join("")}</div>
+    </section>
+    <section class="ya-res-section ya-lca-overview result-card" data-role="ya-lca-overview">
+      <div class="ya-lca-overview__header">
+        <h3 class="ya-res-section-title">${label("title")}</h3>
+      </div>
+      <div class="result-metric-grid ya-lca-energy-summary" data-role="ya-lca-energy-summary">
+        <div class="result-metric"><span class="result-metric__label">${label("dc_energy")}</span><strong class="result-metric__value">${fmt(raw.energy_boundary.dc_kwh)} kWh</strong></div>
+        <div class="result-metric"><span class="result-metric__label">${label("grid_energy")}</span><strong class="result-metric__value">${fmt(raw.energy_boundary.grid_kwh)} kWh</strong></div>
+        <div class="result-metric"><span class="result-metric__label">${label("losses")}</span><strong class="result-metric__value">${fmt(raw.energy_boundary.charging_losses_kwh)} kWh</strong></div>
+        <div class="result-metric"><span class="result-metric__label">${label("activity")}</span><strong class="result-metric__value">${fmt(raw.annual_km)} km · ${escapeHtml(raw.vehicle_count)} ${label("vehicles")}</strong></div>
+      </div>
+    </section>
+    <section class="ya-res-section ya-lca-indicators result-card" data-role="ya-lca-indicators">
+      <div class="ya-lca-table-wrap"><table class="ya-table table-standard"><thead><tr><th>${label("indicator")}</th><th>${label("electricity")}</th><th>${label("heater")}</th><th>${label("other")}</th><th>ELETTRA — ${label("total")}</th><th>Diesel — ${label("total")}</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <details class="ya-more-information ya-lca-details">
+        <summary class="ya-more-information__toggle">${label("per_km")}</summary>
+        <div class="ya-more-information__content ya-lca-details__content"><div class="ya-lca-table-wrap"><table class="ya-table table-standard"><thead><tr><th>${label("indicator")}</th><th>ELETTRA</th><th>Diesel</th></tr></thead><tbody>${perKm}</tbody></table></div></div>
+      </details>
+    </section>
+    <details class="ya-more-information ya-lca-disclosure"><summary class="ya-more-information__toggle">${label("assumptions")}</summary><div class="ya-more-information__content ya-lca-disclosure__body"><p>${label("inventory_note")}</p>
+    <div class="ya-lca-table-wrap"><table class="ya-table table-standard"><thead><tr><th>${label("vehicle")}</th><th>${label("annual_km")}</th><th>${label("battery")} [kWh]</th><th>${label("passengers")}</th><th>${label("lifetimes")}</th></tr></thead><tbody>${vehicleRows}</tbody></table></div>
     <section class="ya-lca-disclosure__section" data-role="lca-provenance"><h4>${label("provenance")}</h4><dl class="ya-lca-metadata">${metadataRows}</dl></section>
     <section class="ya-lca-disclosure__section" data-role="lca-limitations"><h4>${label("limitations")}</h4>${limitations}</section>
     ${warnings}
     <p>PE = ${label("primary_energy")}. ${label("primary_note")}</p>
     <p>${label("limits_note")}</p>
     <p>${label("export_note")}</p></div></details>
-    <button type="button" data-lca-export>${label("export")}</button>`;
+    <button type="button" class="result-header-action ya-lca-export" data-lca-export>${label("export")}</button>
+  </div>`;
   element.querySelector("[data-lca-export]").addEventListener("click", () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify(raw, null, 2)], {type:"application/json"}));
     const a = document.createElement("a"); a.href=url; a.download="parameterized-lca.json"; a.click();

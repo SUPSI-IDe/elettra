@@ -3,6 +3,8 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  GUIDE_BASELINE_VERSION,
+  GUIDE_UPDATED_AT,
   SUPPORTED_GUIDE_LANGUAGES,
   guideContent,
 } from "../guide/content.js";
@@ -58,6 +60,50 @@ test("all supported guide languages expose the same complete section structure",
     assert.ok(content.sections.every(({ title, intro, items }) =>
       title && intro && items.length >= 3 && items.every(({ title: itemTitle, text }) => itemTitle && text)
     ));
+  }
+});
+
+test("the guide baseline follows the frontend version and exposes a valid update date", async () => {
+  const packageJson = JSON.parse(await readProjectFile("package.json"));
+  assert.equal(GUIDE_BASELINE_VERSION, packageJson.version);
+  assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
+});
+
+test("every guide language explains the two-level feasibility and yearly result navigation", () => {
+  const expectedTerms = {
+    en: {
+      feasibility: ["General", "shift", "common battery", "planned charging"],
+      yearly: ["General", "shift", "Efficiency", "Costs", "Emissions", "annual DC energy"],
+    },
+    de: {
+      feasibility: ["Allgemein", "Dienst", "gemeinsamen Batterie", "geplanten Ladevorgänge"],
+      yearly: ["Allgemein", "Dienst", "Effizienz", "Kosten", "Emissionen", "jährlichen DC-Energie"],
+    },
+    fr: {
+      feasibility: ["Général", "service", "batterie commune", "recharges planifiées"],
+      yearly: ["Général", "service", "Efficacité", "Coûts", "Émissions", "énergie DC annuelle"],
+    },
+    it: {
+      feasibility: ["Generale", "turno", "batteria comune", "ricariche pianificate"],
+      yearly: ["Generale", "turno", "Efficienza", "Costi", "Emissioni", "energia DC annuale"],
+    },
+  };
+
+  for (const language of SUPPORTED_GUIDE_LANGUAGES) {
+    const sections = guideContent[language].sections;
+    const feasibility = sections.find(({ id }) => id === "results");
+    const yearly = sections.find(({ id }) => id === "yearly");
+    const feasibilityText = JSON.stringify(feasibility);
+    const yearlyText = JSON.stringify(yearly);
+
+    for (const term of expectedTerms[language].feasibility) {
+      assert.ok(feasibilityText.includes(term), `${language} feasibility guide is missing ${term}`);
+    }
+    for (const term of expectedTerms[language].yearly) {
+      assert.ok(yearlyText.includes(term), `${language} yearly guide is missing ${term}`);
+    }
+    assert.equal(feasibility.figures.length, 2);
+    assert.equal(yearly.figures.length, 2);
   }
 });
 

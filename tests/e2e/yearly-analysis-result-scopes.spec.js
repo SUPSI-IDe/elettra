@@ -1,0 +1,986 @@
+import { readFileSync } from "node:fs";
+import { expect, test } from "@playwright/test";
+
+const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === "1";
+
+const html = readFileSync(
+  new URL("../../src/pages/Simulation/YearlyAnalysis/yearly-analysis-results.html", import.meta.url),
+  "utf8",
+);
+const lcaFixture = JSON.parse(
+  readFileSync(new URL("../fixtures/grid94-lca.json", import.meta.url), "utf8"),
+).base;
+
+const sumObjects = (left, right) => Object.fromEntries(
+  Object.keys(left).map((key) => [key, left[key] + right[key]]),
+);
+
+const scaledVehicle = (vehicle, shiftId, factor) => {
+  const copy = structuredClone(vehicle);
+  copy.shift_id = shiftId;
+  copy.annual_km *= factor;
+  copy.dc_kwh *= factor;
+  copy.diesel_heating_liters *= factor;
+  for (const indicator of Object.values(copy.indicators)) {
+    for (const field of [
+      "electricity_operation",
+      "diesel_heating",
+      "other_lifecycle",
+      "total",
+      "diesel_comparator_total",
+    ]) indicator[field] *= factor;
+    for (const phaseField of [
+      "phases",
+      "diesel_comparator_phases",
+      "diesel_heating_phases",
+    ]) {
+      indicator[phaseField] = Object.fromEntries(
+        Object.entries(indicator[phaseField]).map(([key, value]) => [key, value * factor]),
+      );
+    }
+  }
+  return copy;
+};
+
+const fleetLcaFromVehicles = (vehicles) => {
+  const indicators = {};
+  for (const key of Object.keys(lcaFixture.indicators)) {
+    const rows = vehicles.map((vehicle) => vehicle.indicators[key]);
+    const sumField = (field) => rows.reduce((sum, row) => sum + row[field], 0);
+    const sumPhases = (field) => rows
+      .map((row) => row[field])
+      .reduce(sumObjects);
+    indicators[key] = {
+      ...rows[0],
+      electricity_operation: sumField("electricity_operation"),
+      diesel_heating: sumField("diesel_heating"),
+      other_lifecycle: sumField("other_lifecycle"),
+      total: sumField("total"),
+      diesel_comparator_total: sumField("diesel_comparator_total"),
+      phases: sumPhases("phases"),
+      diesel_comparator_phases: sumPhases("diesel_comparator_phases"),
+      diesel_heating_phases: sumPhases("diesel_heating_phases"),
+    };
+  }
+  const dcKwh = vehicles.reduce((sum, vehicle) => sum + vehicle.dc_kwh, 0);
+  return {
+    ...structuredClone(lcaFixture),
+    annual_km: vehicles.reduce((sum, vehicle) => sum + vehicle.annual_km, 0),
+    vehicle_count: vehicles.length,
+    vehicles,
+    energy_boundary: {
+      ...lcaFixture.energy_boundary,
+      dc_kwh: dcKwh,
+      grid_kwh: dcKwh / 0.94,
+      charging_losses_kwh: dcKwh / 0.94 - dcKwh,
+    },
+    indicators,
+  };
+};
+
+const multiShiftLca = () => {
+  const morning = scaledVehicle(lcaFixture.vehicles[0], "morning", 1);
+  const evening = scaledVehicle(lcaFixture.vehicles[0], "evening", 0.5);
+  morning.annual_km = 21900;
+  evening.annual_km = 14600;
+  return fleetLcaFromVehicles([morning, evening]);
+};
+
+const lcaForShiftDistance = (source, shiftId, annualKm) => {
+  if (!shiftId || !Number.isFinite(annualKm)) return source;
+  const vehicles = source.vehicles.map((vehicle) => vehicle.shift_id === shiftId
+    ? scaledVehicle(vehicle, shiftId, annualKm / vehicle.annual_km)
+    : structuredClone(vehicle));
+  return fleetLcaFromVehicles(vehicles);
+};
+
+const scenario = (id, label, energy, distance) => ({
+  scenarioId: id,
+  label,
+  temperature: -5,
+  occurrences: 365,
+  kpis: {
+    totalEnergyKwh: energy,
+    drivetrainEnergyKwh: energy * 0.75,
+    auxiliaryEnergyKwh: energy * 0.25,
+    distanceKm: distance,
+    energyPerKm: energy / distance,
+    quantiles: { q05: energy * 0.9, q50: energy, q95: energy * 1.1 },
+    consumptionPerKmQuantiles: {
+      q05: energy * 0.9 / distance,
+      q50: energy / distance,
+      q95: energy * 1.1 / distance,
+    },
+  },
+});
+
+const predictionRun = ({ id, shiftId, temperature, energy, distance, status = "completed" }) => ({
+  id,
+  shift_id: shiftId,
+  bus_model_id: "bus-1",
+  external_temp_celsius: temperature,
+  status,
+  summary: {
+    total_consumption_kwh: energy,
+    total_drivetrain_kwh: energy * 0.75,
+    total_auxiliary_kwh: energy * 0.25,
+    total_distance_km: distance,
+    consumption_per_km_kwh: energy / distance,
+    drivetrain_per_km_kwh: energy * 0.75 / distance,
+    auxiliary_per_km_kwh: energy * 0.25 / distance,
+    quantiles: { q05: energy * 0.9, q50: energy, q95: energy * 1.1 },
+    consumption_per_km_kwh_quantiles: {
+      q05: energy * 0.9 / distance,
+      q50: energy / distance,
+      q95: energy * 1.1 / distance,
+    },
+  },
+});
+
+const sourceFeasibilityRun = {
+  id: "source-feasibility",
+  input_params: {
+    mode: "joint",
+    bus_model_id: "bus-1",
+    shift_ids: ["morning", "evening"],
+    min_soc: 0.2,
+    max_soc: 0.9,
+    charging_stations: [{
+      stop_id: "depot",
+      stop_name: "Depot",
+      num_slots: 3,
+      max_power_per_slot_kw: 150,
+    }],
+  },
+  results: {
+    battery_results: {
+      morning: {
+        optimized_packs: 8,
+        optimized_kwh: 400,
+        required_total_packs: 8,
+      },
+      evening: {
+        optimized_packs: 12,
+        optimized_kwh: 600,
+        required_total_packs: 10,
+      },
+    },
+    installed_chargers: {
+      depot: {
+        stop_name: "Depot",
+        num_slots: 2,
+        max_power_per_slot_kw: 150,
+      },
+    },
+    per_bus_summary: [
+      { shift_id: "morning", charging_sessions: [] },
+      { shift_id: "evening", charging_sessions: [] },
+    ],
+  },
+};
+
+const multishiftAnalysis = {
+  id: "case",
+  name: "Two-shift annual analysis",
+  features: {
+    config: {
+      mode: "joint",
+      bus_model_id: "bus-1",
+      shift_ids: ["morning", "evening"],
+      min_soc: 0.2,
+      max_soc: 0.9,
+      occupancy_percent: 60,
+      auxiliary_heating_type: "default",
+      fixedConfiguration: {
+        fixed: true,
+        mode: "joint",
+        busModelId: "bus-1",
+        shiftIds: ["morning", "evening"],
+        soc: { minFraction: 0.2, maxFraction: 0.9 },
+        battery: {
+          decision: "optimized",
+          packs: 12,
+          packSizeKwh: 50,
+          nominalKwh: 600,
+          sizingShiftNames: ["Evening service"],
+        },
+        infrastructure: {
+          scope: "shared",
+          decision: "optimized",
+          totalInstallationCostChf: 250000,
+          stations: [{
+            stopId: "depot",
+            stopName: "Depot",
+            status: "installed",
+            selected: true,
+            slots: 2,
+            powerPerSlotKw: 150,
+            totalPowerKw: 300,
+          }],
+        },
+        shifts: [
+          {
+            shiftId: "morning",
+            shiftName: "Morning service",
+            battery: { requiredPacks: 8, commonPacks: 12, commonPackMargin: 4 },
+            operation: {
+              minSocKwh: 100,
+              maxSocKwh: 450,
+              totalChargedKwh: 75,
+              chargingSessions: [{
+                startMinute: 60,
+                endMinute: 90,
+                durationMinutes: 30,
+                stationStopId: "depot",
+                stationName: "Depot",
+                energyKwh: 75,
+              }],
+            },
+          },
+          {
+            shiftId: "evening",
+            shiftName: "Evening service",
+            battery: { requiredPacks: 10, commonPacks: 12, commonPackMargin: 2 },
+            operation: { chargingSessions: [] },
+          },
+        ],
+      },
+    },
+    meta: {
+      modeLabel: "Joint optimization",
+      shiftNames: ["Morning service", "Evening service"],
+      sizingTemp: -5,
+    },
+    results: {
+      status: "completed",
+      optimizedPacks: 12,
+      baseFeasible: true,
+      yearlyTotals: {
+        totalEnergyKwh: 54750,
+        drivetrainEnergyKwh: 41062.5,
+        auxiliaryEnergyKwh: 13687.5,
+        distanceKm: 36500,
+      },
+      scenarioResults: [scenario("general-cold", "Cold aggregate", 150, 100)],
+      shiftResults: [
+        {
+          shiftId: "morning",
+          shiftName: "Morning service",
+          status: "completed",
+          nominalDailyDistanceKm: 60,
+          yearlyTotals: {
+            totalEnergyKwh: 36500,
+            drivetrainEnergyKwh: 27375,
+            auxiliaryEnergyKwh: 9125,
+            distanceKm: 21900,
+          },
+          scenarioResults: [scenario("morning-cold", "Cold morning", 100, 60)],
+        },
+        {
+          shiftId: "evening",
+          shiftName: "Evening service",
+          status: "completed",
+          nominalDailyDistanceKm: 40,
+          yearlyTotals: {
+            totalEnergyKwh: 18250,
+            drivetrainEnergyKwh: 13687.5,
+            auxiliaryEnergyKwh: 4562.5,
+            distanceKm: 14600,
+          },
+          scenarioResults: [scenario("evening-cold", "Cold evening", 50, 40)],
+        },
+      ],
+    },
+  },
+};
+
+const mountResults = async (
+  page,
+  analysis,
+  { predictionRuns = [], optimizationRun = null, lcaRequests = null } = {},
+) => {
+  const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
+  const lca = analysis.features?.results?.shiftResults || configuredShiftCount > 1
+    ? multiShiftLca()
+    : lcaFixture;
+  await page.route("**/api/v1/**", async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname;
+    if (path.endsWith(`/yearly-analysis/${analysis.id}/lca`)) {
+      const shiftId = url.searchParams.get("shift_id");
+      const annualKmRaw = url.searchParams.get("annual_km");
+      const annualKm = annualKmRaw == null ? null : Number(annualKmRaw);
+      lcaRequests?.push({ shiftId, annualKm });
+      await route.fulfill({ json: lcaForShiftDistance(lca, shiftId, annualKm) });
+    } else if (path.endsWith(`/yearly-analysis/${analysis.id}/costs`)) {
+      await route.fulfill({ status: 503, json: { detail: "Use deterministic local costs" } });
+    } else if (path.endsWith(`/yearly-analysis/${analysis.id}`)) {
+      await route.fulfill({ json: analysis });
+    } else if (path.endsWith("/simulation/prediction-runs/")) {
+      await route.fulfill({ json: predictionRuns });
+    } else if (
+      optimizationRun &&
+      path.endsWith(`/simulation/optimization-runs/${optimizationRun.id}`)
+    ) {
+      await route.fulfill({ json: optimizationRun });
+    } else if (path.endsWith("/user/bus-models/bus-1")) {
+      await route.fulfill({ json: {
+        id: "bus-1",
+        name: "Reference bus",
+        specs: {
+          bus_length_m: 12,
+          battery_pack_size_kwh: 50,
+          bus_lifetime: 12,
+          battery_pack_lifetime: 8,
+          cost: 400000,
+        },
+      } });
+    } else {
+      await route.fulfill({ json: [] });
+    }
+  });
+  await page.goto("./");
+  await page.evaluate(async ({ source, analysisId }) => {
+    localStorage.setItem("access_token", "fixture-token");
+    localStorage.setItem("elettra_lang", "en");
+    const module = await import(
+      "/elettra/src/pages/Simulation/YearlyAnalysis/yearly-analysis-results.js"
+    );
+    document.body.innerHTML = source;
+    await module.initializeYearlyAnalysisResults(document, { analysisId });
+  }, { source: html, analysisId: analysis.id });
+};
+
+const downloadAllResults = async (page) => {
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator('[data-action="download-json"]').click();
+  const download = await downloadPromise;
+  const downloadedPath = await download.path();
+  return {
+    download,
+    exported: JSON.parse(readFileSync(downloadedPath, "utf8")),
+  };
+};
+
+test("yearly results use General and one primary tab per shift", async ({ page }) => {
+  await mountResults(page, multishiftAnalysis);
+
+  await expect(page.locator('[data-role="page-title"]')).toHaveText(
+    "Yearly analysis results - Two-shift annual analysis",
+  );
+  await expect(page.locator(".ya-results-toolbar")).toHaveCount(0);
+  const configurationAction = page.getByRole("button", { name: "View configuration data" });
+  await expect(configurationAction).toBeVisible();
+  await configurationAction.click();
+  const configurationOverlay = page.locator('[data-role="ya-config-overlay"]');
+  await expect(configurationOverlay).toBeVisible();
+  await configurationOverlay.getByRole("button", { name: "Close" }).click();
+  await expect(configurationOverlay).toBeHidden();
+
+  const scopeTablist = page.locator('[data-role="ya-result-scope-tabs"]');
+  const tabs = scopeTablist.getByRole("tab");
+  const resultViewTablist = page.locator('[data-role="ya-result-view-tabs"]');
+  const resultViewTabs = resultViewTablist.getByRole("tab");
+  await expect(tabs).toHaveCount(3);
+  await expect(tabs).toHaveText(["General", "Morning service", "Evening service"]);
+  await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".ya-result-scope-select")).toHaveCount(0);
+  const shiftSummarySlot = page.locator('[data-role="ya-shift-summary-slot"]');
+  await expect(shiftSummarySlot).toBeHidden();
+
+  const content = page.locator("#yearly-result-scope-content");
+  await expect(content).toContainText("Deployed configuration");
+  await expect(content).toContainText("Common bus configuration");
+  await expect(content).toContainText("Shared charging infrastructure");
+  await expect(page.locator('[data-panel="overview"]')).toBeVisible();
+  const generalLevel = page.locator('[data-role="ya-deployed-configuration"]');
+  await expect(generalLevel).toHaveClass(/ya-scope-level--general/);
+  await expect(generalLevel).toHaveClass(/result-card/);
+  await expect(generalLevel.locator(".ya-scope-level__eyebrow")).toHaveCount(0);
+  await expect(generalLevel.locator(".ya-scope-level__title")).toHaveText("Deployed configuration");
+  await expect(generalLevel.locator(".ya-scope-mode")).toHaveText("Optimization mode: Joint");
+  const generalDownload = generalLevel.getByRole("button", { name: "Download all results (JSON)" });
+  await expect(generalDownload).toBeVisible();
+  const { download, exported } = await downloadAllResults(page);
+  expect(download.suggestedFilename()).toMatch(/^yearly-analysis-.*\.json$/);
+  expect(exported.schemaVersion).toBe(3);
+  expect(exported.general.configuration).toMatchObject({
+    mode: "joint",
+    shiftIds: ["morning", "evening"],
+  });
+  expect(exported.shifts.map(({ shiftId }) => shiftId)).toEqual(["morning", "evening"]);
+  await expect(generalLevel.locator(".ya-deployed-card")).toHaveCount(5);
+  const generalCosts = generalLevel.locator('[data-role="ya-general-costs"]');
+  await expect(generalCosts).toBeVisible();
+  await expect(generalCosts).toHaveAttribute("data-economic-scope", "general-shared");
+  await expect(generalCosts).toContainText("Shared investment costs");
+  await expect(generalCosts).toContainText("Shared charging infrastructure investment");
+  await expect(generalCosts).toContainText(/CHF 250['’,]000/);
+  await expect(generalCosts).toContainText("Allocated by annual DC energy");
+  const generalCostTooltip = generalCosts.getByRole("button");
+  await expect(generalCostTooltip).toHaveAccessibleName(
+    /charging infrastructure, vehicle and battery investments are counted once/i,
+  );
+  await generalCostTooltip.hover();
+  await expect(generalCostTooltip.locator(".ya-info-tooltip")).toBeVisible();
+  const generalPresentation = await generalLevel.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const role = element.querySelector(".ya-configuration-role");
+    const roleStyle = getComputedStyle(role);
+    const nestedCards = [...element.querySelectorAll(".ya-deployed-card")];
+    return {
+      background: style.backgroundColor,
+      borderStyle: style.borderStyle,
+      shadow: style.boxShadow,
+      roleBackground: roleStyle.backgroundColor,
+      roleBorderWidth: roleStyle.borderWidth,
+      nestedBackgrounds: [...new Set(nestedCards.map((card) => getComputedStyle(card).backgroundColor))],
+      hasHorizontalOverflow:
+        document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
+  expect(generalPresentation.background).toBe("rgb(255, 255, 255)");
+  expect(generalPresentation.borderStyle).toBe("solid");
+  expect(generalPresentation.shadow).not.toBe("none");
+  expect(generalPresentation.roleBackground).toBe("rgba(0, 0, 0, 0)");
+  expect(generalPresentation.roleBorderWidth).toBe("0px");
+  expect(generalPresentation.nestedBackgrounds).toEqual(["rgb(255, 255, 255)"]);
+  expect(generalPresentation.hasHorizontalOverflow).toBe(false);
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+  await expect(resultViewTablist).toBeHidden();
+  await expect(page.locator('[data-role="overview-panel"] .ya-overview-grid')).toHaveCount(0);
+
+  if (updateGuideScreenshots) {
+    await page.setViewportSize({ width: 1440, height: 1020 });
+    await generalCostTooltip.evaluate((button) => button.blur());
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(250);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator(".ya-results-main").evaluate((main) => {
+      main.scrollTop = 0;
+    });
+    await page.screenshot({ path: "guide/images/yearly-efficiency.png" });
+  }
+
+  await tabs.getByText("Morning service", { exact: true }).click();
+  await expect(tabs.getByText("Morning service", { exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(resultViewTablist).toBeVisible();
+  await expect(resultViewTabs).toHaveCount(3);
+  await expect(resultViewTabs).toHaveText(["Efficiency", "Costs", "Emissions"]);
+  await expect(resultViewTabs.nth(0)).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[data-action="download-json"]')).toHaveCount(0);
+  await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+  await expect(page.locator('[data-panel="overview"]')).toBeHidden();
+  await expect(shiftSummarySlot).toBeVisible();
+  const shiftLevel = page.locator('[data-role="ya-shift-reference"]');
+  await expect(shiftLevel).toHaveClass(/ya-scope-level--shift/);
+  await expect(shiftLevel.locator(":scope > *")).toHaveCount(1);
+  await expect(shiftLevel.locator(".ya-scope-level__eyebrow")).toHaveCount(0);
+  await expect(shiftLevel.locator('[data-role="ya-selected-shift"]')).toHaveCount(0);
+  await expect(shiftLevel.locator(".ya-scope-status")).toHaveCount(0);
+  await expect(shiftLevel).not.toContainText("Shift detail");
+  await expect(shiftLevel).not.toContainText("Complete");
+  await expect(shiftLevel.locator(".ya-scope-level__subtitle")).toHaveCount(0);
+  await expect(shiftLevel).not.toContainText("Energy demand and operating details");
+  const yearlySummary = shiftLevel.locator('[data-role="ya-shift-yearly-summary"]');
+  await expect(yearlySummary).toContainText("Yearly aggregated summary");
+  await expect(yearlySummary.locator(".ya-shift-yearly-summary__title")).toHaveText(
+    "Yearly aggregated summary",
+  );
+  await expect(yearlySummary.locator("thead")).toHaveCount(0);
+  await expect(yearlySummary.locator("tbody tr")).toHaveCount(1);
+  await expect(yearlySummary.locator("tbody th")).toHaveCount(0);
+  await expect(yearlySummary.locator("tbody td")).toHaveCount(3);
+  await expect(yearlySummary.locator("tbody td span")).toHaveText([
+    "Yearly energy:",
+    "Yearly simulated distance:",
+    "Average yearly efficiency:",
+  ]);
+  await expect(yearlySummary.locator("tbody td strong")).toHaveText([
+    /36['’,]500 kWh/,
+    /21['’,]900 km/,
+    "1.667 kWh/km",
+  ]);
+  const compactShiftContext = await shiftSummarySlot.evaluate((element) => ({
+    followsScopeTabs:
+      element.previousElementSibling?.matches('[data-role="ya-result-scope-tabs"]') ?? false,
+    width: element.getBoundingClientRect().width,
+    parentWidth: element.parentElement?.getBoundingClientRect().width ?? 0,
+    background: getComputedStyle(
+      element.querySelector('[data-role="ya-shift-yearly-summary"]'),
+    ).backgroundColor,
+    summaryFontSize: Number.parseFloat(getComputedStyle(
+      element.querySelector('[data-role="ya-shift-yearly-summary"] td'),
+    ).fontSize),
+  }));
+  expect(compactShiftContext.followsScopeTabs).toBe(true);
+  expect(compactShiftContext.width).toBeGreaterThanOrEqual(compactShiftContext.parentWidth - 1);
+  expect(compactShiftContext.background).toBe("rgb(228, 246, 246)");
+  expect(compactShiftContext.summaryFontSize).toBeLessThanOrEqual(14);
+  const shiftContentOrder = await content.evaluate((element) =>
+    Array.from(element.children).map((child) =>
+      child.getAttribute("data-role") || child.getAttribute("data-panel")),
+  );
+  expect(shiftContentOrder.slice(0, 2)).toEqual(["ya-result-view-tabs", "overview"]);
+  await expect(shiftLevel).not.toContainText("Common bus configuration");
+  await expect(shiftLevel).not.toContainText("Feasibility reference");
+  await expect(shiftLevel).not.toContainText("Reference charging plan");
+  await expect(shiftLevel).not.toContainText("Charging session 1: Depot");
+  await expect(page.locator('[data-role="ya-eff-chart-1-note"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="ya-eff-chart-2-note"]')).toHaveCount(0);
+  const efficiencyCardPresentation = await page.locator(".ya-eff-chart-section").evaluateAll(
+    (cards) => cards.map((card) => {
+      const style = getComputedStyle(card);
+      const titleStyle = getComputedStyle(card.querySelector(".ya-res-section-title"));
+      return {
+        background: style.backgroundColor,
+        borderStyle: style.borderStyle,
+        titleSize: Number.parseFloat(titleStyle.fontSize),
+      };
+    }),
+  );
+  expect(efficiencyCardPresentation).toHaveLength(2);
+  efficiencyCardPresentation.forEach((card) => {
+    expect(card.background).toBe("rgb(255, 255, 255)");
+    expect(card.borderStyle).toBe("solid");
+    expect(card.titleSize).toBeLessThanOrEqual(16);
+  });
+  await expect(content).not.toContainText("Cold evening");
+  await expect(page.locator('[data-role="ya-cost-scope-note"]')).toBeHidden();
+  await expect(page.locator('[data-role="ya-emissions-scope-note"]')).toHaveCount(0);
+
+  await resultViewTabs.getByText("Costs", { exact: true }).click();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeVisible();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+  await expect(page.locator('[data-role="ya-cost-scope-note"]')).toBeVisible();
+  await expect(page.locator('[data-role="ya-cost-scope-note"]')).toContainText(
+    "Operating costs use this shift's energy and distance",
+  );
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Shift costs");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Annual shift OPEX comparison");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Allocated shared CAPEX");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Cumulative cost and break-even");
+  const capexAllocation = page.locator('[data-role="ya-costs-capex-section"]');
+  await expect(capexAllocation).toHaveAttribute("data-allocation-method", "annual_dc_energy");
+  await expect(capexAllocation).toContainText("66.7%");
+  await expect(capexAllocation).toContainText("shown in Emissions");
+  await expect(capexAllocation.locator(".ya-costs-kpi-card")).toHaveCount(0);
+  await expect(capexAllocation.locator(".ya-compact-metrics__table thead tr")).toHaveCount(1);
+  await expect(capexAllocation.locator(".ya-compact-metrics__table thead th")).toHaveCount(5);
+  await expect(capexAllocation.locator(".ya-compact-metrics__table tbody tr")).toHaveCount(1);
+  await expect(capexAllocation.locator(".ya-compact-metrics__table tbody td")).toHaveCount(5);
+  await expect(page.locator('[data-role="ya-costs-line-chart"] svg')).toBeVisible();
+  await expect(page.locator('[data-role="ya-var-interest"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="ya-var-diesel-capex"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="ya-costs-bar-legend"]')).not.toContainText("CAPEX");
+  await expect(page.locator('[data-panel="costs"]')).not.toContainText("Bus cost");
+  await expect(page.locator('[data-panel="costs"]')).not.toContainText("Battery replacement");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Electric yearly OPEX");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Diesel yearly OPEX");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Annual operating saving");
+  const shiftCostTooltip = page.locator('[data-panel="costs"] .ya-scope-section-title').getByRole("button");
+  await expect(shiftCostTooltip).toHaveAccessibleName(
+    /operating costs use this shift's energy and distance/i,
+  );
+  await shiftCostTooltip.hover();
+  await expect(shiftCostTooltip.locator(".ya-info-tooltip")).toBeVisible();
+
+  await resultViewTabs.getByText("Emissions", { exact: true }).click();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
+  await expect(page.locator('[data-role="ya-emissions-scope-note"]')).toHaveCount(0);
+  await expect(page.locator('[data-panel="emissions"]')).not.toContainText("Shift impacts use");
+  const emissionsTitle = page.locator('[data-panel="emissions"] > .ya-env-heading-row .ya-scope-section-title');
+  const emissionsDistanceControl = page.locator('[data-role="ya-env-controls"]');
+  await expect(emissionsDistanceControl).toBeVisible();
+  await expect(page.locator('[data-role="ya-env-yearly-distance"]')).toHaveValue("21900");
+  await expect(emissionsDistanceControl.locator(".ya-cost-variables__range-scale span")).toHaveText([
+    /10.000/,
+    /40.000/,
+  ]);
+  const [titleBox, distanceControlBox] = await Promise.all([
+    emissionsTitle.boundingBox(),
+    emissionsDistanceControl.boundingBox(),
+  ]);
+  if (page.viewportSize().width > 700) {
+    expect(distanceControlBox.x).toBeGreaterThan(titleBox.x + titleBox.width);
+    expect(Math.abs(distanceControlBox.y - titleBox.y)).toBeLessThanOrEqual(4);
+  } else {
+    expect(distanceControlBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
+    expect(Math.abs(distanceControlBox.x - titleBox.x)).toBeLessThanOrEqual(4);
+  }
+  const firstLcaSection = page.locator(".ya-lca-result > section").first();
+  await expect(firstLcaSection).toHaveAttribute("data-role", "ya-lca-phases");
+  await expect(firstLcaSection.getByRole("heading")).toHaveText("Climate impact by phase");
+  await expect(page.locator('[data-panel="emissions"]')).not.toContainText(
+    "DC powers and consumption at the bus",
+  );
+  await expect(page.locator('[data-role="ya-lca-overview"]')).toBeVisible();
+  await expect(page.locator('[data-role="ya-lca-energy-summary"] .result-metric')).toHaveCount(4);
+  await expect(page.locator('[data-role="ya-lca-indicators"]')).toBeVisible();
+  await expect(page.locator('[data-role="ya-lca-phases"]')).toBeVisible();
+  const emissionsPresentation = await page.locator('[data-role="ya-lca-overview"]').evaluate(
+    (element) => {
+      const style = getComputedStyle(element);
+      const metrics = [...element.querySelectorAll(".result-metric")].map((metric) =>
+        getComputedStyle(metric).backgroundColor,
+      );
+      return {
+        background: style.backgroundColor,
+        borderStyle: style.borderStyle,
+        metricBackgrounds: [...new Set(metrics)],
+        hasHorizontalOverflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    },
+  );
+  expect(emissionsPresentation.background).toBe("rgb(255, 255, 255)");
+  expect(emissionsPresentation.borderStyle).toBe("solid");
+  expect(emissionsPresentation.metricBackgrounds).toEqual(["rgba(0, 0, 0, 0)"]);
+  expect(emissionsPresentation.hasHorizontalOverflow).toBe(false);
+  const disclosureToggle = page.locator(".ya-lca-disclosure > summary");
+  const disclosureTypography = await disclosureToggle.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      fontSize: Number.parseFloat(style.fontSize),
+      fontWeight: Number(style.fontWeight),
+    };
+  });
+  expect(disclosureTypography.fontSize).toBeLessThanOrEqual(14);
+  expect(disclosureTypography.fontWeight).toBeLessThanOrEqual(500);
+
+  if (updateGuideScreenshots) {
+    await page.setViewportSize({ width: 1440, height: 990 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator(".ya-results-main").evaluate((main) => {
+      main.scrollTop = 0;
+    });
+    await page.screenshot({ path: "guide/images/yearly-emissions.png" });
+  }
+
+  await resultViewTabs.getByText("Emissions", { exact: true }).focus();
+  await resultViewTabs.getByText("Emissions", { exact: true }).press("Home");
+  await expect(resultViewTabs.getByText("Efficiency", { exact: true })).toBeFocused();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+
+  await page.getByRole("tab", { name: "Evening service" }).click();
+  await expect(page.getByRole("tab", { name: "Evening service" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[data-role="ya-shift-yearly-summary"] tbody td strong')).toHaveText([
+    /18['’,]250 kWh/,
+    /14['’,]600 km/,
+    "1.250 kWh/km",
+  ]);
+  await expect(content).not.toContainText("Reference charging plan");
+
+  await page.getByRole("tab", { name: "General" }).click();
+  await expect(resultViewTablist).toBeHidden();
+  await expect(page.locator('[data-action="download-json"]')).toBeVisible();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+
+  await page.getByRole("tab", { name: "General" }).focus();
+  await page.getByRole("tab", { name: "General" }).press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "Morning service" })).toBeFocused();
+  await expect(page.getByRole("tab", { name: "Morning service" })).toHaveAttribute("aria-selected", "true");
+  await expect(resultViewTablist).toBeVisible();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
+
+  await page.setViewportSize({ width: 320, height: 700 });
+  const overflow = await page.locator('[data-role="ya-result-scope-tabs"]').evaluate((element) => ({
+    overflowX: getComputedStyle(element).overflowX,
+    bodyClientWidth: document.body.clientWidth,
+    bodyScrollWidth: document.body.scrollWidth,
+  }));
+  expect(overflow.overflowX).toBe("auto");
+  expect(overflow.bodyScrollWidth).toBe(overflow.bodyClientWidth);
+  await expect(resultViewTablist).toHaveCSS("overflow-x", "auto");
+  const mobileShiftContext = await shiftLevel.boundingBox();
+  expect(mobileShiftContext.height).toBeLessThan(80);
+  await expect(yearlySummary.locator(".ya-compact-metrics")).toHaveCSS("overflow-x", "auto");
+  await resultViewTabs.getByText("Emissions", { exact: true }).click();
+  const mobileActivityMetric = page
+    .locator('[data-role="ya-lca-energy-summary"] .result-metric')
+    .last();
+  await expect(mobileActivityMetric).toHaveCSS("flex-direction", "column");
+  const mobileActivityLayout = await mobileActivityMetric.evaluate((metric) => {
+    const label = metric.querySelector(".result-metric__label").getBoundingClientRect();
+    const value = metric.querySelector(".result-metric__value").getBoundingClientRect();
+    return {
+      separated: value.top >= label.bottom,
+      bodyClientWidth: document.body.clientWidth,
+      bodyScrollWidth: document.body.scrollWidth,
+    };
+  });
+  expect(mobileActivityLayout.separated).toBe(true);
+  expect(mobileActivityLayout.bodyScrollWidth).toBe(mobileActivityLayout.bodyClientWidth);
+});
+
+test("annual-distance sensitivity remains isolated to the selected shift", async ({ page }) => {
+  const lcaRequests = [];
+  await mountResults(page, multishiftAnalysis, { lcaRequests });
+
+  const scopeTabs = page.locator('[data-role="ya-result-scope-tabs"]');
+  const resultTabs = page.locator('[data-role="ya-result-view-tabs"]');
+  const distanceSlider = page.locator('[data-role="ya-env-yearly-distance"]');
+  const activityMetric = page
+    .locator('[data-role="ya-lca-energy-summary"] .result-metric')
+    .last();
+
+  await scopeTabs.getByRole("tab", { name: "Morning service" }).click();
+  await resultTabs.getByRole("tab", { name: "Emissions" }).click();
+  await expect(distanceSlider).toBeVisible();
+  await expect(distanceSlider).toHaveValue("21900");
+
+  await distanceSlider.evaluate((element) => {
+    element.value = "40000";
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect.poll(() => lcaRequests.at(-1)).toEqual({
+    shiftId: "morning",
+    annualKm: 40000,
+  });
+  await expect(distanceSlider).toHaveValue("40000");
+  await expect(activityMetric).toContainText(/40.000 km/);
+
+  await scopeTabs.getByRole("tab", { name: "Evening service" }).click();
+  await expect(distanceSlider).toBeVisible();
+  await expect(distanceSlider).toHaveValue("14600");
+  await expect.poll(() => lcaRequests.at(-1)).toEqual({
+    shiftId: null,
+    annualKm: null,
+  });
+  await expect(activityMetric).toContainText(/14.600 km/);
+
+  await scopeTabs.getByRole("tab", { name: "Morning service" }).click();
+  await expect.poll(() => lcaRequests.at(-1)).toEqual({
+    shiftId: "morning",
+    annualKm: 40000,
+  });
+  await expect(distanceSlider).toHaveValue("40000");
+
+  await page.locator('[data-role="ya-env-yearly-distance-reset"]').click();
+  await expect.poll(() => lcaRequests.at(-1)).toEqual({
+    shiftId: null,
+    annualKm: null,
+  });
+  await expect(distanceSlider).toHaveValue("21900");
+  await expect(activityMetric).toContainText(/21.900 km/);
+});
+
+test("historical single-shift results expose General and the configured shift", async ({ page }) => {
+  const legacy = {
+    id: "legacy",
+    name: "Historical annual analysis",
+    features: {
+      config: {
+        mode: "battery_only",
+        bus_model_id: "bus-1",
+        shift_ids: ["legacy-shift"],
+        min_soc: 0.2,
+        max_soc: 0.9,
+      },
+      meta: { shiftNames: ["Legacy shift"], sizingTemp: -5 },
+      results: {
+        optimizedPacks: 10,
+        baseFeasible: true,
+        yearlyTotals: { totalEnergyKwh: 36500, distanceKm: 21900 },
+        scenarioResults: [scenario("legacy-cold", "Historical cold", 100, 60)],
+      },
+    },
+  };
+  await mountResults(page, legacy);
+  const scopeTabs = page.locator('[data-role="ya-result-scope-tabs"]').getByRole("tab");
+  const resultViewTabs = page.locator('[data-role="ya-result-view-tabs"]').getByRole("tab");
+  await expect(scopeTabs).toHaveCount(2);
+  await expect(scopeTabs).toHaveText(["General", "Legacy shift"]);
+  await expect(page.getByRole("tab", { name: "General" })).toHaveAttribute("aria-selected", "true");
+  const generalConfiguration = page.locator('[data-role="ya-deployed-configuration"]');
+  await expect(generalConfiguration).toBeVisible();
+  await expect(generalConfiguration).toContainText("Reference bus");
+  await expect(generalConfiguration).toContainText("10 packs");
+  await expect(generalConfiguration).toContainText("Legacy shift");
+  await expect(generalConfiguration).toContainText(
+    "Shared charging infrastructure details are unavailable",
+  );
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+  await page.getByRole("tab", { name: "Legacy shift" }).click();
+  await expect(page.getByRole("tab", { name: "Legacy shift" })).toHaveAttribute("aria-selected", "true");
+  await expect(resultViewTabs).toHaveText(["Efficiency", "Costs", "Emissions"]);
+  await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+  await expect(page.locator("#yearly-result-scope-content")).toContainText("Historical cold");
+
+  await resultViewTabs.getByText("Costs", { exact: true }).click();
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeVisible();
+  await expect(page.locator("#yearly-result-scope-content")).toContainText("Shift costs");
+
+  await resultViewTabs.getByText("Emissions", { exact: true }).click();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
+  await expect(page.locator("#yearly-result-scope-content")).toContainText("Annual emissions");
+});
+
+test("historical General recovers its physical configuration from the source feasibility", async ({ page }) => {
+  const legacy = structuredClone(multishiftAnalysis);
+  legacy.id = "legacy-source-configuration";
+  legacy.optimization_run_id = sourceFeasibilityRun.id;
+  delete legacy.features.config.fixedConfiguration;
+
+  await mountResults(page, legacy, { optimizationRun: sourceFeasibilityRun });
+
+  const generalConfiguration = page.locator('[data-role="ya-deployed-configuration"]');
+  await expect(generalConfiguration).toBeVisible();
+  await expect(generalConfiguration).toContainText("12 packs");
+  await expect(generalConfiguration).toContainText("600.0 kWh");
+  await expect(generalConfiguration).toContainText("Depot");
+  await expect(generalConfiguration).toContainText("2");
+  await expect(generalConfiguration).toContainText("300 kW");
+  await expect(generalConfiguration).not.toContainText(
+    "Shared charging infrastructure details are unavailable",
+  );
+  await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
+  await expect(page.locator('[data-panel="costs"]')).toBeHidden();
+  await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+});
+
+test("General keeps fixed battery-only charging infrastructure visible without optimizer output", async ({ page }) => {
+  const batteryOnly = structuredClone(multishiftAnalysis);
+  batteryOnly.id = "battery-only-fixed-infrastructure";
+  batteryOnly.features.config.mode = "battery_only";
+  batteryOnly.features.config.fixedConfiguration.mode = "battery_only";
+  batteryOnly.features.config.fixedConfiguration.infrastructure = {
+    decision: "fixed",
+    dataAvailable: true,
+    resultAvailable: false,
+    stations: [{
+      stopId: "depot",
+      stopName: "Fixed depot",
+      status: "fixed",
+      selected: true,
+      slots: 3,
+      powerPerSlotKw: 150,
+      totalPowerKw: 450,
+    }],
+  };
+
+  await mountResults(page, batteryOnly);
+
+  const generalConfiguration = page.locator('[data-role="ya-deployed-configuration"]');
+  await expect(generalConfiguration).toContainText("Fixed depot");
+  await expect(generalConfiguration).toContainText("450 kW");
+  await expect(generalConfiguration).not.toContainText(
+    "Shared charging infrastructure details are unavailable",
+  );
+});
+
+test("historical multi-shift results are reconstructed by shift ID", async ({ page }) => {
+  const legacy = structuredClone(multishiftAnalysis);
+  legacy.id = "legacy-multi";
+  legacy.name = "Historical two-shift analysis";
+  delete legacy.features.config.fixedConfiguration;
+  legacy.features.scenarios = [{
+    scenarioId: "cold",
+    label: "Historical cold",
+    temperature: -5,
+    occurrences: 365,
+  }];
+  delete legacy.features.results.shiftResults;
+  legacy.features.results.scenarioResults = [
+    scenario("aggregate-cold", "Historical cold", 150, 100),
+  ];
+
+  const reversedRuns = [
+    predictionRun({ id: "evening-cold", shiftId: "evening", temperature: -5, energy: 50, distance: 40 }),
+    predictionRun({ id: "morning-cold", shiftId: "morning", temperature: -5, energy: 100, distance: 60 }),
+  ];
+  await mountResults(page, legacy, { predictionRuns: reversedRuns });
+
+  await expect(page.getByRole("tab")).toHaveText([
+    "General",
+    "Morning service",
+    "Evening service",
+  ]);
+  await page.getByRole("tab", { name: "Morning service" }).click();
+  const shiftReference = page.locator('[data-role="ya-shift-reference"]');
+  await expect(shiftReference).toContainText(/36['’,]500 kWh/);
+  await expect(shiftReference).toContainText(/21['’,]900 km/);
+
+  await page.getByRole("tab", { name: "Evening service" }).click();
+  await expect(shiftReference).toContainText(/18['’,]250 kWh/);
+  await expect(shiftReference).toContainText(/14['’,]600 km/);
+  await expect(shiftReference).not.toContainText(/36['’,]500 kWh/);
+});
+
+test("historical multi-shift tabs remain visible when one shift is incomplete", async ({ page }) => {
+  const legacy = structuredClone(multishiftAnalysis);
+  legacy.id = "legacy-partial";
+  delete legacy.features.config.fixedConfiguration;
+  legacy.features.scenarios = [{
+    scenarioId: "cold",
+    label: "Cold",
+    temperature: -5,
+    occurrences: 365,
+  }];
+  delete legacy.features.results.shiftResults;
+
+  await mountResults(page, legacy, {
+    predictionRuns: [
+      predictionRun({ id: "morning-only", shiftId: "morning", temperature: -5, energy: 100, distance: 60 }),
+    ],
+  });
+
+  await expect(page.getByRole("tab")).toHaveCount(3);
+  const eveningTab = page.getByRole("tab", { name: "Evening service" });
+  await expect(eveningTab).toHaveAttribute("data-status", "failed");
+  await eveningTab.click();
+  const shiftReference = page.locator('[data-role="ya-shift-reference"]');
+  await expect(shiftReference).not.toContainText("Failed");
+  await expect(shiftReference.locator("tbody td strong")).toHaveText(["0 kWh", "0 km", "—"]);
+  await expect(page.locator('[data-action="download-json"]')).toHaveCount(0);
+
+  await page.getByRole("tab", { name: "Morning service" }).click();
+  await expect(shiftReference).not.toContainText("Complete");
+  await expect(shiftReference.locator("tbody td strong")).toHaveText([
+    /36['’,]500 kWh/,
+    /21['’,]900 km/,
+    "1.667 kWh/km",
+  ]);
+});
+
+test("shift tab labels keep backend HTML inert without duplicating shift context", async ({ page }) => {
+  const unsafe = structuredClone(multishiftAnalysis);
+  unsafe.id = "unsafe";
+  const payload = '<img src=x onerror="window.__yearlyScopeInjected=true">';
+  unsafe.features.results.shiftResults[0].shiftName = payload;
+  unsafe.features.config.fixedConfiguration.shifts[0].shiftName = payload;
+  unsafe.features.config.fixedConfiguration.shifts[0].operation.chargingSessions[0].stationName = payload;
+  unsafe.features.config.fixedConfiguration.infrastructure.resultAvailable = false;
+  delete unsafe.features.config.fixedConfiguration.shifts[1].operation.chargingSessions;
+
+  await mountResults(page, unsafe);
+  await expect(page.locator("#yearly-result-scope-content")).toContainText(
+    "Shared charging infrastructure details are unavailable",
+  );
+  const unsafeTab = page.getByRole("tab", { name: payload });
+  await expect(unsafeTab).toHaveCount(1);
+  await unsafeTab.click();
+  await expect(page.locator("#yearly-result-scope-content")).not.toContainText(payload);
+  await expect(page.locator("img")).toHaveCount(0);
+  expect(await page.evaluate(() => window.__yearlyScopeInjected)).toBeUndefined();
+  await page.getByRole("tab", { name: "Evening service" }).click();
+  await expect(page.locator("#yearly-result-scope-content")).not.toContainText(
+    "Reference charging-plan details are unavailable",
+  );
+});

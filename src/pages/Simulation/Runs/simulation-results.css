@@ -18,34 +18,6 @@
   width: 100%;
 }
 
-.results-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  margin-bottom: var(--layout-gap);
-}
-
-.results-evaluation-summary {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  width: 100%;
-  min-height: 3.25rem;
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--text-main);
-}
-
-.results-evaluation-summary strong {
-  font-weight: 600;
-}
-
-.results-evaluation-summary .sim-data-btn {
-  margin-left: auto;
-}
-
 .results-shift-tabs {
   display: flex;
   gap: var(--space-xs);
@@ -96,40 +68,6 @@
   background: var(--brand-teal);
   color: var(--color-surface);
   border-color: var(--brand-teal);
-}
-
-.sim-data-btn {
-  background-color: var(--brand-teal);
-  color: var(--color-surface);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-  line-height: 1.2;
-  border: 1px solid var(--brand-teal);
-}
-
-.sim-data-btn:hover {
-  background-color: var(--brand-teal-dark);
-  border-color: var(--brand-teal-dark);
-}
-
-.sim-data-btn--secondary {
-  background-color: var(--brand-teal);
-  color: var(--color-surface);
-  border: 1px solid var(--brand-teal);
-}
-
-.sim-data-btn--secondary:hover {
-  background-color: var(--brand-teal-dark);
-}
-
-.results-toolbar .sim-data-btn--secondary {
-  max-width: 10rem;
-  white-space: normal;
-  text-align: center;
 }
 
 /* Tab panels */
@@ -739,16 +677,6 @@
 }
 
 @media (width <= 900px) {
-  .results-evaluation-summary {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .results-evaluation-summary .sim-data-btn {
-    width: 100%;
-    margin-left: 0;
-  }
-
   .sim-data-columns {
     grid-template-columns: 1fr;
   }
@@ -917,28 +845,22 @@
   display: block;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
+  color: var(--text-main);
   margin-bottom: var(--space-xs);
 }
 
 .efficiency-sensitivity-card__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs) var(--space-2xs);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-xs) var(--space-md);
 }
 
 .efficiency-sensitivity-card__chip {
-  display: inline-block;
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: 999px;
-  border: 1px solid var(--color-border-dim);
-  background: var(--color-surface);
+  display: block;
+  padding: 0;
   font-size: var(--font-size-xs);
-  font-weight: 500;
-  color: var(--text-main);
-  white-space: nowrap;
+  font-weight: 400;
+  color: var(--text-secondary);
 }
 
 .efficiency-sensitivity-card__margin-ok {
@@ -972,25 +894,10 @@
   min-width: 0;
 }
 
-.feasibility-level--general {
-  padding: var(--space-md);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-
 .feasibility-level--shift {
   display: flex;
   flex-direction: column;
   gap: var(--layout-gap);
-}
-
-.feasibility-level__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
 }
 
 .feasibility-level__header-meta {
@@ -1001,161 +908,67 @@
   gap: var(--space-xs);
 }
 
-.feasibility-mode,
-.feasibility-overall-status {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: var(--space-2xs) var(--space-xs);
-  border: 1px solid var(--border-light);
-  border-radius: 999px;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  line-height: 1.2;
-}
-
 .feasibility-mode {
   color: var(--text-secondary);
-}
-
-.feasibility-overall-status--feasible {
-  border-color: color-mix(in srgb, #5f8f2f 38%, var(--border-light));
-  background: color-mix(in srgb, #5f8f2f 10%, var(--color-surface));
-  color: #426821;
-}
-
-.feasibility-overall-status--infeasible {
-  border-color: color-mix(in srgb, var(--color-danger) 38%, var(--border-light));
-  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
-  color: var(--color-danger);
-}
-
-.feasibility-overall-status--unknown {
-  color: var(--text-secondary);
-}
-
-.feasibility-level__header--shift {
-  padding: var(--space-xs) 0;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.feasibility-level__eyebrow {
-  margin: 0 0 var(--space-2xs);
-  color: var(--brand-teal-dark);
   font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.feasibility-level__title {
-  margin: 0;
-  color: var(--text-main);
-  font-size: var(--font-size-xl);
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.3;
-}
-
-.feasibility-level__subtitle {
-  max-width: 52rem;
-  margin: var(--space-2xs) 0 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
 }
 
 .feasibility-level__content {
   display: flex;
   flex-direction: column;
-  gap: var(--layout-gap);
+  gap: var(--space-md);
   min-width: 0;
 }
 
 .feasibility-general-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-xs);
-  margin-top: var(--space-sm);
+  margin: 0;
 }
 
 .feasibility-general-card {
   min-width: 0;
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-subtle, var(--color-surface));
 }
 
 .feasibility-general-card__heading {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-xs);
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  line-height: 1.35;
+  gap: var(--space-md);
+  width: 100%;
+  min-width: 0;
+  font-size: var(--font-size-md);
+  line-height: 1.4;
 }
 
 .feasibility-general-card__result {
   display: inline-flex;
   flex: 0 0 auto;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-xs);
   min-width: 0;
 }
 
 .feasibility-general-card__value {
-  margin: 0;
   overflow-wrap: anywhere;
-  color: var(--text-main);
-  font-size: inherit;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  line-height: inherit;
-}
-
-.feasibility-general-card__value--text {
-  font-size: inherit;
-  line-height: inherit;
-}
-
-.feasibility-general-card p {
-  margin: var(--space-2xs) 0 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  line-height: 1.45;
+  white-space: nowrap;
 }
 
 .feasibility-decision {
   flex: 0 0 auto;
-  padding: 0.15rem var(--space-xs);
-  border: 1px solid var(--border-light);
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.feasibility-decision--fixed {
-  border-color: color-mix(in srgb, var(--brand-teal) 38%, var(--border-light));
-  background: color-mix(in srgb, var(--brand-teal) 9%, var(--color-surface));
-  color: var(--brand-teal-dark);
-}
-
-.feasibility-decision--optimized {
-  border-color: color-mix(in srgb, #5f8f2f 38%, var(--border-light));
-  background: color-mix(in srgb, #5f8f2f 10%, var(--color-surface));
-  color: #426821;
-}
-
-.feasibility-decision--unknown {
   color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.feasibility-decision::before {
+  margin-right: var(--space-xs);
+  color: var(--border-medium);
+  content: "·";
 }
 
 .feasibility-infrastructure {
-  margin-top: var(--space-md);
   padding-top: var(--space-md);
   border-top: 1px solid var(--border-light);
 }
@@ -1170,213 +983,59 @@
 .feasibility-infrastructure__header h4 {
   margin: 0;
   color: var(--text-main);
-  font-size: var(--font-size-md);
-  font-weight: 700;
-}
-
-.feasibility-infrastructure__header p {
-  margin: var(--space-2xs) 0 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: 1.45;
-}
-
-.feasibility-configuration-state,
-.feasibility-station-status {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  border: 1px solid var(--border-light);
-  border-radius: 999px;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.feasibility-configuration-state {
-  flex: 0 0 auto;
-  padding: var(--space-2xs) var(--space-xs);
-}
-
-.feasibility-configuration-state--complete {
-  border-color: color-mix(in srgb, #5f8f2f 38%, var(--border-light));
-  background: color-mix(in srgb, #5f8f2f 10%, var(--color-surface));
-  color: #426821;
-}
-
-.feasibility-configuration-state--incomplete {
-  border-color: color-mix(in srgb, var(--warning, #b87900) 38%, var(--border-light));
-  background: color-mix(in srgb, var(--warning, #b87900) 9%, var(--color-surface));
-  color: var(--warning, #8a5b00);
-}
-
-.feasibility-infrastructure-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-xs);
-  margin: var(--space-sm) 0;
-}
-
-.feasibility-infrastructure-metrics > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-xs);
-  min-width: 0;
-  padding: var(--space-xs) var(--space-sm);
-  border-left: 3px solid color-mix(in srgb, var(--brand-teal) 45%, var(--border-light));
-  background: color-mix(in srgb, var(--brand-teal) 4%, var(--color-surface));
-}
-
-.feasibility-infrastructure-metrics span {
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-lg);
   font-weight: 600;
-}
-
-.feasibility-infrastructure-metrics strong {
-  overflow-wrap: anywhere;
-  color: var(--text-main);
-  font-size: var(--font-size-sm);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
   line-height: 1.35;
 }
 
+.feasibility-infrastructure__header p {
+  max-width: 60ch;
+  margin: var(--space-xs) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+}
+
+.feasibility-infrastructure-metrics {
+  margin: var(--space-sm) 0;
+}
+
 .feasibility-infrastructure-table {
-  min-width: 66rem;
+  min-width: 52rem;
 }
 
 .feasibility-station-status {
-  padding: 0.15rem var(--space-xs);
   color: var(--text-secondary);
-}
-
-.feasibility-station-status--fixed,
-.feasibility-station-status--installed {
-  border-color: color-mix(in srgb, #5f8f2f 35%, var(--border-light));
-  background: color-mix(in srgb, #5f8f2f 8%, var(--color-surface));
-  color: #426821;
-}
-
-.feasibility-station-status--candidate {
-  border-color: color-mix(in srgb, var(--brand-teal) 35%, var(--border-light));
-  background: color-mix(in srgb, var(--brand-teal) 8%, var(--color-surface));
-  color: var(--brand-teal-dark);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
 }
 
 .feasibility-station-status--rejected {
-  color: var(--text-secondary);
+  color: var(--color-danger);
   text-decoration: line-through;
 }
 
 .feasibility-infrastructure-notice {
   margin: 0 0 var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
-  border-left: 3px solid var(--warning, #b87900);
-  background: color-mix(in srgb, var(--warning, #b87900) 7%, var(--color-surface));
+  border-left: 3px solid var(--color-warning-text);
+  background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface));
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   line-height: 1.45;
 }
 
-.feasibility-shift-summary {
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.feasibility-shift-summary__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.feasibility-shift-summary__header h4 {
+.feasibility-shift-summary__header h4,
+.feasibility-charging-plan__header h4 {
   margin: 0;
   color: var(--text-main);
-  font-size: var(--font-size-md);
-  font-weight: 700;
-}
-
-.feasibility-shift-summary__header p {
-  margin: var(--space-2xs) 0 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: 1.45;
-}
-
-.feasibility-shift-status {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  padding: var(--space-2xs) var(--space-xs);
-  border: 1px solid var(--border-light);
-  border-radius: 999px;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.feasibility-shift-status--positive,
-.feasibility-shift-status--sizing {
-  border-color: color-mix(in srgb, #5f8f2f 38%, var(--border-light));
-  background: color-mix(in srgb, #5f8f2f 10%, var(--color-surface));
-  color: #426821;
-}
-
-.feasibility-shift-status--sizing {
-  border-color: color-mix(in srgb, var(--brand-teal) 38%, var(--border-light));
-  background: color-mix(in srgb, var(--brand-teal) 9%, var(--color-surface));
-  color: var(--brand-teal-dark);
-}
-
-.feasibility-shift-status--negative {
-  border-color: color-mix(in srgb, var(--danger) 38%, var(--border-light));
-  background: color-mix(in srgb, var(--danger) 8%, var(--color-surface));
-  color: var(--danger);
-}
-
-.feasibility-shift-status--unknown {
-  color: var(--text-secondary);
-}
-
-.feasibility-shift-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-xs);
-  margin-top: var(--space-sm);
-}
-
-.feasibility-shift-metrics article {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-xs);
-  min-width: 0;
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-}
-
-.feasibility-shift-metrics article > span {
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xl);
   font-weight: 600;
   line-height: 1.35;
 }
 
-.feasibility-shift-metrics article > strong {
-  overflow-wrap: anywhere;
-  color: var(--text-main);
-  font-size: var(--font-size-sm);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.35;
-  white-space: nowrap;
+.feasibility-shift-metrics {
+  margin: 0;
 }
 
 .feasibility-shift-metric__result {
@@ -1389,102 +1048,72 @@
 
 .feasibility-shift-metric__result strong {
   color: var(--text-main);
-  font-size: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .feasibility-shift-metrics .feasibility-shift-metric--positive {
-  color: #426821;
+  color: var(--color-success);
 }
 
 .feasibility-shift-metrics .feasibility-shift-metric--negative {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .feasibility-shift-physical-status {
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.35;
 }
 
-.feasibility-shift-physical-status--positive {
-  color: #426821;
+.feasibility-shift-physical-status::before {
+  margin-right: var(--space-xs);
+  color: var(--border-medium);
+  content: "·";
 }
 
 .feasibility-shift-physical-status--negative {
-  color: var(--danger);
-}
-
-.feasibility-charging-plan {
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.feasibility-charging-plan__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.feasibility-charging-plan__header h4 {
-  margin: 0;
-  color: var(--text-main);
-  font-size: var(--font-size-md);
-  font-weight: 700;
-}
-
-.feasibility-charging-plan__header p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: 1.45;
+  color: var(--color-danger);
 }
 
 .feasibility-charging-plan__count {
   display: inline-grid;
   flex: 0 0 auto;
-  min-width: 1.75rem;
-  min-height: 1.75rem;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
   place-items: center;
   padding: var(--space-2xs);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brand-teal) 12%, var(--color-surface));
-  color: var(--brand-teal-dark);
-  font-size: var(--font-size-sm);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .feasibility-charging-plan__state {
-  margin: var(--space-sm) 0 0;
+  margin: 0;
   padding: var(--space-xs) var(--space-sm);
   border-left: 3px solid var(--border-light);
-  background: color-mix(in srgb, var(--border-light) 25%, var(--color-surface));
+  background: var(--color-surface-muted);
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   line-height: 1.45;
 }
 
-.feasibility-charging-plan__state--empty {
-  border-left-color: #5f8f2f;
-  background: color-mix(in srgb, #5f8f2f 7%, var(--color-surface));
-}
-
 .feasibility-charging-plan__state--partial {
-  border-left-color: var(--warning, #b87900);
-  background: color-mix(in srgb, var(--warning, #b87900) 7%, var(--color-surface));
+  border-left-color: var(--color-warning-text);
+  background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface));
 }
 
 .feasibility-charging-plan__sessions {
   display: grid;
   gap: var(--space-2xs);
-  margin: var(--space-sm) 0 0;
+  margin: 0;
   padding: 0 0 2px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
@@ -1494,33 +1123,20 @@
 .feasibility-charging-session {
   display: grid;
   grid-template-columns:
-    1.5rem
-    minmax(8rem, 1.4fr)
-    minmax(10rem, 1fr)
-    minmax(21rem, 1.4fr);
+    minmax(9rem, 1.25fr)
+    minmax(10rem, 0.85fr)
+    minmax(23rem, 1.5fr);
   align-items: center;
-  gap: var(--space-xs);
-  min-width: 48rem;
+  gap: var(--space-sm);
+  min-width: 46rem;
   padding: var(--space-2xs) var(--space-sm);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--brand-teal) 3%, var(--color-surface));
+  background: var(--color-surface);
 }
 
 .feasibility-charging-session--incomplete {
   border-style: dashed;
-}
-
-.feasibility-charging-session__sequence {
-  display: grid;
-  width: 1.5rem;
-  height: 1.5rem;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--brand-teal);
-  color: #fff;
-  font-size: var(--font-size-xs);
-  font-weight: 800;
 }
 
 .feasibility-charging-session__location {
@@ -1530,11 +1146,16 @@
   min-width: 0;
 }
 
+.feasibility-charging-session__label,
+.feasibility-charging-session__location strong {
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+}
+
 .feasibility-charging-session__label {
   flex: 0 0 auto;
   color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -1542,7 +1163,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--text-main);
-  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1559,26 +1180,26 @@
   flex-direction: column;
   min-width: 3.75rem;
   align-items: center;
-  padding: 0;
   color: var(--text-main);
   font-size: var(--font-size-sm);
 }
 
 .feasibility-charging-session__clock small {
   color: var(--text-secondary);
-  font-size: 0.68rem;
-  font-weight: 600;
+  font-size: var(--font-size-xs);
+  font-weight: 400;
   line-height: 1.2;
 }
 
 .feasibility-charging-session__time-separator {
-  color: var(--brand-teal-dark);
-  font-weight: 800;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .feasibility-charging-session__metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, max-content);
+  justify-content: end;
   gap: var(--space-xs);
   margin: 0;
 }
@@ -1592,63 +1213,30 @@
   border-left: 1px solid var(--border-light);
 }
 
+.feasibility-charging-session__metrics dt,
+.feasibility-charging-session__metrics dd {
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+}
+
 .feasibility-charging-session__metrics dt {
   flex: 0 0 auto;
   color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .feasibility-charging-session__metrics dd {
   min-width: 0;
   margin: 0;
-  overflow: hidden;
   color: var(--text-main);
-  font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  text-overflow: ellipsis;
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.feasibility-charging-session__metrics dd small {
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-}
-
-@media (max-width: 1100px) {
-  .feasibility-general-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .feasibility-infrastructure-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .feasibility-shift-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 620px) {
-  .feasibility-level--general {
-    padding: var(--space-sm);
-  }
-
-  .feasibility-general-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .feasibility-level__title {
-    font-size: var(--font-size-lg);
-  }
-
-  .feasibility-infrastructure__header {
-    flex-direction: column;
-  }
-
-  .feasibility-level__header {
+@media (width <= 620px) {
+  .feasibility-level__header,
+  .feasibility-shift-summary__header {
     flex-direction: column;
   }
 
@@ -1656,28 +1244,19 @@
     align-items: flex-start;
   }
 
-  .feasibility-infrastructure-metrics {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .feasibility-shift-summary {
-    padding: var(--space-sm);
-  }
-
-  .feasibility-shift-summary__header {
+  .feasibility-infrastructure__header {
     flex-direction: column;
   }
 
-  .feasibility-shift-metrics {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .feasibility-charging-plan {
-    padding: var(--space-sm);
-  }
-
-  .feasibility-charging-plan__header {
+  .feasibility-general-card__heading {
     align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .feasibility-general-card__result {
+    justify-content: space-between;
+    width: 100%;
   }
 }
 
@@ -1728,7 +1307,7 @@
 }
 
 .efficiency-section-title {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
   font-weight: 600;
   color: var(--text-main);
   margin-bottom: var(--space-md);
@@ -1860,9 +1439,16 @@
   min-width: 0;
 }
 
+.feasibility-shift-visual-analysis .efficiency-chart-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .efficiency-chart-copy h4 {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-size: var(--font-size-md);
+  font-weight: 600;
   color: var(--text-main);
   margin: 0;
 }
@@ -1930,6 +1516,8 @@
 /* Energy predictions table */
 
 .efficiency-table-wrap {
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   overflow-x: auto;
 }
@@ -2753,10 +2341,6 @@
 @media (width <= 900px) {
   .chart-section {
     padding: var(--space-md);
-  }
-
-  .results-toolbar {
-    gap: var(--space-xs);
   }
 }
 

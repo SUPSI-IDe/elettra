@@ -30,6 +30,7 @@ test("the LCA client builds clean authenticated requests and forwards cancellati
       });
       await fetchYearlyAnalysisLca("case", {
         annual_km: 0,
+        shift_id: "shift /?#",
         diesel_consumption_l_per_km: "",
         electricity_mix: "CH grid/2025",
       });
@@ -49,7 +50,7 @@ test("the LCA client builds clean authenticated requests and forwards cancellati
       signalMatches: true,
     },
     {
-      url: "/api/v1/yearly-analysis/case/lca?annual_km=0&electricity_mix=CH+grid%2F2025",
+      url: "/api/v1/yearly-analysis/case/lca?annual_km=0&shift_id=shift+%2F%3F%23&electricity_mix=CH+grid%2F2025",
       method: "GET",
       accept: "application/json",
       authorization: "Bearer lca-client-token",

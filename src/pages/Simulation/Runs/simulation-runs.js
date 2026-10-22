@@ -144,11 +144,13 @@ const formatFeasibilityLabel = (feasible, run = {}) => {
   );
 };
 
-const feasibilityBadgeClass = (feasible) => {
-  if (feasible === true) return "feasible";
-  if (feasible === false) return "infeasible";
-  return "unknown";
-};
+const completionIndicatorClass = (status) =>
+  ["completed", "done"].includes(text(status).trim().toLowerCase())
+    ? "positive"
+    : "negative";
+
+const feasibilityIndicatorClass = (feasible) =>
+  feasible === true ? "positive" : "negative";
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "—";
@@ -704,7 +706,10 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
       const mainParameters = formatMainParameters(run);
       const feasible = resolveElectrificationFeasible(run);
       const feasibilityLabel = formatFeasibilityLabel(feasible, run);
-      const feasibilityCls = feasibilityBadgeClass(feasible);
+      const statusLabel = formatStatusLabel(status);
+      const accessibleFeasibilityLabel = feasible === true || feasible === false
+        ? feasibilityLabel
+        : t("simulation.feasibility_status_unavailable") || "Feasibility status unavailable";
 
       const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${textContent(rowId)}">${textContent(t("simulation.col_results") || "Results")}</a>`;
 
@@ -721,10 +726,20 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
           <td class="main-parameters">${textContent(mainParameters)}</td>
           <td class="type">${textContent(mode)}</td>
           <td class="status">
-            <span class="status-badge ${textContent(status)}">${textContent(formatStatusLabel(status))}</span>
+            <span
+              class="simulation-state-indicator simulation-state-indicator--${completionIndicatorClass(status)}"
+              role="img"
+              aria-label="${textContent(statusLabel)}"
+              title="${textContent(statusLabel)}"
+            ></span>
           </td>
           <td class="feasibility">
-            <span class="status-badge ${feasibilityCls}">${textContent(feasibilityLabel)}</span>
+            <span
+              class="simulation-state-indicator simulation-state-indicator--${feasibilityIndicatorClass(feasible)}"
+              role="img"
+              aria-label="${textContent(accessibleFeasibilityLabel)}"
+              title="${textContent(accessibleFeasibilityLabel)}"
+            ></span>
           </td>
           <td class="results">${resultsLink}</td>
         </tr>`;

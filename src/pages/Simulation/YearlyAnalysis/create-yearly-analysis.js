@@ -21,12 +21,17 @@ import {
   DEFAULT_PREDICTION_QUANTILES,
 } from "../../../config/simulation-defaults";
 import {
-  computeYearlyTotals,
   MODE_LABELS,
   MODE_LABEL_KEYS,
 } from "./yearly-analysis-store";
 import { extractShiftDistanceKm } from "../../../utils/shift-distance";
 import { getOptimizationRunDisplayName } from "../../../utils/optimization-run";
+import {
+  buildFixedYearlyConfiguration,
+  buildYearlyAnalysisResults,
+  buildYearlyScenarioOutcome,
+  normalizeYearlyScenarios,
+} from "../../../utils/yearly-analysis-model";
 
 const text = (v) => (v === null || v === undefined ? "" : String(v));
 
@@ -78,17 +83,6 @@ const resolveOptimizedPacks = (batteryResults = {}) => {
   return values.length ? Math.max(...values) : null;
 };
 
-const resolveOptimizedKwh = (batteryResults = {}, packSizeKwh = null) => {
-  const packs = resolveOptimizedPacks(batteryResults);
-  if (packs == null) return null;
-  const direct = Object.values(batteryResults ?? {})
-    .map((r) => toFiniteNumber(r?.optimized_kwh))
-    .find((v) => v != null);
-  if (direct != null) return direct;
-  if (packSizeKwh != null) return packs * packSizeKwh;
-  return null;
-};
-
 const resolveShiftIds = (run = {}) => {
   const ids =
     run?.input_params?.shift_ids ??
@@ -105,42 +99,6 @@ const resolveBusModelId = (run = {}) =>
       run?.busModelId ??
       ""
   ).trim();
-
-const readQuantiles = (summary, candidateKeys) => {
-  const src = candidateKeys.find((k) => {
-    const v = summary?.[k];
-    return v && typeof v === "object" && !Array.isArray(v);
-  });
-  if (!src) return null;
-  const obj = summary[src];
-  const q05 = toFiniteNumber(obj.q05);
-  const q50 = toFiniteNumber(obj.q50);
-  const q95 = toFiniteNumber(obj.q95);
-  return q05 != null || q50 != null || q95 != null ? { q05, q50, q95 } : null;
-};
-
-const extractPredictionOnlyKpis = (predRun) => {
-  const s = predRun?.summary ?? {};
-  return {
-    feasible: null,
-    solverStatus: "prediction-only",
-    totalEnergyKwh: toFiniteNumber(s.total_consumption_kwh),
-    drivetrainEnergyKwh: toFiniteNumber(s.total_drivetrain_kwh),
-    auxiliaryEnergyKwh: toFiniteNumber(s.total_auxiliary_kwh),
-    distanceKm: toFiniteNumber(s.total_distance_km),
-    energyPerKm: toFiniteNumber(s.consumption_per_km_kwh),
-    auxiliaryPerKmKwh: toFiniteNumber(s.auxiliary_per_km_kwh),
-    drivetrainPerKmKwh: toFiniteNumber(s.drivetrain_per_km_kwh),
-    quantiles: readQuantiles(s, ["quantiles", "total_quantiles", "consumption_quantiles"]),
-    drivetrainQuantiles: readQuantiles(s, ["drivetrain_quantiles"]),
-    consumptionPerKmQuantiles: readQuantiles(s, [
-      "consumption_per_km_kwh_quantiles",
-      "total_consumption_per_km_kwh_quantiles",
-      "total_per_km_kwh_quantiles",
-    ]),
-    drivetrainPerKmQuantiles: readQuantiles(s, ["drivetrain_per_km_kwh_quantiles"]),
-  };
-};
 
 // ── Main initializer ─────────────────────────────────────────────────
 
@@ -349,10 +307,13 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     }
     const id = text(run.id);
     const ip = run.input_params ?? {};
-    const br = run.results?.battery_results ?? {};
     const meta = resolvedNames[id] ?? {};
-    const packs = resolveOptimizedPacks(br);
-    const kwh = resolveOptimizedKwh(br, meta.packSizeKwh);
+    const fixedConfiguration = buildFixedYearlyConfiguration(run, {
+      shiftNamesById: meta.shiftNamesById ?? {},
+      packSizeKwh: meta.packSizeKwh,
+    });
+    const packs = fixedConfiguration.battery.packs;
+    const kwh = fixedConfiguration.battery.nominalKwh;
     const mode = ip.mode ?? "—";
     const shiftLabel = meta.shiftLabel ?? "—";
     const sizingTemp = meta.sizingTemp;
@@ -411,10 +372,15 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     const busModelId = text(ip.bus_model_id ?? "").trim();
     if (!busModelId) { alert(t("yearly_analysis.no_bus_model")); return; }
 
-    const optimizedPacks = resolveOptimizedPacks(baseRun.results?.battery_results ?? {});
-    if (optimizedPacks == null) { alert(t("yearly_analysis.no_optimized_pack_count")); return; }
+    const saveMeta = resolvedNames[text(baseRun.id)] ?? {};
+    const fixedConfiguration = buildFixedYearlyConfiguration(baseRun, {
+      shiftNamesById: saveMeta.shiftNamesById ?? {},
+      packSizeKwh: saveMeta.packSizeKwh,
+    });
+    const commonPacks = fixedConfiguration.battery.packs;
+    if (commonPacks == null) { alert(t("yearly_analysis.no_optimized_pack_count")); return; }
 
-    const scenarios = readScenarios();
+    const scenarios = normalizeYearlyScenarios(readScenarios());
     for (let i = 0; i < scenarios.length; i++) {
       const sc = scenarios[i];
       if (!sc.label) { alert(t("yearly_analysis.scenario_label_required", { index: i + 1 })); return; }
@@ -429,7 +395,6 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
 
     const chosenOccupancy = toFiniteNumber(occupancySelect?.value) ?? 50;
 
-    const saveMeta = resolvedNames[text(baseRun.id)] ?? {};
     const pp = saveMeta.predParams ?? {};
     const basePredParams = {
       occupancy_percent: chosenOccupancy,
@@ -451,10 +416,15 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
           max_soc: ip.max_soc ?? 1,
           occupancy_percent: basePredParams.occupancy_percent,
           auxiliary_heating_type: basePredParams.auxiliary_heating_type,
+          fixedConfiguration,
         },
         scenarios,
         meta: {
           shiftNames: saveMeta.shiftNames ?? [],
+          shifts: fixedConfiguration.shifts.map(({ shiftId, shiftName }) => ({
+            shiftId,
+            shiftName,
+          })),
           busModelName: saveMeta.modelLabel ?? busModelId,
           modeLabel: modeLabel(ip.mode),
           sizingTemp: saveMeta.sizingTemp,
@@ -472,7 +442,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       const analysisId = text(analysis.id);
 
       // 3) Run prediction runs, linked to the analysis via yearly_analysis_id
-      const scenarioResults = [];
+      const outcomes = [];
 
       for (let i = 0; i < scenarios.length; i++) {
         const sc = scenarios[i];
@@ -481,7 +451,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
           total: scenarios.length,
           label: sc.label,
           temperature: sc.temperature,
-          packs: optimizedPacks,
+          packs: commonPacks,
         }));
 
         try {
@@ -489,50 +459,53 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
             shift_ids: shiftIds,
             bus_model_id: busModelId,
             prediction_params: { ...basePredParams, external_temp_celsius: sc.temperature },
-            num_battery_packs: optimizedPacks,
+            num_battery_packs: commonPacks,
             yearly_analysis_id: analysisId,
           });
-          const predRun = predRuns[0] ?? null;
-          const kpis = extractPredictionOnlyKpis(predRun);
-          const predRunId = predRun?.id ?? null;
-          scenarioResults.push({ ...sc, kpis, predRunId, error: null });
+          outcomes.push(buildYearlyScenarioOutcome({
+            scenario: sc,
+            shiftIds,
+            predictionRuns: predRuns,
+          }));
         } catch (err) {
-          scenarioResults.push({ ...sc, kpis: null, error: err?.message ?? t("yearly_analysis.prediction_failed") });
+          outcomes.push(buildYearlyScenarioOutcome({
+            scenario: sc,
+            shiftIds,
+            failure: err?.message ?? t("yearly_analysis.prediction_failed"),
+          }));
         }
       }
 
       hideProgress();
 
       // 4) Resolve nominal shift distance (reference/planned distance)
-      let nominalDailyDistanceKm = null;
+      const nominalDailyDistanceKmByShiftId = {};
       for (const sid of shiftIds) {
         const shift = shiftMap.get(sid);
-        if (shift) {
-          const d = extractShiftDistanceKm(shift);
-          if (d != null) { nominalDailyDistanceKm = (nominalDailyDistanceKm ?? 0) + d; }
-        }
+        nominalDailyDistanceKmByShiftId[sid] = shift
+          ? extractShiftDistanceKm(shift)
+          : null;
       }
 
       // 5) Update the analysis with computed results
-      const yearlyTotals = computeYearlyTotals(scenarioResults);
-      const status = scenarioResults.every((sr) => !sr.error)
-        ? "completed"
-        : scenarioResults.every((sr) => sr.error)
-          ? "failed"
-          : "partial";
+      const annualResults = buildYearlyAnalysisResults({
+        scenarios,
+        outcomes,
+        fixedConfiguration,
+        nominalDailyDistanceKmByShiftId,
+      });
 
       await updateYearlyAnalysis(analysisId, {
         features: {
           ...features,
           results: {
-            scenarioResults,
-            yearlyTotals,
+            ...annualResults,
             baseOptimizationRunId: text(baseRun.id),
-            optimizedPacks,
+            // Backward-compatible field consumed by the v0.4 results page.
+            optimizedPacks: commonPacks,
             baseFeasible: resolveElectrificationFeasible(baseRun),
-            nominalDailyDistanceKm,
           },
-          status,
+          status: annualResults.status,
         },
       });
 
@@ -631,7 +604,10 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       for (const run of feasibleRuns) {
         const id = text(run.id);
         const sids = resolveShiftIds(run);
-        const shiftNames = sids.map((sid) => text(shiftMap.get(sid)?.name ?? "")).filter(Boolean);
+        const shiftNamesById = Object.fromEntries(
+          sids.map((sid) => [sid, text(shiftMap.get(sid)?.name ?? "").trim() || sid]),
+        );
+        const shiftNames = sids.map((sid) => shiftNamesById[sid]);
         const shiftLabel = shiftNames.length ? shiftNames.join(", ") : sids.map((s) => s.slice(0, 8)).join(", ");
         const bmId = resolveBusModelId(run);
         const bm = modelsById[bmId];
@@ -640,7 +616,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
           : bmId.slice(0, 8);
         const packSizeKwh = toFiniteNumber(bm?.specs?.battery_pack_size_kwh ?? (typeof bm?.specs === "string" ? JSON.parse(bm.specs)?.battery_pack_size_kwh : null));
         const predParams = predParamsMap.get(id) ?? {};
-        resolvedNames[id] = { shiftLabel, shiftNames, modelLabel, packSizeKwh, predParams, sizingTemp: predParams.external_temp_celsius ?? null };
+        resolvedNames[id] = { shiftLabel, shiftNames, shiftNamesById, modelLabel, packSizeKwh, predParams, sizingTemp: predParams.external_temp_celsius ?? null };
       }
 
       // Populate dropdown
@@ -660,9 +636,12 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
           for (const run of feasibleRuns) {
             const id = text(run.id);
             const meta = resolvedNames[id] ?? {};
-            const br = run.results?.battery_results ?? {};
-            const packs = resolveOptimizedPacks(br);
-            const kwh = resolveOptimizedKwh(br, meta.packSizeKwh);
+            const fixedConfiguration = buildFixedYearlyConfiguration(run, {
+              shiftNamesById: meta.shiftNamesById ?? {},
+              packSizeKwh: meta.packSizeKwh,
+            });
+            const packs = fixedConfiguration.battery.packs;
+            const kwh = fixedConfiguration.battery.nominalKwh;
             const date = run.created_at ? new Date(run.created_at).toLocaleDateString() : "";
 
             const evaluationName = getOptimizationRunDisplayName(run, meta.shiftLabel);

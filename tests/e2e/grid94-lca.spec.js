@@ -127,17 +127,22 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
     const url = new URL(route.request().url());
     let body;
     if (url.pathname.endsWith("/lca")) {
-      requests.push(url.searchParams.get("annual_km"));
+      requests.push({
+        annualKm: url.searchParams.get("annual_km"),
+        shiftId: url.searchParams.get("shift_id"),
+      });
       if (responseMode === "incomplete") {
         body = {methodology_version: fixture.base.methodology_version, status:"incomplete", reason:"Controlled timeout", indicators:{}, vehicles:[]};
       } else {
         body = structuredClone(url.searchParams.has("annual_km") ? fixture.extended : fixture.base);
+        body.vehicles.forEach((vehicle) => { vehicle.shift_id = "acceptance-12"; });
         if (responseMode === "malformed") body.indicators.gwp100a.phases.direct += 1_000_000;
       }
     } else if (url.pathname.endsWith("/emissions")) {
       throw new Error("Legacy environmental endpoint must not be used");
     } else if (url.pathname.endsWith("/yearly-analysis/case")) {
-      body = {id:"case", name:"Grid94 acceptance", features:{config:{bus_model_id:"bus", auxiliary_heating_type:"default"},
+      body = {id:"case", name:"Grid94 acceptance", features:{config:{bus_model_id:"bus", shift_ids:["acceptance-12"], auxiliary_heating_type:"default"},
+        meta:{shiftNames:["Acceptance shift"]},
         results:{optimizedPacks:10, yearlyTotals:{totalEnergyKwh:90000, distanceKm:60000},
         scenarioResults:[{temperature:20, occurrences:365, kpis:{totalEnergyKwh:90000/365, distanceKm:60000/365}}]}}};
     } else if (url.pathname.includes("bus-models/bus")) {
@@ -155,15 +160,18 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
     document.body.innerHTML = html;
     await module.initializeYearlyAnalysisResults(document, {analysisId:"case"});
   }, html);
-  await page.locator('[data-tab="costs"]').click();
+  await page.getByRole("tab", {name:"Acceptance shift"}).click();
+  const resultViews = page.locator('[data-role="ya-result-view-tabs"]');
+  await resultViews.getByRole("tab", {name:"Costs"}).click();
   const costsPanel = page.locator('[data-panel="costs"]');
+  await expect(costsPanel).toBeVisible();
   await expect(costsPanel).toContainText("Annual bus energy (DC kWh)");
   await expect(costsPanel).toContainText("Annual grid energy (kWh)");
   await expect(costsPanel).toContainText("Charging losses (kWh)");
   await expect(costsPanel).toContainText("from the grid");
-  await page.locator('[data-tab="emissions"]').click();
-  const controls = page.locator('[data-role="ya-env-controls"]');
-  await expect(controls).toBeVisible();
+  const distanceControl = page.locator('[data-role="ya-var-yearly-distance"]');
+  await expect(distanceControl).toBeVisible();
+  await resultViews.getByRole("tab", {name:"Emissions"}).click();
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("94%");
   const disclosure = page.locator(".ya-lca-disclosure");
   await disclosure.locator("summary").click();
@@ -174,15 +182,21 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
   await expect(provenance).toContainText(fixture.base.provenance.diesel_heating_methodology);
   await expect(provenance).toContainText("grid-to-bus-dc-94-v1");
   const limitations = disclosure.locator('[data-role="lca-limitations"] li');
-  await expect(limitations).toHaveCount(fixture.base.limitations.length);
+  await expect(limitations).toHaveCount(fixture.base.limitations.length + 1);
   await expect(limitations.first()).toHaveText(fixture.base.limitations[0]);
-  await expect(limitations.last()).toHaveText(fixture.base.limitations.at(-1));
+  await expect(disclosure.locator('[data-role="lca-limitations"]')).toContainText(
+    fixture.base.limitations.at(-1),
+  );
   await expect(disclosure.locator('[data-role="lca-warnings"]')).toHaveCount(0);
-  const slider = page.locator('[data-role="ya-env-yearly-distance"]');
+  const slider = distanceControl;
+  await resultViews.getByRole("tab", {name:"Costs"}).click();
   await slider.evaluate(el => { el.value="90000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
-  await expect.poll(() => requests.length).toBe(2);
-  await expect(controls).toBeVisible();
-  expect(requests[1]).toBe("90000");
+  await expect.poll(() => requests.at(-1)).toEqual({
+    annualKm: "90000",
+    shiftId: "acceptance-12",
+  });
+  await expect(distanceControl).toBeVisible();
+  await resultViews.getByRole("tab", {name:"Emissions"}).click();
   const updatedDisclosure = page.locator(".ya-lca-disclosure");
   await updatedDisclosure.locator("summary").click();
   await expect(updatedDisclosure.locator('[data-role="lca-warnings"]')).toContainText(
@@ -195,19 +209,22 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
   const downloadedPath = await downloadedLca.path();
   const exportedLca = JSON.parse(readFileSync(downloadedPath, "utf8"));
   expect(exportedLca.provenance).toEqual(fixture.extended.provenance);
-  expect(exportedLca.limitations).toEqual(fixture.extended.limitations);
+  expect(exportedLca.limitations).toEqual(expect.arrayContaining(fixture.extended.limitations));
+  expect(exportedLca.limitations).toHaveLength(fixture.extended.limitations.length + 1);
   expect(exportedLca.vehicles[0].warnings).toEqual(fixture.extended.vehicles[0].warnings);
 
   responseMode = "malformed";
+  await resultViews.getByRole("tab", {name:"Costs"}).click();
   await slider.evaluate(el => { el.value="80000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
+  await resultViews.getByRole("tab", {name:"Emissions"}).click();
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("phases do not sum to total");
-  await page.locator('[data-tab="costs"]').click();
+  await resultViews.getByRole("tab", {name:"Costs"}).click();
   await expect(page.locator('[data-panel="costs"]')).toContainText("CHF");
 
   responseMode = "incomplete";
-  await page.locator('[data-tab="emissions"]').click();
   await slider.evaluate(el => { el.value="70000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
+  await resultViews.getByRole("tab", {name:"Emissions"}).click();
   await expect(page.locator('[data-role="ya-env-kpis"]')).toContainText("Controlled timeout");
-  await page.locator('[data-tab="costs"]').click();
+  await resultViews.getByRole("tab", {name:"Costs"}).click();
   await expect(page.locator('[data-panel="costs"]')).toContainText("CHF");
 });

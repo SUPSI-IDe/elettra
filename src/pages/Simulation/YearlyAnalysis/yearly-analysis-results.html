@@ -2,7 +2,28 @@
   <header class="page-header">
     <div class="header-with-close">
       <div class="title-container">
-        <h1 class="page-title" data-role="page-title" data-i18n="yearly_analysis.results_title">Yearly analysis results</h1>
+        <div class="ya-page-heading-row result-page-heading">
+          <h1 class="page-title" data-role="page-title">Yearly analysis results</h1>
+          <button
+            type="button"
+            class="ya-header-action result-header-action"
+            data-action="view-configuration"
+            data-i18n="yearly_analysis.view_configuration_data"
+          >View configuration data</button>
+        </div>
+        <div
+          class="ya-result-scope-tabs"
+          data-role="ya-result-scope-tabs"
+          role="tablist"
+          aria-label="Yearly result scope"
+          data-i18n-aria-label="yearly_analysis.result_scope_selector"
+          hidden
+        ></div>
+        <div
+          class="ya-shift-summary-slot"
+          data-role="ya-shift-summary-slot"
+          hidden
+        ></div>
       </div>
       <button type="button" class="close-button" data-action="back" aria-label="Back" data-i18n-aria-label="common.back">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -15,45 +36,71 @@
   <main class="ya-results-main">
     <p class="form-feedback" data-role="feedback" hidden></p>
 
-    <div class="ya-results-toolbar">
-      <div class="ya-analysis-summary">
-        <span data-i18n="yearly_analysis.results_analysis_label">Yearly analysis:</span>
-        <strong data-role="ya-analysis-name">—</strong>
-        <div class="ya-analysis-summary__actions">
-          <button type="button" class="ya-toolbar-btn" data-action="view-configuration" data-i18n="yearly_analysis.view_configuration_data">
-            View configuration data
-          </button>
-          <button type="button" class="ya-toolbar-btn" data-action="download-json" data-i18n="yearly_analysis.download_json">
-            Download all results (JSON)
-          </button>
-        </div>
+    <div class="ya-result-scope-content" id="yearly-result-scope-content" role="tabpanel" tabindex="0">
+      <div
+        class="ya-tabs ya-result-view-tabs"
+        data-role="ya-result-view-tabs"
+        role="tablist"
+        aria-label="Annual result section"
+        data-i18n-aria-label="yearly_analysis.result_view_selector"
+        hidden
+      >
+        <button
+          id="yearly-result-view-tab-efficiency"
+          class="ya-tab active"
+          type="button"
+          role="tab"
+          data-result-view="efficiency"
+          aria-selected="true"
+          aria-controls="yearly-result-view-panel-efficiency"
+          tabindex="0"
+          data-i18n="simulation.tab_efficiency"
+        >Efficiency</button>
+        <button
+          id="yearly-result-view-tab-costs"
+          class="ya-tab"
+          type="button"
+          role="tab"
+          data-result-view="costs"
+          aria-selected="false"
+          aria-controls="yearly-result-view-panel-costs"
+          tabindex="-1"
+          data-i18n="simulation.tab_costs"
+        >Costs</button>
+        <button
+          id="yearly-result-view-tab-emissions"
+          class="ya-tab"
+          type="button"
+          role="tab"
+          data-result-view="emissions"
+          aria-selected="false"
+          aria-controls="yearly-result-view-panel-emissions"
+          tabindex="-1"
+          data-i18n="simulation.tab_emissions"
+        >Emissions</button>
       </div>
-    </div>
 
-    <!-- Tabs -->
-    <div class="ya-tabs" role="tablist">
-      <button class="ya-tab active" role="tab" aria-selected="true" data-tab="overview" data-i18n="simulation.tab_overview">Overview</button>
-      <button class="ya-tab" role="tab" aria-selected="false" data-tab="efficiency" data-i18n="simulation.tab_efficiency">Efficiency</button>
-      <button class="ya-tab" role="tab" aria-selected="false" data-tab="costs" data-i18n="simulation.tab_costs">Costs</button>
-      <button class="ya-tab" role="tab" aria-selected="false" data-tab="emissions" data-i18n="simulation.tab_emissions">Emissions</button>
-    </div>
-
-    <!-- Tab panels -->
-    <div class="ya-tab-panels">
-      <div class="ya-tab-panel active" data-panel="overview" role="tabpanel">
+      <section class="ya-scope-overview" data-panel="overview">
         <div data-role="overview-panel"></div>
-      </div>
+      </section>
 
-      <div class="ya-tab-panel" data-panel="efficiency" role="tabpanel" hidden>
+      <div class="ya-tab-panels" data-role="ya-result-view-panels" hidden>
+      <section
+        id="yearly-result-view-panel-efficiency"
+        class="ya-tab-panel active"
+        data-panel="efficiency"
+        role="tabpanel"
+        aria-labelledby="yearly-result-view-tab-efficiency"
+      >
+        <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_efficiency">Annual efficiency</h2>
         <!-- D3 chart slots (appended to, not via innerHTML) -->
         <div class="ya-eff-charts-grid">
-          <div class="ya-res-section ya-eff-chart-section">
+          <div class="ya-res-section ya-eff-chart-section result-card">
             <h3 class="ya-res-section-title" data-i18n="yearly_analysis.efficiency_by_temperature_title">Scenario efficiency by temperature</h3>
-            <p class="ya-sizing-note" data-role="ya-eff-chart-1-note"></p>
             <div class="ya-chart-container" data-role="ya-eff-chart-1"></div>
             <div class="ya-chart-legend" data-role="ya-eff-chart-1-legend"></div>
           </div>
-          <div class="ya-res-section ya-eff-chart-section">
+          <div class="ya-res-section ya-eff-chart-section result-card">
             <div class="ya-res-section-header">
               <h3 class="ya-res-section-title" data-i18n="yearly_analysis.annual_energy_by_temperature_title">Annual energy contribution by temperature scenario</h3>
               <div class="ya-chart-unit-toggle" data-role="ya-eff-chart-2-unit-toggle" role="group" aria-label="Energy unit" data-i18n-aria-label="yearly_analysis.energy_unit_toggle_label">
@@ -61,7 +108,6 @@
                 <button type="button" class="ya-chart-unit-button" data-unit-mode="daily" aria-pressed="false" data-i18n="yearly_analysis.energy_unit_day">kWh/day</button>
               </div>
             </div>
-            <p class="ya-sizing-note" data-role="ya-eff-chart-2-note"></p>
             <div class="ya-chart-container" data-role="ya-eff-chart-2"></div>
             <div class="ya-chart-legend" data-role="ya-eff-chart-2-legend"></div>
           </div>
@@ -79,11 +125,28 @@
             <div data-role="ya-detail-yearly-uncertainty"></div>
           </div>
         </details>
-      </div>
+      </section>
 
-      <div class="ya-tab-panel ya-costs-panel" data-panel="costs" role="tabpanel" hidden>
+      <section
+        id="yearly-result-view-panel-costs"
+        class="ya-tab-panel ya-costs-panel"
+        data-panel="costs"
+        role="tabpanel"
+        aria-labelledby="yearly-result-view-tab-costs"
+        hidden
+      >
+        <h2 class="ya-scope-section-title ya-scope-section-title--with-info">
+          <span data-i18n="yearly_analysis.shift_annual_operating_costs">Shift costs</span>
+          <button
+            type="button"
+            class="ya-info-icon"
+            aria-label="Operating costs use this shift's energy and distance. Shared investments remain counted once in General and an analytical CAPEX share is attributed here using the shift's annual DC energy."
+            data-i18n-aria-label="yearly_analysis.shift_cost_scope_tooltip"
+          >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.shift_cost_scope_tooltip">Operating costs use this shift's energy and distance. Shared investments remain counted once in General and an analytical CAPEX share is attributed here using the shift's annual DC energy.</span></button>
+        </h2>
+        <p class="ya-scope-context-note" data-role="ya-cost-scope-note" hidden></p>
         <!-- Full-width cost assumptions -->
-        <div class="ya-res-section ya-cost-variables ya-costs-inputs-section">
+        <div class="ya-res-section ya-cost-variables ya-costs-inputs-section result-card">
           <div class="ya-res-section-header">
             <h3 class="ya-res-section-title" data-i18n="yearly_analysis.costs_estimate_values">Set values to estimate yearly costs</h3>
             <button type="button" class="ya-cost-variables__reset-all" data-role="ya-var-reset-all" data-i18n="yearly_analysis.costs_reset_all_parameters">Reset all parameters</button>
@@ -123,27 +186,11 @@
               </div>
               <div class="ya-cost-variables__field">
                 <div class="ya-cost-variables__field-top">
-                  <span data-i18n="simulation.var_interest_rate">Interest rate (%)</span>
-                  <output class="ya-cost-variables__value" data-role="ya-var-interest-value"></output>
-                </div>
-                <input class="ya-cost-variables__range" type="range" min="0.02" max="0.10" step="0.005" data-role="ya-var-interest" />
-                <div class="ya-cost-variables__range-scale"><span>2%</span><span>10%</span></div>
-              </div>
-              <div class="ya-cost-variables__field">
-                <div class="ya-cost-variables__field-top">
                   <span data-role="ya-var-diesel-eff-label" data-i18n="simulation.var_diesel_efficiency">Diesel efficiency (l / km)</span>
                   <output class="ya-cost-variables__value" data-role="ya-var-diesel-eff-value"></output>
                 </div>
                 <input class="ya-cost-variables__range" type="range" min="0.15" max="0.80" step="0.01" data-role="ya-var-diesel-eff" />
                 <div class="ya-cost-variables__range-scale"><span>0.15</span><span>0.80</span></div>
-              </div>
-              <div class="ya-cost-variables__field">
-                <div class="ya-cost-variables__field-top">
-                  <span data-i18n="simulation.var_diesel_bus_capex">Equivalent diesel bus (CHF)</span>
-                  <output class="ya-cost-variables__value" data-role="ya-var-diesel-capex-value"></output>
-                </div>
-                <input class="ya-cost-variables__range" type="range" min="200000" max="700000" step="10000" data-role="ya-var-diesel-capex" />
-                <div class="ya-cost-variables__range-scale"><span>200k</span><span>700k</span></div>
               </div>
               <div class="ya-cost-variables__field">
                 <div class="ya-cost-variables__field-top">
@@ -156,17 +203,34 @@
           </div>
         </div>
 
-        <!-- Equal-width cost charts -->
+        <div class="ya-res-section ya-capex-allocation-section result-card" data-role="ya-costs-capex-section">
+          <h3 class="ya-res-section-title ya-scope-section-title--with-info">
+            <span data-i18n="yearly_analysis.allocated_capex_title">Allocated shared CAPEX</span>
+            <button
+              type="button"
+              class="ya-info-icon"
+              aria-label="The shared vehicle, battery and charging infrastructure investments are purchased once. Their shift-level values are analytical allocations based on annual DC energy and are used for the shift break-even comparison."
+              data-i18n-aria-label="yearly_analysis.allocated_capex_tooltip"
+            >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.allocated_capex_tooltip">The shared vehicle, battery and charging infrastructure investments are purchased once. Their shift-level values are analytical allocations based on annual DC energy and are used for the shift break-even comparison.</span></button>
+          </h3>
+          <div data-role="ya-costs-capex-allocation"></div>
+        </div>
+
         <div class="ya-costs-charts-grid">
-          <div class="ya-res-section ya-costs-bar-section">
-            <h3 class="ya-res-section-title" data-i18n="simulation.results_tco_title">Annual cost comparison</h3>
+          <div class="ya-res-section ya-costs-bar-section result-card">
+            <h3 class="ya-res-section-title" data-i18n="yearly_analysis.shift_annual_opex_comparison">Annual shift OPEX comparison</h3>
             <div class="ya-chart-container" data-role="ya-costs-bar-chart"></div>
             <div class="ya-chart-legend" data-role="ya-costs-bar-legend"></div>
           </div>
-          <div class="ya-res-section ya-costs-line-section">
-            <h3 class="ya-res-section-title">
-              <span data-i18n="yearly_analysis.projected_cost_trend">Projected cost trend</span>
-              <button type="button" class="costs-title-info" aria-label="Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI." data-i18n-aria-label="simulation.costs_trend_lifecycle_tooltip">i<span class="costs-title-tooltip" data-i18n="simulation.costs_trend_lifecycle_tooltip">Cumulative discounted gross cost over the e-bus lifespan. Initial vehicle costs, annual operating costs, and replacements before the horizon are included. Residual value is not drawn as a negative cost in the curve; it is applied separately in the lifecycle saving KPI.</span></button>
+          <div class="ya-res-section ya-costs-line-section result-card">
+            <h3 class="ya-res-section-title ya-scope-section-title--with-info">
+              <span data-i18n="yearly_analysis.allocated_cost_trend">Cumulative cost and break-even</span>
+              <button
+                type="button"
+                class="ya-info-icon"
+                aria-label="Cumulative discounted cost for this shift combines its exact yearly OPEX with its allocated share of common CAPEX, replacements and charging infrastructure."
+                data-i18n-aria-label="yearly_analysis.allocated_cost_trend_tooltip"
+              >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.allocated_cost_trend_tooltip">Cumulative discounted cost for this shift combines its exact yearly OPEX with its allocated share of common CAPEX, replacements and charging infrastructure.</span></button>
             </h3>
             <div class="ya-chart-container" data-role="ya-costs-line-chart"></div>
             <div class="ya-chart-legend" data-role="ya-costs-line-legend"></div>
@@ -177,8 +241,8 @@
         <details class="ya-more-information">
           <summary class="ya-more-information__toggle" data-i18n="simulation.efficiency_more_information">More information</summary>
           <div class="ya-more-information__content">
-            <div class="ya-res-section ya-costs-kpis-section">
-              <h3 class="ya-res-section-title" data-i18n="simulation.results_costs_kpis_title">Key financial metrics</h3>
+            <div class="ya-res-section ya-costs-kpis-section result-card">
+              <h3 class="ya-res-section-title" data-i18n="yearly_analysis.shift_operating_cost_summary">Shift operating cost summary</h3>
               <div class="kpi-grid ya-costs-kpi-grid" data-role="ya-costs-kpis"></div>
             </div>
             <div class="ya-costs-opex-pair">
@@ -189,36 +253,39 @@
             <div data-role="ya-costs-scenario-table"></div>
           </div>
         </details>
-      </div>
+      </section>
 
-      <div class="ya-tab-panel ya-env-panel" data-panel="emissions" role="tabpanel" hidden>
-        <div class="ya-env-content" data-role="emissions-content">
-          <!-- Full-width annual distance control -->
-          <div class="ya-res-section ya-cost-variables ya-env-controls" data-role="ya-env-controls" hidden>
-            <div class="ya-res-section-header">
-              <h3 class="ya-res-section-title" data-i18n="yearly_analysis.emissions_set_annual_distance">Set the annual distance to estimate yearly emissions</h3>
-              <button type="button" class="ya-cost-variables__reset-all" data-role="ya-env-yearly-distance-reset" data-i18n="simulation.costs_variable_reset">Reset</button>
-            </div>
-            <div class="ya-cost-variables__grid">
-              <div class="ya-cost-variables__field">
-                <div class="ya-cost-variables__field-top">
-                  <span data-i18n="yearly_analysis.annual_distance_label">Annual distance:</span>
-                  <output class="ya-cost-variables__value" data-role="ya-env-yearly-distance-value"></output>
-                </div>
-                <input class="ya-cost-variables__range" type="range" min="1" max="2" step="1" data-role="ya-env-yearly-distance" />
-                <div class="ya-cost-variables__range-scale"><span>1</span><span>2</span></div>
+      <section
+        id="yearly-result-view-panel-emissions"
+        class="ya-tab-panel ya-env-panel"
+        data-panel="emissions"
+        role="tabpanel"
+        aria-labelledby="yearly-result-view-tab-emissions"
+        hidden
+      >
+        <div class="ya-env-heading-row">
+          <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_emissions">Annual emissions</h2>
+          <div class="ya-env-controls" data-role="ya-env-controls" hidden>
+            <div class="ya-cost-variables__field">
+              <div class="ya-env-controls__top">
+                <label class="ya-env-controls__label" for="ya-env-yearly-distance" data-i18n="yearly_analysis.annual_distance_label">Annual distance:</label>
+                <output class="ya-cost-variables__value" for="ya-env-yearly-distance" data-role="ya-env-yearly-distance-value"></output>
+                <button type="button" class="ya-cost-variables__reset-all" data-role="ya-env-yearly-distance-reset" data-i18n="simulation.costs_variable_reset">Reset</button>
               </div>
+              <input id="ya-env-yearly-distance" class="ya-cost-variables__range" type="range" min="1" max="2" step="1" data-role="ya-env-yearly-distance" />
+              <div class="ya-cost-variables__range-scale"><span>1</span><span>2</span></div>
             </div>
           </div>
-
+        </div>
+        <div class="ya-env-content" data-role="emissions-content">
           <!-- Equal-width emissions charts -->
           <div class="ya-env-chart-grid">
-            <div class="ya-res-section ya-env-chart-section ya-env-chart-section--prominent">
+            <div class="ya-res-section ya-env-chart-section ya-env-chart-section--prominent result-card">
               <h3 class="ya-res-section-title" data-i18n="simulation.emissions_saved_title">Emissions saved</h3>
               <div class="ya-chart-container" data-role="ya-env-histogram"></div>
               <div class="ya-chart-legend" data-role="ya-env-histogram-legend"></div>
             </div>
-            <div class="ya-res-section ya-env-chart-section">
+            <div class="ya-res-section ya-env-chart-section result-card">
               <h3 class="ya-res-section-title" data-i18n="yearly_analysis.emissions_co2_breakdown_title">CO₂ emissions breakdown</h3>
               <div class="ya-chart-container" data-role="ya-env-co2-phase"></div>
               <div class="ya-chart-legend" data-role="ya-env-co2-phase-legend"></div>
@@ -234,7 +301,7 @@
             <div class="ya-more-information__content">
               <div data-role="ya-env-header"></div>
               <div data-role="ya-env-table"></div>
-              <div class="ya-res-section" data-role="ya-env-primary-energy-section" hidden>
+              <div class="ya-res-section result-card" data-role="ya-env-primary-energy-section" hidden>
                 <h3 class="ya-res-section-title" data-i18n="yearly_analysis.primary_energy_title">Primary energy</h3>
                 <div class="ya-chart-container" data-role="ya-env-primary-energy"></div>
                 <div class="ya-chart-legend" data-role="ya-env-primary-energy-legend"></div>
@@ -243,6 +310,7 @@
             </div>
           </details>
         </div>
+      </section>
       </div>
     </div>
 

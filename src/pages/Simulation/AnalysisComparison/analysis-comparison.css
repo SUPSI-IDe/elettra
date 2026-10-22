@@ -10,6 +10,23 @@
   margin: var(--space-xs) 0 0;
 }
 
+.ac-scope-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-2sm);
+  border: 1px solid var(--color-border-dim);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.ac-scope-summary p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
 /* ── Selectors ─────────────────────────────────────────────────── */
 
 .ac-selectors {
@@ -108,6 +125,10 @@
 .ac-subhead {
   margin-top: var(--space-md);
   font-size: var(--font-size-md);
+}
+
+.ac-subhead--first {
+  margin-top: 0;
 }
 
 /* ── Executive KPIs ────────────────────────────────────────────── */
@@ -211,5 +232,10 @@
 @media (width <= 700px) {
   .ac-selectors {
     grid-template-columns: 1fr;
+  }
+
+  .ac-scope-summary {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

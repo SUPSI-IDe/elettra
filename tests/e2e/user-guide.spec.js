@@ -18,21 +18,29 @@ const LANGUAGES = {
     landingLink: "User guide",
     guideTitle: "ELETTRA user guide",
     backLink: "Back to ELETTRA",
+    resultTerms: ["Start with General", "Check every shift tab"],
+    yearlyTerms: ["Use Efficiency, Costs and Emissions", "annual DC energy"],
   },
   de: {
     landingLink: "Benutzerhandbuch",
     guideTitle: "ELETTRA-Benutzerhandbuch",
     backLink: "Zurück zu ELETTRA",
+    resultTerms: ["Mit Allgemein beginnen", "Jeden Dienst prüfen"],
+    yearlyTerms: ["Effizienz, Kosten und Emissionen verwenden", "jährlichen DC-Energie"],
   },
   fr: {
     landingLink: "Guide d’utilisation",
     guideTitle: "Guide d’utilisation ELETTRA",
     backLink: "Retour à ELETTRA",
+    resultTerms: ["Commencer par Général", "Vérifier chaque service"],
+    yearlyTerms: ["Utiliser Efficacité, Coûts et Émissions", "énergie DC annuelle"],
   },
   it: {
     landingLink: "Guida utente",
     guideTitle: "Guida utente ELETTRA",
     backLink: "Torna a ELETTRA",
+    resultTerms: ["Iniziare da Generale", "Controllare ogni turno"],
+    yearlyTerms: ["Usare Efficienza, Costi ed Emissioni", "energia DC annuale"],
   },
 };
 
@@ -147,6 +155,12 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await expect(
       page.getByRole("heading", { level: 1, name: labels.guideTitle })
     ).toBeVisible();
+    for (const term of labels.resultTerms) {
+      await expect(page.locator("section#results")).toContainText(term);
+    }
+    for (const term of labels.yearlyTerms) {
+      await expect(page.locator("section#yearly")).toContainText(term);
+    }
 
     await page.reload();
     await expect(page.locator("#guide-language")).toHaveValue(language);
