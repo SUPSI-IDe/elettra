@@ -19,6 +19,7 @@ import {
   mapBackendCostsToLocal,
   parseBusModelSpecs,
 } from "../YearlyAnalysis/yearly-analysis-results";
+import { buildYearlyResultScopes } from "../../../utils/yearly-analysis-result-scope";
 
 /* ── Numeric helpers ───────────────────────────────────────────── */
 
@@ -133,13 +134,129 @@ const collectEmissionIndicators = (emissions) => {
     .filter((row) => row.ebus != null || row.diesel != null);
 };
 
+const configurationDecisionForMode = (mode, target) => {
+  const normalizedMode = mode === "charging" ? "charging_only" : mode;
+  if (target === "battery") {
+    if (normalizedMode === "charging_only") return "fixed";
+    if (normalizedMode === "battery_only" || normalizedMode === "joint") return "optimized";
+    return null;
+  }
+  if (normalizedMode === "battery_only") return "fixed";
+  if (normalizedMode === "charging_only" || normalizedMode === "joint") return "optimized";
+  return null;
+};
+
+const activeInfrastructureStations = (infrastructure = {}) =>
+  (Array.isArray(infrastructure?.stations) ? infrastructure.stations : [])
+    .filter((station) =>
+      station?.selected === true ||
+      (["fixed", "installed", "configured"].includes(station?.status) &&
+        (fin(station?.slots) ?? 0) > 0));
+
+const sumConfigurationValues = (rows, reader) => {
+  if (!rows.length) return 0;
+  const values = rows.map(reader).map(fin);
+  return values.every((value) => value != null)
+    ? values.reduce((sum, value) => sum + value, 0)
+    : null;
+};
+
+const buildGeneralConfiguration = (features, results, busModelData = {}) => {
+  const config = features.config ?? {};
+  const fixed = config.fixedConfiguration && typeof config.fixedConfiguration === "object"
+    ? config.fixedConfiguration
+    : {};
+  const mode = fixed.mode ?? config.mode ?? null;
+  const battery = fixed.battery ?? {};
+  const infrastructure = fixed.infrastructure ?? {};
+  const hasInfrastructureSnapshot = Object.prototype.hasOwnProperty.call(
+    fixed,
+    "infrastructure",
+  );
+  const infrastructureDecision =
+    infrastructure.decision ?? configurationDecisionForMode(mode, "infrastructure");
+  const infrastructureAvailable =
+    hasInfrastructureSnapshot &&
+    infrastructure.dataAvailable !== false &&
+    (infrastructureDecision === "fixed" || infrastructure.resultAvailable !== false);
+  const stations = infrastructureAvailable
+    ? activeInfrastructureStations(infrastructure)
+    : [];
+  const packs = firstFinite(battery.packs, results.optimizedPacks);
+  const packSizeKwh = firstFinite(
+    battery.packSizeKwh,
+    busModelData.battery_pack_size_kwh,
+  );
+  const nominalBatteryKwh = firstFinite(
+    battery.nominalKwh,
+    packs != null && packSizeKwh != null ? packs * packSizeKwh : null,
+  );
+  const minSocFraction = firstFinite(fixed.soc?.minFraction, config.min_soc);
+  const maxSocFraction = firstFinite(fixed.soc?.maxFraction, config.max_soc);
+  const installedSlots = infrastructureAvailable
+    ? sumConfigurationValues(stations, (station) => station?.slots)
+    : null;
+  const totalChargingPowerKw = infrastructureAvailable
+    ? sumConfigurationValues(
+        stations,
+        (station) => firstFinite(
+          station?.totalPowerKw,
+          fin(station?.slots) != null && fin(station?.powerPerSlotKw) != null
+            ? fin(station.slots) * fin(station.powerPerSlotKw)
+            : null,
+        ),
+      )
+    : null;
+  const installationCostChf = infrastructureAvailable
+    ? firstFinite(
+        infrastructure.totalInstallationCostChf,
+        sumConfigurationValues(stations, (station) => station?.installationCostChf),
+      )
+    : null;
+
+  return {
+    mode,
+    soc: {
+      minFraction: minSocFraction,
+      maxFraction: maxSocFraction,
+    },
+    battery: {
+      decision: battery.decision ?? configurationDecisionForMode(mode, "battery"),
+      packs,
+      packSizeKwh,
+      nominalKwh: nominalBatteryKwh,
+    },
+    infrastructure: {
+      available: infrastructureAvailable,
+      decision: infrastructureDecision,
+      chargingLocations: infrastructureAvailable ? stations.length : null,
+      installedSlots,
+      totalPowerKw: totalChargingPowerKw,
+      installationCostChf,
+    },
+  };
+};
+
 export const buildModel = (input) => {
   const analysis = input.analysis ?? {};
   const features = input.features ?? {};
   const cfg = features.config ?? {};
   const fmeta = features.meta ?? {};
   const results = features.results ?? {};
-  const shiftNames = Array.isArray(fmeta.shiftNames) ? fmeta.shiftNames.filter(Boolean) : [];
+  let shifts = buildYearlyResultScopes(features)
+    .filter((scope) => scope.kind === "shift")
+    .map((scope) => ({
+      id: text(scope.shiftId),
+      name: text(scope.shiftName ?? scope.label ?? scope.shiftId),
+    }));
+  if (!shifts.length && Array.isArray(fmeta.shiftNames)) {
+    shifts = fmeta.shiftNames
+      .map((name) => text(name).trim())
+      .filter(Boolean)
+      .map((name) => ({ id: name, name }));
+  }
+  const shiftIds = shifts.map((shift) => shift.id);
+  const shiftNames = shifts.map((shift) => shift.name);
 
   const costs = input.costs ?? null;
   const emissions = input.emissions ?? null;
@@ -183,13 +300,21 @@ export const buildModel = (input) => {
     : [];
   const computedScenarios = scenarioResults.filter((sr) => sr && !sr.error).length;
   const erroredScenarios = scenarioResults.filter((sr) => sr && sr.error).length;
+  const generalConfiguration = buildGeneralConfiguration(
+    features,
+    results,
+    input.busModelData,
+  );
 
   return {
+    scope: "general",
     id: text(analysis.id),
     name: text(analysis.name) || text(analysis.id).slice(0, 8),
     createdAt: analysis.created_at ?? analysis.createdAt ?? null,
     busModelName: text(input.busModelName ?? fmeta.busModelName) || null,
-    mode: text(cfg.mode) || null,
+    mode: text(generalConfiguration.mode) || null,
+    shifts,
+    shiftIds,
     shiftNames,
     shiftCount: shiftNames.length,
     annualDistanceKm: distanceKm,
@@ -197,6 +322,7 @@ export const buildModel = (input) => {
     computedScenarios,
     erroredScenarios,
     optimizedPacks: firstFinite(results.optimizedPacks),
+    configuration: generalConfiguration,
     sectionStatus: {
       costs: input.costsStatus ?? "idle",
       emissions: input.emissionsStatus ?? "idle",
@@ -231,9 +357,16 @@ export const buildModel = (input) => {
 /* ── Compatibility logic ───────────────────────────────────────── */
 
 const computeCompatibility = (a, b) => {
-  const setA = new Set(a.shiftNames);
-  const setB = new Set(b.shiftNames);
-  const common = a.shiftNames.filter((name) => setB.has(name));
+  const keysA = a.shiftIds?.length ? a.shiftIds : a.shiftNames;
+  const keysB = b.shiftIds?.length ? b.shiftIds : b.shiftNames;
+  const setA = new Set(keysA);
+  const setB = new Set(keysB);
+  const labels = new Map(
+    [...(a.shifts ?? []), ...(b.shifts ?? [])]
+      .map((shift) => [shift.id, shift.name || shift.id]),
+  );
+  const commonKeys = keysA.filter((key) => setB.has(key));
+  const common = commonKeys.map((key) => labels.get(key) ?? key);
   const sameShiftSet =
     setA.size > 0 &&
     setA.size === setB.size &&
@@ -486,9 +619,9 @@ const buildEfficiencyRows = (a, b) => [
     unit: "kWh/km",
   },
   {
-    label: t("analysisComparison.optimizedPacks"),
-    a: a.optimizedPacks,
-    b: b.optimizedPacks,
+    label: t("yearly_analysis.fleet_battery_packs"),
+    a: a.configuration?.battery?.packs,
+    b: b.configuration?.battery?.packs,
     decimals: 0,
     unit: "",
   },
@@ -604,7 +737,24 @@ export const buildEmissionsRows = (a, b) => {
 export const renderPanels = (root, a, b) => {
   const overview = sel(root, "panel-overview");
   if (overview) {
-    const feasRows = [
+    const socRange = (model) => {
+      const min = fin(model.configuration?.soc?.minFraction);
+      const max = fin(model.configuration?.soc?.maxFraction);
+      return min != null && max != null
+        ? `${formatNumber(min * 100, 0)}–${formatNumber(max * 100, 0)}%`
+        : naLabel();
+    };
+    const configurationRows = [
+      [
+        t("yearly_analysis.bus_model"),
+        a.busModelName ?? naLabel(),
+        b.busModelName ?? naLabel(),
+      ],
+      [
+        t("yearly_analysis.col_mode"),
+        a.mode ?? naLabel(),
+        b.mode ?? naLabel(),
+      ],
       [
         t("analysisComparison.shiftCount"),
         String(a.shiftCount),
@@ -615,6 +765,37 @@ export const renderPanels = (root, a, b) => {
         String(a.scenarioCount),
         String(b.scenarioCount),
       ],
+      [t("yearly_analysis.soc_range"), socRange(a), socRange(b)],
+      [
+        t("yearly_analysis.fleet_battery_packs"),
+        formatWithUnit(a.configuration?.battery?.packs, 0, t("simulation.unit_packs")),
+        formatWithUnit(b.configuration?.battery?.packs, 0, t("simulation.unit_packs")),
+      ],
+      [
+        t("yearly_analysis.nominal_capacity"),
+        formatWithUnit(a.configuration?.battery?.nominalKwh, 1, "kWh"),
+        formatWithUnit(b.configuration?.battery?.nominalKwh, 1, "kWh"),
+      ],
+      [
+        t("yearly_analysis.installed_locations"),
+        formatWithUnit(a.configuration?.infrastructure?.chargingLocations, 0, ""),
+        formatWithUnit(b.configuration?.infrastructure?.chargingLocations, 0, ""),
+      ],
+      [
+        t("yearly_analysis.installed_slots"),
+        formatWithUnit(a.configuration?.infrastructure?.installedSlots, 0, ""),
+        formatWithUnit(b.configuration?.infrastructure?.installedSlots, 0, ""),
+      ],
+      [
+        t("yearly_analysis.total_power"),
+        formatWithUnit(a.configuration?.infrastructure?.totalPowerKw, 0, "kW"),
+        formatWithUnit(b.configuration?.infrastructure?.totalPowerKw, 0, "kW"),
+      ],
+      [
+        t("yearly_analysis.installation_cost"),
+        formatWithUnit(a.configuration?.infrastructure?.installationCostChf, 0, "CHF"),
+        formatWithUnit(b.configuration?.infrastructure?.installationCostChf, 0, "CHF"),
+      ],
     ]
       .map(
         ([label, av, bv]) =>
@@ -623,6 +804,9 @@ export const renderPanels = (root, a, b) => {
       .join("");
 
     overview.innerHTML = `
+      <h3 class="ya-res-section-title ac-subhead ac-subhead--first">${textContent(
+        t("analysisComparison.commonConfiguration")
+      )}</h3>
       <div class="ya-res-table-wrap">
         <table class="ya-res-table ac-table">
           <thead><tr>
@@ -630,7 +814,7 @@ export const renderPanels = (root, a, b) => {
             <th>${textContent(t("analysisComparison.analysisA"))}</th>
             <th>${textContent(t("analysisComparison.analysisB"))}</th>
           </tr></thead>
-          <tbody>${feasRows}</tbody>
+          <tbody>${configurationRows}</tbody>
         </table>
       </div>
       <h3 class="ya-res-section-title ac-subhead">${textContent(
@@ -726,6 +910,7 @@ const downloadBlob = (filename, content, type) => {
 
 const exportCsv = (a, b) => {
   const header = [
+    "scope",
     "category",
     "metric",
     "unit",
@@ -740,6 +925,7 @@ const exportCsv = (a, b) => {
   ];
   const rows = buildComparisonRows(a, b).map((row) =>
     [
+      "general",
       row.category,
       row.metric,
       row.unit,
@@ -761,6 +947,7 @@ const exportCsv = (a, b) => {
 
 const exportJson = (a, b, compat) => {
   const payload = {
+    scope: "general",
     differenceDefinition: "Difference = Analysis B - Analysis A",
     analysisA: a,
     analysisB: b,
@@ -843,6 +1030,7 @@ const loadAnalysisModel = async (id) => {
     analysis,
     features,
     busModelName,
+    busModelData,
     costs,
     costsStatus,
     emissions,
