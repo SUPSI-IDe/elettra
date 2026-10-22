@@ -42,31 +42,32 @@ const scaledVehicle = (vehicle, shiftId, factor) => {
   return copy;
 };
 
-const multiShiftLca = () => {
-  const morning = scaledVehicle(lcaFixture.vehicles[0], "morning", 1);
-  const evening = scaledVehicle(lcaFixture.vehicles[0], "evening", 0.5);
+const fleetLcaFromVehicles = (vehicles) => {
   const indicators = {};
   for (const key of Object.keys(lcaFixture.indicators)) {
-    const first = morning.indicators[key];
-    const second = evening.indicators[key];
+    const rows = vehicles.map((vehicle) => vehicle.indicators[key]);
+    const sumField = (field) => rows.reduce((sum, row) => sum + row[field], 0);
+    const sumPhases = (field) => rows
+      .map((row) => row[field])
+      .reduce(sumObjects);
     indicators[key] = {
-      ...first,
-      electricity_operation: first.electricity_operation + second.electricity_operation,
-      diesel_heating: first.diesel_heating + second.diesel_heating,
-      other_lifecycle: first.other_lifecycle + second.other_lifecycle,
-      total: first.total + second.total,
-      diesel_comparator_total: first.diesel_comparator_total + second.diesel_comparator_total,
-      phases: sumObjects(first.phases, second.phases),
-      diesel_comparator_phases: sumObjects(first.diesel_comparator_phases, second.diesel_comparator_phases),
-      diesel_heating_phases: sumObjects(first.diesel_heating_phases, second.diesel_heating_phases),
+      ...rows[0],
+      electricity_operation: sumField("electricity_operation"),
+      diesel_heating: sumField("diesel_heating"),
+      other_lifecycle: sumField("other_lifecycle"),
+      total: sumField("total"),
+      diesel_comparator_total: sumField("diesel_comparator_total"),
+      phases: sumPhases("phases"),
+      diesel_comparator_phases: sumPhases("diesel_comparator_phases"),
+      diesel_heating_phases: sumPhases("diesel_heating_phases"),
     };
   }
-  const dcKwh = morning.dc_kwh + evening.dc_kwh;
+  const dcKwh = vehicles.reduce((sum, vehicle) => sum + vehicle.dc_kwh, 0);
   return {
     ...structuredClone(lcaFixture),
-    annual_km: morning.annual_km + evening.annual_km,
-    vehicle_count: 2,
-    vehicles: [morning, evening],
+    annual_km: vehicles.reduce((sum, vehicle) => sum + vehicle.annual_km, 0),
+    vehicle_count: vehicles.length,
+    vehicles,
     energy_boundary: {
       ...lcaFixture.energy_boundary,
       dc_kwh: dcKwh,
@@ -75,6 +76,22 @@ const multiShiftLca = () => {
     },
     indicators,
   };
+};
+
+const multiShiftLca = () => {
+  const morning = scaledVehicle(lcaFixture.vehicles[0], "morning", 1);
+  const evening = scaledVehicle(lcaFixture.vehicles[0], "evening", 0.5);
+  morning.annual_km = 21900;
+  evening.annual_km = 14600;
+  return fleetLcaFromVehicles([morning, evening]);
+};
+
+const lcaForShiftDistance = (source, shiftId, annualKm) => {
+  if (!shiftId || !Number.isFinite(annualKm)) return source;
+  const vehicles = source.vehicles.map((vehicle) => vehicle.shift_id === shiftId
+    ? scaledVehicle(vehicle, shiftId, annualKm / vehicle.annual_km)
+    : structuredClone(vehicle));
+  return fleetLcaFromVehicles(vehicles);
 };
 
 const scenario = (id, label, energy, distance) => ({
@@ -280,7 +297,7 @@ const multishiftAnalysis = {
 const mountResults = async (
   page,
   analysis,
-  { predictionRuns = [], optimizationRun = null } = {},
+  { predictionRuns = [], optimizationRun = null, lcaRequests = null } = {},
 ) => {
   const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
   const lca = analysis.features?.results?.shiftResults || configuredShiftCount > 1
@@ -290,7 +307,11 @@ const mountResults = async (
     const url = new URL(route.request().url());
     const path = url.pathname;
     if (path.endsWith(`/yearly-analysis/${analysis.id}/lca`)) {
-      await route.fulfill({ json: lca });
+      const shiftId = url.searchParams.get("shift_id");
+      const annualKmRaw = url.searchParams.get("annual_km");
+      const annualKm = annualKmRaw == null ? null : Number(annualKmRaw);
+      lcaRequests?.push({ shiftId, annualKm });
+      await route.fulfill({ json: lcaForShiftDistance(lca, shiftId, annualKm) });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}/costs`)) {
       await route.fulfill({ status: 503, json: { detail: "Use deterministic local costs" } });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}`)) {
@@ -559,7 +580,31 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
   await expect(page.locator('[data-role="ya-emissions-scope-note"]')).toHaveCount(0);
   await expect(page.locator('[data-panel="emissions"]')).not.toContainText("Shift impacts use");
-  await expect(page.locator('[data-role="ya-env-controls"]')).toBeHidden();
+  const emissionsTitle = page.locator('[data-panel="emissions"] > .ya-env-heading-row .ya-scope-section-title');
+  const emissionsDistanceControl = page.locator('[data-role="ya-env-controls"]');
+  await expect(emissionsDistanceControl).toBeVisible();
+  await expect(page.locator('[data-role="ya-env-yearly-distance"]')).toHaveValue("21900");
+  await expect(emissionsDistanceControl.locator(".ya-cost-variables__range-scale span")).toHaveText([
+    /10.000/,
+    /40.000/,
+  ]);
+  const [titleBox, distanceControlBox] = await Promise.all([
+    emissionsTitle.boundingBox(),
+    emissionsDistanceControl.boundingBox(),
+  ]);
+  if (page.viewportSize().width > 700) {
+    expect(distanceControlBox.x).toBeGreaterThan(titleBox.x + titleBox.width);
+    expect(Math.abs(distanceControlBox.y - titleBox.y)).toBeLessThanOrEqual(4);
+  } else {
+    expect(distanceControlBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
+    expect(Math.abs(distanceControlBox.x - titleBox.x)).toBeLessThanOrEqual(4);
+  }
+  const firstLcaSection = page.locator(".ya-lca-result > section").first();
+  await expect(firstLcaSection).toHaveAttribute("data-role", "ya-lca-phases");
+  await expect(firstLcaSection.getByRole("heading")).toHaveText("Climate impact by phase");
+  await expect(page.locator('[data-panel="emissions"]')).not.toContainText(
+    "DC powers and consumption at the bus",
+  );
   await expect(page.locator('[data-role="ya-lca-overview"]')).toBeVisible();
   await expect(page.locator('[data-role="ya-lca-energy-summary"] .result-metric')).toHaveCount(4);
   await expect(page.locator('[data-role="ya-lca-indicators"]')).toBeVisible();
@@ -583,6 +628,16 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   expect(emissionsPresentation.borderStyle).toBe("solid");
   expect(emissionsPresentation.metricBackgrounds).toEqual(["rgba(0, 0, 0, 0)"]);
   expect(emissionsPresentation.hasHorizontalOverflow).toBe(false);
+  const disclosureToggle = page.locator(".ya-lca-disclosure > summary");
+  const disclosureTypography = await disclosureToggle.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      fontSize: Number.parseFloat(style.fontSize),
+      fontWeight: Number(style.fontWeight),
+    };
+  });
+  expect(disclosureTypography.fontSize).toBeLessThanOrEqual(14);
+  expect(disclosureTypography.fontWeight).toBeLessThanOrEqual(500);
 
   if (updateGuideScreenshots) {
     await page.setViewportSize({ width: 1440, height: 990 });
@@ -650,6 +705,58 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   });
   expect(mobileActivityLayout.separated).toBe(true);
   expect(mobileActivityLayout.bodyScrollWidth).toBe(mobileActivityLayout.bodyClientWidth);
+});
+
+test("annual-distance sensitivity remains isolated to the selected shift", async ({ page }) => {
+  const lcaRequests = [];
+  await mountResults(page, multishiftAnalysis, { lcaRequests });
+
+  const scopeTabs = page.locator('[data-role="ya-result-scope-tabs"]');
+  const resultTabs = page.locator('[data-role="ya-result-view-tabs"]');
+  const distanceSlider = page.locator('[data-role="ya-env-yearly-distance"]');
+  const activityMetric = page
+    .locator('[data-role="ya-lca-energy-summary"] .result-metric')
+    .last();
+
+  await scopeTabs.getByRole("tab", { name: "Morning service" }).click();
+  await resultTabs.getByRole("tab", { name: "Emissions" }).click();
+  await expect(distanceSlider).toBeVisible();
+  await expect(distanceSlider).toHaveValue("21900");
+
+  await distanceSlider.evaluate((element) => {
+    element.value = "40000";
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect.poll(() => lcaRequests.at(-1)).toEqual({
+    shiftId: "morning",
+    annualKm: 40000,
+  });
+  await expect(distanceSlider).toHaveValue("40000");
+  await expect(activityMetric).toContainText(/40.000 km/);
+
+  await scopeTabs.getByRole("tab", { name: "Evening service" }).click();
+  await expect(distanceSlider).toBeVisible();
+  await expect(distanceSlider).toHaveValue("14600");
+  await expect.poll(() => lcaRequests.at(-1)).toEqual({
+    shiftId: null,
+    annualKm: null,
+  });
+  await expect(activityMetric).toContainText(/14.600 km/);
+
+  await scopeTabs.getByRole("tab", { name: "Morning service" }).click();
+  await expect.poll(() => lcaRequests.at(-1)).toEqual({
+    shiftId: "morning",
+    annualKm: 40000,
+  });
+  await expect(distanceSlider).toHaveValue("40000");
+
+  await page.locator('[data-role="ya-env-yearly-distance-reset"]').click();
+  await expect.poll(() => lcaRequests.at(-1)).toEqual({
+    shiftId: null,
+    annualKm: null,
+  });
+  await expect(distanceSlider).toHaveValue("21900");
+  await expect(activityMetric).toContainText(/21.900 km/);
 });
 
 test("historical single-shift results expose General and the configured shift", async ({ page }) => {

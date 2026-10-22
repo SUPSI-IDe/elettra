@@ -127,7 +127,10 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
     const url = new URL(route.request().url());
     let body;
     if (url.pathname.endsWith("/lca")) {
-      requests.push(url.searchParams.get("annual_km"));
+      requests.push({
+        annualKm: url.searchParams.get("annual_km"),
+        shiftId: url.searchParams.get("shift_id"),
+      });
       if (responseMode === "incomplete") {
         body = {methodology_version: fixture.base.methodology_version, status:"incomplete", reason:"Controlled timeout", indicators:{}, vehicles:[]};
       } else {
@@ -188,9 +191,11 @@ test("annual LCA preserves mileage controls, calls the backend again and keeps c
   const slider = distanceControl;
   await resultViews.getByRole("tab", {name:"Costs"}).click();
   await slider.evaluate(el => { el.value="90000"; el.dispatchEvent(new Event("input",{bubbles:true})); });
-  await expect.poll(() => requests.length).toBe(2);
+  await expect.poll(() => requests.at(-1)).toEqual({
+    annualKm: "90000",
+    shiftId: "acceptance-12",
+  });
   await expect(distanceControl).toBeVisible();
-  expect(requests[1]).toBe("90000");
   await resultViews.getByRole("tab", {name:"Emissions"}).click();
   const updatedDisclosure = page.locator(".ya-lca-disclosure");
   await updatedDisclosure.locator("summary").click();

@@ -823,14 +823,13 @@
 /* ── Slider variables panel ───────────────────────────────────── */
 
 /* Plain card surface and standard card padding, dropping the shared
-   gradient and tighter padding so it matches the chart cards below.
-   Shared by the costs and emissions slider panels. */
-:is(.ya-costs-inputs-section, .ya-env-controls) {
+   gradient and tighter padding so it matches the chart cards below. */
+.ya-costs-inputs-section {
   padding: var(--panel-padding);
   background: var(--color-surface);
 }
 
-:is(.ya-costs-inputs-section, .ya-env-controls) .ya-res-section-header {
+.ya-costs-inputs-section .ya-res-section-header {
   margin-bottom: var(--space-md);
 }
 
@@ -885,7 +884,7 @@
 
 /* Hierarchy inside a field: the current value reads as bare text (no pill), the
    min/max scale recedes below it. */
-:is(.ya-costs-inputs-section, .ya-env-controls) .ya-cost-variables__value {
+.ya-costs-inputs-section .ya-cost-variables__value {
   min-width: 0;
   padding: 0;
   border-radius: 0;
@@ -893,7 +892,7 @@
   font-size: inherit;
 }
 
-:is(.ya-costs-inputs-section, .ya-env-controls) .ya-cost-variables__range-scale {
+.ya-costs-inputs-section .ya-cost-variables__range-scale {
   opacity: 0.55;
 }
 
@@ -1205,10 +1204,21 @@
   margin-top: 0;
 }
 
+.ya-lca-disclosure > .ya-more-information__toggle {
+  gap: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
 .ya-lca-disclosure__body {
   display: grid;
   gap: var(--space-md);
   padding-top: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
 }
 
 .ya-lca-disclosure__body > * {
@@ -1222,6 +1232,13 @@
 
 .ya-lca-disclosure__section h4 {
   margin: 0;
+  color: var(--text-main);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.ya-lca-disclosure .ya-lca-table-wrap .ya-table {
+  font-size: var(--font-size-xs);
 }
 
 .ya-lca-metadata {
@@ -1507,23 +1524,53 @@
 .ya-env-panel .ya-env-header a { color: var(--color-link); text-decoration: none; }
 .ya-env-panel .ya-env-header a:hover { text-decoration: underline; }
 
-/* Padding comes from the shared slider-panel rule above. */
-.ya-env-controls {
-  margin: 0;
+.ya-env-heading-row {
+  display: grid;
+  grid-template-columns: max-content minmax(20rem, 34rem);
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-md) var(--layout-gap);
 }
 
-.ya-env-controls .ya-cost-variables__grid {
-  grid-template-columns: minmax(0, 1fr);
-  max-width: none;
+.ya-env-controls {
+  display: grid;
+  gap: var(--space-2xs);
+  width: 100%;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.ya-env-controls[hidden] {
+  display: none;
 }
 
 .ya-env-controls .ya-cost-variables__field {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.ya-env-controls__top {
+  display: flex;
+  align-items: baseline;
   gap: var(--space-xs);
   font-size: var(--font-size-sm);
 }
 
-.ya-env-controls .ya-cost-variables__field-top span {
+.ya-env-controls__label {
   font-weight: 600;
+}
+
+.ya-env-controls .ya-cost-variables__value {
+  min-width: 0;
+  padding: 0;
+  background: none;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.ya-env-controls .ya-cost-variables__reset-all {
+  margin-left: auto;
+  padding: var(--space-2xs) var(--space-sm);
 }
 
 .ya-env-controls .ya-cost-variables__range {
@@ -1541,11 +1588,20 @@
 }
 
 .ya-env-controls .ya-cost-variables__range-scale {
+  display: flex;
+  justify-content: space-between;
   font-size: var(--font-size-xs);
+  opacity: 0.55;
 }
 
-.ya-env-controls .ya-cost-variables__actions {
-  justify-content: flex-start;
+@media (width <= 700px) {
+  .ya-env-heading-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ya-env-controls {
+    margin-left: 0;
+  }
 }
 
 .ya-env-mission-bar {

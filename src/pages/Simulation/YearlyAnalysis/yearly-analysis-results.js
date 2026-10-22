@@ -4638,7 +4638,20 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     dieselEfficiency: null, dieselMaintCost: null, electricMaintCost: null,
     yearlyDistanceKm: null,
   };
-  const emissionsOverrides = { yearlyDistanceKm: null };
+  const shiftDistanceOverrides = new Map();
+  const activeShiftId = () => activeScope?.kind === "shift"
+    ? text(activeScope.shiftId).trim()
+    : "";
+  const getActiveShiftDistanceOverride = () => {
+    const shiftId = activeShiftId();
+    return shiftId ? shiftDistanceOverrides.get(shiftId) ?? null : null;
+  };
+  const setActiveShiftDistanceOverride = (value) => {
+    const shiftId = activeShiftId();
+    if (!shiftId) return;
+    if (value == null) shiftDistanceOverrides.delete(shiftId);
+    else shiftDistanceOverrides.set(shiftId, value);
+  };
   let lcaController = null;
   let lcaRequestId = 0;
   let lcaRefreshTimer = null;
@@ -4886,7 +4899,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   const getSelectedEmissionsYearlyDistanceKm = () =>
     resolveYearlyDistanceKm(
-      emissionsOverrides.yearlyDistanceKm,
+      getActiveShiftDistanceOverride(),
       getBaseEmissionsYearlyDistanceKm(),
     );
 
@@ -4902,7 +4915,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
             emissionsState.yearlyImpact?.yearly_distance_km,
           ),
           resolveYearlyDistanceKm(
-            emissionsOverrides.yearlyDistanceKm,
+            getActiveShiftDistanceOverride(),
             features?.results?.yearlyTotals?.distanceKm,
             emissionsState.yearlyDistanceKm,
             emissionsState.yearlyImpact?.yearly_distance_km,
@@ -5169,7 +5182,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         const v = toFiniteNumber(input.value);
         if (v == null) return;
         costOverrides[overrideKey] = v;
-        if (overrideKey === "yearlyDistanceKm") emissionsOverrides.yearlyDistanceKm = v;
+        if (overrideKey === "yearlyDistanceKm") setActiveShiftDistanceOverride(v);
         if (overrideKey === "yearlyDistanceKm" || overrideKey === "dieselEfficiency") scheduleLcaRefresh();
         setRangeProgress(input, v);
         if (valueEl) valueEl.textContent = fmt(v);
@@ -5199,7 +5212,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         ]) {
           costOverrides[key] = null;
         }
-        emissionsOverrides.yearlyDistanceKm = null;
+        setActiveShiftDistanceOverride(null);
         syncAll();
         scheduleCostRefresh();
         scheduleLcaRefresh();
@@ -5229,10 +5242,10 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         getSelectedEmissionsYearlyDistanceKm(),
         (v) => formatInt(v),
       );
-      if (yearlyDistanceInput) yearlyDistanceInput.disabled = isShift || emissionsState.status !== "done";
-      if (yearlyDistanceReset) yearlyDistanceReset.disabled = isShift || emissionsState.status !== "done";
+      if (yearlyDistanceInput) yearlyDistanceInput.disabled = !isShift || emissionsState.status !== "done";
+      if (yearlyDistanceReset) yearlyDistanceReset.disabled = !isShift || emissionsState.status !== "done";
       if (controlsEl) {
-        controlsEl.hidden = isShift || emissionsState.status !== "done" || baseYearlyDistanceKm == null;
+        controlsEl.hidden = !isShift || emissionsState.status !== "done" || baseYearlyDistanceKm == null;
       }
     };
 
@@ -5242,7 +5255,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       const handler = () => {
         const value = parseYearlyDistanceKm(yearlyDistanceInput.value);
         if (value == null) return;
-        emissionsOverrides.yearlyDistanceKm = value;
+        setActiveShiftDistanceOverride(value);
         costOverrides.yearlyDistanceKm = value;
         scheduleCostRefresh();
         setRangeProgress(yearlyDistanceInput, value);
@@ -5255,9 +5268,10 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
     if (yearlyDistanceReset) {
       const handler = () => {
-        emissionsOverrides.yearlyDistanceKm = null;
+        setActiveShiftDistanceOverride(null);
         costOverrides.yearlyDistanceKm = null;
         scheduleCostRefresh();
+        syncCostSliders();
         syncControl();
         scheduleLcaRefresh();
       };
@@ -5278,8 +5292,11 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     refreshDerivedEmissionsViews();
     try {
       // Physical inputs and lifetimes are resolved per vehicle from backend snapshots.
+      const shiftId = activeShiftId();
+      const shiftAnnualKm = getActiveShiftDistanceOverride();
       const backendEmissionsRaw = await fetchYearlyAnalysisLca(analysisId, {
-        annual_km: emissionsOverrides.yearlyDistanceKm,
+        annual_km: shiftAnnualKm,
+        shift_id: shiftAnnualKm != null ? shiftId : null,
         // No fleet-wide overwrite with the first bus model.
         diesel_consumption_l_per_km: costOverrides.dieselEfficiency,
       }, { signal: lcaController.signal });
@@ -5331,16 +5348,12 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       return;
     }
 
-    const hadDistanceOverride =
-      costOverrides.yearlyDistanceKm != null ||
-      emissionsOverrides.yearlyDistanceKm != null;
     activeScopeKey = nextScope.key;
     activeScope = nextScope;
     activeFeatures = buildScopedYearlyFeatures(features, activeScope);
     scenarioResults = activeFeatures.results?.scenarioResults ?? [];
     yearlyTotals = activeFeatures.results?.yearlyTotals ?? {};
-    costOverrides.yearlyDistanceKm = null;
-    emissionsOverrides.yearlyDistanceKm = null;
+    costOverrides.yearlyDistanceKm = getActiveShiftDistanceOverride();
 
     recomputeEfficiency(scenarioResults);
     renderResultScopeTabs();
@@ -5351,7 +5364,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
     if (focus) focusScopeTab();
 
-    if (hadDistanceOverride && emissionsState.status !== "idle") {
+    if (emissionsState.status !== "idle") {
       if (lcaRefreshTimer) clearTimeout(lcaRefreshTimer);
       lcaRefreshTimer = null;
       void loadEmissions();

@@ -258,26 +258,21 @@
         aria-labelledby="yearly-result-view-tab-emissions"
         hidden
       >
-        <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_emissions">Annual emissions</h2>
-        <div class="ya-env-content" data-role="emissions-content">
-          <!-- Full-width annual distance control -->
-          <div class="ya-res-section ya-cost-variables ya-env-controls result-card" data-role="ya-env-controls" hidden>
-            <div class="ya-res-section-header">
-              <h3 class="ya-res-section-title" data-i18n="yearly_analysis.emissions_set_annual_distance">Set the annual distance to estimate yearly emissions</h3>
-              <button type="button" class="ya-cost-variables__reset-all" data-role="ya-env-yearly-distance-reset" data-i18n="simulation.costs_variable_reset">Reset</button>
-            </div>
-            <div class="ya-cost-variables__grid">
-              <div class="ya-cost-variables__field">
-                <div class="ya-cost-variables__field-top">
-                  <span data-i18n="yearly_analysis.annual_distance_label">Annual distance:</span>
-                  <output class="ya-cost-variables__value" data-role="ya-env-yearly-distance-value"></output>
-                </div>
-                <input class="ya-cost-variables__range" type="range" min="1" max="2" step="1" data-role="ya-env-yearly-distance" />
-                <div class="ya-cost-variables__range-scale"><span>1</span><span>2</span></div>
+        <div class="ya-env-heading-row">
+          <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_emissions">Annual emissions</h2>
+          <div class="ya-env-controls" data-role="ya-env-controls" hidden>
+            <div class="ya-cost-variables__field">
+              <div class="ya-env-controls__top">
+                <label class="ya-env-controls__label" for="ya-env-yearly-distance" data-i18n="yearly_analysis.annual_distance_label">Annual distance:</label>
+                <output class="ya-cost-variables__value" for="ya-env-yearly-distance" data-role="ya-env-yearly-distance-value"></output>
+                <button type="button" class="ya-cost-variables__reset-all" data-role="ya-env-yearly-distance-reset" data-i18n="simulation.costs_variable_reset">Reset</button>
               </div>
+              <input id="ya-env-yearly-distance" class="ya-cost-variables__range" type="range" min="1" max="2" step="1" data-role="ya-env-yearly-distance" />
+              <div class="ya-cost-variables__range-scale"><span>1</span><span>2</span></div>
             </div>
           </div>
-
+        </div>
+        <div class="ya-env-content" data-role="emissions-content">
           <!-- Equal-width emissions charts -->
           <div class="ya-env-chart-grid">
             <div class="ya-res-section ya-env-chart-section ya-env-chart-section--prominent result-card">
