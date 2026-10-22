@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.5.0] - 2026-10-22
+
+### Added
+
+- Yearly results now separate the shared physical configuration in General from dedicated tabs for every shift, each with Efficiency, Costs and Emissions views.
+- Complete annual exports contain one General section and one section for every physical shift, while annual comparisons remain focused on General totals.
+- Shift emissions include an independent annual-distance control, and shift economics include annual OPEX, allocated shared CAPEX and break-even analysis.
+
+### Changed
+
+- Annual analyses keep the bus, battery and charging infrastructure selected by the source feasibility evaluation fixed across all temperature scenarios and shifts.
+- Shared investment costs are counted once in General and attributed to shift comparisons by each shift's share of annual DC energy, with the allocation rule explained in the interface.
+- Feasibility and yearly result pages follow the compact Fleet visual language, with consistent cards, typography, metric rows, navigation and responsive behavior.
+- Feasibility evaluation lists use accessible red/green status indicators with explanatory header tooltips, and yearly shift summaries sit directly below the General/shift selector.
+
+### Fixed
+
+- Historical and current multi-shift annual results are reconstructed strictly by shift identity, without reusing aggregate, equally named or unrelated shift data.
+- Missing, partial and failed annual outcomes remain explicit without presenting incomplete aggregate values as final results.
+- The feasibility list keeps the Results column readable and contains horizontal overflow on narrow screens.
+
+### Verification
+
+- Added permanent unit and desktop/mobile browser coverage for fixed annual configuration, multi-shift reconstruction, exports, shared-cost allocation, General-only comparisons, responsive layouts, status indicators and safe rendering.
+- Verified 447 Node tests, 164 desktop/mobile browser executions and the production build.
+
 ## [0.4.0] - 2026-10-21
 
 ### Added
