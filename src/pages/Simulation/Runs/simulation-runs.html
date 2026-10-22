@@ -93,13 +93,23 @@
             </th>
             <th class="status" scope="col" data-sort-key="status" aria-sort="none">
               <button type="button" class="sort-button" data-sort-key="status">
-                <span data-i18n="simulation.col_status">Status</span>
+                <span
+                  class="simulation-column-help"
+                  data-i18n="simulation.col_status"
+                  data-i18n-title="simulation.col_status_help"
+                  title="Green: evaluation completed. Red: evaluation pending, running, or failed."
+                >Status</span>
                 <span class="sort-arrow" aria-hidden="true">↕</span>
               </button>
             </th>
             <th class="feasibility" scope="col" data-sort-key="feasibility" aria-sort="none">
               <button type="button" class="sort-button" data-sort-key="feasibility">
-                <span data-i18n="simulation.col_feasibility">Feasibility</span>
+                <span
+                  class="simulation-column-help"
+                  data-i18n="simulation.col_feasibility"
+                  data-i18n-title="simulation.col_feasibility_help"
+                  title="Green: feasible. Red: infeasible or feasibility not yet available."
+                >Feasibility</span>
                 <span class="sort-arrow" aria-hidden="true">↕</span>
               </button>
             </th>

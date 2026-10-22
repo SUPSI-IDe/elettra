@@ -548,6 +548,11 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(visualAnalysis).toHaveAttribute("data-status", "available");
   await expect(visualAnalysis.locator("h3")).toHaveText("Visual analysis");
   await expect(visualAnalysis.locator("svg")).toHaveCount(2);
+  await expect(visualAnalysis).not.toContainText("Compare simulated");
+  await expect(visualAnalysis).not.toContainText("exceedance probability");
+  await expect(visualAnalysis).not.toContainText(
+    "Compare drivetrain and auxiliary demand for each battery-pack scenario.",
+  );
   const chartCardLayout = await visualAnalysis
     .locator(".efficiency-chart-card")
     .evaluateAll((cards) => ({

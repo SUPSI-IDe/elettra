@@ -18,6 +18,9 @@
 
 
 .simulation-runs-table {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
@@ -27,13 +30,14 @@
 
 .simulation-runs-table table {
   width: 100%;
-  min-width: 72rem;
+  min-width: 62rem;
   margin: 0;
   table-layout: fixed;
 }
 
 .simulation-runs-table th,
 .simulation-runs-table td {
+  padding-inline: var(--space-xs);
   text-align: center;
   vertical-align: middle;
 }
@@ -64,7 +68,7 @@
 
 .simulation-runs-table th.name,
 .simulation-runs-table td.name {
-  width: calc(22% - 2.5rem);
+  width: calc(21% - 2.5rem);
 }
 
 .simulation-runs-table th.main-parameters,
@@ -93,12 +97,12 @@
 
 .simulation-runs-table th.status,
 .simulation-runs-table td.status {
-  width: 9%;
+  width: 7%;
 }
 
 .simulation-runs-table th.feasibility,
 .simulation-runs-table td.feasibility {
-  width: 9%;
+  width: 10%;
 }
 
 .simulation-runs-table th.created,
@@ -117,5 +121,34 @@
 
 .simulation-runs-table th.results,
 .simulation-runs-table td.results {
-  width: 6%;
+  width: 8%;
+}
+
+.simulation-runs-table .results-link {
+  white-space: nowrap;
+}
+
+.simulation-column-help {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.18em;
+}
+
+.simulation-state-indicator {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 1px solid color-mix(in srgb, currentcolor 35%, transparent);
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.simulation-state-indicator--positive {
+  color: var(--badge-success-text);
+  background: var(--color-success);
+}
+
+.simulation-state-indicator--negative {
+  color: var(--badge-danger-text);
+  background: var(--color-danger);
 }

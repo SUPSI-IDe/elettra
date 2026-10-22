@@ -385,6 +385,8 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(tabs).toHaveText(["General", "Morning service", "Evening service"]);
   await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".ya-result-scope-select")).toHaveCount(0);
+  const shiftSummarySlot = page.locator('[data-role="ya-shift-summary-slot"]');
+  await expect(shiftSummarySlot).toBeHidden();
 
   const content = page.locator("#yearly-result-scope-content");
   await expect(content).toContainText("Deployed configuration");
@@ -472,6 +474,8 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
+  await expect(page.locator('[data-panel="overview"]')).toBeHidden();
+  await expect(shiftSummarySlot).toBeVisible();
   const shiftLevel = page.locator('[data-role="ya-shift-reference"]');
   await expect(shiftLevel).toHaveClass(/ya-scope-level--shift/);
   await expect(shiftLevel.locator(":scope > *")).toHaveCount(1);
@@ -484,9 +488,13 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(shiftLevel).not.toContainText("Energy demand and operating details");
   const yearlySummary = shiftLevel.locator('[data-role="ya-shift-yearly-summary"]');
   await expect(yearlySummary).toContainText("Yearly aggregated summary");
+  await expect(yearlySummary.locator(".ya-shift-yearly-summary__title")).toHaveText(
+    "Yearly aggregated summary",
+  );
   await expect(yearlySummary.locator("thead")).toHaveCount(0);
   await expect(yearlySummary.locator("tbody tr")).toHaveCount(1);
-  await expect(yearlySummary.locator("tbody th")).toHaveText("Yearly aggregated summary");
+  await expect(yearlySummary.locator("tbody th")).toHaveCount(0);
+  await expect(yearlySummary.locator("tbody td")).toHaveCount(3);
   await expect(yearlySummary.locator("tbody td span")).toHaveText([
     "Yearly energy:",
     "Yearly simulated distance:",
@@ -497,13 +505,21 @@ test("yearly results use General and one primary tab per shift", async ({ page }
     /21['’,]900 km/,
     "1.667 kWh/km",
   ]);
-  const compactShiftContext = await shiftLevel.evaluate((element) => ({
-    height: element.getBoundingClientRect().height,
+  const compactShiftContext = await shiftSummarySlot.evaluate((element) => ({
+    followsScopeTabs:
+      element.previousElementSibling?.matches('[data-role="ya-result-scope-tabs"]') ?? false,
+    width: element.getBoundingClientRect().width,
+    parentWidth: element.parentElement?.getBoundingClientRect().width ?? 0,
+    background: getComputedStyle(
+      element.querySelector('[data-role="ya-shift-yearly-summary"]'),
+    ).backgroundColor,
     summaryFontSize: Number.parseFloat(getComputedStyle(
       element.querySelector('[data-role="ya-shift-yearly-summary"] td'),
     ).fontSize),
   }));
-  expect(compactShiftContext.height).toBeLessThan(40);
+  expect(compactShiftContext.followsScopeTabs).toBe(true);
+  expect(compactShiftContext.width).toBeGreaterThanOrEqual(compactShiftContext.parentWidth - 1);
+  expect(compactShiftContext.background).toBe("rgb(228, 246, 246)");
   expect(compactShiftContext.summaryFontSize).toBeLessThanOrEqual(14);
   const shiftContentOrder = await content.evaluate((element) =>
     Array.from(element.children).map((child) =>
@@ -687,7 +703,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   expect(overflow.bodyScrollWidth).toBe(overflow.bodyClientWidth);
   await expect(resultViewTablist).toHaveCSS("overflow-x", "auto");
   const mobileShiftContext = await shiftLevel.boundingBox();
-  expect(mobileShiftContext.height).toBeLessThan(40);
+  expect(mobileShiftContext.height).toBeLessThan(80);
   await expect(yearlySummary.locator(".ya-compact-metrics")).toHaveCSS("overflow-x", "auto");
   await resultViewTabs.getByText("Emissions", { exact: true }).click();
   const mobileActivityMetric = page

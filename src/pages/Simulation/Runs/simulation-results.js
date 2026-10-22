@@ -6790,7 +6790,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         <div class="chart-section efficiency-chart-card">
           <div class="efficiency-chart-copy">
             <h4>${textContent(t("simulation.efficiency_energy_breakdown_title") || "Energy consumption breakdown")}</h4>
-            <p>${textContent(t("simulation.efficiency_energy_breakdown_subtitle") || "Compare drivetrain and auxiliary demand for each battery-pack scenario.")}</p>
           </div>
           <div class="chart-container efficiency-chart-container" data-role="efficiency-energy-chart"></div>
       <div class="chart-legend efficiency-chart-legend" data-role="efficiency-energy-legend"></div>
@@ -6807,13 +6806,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
                 "Consumption distribution and available operational energy"
               )
             )}</h4>
-            <p>${textContent(
-              translateOr(
-                "simulation.efficiency_consumption_coverage_subtitle",
-                "Compare simulated Q05, mean, Q50, and Q95 total consumption with usable battery energy and the planned charging for the selected shift."
-              )
-            )}</p>
-            <p>${textContent(quantileHelpText())}</p>
           </div>
           <div
             class="chart-container efficiency-chart-container"

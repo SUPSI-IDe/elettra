@@ -225,6 +225,7 @@ export const translations = {
     "simulation.col_day": "Day",
     "simulation.col_investment": "Initial investment (CHF)",
     "simulation.col_status": "Status",
+    "simulation.col_status_help": "Green: evaluation completed. Red: evaluation pending, running, or failed.",
     "simulation.col_date": "Date",
     "simulation.col_model": "Model",
     "simulation.field_name": "Name",
@@ -739,6 +740,7 @@ export const translations = {
     "simulation.infeasible_notice": "The optimization determined that electrification is not feasible for this configuration. Cost and emission data cannot be computed.",
     "simulation.infeasible_tab_title": "Electrification not feasible",
     "simulation.col_feasibility": "Feasibility",
+    "simulation.col_feasibility_help": "Green: feasible. Red: infeasible or feasibility not yet available.",
 
     // Buses
     "buses.title": "Bus Models",
@@ -1959,6 +1961,7 @@ export const translations = {
     "simulation.col_day": "Tag",
     "simulation.col_investment": "Anfangsinvestition (CHF)",
     "simulation.col_status": "Status",
+    "simulation.col_status_help": "Grün: Bewertung abgeschlossen. Rot: Bewertung ausstehend, in Bearbeitung oder fehlgeschlagen.",
     "simulation.col_date": "Datum",
     "simulation.col_model": "Modell",
     "simulation.field_name": "Name",
@@ -2469,6 +2472,7 @@ export const translations = {
     "simulation.infeasible_notice": "Die Optimierung hat ergeben, dass die Elektrifizierung für diese Konfiguration nicht machbar ist. Kosten- und Emissionsdaten können nicht berechnet werden.",
     "simulation.infeasible_tab_title": "Elektrifizierung nicht machbar",
     "simulation.col_feasibility": "Machbarkeit",
+    "simulation.col_feasibility_help": "Grün: machbar. Rot: nicht machbar oder Machbarkeit noch nicht verfügbar.",
 
     // Buses
     "buses.title": "Busmodelle",
@@ -3689,6 +3693,7 @@ export const translations = {
     "simulation.col_day": "Jour",
     "simulation.col_investment": "Investissement initial (CHF)",
     "simulation.col_status": "Statut",
+    "simulation.col_status_help": "Vert : évaluation terminée. Rouge : évaluation en attente, en cours ou échouée.",
     "simulation.col_date": "Date",
     "simulation.col_model": "Modèle",
     "simulation.field_name": "Nom",
@@ -4199,6 +4204,7 @@ export const translations = {
     "simulation.infeasible_notice": "L'optimisation a déterminé que l'électrification n'est pas faisable pour cette configuration. Les données de coûts et d'émissions ne peuvent pas être calculées.",
     "simulation.infeasible_tab_title": "Électrification non faisable",
     "simulation.col_feasibility": "Faisabilité",
+    "simulation.col_feasibility_help": "Vert : faisable. Rouge : non faisable ou faisabilité pas encore disponible.",
 
     // Buses
     "buses.title": "Modèles de bus",
@@ -5419,6 +5425,7 @@ export const translations = {
     "simulation.col_day": "Giorno",
     "simulation.col_investment": "Investimento iniziale (CHF)",
     "simulation.col_status": "Stato",
+    "simulation.col_status_help": "Verde: valutazione completata. Rosso: valutazione in attesa, in corso o non riuscita.",
     "simulation.col_date": "Data",
     "simulation.col_model": "Modello",
     "simulation.field_name": "Nome",
@@ -5929,6 +5936,7 @@ export const translations = {
     "simulation.infeasible_notice": "L'ottimizzazione ha determinato che l'elettrificazione non è fattibile per questa configurazione. I dati di costi ed emissioni non possono essere calcolati.",
     "simulation.infeasible_tab_title": "Elettrificazione non fattibile",
     "simulation.col_feasibility": "Fattibilità",
+    "simulation.col_feasibility_help": "Verde: fattibile. Rosso: non fattibile o fattibilità non ancora disponibile.",
 
     // Buses
     "buses.title": "Modelli di autobus",

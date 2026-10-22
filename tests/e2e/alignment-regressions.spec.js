@@ -238,7 +238,75 @@ test("dense list tables remain readable and scroll only when needed", async ({
   expect(mobile.shifts.scrollWidth).toBeGreaterThan(mobile.shifts.clientWidth);
   expect(mobile.shifts.tableWidth).toBeGreaterThanOrEqual(927);
   expect(mobile.runs.scrollWidth).toBeGreaterThan(mobile.runs.clientWidth);
-  expect(mobile.runs.tableWidth).toBeGreaterThanOrEqual(1151);
+  expect(mobile.runs.tableWidth).toBeGreaterThanOrEqual(991);
+});
+
+
+test("feasibility list uses accessible red and green indicators without clipping Results", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1180, height: 800 });
+  await page.evaluate(async (source) => {
+    const parsed = new DOMParser().parseFromString(source, "text/html");
+    const section = parsed.querySelector(".simulation-runs");
+    document.body.replaceChildren(section);
+    const { renderSimulationRunRows } = await import(
+      "/elettra/src/pages/Simulation/Runs/simulation-runs.js"
+    );
+    renderSimulationRunRows(
+      document.querySelector('[data-role="simulation-runs-body"]'),
+      [
+        { id: "completed", name: "Completed", status: "completed", electrification_feasible: true },
+        { id: "failed", name: "Failed", status: "failed", electrification_feasible: false },
+        { id: "running", name: "Running", status: "running" },
+      ],
+    );
+  }, simulationRunsHtml);
+
+  const statusHelp = page.locator("th.status .simulation-column-help");
+  const feasibilityHelp = page.locator("th.feasibility .simulation-column-help");
+  await expect(statusHelp).toHaveAttribute("title", /Green: evaluation completed.*Red:/);
+  await expect(feasibilityHelp).toHaveAttribute("title", /Green: feasible.*Red:/);
+
+  const completedRow = page.locator('tbody tr[data-id="completed"]');
+  const failedRow = page.locator('tbody tr[data-id="failed"]');
+  const runningRow = page.locator('tbody tr[data-id="running"]');
+  await expect(completedRow.locator("td.status")).toHaveText("");
+  await expect(completedRow.locator("td.feasibility")).toHaveText("");
+  await expect(completedRow.locator("td.status .simulation-state-indicator"))
+    .toHaveAttribute("aria-label", "Completed");
+  await expect(completedRow.locator("td.feasibility .simulation-state-indicator"))
+    .toHaveAttribute("aria-label", /Feasible/);
+  await expect(failedRow.locator("td.status .simulation-state-indicator"))
+    .toHaveAttribute("aria-label", "Failed");
+  await expect(failedRow.locator("td.feasibility .simulation-state-indicator"))
+    .toHaveAttribute("aria-label", /Infeasible/);
+  await expect(runningRow.locator("td.feasibility .simulation-state-indicator"))
+    .toHaveAttribute("aria-label", "Feasibility status unavailable");
+
+  const colors = await page.locator("tbody tr").evaluateAll((rows) => rows.map((row) => ({
+    status: getComputedStyle(row.querySelector("td.status .simulation-state-indicator")).backgroundColor,
+    feasibility: getComputedStyle(row.querySelector("td.feasibility .simulation-state-indicator")).backgroundColor,
+  })));
+  expect(colors).toEqual([
+    { status: "rgb(46, 125, 50)", feasibility: "rgb(46, 125, 50)" },
+    { status: "rgb(211, 47, 47)", feasibility: "rgb(211, 47, 47)" },
+    { status: "rgb(211, 47, 47)", feasibility: "rgb(211, 47, 47)" },
+  ]);
+
+  const layout = await page.locator(".simulation-runs-table").evaluate((wrapper) => {
+    const resultsHeader = wrapper.querySelector("th.results");
+    return {
+      bodyOverflows: document.body.scrollWidth > document.body.clientWidth,
+      wrapperOverflows: wrapper.scrollWidth > wrapper.clientWidth,
+      resultsClipped: resultsHeader.scrollWidth > resultsHeader.clientWidth,
+    };
+  });
+  expect(layout).toEqual({
+    bodyOverflows: false,
+    wrapperOverflows: false,
+    resultsClipped: false,
+  });
 });
 
 

@@ -167,7 +167,7 @@ export const resolveYearlyResultScope = (
 export const getYearlyScopeSectionVisibility = (scope = {}) => {
   const isShift = scope?.kind === "shift";
   return {
-    overview: true,
+    overview: !isShift,
     efficiency: isShift,
     costs: isShift,
     emissions: isShift,

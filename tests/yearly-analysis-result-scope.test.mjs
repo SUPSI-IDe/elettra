@@ -219,9 +219,9 @@ test("General exposes the common configuration and shared economic context", () 
   });
 });
 
-test("a shift exposes its overview, efficiency, costs, and emissions", () => {
+test("a shift exposes its summary above the efficiency, costs, and emissions views", () => {
   assert.deepEqual(getYearlyScopeSectionVisibility({ kind: "shift" }), {
-    overview: true,
+    overview: false,
     efficiency: true,
     costs: true,
     emissions: true,

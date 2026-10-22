@@ -4460,10 +4460,10 @@ const buildShiftReferenceHtml = (features, scope) => {
 
   return `<section class="ya-shift-reference ya-scope-level ya-scope-level--shift" data-role="ya-shift-reference" data-shift-id="${textContent(scope.shiftId)}">
     <section class="ya-shift-yearly-summary" data-role="ya-shift-yearly-summary">
+      <h2 class="ya-shift-yearly-summary__title">${textContent(summaryLabel)}</h2>
       <div class="ya-compact-metrics">
         <table class="ya-compact-metrics__table" aria-label="${textContent(summaryLabel)}">
           <tbody><tr>
-            <th scope="row" class="ya-shift-yearly-summary__title">${textContent(summaryLabel)}</th>
             ${annualMetrics.map((metric) => `<td data-metric="${metric.key}"><span>${textContent(metric.label)}:</span> <strong>${textContent(metric.value)}</strong></td>`).join("")}
           </tr></tbody>
         </table>
@@ -4524,13 +4524,17 @@ const buildScopedEmissionsState = (state, scope) => {
 const renderOverviewPanel = (
   el,
   busModelData = {},
-  scope = { kind: "general", key: YEARLY_GENERAL_SCOPE_KEY },
   sourceFeatures = {},
 ) => {
   if (!el) return;
-  el.innerHTML = scope?.kind === "shift"
-    ? buildShiftReferenceHtml(sourceFeatures, scope)
-    : buildGeneralDeploymentHtml(sourceFeatures, busModelData);
+  el.innerHTML = buildGeneralDeploymentHtml(sourceFeatures, busModelData);
+};
+
+const renderShiftSummaryPanel = (el, sourceFeatures = {}, scope = {}) => {
+  if (!el) return;
+  const markup = buildShiftReferenceHtml(sourceFeatures, scope);
+  el.hidden = !markup;
+  el.innerHTML = markup;
 };
 
 /* ── Bus model data helpers ────────────────────────────────────── */
@@ -4565,6 +4569,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const pageTitleEl = section.querySelector('[data-role="page-title"]');
   const feedbackEl = section.querySelector('[data-role="feedback"]');
   const overviewPanel = section.querySelector('[data-role="overview-panel"]');
+  const shiftSummaryPanel = section.querySelector('[data-role="ya-shift-summary-slot"]');
   const emissionsContent = section.querySelector('[data-role="emissions-content"]');
   const configOverlay = section.querySelector('[data-role="ya-config-overlay"]');
   const configContent = section.querySelector('[data-role="ya-configuration-content"]');
@@ -4948,7 +4953,6 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     overview: () => renderOverviewPanel(
       overviewPanel,
       busModelData,
-      activeScope,
       features,
     ),
     efficiency: () => renderEfficiency(),
@@ -5003,6 +5007,10 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   };
 
   const refreshAllSections = () => {
+    renderShiftSummaryPanel(shiftSummaryPanel, features, activeScope);
+    if (activeScope?.kind === "shift" && overviewPanel) {
+      overviewPanel.replaceChildren();
+    }
     const visibility = applyScopeSectionVisibility();
     Object.entries(TAB_RENDERERS).forEach(([name, render]) => {
       if (visibility[name]) render();
