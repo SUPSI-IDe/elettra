@@ -361,7 +361,20 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(generalLevel.locator(".ya-scope-level__eyebrow")).toHaveText("General result");
   await expect(generalLevel.locator(".ya-scope-level__title")).toHaveText("Deployed configuration");
   await expect(generalLevel.locator(".ya-scope-mode")).toHaveText("Optimization mode: Joint");
-  await expect(generalLevel.locator(".ya-deployed-card")).toHaveCount(4);
+  await expect(generalLevel.locator(".ya-deployed-card")).toHaveCount(5);
+  const generalCosts = generalLevel.locator('[data-role="ya-general-costs"]');
+  await expect(generalCosts).toBeVisible();
+  await expect(generalCosts).toHaveAttribute("data-economic-scope", "general-shared");
+  await expect(generalCosts).toContainText("Shared investment costs");
+  await expect(generalCosts).toContainText("Shared charging infrastructure investment");
+  await expect(generalCosts).toContainText(/CHF 250['’,]000/);
+  await expect(generalCosts).toContainText("Not allocated");
+  const generalCostTooltip = generalCosts.getByRole("button");
+  await expect(generalCostTooltip).toHaveAccessibleName(
+    /charging infrastructure is shared by all selected shifts/i,
+  );
+  await generalCostTooltip.hover();
+  await expect(generalCostTooltip.locator(".ya-info-tooltip")).toBeVisible();
   await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
@@ -396,6 +409,26 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(page.locator('[data-panel="costs"]')).toBeVisible();
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   await expect(page.locator('[data-role="ya-cost-scope-note"]')).toBeVisible();
+  await expect(page.locator('[data-role="ya-cost-scope-note"]')).toContainText(
+    "Only operating costs attributable to this shift",
+  );
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Annual operating costs");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Annual shift OPEX comparison");
+  await expect(page.locator('[data-panel="costs"]')).not.toContainText("Projected cost trend");
+  await expect(page.locator('[data-role="ya-var-interest"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="ya-var-diesel-capex"]')).toHaveCount(0);
+  await expect(page.locator('[data-panel="costs"] .ya-chart-legend')).not.toContainText("CAPEX");
+  await expect(page.locator('[data-panel="costs"]')).not.toContainText("Bus cost");
+  await expect(page.locator('[data-panel="costs"]')).not.toContainText("Battery replacement");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Electric yearly OPEX");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Diesel yearly OPEX");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Annual operating saving");
+  const shiftCostTooltip = page.locator('[data-panel="costs"] .ya-scope-section-title').getByRole("button");
+  await expect(shiftCostTooltip).toHaveAccessibleName(
+    /includes only operating costs attributable to its energy use and distance/i,
+  );
+  await shiftCostTooltip.hover();
+  await expect(shiftCostTooltip.locator(".ya-info-tooltip")).toBeVisible();
 
   await resultViewTabs.getByText("Emissions", { exact: true }).click();
   await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
@@ -455,7 +488,7 @@ test("Download all results exports General and every shift without mixing their 
   const { download, exported } = await downloadAllResults(page);
 
   expect(download.suggestedFilename()).toMatch(/^yearly-analysis-.*\.json$/);
-  expect(exported.schemaVersion).toBe(2);
+  expect(exported.schemaVersion).toBe(3);
   expect(exported.general.configuration).toMatchObject({
     mode: "joint",
     busModel: { id: "bus-1", name: "Reference bus" },
@@ -470,6 +503,29 @@ test("Download all results exports General and every shift without mixing their 
   expect(exported.general.efficiency).toEqual(exported.efficiency);
   expect(exported.general.costs).toEqual(exported.costs);
   expect(exported.general.emissions).toEqual(exported.emissions);
+  expect(exported.general.costs).toMatchObject({
+    scope: "general",
+    operatingCosts: {
+      scope: "general_operating",
+      includesSharedCapital: false,
+      yearlyEnergy_kWh: 54750,
+      yearlyDistance_km: 36500,
+    },
+    sharedInvestments: {
+      scope: "general_shared",
+      allocation: "not_allocated_to_shifts",
+      chargingInfrastructure: {
+        shared: true,
+        investmentChf: 250000,
+      },
+      vehicleUnitReference: {
+        fleetVehicleCount: null,
+        fleetInvestmentChf: null,
+        busCostPerVehicleChf: 400000,
+        commonBatteryPacks: 12,
+      },
+    },
+  });
 
   expect(exported.shifts.map(({ shiftId }) => shiftId)).toEqual(["morning", "evening"]);
   const morning = exported.shifts[0];
@@ -490,6 +546,8 @@ test("Download all results exports General and every shift without mixing their 
       },
     },
     costs: {
+      scope: "shift_operating",
+      includesSharedCapital: false,
       yearlyEnergy_kWh: 36500,
       yearlyDistance_km: 21900,
     },
@@ -513,6 +571,8 @@ test("Download all results exports General and every shift without mixing their 
       },
     },
     costs: {
+      scope: "shift_operating",
+      includesSharedCapital: false,
       yearlyEnergy_kWh: 18250,
       yearlyDistance_km: 14600,
     },
@@ -609,7 +669,7 @@ test("an aggregate-only historical export has General and no invented shifts", a
   await mountResults(page, aggregateOnly);
 
   const { exported } = await downloadAllResults(page);
-  expect(exported.schemaVersion).toBe(2);
+  expect(exported.schemaVersion).toBe(3);
   expect(exported.general.configuration.shiftIds).toEqual([]);
   expect(exported.general.efficiency.yearlySummary).toMatchObject({
     yearlyEnergy_kWh: 36500,
@@ -668,7 +728,7 @@ test("historical single-shift results expose General and the configured shift", 
   await resultViewTabs.getByText("Costs", { exact: true }).click();
   await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
   await expect(page.locator('[data-panel="costs"]')).toBeVisible();
-  await expect(page.locator("#yearly-result-scope-content")).toContainText("Annual costs");
+  await expect(page.locator("#yearly-result-scope-content")).toContainText("Annual operating costs");
 
   await resultViewTabs.getByText("Emissions", { exact: true }).click();
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();

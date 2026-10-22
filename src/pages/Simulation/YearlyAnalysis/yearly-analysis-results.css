@@ -141,6 +141,13 @@
   line-height: 1.25;
 }
 
+.ya-scope-section-title--with-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  overflow: visible;
+}
+
 .ya-scope-context-note,
 .ya-annual-assumption {
   margin: 0;
@@ -249,6 +256,28 @@
   color: var(--text-main);
   font-size: var(--font-size-sm);
   font-weight: 650;
+}
+
+.ya-general-costs {
+  overflow: visible;
+}
+
+.ya-general-costs__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+}
+
+.ya-general-costs__header .ya-deployed-card__title {
+  margin: 0;
+}
+
+.ya-general-costs__note {
+  margin: 0 0 var(--space-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
 }
 
 .ya-deployed-card__rows,
@@ -779,6 +808,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--layout-gap);
   align-items: start;
+}
+
+.ya-costs-charts-grid--operating {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .ya-costs-opex-pair {

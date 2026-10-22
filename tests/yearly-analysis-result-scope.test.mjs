@@ -204,7 +204,7 @@ test("scope resolution falls back safely to General", () => {
   assert.equal(resolveYearlyResultScope([], "missing"), null);
 });
 
-test("General exposes only the common configuration section", () => {
+test("General exposes the common configuration and shared economic context", () => {
   assert.deepEqual(getYearlyScopeSectionVisibility({ kind: "general" }), {
     overview: true,
     efficiency: false,
@@ -357,12 +357,27 @@ test("general and per-shift annual result labels exist in every supported locale
     "yearly_analysis.common_bus_configuration",
     "yearly_analysis.battery_configuration",
     "yearly_analysis.shared_charging_infrastructure",
+    "yearly_analysis.general_shared_costs",
+    "yearly_analysis.general_cost_scope_note",
+    "yearly_analysis.general_cost_scope_tooltip",
+    "yearly_analysis.shared_infrastructure_investment",
+    "yearly_analysis.bus_unit_cost",
+    "yearly_analysis.common_battery_unit_cost",
+    "yearly_analysis.reference_unit_investment",
+    "yearly_analysis.shift_capex_allocation",
+    "yearly_analysis.not_allocated",
     "yearly_analysis.shared_charging_infrastructure_unavailable",
     "yearly_analysis.reference_charging_plan",
     "yearly_analysis.reference_charging_plan_note",
     "yearly_analysis.reference_charging_plan_unavailable",
     "yearly_analysis.scope_status_unknown",
     "yearly_analysis.shift_cost_scope_note",
+    "yearly_analysis.shift_cost_scope_tooltip",
+    "yearly_analysis.shift_annual_operating_costs",
+    "yearly_analysis.shift_annual_opex_comparison",
+    "yearly_analysis.shift_operating_cost_summary",
+    "yearly_analysis.shift_annual_operating_saving",
+    "yearly_analysis.operating_cost_per_km",
     "yearly_analysis.shift_emissions_scope_note",
     "yearly_analysis.shift_emissions_unavailable",
   ];
