@@ -3647,9 +3647,11 @@ export const buildExportPayload = (features, effState, costState, emissionsState
       emissionsState.structured?.assumptions?.auxiliary_heating_type ??
       emissionsState.emissionsMetadata?.auxiliaryHeatingType,
   );
-  const emissions = emissionsState.rawLca ?? buildYearlyEmissionsExport(emissionsState, {
-    auxiliaryHeatingType,
-  });
+  const emissions = emissionsState.status === "error"
+    ? null
+    : emissionsState.rawLca ?? buildYearlyEmissionsExport(emissionsState, {
+        auxiliaryHeatingType,
+      });
 
   if (emissions && emissionsState.isDieselHeating && emissionsState.emissionsMetadata) {
     const m = emissionsState.emissionsMetadata;
@@ -3688,6 +3690,158 @@ export const buildExportPayload = (features, effState, costState, emissionsState
   }
 
   return { header, efficiency: eff, costs, emissions };
+};
+
+const buildGeneralExportConfiguration = (features = {}, busModelData = {}) => {
+  const config = features.config ?? {};
+  const meta = features.meta ?? {};
+  const results = features.results ?? {};
+  const fixed = config.fixedConfiguration ?? {};
+  const scopes = buildYearlyResultScopes(features);
+  const shiftIds = scopes
+    .filter((scope) => scope.kind === "shift")
+    .map((scope) => scope.shiftId);
+  const minSoc = toFiniteNumber(fixed.soc?.minFraction ?? config.min_soc);
+  const maxSoc = toFiniteNumber(fixed.soc?.maxFraction ?? config.max_soc);
+
+  return {
+    mode: fixed.mode ?? config.mode ?? null,
+    busModel: {
+      id: fixed.busModelId ?? config.bus_model_id ?? null,
+      name: text(meta.busModelName ?? busModelData.name ?? busModelData.model).trim() || null,
+    },
+    shiftIds,
+    occupancyPercent: toFiniteNumber(config.occupancy_percent),
+    auxiliaryHeatingType: normalizeAuxiliaryHeatingType(config.auxiliary_heating_type),
+    sizingTemperature_C: toFiniteNumber(meta.sizingTemp),
+    socRange: minSoc !== null && maxSoc !== null
+      ? { minFraction: minSoc, maxFraction: maxSoc }
+      : null,
+    battery: fixed.battery ?? {
+      packs: toFiniteNumber(results.optimizedPacks),
+    },
+    infrastructure: fixed.infrastructure ?? null,
+    temperatureScenarios: (Array.isArray(features.scenarios) ? features.scenarios : []).map(
+      (scenario) => ({
+        id: scenario?.scenarioId ?? null,
+        label: scenario?.label ?? null,
+        temperature_C: toFiniteNumber(scenario?.temperature),
+        daysPerYear: toFiniteNumber(scenario?.occurrences),
+      }),
+    ),
+  };
+};
+
+const buildShiftExportConfiguration = (features, scope) => {
+  const fixedShift = getFixedYearlyShift(features, scope.shiftId);
+  return {
+    shiftId: scope.shiftId,
+    shiftName: scope.shiftName ?? scope.label ?? scope.shiftId,
+    battery: fixedShift?.battery ?? null,
+    operation: fixedShift?.operation ?? null,
+  };
+};
+
+/**
+ * Builds the complete downloadable annual-analysis document. The original
+ * aggregate fields remain at the top level for consumers of the pre-v2
+ * export, while `general` and `shifts` expose the result hierarchy shown in
+ * the multi-shift UI.
+ */
+export const buildCompleteYearlyExportPayload = ({
+  features = {},
+  busModelData = {},
+  analysisId = "",
+  generalCostState = { status: "idle", costsData: null },
+  generalEmissionsState = { status: "idle" },
+  costOverrides = {},
+  resultScopes = buildYearlyResultScopes(features),
+} = {}) => {
+  const aggregate = buildExportPayload(
+    features,
+    buildEfficiencyState(features),
+    generalCostState,
+    generalEmissionsState,
+    busModelData,
+    analysisId,
+  );
+  const configuration = buildGeneralExportConfiguration(features, busModelData);
+  const shiftCostOverrides = { ...costOverrides, yearlyDistanceKm: null };
+  const shifts = resultScopes
+    .filter((scope) => scope?.kind === "shift")
+    .map((scope) => {
+      const scopedFeatures = buildScopedYearlyFeatures(features, scope);
+      const scopedScenarioResults = Array.isArray(scopedFeatures.results?.scenarioResults)
+        ? scopedFeatures.results.scenarioResults
+        : [];
+      const scopedYearlyTotals = scopedFeatures.results?.yearlyTotals ?? {};
+      const hasScenarioEfficiencyData = scopedScenarioResults.some((scenario) =>
+        !scenario?.error && [
+          scenario?.kpis?.totalEnergyKwh,
+          scenario?.kpis?.drivetrainEnergyKwh,
+          scenario?.kpis?.auxiliaryEnergyKwh,
+          scenario?.kpis?.distanceKm,
+        ].some((value) => {
+          const numeric = toFiniteNumber(value);
+          return numeric !== null && numeric !== 0;
+        }));
+      const hasEfficiencyData = hasScenarioEfficiencyData || [
+        scopedYearlyTotals.totalEnergyKwh,
+        scopedYearlyTotals.drivetrainEnergyKwh,
+        scopedYearlyTotals.auxiliaryEnergyKwh,
+        scopedYearlyTotals.distanceKm,
+      ].some((value) => {
+        const numeric = toFiniteNumber(value);
+        return numeric !== null && numeric !== 0;
+      });
+      let scopedCostsData = null;
+      try {
+        scopedCostsData = computeYearlyCosts(
+          scopedFeatures,
+          busModelData,
+          shiftCostOverrides,
+        );
+      } catch {
+        scopedCostsData = null;
+      }
+      const scopedCostState = scopedCostsData
+        ? { status: "done", costsData: scopedCostsData, error: null }
+        : { status: "error", costsData: null, error: "insufficient-data" };
+      const scopedEmissionsState = buildScopedEmissionsState(
+        generalEmissionsState,
+        scope,
+      );
+      const scopedPayload = buildExportPayload(
+        scopedFeatures,
+        buildEfficiencyState(scopedFeatures),
+        scopedCostState,
+        scopedEmissionsState,
+        busModelData,
+        analysisId,
+      );
+
+      return {
+        shiftId: scope.shiftId,
+        shiftName: scope.shiftName ?? scope.label ?? scope.shiftId,
+        status: scope.status ?? scopedFeatures.results?.status ?? null,
+        configuration: buildShiftExportConfiguration(features, scope),
+        efficiency: hasEfficiencyData ? scopedPayload.efficiency : null,
+        costs: scopedPayload.costs,
+        emissions: scopedPayload.emissions,
+      };
+    });
+
+  return {
+    schemaVersion: 2,
+    ...aggregate,
+    general: {
+      configuration,
+      efficiency: aggregate.efficiency,
+      costs: aggregate.costs,
+      emissions: aggregate.emissions,
+    },
+    shifts,
+  };
 };
 
 const downloadJson = (data, filename) => {
@@ -4238,6 +4392,7 @@ const buildScopedEmissionsState = (state, scope) => {
   if (!scopedRaw) {
     return {
       ...state,
+      rawLca: null,
       status: "error",
       error: translateOr(
         "yearly_analysis.shift_emissions_unavailable",
@@ -4248,7 +4403,12 @@ const buildScopedEmissionsState = (state, scope) => {
   try {
     return { ...state, ...mapParameterizedLca(scopedRaw), rawLca: scopedRaw };
   } catch (error) {
-    return { ...state, status: "error", error: error?.message ?? String(error) };
+    return {
+      ...state,
+      rawLca: null,
+      status: "error",
+      error: error?.message ?? String(error),
+    };
   }
 };
 
@@ -4432,14 +4592,15 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       error: generalCostsError,
       status: generalCostsData ? "done" : costState.status,
     };
-    const payload = buildExportPayload(
+    const payload = buildCompleteYearlyExportPayload({
       features,
-      buildEfficiencyState(features),
-      exportCostState,
-      getGeneralDisplayedEmissionsState(),
       busModelData,
       analysisId,
-    );
+      generalCostState: exportCostState,
+      generalEmissionsState: getGeneralDisplayedEmissionsState(),
+      costOverrides,
+      resultScopes,
+    });
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     downloadJson(payload, `yearly-analysis-${timestamp}.json`);
   };

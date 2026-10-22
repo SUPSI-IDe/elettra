@@ -328,6 +328,17 @@ const mountResults = async (
   }, { source: html, analysisId: analysis.id });
 };
 
+const downloadAllResults = async (page) => {
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator('[data-action="download-json"]').click();
+  const download = await downloadPromise;
+  const downloadedPath = await download.path();
+  return {
+    download,
+    exported: JSON.parse(readFileSync(downloadedPath, "utf8")),
+  };
+};
+
 test("yearly results use General and one primary tab per shift", async ({ page }) => {
   await mountResults(page, multishiftAnalysis);
 
@@ -428,6 +439,184 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   expect(overflow.overflowX).toBe("auto");
   expect(overflow.bodyScrollWidth).toBe(overflow.bodyClientWidth);
   await expect(resultViewTablist).toHaveCSS("overflow-x", "auto");
+});
+
+test("Download all results exports General and every shift without mixing their data", async ({ page }) => {
+  await mountResults(page, multishiftAnalysis);
+
+  await page.getByRole("tab", { name: "Evening service" }).click();
+  await page.getByRole("tab", { name: "Costs" }).click();
+  const activeShiftDistance = page.locator('[data-role="ya-var-yearly-distance"]');
+  await activeShiftDistance.evaluate((element) => {
+    element.value = "30000";
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  const { download, exported } = await downloadAllResults(page);
+
+  expect(download.suggestedFilename()).toMatch(/^yearly-analysis-.*\.json$/);
+  expect(exported.schemaVersion).toBe(2);
+  expect(exported.general.configuration).toMatchObject({
+    mode: "joint",
+    busModel: { id: "bus-1", name: "Reference bus" },
+    shiftIds: ["morning", "evening"],
+    occupancyPercent: 60,
+    auxiliaryHeatingType: "heat_pump",
+    sizingTemperature_C: -5,
+    socRange: { minFraction: 0.2, maxFraction: 0.9 },
+    battery: { packs: 12, nominalKwh: 600 },
+    infrastructure: { scope: "shared", decision: "optimized" },
+  });
+  expect(exported.general.efficiency).toEqual(exported.efficiency);
+  expect(exported.general.costs).toEqual(exported.costs);
+  expect(exported.general.emissions).toEqual(exported.emissions);
+
+  expect(exported.shifts.map(({ shiftId }) => shiftId)).toEqual(["morning", "evening"]);
+  const morning = exported.shifts[0];
+  const evening = exported.shifts[1];
+  expect(morning).toMatchObject({
+    shiftName: "Morning service",
+    status: "completed",
+    configuration: {
+      shiftId: "morning",
+      shiftName: "Morning service",
+      battery: { requiredPacks: 8, commonPacks: 12 },
+      operation: { totalChargedKwh: 75 },
+    },
+    efficiency: {
+      yearlySummary: {
+        yearlyEnergy_kWh: 36500,
+        yearlySimulatedDistance_km: 21900,
+      },
+    },
+    costs: {
+      yearlyEnergy_kWh: 36500,
+      yearlyDistance_km: 21900,
+    },
+    emissions: {
+      vehicle_count: 1,
+      vehicles: [{ shift_id: "morning" }],
+    },
+  });
+  expect(evening).toMatchObject({
+    shiftName: "Evening service",
+    status: "completed",
+    configuration: {
+      shiftId: "evening",
+      shiftName: "Evening service",
+      battery: { requiredPacks: 10, commonPacks: 12 },
+    },
+    efficiency: {
+      yearlySummary: {
+        yearlyEnergy_kWh: 18250,
+        yearlySimulatedDistance_km: 14600,
+      },
+    },
+    costs: {
+      yearlyEnergy_kWh: 18250,
+      yearlyDistance_km: 14600,
+    },
+    emissions: {
+      vehicle_count: 1,
+      vehicles: [{ shift_id: "evening" }],
+    },
+  });
+  expect(morning.efficiency.scenarios).toHaveLength(1);
+  expect(morning.efficiency.scenarios[0].label).toBe("Cold morning");
+  expect(evening.efficiency.scenarios).toHaveLength(1);
+  expect(evening.efficiency.scenarios[0].label).toBe("Cold evening");
+  expect(morning.emissions.vehicles.every(({ shift_id: shiftId }) => shiftId === "morning")).toBe(true);
+  expect(evening.emissions.vehicles.every(({ shift_id: shiftId }) => shiftId === "evening")).toBe(true);
+});
+
+test("a legacy single-shift export keeps unavailable emissions isolated", async ({ page }) => {
+  const legacy = {
+    id: "legacy-export",
+    name: "Historical annual export",
+    features: {
+      config: {
+        mode: "battery_only",
+        bus_model_id: "bus-1",
+        shift_ids: ["legacy-shift"],
+        min_soc: 0.2,
+        max_soc: 0.9,
+      },
+      meta: { shiftNames: ["Legacy shift"], sizingTemp: -5 },
+      results: {
+        status: "completed",
+        optimizedPacks: 10,
+        baseFeasible: true,
+        yearlyTotals: { totalEnergyKwh: 36500, distanceKm: 21900 },
+        scenarioResults: [scenario("legacy-cold", "Historical cold", 100, 60)],
+      },
+    },
+  };
+  await mountResults(page, legacy);
+
+  const { exported } = await downloadAllResults(page);
+  expect(exported.general.configuration).toMatchObject({
+    mode: "battery_only",
+    shiftIds: ["legacy-shift"],
+    battery: { packs: 10 },
+    infrastructure: null,
+  });
+  expect(exported.shifts).toHaveLength(1);
+  expect(exported.shifts[0]).toMatchObject({
+    shiftId: "legacy-shift",
+    shiftName: "Legacy shift",
+    status: "completed",
+    configuration: {
+      shiftId: "legacy-shift",
+      battery: null,
+      operation: null,
+    },
+    efficiency: {
+      yearlySummary: {
+        yearlyEnergy_kWh: 36500,
+        yearlySimulatedDistance_km: 21900,
+      },
+    },
+    costs: {
+      yearlyEnergy_kWh: 36500,
+      yearlyDistance_km: 21900,
+    },
+    emissions: null,
+  });
+  expect(exported.shifts[0].efficiency.scenarios).toHaveLength(1);
+  expect(exported.shifts[0].efficiency.scenarios[0].label).toBe("Historical cold");
+});
+
+test("an aggregate-only historical export has General and no invented shifts", async ({ page }) => {
+  const aggregateOnly = {
+    id: "aggregate-only-export",
+    name: "Aggregate-only annual export",
+    features: {
+      config: {
+        mode: "battery_only",
+        bus_model_id: "bus-1",
+        min_soc: 0.2,
+        max_soc: 0.9,
+      },
+      meta: { shiftNames: [], sizingTemp: -5 },
+      results: {
+        status: "completed",
+        optimizedPacks: 10,
+        yearlyTotals: { totalEnergyKwh: 36500, distanceKm: 21900 },
+        scenarioResults: [scenario("aggregate-cold", "Historical cold", 100, 60)],
+      },
+    },
+  };
+  await mountResults(page, aggregateOnly);
+
+  const { exported } = await downloadAllResults(page);
+  expect(exported.schemaVersion).toBe(2);
+  expect(exported.general.configuration.shiftIds).toEqual([]);
+  expect(exported.general.efficiency.yearlySummary).toMatchObject({
+    yearlyEnergy_kWh: 36500,
+    yearlySimulatedDistance_km: 21900,
+  });
+  expect(exported.shifts).toEqual([]);
+  expect(exported.efficiency).toEqual(exported.general.efficiency);
 });
 
 test("historical single-shift results expose General and the configured shift", async ({ page }) => {
@@ -601,6 +790,19 @@ test("historical multi-shift tabs remain visible when one shift is incomplete", 
   await expect(eveningTab).toHaveAttribute("data-status", "failed");
   await eveningTab.click();
   await expect(page.locator('[data-role="ya-shift-reference"]')).toContainText("Failed");
+
+  const { exported } = await downloadAllResults(page);
+  const morning = exported.shifts.find(({ shiftId }) => shiftId === "morning");
+  const evening = exported.shifts.find(({ shiftId }) => shiftId === "evening");
+  expect(morning.status).toBe("completed");
+  expect(morning.efficiency.yearlySummary).toMatchObject({
+    yearlyEnergy_kWh: 36500,
+    yearlySimulatedDistance_km: 21900,
+  });
+  expect(morning.costs).not.toBeNull();
+  expect(evening.status).toBe("failed");
+  expect(evening.efficiency).toBeNull();
+  expect(evening.costs).toBeNull();
 });
 
 test("shift tab labels and reference locations keep backend HTML inert", async ({ page }) => {
