@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.6.0] - 2026-10-23
+
+### Added
+
+- The public guide now explains the fleet-expansion, charging-infrastructure and initial-electrification use cases, mapping each planning question to BATTERY_ONLY, CHARGING or JOINT through an accessible responsive workflow.
+- Yearly economics export the resolved assumptions, reconciled operating costs, component-level annualized capital and per-shift shared-infrastructure allocations needed to audit multi-bus results.
+
+### Changed
+
+- General yearly economics now scale bus and battery investment with the physical vehicle count while counting shared charging infrastructure once.
+- General and shift scopes use one resolved set of energy, fuel, maintenance and annualization assumptions; shift OPEX reconciles exactly with General when all shifts are combined.
+- Bus bodies, batteries, charging infrastructure and diesel buses are annualized over their respective useful lives, with aligned replacement schedules, residual values, cumulative curves and break-even calculations.
+- Shift cost views present owned vehicle capital separately from shared infrastructure allocated by annual DC-energy contribution, with clearer explanatory text and exports.
+
+### Fixed
+
+- Previous and Next buttons and the rows-per-page selector work again across paginated result lists.
+- Multi-shift JOINT yearly analyses no longer reuse single-vehicle capital totals or independent maintenance defaults that made General costs disagree with the sum of shift costs.
+
+### Verification
+
+- Added permanent unit and desktop/mobile browser regressions for multi-bus capital, shared-cost allocation, economic assumptions, OPEX reconciliation, lifecycle annualization, JSON exports, use-case documentation and pagination.
+- Verified 472 Node tests, 190 desktop/mobile browser executions and the production build.
+
 ## [0.5.0] - 2026-10-22
 
 ### Added
