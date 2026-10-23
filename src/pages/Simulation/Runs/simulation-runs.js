@@ -823,12 +823,12 @@ export const initializeSimulationRuns = async (
   const pagination = installPaginationControl(paginationContainer, {
     onPageChange: (nextSkip) => {
       skip = Math.max(0, nextSkip);
-      void loadRunsAndPopulate();
+      void loadRuns();
     },
     onPageSizeChange: (nextLimit) => {
       limit = nextLimit;
       skip = 0;
-      void loadRunsAndPopulate();
+      void loadRuns();
     },
   });
   if (pagination) {
@@ -1246,7 +1246,6 @@ export const initializeSimulationRuns = async (
       if (removedIds.size) {
         allRuns = allRuns.filter((r) => !removedIds.has(text(r?.id)));
         applyFilter();
-        populateCompareSelects();
       }
 
       if (!removedIds.size && serverFailed) {
@@ -1256,7 +1255,7 @@ export const initializeSimulationRuns = async (
             t("simulation.delete_not_supported") ||
             "These simulations could not be deleted. They remain visible."
         );
-        await loadRunsAndPopulate();
+        await loadRuns();
         return;
       }
 
@@ -1269,7 +1268,7 @@ export const initializeSimulationRuns = async (
           }) ||
             `${removedIds.size} simulation(s) removed. ${serverFailed} could not be deleted.`
         );
-        await loadRunsAndPopulate();
+        await loadRuns();
         return;
       }
 
