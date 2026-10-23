@@ -377,6 +377,7 @@ test("the annual comparison UI stays on General and exports that scope", async (
     scope: "general",
     vehicleCount: 2,
     includedInfrastructureChf: 200000,
+    infrastructureLifetimeYears: 15,
     electricVehicleAndBatteryCapexChf: 1040000,
     electricInitialCapexChf: 1240000,
     dieselVehicleCapexChf: 700000,

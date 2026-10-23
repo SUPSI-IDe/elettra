@@ -53,14 +53,11 @@ import {
   DEFAULT_BUS_LIFETIME_YEARS,
   DEFAULT_DIESEL_BUS_LIFETIME_YEARS,
   DEFAULT_BATTERY_LIFETIME_YEARS,
+  DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS,
   getEquivalentDieselBusCapexForLength,
   getBusParameterDefaults,
 } from "../../../config/economic-defaults";
-import {
-  buildDiscountedProjectedCostTrend,
-  computeEquivalentAnnualCost,
-  computeScheduleResidualValue,
-} from "../../../utils/economic-costs";
+import { buildYearlyCapitalModel } from "../../../utils/yearly-analysis-capital";
 import { classifyDieselHeatingPresentation } from "../../../adapters/yearly-analysis";
 import {
   buildYearlyDistanceSliderBounds,
@@ -1302,53 +1299,6 @@ const inferLcaSize = (busLengthM, busModelName) => {
   return null;
 };
 
-const computeReplacementYears = (busLifetimeYears, batteryLifetimeYears) => {
-  const busLifetime = toFiniteNumber(busLifetimeYears);
-  const batteryLifetime = toFiniteNumber(batteryLifetimeYears);
-  if (busLifetime == null || batteryLifetime == null || busLifetime <= 0 || batteryLifetime <= 0) return [];
-  const count = Math.floor((busLifetime - 1) / batteryLifetime);
-  return Array.from({ length: count }, (_, i) => (i + 1) * batteryLifetime);
-};
-
-const computeRecurringReplacementYears = (lifetimeYears, horizonYears) => {
-  const life = toFiniteNumber(lifetimeYears);
-  const horizon = toFiniteNumber(horizonYears);
-  if (life == null || horizon == null || life <= 0) return [];
-  const years = [];
-  let year = life;
-  while (year < horizon) { years.push(year); year += life; }
-  return years;
-};
-
-const computeBatteryReplacementYearsOverHorizon = (busLifetime, batteryLifetime, horizon) => {
-  const bLife = toFiniteNumber(busLifetime);
-  const batLife = toFiniteNumber(batteryLifetime);
-  if (bLife == null || batLife == null || batLife <= 0) return [];
-  const years = [];
-  let busStart = 0;
-  while (busStart < horizon) {
-    const busEnd = busStart + bLife;
-    let year = busStart + batLife;
-    while (year < busEnd && year < horizon) { years.push(year); year += batLife; }
-    busStart = busEnd;
-  }
-  return years;
-};
-
-const computeBreakEvenYear = (yearlyData) => {
-  if (!Array.isArray(yearlyData) || yearlyData.length < 2) return null;
-  for (let i = 1; i < yearlyData.length; i += 1) {
-    const prev = yearlyData[i - 1];
-    const curr = yearlyData[i];
-    if (prev.diesel <= prev.electric && curr.diesel >= curr.electric) {
-      const dDiff = (curr.diesel - prev.diesel) - (curr.electric - prev.electric);
-      if (Math.abs(dDiff) < 1e-6) return curr.year;
-      return prev.year + (prev.electric - prev.diesel) / dDiff;
-    }
-  }
-  return null;
-};
-
 /**
  * Compute yearly costs directly from the 8 scenario prediction results.
  * Each scenario gives per-day energy/distance at a specific temperature,
@@ -1464,71 +1414,40 @@ export const computeYearlyCosts = (
   const busCostChf = busCostInput ?? 0;
   const packCostChf = packCostInput ?? 0;
   const totalBatteryCostChf = packCostChf * (packCountInput ?? 0);
-  const electricCapexChf = busCostChf + totalBatteryCostChf;
   const dieselCapexInput = ov("dieselCapex") ?? getEquivalentDieselBusCapexForLength(busLengthM);
   const dieselCapexChf = dieselCapexInput ?? 0;
 
   const busLifetime = fn(busModelData?.bus_lifetime) ?? DEFAULT_BUS_LIFETIME_YEARS;
   const dieselBusLifetime = DEFAULT_DIESEL_BUS_LIFETIME_YEARS;
   const batteryLifetime = fn(busModelData?.battery_pack_lifetime) ?? DEFAULT_BATTERY_LIFETIME_YEARS;
-
-  const batteryReplacementYears = computeReplacementYears(busLifetime, batteryLifetime);
-  const batteryReplacementPv = batteryReplacementYears.reduce((total, year) => {
-    if (annualizationRate <= 0) return total + totalBatteryCostChf;
-    return total + totalBatteryCostChf / Math.pow(1 + annualizationRate, year);
-  }, 0);
-  const electricCapexPv = electricCapexChf + batteryReplacementPv;
-
-  const electricCapexAnnual = computeEquivalentAnnualCost(electricCapexPv, annualizationRate, busLifetime);
-  const dieselCapexAnnual = computeEquivalentAnnualCost(dieselCapexChf, annualizationRate, dieselBusLifetime);
+  const capitalModel = buildYearlyCapitalModel({
+    annualizationRate,
+    horizonYears: busLifetime,
+    electricBusCostPerVehicleChf: busCostChf,
+    batteryCostPerVehicleChf: totalBatteryCostChf,
+    dieselBusCostPerVehicleChf: dieselCapexChf,
+    busLifetimeYears: busLifetime,
+    batteryLifetimeYears: batteryLifetime,
+    infrastructureLifetimeYears:
+      DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS,
+    dieselBusLifetimeYears: dieselBusLifetime,
+    electricAnnualOpex: electricTotalOpex,
+    dieselAnnualOpex: dieselTotalOpex,
+  });
+  const electricCapexChf = capitalModel.electric.initialCostChf;
+  const electricCapexPv =
+    capitalModel.electric.initialAndReplacementPresentValueChf;
+  const electricCapexAnnual = capitalModel.electric.annualizedCostChfPerYear;
+  const dieselCapexAnnual = capitalModel.diesel.annualizedCostChfPerYear;
+  const batteryReplacementYears =
+    capitalModel.components.battery.replacementYears;
+  const batteryReplacementPv =
+    capitalModel.components.battery.replacementPresentValueChf;
 
   const electricAnnual = electricCapexAnnual + electricTotalOpex;
   const dieselAnnual = dieselCapexAnnual + dieselTotalOpex;
   const annualSaving = dieselAnnual - electricAnnual;
-
-  // Default horizon = e-bus lifespan. A full e-bus replacement would land
-  // exactly at the horizon; the exclusive `< horizon` schedule below drops it
-  // because it belongs to the next lifecycle.
-  const trendHorizon = busLifetime;
-  const electricBusReplYears = computeRecurringReplacementYears(busLifetime, trendHorizon);
-  const dieselBusReplYears = computeRecurringReplacementYears(dieselBusLifetime, trendHorizon);
-  const trendBatteryReplYears = computeBatteryReplacementYearsOverHorizon(busLifetime, batteryLifetime, trendHorizon);
-
-  // Residual value credited at the horizon for any asset still holding useful
-  // life (typically the diesel comparator replaced at year 10 for a 12-yr horizon).
-  const dieselResidualValue = computeScheduleResidualValue({
-    purchaseCost: dieselCapexChf,
-    lifetimeYears: dieselBusLifetime,
-    purchaseYears: [0, ...dieselBusReplYears],
-    horizonYears: trendHorizon,
-  });
-  const electricResidualValue =
-    computeScheduleResidualValue({
-      purchaseCost: busCostChf,
-      lifetimeYears: busLifetime,
-      purchaseYears: [0, ...electricBusReplYears],
-      horizonYears: trendHorizon,
-    }) +
-    computeScheduleResidualValue({
-      purchaseCost: totalBatteryCostChf,
-      lifetimeYears: batteryLifetime,
-      purchaseYears: [0, ...trendBatteryReplYears],
-      horizonYears: trendHorizon,
-    });
-
-  const yearly = buildDiscountedProjectedCostTrend({
-    horizonYears: trendHorizon,
-    discountRate: annualizationRate,
-    dieselBusCapexChf: dieselCapexChf,
-    dieselAnnualOpex: dieselTotalOpex,
-    dieselBusReplacementCostByYear: dieselBusReplYears.reduce((a, y) => { a[y] = dieselCapexChf; return a; }, {}),
-    dieselResidualValue,
-    electricBusCapexChf: electricCapexChf,
-    electricAnnualOpex: electricTotalOpex,
-    electricBusReplacementCostByYear: electricBusReplYears.reduce((a, y) => { a[y] = busCostChf; return a; }, {}),
-    batteryReplacementCostByYear: trendBatteryReplYears.reduce((a, y) => { a[y] = (a[y] ?? 0) + totalBatteryCostChf; return a; }, {}),
-    electricResidualValue,
-  });
+  const yearly = capitalModel.yearly;
 
   return {
     scenarioCosts,
@@ -1560,6 +1479,7 @@ export const computeYearlyCosts = (
     yearlyGridEnergyKwh: yearlyEnergyBoundary.gridKwh,
     yearlyChargingLossesKwh: yearlyEnergyBoundary.chargingLossesKwh,
     yearlyDistanceKm,
+    capitalComponents: capitalModel.components,
     electric: {
       energyOpex: electricEnergyOpex, maintOpex: electricMaintOpex,
       dieselHeatingFuelOpex,
@@ -1580,13 +1500,14 @@ export const computeYearlyCosts = (
       fuelOpex: dieselFuelOpex, maintOpex: dieselMaintOpex,
       totalOpex: dieselTotalOpex, capex: dieselCapexChf,
       capexAnnual: dieselCapexAnnual, totalAnnual: dieselAnnual,
+      busLifetime: dieselBusLifetime,
     },
     annualSaving,
     operatingActivity: operatingActivity?.dataAvailable
       ? { ...operatingActivity }
       : null,
-    breakEvenYear: computeBreakEvenYear(yearly),
-    lifecycle: yearly.lifecycle,
+    breakEvenYear: capitalModel.breakEvenYear,
+    lifecycle: capitalModel.lifecycle,
     yearly,
   };
 };
@@ -1688,69 +1609,40 @@ export const mapBackendCostsToLocal = (
   const packCostChf = packCostInput ?? 0;
   const packs = packCountInput ?? 0;
   const totalBatteryCostChf = packCostChf * packs;
-  const electricCapexUpfront = busCostChf + totalBatteryCostChf;
   const busLifetime = fn(busModelData?.bus_lifetime) ?? DEFAULT_BUS_LIFETIME_YEARS;
   const batteryLifetime = fn(busModelData?.battery_pack_lifetime) ?? DEFAULT_BATTERY_LIFETIME_YEARS;
   const dieselBusLifetime = DEFAULT_DIESEL_BUS_LIFETIME_YEARS;
-
-  const batteryReplacementYears = computeReplacementYears(busLifetime, batteryLifetime);
-  const batteryReplacementPv = batteryReplacementYears.reduce((total, year) => {
-    if (annualizationRate <= 0) return total + totalBatteryCostChf;
-    return total + totalBatteryCostChf / Math.pow(1 + annualizationRate, year);
-  }, 0);
-  const electricCapexPv = electricCapexUpfront + batteryReplacementPv;
-
-  const electricCapexAnnual = computeEquivalentAnnualCost(electricCapexPv, annualizationRate, busLifetime);
   const dieselCapexInput = ov("dieselCapex") ??
     (busLengthM != null ? getEquivalentDieselBusCapexForLength(busLengthM) : null);
   const dieselCapexChf = dieselCapexInput ?? 0;
-  const dieselCapexAnnual = computeEquivalentAnnualCost(dieselCapexChf, annualizationRate, dieselBusLifetime);
+  const capitalModel = buildYearlyCapitalModel({
+    annualizationRate,
+    horizonYears: busLifetime,
+    electricBusCostPerVehicleChf: busCostChf,
+    batteryCostPerVehicleChf: totalBatteryCostChf,
+    dieselBusCostPerVehicleChf: dieselCapexChf,
+    busLifetimeYears: busLifetime,
+    batteryLifetimeYears: batteryLifetime,
+    infrastructureLifetimeYears:
+      DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS,
+    dieselBusLifetimeYears: dieselBusLifetime,
+    electricAnnualOpex: electricTotalOpex,
+    dieselAnnualOpex: dieselTotalOpex,
+  });
+  const electricCapexUpfront = capitalModel.electric.initialCostChf;
+  const electricCapexPv =
+    capitalModel.electric.initialAndReplacementPresentValueChf;
+  const electricCapexAnnual = capitalModel.electric.annualizedCostChfPerYear;
+  const dieselCapexAnnual = capitalModel.diesel.annualizedCostChfPerYear;
+  const batteryReplacementYears =
+    capitalModel.components.battery.replacementYears;
+  const batteryReplacementPv =
+    capitalModel.components.battery.replacementPresentValueChf;
 
   const electricAnnual = electricCapexAnnual + electricTotalOpex;
   const dieselAnnual = dieselCapexAnnual + dieselTotalOpex;
   const annualSaving = dieselAnnual - electricAnnual;
-
-  /* ── Projected discounted lifecycle cost trend over the e-bus lifespan ── */
-  // Horizon = e-bus lifespan; `< horizon` schedules exclude a full e-bus
-  // replacement exactly at the horizon (it belongs to the next lifecycle).
-  const trendHorizon = busLifetime;
-  const electricBusReplYears = computeRecurringReplacementYears(busLifetime, trendHorizon);
-  const dieselBusReplYears = computeRecurringReplacementYears(dieselBusLifetime, trendHorizon);
-  const trendBatteryReplYears = computeBatteryReplacementYearsOverHorizon(busLifetime, batteryLifetime, trendHorizon);
-
-  const dieselResidualValue = computeScheduleResidualValue({
-    purchaseCost: dieselCapexChf,
-    lifetimeYears: dieselBusLifetime,
-    purchaseYears: [0, ...dieselBusReplYears],
-    horizonYears: trendHorizon,
-  });
-  const electricResidualValue =
-    computeScheduleResidualValue({
-      purchaseCost: busCostChf,
-      lifetimeYears: busLifetime,
-      purchaseYears: [0, ...electricBusReplYears],
-      horizonYears: trendHorizon,
-    }) +
-    computeScheduleResidualValue({
-      purchaseCost: totalBatteryCostChf,
-      lifetimeYears: batteryLifetime,
-      purchaseYears: [0, ...trendBatteryReplYears],
-      horizonYears: trendHorizon,
-    });
-
-  const yearly = buildDiscountedProjectedCostTrend({
-    horizonYears: trendHorizon,
-    discountRate: annualizationRate,
-    dieselBusCapexChf: dieselCapexChf,
-    dieselAnnualOpex: dieselTotalOpex,
-    dieselBusReplacementCostByYear: dieselBusReplYears.reduce((acc, y) => { acc[y] = dieselCapexChf; return acc; }, {}),
-    dieselResidualValue,
-    electricBusCapexChf: electricCapexUpfront,
-    electricAnnualOpex: electricTotalOpex,
-    electricBusReplacementCostByYear: electricBusReplYears.reduce((acc, y) => { acc[y] = busCostChf; return acc; }, {}),
-    batteryReplacementCostByYear: trendBatteryReplYears.reduce((acc, y) => { acc[y] = (acc[y] ?? 0) + totalBatteryCostChf; return acc; }, {}),
-    electricResidualValue,
-  });
+  const yearly = capitalModel.yearly;
 
   /* ── Scenarios: recalculate costs from physical quantities ──── */
   const scenarioCosts = (raw.scenarios ?? []).map((sc, i) => {
@@ -1826,6 +1718,7 @@ export const mapBackendCostsToLocal = (
     yearlyGridEnergyKwh: yearlyEnergyBoundary.gridKwh,
     yearlyChargingLossesKwh: yearlyEnergyBoundary.chargingLossesKwh,
     yearlyDistanceKm: yDistKm,
+    capitalComponents: capitalModel.components,
     electric: {
       energyOpex: electricEnergyOpex,
       maintOpex: electricMaintOpex,
@@ -1852,11 +1745,12 @@ export const mapBackendCostsToLocal = (
       capex: dieselCapexChf,
       capexAnnual: dieselCapexAnnual,
       totalAnnual: dieselAnnual,
+      busLifetime: dieselBusLifetime,
     },
     annualSaving,
     operatingActivity: resolvedOperatingActivity,
-    breakEvenYear: computeBreakEvenYear(yearly),
-    lifecycle: yearly.lifecycle,
+    breakEvenYear: capitalModel.breakEvenYear,
+    lifecycle: capitalModel.lifecycle,
     yearly,
   };
 };
@@ -3819,8 +3713,34 @@ export const buildExportPayload = (features, effState, costState, emissionsState
       batteryReplacementYears: cd.electric.batteryReplacementYears ?? [],
     });
 
+    const capitalAnnualization = cd.capitalComponents
+      ? Object.fromEntries(
+          Object.entries(cd.capitalComponents).map(([key, component]) => [
+            key,
+            {
+              initialCAPEX_CHF: round(component?.initialCostChf, 0),
+              lifetime_years: component?.lifetimeYears ?? null,
+              annualizedCAPEX_CHFPerYear: round(
+                component?.annualizedCostChfPerYear,
+                0,
+              ),
+              replacementYears: component?.replacementYears ?? [],
+              replacementPresentValue_CHF: round(
+                component?.replacementPresentValueChf,
+                0,
+              ),
+              residualValueAtHorizon_CHF: round(
+                component?.residualValueChf,
+                0,
+              ),
+            },
+          ]),
+        )
+      : null;
+
     costs = {
       assumptions,
+      capitalAnnualization,
       electric: electricBranch,
       diesel: {
         fuelOPEX_CHF: round(cd.diesel.fuelOpex, 0),
@@ -3889,6 +3809,12 @@ export const buildExportPayload = (features, effState, costState, emissionsState
         ),
         includedInfrastructureCAPEX_CHF: round(
           capitalScope.includedInfrastructureChf,
+          0,
+        ),
+        infrastructureLifetime_years:
+          capitalScope.infrastructureLifetimeYears ?? null,
+        infrastructureAnnualizedCAPEX_CHFPerYear: round(
+          capitalScope.infrastructureAnnualizedCostChfPerYear,
           0,
         ),
         vehicleAndBatteryCAPEX_CHF: round(
@@ -4107,6 +4033,7 @@ export const buildCompleteYearlyExportPayload = ({
     scope: "general",
     operatingCosts: generalOperatingCosts,
     sharedInvestments: generalSharedCosts,
+    capitalAnnualization: aggregate.costs?.capitalAnnualization ?? null,
     capitalComparison: aggregate.costs
       ? {
           capitalScope: aggregate.costs.capitalScope ?? null,
@@ -4187,6 +4114,8 @@ export const buildCompleteYearlyExportPayload = ({
           {
             infrastructureInvestmentChf:
               generalSharedCosts.chargingInfrastructure.investmentChf,
+            infrastructureLifetimeYears:
+              generalSharedCosts.chargingInfrastructure.lifetimeYears,
             vehicleScope: resolveFleetVehicleScope(features, scope.shiftId),
           },
         );
@@ -5056,6 +4985,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       {
         infrastructureInvestmentChf:
           sharedCosts.chargingInfrastructure.investmentChf,
+        infrastructureLifetimeYears:
+          sharedCosts.chargingInfrastructure.lifetimeYears,
       },
     );
   };
@@ -5074,6 +5005,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       {
         infrastructureInvestmentChf:
           sharedCosts.chargingInfrastructure.investmentChf,
+        infrastructureLifetimeYears:
+          sharedCosts.chargingInfrastructure.lifetimeYears,
         vehicleScope: resolveFleetVehicleScope(features, activeScope.shiftId),
       },
     );

@@ -1,3 +1,9 @@
+import {
+  DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS,
+  DEFAULT_DIESEL_BUS_LIFETIME_YEARS,
+} from "../config/economic-defaults.js";
+import { buildYearlyCapitalModel } from "./yearly-analysis-capital.js";
+
 const toFiniteNumber = (value) => {
   if (value === null || value === undefined || value === "" ||
       (typeof value === "string" && value.trim() === "")) {
@@ -139,119 +145,9 @@ export const resolveShiftCapitalAllocationBasis = (
   );
 };
 
-const equivalentAnnualCost = (principal, rate, lifetimeYears) => {
-  const capex = toFiniteNumber(principal);
-  const lifetime = toFiniteNumber(lifetimeYears);
-  const annualRate = toFiniteNumber(rate);
-  if (capex === null || capex <= 0 || lifetime === null || lifetime <= 0) return 0;
-  if (annualRate === null || annualRate <= 0) return capex / lifetime;
-  const growth = Math.pow(1 + annualRate, lifetime);
-  return capex * ((annualRate * growth) / (growth - 1));
-};
-
-const discountedOpexThroughYear = (annualOpex, rate, year) => {
-  const cost = toFiniteNumber(annualOpex) ?? 0;
-  const annualRate = toFiniteNumber(rate) ?? 0;
-  const horizon = Math.max(0, Math.floor(toFiniteNumber(year) ?? 0));
-  let total = 0;
-  for (let current = 1; current <= horizon; current += 1) {
-    total += cost / (annualRate > 0 ? Math.pow(1 + annualRate, current) : 1);
-  }
-  return total;
-};
-
-const scopeProjectedTrend = (costs, vehicleCount, infrastructureChf) => {
-  const yearly = Array.isArray(costs?.yearly) ? costs.yearly : [];
-  const rate = toFiniteNumber(costs?.assumptions?.annualizationRate) ?? 0;
-  const electricOpex = toFiniteNumber(costs?.electric?.totalOpex) ?? 0;
-  const dieselOpex = toFiniteNumber(costs?.diesel?.totalOpex) ?? 0;
-  const scoped = yearly.map((point) => {
-    const year = Math.max(0, Math.floor(toFiniteNumber(point?.year) ?? 0));
-    const electricOpexPv = discountedOpexThroughYear(electricOpex, rate, year);
-    const dieselOpexPv = discountedOpexThroughYear(dieselOpex, rate, year);
-    const electricCapitalPv = Math.max(
-      0,
-      (toFiniteNumber(point?.electric) ?? 0) - electricOpexPv,
-    );
-    const dieselCapitalPv = Math.max(
-      0,
-      (toFiniteNumber(point?.diesel) ?? 0) - dieselOpexPv,
-    );
-    return {
-      year,
-      electric:
-        electricCapitalPv * vehicleCount + electricOpexPv + infrastructureChf,
-      diesel: dieselCapitalPv * vehicleCount + dieselOpexPv,
-    };
-  });
-
-  const lifecycle = costs?.lifecycle ?? yearly?.lifecycle;
-  if (lifecycle && typeof lifecycle === "object") {
-    const horizon = Math.max(
-      0,
-      Math.floor(toFiniteNumber(lifecycle.horizonYears) ?? 0),
-    );
-    const electricOpexPv = discountedOpexThroughYear(electricOpex, rate, horizon);
-    const dieselOpexPv = discountedOpexThroughYear(dieselOpex, rate, horizon);
-    const grossFinalElectric =
-      Math.max(0, (toFiniteNumber(lifecycle.grossFinalElectric) ?? 0) - electricOpexPv) *
-        vehicleCount +
-      electricOpexPv +
-      infrastructureChf;
-    const grossFinalDiesel =
-      Math.max(0, (toFiniteNumber(lifecycle.grossFinalDiesel) ?? 0) - dieselOpexPv) *
-        vehicleCount +
-      dieselOpexPv;
-    const electricResidualValue =
-      (toFiniteNumber(lifecycle.electricResidualValue) ?? 0) * vehicleCount;
-    const dieselResidualValue =
-      (toFiniteNumber(lifecycle.dieselResidualValue) ?? 0) * vehicleCount;
-    const electricDiscountedResidual =
-      (toFiniteNumber(lifecycle.electricDiscountedResidual) ?? 0) * vehicleCount;
-    const dieselDiscountedResidual =
-      (toFiniteNumber(lifecycle.dieselDiscountedResidual) ?? 0) * vehicleCount;
-    const netFinalElectric = grossFinalElectric - electricDiscountedResidual;
-    const netFinalDiesel = grossFinalDiesel - dieselDiscountedResidual;
-    Object.defineProperty(scoped, "lifecycle", {
-      configurable: true,
-      enumerable: false,
-      value: {
-        horizonYears: horizon,
-        grossFinalDiesel,
-        grossFinalElectric,
-        dieselResidualValue,
-        electricResidualValue,
-        dieselDiscountedResidual,
-        electricDiscountedResidual,
-        netFinalDiesel,
-        netFinalElectric,
-        lifecycleSaving: netFinalDiesel - netFinalElectric,
-      },
-    });
-  }
-  return scoped;
-};
-
-const breakEvenYear = (yearly = []) => {
-  if (!Array.isArray(yearly) || yearly.length === 0) return null;
-  if (yearly[0].electric <= yearly[0].diesel) return yearly[0].year;
-  for (let index = 1; index < yearly.length; index += 1) {
-    const previous = yearly[index - 1];
-    const current = yearly[index];
-    if (previous.diesel <= previous.electric && current.diesel >= current.electric) {
-      const delta = (current.diesel - previous.diesel) -
-        (current.electric - previous.electric);
-      if (current.year === previous.year || Math.abs(delta) < 1e-9) {
-        return current.year;
-      }
-      return previous.year + (previous.electric - previous.diesel) / delta;
-    }
-  }
-  return null;
-};
-
 const unavailableCapital = (costs, scope, issue) => ({
   ...costs,
+  capitalComponents: null,
   electric: {
     ...costs?.electric,
     capex: null,
@@ -335,6 +231,8 @@ const applyVehicleCapitalScope = (
   costs,
   vehicleScope,
   infrastructureChf,
+  infrastructureLifetimeYears =
+    DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS,
 ) => {
   if (!costs || typeof costs !== "object") return costs;
   if (!vehicleScope?.dataAvailable) {
@@ -357,29 +255,56 @@ const applyVehicleCapitalScope = (
   }
 
   const electricUnitCapex = toFiniteNumber(costs?.electric?.capex) ?? 0;
-  const electricUnitCapexPv =
-    toFiniteNumber(costs?.electric?.capexPv) ?? electricUnitCapex;
   const dieselUnitCapex = toFiniteNumber(costs?.diesel?.capex) ?? 0;
   const infrastructure = toFiniteNumber(infrastructureChf) ?? 0;
-  const electricCapex = electricUnitCapex * vehicleCount + infrastructure;
-  const electricCapexPv = electricUnitCapexPv * vehicleCount + infrastructure;
-  const dieselCapex = dieselUnitCapex * vehicleCount;
   const rate = toFiniteNumber(costs?.assumptions?.annualizationRate) ?? 0;
-  const electricLifetime = toFiniteNumber(costs?.electric?.busLifetime);
-  const electricCapexAnnual =
-    (toFiniteNumber(costs?.electric?.capexAnnual) ?? 0) * vehicleCount +
-    equivalentAnnualCost(infrastructure, rate, electricLifetime);
-  const dieselCapexAnnual =
-    (toFiniteNumber(costs?.diesel?.capexAnnual) ?? 0) * vehicleCount;
   const electricTotalOpex = toFiniteNumber(costs?.electric?.totalOpex) ?? 0;
   const dieselTotalOpex = toFiniteNumber(costs?.diesel?.totalOpex) ?? 0;
+  const batteryUnitCost =
+    toFiniteNumber(costs?.electric?.totalBatteryCost) ?? 0;
+  const busUnitCost =
+    toFiniteNumber(costs?.electric?.busCost) ??
+    Math.max(0, electricUnitCapex - batteryUnitCost);
+  const busLifetime = toFiniteNumber(costs?.electric?.busLifetime);
+  const batteryLifetime =
+    toFiniteNumber(costs?.electric?.batteryLifetime) ?? busLifetime;
+  const dieselLifetime =
+    toFiniteNumber(costs?.diesel?.busLifetime) ??
+    DEFAULT_DIESEL_BUS_LIFETIME_YEARS;
+  const infrastructureLifetime =
+    (toFiniteNumber(infrastructureLifetimeYears) ?? 0) > 0
+      ? toFiniteNumber(infrastructureLifetimeYears)
+      : DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS;
+  const capitalModel = buildYearlyCapitalModel({
+    annualizationRate: rate,
+    horizonYears: busLifetime,
+    vehicleCount,
+    electricBusCostPerVehicleChf: busUnitCost,
+    batteryCostPerVehicleChf: batteryUnitCost,
+    sharedInfrastructureCostChf: infrastructure,
+    dieselBusCostPerVehicleChf: dieselUnitCapex,
+    busLifetimeYears: busLifetime,
+    batteryLifetimeYears: batteryLifetime,
+    infrastructureLifetimeYears: infrastructureLifetime,
+    dieselBusLifetimeYears: dieselLifetime,
+    electricAnnualOpex: electricTotalOpex,
+    dieselAnnualOpex: dieselTotalOpex,
+  });
+  const electricCapex = capitalModel.electric.initialCostChf;
+  const electricCapexPv =
+    capitalModel.electric.initialAndReplacementPresentValueChf;
+  const dieselCapex = capitalModel.diesel.initialCostChf;
+  const electricCapexAnnual =
+    capitalModel.electric.annualizedCostChfPerYear;
+  const dieselCapexAnnual = capitalModel.diesel.annualizedCostChfPerYear;
   const electricTotalAnnual = electricCapexAnnual + electricTotalOpex;
   const dieselTotalAnnual = dieselCapexAnnual + dieselTotalOpex;
-  const yearly = scopeProjectedTrend(costs, vehicleCount, infrastructure);
-  const scopedBreakEvenYear = breakEvenYear(yearly);
+  const yearly = capitalModel.yearly;
+  const scopedBreakEvenYear = capitalModel.breakEvenYear;
 
   return {
     ...costs,
+    capitalComponents: capitalModel.components,
     electric: {
       ...costs.electric,
       capex: electricCapex,
@@ -387,11 +312,13 @@ const applyVehicleCapitalScope = (
       capexAnnual: electricCapexAnnual,
       totalAnnual: electricTotalAnnual,
       vehicleCount,
-      fleetBusCost: (toFiniteNumber(costs?.electric?.busCost) ?? 0) * vehicleCount,
+      fleetBusCost: busUnitCost * vehicleCount,
       fleetBatteryCost:
-        (toFiniteNumber(costs?.electric?.totalBatteryCost) ?? 0) * vehicleCount,
+        batteryUnitCost * vehicleCount,
       batteryReplacementPv:
-        (toFiniteNumber(costs?.electric?.batteryReplacementPv) ?? 0) * vehicleCount,
+        capitalModel.components.battery.replacementPresentValueChf,
+      batteryReplacementYears:
+        capitalModel.components.battery.replacementYears,
     },
     diesel: {
       ...costs.diesel,
@@ -403,12 +330,16 @@ const applyVehicleCapitalScope = (
     annualSaving: dieselTotalAnnual - electricTotalAnnual,
     breakEvenYear: scopedBreakEvenYear,
     yearly,
-    lifecycle: yearly.lifecycle ?? null,
+    lifecycle: capitalModel.lifecycle,
     capitalScope: {
       ...vehicleScope,
       dataAvailable: true,
       infrastructureInvestmentChf: infrastructureChf,
       includedInfrastructureChf: infrastructure,
+      infrastructureLifetimeYears:
+        capitalModel.components.chargingInfrastructure.lifetimeYears,
+      infrastructureAnnualizedCostChfPerYear:
+        capitalModel.components.chargingInfrastructure.annualizedCostChfPerYear,
       electricVehicleAndBatteryCapexChf: electricUnitCapex * vehicleCount,
       electricInitialCapexChf: electricCapex,
       dieselVehicleCapexChf: dieselCapex,
@@ -421,10 +352,19 @@ const applyVehicleCapitalScope = (
 export const applyGeneralFleetCapital = (
   costs,
   vehicleScope,
-  { infrastructureInvestmentChf = null } = {},
+  {
+    infrastructureInvestmentChf = null,
+    infrastructureLifetimeYears =
+      DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS,
+  } = {},
 ) => {
   if (!vehicleScope?.dataAvailable || !positiveInteger(vehicleScope.vehicleCount)) {
-    return applyVehicleCapitalScope(costs, vehicleScope, 0);
+    return applyVehicleCapitalScope(
+      costs,
+      vehicleScope,
+      0,
+      infrastructureLifetimeYears,
+    );
   }
   const infrastructure = toFiniteNumber(infrastructureInvestmentChf);
   if (infrastructure === null) {
@@ -434,7 +374,12 @@ export const applyGeneralFleetCapital = (
       "infrastructure_investment_unavailable",
     );
   }
-  return applyVehicleCapitalScope(costs, vehicleScope, infrastructure);
+  return applyVehicleCapitalScope(
+    costs,
+    vehicleScope,
+    infrastructure,
+    infrastructureLifetimeYears,
+  );
 };
 
 /**
@@ -444,7 +389,12 @@ export const applyGeneralFleetCapital = (
 export const applyShiftCapitalAllocation = (
   costs,
   basis,
-  { infrastructureInvestmentChf = null, vehicleScope = null } = {},
+  {
+    infrastructureInvestmentChf = null,
+    infrastructureLifetimeYears =
+      DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS,
+    vehicleScope = null,
+  } = {},
 ) => {
   if (!costs || typeof costs !== "object") return costs;
   if (!vehicleScope?.dataAvailable) {
@@ -474,6 +424,7 @@ export const applyShiftCapitalAllocation = (
     costs,
     vehicleScope,
     allocatedInfrastructure,
+    infrastructureLifetimeYears,
   );
   if (scoped?.capitalScope?.dataAvailable === false) return scoped;
   const allocation = {
@@ -536,6 +487,13 @@ export const buildGeneralSharedCostContext = (features = {}, busModelData = {}) 
     ? toFiniteNumber(infrastructure?.totalInstallationCostChf) ??
       sumFinite(activeStations.map((station) => station?.installationCostChf))
     : null;
+  const storedInfrastructureLifetime = toFiniteNumber(
+    infrastructure?.lifetimeYears ?? infrastructure?.lifetime_years,
+  );
+  const infrastructureLifetimeYears =
+    storedInfrastructureLifetime !== null && storedInfrastructureLifetime > 0
+      ? storedInfrastructureLifetime
+      : DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS;
 
   const packs =
     toFiniteNumber(fixed?.battery?.packs) ??
@@ -576,6 +534,7 @@ export const buildGeneralSharedCostContext = (features = {}, busModelData = {}) 
     chargingInfrastructure: {
       shared: true,
       investmentChf: infrastructureInvestmentChf,
+      lifetimeYears: infrastructureLifetimeYears,
     },
     fleetCapital: {
       ...fleetScope,
@@ -644,6 +603,7 @@ export const buildOperatingCostExport = (costs, scope = "shift_operating") => {
         : null,
     ...(costs.capitalAllocation && typeof costs.capitalAllocation === "object"
       ? {
+          capitalAnnualization: costs.capitalAnnualization ?? null,
           capitalAllocation: costs.capitalAllocation,
           breakEvenYear: toFiniteNumber(costs.breakEvenYear),
           projectedCostTrend: Array.isArray(costs.projectedCostTrend)

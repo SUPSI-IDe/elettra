@@ -1043,6 +1043,8 @@ const loadAnalysisModel = async (id) => {
       {
         infrastructureInvestmentChf:
           sharedCosts.chargingInfrastructure.investmentChf,
+        infrastructureLifetimeYears:
+          sharedCosts.chargingInfrastructure.lifetimeYears,
       },
     );
   }

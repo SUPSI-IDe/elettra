@@ -50,6 +50,8 @@ export const DEFAULT_DIESEL_HEATING_MAINTENANCE_FACTOR = 0.10;
 export const DEFAULT_BUS_LIFETIME_YEARS = 12;
 export const DEFAULT_DIESEL_BUS_LIFETIME_YEARS = 10;
 export const DEFAULT_BATTERY_LIFETIME_YEARS = 8;
+// Matches the economic API default used for optimized charging infrastructure.
+export const DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS = 15;
 
 const normalizeBusLengthKey = (length) => {
   if (length === null || length === undefined || length === "") return null;

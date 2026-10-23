@@ -108,6 +108,7 @@ export const buildDiscountedProjectedCostTrend = ({
   electricAnnualOpex = 0,
   electricBusReplacementCostByYear = {},
   batteryReplacementCostByYear = {},
+  infrastructureReplacementCostByYear = {},
   electricResidualValue = 0,
 }) => {
   const horizon = Math.max(0, Math.floor(toFiniteNumber(horizonYears) ?? 0));
@@ -130,7 +131,8 @@ export const buildDiscountedProjectedCostTrend = ({
     const dieselReplacementCost = toFiniteNumber(dieselBusReplacementCostByYear?.[year]) ?? 0;
     const electricReplacementCost =
       (toFiniteNumber(electricBusReplacementCostByYear?.[year]) ?? 0) +
-      (toFiniteNumber(batteryReplacementCostByYear?.[year]) ?? 0);
+      (toFiniteNumber(batteryReplacementCostByYear?.[year]) ?? 0) +
+      (toFiniteNumber(infrastructureReplacementCostByYear?.[year]) ?? 0);
 
     dieselPresentValue += dieselOpex / discountFactor;
     electricPresentValue += electricOpex / discountFactor;

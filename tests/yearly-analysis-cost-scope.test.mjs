@@ -42,6 +42,7 @@ test("General keeps charging infrastructure as one shared investment with an ana
   assert.deepEqual(context.chargingInfrastructure, {
     shared: true,
     investmentChf: 250_000,
+    lifetimeYears: 15,
   });
   assert.deepEqual(context.vehicleUnitReference, {
     fleetVehicleCount: 2,
@@ -72,6 +73,7 @@ test("General sums active station investments when the stored total is absent", 
     config: {
       fixedConfiguration: {
         infrastructure: {
+          lifetime_years: 20,
           stations: [
             { status: "installed", slots: 2, installationCostChf: 200_000 },
             { status: "fixed", slots: 1, installationCostChf: 50_000 },
@@ -83,6 +85,7 @@ test("General sums active station investments when the stored total is absent", 
   });
 
   assert.equal(context.chargingInfrastructure.investmentChf, 250_000);
+  assert.equal(context.chargingInfrastructure.lifetimeYears, 20);
   assert.equal(context.vehicleUnitReference.referenceUnitInvestmentChf, null);
 });
 
@@ -289,16 +292,20 @@ const referenceCosts = () => ({
   electric: {
     totalOpex: 100,
     capex: 600,
-    capexPv: 800,
-    capexAnnual: 80,
-    totalAnnual: 180,
+    capexPv: 600,
+    capexAnnual: 60,
+    totalAnnual: 160,
+    busCost: 600,
+    totalBatteryCost: 0,
     busLifetime: 10,
+    batteryLifetime: 8,
   },
   diesel: {
     totalOpex: 200,
     capex: 300,
     capexAnnual: 30,
     totalAnnual: 230,
+    busLifetime: 10,
   },
   yearly: [
     { year: 0, electric: 600, diesel: 300 },
@@ -337,14 +344,14 @@ test("General scales complete vehicle capital and counts shared infrastructure o
   assert.equal(scoped.electric.totalOpex, 100);
   assert.equal(scoped.diesel.totalOpex, 200);
   assert.equal(scoped.electric.capex, 1_400);
-  assert.equal(scoped.electric.capexPv, 1_800);
-  assert.equal(scoped.electric.capexAnnual, 180);
-  assert.equal(scoped.electric.totalAnnual, 280);
+  assert.equal(scoped.electric.capexPv, 1_400);
+  assert.ok(Math.abs(scoped.electric.capexAnnual - 133.33333333333334) < 1e-9);
+  assert.ok(Math.abs(scoped.electric.totalAnnual - 233.33333333333334) < 1e-9);
   assert.equal(scoped.diesel.capex, 600);
   assert.equal(scoped.diesel.capexAnnual, 60);
   assert.equal(scoped.diesel.totalAnnual, 260);
-  assert.equal(scoped.annualSaving, -20);
-  assert.deepEqual(scoped.yearly, [
+  assert.ok(Math.abs(scoped.annualSaving - 26.666666666666657) < 1e-9);
+  assert.deepEqual(scoped.yearly.slice(0, 3), [
     { year: 0, electric: 1_400, diesel: 600 },
     { year: 1, electric: 1_500, diesel: 800 },
     { year: 2, electric: 1_600, diesel: 1_000 },
@@ -373,12 +380,14 @@ test("two-bus joint economics reproduce fleet, replacement and diesel totals", (
       totalBatteryCost: 60_000,
       batteryReplacementPv: unitBatteryReplacementPv,
       busLifetime: 12,
+      batteryLifetime: 8,
     },
     diesel: {
       totalOpex: 256_814.08159032854,
       capex: 500_000,
       capexAnnual: 500_000 * crf(10),
       totalAnnual: 500_000 * crf(10) + 256_814.08159032854,
+      busLifetime: 10,
     },
     yearly: [],
   };
@@ -391,11 +400,11 @@ test("two-bus joint economics reproduce fleet, replacement and diesel totals", (
   assert.equal(general.electric.capex, 2_020_000);
   assert.ok(Math.abs(general.electric.capexPv - 2_114_729.108117672) < 1e-6);
   assert.ok(Math.abs(general.electric.batteryReplacementPv - 94_729.10811767226) < 1e-6);
-  assert.ok(Math.abs(general.electric.capexAnnual - 212_450.0964118803) < 1e-6);
-  assert.ok(Math.abs(general.electric.totalAnnual - 321_696.7999063153) < 1e-6);
+  assert.ok(Math.abs(general.electric.capexAnnual - 202_964.07755469574) < 1e-6);
+  assert.ok(Math.abs(general.electric.totalAnnual - 312_210.7810491307) < 1e-6);
   assert.equal(general.diesel.capex, 1_000_000);
   assert.ok(Math.abs(general.diesel.totalAnnual - 374_044.5881954881) < 1e-6);
-  assert.ok(Math.abs(general.annualSaving - 52_347.78828917282) < 1e-6);
+  assert.ok(Math.abs(general.annualSaving - 61_833.80714635737) < 1e-6);
 
   const shift = applyShiftCapitalAllocation(costs, {
     method: "annual_dc_energy",
@@ -418,30 +427,21 @@ test("two-bus joint economics reproduce fleet, replacement and diesel totals", (
 
 test("replacement jumps and lifecycle residuals scale with vehicles, not OPEX", () => {
   const costs = referenceCosts();
-  costs.electric.batteryReplacementPv = 40;
-  costs.yearly[2].electric = 850;
-  costs.lifecycle = {
-    horizonYears: 2,
-    grossFinalElectric: 850,
-    grossFinalDiesel: 700,
-    electricResidualValue: 100,
-    dieselResidualValue: 50,
-    electricDiscountedResidual: 100,
-    dieselDiscountedResidual: 50,
-  };
+  costs.electric.busCost = 500;
+  costs.electric.totalBatteryCost = 100;
+  costs.electric.batteryLifetime = 4;
   const scoped = applyGeneralFleetCapital(
     costs,
     generalVehicleScope(2),
     { infrastructureInvestmentChf: 200 },
   );
-  assert.equal(scoped.yearly[2].electric, 1_700);
-  assert.equal(scoped.electric.batteryReplacementPv, 80);
-  assert.equal(scoped.lifecycle.grossFinalElectric, 1_700);
-  assert.equal(scoped.lifecycle.grossFinalDiesel, 1_000);
-  assert.equal(scoped.lifecycle.electricResidualValue, 200);
-  assert.equal(scoped.lifecycle.dieselResidualValue, 100);
-  assert.equal(scoped.lifecycle.netFinalElectric, 1_500);
-  assert.equal(scoped.lifecycle.netFinalDiesel, 900);
+  const yearFour = scoped.yearly.filter((point) => point.year === 4);
+  assert.equal(yearFour.length, 2);
+  assert.equal(yearFour[1].electric - yearFour[0].electric, 200);
+  assert.equal(scoped.electric.batteryReplacementPv, 400);
+  assert.ok(Math.abs(scoped.lifecycle.electricResidualValue - 166.66666666666666) < 1e-9);
+  assert.equal(scoped.lifecycle.dieselResidualValue, 0);
+  assert.equal(scoped.yearly[1].electric - scoped.yearly[0].electric, 100);
 });
 
 test("break-even is recomputed after vehicle and infrastructure scoping", () => {
@@ -479,18 +479,18 @@ test("shift costs keep owned vehicles whole and allocate only infrastructure", (
   assert.equal(allocated.electric.totalOpex, 100);
   assert.equal(allocated.diesel.totalOpex, 200);
   assert.equal(allocated.electric.capex, 650);
-  assert.equal(allocated.electric.capexPv, 850);
-  assert.equal(allocated.electric.capexAnnual, 85);
+  assert.equal(allocated.electric.capexPv, 650);
+  assert.ok(Math.abs(allocated.electric.capexAnnual - 63.333333333333336) < 1e-9);
   assert.equal(allocated.diesel.capex, 300);
   assert.equal(allocated.capitalAllocation.electric.allocatedInfrastructureCapexChf, 50);
   assert.equal(allocated.capitalAllocation.electric.ownedVehicleAndBatteryCapexChf, 600);
   assert.equal(allocated.capitalAllocation.diesel.ownedVehicleCapexChf, 300);
-  assert.deepEqual(allocated.yearly, [
+  assert.deepEqual(allocated.yearly.slice(0, 3), [
     { year: 0, electric: 650, diesel: 300 },
     { year: 1, electric: 750, diesel: 500 },
     { year: 2, electric: 850, diesel: 700 },
   ]);
-  assert.equal(allocated.breakEvenYear, null);
+  assert.equal(allocated.breakEvenYear, 3.5);
 });
 
 test("complete shift CAPEX reconciles exactly to General", () => {

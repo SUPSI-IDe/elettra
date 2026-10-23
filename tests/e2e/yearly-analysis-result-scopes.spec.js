@@ -920,6 +920,20 @@ test("General, shifts, controls and export share one set of yearly economic assu
     shiftCount: 2,
     issue: null,
   });
+  expect(initial.general.costs.capitalAnnualization).toMatchObject({
+    electricBus: { lifetime_years: 12 },
+    battery: { lifetime_years: 8, replacementYears: [8] },
+    chargingInfrastructure: { lifetime_years: 15 },
+    dieselBus: { lifetime_years: 10, replacementYears: [10] },
+  });
+  for (const shift of initial.shifts) {
+    expect(shift.costs.capitalAnnualization).toMatchObject({
+      electricBus: { lifetime_years: 12 },
+      battery: { lifetime_years: 8, replacementYears: [8] },
+      chargingInfrastructure: { lifetime_years: 15 },
+      dieselBus: { lifetime_years: 10, replacementYears: [10] },
+    });
+  }
   expect(
     initial.general.costs.operatingReconciliation.metrics
       .dieselHeatingFuelOpexChf.general,
@@ -1027,7 +1041,7 @@ for (const mode of ["joint", "charging_only", "battery_only"]) {
   });
 }
 
-test("the two-shift TPL JOINT case reproduces its reconciled annual OPEX", async ({ page }) => {
+test("the two-shift TPL JOINT case reconciles OPEX and component CAPEX", async ({ page }) => {
   await page.goto("./");
   const values = await page.evaluate(async () => {
     const resultsModule = await import(
@@ -1099,6 +1113,7 @@ test("the two-shift TPL JOINT case reproduces its reconciled annual OPEX", async
       operatingSaving: general.diesel.totalOpex - general.electric.totalOpex,
       totalAnnualSaving: general.annualSaving,
       breakEvenYear: general.breakEvenYear,
+      capitalComponents: general.capitalComponents,
       reconciliation: operatingModule.reconcileYearlyOperatingCosts(
         general,
         shiftCosts,
@@ -1109,7 +1124,16 @@ test("the two-shift TPL JOINT case reproduces its reconciled annual OPEX", async
   expect(Math.round(values.electricOpex)).toBe(128734);
   expect(Math.round(values.dieselOpex)).toBe(248371);
   expect(Math.round(values.operatingSaving)).toBe(119637);
-  expect(Math.round(values.totalAnnualSaving)).toBe(24418);
+  expect(Math.round(values.totalAnnualSaving)).toBe(33904);
+  expect(values.capitalComponents.electricBus.lifetimeYears).toBe(12);
+  expect(values.capitalComponents.battery.lifetimeYears).toBe(8);
+  expect(values.capitalComponents.chargingInfrastructure.lifetimeYears).toBe(15);
+  expect(values.capitalComponents.dieselBus.lifetimeYears).toBe(10);
+  expect(Math.round(
+    values.capitalComponents.electricBus.annualizedCostChfPerYear +
+      values.capitalComponents.battery.annualizedCostChfPerYear +
+      values.capitalComponents.chargingInfrastructure.annualizedCostChfPerYear,
+  )).toBe(202964);
   expect(values.breakEvenYear).toBeGreaterThanOrEqual(9.9);
   expect(values.breakEvenYear).toBeLessThanOrEqual(10.2);
   expect(values.reconciliation.status).toBe("consistent");
