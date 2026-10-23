@@ -420,18 +420,68 @@ test("yearly results use General and one primary tab per shift", async ({ page }
     fleetVehicleCount: 2,
     fleetInvestmentChf: 1_040_000,
   });
+  expect(exported.general.costs.sharedInvestments.fleetCapital).toMatchObject({
+    vehicleCount: 2,
+    busInvestmentChf: 800_000,
+    batteryInvestmentChf: 240_000,
+    vehicleAndBatteryInvestmentChf: 1_040_000,
+    totalInitialInvestmentChf: 1_290_000,
+  });
+  expect(exported.general.costs.capitalComparison.capitalScope).toMatchObject({
+    scope: "general",
+    vehicleCount: 2,
+    infrastructureInvestmentCAPEX_CHF: 250_000,
+    vehicleAndBatteryCAPEX_CHF: 1_040_000,
+    initialElectricCAPEX_CHF: 1_290_000,
+    dieselVehicleCAPEX_CHF: 700_000,
+  });
+  expect(exported.general.costs.capitalComparison.electric.initialCAPEX_CHF).toBe(1_290_000);
+  expect(exported.general.costs.capitalComparison.diesel.initialCAPEX_CHF).toBe(700_000);
+  expect(exported.shifts[0].costs.capitalScope).toMatchObject({
+    scope: "shift",
+    shiftId: "morning",
+    vehicleCount: 1,
+    includedInfrastructureCAPEX_CHF: 166_667,
+    vehicleAndBatteryCAPEX_CHF: 520_000,
+    initialElectricCAPEX_CHF: 686_667,
+    dieselVehicleCAPEX_CHF: 350_000,
+  });
+  expect(exported.shifts[0].costs.capitalAllocation).toMatchObject({
+    method: "annual_dc_energy",
+    source: "emissions",
+    shiftId: "morning",
+    vehicleCount: 1,
+    share_pct: 66.667,
+    electric: {
+      ownedVehicleAndBatteryCAPEX_CHF: 520_000,
+      allocatedInfrastructureCAPEX_CHF: 166_667,
+      allocatedInitialCAPEX_CHF: 686_667,
+    },
+    diesel: {
+      ownedVehicleCAPEX_CHF: 350_000,
+      allocatedInitialCAPEX_CHF: 350_000,
+    },
+  });
   expect(exported.shifts.map(({ shiftId }) => shiftId)).toEqual(["morning", "evening"]);
   await expect(generalLevel.locator(".ya-deployed-card")).toHaveCount(5);
   const generalCosts = generalLevel.locator('[data-role="ya-general-costs"]');
   await expect(generalCosts).toBeVisible();
   await expect(generalCosts).toHaveAttribute("data-economic-scope", "general-shared");
-  await expect(generalCosts).toContainText("Shared investment costs");
+  await expect(generalCosts).toContainText("Fleet and shared investment costs");
+  await expect(generalLevel).toContainText("Fleet vehicles");
+  await expect(generalLevel).toContainText("2");
+  await expect(generalCosts).toContainText("Fleet bus investment");
+  await expect(generalCosts).toContainText(/CHF 800['’,]000/);
+  await expect(generalCosts).toContainText("Fleet battery investment");
+  await expect(generalCosts).toContainText(/CHF 240['’,]000/);
   await expect(generalCosts).toContainText("Shared charging infrastructure investment");
   await expect(generalCosts).toContainText(/CHF 250['’,]000/);
-  await expect(generalCosts).toContainText("Allocated by annual DC energy");
+  await expect(generalCosts).toContainText("Total initial fleet investment");
+  await expect(generalCosts).toContainText(/CHF 1['’,]290['’,]000/);
+  await expect(generalCosts).toContainText("Only infrastructure, by annual DC energy");
   const generalCostTooltip = generalCosts.getByRole("button");
   await expect(generalCostTooltip).toHaveAccessibleName(
-    /charging infrastructure, vehicle and battery investments are counted once/i,
+    /bus and battery capex is multiplied by the physical vehicle count/i,
   );
   await generalCostTooltip.hover();
   await expect(generalCostTooltip.locator(".ya-info-tooltip")).toBeVisible();
@@ -575,19 +625,27 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   );
   await expect(page.locator('[data-panel="costs"]')).toContainText("Shift costs");
   await expect(page.locator('[data-panel="costs"]')).toContainText("Annual shift OPEX comparison");
-  await expect(page.locator('[data-panel="costs"]')).toContainText("Allocated shared CAPEX");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Shift CAPEX");
   await expect(page.locator('[data-panel="costs"]')).toContainText("Cumulative cost and break-even");
   const capexAllocation = page.locator('[data-role="ya-costs-capex-section"]');
   await expect(capexAllocation).toHaveAttribute("data-allocation-method", "annual_dc_energy");
-  await expect(capexAllocation).toContainText("66.7%");
+  await expect(capexAllocation).toContainText("Vehicles in this shift");
+  await expect(capexAllocation).toContainText("Owned bus + battery CAPEX");
+  await expect(capexAllocation).toContainText(/CHF 520['’,]000/);
+  await expect(capexAllocation).toContainText("Allocated infrastructure CAPEX");
+  await expect(capexAllocation).toContainText(/CHF 166['’,]667/);
+  await expect(capexAllocation).toContainText("Total e-bus CAPEX");
   await expect(capexAllocation).toContainText(/CHF 686['’,]667/);
+  await expect(capexAllocation).toContainText("Diesel comparator CAPEX");
   await expect(capexAllocation).toContainText(/CHF 350['’,]000/);
+  await expect(capexAllocation).toContainText("66.7% to this shift");
   await expect(capexAllocation).toContainText("shown in Emissions");
+  await expect(capexAllocation).toContainText("Bus and battery CAPEX belongs in full");
   await expect(capexAllocation.locator(".ya-costs-kpi-card")).toHaveCount(0);
   await expect(capexAllocation.locator(".ya-compact-metrics__table thead tr")).toHaveCount(1);
-  await expect(capexAllocation.locator(".ya-compact-metrics__table thead th")).toHaveCount(5);
+  await expect(capexAllocation.locator(".ya-compact-metrics__table thead th")).toHaveCount(6);
   await expect(capexAllocation.locator(".ya-compact-metrics__table tbody tr")).toHaveCount(1);
-  await expect(capexAllocation.locator(".ya-compact-metrics__table tbody td")).toHaveCount(5);
+  await expect(capexAllocation.locator(".ya-compact-metrics__table tbody td")).toHaveCount(6);
   await expect(page.locator('[data-role="ya-costs-line-chart"] svg')).toBeVisible();
   await expect(page.locator('[data-role="ya-var-interest"]')).toHaveCount(0);
   await expect(page.locator('[data-role="ya-var-diesel-capex"]')).toHaveCount(0);
@@ -735,6 +793,60 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   });
   expect(mobileActivityLayout.separated).toBe(true);
   expect(mobileActivityLayout.bodyScrollWidth).toBe(mobileActivityLayout.bodyClientWidth);
+});
+
+test("fleet and shift CAPEX expose multiple physical vehicles without reallocating them", async ({ page }) => {
+  const analysis = structuredClone(multishiftAnalysis);
+  analysis.id = "multi-vehicle-shift";
+  analysis.features.config.fixedConfiguration.fleet.vehicleCount = 3;
+  analysis.features.config.fixedConfiguration.fleet.vehicleCountByShift = {
+    morning: 2,
+    evening: 1,
+  };
+
+  await mountResults(page, analysis);
+
+  const generalLevel = page.locator('[data-role="ya-deployed-configuration"]');
+  const generalCosts = generalLevel.locator('[data-role="ya-general-costs"]');
+  await expect(generalLevel).toContainText("Fleet vehicles");
+  await expect(generalCosts).toContainText(/CHF 1['’,]200['’,]000/);
+  await expect(generalCosts).toContainText(/CHF 360['’,]000/);
+  await expect(generalCosts).toContainText(/CHF 1['’,]810['’,]000/);
+
+  const { exported } = await downloadAllResults(page);
+  expect(exported.general.costs.capitalComparison.capitalScope).toMatchObject({
+    vehicleCount: 3,
+    vehicleAndBatteryCAPEX_CHF: 1_560_000,
+    initialElectricCAPEX_CHF: 1_810_000,
+    dieselVehicleCAPEX_CHF: 1_050_000,
+  });
+  expect(exported.shifts[0].costs.capitalAllocation).toMatchObject({
+    vehicleCount: 2,
+    electric: {
+      ownedVehicleAndBatteryCAPEX_CHF: 1_040_000,
+      allocatedInfrastructureCAPEX_CHF: 166_667,
+      allocatedInitialCAPEX_CHF: 1_206_667,
+    },
+    diesel: {
+      ownedVehicleCAPEX_CHF: 700_000,
+      allocatedInitialCAPEX_CHF: 700_000,
+    },
+  });
+
+  await page
+    .locator('[data-role="ya-result-scope-tabs"]')
+    .getByRole("tab", { name: "Morning service" })
+    .click();
+  await page
+    .locator('[data-role="ya-result-view-tabs"]')
+    .getByRole("tab", { name: "Costs" })
+    .click();
+  const capex = page.locator('[data-role="ya-costs-capex-section"]');
+  await expect(capex.locator('tbody [data-metric="vehicles"]')).toHaveText("2");
+  await expect(capex).toContainText(/CHF 1['’,]040['’,]000/);
+  await expect(capex).toContainText(/CHF 166['’,]667/);
+  await expect(capex).toContainText(/CHF 1['’,]206['’,]667/);
+  await expect(capex).toContainText(/CHF 700['’,]000/);
 });
 
 test("annual-distance sensitivity remains isolated to the selected shift", async ({ page }) => {

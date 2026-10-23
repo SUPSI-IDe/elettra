@@ -742,7 +742,7 @@
 }
 
 .ya-capex-allocation-section .ya-res-section-title { font-size: var(--font-size-md); }
-.ya-capex-allocation-summary .ya-compact-metrics__table { min-width: 58rem; }
+.ya-capex-allocation-summary .ya-compact-metrics__table { min-width: 66rem; }
 .ya-capex-allocation-section .ya-status-msg { padding: var(--space-sm); font-size: var(--font-size-sm); }
 
 .ya-capex-allocation-note {

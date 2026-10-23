@@ -1838,7 +1838,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
     content.innerHTML = `<p class="ya-status-msg">${textContent(
       translateOr(
         "yearly_analysis.shift_capex_allocation_unavailable",
-        "Allocated CAPEX is unavailable because a complete annual energy or distance basis could not be resolved.",
+        "Shift CAPEX is unavailable because the vehicle count, investment inputs, or a complete annual allocation basis could not be resolved.",
       ),
     )}</p>`;
     return;
@@ -1854,45 +1854,47 @@ const renderShiftCapitalAllocation = (section, cd) => {
     : t("yearly_analysis.year_short_value", {
         year: formatFixed(allocation.breakEvenYear, 1),
       });
-  const infrastructure = allocation.electric?.allocatedInfrastructureCapexChf;
-  const infrastructureText = infrastructure == null
-    ? translateOr(
-        "yearly_analysis.allocated_infrastructure_unavailable",
-        "Charging infrastructure investment is unavailable and is not included in the allocated e-bus CAPEX.",
-      )
-    : t("yearly_analysis.allocated_infrastructure_detail", {
-        value: formatCHF(Math.round(infrastructure)),
-      });
   const basisNote = usesEnergy
     ? translateOr(
         "yearly_analysis.annual_dc_energy_allocation_note",
-        "The percentage is this shift's share of the annual DC energy shown in Emissions. Shared assets are purchased once; this is an analytical attribution for the shift comparison.",
+        "Only the shared charging infrastructure is allocated: {share}% to this shift from {basis} of annual DC energy shown in Emissions. Bus and battery CAPEX belongs in full to the vehicles assigned to this shift.",
+        {
+          share: formatFixed(allocation.share * 100, 1),
+          basis: basisValue,
+        },
       )
     : translateOr(
         "yearly_analysis.annual_distance_allocation_note",
-        "Annual DC energy was unavailable, so the percentage uses annual distance as a fallback. Shared assets are still purchased only once.",
+        "Only the shared charging infrastructure is allocated: {share}% to this shift from {basis} of annual distance because complete DC energy was unavailable. Bus and battery CAPEX belongs in full to the vehicles assigned to this shift.",
+        {
+          share: formatFixed(allocation.share * 100, 1),
+          basis: basisValue,
+        },
       );
   const metrics = [
     {
-      key: "basis",
-      label: usesEnergy
-        ? translateOr("yearly_analysis.annual_dc_energy_basis", "Annual DC energy basis")
-        : translateOr("yearly_analysis.annual_distance_basis", "Annual distance fallback"),
-      value: basisValue,
+      key: "vehicles",
+      label: translateOr("yearly_analysis.shift_vehicle_count", "Vehicles in this shift"),
+      value: formatFixed(allocation.vehicleCount, 0),
     },
     {
-      key: "share",
-      label: translateOr("yearly_analysis.capex_allocation_share", "CAPEX allocation share"),
-      value: `${formatFixed(allocation.share * 100, 1)}%`,
+      key: "owned-vehicle-battery",
+      label: translateOr("yearly_analysis.owned_vehicle_battery_capex", "Owned bus + battery CAPEX"),
+      value: `CHF ${formatCHF(Math.round(allocation.electric?.ownedVehicleAndBatteryCapexChf ?? 0))}`,
+    },
+    {
+      key: "infrastructure",
+      label: translateOr("yearly_analysis.allocated_infrastructure_capex", "Allocated infrastructure CAPEX"),
+      value: `CHF ${formatCHF(Math.round(allocation.electric?.allocatedInfrastructureCapexChf ?? 0))}`,
     },
     {
       key: "ebus",
-      label: translateOr("yearly_analysis.allocated_ebus_capex", "Allocated e-bus CAPEX"),
+      label: translateOr("yearly_analysis.total_ebus_capex", "Total e-bus CAPEX"),
       value: `CHF ${formatCHF(Math.round(allocation.electric?.allocatedInitialCapexChf ?? 0))}`,
     },
     {
       key: "diesel",
-      label: translateOr("yearly_analysis.allocated_diesel_capex", "Allocated diesel CAPEX"),
+      label: translateOr("yearly_analysis.shift_diesel_capex", "Diesel comparator CAPEX"),
       value: `CHF ${formatCHF(Math.round(allocation.diesel?.allocatedInitialCapexChf ?? 0))}`,
     },
     {
@@ -1905,13 +1907,13 @@ const renderShiftCapitalAllocation = (section, cd) => {
   content.innerHTML = `
     <div class="ya-compact-metrics ya-capex-allocation-summary">
       <table class="ya-compact-metrics__table" aria-label="${textContent(
-        translateOr("yearly_analysis.allocated_capex_title", "Allocated shared CAPEX"),
+        translateOr("yearly_analysis.allocated_capex_title", "Shift CAPEX"),
       )}">
         <thead><tr>${metrics.map((metric) => `<th scope="col" data-metric="${metric.key}">${textContent(metric.label)}</th>`).join("")}</tr></thead>
         <tbody><tr>${metrics.map((metric) => `<td data-metric="${metric.key}">${textContent(metric.value)}</td>`).join("")}</tr></tbody>
       </table>
     </div>
-    <p class="ya-capex-allocation-note">${textContent(basisNote)} ${textContent(infrastructureText)}</p>`;
+    <p class="ya-capex-allocation-note">${textContent(basisNote)}</p>`;
 };
 
 /* The shared tooltip is `display: none` until hovered, so its text is not in
@@ -3803,6 +3805,38 @@ export const buildExportPayload = (features, effState, costState, emissionsState
         diesel_CHF: round(pt.diesel, 0),
       })) ?? [],
     };
+    if (cd.capitalScope) {
+      const capitalScope = cd.capitalScope;
+      costs.capitalScope = {
+        scope: capitalScope.scope ?? null,
+        dataAvailable: capitalScope.dataAvailable !== false,
+        source: capitalScope.source ?? null,
+        shiftId: capitalScope.shiftId ?? null,
+        vehicleCount: capitalScope.vehicleCount ?? null,
+        fleetVehicleCount: capitalScope.fleetVehicleCount ?? null,
+        issue: capitalScope.issue ?? null,
+        infrastructureInvestmentCAPEX_CHF: round(
+          capitalScope.infrastructureInvestmentChf,
+          0,
+        ),
+        includedInfrastructureCAPEX_CHF: round(
+          capitalScope.includedInfrastructureChf,
+          0,
+        ),
+        vehicleAndBatteryCAPEX_CHF: round(
+          capitalScope.electricVehicleAndBatteryCapexChf,
+          0,
+        ),
+        initialElectricCAPEX_CHF: round(
+          capitalScope.electricInitialCapexChf,
+          0,
+        ),
+        dieselVehicleCAPEX_CHF: round(
+          capitalScope.dieselVehicleCapexChf,
+          0,
+        ),
+      };
+    }
     if (cd.capitalAllocation) {
       const allocation = cd.capitalAllocation;
       costs.capitalAllocation = {
@@ -3816,6 +3850,7 @@ export const buildExportPayload = (features, effState, costState, emissionsState
         shiftAnnualDistance_km: round(allocation.shiftAnnualDistanceKm, 1),
         totalAnnualDistance_km: round(allocation.totalAnnualDistanceKm, 1),
         infrastructureIncluded: allocation.infrastructureIncluded,
+        vehicleCount: allocation.vehicleCount ?? null,
         electric: {
           referenceVehicleAndBatteryCAPEX_CHF: round(
             allocation.electric?.referenceVehicleAndBatteryCapexChf,
@@ -3827,6 +3862,10 @@ export const buildExportPayload = (features, effState, costState, emissionsState
           ),
           allocatedVehicleAndBatteryCAPEX_CHF: round(
             allocation.electric?.allocatedVehicleAndBatteryCapexChf,
+            0,
+          ),
+          ownedVehicleAndBatteryCAPEX_CHF: round(
+            allocation.electric?.ownedVehicleAndBatteryCapexChf,
             0,
           ),
           allocatedInfrastructureCAPEX_CHF: round(
@@ -3848,6 +3887,10 @@ export const buildExportPayload = (features, effState, costState, emissionsState
         },
         diesel: {
           referenceCAPEX_CHF: round(allocation.diesel?.referenceCapexChf, 0),
+          ownedVehicleCAPEX_CHF: round(
+            allocation.diesel?.ownedVehicleCapexChf,
+            0,
+          ),
           allocatedInitialCAPEX_CHF: round(
             allocation.diesel?.allocatedInitialCapexChf,
             0,
@@ -3995,6 +4038,28 @@ export const buildCompleteYearlyExportPayload = ({
     scope: "general",
     operatingCosts: generalOperatingCosts,
     sharedInvestments: generalSharedCosts,
+    capitalComparison: aggregate.costs
+      ? {
+          capitalScope: aggregate.costs.capitalScope ?? null,
+          electric: {
+            initialCAPEX_CHF: aggregate.costs.electric?.CAPEX_CHF ?? null,
+            CAPEXWithReplacements_CHF:
+              aggregate.costs.electric?.CAPEXwithReplacements_CHF ?? null,
+            annualizedCAPEX_CHF:
+              aggregate.costs.electric?.annualizedCAPEX_CHF ?? null,
+            totalAnnual_CHF: aggregate.costs.electric?.totalAnnual_CHF ?? null,
+          },
+          diesel: {
+            initialCAPEX_CHF: aggregate.costs.diesel?.CAPEX_CHF ?? null,
+            annualizedCAPEX_CHF:
+              aggregate.costs.diesel?.annualizedCAPEX_CHF ?? null,
+            totalAnnual_CHF: aggregate.costs.diesel?.totalAnnual_CHF ?? null,
+          },
+          annualSaving_CHF: aggregate.costs.annualSaving_CHF ?? null,
+          breakEvenYear: aggregate.costs.breakEvenYear ?? null,
+          projectedCostTrend: aggregate.costs.projectedCostTrend ?? [],
+        }
+      : null,
   };
   const shiftCostOverrides = { ...costOverrides, yearlyDistanceKm: null };
   const shifts = resultScopes
@@ -4221,7 +4286,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
       toFiniteNumber(station?.installationCostChf),
     );
   const sharedCostContext = buildGeneralSharedCostContext(features, busModelData);
-  const unitCosts = sharedCostContext.vehicleUnitReference;
+  const fleetCapital = sharedCostContext.fleetCapital;
   const busName =
     text(features?.meta?.busModelName).trim() ||
     text(busModelData?.name).trim() ||
@@ -4260,6 +4325,12 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
     {
       label: translateOr("yearly_analysis.covered_shifts", "Covered shifts"),
       value: shiftNames.length ? String(shiftNames.length) : "—",
+    },
+    {
+      label: translateOr("yearly_analysis.fleet_vehicle_count", "Fleet vehicles"),
+      value: fleetCapital.vehicleCount != null
+        ? formatFixed(fleetCapital.vehicleCount, 0)
+        : "—",
     },
     {
       label: t("yearly_analysis.col_shifts"),
@@ -4310,6 +4381,21 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
   const sharedCostRows = [
     {
       label: translateOr(
+        "yearly_analysis.fleet_bus_investment",
+        "Fleet bus investment",
+      ),
+      value: fleetCapital.busInvestmentChf != null
+        ? `CHF ${formatCHF(fleetCapital.busInvestmentChf)}`
+        : "—",
+    },
+    {
+      label: translateOr("yearly_analysis.fleet_battery_investment", "Fleet battery investment"),
+      value: fleetCapital.batteryInvestmentChf != null
+        ? `CHF ${formatCHF(fleetCapital.batteryInvestmentChf)}`
+        : "—",
+    },
+    {
+      label: translateOr(
         "yearly_analysis.shared_infrastructure_investment",
         "Shared charging infrastructure investment",
       ),
@@ -4318,28 +4404,16 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
         : "—",
     },
     {
-      label: translateOr("yearly_analysis.bus_unit_cost", "Bus cost per vehicle"),
-      value: unitCosts.busCostPerVehicleChf != null
-        ? `CHF ${formatCHF(unitCosts.busCostPerVehicleChf)}`
-        : "—",
-    },
-    {
-      label: translateOr("yearly_analysis.common_battery_unit_cost", "Common battery cost per vehicle"),
-      value: unitCosts.batteryCostPerBusChf != null
-        ? `CHF ${formatCHF(unitCosts.batteryCostPerBusChf)}`
-        : "—",
-    },
-    {
-      label: translateOr("yearly_analysis.reference_unit_investment", "Reference investment per vehicle"),
-      value: unitCosts.referenceUnitInvestmentChf != null
-        ? `CHF ${formatCHF(unitCosts.referenceUnitInvestmentChf)}`
+      label: translateOr("yearly_analysis.total_initial_fleet_investment", "Total initial fleet investment"),
+      value: fleetCapital.totalInitialInvestmentChf != null
+        ? `CHF ${formatCHF(fleetCapital.totalInitialInvestmentChf)}`
         : "—",
     },
     {
       label: translateOr("yearly_analysis.shift_capex_allocation", "Allocation to shifts"),
       value: translateOr(
         "yearly_analysis.allocated_by_annual_dc_energy",
-        "Allocated by annual DC energy",
+        "Only infrastructure, by annual DC energy",
       ),
     },
   ];
@@ -4440,16 +4514,16 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
     <article class="ya-general-costs ya-deployed-card" data-role="ya-general-costs" data-economic-scope="general-shared">
       <div class="ya-general-costs__header">
         <h3 class="ya-deployed-card__title">${textContent(
-          translateOr("yearly_analysis.general_shared_costs", "Shared investment costs"),
+          translateOr("yearly_analysis.general_shared_costs", "Fleet and shared investment costs"),
         )}</h3>
         ${infoTip(translateOr(
           "yearly_analysis.general_cost_scope_tooltip",
-          "The charging infrastructure is shared by all selected shifts and is counted once here. Bus and battery amounts are unit references only: no fleet total is inferred because one physical bus may operate more than one shift.",
+          "Bus and battery CAPEX is multiplied by the physical vehicle count inherited from the feasibility result. Charging infrastructure is counted once for the fleet; only its cost is allocated to shifts by annual DC energy.",
         ))}
       </div>
       <p class="ya-general-costs__note">${textContent(translateOr(
         "yearly_analysis.general_cost_scope_note",
-        "Shared infrastructure is not allocated to individual shifts. Vehicle and battery values do not represent a fleet total.",
+        "The fleet total includes every simulated physical vehicle with its common battery. The charging infrastructure is a single shared investment and is the only CAPEX allocated between shifts.",
       ))}</p>
       ${definitionRowsHtml(sharedCostRows)}
     </article>

@@ -360,6 +360,10 @@ test("general and per-shift annual result labels exist in every supported locale
     "yearly_analysis.general_shared_costs",
     "yearly_analysis.general_cost_scope_note",
     "yearly_analysis.general_cost_scope_tooltip",
+    "yearly_analysis.fleet_vehicle_count",
+    "yearly_analysis.fleet_bus_investment",
+    "yearly_analysis.fleet_battery_investment",
+    "yearly_analysis.total_initial_fleet_investment",
     "yearly_analysis.shared_infrastructure_investment",
     "yearly_analysis.bus_unit_cost",
     "yearly_analysis.common_battery_unit_cost",
@@ -369,6 +373,11 @@ test("general and per-shift annual result labels exist in every supported locale
     "yearly_analysis.allocated_by_annual_dc_energy",
     "yearly_analysis.allocated_capex_title",
     "yearly_analysis.allocated_capex_tooltip",
+    "yearly_analysis.shift_vehicle_count",
+    "yearly_analysis.owned_vehicle_battery_capex",
+    "yearly_analysis.allocated_infrastructure_capex",
+    "yearly_analysis.total_ebus_capex",
+    "yearly_analysis.shift_diesel_capex",
     "yearly_analysis.annual_dc_energy_basis",
     "yearly_analysis.annual_distance_basis",
     "yearly_analysis.capex_allocation_share",
@@ -404,5 +413,9 @@ test("general and per-shift annual result labels exist in every supported locale
     }
     assert.match(dictionary["yearly_analysis.charging_session_label"], /\{index\}/);
     assert.match(dictionary["yearly_analysis.shift_annual_detail"], /\{shift\}/);
+    assert.match(dictionary["yearly_analysis.annual_dc_energy_allocation_note"], /\{share\}/);
+    assert.match(dictionary["yearly_analysis.annual_dc_energy_allocation_note"], /\{basis\}/);
+    assert.match(dictionary["yearly_analysis.annual_distance_allocation_note"], /\{share\}/);
+    assert.match(dictionary["yearly_analysis.annual_distance_allocation_note"], /\{basis\}/);
   }
 });

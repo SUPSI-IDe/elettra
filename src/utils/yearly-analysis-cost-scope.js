@@ -612,6 +612,11 @@ export const buildOperatingCostExport = (costs, scope = "shift_operating") => {
     scope,
     includesSharedCapital: false,
     includesAllocatedSharedCapital: Boolean(costs.capitalAllocation),
+    ...(costs.capitalAllocation &&
+    costs.capitalScope &&
+    typeof costs.capitalScope === "object"
+      ? { capitalScope: costs.capitalScope }
+      : {}),
     assumptions: costs.assumptions ?? {},
     electric: {
       energyOPEX_CHF: toFiniteNumber(electric.energyOPEX_CHF),

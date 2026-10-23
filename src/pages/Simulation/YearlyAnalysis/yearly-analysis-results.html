@@ -140,9 +140,9 @@
           <button
             type="button"
             class="ya-info-icon"
-            aria-label="Operating costs use this shift's energy and distance. Shared investments remain counted once in General and an analytical CAPEX share is attributed here using the shift's annual DC energy."
+            aria-label="Operating costs use this shift's energy and distance. Bus and battery CAPEX belongs to the vehicles assigned to the shift; only shared charging infrastructure is allocated by annual DC energy."
             data-i18n-aria-label="yearly_analysis.shift_cost_scope_tooltip"
-          >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.shift_cost_scope_tooltip">Operating costs use this shift's energy and distance. Shared investments remain counted once in General and an analytical CAPEX share is attributed here using the shift's annual DC energy.</span></button>
+          >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.shift_cost_scope_tooltip">Operating costs use this shift's energy and distance. Bus and battery CAPEX belongs to the vehicles assigned to the shift; only shared charging infrastructure is allocated by annual DC energy.</span></button>
         </h2>
         <p class="ya-scope-context-note" data-role="ya-cost-scope-note" hidden></p>
         <!-- Full-width cost assumptions -->
@@ -205,13 +205,13 @@
 
         <div class="ya-res-section ya-capex-allocation-section result-card" data-role="ya-costs-capex-section">
           <h3 class="ya-res-section-title ya-scope-section-title--with-info">
-            <span data-i18n="yearly_analysis.allocated_capex_title">Allocated shared CAPEX</span>
+            <span data-i18n="yearly_analysis.allocated_capex_title">Shift CAPEX</span>
             <button
               type="button"
               class="ya-info-icon"
-              aria-label="The shared vehicle, battery and charging infrastructure investments are purchased once. Their shift-level values are analytical allocations based on annual DC energy and are used for the shift break-even comparison."
+              aria-label="Bus and battery CAPEX is counted in full for the vehicles assigned to this shift. Only the shared charging infrastructure is allocated by annual DC energy for the shift break-even comparison."
               data-i18n-aria-label="yearly_analysis.allocated_capex_tooltip"
-            >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.allocated_capex_tooltip">The shared vehicle, battery and charging infrastructure investments are purchased once. Their shift-level values are analytical allocations based on annual DC energy and are used for the shift break-even comparison.</span></button>
+            >i<span class="ya-info-tooltip" data-i18n="yearly_analysis.allocated_capex_tooltip">Bus and battery CAPEX is counted in full for the vehicles assigned to this shift. Only the shared charging infrastructure is allocated by annual DC energy for the shift break-even comparison.</span></button>
           </h3>
           <div data-role="ya-costs-capex-allocation"></div>
         </div>

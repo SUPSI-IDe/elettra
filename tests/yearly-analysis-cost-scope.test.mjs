@@ -151,6 +151,7 @@ test("shift export contains OPEX and strips every capital field", () => {
   assert.deepEqual(operating.scenarioCosts, [{ label: "Cold" }]);
   assert.equal("CAPEX_CHF" in operating.electric, false);
   assert.equal("totalAnnual_CHF" in operating.electric, false);
+  assert.equal("capitalScope" in operating, false);
   assert.equal("projectedCostTrend" in operating, false);
   assert.equal("breakEvenYear" in operating, false);
 });
@@ -653,15 +654,38 @@ test("allocated capital is exported without reintroducing full shared CAPEX", ()
     electric: { totalOPEX_CHF: 100 },
     diesel: { totalOPEX_CHF: 200 },
     yearlyDistance_km: 1_000,
-    capitalAllocation: { method: "annual_dc_energy", share: 0.25 },
+    capitalScope: {
+      scope: "shift",
+      vehicleCount: 2,
+      vehicleAndBatteryCAPEX_CHF: 1_200,
+    },
+    capitalAllocation: {
+      method: "annual_dc_energy",
+      share: 0.25,
+      vehicleCount: 2,
+      electric: {
+        ownedVehicleAndBatteryCAPEX_CHF: 1_200,
+        allocatedInfrastructureCAPEX_CHF: 50,
+      },
+    },
     breakEvenYear: 4.5,
     projectedCostTrend: [{ year: 0, electric_CHF: 200, diesel_CHF: 75 }],
   });
   assert.equal(exported.includesSharedCapital, false);
   assert.equal(exported.includesAllocatedSharedCapital, true);
+  assert.deepEqual(exported.capitalScope, {
+    scope: "shift",
+    vehicleCount: 2,
+    vehicleAndBatteryCAPEX_CHF: 1_200,
+  });
   assert.deepEqual(exported.capitalAllocation, {
     method: "annual_dc_energy",
     share: 0.25,
+    vehicleCount: 2,
+    electric: {
+      ownedVehicleAndBatteryCAPEX_CHF: 1_200,
+      allocatedInfrastructureCAPEX_CHF: 50,
+    },
   });
   assert.equal(exported.breakEvenYear, 4.5);
   assert.equal(exported.projectedCostTrend.length, 1);
