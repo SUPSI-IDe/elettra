@@ -176,6 +176,58 @@ const deriveSelectedPackSizeKwh = (shifts, fallback) => {
   return toFiniteNumber(fallback);
 };
 
+/**
+ * Snapshot the physical vehicles represented by the linked feasibility run.
+ * `per_bus_summary` is the authoritative optimizer contract: every row is one
+ * simulated vehicle and its `shift_id` identifies the annual-result scope that
+ * owns that vehicle.  Missing or inconsistent rows remain explicit so the
+ * economic model never silently falls back to one vehicle.
+ */
+export const buildYearlyFleetSnapshot = (
+  optimizationRun = {},
+  requestedShiftIds = [],
+) => {
+  const expectedShiftIds = uniqueTexts(requestedShiftIds);
+  const expected = new Set(expectedShiftIds);
+  const rows = optimizationRun?.results?.per_bus_summary;
+  const unavailable = (issue) => ({
+    dataAvailable: false,
+    source: "optimization_per_bus_summary",
+    vehicleCount: null,
+    vehicleCountByShift: {},
+    issue,
+  });
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return unavailable("missing_per_bus_summary");
+  }
+
+  const counts = Object.fromEntries(
+    expectedShiftIds.map((shiftId) => [shiftId, 0]),
+  );
+  for (const row of rows) {
+    if (!isRecord(row)) return unavailable("invalid_per_bus_summary_row");
+    const shiftId = text(row.shift_id);
+    if (!shiftId) return unavailable("missing_per_bus_shift_id");
+    if (expected.size && !expected.has(shiftId)) {
+      return unavailable("unexpected_per_bus_shift_id");
+    }
+    counts[shiftId] = (counts[shiftId] ?? 0) + 1;
+  }
+
+  if (expectedShiftIds.some((shiftId) => counts[shiftId] === 0)) {
+    return unavailable("missing_per_bus_shift");
+  }
+
+  return {
+    dataAvailable: true,
+    source: "optimization_per_bus_summary",
+    vehicleCount: rows.length,
+    vehicleCountByShift: counts,
+    issue: null,
+  };
+};
+
 const asScenario = (scenario = {}, index = 0) => ({
   scenarioId: text(scenario.scenarioId) || `cluster-${index + 1}`,
   label: text(scenario.label),
@@ -270,6 +322,7 @@ export const buildFixedYearlyConfiguration = (
     mode: feasibility.mode,
     busModelId: feasibility.fleet.busModelId,
     shiftIds,
+    fleet: buildYearlyFleetSnapshot(optimizationRun, shiftIds),
     soc: {
       minFraction: toFiniteNumber(inputParams.min_soc) ?? 0,
       maxFraction: toFiniteNumber(inputParams.max_soc) ?? 1,

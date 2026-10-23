@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  applyGeneralFleetCapital,
   applyShiftCapitalAllocation,
   buildGeneralSharedCostContext,
   buildOperatingCostExport,
+  resolveFleetVehicleScope,
   resolveShiftCapitalAllocationBasis,
 } from "../src/utils/yearly-analysis-cost-scope.js";
 
@@ -12,6 +14,12 @@ test("General keeps charging infrastructure as one shared investment with an ana
   const context = buildGeneralSharedCostContext({
     config: {
       fixedConfiguration: {
+        fleet: {
+          dataAvailable: true,
+          source: "optimization_per_bus_summary",
+          vehicleCount: 2,
+          vehicleCountByShift: { morning: 1, evening: 1 },
+        },
         battery: { packs: 12 },
         infrastructure: {
           totalInstallationCostChf: 250_000,
@@ -36,13 +44,26 @@ test("General keeps charging infrastructure as one shared investment with an ana
     investmentChf: 250_000,
   });
   assert.deepEqual(context.vehicleUnitReference, {
-    fleetVehicleCount: null,
-    fleetInvestmentChf: null,
+    fleetVehicleCount: 2,
+    fleetInvestmentChf: 1_040_000,
     busCostPerVehicleChf: 400_000,
     commonBatteryPacks: 12,
     batteryPackCostChf: 10_000,
     batteryCostPerBusChf: 120_000,
     referenceUnitInvestmentChf: 520_000,
+  });
+  assert.deepEqual(context.fleetCapital, {
+    dataAvailable: true,
+    source: "optimization_per_bus_summary",
+    scope: "general",
+    shiftId: null,
+    vehicleCount: 2,
+    fleetVehicleCount: 2,
+    issue: null,
+    busInvestmentChf: 800_000,
+    batteryInvestmentChf: 240_000,
+    vehicleAndBatteryInvestmentChf: 1_040_000,
+    totalInitialInvestmentChf: 1_290_000,
   });
 });
 
@@ -285,7 +306,163 @@ const referenceCosts = () => ({
   ],
 });
 
-test("allocated shift costs scale only capital and keep the shift OPEX exact", () => {
+const generalVehicleScope = (vehicleCount = 2) => ({
+  dataAvailable: true,
+  source: "optimization_per_bus_summary",
+  scope: "general",
+  shiftId: null,
+  vehicleCount,
+  fleetVehicleCount: vehicleCount,
+  issue: null,
+});
+
+const shiftVehicleScope = (shiftId, vehicleCount = 1, fleetVehicleCount = 2) => ({
+  dataAvailable: true,
+  source: "optimization_per_bus_summary",
+  scope: "shift",
+  shiftId,
+  vehicleCount,
+  fleetVehicleCount,
+  issue: null,
+});
+
+test("General scales complete vehicle capital and counts shared infrastructure once", () => {
+  const scoped = applyGeneralFleetCapital(
+    referenceCosts(),
+    generalVehicleScope(2),
+    { infrastructureInvestmentChf: 200 },
+  );
+
+  assert.equal(scoped.electric.totalOpex, 100);
+  assert.equal(scoped.diesel.totalOpex, 200);
+  assert.equal(scoped.electric.capex, 1_400);
+  assert.equal(scoped.electric.capexPv, 1_800);
+  assert.equal(scoped.electric.capexAnnual, 180);
+  assert.equal(scoped.electric.totalAnnual, 280);
+  assert.equal(scoped.diesel.capex, 600);
+  assert.equal(scoped.diesel.capexAnnual, 60);
+  assert.equal(scoped.diesel.totalAnnual, 260);
+  assert.equal(scoped.annualSaving, -20);
+  assert.deepEqual(scoped.yearly, [
+    { year: 0, electric: 1_400, diesel: 600 },
+    { year: 1, electric: 1_500, diesel: 800 },
+    { year: 2, electric: 1_600, diesel: 1_000 },
+  ]);
+  assert.equal(scoped.capitalScope.vehicleCount, 2);
+  assert.equal(scoped.capitalScope.includedInfrastructureChf, 200);
+});
+
+test("two-bus joint economics reproduce fleet, replacement and diesel totals", () => {
+  const rate = 0.03;
+  const crf = (lifetime) => {
+    const growth = (1 + rate) ** lifetime;
+    return rate * growth / (growth - 1);
+  };
+  const unitBatteryReplacementPv = 60_000 / (1 + rate) ** 8;
+  const electricUnitCapexPv = 860_000 + unitBatteryReplacementPv;
+  const costs = {
+    assumptions: { annualizationRate: rate },
+    electric: {
+      totalOpex: 109_246.70349443496,
+      capex: 860_000,
+      capexPv: electricUnitCapexPv,
+      capexAnnual: electricUnitCapexPv * crf(12),
+      totalAnnual: electricUnitCapexPv * crf(12) + 109_246.70349443496,
+      busCost: 800_000,
+      totalBatteryCost: 60_000,
+      batteryReplacementPv: unitBatteryReplacementPv,
+      busLifetime: 12,
+    },
+    diesel: {
+      totalOpex: 256_814.08159032854,
+      capex: 500_000,
+      capexAnnual: 500_000 * crf(10),
+      totalAnnual: 500_000 * crf(10) + 256_814.08159032854,
+    },
+    yearly: [],
+  };
+
+  const general = applyGeneralFleetCapital(
+    costs,
+    generalVehicleScope(2),
+    { infrastructureInvestmentChf: 300_000 },
+  );
+  assert.equal(general.electric.capex, 2_020_000);
+  assert.ok(Math.abs(general.electric.capexPv - 2_114_729.108117672) < 1e-6);
+  assert.ok(Math.abs(general.electric.batteryReplacementPv - 94_729.10811767226) < 1e-6);
+  assert.ok(Math.abs(general.electric.capexAnnual - 212_450.0964118803) < 1e-6);
+  assert.ok(Math.abs(general.electric.totalAnnual - 321_696.7999063153) < 1e-6);
+  assert.equal(general.diesel.capex, 1_000_000);
+  assert.ok(Math.abs(general.diesel.totalAnnual - 374_044.5881954881) < 1e-6);
+  assert.ok(Math.abs(general.annualSaving - 52_347.78828917282) < 1e-6);
+
+  const shift = applyShiftCapitalAllocation(costs, {
+    method: "annual_dc_energy",
+    source: "emissions",
+    shiftId: "40501",
+    share: 0.591263802,
+  }, {
+    infrastructureInvestmentChf: 300_000,
+    vehicleScope: shiftVehicleScope("40501"),
+  });
+  assert.ok(Math.abs(shift.electric.capex - 1_037_379.1406) < 1e-6);
+  assert.equal(shift.diesel.capex, 500_000);
+  assert.ok(
+    Math.abs(
+      shift.capitalAllocation.electric.allocatedInfrastructureCapexChf -
+        177_379.1406,
+    ) < 1e-6,
+  );
+});
+
+test("replacement jumps and lifecycle residuals scale with vehicles, not OPEX", () => {
+  const costs = referenceCosts();
+  costs.electric.batteryReplacementPv = 40;
+  costs.yearly[2].electric = 850;
+  costs.lifecycle = {
+    horizonYears: 2,
+    grossFinalElectric: 850,
+    grossFinalDiesel: 700,
+    electricResidualValue: 100,
+    dieselResidualValue: 50,
+    electricDiscountedResidual: 100,
+    dieselDiscountedResidual: 50,
+  };
+  const scoped = applyGeneralFleetCapital(
+    costs,
+    generalVehicleScope(2),
+    { infrastructureInvestmentChf: 200 },
+  );
+  assert.equal(scoped.yearly[2].electric, 1_700);
+  assert.equal(scoped.electric.batteryReplacementPv, 80);
+  assert.equal(scoped.lifecycle.grossFinalElectric, 1_700);
+  assert.equal(scoped.lifecycle.grossFinalDiesel, 1_000);
+  assert.equal(scoped.lifecycle.electricResidualValue, 200);
+  assert.equal(scoped.lifecycle.dieselResidualValue, 100);
+  assert.equal(scoped.lifecycle.netFinalElectric, 1_500);
+  assert.equal(scoped.lifecycle.netFinalDiesel, 900);
+});
+
+test("break-even is recomputed after vehicle and infrastructure scoping", () => {
+  const costs = referenceCosts();
+  costs.diesel.totalOpex = 500;
+  costs.yearly = [
+    { year: 0, electric: 600, diesel: 300 },
+    { year: 1, electric: 700, diesel: 800 },
+  ];
+  const scoped = applyShiftCapitalAllocation(costs, {
+    method: "annual_dc_energy",
+    source: "annual_analysis",
+    shiftId: "morning",
+    share: 0.25,
+  }, {
+    infrastructureInvestmentChf: 200,
+    vehicleScope: shiftVehicleScope("morning"),
+  });
+  assert.equal(scoped.breakEvenYear, 0.875);
+});
+
+test("shift costs keep owned vehicles whole and allocate only infrastructure", () => {
   const allocated = applyShiftCapitalAllocation(referenceCosts(), {
     method: "annual_dc_energy",
     source: "emissions",
@@ -293,57 +470,182 @@ test("allocated shift costs scale only capital and keep the shift OPEX exact", (
     share: 0.25,
     shiftAnnualDcEnergyKwh: 25_000,
     totalAnnualDcEnergyKwh: 100_000,
-  }, { infrastructureInvestmentChf: 200 });
+  }, {
+    infrastructureInvestmentChf: 200,
+    vehicleScope: shiftVehicleScope("morning"),
+  });
 
   assert.equal(allocated.electric.totalOpex, 100);
   assert.equal(allocated.diesel.totalOpex, 200);
-  assert.equal(allocated.electric.capex, 200);
-  assert.equal(allocated.electric.capexPv, 250);
-  assert.equal(allocated.diesel.capex, 75);
+  assert.equal(allocated.electric.capex, 650);
+  assert.equal(allocated.electric.capexPv, 850);
+  assert.equal(allocated.electric.capexAnnual, 85);
+  assert.equal(allocated.diesel.capex, 300);
   assert.equal(allocated.capitalAllocation.electric.allocatedInfrastructureCapexChf, 50);
+  assert.equal(allocated.capitalAllocation.electric.ownedVehicleAndBatteryCapexChf, 600);
+  assert.equal(allocated.capitalAllocation.diesel.ownedVehicleCapexChf, 300);
   assert.deepEqual(allocated.yearly, [
-    { year: 0, electric: 200, diesel: 75 },
-    { year: 1, electric: 300, diesel: 275 },
-    { year: 2, electric: 400, diesel: 475 },
+    { year: 0, electric: 650, diesel: 300 },
+    { year: 1, electric: 750, diesel: 500 },
+    { year: 2, electric: 850, diesel: 700 },
   ]);
-  assert.equal(allocated.breakEvenYear, 1.25);
+  assert.equal(allocated.breakEvenYear, null);
 });
 
-test("allocated CAPEX across all shifts reconciles to the one shared basis", () => {
+test("complete shift CAPEX reconciles exactly to General", () => {
+  const general = applyGeneralFleetCapital(
+    referenceCosts(),
+    generalVehicleScope(2),
+    { infrastructureInvestmentChf: 200 },
+  );
   const morning = applyShiftCapitalAllocation(referenceCosts(), {
     method: "annual_dc_energy", source: "emissions", shiftId: "morning", share: 0.25,
-  }, { infrastructureInvestmentChf: 200 });
+  }, {
+    infrastructureInvestmentChf: 200,
+    vehicleScope: shiftVehicleScope("morning"),
+  });
   const evening = applyShiftCapitalAllocation(referenceCosts(), {
     method: "annual_dc_energy", source: "emissions", shiftId: "evening", share: 0.75,
-  }, { infrastructureInvestmentChf: 200 });
-  assert.equal(morning.electric.capex + evening.electric.capex, 800);
-  assert.equal(morning.diesel.capex + evening.diesel.capex, 300);
+  }, {
+    infrastructureInvestmentChf: 200,
+    vehicleScope: shiftVehicleScope("evening"),
+  });
+  assert.equal(morning.electric.capex + evening.electric.capex, general.electric.capex);
+  assert.equal(morning.electric.capexPv + evening.electric.capexPv, general.electric.capexPv);
+  assert.equal(morning.diesel.capex + evening.diesel.capex, general.diesel.capex);
+  assert.equal(
+    morning.capitalAllocation.electric.allocatedInfrastructureCapexChf +
+      evening.capitalAllocation.electric.allocatedInfrastructureCapexChf,
+    200,
+  );
 });
 
-test("missing infrastructure remains explicit and does not invent a zero investment", () => {
+test("a shift can own multiple physical vehicles without scaling its OPEX", () => {
   const allocated = applyShiftCapitalAllocation(referenceCosts(), {
     method: "annual_dc_energy",
     source: "annual_analysis",
     shiftId: "morning",
     share: 0.25,
+  }, {
+    infrastructureInvestmentChf: 200,
+    vehicleScope: shiftVehicleScope("morning", 2, 3),
   });
-  assert.equal(allocated.capitalAllocation.infrastructureIncluded, false);
-  assert.equal(
-    allocated.capitalAllocation.electric.sharedInfrastructureCapexChf,
-    null,
-  );
-  assert.equal(
-    allocated.capitalAllocation.electric.allocatedInfrastructureCapexChf,
-    null,
-  );
-  assert.equal(allocated.electric.capex, 150);
+  assert.equal(allocated.electric.capex, 1_250);
+  assert.equal(allocated.diesel.capex, 600);
+  assert.equal(allocated.electric.totalOpex, 100);
+  assert.equal(allocated.diesel.totalOpex, 200);
 });
 
-test("invalid or absent allocation basis leaves cost data untouched", () => {
-  const costs = referenceCosts();
-  assert.equal(applyShiftCapitalAllocation(costs, null), costs);
-  assert.equal(applyShiftCapitalAllocation(costs, { share: -0.1 }), costs);
-  assert.equal(applyShiftCapitalAllocation(costs, { share: 1.1 }), costs);
+test("missing infrastructure invalidates full CAPEX instead of inventing zero", () => {
+  const allocated = applyShiftCapitalAllocation(referenceCosts(), {
+    method: "annual_dc_energy",
+    source: "annual_analysis",
+    shiftId: "morning",
+    share: 0.25,
+  }, { vehicleScope: shiftVehicleScope("morning") });
+  assert.equal(allocated.capitalAllocation, undefined);
+  assert.equal(allocated.electric.capex, null);
+  assert.equal(allocated.diesel.capex, null);
+  assert.equal(
+    allocated.capitalScope.issue,
+    "infrastructure_investment_unavailable",
+  );
+});
+
+test("missing fleet or allocation data invalidates CAPEX but preserves exact OPEX", () => {
+  const missingFleet = applyGeneralFleetCapital(referenceCosts(), {
+    dataAvailable: false,
+    scope: "general",
+    issue: "missing_per_bus_summary",
+  });
+  assert.equal(missingFleet.electric.totalOpex, 100);
+  assert.equal(missingFleet.diesel.totalOpex, 200);
+  assert.equal(missingFleet.electric.capex, null);
+  assert.equal(missingFleet.diesel.capex, null);
+  assert.equal(missingFleet.capitalScope.issue, "missing_per_bus_summary");
+
+  const missingInfrastructure = applyGeneralFleetCapital(
+    referenceCosts(),
+    generalVehicleScope(),
+  );
+  assert.equal(missingInfrastructure.electric.totalOpex, 100);
+  assert.equal(missingInfrastructure.electric.capex, null);
+  assert.equal(
+    missingInfrastructure.capitalScope.issue,
+    "infrastructure_investment_unavailable",
+  );
+
+  const incompleteInputs = referenceCosts();
+  incompleteInputs.capitalInputs = {
+    dataAvailable: false,
+    busCostAvailable: true,
+    batteryPackCostAvailable: false,
+    batteryPackCountAvailable: true,
+    dieselCapexAvailable: true,
+  };
+  const missingVehicleCost = applyGeneralFleetCapital(
+    incompleteInputs,
+    generalVehicleScope(),
+    { infrastructureInvestmentChf: 200 },
+  );
+  assert.equal(missingVehicleCost.electric.totalOpex, 100);
+  assert.equal(missingVehicleCost.electric.capex, null);
+  assert.equal(
+    missingVehicleCost.capitalScope.issue,
+    "vehicle_capital_inputs_unavailable",
+  );
+
+  for (const basis of [null, { share: -0.1 }, { share: 1.1 }]) {
+    const unavailable = applyShiftCapitalAllocation(
+      referenceCosts(),
+      basis,
+      {
+        infrastructureInvestmentChf: 200,
+        vehicleScope: shiftVehicleScope("morning"),
+      },
+    );
+    assert.equal(unavailable.electric.totalOpex, 100);
+    assert.equal(unavailable.electric.capex, null);
+    assert.equal(
+      unavailable.capitalScope.issue,
+      "infrastructure_allocation_unavailable",
+    );
+  }
+});
+
+test("resolves General and shift vehicle counts and rejects inconsistent snapshots", () => {
+  const features = {
+    config: {
+      fixedConfiguration: {
+        fleet: {
+          dataAvailable: true,
+          source: "optimization_per_bus_summary",
+          vehicleCount: 3,
+          vehicleCountByShift: { morning: 2, evening: 1 },
+        },
+      },
+    },
+  };
+  assert.deepEqual(resolveFleetVehicleScope(features), {
+    dataAvailable: true,
+    source: "optimization_per_bus_summary",
+    scope: "general",
+    shiftId: null,
+    vehicleCount: 3,
+    fleetVehicleCount: 3,
+    issue: null,
+  });
+  assert.equal(resolveFleetVehicleScope(features, "morning").vehicleCount, 2);
+  assert.equal(
+    resolveFleetVehicleScope(features, "unknown").issue,
+    "shift_vehicle_count_unavailable",
+  );
+
+  features.config.fixedConfiguration.fleet.vehicleCount = 4;
+  assert.equal(
+    resolveFleetVehicleScope(features).issue,
+    "inconsistent_shift_vehicle_counts",
+  );
 });
 
 test("allocated capital is exported without reintroducing full shared CAPEX", () => {

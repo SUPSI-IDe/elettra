@@ -90,9 +90,11 @@ import {
   buildFixedYearlyConfiguration,
 } from "../../../utils/yearly-analysis-model";
 import {
+  applyGeneralFleetCapital,
   applyShiftCapitalAllocation,
   buildGeneralSharedCostContext,
   buildOperatingCostExport,
+  resolveFleetVehicleScope,
   resolveShiftCapitalAllocationBasis,
 } from "../../../utils/yearly-analysis-cost-scope";
 
@@ -1428,11 +1430,15 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
     ? yearlyDistanceKm * dieselMaintPerKm : 0;
   const dieselTotalOpex = dieselFuelOpex + dieselMaintOpex;
 
-  const busCostChf = fn(busModelData?.cost) ?? 0;
-  const packCostChf = fn(busModelData?.battery_pack_cost) ?? 0;
-  const totalBatteryCostChf = packCostChf * (optimizedPacks ?? 0);
+  const busCostInput = fn(busModelData?.cost);
+  const packCostInput = fn(busModelData?.battery_pack_cost);
+  const packCountInput = fn(optimizedPacks);
+  const busCostChf = busCostInput ?? 0;
+  const packCostChf = packCostInput ?? 0;
+  const totalBatteryCostChf = packCostChf * (packCountInput ?? 0);
   const electricCapexChf = busCostChf + totalBatteryCostChf;
-  const dieselCapexChf = ov("dieselCapex") ?? getEquivalentDieselBusCapexForLength(busLengthM) ?? 0;
+  const dieselCapexInput = ov("dieselCapex") ?? getEquivalentDieselBusCapexForLength(busLengthM);
+  const dieselCapexChf = dieselCapexInput ?? 0;
 
   const annualizationRate = annualizationRateOverride ?? DEFAULT_OPEX_ANNUALIZATION_RATE;
   const busLifetime = fn(busModelData?.bus_lifetime) ?? DEFAULT_BUS_LIFETIME_YEARS;
@@ -1499,6 +1505,17 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
 
   return {
     scenarioCosts,
+    capitalInputs: {
+      dataAvailable:
+        busCostInput !== null &&
+        packCostInput !== null &&
+        packCountInput !== null &&
+        dieselCapexInput !== null,
+      busCostAvailable: busCostInput !== null,
+      batteryPackCostAvailable: packCostInput !== null,
+      batteryPackCountAvailable: packCountInput !== null,
+      dieselCapexAvailable: dieselCapexInput !== null,
+    },
     assumptions: {
       energyPricePerKwh,
       fuelPricePerL,
@@ -1597,9 +1614,12 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
   const annualizationRate = ov("interestRate") ?? fn(a.interest_rate) ?? DEFAULT_OPEX_ANNUALIZATION_RATE;
   const busLengthM = fn(busModelData?.bus_length_m);
 
-  const busCostChf = fn(busModelData?.cost) ?? 0;
-  const packCostChf = fn(busModelData?.battery_pack_cost) ?? 0;
-  const packs = fn(optimizedPacks) ?? 0;
+  const busCostInput = fn(busModelData?.cost);
+  const packCostInput = fn(busModelData?.battery_pack_cost);
+  const packCountInput = fn(optimizedPacks);
+  const busCostChf = busCostInput ?? 0;
+  const packCostChf = packCostInput ?? 0;
+  const packs = packCountInput ?? 0;
   const totalBatteryCostChf = packCostChf * packs;
   const electricCapexUpfront = busCostChf + totalBatteryCostChf;
   const busLifetime = fn(busModelData?.bus_lifetime) ?? DEFAULT_BUS_LIFETIME_YEARS;
@@ -1614,7 +1634,9 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
   const electricCapexPv = electricCapexUpfront + batteryReplacementPv;
 
   const electricCapexAnnual = computeEquivalentAnnualCost(electricCapexPv, annualizationRate, busLifetime);
-  const dieselCapexChf = ov("dieselCapex") ?? (busLengthM != null ? (getEquivalentDieselBusCapexForLength(busLengthM) ?? 0) : 0);
+  const dieselCapexInput = ov("dieselCapex") ??
+    (busLengthM != null ? getEquivalentDieselBusCapexForLength(busLengthM) : null);
+  const dieselCapexChf = dieselCapexInput ?? 0;
   const dieselCapexAnnual = computeEquivalentAnnualCost(dieselCapexChf, annualizationRate, dieselBusLifetime);
 
   const electricAnnual = electricCapexAnnual + electricTotalOpex;
@@ -1709,6 +1731,17 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
   return {
     _fromBackend: true,
     scenarioCosts,
+    capitalInputs: {
+      dataAvailable:
+        busCostInput !== null &&
+        packCostInput !== null &&
+        packCountInput !== null &&
+        dieselCapexInput !== null,
+      busCostAvailable: busCostInput !== null,
+      batteryPackCostAvailable: packCostInput !== null,
+      batteryPackCountAvailable: packCountInput !== null,
+      dieselCapexAvailable: dieselCapexInput !== null,
+    },
     assumptions: {
       energyPricePerKwh: energyPerKwh,
       fuelPricePerL: fuelPerL,
@@ -4009,6 +4042,7 @@ export const buildCompleteYearlyExportPayload = ({
           {
             infrastructureInvestmentChf:
               generalSharedCosts.chargingInfrastructure.investmentChf,
+            vehicleScope: resolveFleetVehicleScope(features, scope.shiftId),
           },
         );
       } catch {
@@ -4841,6 +4875,19 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     }
   };
 
+  const applyGeneralCapital = () => {
+    if (activeScope?.kind !== "general" || !costState.costsData) return;
+    const sharedCosts = buildGeneralSharedCostContext(features, busModelData);
+    costState.costsData = applyGeneralFleetCapital(
+      costState.costsData,
+      resolveFleetVehicleScope(features),
+      {
+        infrastructureInvestmentChf:
+          sharedCosts.chargingInfrastructure.investmentChf,
+      },
+    );
+  };
+
   const allocateActiveShiftCapital = () => {
     if (activeScope?.kind !== "shift" || !costState.costsData) return;
     const basis = resolveShiftCapitalAllocationBasis(
@@ -4855,6 +4902,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       {
         infrastructureInvestmentChf:
           sharedCosts.chargingInfrastructure.investmentChf,
+        vehicleScope: resolveFleetVehicleScope(features, activeScope.shiftId),
       },
     );
   };
@@ -4878,6 +4926,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     } else {
       computeCosts();
     }
+    applyGeneralCapital();
     allocateActiveShiftCapital();
     if (activeScope?.kind === "general") {
       generalCostsData = costState.costsData;
@@ -5400,11 +5449,11 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   /* ── Initial render and data loading ─────────────────────── */
   await loadDeps();
 
-  // Analyses saved before the physical-configuration snapshot was introduced
-  // can still recover it from their source feasibility evaluation. This is a
-  // read-only in-memory upgrade; the stored analysis and database are untouched.
+  // Analyses saved before the physical-configuration or physical-fleet
+  // snapshots were introduced recover them from their source feasibility
+  // evaluation. This is a read-only in-memory upgrade; persisted data is not
+  // changed.
   if (
-    !features.config?.fixedConfiguration &&
     optimizationRun &&
     typeof optimizationRun === "object" &&
     !Array.isArray(optimizationRun)
@@ -5418,7 +5467,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       shiftNamesById,
       packSizeKwh: busModelData?.battery_pack_size_kwh,
     });
-    if (fixedConfiguration.shiftIds.length) {
+    if (!features.config?.fixedConfiguration && fixedConfiguration.shiftIds.length) {
       features.config = {
         ...(features.config ?? {}),
         fixedConfiguration,
@@ -5427,6 +5476,15 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       scenarioResults = activeFeatures.results?.scenarioResults ?? [];
       yearlyTotals = activeFeatures.results?.yearlyTotals ?? {};
       if (configContent) configContent.innerHTML = renderConfig(features);
+    } else if (
+      features.config?.fixedConfiguration &&
+      !features.config.fixedConfiguration.fleet
+    ) {
+      features.config.fixedConfiguration = {
+        ...features.config.fixedConfiguration,
+        fleet: fixedConfiguration.fleet,
+      };
+      activeFeatures = buildScopedYearlyFeatures(features, activeScope);
     }
   }
 
@@ -5449,6 +5507,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   } else {
     computeCosts();
   }
+  applyGeneralCapital();
   generalCostsData = costState.costsData;
   generalCostsError = costState.error;
 

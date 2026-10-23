@@ -160,12 +160,12 @@ const discountedOpexThroughYear = (annualOpex, rate, year) => {
   return total;
 };
 
-const allocateProjectedTrend = (costs, share, allocatedInfrastructureChf) => {
+const scopeProjectedTrend = (costs, vehicleCount, infrastructureChf) => {
   const yearly = Array.isArray(costs?.yearly) ? costs.yearly : [];
   const rate = toFiniteNumber(costs?.assumptions?.annualizationRate) ?? 0;
   const electricOpex = toFiniteNumber(costs?.electric?.totalOpex) ?? 0;
   const dieselOpex = toFiniteNumber(costs?.diesel?.totalOpex) ?? 0;
-  return yearly.map((point) => {
+  const scoped = yearly.map((point) => {
     const year = Math.max(0, Math.floor(toFiniteNumber(point?.year) ?? 0));
     const electricOpexPv = discountedOpexThroughYear(electricOpex, rate, year);
     const dieselOpexPv = discountedOpexThroughYear(dieselOpex, rate, year);
@@ -179,10 +179,57 @@ const allocateProjectedTrend = (costs, share, allocatedInfrastructureChf) => {
     );
     return {
       year,
-      electric: electricCapitalPv * share + electricOpexPv + allocatedInfrastructureChf,
-      diesel: dieselCapitalPv * share + dieselOpexPv,
+      electric:
+        electricCapitalPv * vehicleCount + electricOpexPv + infrastructureChf,
+      diesel: dieselCapitalPv * vehicleCount + dieselOpexPv,
     };
   });
+
+  const lifecycle = costs?.lifecycle ?? yearly?.lifecycle;
+  if (lifecycle && typeof lifecycle === "object") {
+    const horizon = Math.max(
+      0,
+      Math.floor(toFiniteNumber(lifecycle.horizonYears) ?? 0),
+    );
+    const electricOpexPv = discountedOpexThroughYear(electricOpex, rate, horizon);
+    const dieselOpexPv = discountedOpexThroughYear(dieselOpex, rate, horizon);
+    const grossFinalElectric =
+      Math.max(0, (toFiniteNumber(lifecycle.grossFinalElectric) ?? 0) - electricOpexPv) *
+        vehicleCount +
+      electricOpexPv +
+      infrastructureChf;
+    const grossFinalDiesel =
+      Math.max(0, (toFiniteNumber(lifecycle.grossFinalDiesel) ?? 0) - dieselOpexPv) *
+        vehicleCount +
+      dieselOpexPv;
+    const electricResidualValue =
+      (toFiniteNumber(lifecycle.electricResidualValue) ?? 0) * vehicleCount;
+    const dieselResidualValue =
+      (toFiniteNumber(lifecycle.dieselResidualValue) ?? 0) * vehicleCount;
+    const electricDiscountedResidual =
+      (toFiniteNumber(lifecycle.electricDiscountedResidual) ?? 0) * vehicleCount;
+    const dieselDiscountedResidual =
+      (toFiniteNumber(lifecycle.dieselDiscountedResidual) ?? 0) * vehicleCount;
+    const netFinalElectric = grossFinalElectric - electricDiscountedResidual;
+    const netFinalDiesel = grossFinalDiesel - dieselDiscountedResidual;
+    Object.defineProperty(scoped, "lifecycle", {
+      configurable: true,
+      enumerable: false,
+      value: {
+        horizonYears: horizon,
+        grossFinalDiesel,
+        grossFinalElectric,
+        dieselResidualValue,
+        electricResidualValue,
+        dieselDiscountedResidual,
+        electricDiscountedResidual,
+        netFinalDiesel,
+        netFinalElectric,
+        lifecycleSaving: netFinalDiesel - netFinalElectric,
+      },
+    });
+  }
+  return scoped;
 };
 
 const breakEvenYear = (yearly = []) => {
@@ -203,110 +250,272 @@ const breakEvenYear = (yearly = []) => {
   return null;
 };
 
-/**
- * Applies an analytical share to the common vehicle, battery, charging
- * infrastructure and diesel-comparator investments. Shift OPEX remains exact
- * and unscaled. The resulting projected trend therefore combines attributed
- * capital with the operating costs physically produced by that shift.
- */
-export const applyShiftCapitalAllocation = (
-  costs,
-  basis,
-  { infrastructureInvestmentChf = null } = {},
-) => {
-  if (!costs || typeof costs !== "object" || !basis) return costs;
-  const share = toFiniteNumber(basis.share);
-  if (share === null || share < 0 || share > 1) return costs;
+const unavailableCapital = (costs, scope, issue) => ({
+  ...costs,
+  electric: {
+    ...costs?.electric,
+    capex: null,
+    capexPv: null,
+    capexAnnual: null,
+    totalAnnual: null,
+  },
+  diesel: {
+    ...costs?.diesel,
+    capex: null,
+    capexAnnual: null,
+    totalAnnual: null,
+  },
+  annualSaving: null,
+  breakEvenYear: null,
+  yearly: [],
+  lifecycle: null,
+  capitalScope: {
+    scope,
+    dataAvailable: false,
+    vehicleCount: null,
+    issue,
+  },
+});
 
-  const electricReferenceCapex = toFiniteNumber(costs?.electric?.capex) ?? 0;
-  const electricReferenceCapexPv =
-    toFiniteNumber(costs?.electric?.capexPv) ?? electricReferenceCapex;
-  const dieselReferenceCapex = toFiniteNumber(costs?.diesel?.capex) ?? 0;
-  const infrastructure = toFiniteNumber(infrastructureInvestmentChf);
-  const infrastructureBasis = infrastructure ?? 0;
-  const allocatedInfrastructure = infrastructureBasis * share;
-  const allocatedElectricCapex =
-    (electricReferenceCapex + infrastructureBasis) * share;
-  const allocatedElectricCapexPv =
-    electricReferenceCapexPv * share + allocatedInfrastructure;
-  const allocatedDieselCapex = dieselReferenceCapex * share;
+const positiveInteger = (value) => {
+  const numeric = toFiniteNumber(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+};
+
+/** Resolve and validate the fleet count frozen from optimizer per-bus rows. */
+export const resolveFleetVehicleScope = (features = {}, shiftId = null) => {
+  const fleet = features?.config?.fixedConfiguration?.fleet;
+  const normalizedShiftId = text(
+    shiftId ??
+    features?.results?.selectedShiftId ??
+    features?.meta?.selectedShiftId,
+  );
+  const unavailable = (issue) => ({
+    dataAvailable: false,
+    source: text(fleet?.source) || null,
+    scope: normalizedShiftId ? "shift" : "general",
+    shiftId: normalizedShiftId || null,
+    vehicleCount: null,
+    fleetVehicleCount: null,
+    issue,
+  });
+
+  if (!fleet || fleet.dataAvailable !== true) {
+    return unavailable(text(fleet?.issue) || "fleet_vehicle_count_unavailable");
+  }
+  const fleetVehicleCount = positiveInteger(fleet.vehicleCount);
+  const byShift = fleet.vehicleCountByShift;
+  if (!fleetVehicleCount || !byShift || typeof byShift !== "object" || Array.isArray(byShift)) {
+    return unavailable("invalid_fleet_vehicle_count");
+  }
+  const shiftCounts = Object.values(byShift).map(positiveInteger);
+  if (
+    shiftCounts.length === 0 ||
+    shiftCounts.some((count) => count === null) ||
+    shiftCounts.reduce((sum, count) => sum + count, 0) !== fleetVehicleCount
+  ) {
+    return unavailable("inconsistent_shift_vehicle_counts");
+  }
+  const vehicleCount = normalizedShiftId
+    ? positiveInteger(byShift[normalizedShiftId])
+    : fleetVehicleCount;
+  if (!vehicleCount) return unavailable("shift_vehicle_count_unavailable");
+  return {
+    dataAvailable: true,
+    source: text(fleet.source) || "optimization_per_bus_summary",
+    scope: normalizedShiftId ? "shift" : "general",
+    shiftId: normalizedShiftId || null,
+    vehicleCount,
+    fleetVehicleCount,
+    issue: null,
+  };
+};
+
+const applyVehicleCapitalScope = (
+  costs,
+  vehicleScope,
+  infrastructureChf,
+) => {
+  if (!costs || typeof costs !== "object") return costs;
+  if (!vehicleScope?.dataAvailable) {
+    return unavailableCapital(
+      costs,
+      vehicleScope?.scope ?? "general",
+      vehicleScope?.issue ?? "fleet_vehicle_count_unavailable",
+    );
+  }
+  const vehicleCount = positiveInteger(vehicleScope.vehicleCount);
+  if (!vehicleCount) {
+    return unavailableCapital(costs, vehicleScope.scope, "invalid_vehicle_count");
+  }
+  if (costs?.capitalInputs && costs.capitalInputs.dataAvailable !== true) {
+    return unavailableCapital(
+      costs,
+      vehicleScope.scope,
+      "vehicle_capital_inputs_unavailable",
+    );
+  }
+
+  const electricUnitCapex = toFiniteNumber(costs?.electric?.capex) ?? 0;
+  const electricUnitCapexPv =
+    toFiniteNumber(costs?.electric?.capexPv) ?? electricUnitCapex;
+  const dieselUnitCapex = toFiniteNumber(costs?.diesel?.capex) ?? 0;
+  const infrastructure = toFiniteNumber(infrastructureChf) ?? 0;
+  const electricCapex = electricUnitCapex * vehicleCount + infrastructure;
+  const electricCapexPv = electricUnitCapexPv * vehicleCount + infrastructure;
+  const dieselCapex = dieselUnitCapex * vehicleCount;
   const rate = toFiniteNumber(costs?.assumptions?.annualizationRate) ?? 0;
   const electricLifetime = toFiniteNumber(costs?.electric?.busLifetime);
-  const allocatedElectricCapexAnnual =
-    (toFiniteNumber(costs?.electric?.capexAnnual) ?? 0) * share +
-    equivalentAnnualCost(allocatedInfrastructure, rate, electricLifetime);
-  const allocatedDieselCapexAnnual =
-    (toFiniteNumber(costs?.diesel?.capexAnnual) ?? 0) * share;
+  const electricCapexAnnual =
+    (toFiniteNumber(costs?.electric?.capexAnnual) ?? 0) * vehicleCount +
+    equivalentAnnualCost(infrastructure, rate, electricLifetime);
+  const dieselCapexAnnual =
+    (toFiniteNumber(costs?.diesel?.capexAnnual) ?? 0) * vehicleCount;
   const electricTotalOpex = toFiniteNumber(costs?.electric?.totalOpex) ?? 0;
   const dieselTotalOpex = toFiniteNumber(costs?.diesel?.totalOpex) ?? 0;
-  const electricTotalAnnual = allocatedElectricCapexAnnual + electricTotalOpex;
-  const dieselTotalAnnual = allocatedDieselCapexAnnual + dieselTotalOpex;
-  const yearly = allocateProjectedTrend(
-    costs,
-    share,
-    allocatedInfrastructure,
-  );
-  const allocatedBreakEvenYear = breakEvenYear(yearly);
+  const electricTotalAnnual = electricCapexAnnual + electricTotalOpex;
+  const dieselTotalAnnual = dieselCapexAnnual + dieselTotalOpex;
+  const yearly = scopeProjectedTrend(costs, vehicleCount, infrastructure);
+  const scopedBreakEvenYear = breakEvenYear(yearly);
 
   return {
     ...costs,
     electric: {
       ...costs.electric,
-      capex: allocatedElectricCapex,
-      capexPv: allocatedElectricCapexPv,
-      capexAnnual: allocatedElectricCapexAnnual,
+      capex: electricCapex,
+      capexPv: electricCapexPv,
+      capexAnnual: electricCapexAnnual,
       totalAnnual: electricTotalAnnual,
+      vehicleCount,
+      fleetBusCost: (toFiniteNumber(costs?.electric?.busCost) ?? 0) * vehicleCount,
+      fleetBatteryCost:
+        (toFiniteNumber(costs?.electric?.totalBatteryCost) ?? 0) * vehicleCount,
+      batteryReplacementPv:
+        (toFiniteNumber(costs?.electric?.batteryReplacementPv) ?? 0) * vehicleCount,
     },
     diesel: {
       ...costs.diesel,
-      capex: allocatedDieselCapex,
-      capexAnnual: allocatedDieselCapexAnnual,
+      capex: dieselCapex,
+      capexAnnual: dieselCapexAnnual,
       totalAnnual: dieselTotalAnnual,
+      vehicleCount,
     },
     annualSaving: dieselTotalAnnual - electricTotalAnnual,
-    breakEvenYear: allocatedBreakEvenYear,
+    breakEvenYear: scopedBreakEvenYear,
     yearly,
-    capitalAllocation: {
-      method: basis.method,
-      source: basis.source,
-      shiftId: basis.shiftId,
-      share,
-      shiftAnnualDcEnergyKwh: basis.shiftAnnualDcEnergyKwh,
-      totalAnnualDcEnergyKwh: basis.totalAnnualDcEnergyKwh,
-      shiftAnnualDistanceKm: basis.shiftAnnualDistanceKm,
-      totalAnnualDistanceKm: basis.totalAnnualDistanceKm,
-      infrastructureIncluded: infrastructure !== null,
-      electric: {
-        referenceVehicleAndBatteryCapexChf: electricReferenceCapex,
-        sharedInfrastructureCapexChf: infrastructure,
-        totalSharedCapexBasisChf:
-          electricReferenceCapex + infrastructureBasis,
-        allocatedVehicleAndBatteryCapexChf:
-          electricReferenceCapex * share,
-        allocatedInfrastructureCapexChf: infrastructure === null
-          ? null
-          : allocatedInfrastructure,
-        allocatedInitialCapexChf: allocatedElectricCapex,
-        allocatedCapexWithReplacementsChf: allocatedElectricCapexPv,
-        allocatedAnnualizedCapexChf: allocatedElectricCapexAnnual,
-      },
-      diesel: {
-        referenceCapexChf: dieselReferenceCapex,
-        allocatedInitialCapexChf: allocatedDieselCapex,
-        allocatedAnnualizedCapexChf: allocatedDieselCapexAnnual,
-      },
-      breakEvenYear: allocatedBreakEvenYear,
+    lifecycle: yearly.lifecycle ?? null,
+    capitalScope: {
+      ...vehicleScope,
+      dataAvailable: true,
+      infrastructureInvestmentChf: infrastructureChf,
+      includedInfrastructureChf: infrastructure,
+      electricVehicleAndBatteryCapexChf: electricUnitCapex * vehicleCount,
+      electricInitialCapexChf: electricCapex,
+      dieselVehicleCapexChf: dieselCapex,
+      breakEvenYear: scopedBreakEvenYear,
     },
+  };
+};
+
+/** Apply complete fleet CAPEX while counting shared infrastructure once. */
+export const applyGeneralFleetCapital = (
+  costs,
+  vehicleScope,
+  { infrastructureInvestmentChf = null } = {},
+) => {
+  if (!vehicleScope?.dataAvailable || !positiveInteger(vehicleScope.vehicleCount)) {
+    return applyVehicleCapitalScope(costs, vehicleScope, 0);
+  }
+  const infrastructure = toFiniteNumber(infrastructureInvestmentChf);
+  if (infrastructure === null) {
+    return unavailableCapital(
+      costs,
+      "general",
+      "infrastructure_investment_unavailable",
+    );
+  }
+  return applyVehicleCapitalScope(costs, vehicleScope, infrastructure);
+};
+
+/**
+ * Keep the complete vehicle and battery CAPEX owned by a shift. Only the
+ * shared charging infrastructure is attributed by annual activity.
+ */
+export const applyShiftCapitalAllocation = (
+  costs,
+  basis,
+  { infrastructureInvestmentChf = null, vehicleScope = null } = {},
+) => {
+  if (!costs || typeof costs !== "object") return costs;
+  if (!vehicleScope?.dataAvailable) {
+    return unavailableCapital(
+      costs,
+      vehicleScope?.scope ?? "shift",
+      vehicleScope?.issue ?? "shift_vehicle_count_unavailable",
+    );
+  }
+  const infrastructure = toFiniteNumber(infrastructureInvestmentChf);
+  if (infrastructure === null) {
+    return unavailableCapital(
+      costs,
+      "shift",
+      "infrastructure_investment_unavailable",
+    );
+  }
+  const share = toFiniteNumber(basis?.share);
+  if (!basis || share === null || share < 0 || share > 1) {
+    return unavailableCapital(costs, "shift", "infrastructure_allocation_unavailable");
+  }
+  const allocatedInfrastructure = infrastructure * share;
+  const vehicleCount = positiveInteger(vehicleScope.vehicleCount);
+  const electricUnitCapex = toFiniteNumber(costs?.electric?.capex) ?? 0;
+  const dieselUnitCapex = toFiniteNumber(costs?.diesel?.capex) ?? 0;
+  const scoped = applyVehicleCapitalScope(
+    costs,
+    vehicleScope,
+    allocatedInfrastructure,
+  );
+  if (scoped?.capitalScope?.dataAvailable === false) return scoped;
+  const allocation = {
+    method: basis.method,
+    source: basis.source,
+    shiftId: basis.shiftId,
+    share,
+    shiftAnnualDcEnergyKwh: basis.shiftAnnualDcEnergyKwh,
+    totalAnnualDcEnergyKwh: basis.totalAnnualDcEnergyKwh,
+    shiftAnnualDistanceKm: basis.shiftAnnualDistanceKm,
+    totalAnnualDistanceKm: basis.totalAnnualDistanceKm,
+    infrastructureIncluded: true,
+    vehicleCount,
+    electric: {
+      referenceVehicleAndBatteryCapexChf: electricUnitCapex,
+      ownedVehicleAndBatteryCapexChf: electricUnitCapex * vehicleCount,
+      sharedInfrastructureCapexChf: infrastructure,
+      allocatedVehicleAndBatteryCapexChf: electricUnitCapex * vehicleCount,
+      allocatedInfrastructureCapexChf: allocatedInfrastructure,
+      allocatedInitialCapexChf: scoped.electric.capex,
+      allocatedCapexWithReplacementsChf: scoped.electric.capexPv,
+      allocatedAnnualizedCapexChf: scoped.electric.capexAnnual,
+    },
+    diesel: {
+      referenceCapexChf: dieselUnitCapex,
+      ownedVehicleCapexChf: dieselUnitCapex * vehicleCount,
+      allocatedInitialCapexChf: scoped.diesel.capex,
+      allocatedAnnualizedCapexChf: scoped.diesel.capexAnnual,
+    },
+    breakEvenYear: scoped.breakEvenYear,
+  };
+  return {
+    ...scoped,
+    capitalAllocation: allocation,
   };
 };
 
 /**
  * Economic context that belongs to General rather than to any one shift.
  *
- * The charging infrastructure is one shared system investment. Vehicle and
- * battery values are deliberately unit references: a yearly analysis does not
- * contain enough vehicle-block information to infer the number of physical
- * buses required by a group of shifts.
+ * The charging infrastructure is one shared system investment. Physical bus
+ * count comes from the optimizer per-bus snapshot frozen in the analysis.
  */
 export const buildGeneralSharedCostContext = (features = {}, busModelData = {}) => {
   const fixed = features?.config?.fixedConfiguration ?? {};
@@ -340,6 +549,26 @@ export const buildGeneralSharedCostContext = (features = {}, busModelData = {}) 
     busCostPerVehicleChf !== null && batteryCostPerBusChf !== null
       ? busCostPerVehicleChf + batteryCostPerBusChf
       : null;
+  const fleetScope = resolveFleetVehicleScope(features);
+  const fleetVehicleCount = fleetScope.dataAvailable
+    ? fleetScope.vehicleCount
+    : null;
+  const fleetBusInvestmentChf =
+    fleetVehicleCount !== null && busCostPerVehicleChf !== null
+      ? fleetVehicleCount * busCostPerVehicleChf
+      : null;
+  const fleetBatteryInvestmentChf =
+    fleetVehicleCount !== null && batteryCostPerBusChf !== null
+      ? fleetVehicleCount * batteryCostPerBusChf
+      : null;
+  const fleetInvestmentChf =
+    fleetVehicleCount !== null && referenceUnitInvestmentChf !== null
+      ? fleetVehicleCount * referenceUnitInvestmentChf
+      : null;
+  const totalInitialInvestmentChf =
+    fleetInvestmentChf !== null && infrastructureInvestmentChf !== null
+      ? fleetInvestmentChf + infrastructureInvestmentChf
+      : null;
 
   return {
     scope: "general_shared",
@@ -348,9 +577,16 @@ export const buildGeneralSharedCostContext = (features = {}, busModelData = {}) 
       shared: true,
       investmentChf: infrastructureInvestmentChf,
     },
+    fleetCapital: {
+      ...fleetScope,
+      busInvestmentChf: fleetBusInvestmentChf,
+      batteryInvestmentChf: fleetBatteryInvestmentChf,
+      vehicleAndBatteryInvestmentChf: fleetInvestmentChf,
+      totalInitialInvestmentChf,
+    },
     vehicleUnitReference: {
-      fleetVehicleCount: null,
-      fleetInvestmentChf: null,
+      fleetVehicleCount,
+      fleetInvestmentChf,
       busCostPerVehicleChf,
       commonBatteryPacks: packs,
       batteryPackCostChf: packCostChf,
@@ -361,9 +597,7 @@ export const buildGeneralSharedCostContext = (features = {}, busModelData = {}) 
 };
 
 /**
- * Keeps exact shift OPEX and, when available, the analytical share of common
- * CAPEX. Full bus, battery and infrastructure investments are never repeated
- * as if they were independently purchased for each shift.
+ * Keeps exact operating values and exports the already-scoped capital model.
  */
 export const buildOperatingCostExport = (costs, scope = "shift_operating") => {
   if (!costs || typeof costs !== "object") return null;

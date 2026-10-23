@@ -196,6 +196,13 @@ const multishiftAnalysis = {
         mode: "joint",
         busModelId: "bus-1",
         shiftIds: ["morning", "evening"],
+        fleet: {
+          dataAvailable: true,
+          source: "optimization_per_bus_summary",
+          vehicleCount: 2,
+          vehicleCountByShift: { morning: 1, evening: 1 },
+          issue: null,
+        },
         soc: { minFraction: 0.2, maxFraction: 0.9 },
         battery: {
           decision: "optimized",
@@ -330,6 +337,7 @@ const mountResults = async (
         specs: {
           bus_length_m: 12,
           battery_pack_size_kwh: 50,
+          battery_pack_cost: 10000,
           bus_lifetime: 12,
           battery_pack_lifetime: 8,
           cost: 400000,
@@ -407,6 +415,10 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   expect(exported.general.configuration).toMatchObject({
     mode: "joint",
     shiftIds: ["morning", "evening"],
+  });
+  expect(exported.general.costs.sharedInvestments.vehicleUnitReference).toMatchObject({
+    fleetVehicleCount: 2,
+    fleetInvestmentChf: 1_040_000,
   });
   expect(exported.shifts.map(({ shiftId }) => shiftId)).toEqual(["morning", "evening"]);
   await expect(generalLevel.locator(".ya-deployed-card")).toHaveCount(5);
@@ -568,6 +580,8 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   const capexAllocation = page.locator('[data-role="ya-costs-capex-section"]');
   await expect(capexAllocation).toHaveAttribute("data-allocation-method", "annual_dc_energy");
   await expect(capexAllocation).toContainText("66.7%");
+  await expect(capexAllocation).toContainText(/CHF 686['’,]667/);
+  await expect(capexAllocation).toContainText(/CHF 350['’,]000/);
   await expect(capexAllocation).toContainText("shown in Emissions");
   await expect(capexAllocation.locator(".ya-costs-kpi-card")).toHaveCount(0);
   await expect(capexAllocation.locator(".ya-compact-metrics__table thead tr")).toHaveCount(1);

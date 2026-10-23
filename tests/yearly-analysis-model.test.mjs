@@ -6,6 +6,7 @@ import {
   aggregatePredictionKpis,
   backfillYearlyShiftResults,
   buildFixedYearlyConfiguration,
+  buildYearlyFleetSnapshot,
   buildYearlyAnalysisResults,
   buildYearlyScenarioOutcome,
   computeYearlyTotals,
@@ -117,6 +118,13 @@ test("freezes the common worst-case battery, SOC window, infrastructure and shif
   assert.equal(fixed.sourceOptimizationRunId, "run-battery_only");
   assert.equal(fixed.busModelId, "bus-1");
   assert.deepEqual(fixed.shiftIds, ["morning", "evening"]);
+  assert.deepEqual(fixed.fleet, {
+    dataAvailable: true,
+    source: "optimization_per_bus_summary",
+    vehicleCount: 2,
+    vehicleCountByShift: { morning: 1, evening: 1 },
+    issue: null,
+  });
   assert.deepEqual(fixed.soc, { minFraction: 0.2, maxFraction: 0.9 });
   assert.equal(fixed.battery.decision, "optimized");
   assert.equal(fixed.battery.packs, 12);
@@ -134,6 +142,60 @@ test("freezes the common worst-case battery, SOC window, infrastructure and shif
   );
   assert.equal(fixed.shifts[0].operation.chargingSessions[0].energyKwh, 75);
   assert.deepEqual(run, before);
+});
+
+test("counts every physical optimizer row and supports multiple vehicles on one shift", () => {
+  const run = feasibilityRun("joint");
+  run.results.per_bus_summary.push({ shift_id: "morning" });
+
+  assert.deepEqual(
+    buildYearlyFleetSnapshot(run, ["morning", "evening"]),
+    {
+      dataAvailable: true,
+      source: "optimization_per_bus_summary",
+      vehicleCount: 3,
+      vehicleCountByShift: { morning: 2, evening: 1 },
+      issue: null,
+    },
+  );
+});
+
+test("keeps missing and inconsistent physical-vehicle contracts explicit", () => {
+  const expected = (issue) => ({
+    dataAvailable: false,
+    source: "optimization_per_bus_summary",
+    vehicleCount: null,
+    vehicleCountByShift: {},
+    issue,
+  });
+
+  const missing = feasibilityRun();
+  delete missing.results.per_bus_summary;
+  assert.deepEqual(
+    buildYearlyFleetSnapshot(missing, ["morning", "evening"]),
+    expected("missing_per_bus_summary"),
+  );
+
+  const missingShift = feasibilityRun();
+  missingShift.results.per_bus_summary.pop();
+  assert.deepEqual(
+    buildYearlyFleetSnapshot(missingShift, ["morning", "evening"]),
+    expected("missing_per_bus_shift"),
+  );
+
+  const unexpectedShift = feasibilityRun();
+  unexpectedShift.results.per_bus_summary[1].shift_id = "night";
+  assert.deepEqual(
+    buildYearlyFleetSnapshot(unexpectedShift, ["morning", "evening"]),
+    expected("unexpected_per_bus_shift_id"),
+  );
+
+  const malformed = feasibilityRun();
+  malformed.results.per_bus_summary[0] = null;
+  assert.deepEqual(
+    buildYearlyFleetSnapshot(malformed, ["morning", "evening"]),
+    expected("invalid_per_bus_summary_row"),
+  );
 });
 
 test("keeps mode decisions frozen for battery-only, charging-only and joint feasibility", () => {
