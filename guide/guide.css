@@ -213,6 +213,7 @@ a:hover {
   color: var(--guide-blue);
   font-size: clamp(2rem, 5vw, 3.4rem);
   line-height: 1.08;
+  overflow-wrap: anywhere;
 }
 
 .guide-introduction {
@@ -305,10 +306,12 @@ a:hover {
 }
 
 .guide-item {
+  min-width: 0;
   padding: 1rem 1.15rem;
   border: 1px solid var(--guide-border);
   border-radius: 9px;
   background: var(--guide-muted-surface);
+  overflow-wrap: anywhere;
 }
 
 .guide-item h3 {
@@ -389,6 +392,184 @@ a:hover {
   margin: 0 0 0.5rem;
 }
 
+#guide-nav .guide-nav-child {
+  padding-left: 1.35rem;
+  font-size: 0.8rem;
+}
+
+.guide-use-case-tone {
+  --case-color: var(--guide-brand);
+  border-top: 4px solid var(--case-color);
+}
+
+.guide-use-case-tone[data-case="2"] {
+  --case-color: var(--guide-blue);
+}
+
+.guide-use-case-tone[data-case="3"] {
+  --case-color: #617f16;
+}
+
+.guide-flow,
+.guide-use-case {
+  margin: 1.5rem 0 0;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid var(--guide-border);
+  border-radius: var(--guide-radius);
+  background: var(--guide-muted-surface);
+  scroll-margin-top: 5.25rem;
+}
+
+.guide-flow figcaption h3,
+.guide-use-case > h3 {
+  margin: 0;
+  color: var(--guide-brand-dark);
+  font-size: 1.2rem;
+  line-height: 1.4;
+}
+
+.guide-flow figcaption p {
+  margin: 0.6rem 0 1.25rem;
+  color: var(--guide-muted);
+  font-size: 0.9rem;
+}
+
+.guide-flow-label {
+  margin: 1rem 0 0.6rem;
+  text-align: center;
+  font-weight: 650;
+}
+
+.guide-flow-branches,
+.guide-flow-preparation {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.guide-flow-node {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.8rem;
+  border: 1px solid var(--guide-border);
+  border-radius: 8px;
+  background: var(--guide-surface);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.guide-flow-node:hover {
+  border-color: var(--guide-brand);
+  text-decoration: underline;
+}
+
+.guide-flow-node.guide-use-case-tone,
+.guide-use-case {
+  border-top: 4px solid var(--case-color);
+}
+
+.guide-flow-node strong {
+  color: var(--case-color);
+}
+
+.guide-flow-arrow {
+  display: block;
+  color: var(--guide-brand);
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.guide-flow-preparation {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--guide-border);
+  border-radius: 9px;
+  background: var(--guide-background);
+  list-style: none;
+  gap: 1.8rem;
+}
+
+.guide-flow-preparation li {
+  position: relative;
+  display: grid;
+}
+
+.guide-flow-preparation .guide-flow-arrow {
+  position: absolute;
+  top: 50%;
+  right: -1.4rem;
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+.guide-flow-decision {
+  width: fit-content;
+  margin: 0 auto 0.75rem;
+  padding: 0.6rem 1.2rem;
+  border: 2px solid var(--guide-brand);
+  border-radius: 999px;
+  background: rgba(161, 210, 54, 0.13);
+  font-weight: 700;
+  text-align: center;
+}
+
+.guide-flow-outcomes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.guide-flow-outcome {
+  min-width: 0;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--guide-border);
+  text-align: center;
+}
+
+.guide-flow-revise {
+  border-style: dashed;
+}
+
+.guide-flow-impacts {
+  margin: 0.5rem 0 0;
+  color: var(--guide-muted);
+  font-size: 0.85rem;
+}
+
+.guide-use-case h4 {
+  margin: 1.1rem 0 0.3rem;
+  color: var(--guide-brand-dark);
+  font-size: 0.95rem;
+}
+
+.guide-use-case p {
+  margin: 0.3rem 0;
+  color: var(--guide-muted);
+}
+
+.guide-use-case .guide-use-case-question {
+  color: var(--guide-text);
+  font-weight: 650;
+}
+
+.guide-use-case-steps {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.guide-use-case-steps li + li {
+  margin-top: 0.6rem;
+}
+
+.guide-use-case-steps a {
+  font-size: 0.85rem;
+}
+
 @media (width <= 850px) {
   .guide-layout {
     display: block;
@@ -430,6 +611,32 @@ a:hover {
 }
 
 @media (width <= 600px) {
+  .guide-flow-branches,
+  .guide-flow-preparation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .guide-flow-preparation .guide-flow-arrow {
+    top: auto;
+    right: 50%;
+    bottom: -1.9rem;
+    transform: translateX(50%);
+  }
+
+  .guide-flow-outcomes {
+    gap: 0.65rem;
+  }
+
+  .guide-flow-outcome .guide-flow-node {
+    padding: 0.65rem 0.4rem;
+  }
+
+  .guide-section,
+  .guide-use-case,
+  .guide-flow {
+    scroll-margin-top: 9rem;
+  }
+
   .guide-header {
     align-items: flex-start;
     flex-direction: column;
@@ -493,6 +700,21 @@ a:hover {
 
   .guide-figure {
     box-shadow: none;
+  }
+
+  #use-cases {
+    break-inside: auto;
+  }
+
+  .guide-flow,
+  .guide-use-case h3,
+  .guide-use-case h4 {
+    break-inside: avoid;
+  }
+
+  .guide-use-case h3,
+  .guide-use-case h4 {
+    break-after: avoid;
   }
 }
 

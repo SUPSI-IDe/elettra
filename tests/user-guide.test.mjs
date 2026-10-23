@@ -34,6 +34,7 @@ test("the public guide contains the expected accessible shell", async () => {
 
 test("all supported guide languages expose the same complete section structure", () => {
   const expectedIds = [
+    "use-cases",
     "start",
     "workflow",
     "fleet",
@@ -44,7 +45,7 @@ test("all supported guide languages expose the same complete section structure",
     "comparison",
     "practice",
   ];
-  const expectedFigureCounts = [1, 0, 1, 1, 1, 2, 2, 0, 0];
+  const expectedFigureCounts = [0, 1, 0, 1, 1, 1, 2, 2, 0, 0];
 
   assert.deepEqual(Object.keys(guideContent).sort(), [...SUPPORTED_GUIDE_LANGUAGES].sort());
 
@@ -60,6 +61,37 @@ test("all supported guide languages expose the same complete section structure",
     assert.ok(content.sections.every(({ title, intro, items }) =>
       title && intro && items.length >= 3 && items.every(({ title: itemTitle, text }) => itemTitle && text)
     ));
+  }
+});
+
+test("use cases have complete translations, stable modes and valid documentation links", () => {
+  const shape = (value) => {
+    if (Array.isArray(value)) return value.map(shape);
+    if (typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, shape(entry)]));
+    }
+    assert.equal(typeof value, "string");
+    assert.ok(value.trim());
+    return "string";
+  };
+  const reference = guideContent.en.sections[0];
+
+  for (const language of SUPPORTED_GUIDE_LANGUAGES) {
+    const { sections } = guideContent[language];
+    const useCases = sections[0];
+    assert.deepEqual(shape(useCases), shape(reference), language);
+    assert.deepEqual(useCases.items.map(({ id, mode }) => ({ id, mode })), [
+      { id: "use-case-fleet", mode: "BATTERY_ONLY" },
+      { id: "use-case-charging", mode: "CHARGING" },
+      { id: "use-case-initial", mode: "JOINT" },
+    ]);
+    const ids = sections.map(({ id }) => id);
+    for (const item of useCases.items) {
+      assert.deepEqual(item.steps.map(({ section }) => section), [
+        "fleet", "shifts", "feasibility", "feasibility", "results", "yearly",
+      ]);
+      assert.ok(item.steps.every(({ section }) => ids.includes(section)));
+    }
   }
 });
 

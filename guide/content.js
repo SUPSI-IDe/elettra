@@ -1,5 +1,7 @@
+import { useCaseSections } from "./use-cases.js";
+
 export const GUIDE_BASELINE_VERSION = "0.5.0";
-export const GUIDE_UPDATED_AT = "22 October 2026";
+export const GUIDE_UPDATED_AT = "23 October 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -118,6 +120,7 @@ export const guideContent = {
       openImage: "Open full-size screenshot",
     },
     sections: [
+      useCaseSections.en,
       {
         id: "start",
         title: "1. Getting started",
@@ -406,7 +409,7 @@ export const guideContent = {
       baselineLabel: "Stand der Benutzeroberfläche",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Handbuch aktualisiert",
-      updatedValue: "17. September 2026",
+      updatedValue: "23. Oktober 2026",
       footer:
         "ELETTRA unterstützt Vorstudien. Endgültige Fahrzeug-, Lade-, Netz- und Infrastrukturentscheidungen müssen durch eine detaillierte Fachplanung bestätigt werden.",
       skipLink: "Zum Handbuch springen",
@@ -416,6 +419,7 @@ export const guideContent = {
       openImage: "Screenshot in voller Grösse öffnen",
     },
     sections: [
+      useCaseSections.de,
       {
         id: "start",
         title: "1. Erste Schritte",
@@ -568,7 +572,7 @@ export const guideContent = {
       baselineLabel: "Version de référence de l’interface",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guide mis à jour",
-      updatedValue: "17 septembre 2026",
+      updatedValue: "23 octobre 2026",
       footer:
         "ELETTRA soutient les études de préfaisabilité. Les décisions finales relatives aux véhicules, à la recharge, au réseau et aux infrastructures doivent être confirmées par des études d’ingénierie détaillées.",
       skipLink: "Accéder au guide",
@@ -578,6 +582,7 @@ export const guideContent = {
       openImage: "Ouvrir la capture en taille réelle",
     },
     sections: [
+      useCaseSections.fr,
       {
         id: "start",
         title: "1. Premiers pas",
@@ -716,7 +721,7 @@ export const guideContent = {
       baselineLabel: "Versione di riferimento dell’interfaccia",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guida aggiornata",
-      updatedValue: "17 settembre 2026",
+      updatedValue: "23 ottobre 2026",
       footer:
         "ELETTRA supporta studi di prefattibilità. Le decisioni finali su veicoli, ricarica, rete e infrastrutture devono essere confermate mediante una progettazione tecnica dettagliata.",
       skipLink: "Vai alla guida",
@@ -726,6 +731,7 @@ export const guideContent = {
       openImage: "Apri la schermata a dimensione intera",
     },
     sections: [
+      useCaseSections.it,
       {
         id: "start",
         title: "1. Per iniziare",

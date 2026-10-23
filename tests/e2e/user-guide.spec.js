@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { guideContent } from "../../guide/content.js";
 
+// Assert anchor destinations without racing smooth-scroll animations between clicks.
+test.use({ reducedMotion: "reduce" });
 
 const GUIDE_SECTIONS = [
+  "use-cases",
   "start",
   "workflow",
   "fleet",
@@ -120,7 +124,7 @@ test("every guide section is reachable from the guide navigation", async ({ page
   await page.goto("./guide/");
 
   const navigationLinks = page.locator("#guide-nav a");
-  await expect(navigationLinks).toHaveCount(GUIDE_SECTIONS.length);
+  await expect(navigationLinks).toHaveCount(GUIDE_SECTIONS.length + 3);
 
   for (const sectionId of GUIDE_SECTIONS) {
     const link = page.locator(`#guide-nav a[href="#${sectionId}"]`);
@@ -143,6 +147,47 @@ test("a direct guide-section URL can return to the landing page", async ({ page 
 
 
 for (const [language, labels] of Object.entries(LANGUAGES)) {
+  test(`use cases and workflow navigation are translated and fit the viewport in ${language}`, async ({ page }) => {
+    await page.goto("./guide/#use-cases");
+    await page.locator("#guide-language").selectOption(language);
+    const content = guideContent[language].sections[0];
+    const diagram = page.locator(".guide-flow");
+
+    await expect(page.locator("#use-cases > h2")).toHaveText(content.title);
+    await expect(diagram.locator("figcaption h3")).toHaveText(content.diagram.title);
+    await expect(diagram.locator("figcaption p")).toHaveText(content.diagram.description);
+    await expect(diagram).toHaveAccessibleName(content.diagram.title);
+    await expect(diagram).toHaveAccessibleDescription(content.diagram.description);
+    for (const label of Object.values(content.diagram)) {
+      await expect(diagram).toContainText(label);
+    }
+    for (const item of content.items) {
+      await expect(page.locator(`#${item.id} > h3`)).toContainText(item.title);
+      await expect(page.locator(`#${item.id}`)).toContainText(item.scope);
+      await diagram.locator(`a[href="#${item.id}"]`).first().click();
+      await expect(page.locator(`#${item.id} > h3`)).toBeInViewport();
+      await expect(page).toHaveURL(new RegExp(`#${item.id}$`));
+      await page.locator(`#guide-nav a[href="#${item.id}"]`).click();
+      await expect(page.locator(`#${item.id} > h3`)).toBeInViewport();
+    }
+    const invalidLinks = await page.locator('#use-cases a[href^="#"]').evaluateAll((links) =>
+      links.filter((link) => !document.getElementById(link.hash.slice(1))).map((link) => link.hash)
+    );
+    expect(invalidLinks).toEqual([]);
+    await diagram.locator(".guide-flow-revise").click();
+    await expect(diagram.locator("h3")).toBeInViewport();
+    await diagram.locator('a[href="#yearly"]').click();
+    await expect(page.locator("#yearly > h2")).toBeInViewport();
+    await diagram.locator('a[href="#comparison"]').click();
+    await expect(page.locator("#comparison > h2")).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await page.reload();
+    await expect(page.locator("#guide-language")).toHaveValue(language);
+    await expect(page.locator("#comparison > h2")).toBeInViewport();
+    await page.setViewportSize({ width: 320, height: 720 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  });
+
   test(`landing-to-guide-to-landing preserves the ${language} language`, async ({
     page,
   }) => {
@@ -187,6 +232,17 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await expectLandingGuideLink(page, labels.landingLink);
   });
 }
+
+test("switching languages preserves the active use-case anchor and updates its diagram", async ({ page }) => {
+  await page.goto("./guide/#use-case-charging");
+  for (const language of ["de", "fr", "it", "en"]) {
+    await page.locator("#guide-language").selectOption(language);
+    await expect(page).toHaveURL(/#use-case-charging$/);
+    await expect(page.locator("#use-case-charging > h3")).toBeInViewport();
+    await expect(page.locator(".guide-flow-decision")).toHaveText(guideContent[language].sections[0].diagram.decision);
+    await expect(page.locator("html")).toHaveAttribute("lang", language);
+  }
+});
 
 
 test("the guide screenshots load and the guide fits the viewport", async ({ page }) => {
