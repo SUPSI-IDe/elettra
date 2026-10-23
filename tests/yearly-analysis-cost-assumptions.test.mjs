@@ -5,9 +5,9 @@ import { resolveYearlyEconomicAssumptions } from "../src/utils/yearly-analysis-c
 
 test("resolves the configured vehicle assumptions for every supported bus length", () => {
   const expected = new Map([
-    [9, { dieselEfficiencyLPerKm: 0.34, dieselMaintPerKm: 0.30, electricMaintPerKm: 0.30 }],
-    [12, { dieselEfficiencyLPerKm: 0.42, dieselMaintPerKm: 0.37, electricMaintPerKm: 0.35 }],
-    [18, { dieselEfficiencyLPerKm: 0.55, dieselMaintPerKm: 0.45, electricMaintPerKm: 0.40 }],
+    [9, { dieselEfficiencyLPerKm: 0.3718, dieselMaintPerKm: 0.30, electricMaintPerKm: 0.30 }],
+    [12, { dieselEfficiencyLPerKm: 0.4318, dieselMaintPerKm: 0.37, electricMaintPerKm: 0.35 }],
+    [18, { dieselEfficiencyLPerKm: 0.5518, dieselMaintPerKm: 0.45, electricMaintPerKm: 0.40 }],
   ]);
 
   for (const [busLengthM, vehicleAssumptions] of expected) {
@@ -18,13 +18,13 @@ test("resolves the configured vehicle assumptions for every supported bus length
         fuelPricePerL: 1.85,
         ...vehicleAssumptions,
         annualizationRate: 0.03,
-        dieselHeatingMaintenanceFactor: 0,
+        dieselHeatingMaintenanceFactor: 0.10,
       },
     );
   }
 });
 
-test("uses the frontend bus parameters even when backend coefficients disagree", () => {
+test("uses frontend maintenance defaults when backend coefficients disagree", () => {
   const resolved = resolveYearlyEconomicAssumptions({
     busLengthM: 18,
     backendAssumptions: {
@@ -41,7 +41,7 @@ test("uses the frontend bus parameters even when backend coefficients disagree",
   assert.deepEqual(resolved, {
     energyPricePerKwh: 0.24,
     fuelPricePerL: 1.91,
-    dieselEfficiencyLPerKm: 0.55,
+    dieselEfficiencyLPerKm: 0.5518,
     dieselMaintPerKm: 0.45,
     electricMaintPerKm: 0.40,
     annualizationRate: 0.04,
@@ -112,7 +112,7 @@ test("null reset values restore the shared assumptions", () => {
 });
 
 test("invalid and missing values fall back deterministically to the 12 metre defaults", () => {
-  for (const busLengthM of [null, undefined, "", "unknown", 15]) {
+  for (const busLengthM of [null, undefined, "", "unknown"]) {
     const resolved = resolveYearlyEconomicAssumptions({
       busLengthM,
       backendAssumptions: {
@@ -130,11 +130,18 @@ test("invalid and missing values fall back deterministically to the 12 metre def
     assert.deepEqual(resolved, {
       energyPricePerKwh: 0.20,
       fuelPricePerL: 1.85,
-      dieselEfficiencyLPerKm: 0.42,
+      dieselEfficiencyLPerKm: 0.4318,
       dieselMaintPerKm: 0.37,
       electricMaintPerKm: 0.35,
       annualizationRate: 0.03,
-      dieselHeatingMaintenanceFactor: 0,
+      dieselHeatingMaintenanceFactor: 0.10,
     });
   }
+});
+
+test("diesel consumption retains the continuous model for non-standard lengths", () => {
+  const resolved = resolveYearlyEconomicAssumptions({ busLengthM: 15 });
+  assert.equal(resolved.dieselEfficiencyLPerKm, 0.4918);
+  assert.equal(resolved.dieselMaintPerKm, 0.37);
+  assert.equal(resolved.electricMaintPerKm, 0.35);
 });

@@ -94,6 +94,10 @@ import {
   resolveShiftCapitalAllocationBasis,
 } from "../../../utils/yearly-analysis-cost-scope";
 import { resolveYearlyEconomicAssumptions } from "../../../utils/yearly-analysis-cost-assumptions";
+import {
+  reconcileYearlyOperatingCosts,
+  resolveYearlyOperatingActivity,
+} from "../../../utils/yearly-analysis-operating-costs";
 
 const YEARLY_RESULT_VIEW_KEYS = Object.freeze(["efficiency", "costs", "emissions"]);
 
@@ -1355,7 +1359,10 @@ export const computeYearlyCosts = (
   features,
   busModelData,
   overrides = {},
-  { resolvedAssumptions = null } = {},
+  {
+    resolvedAssumptions = null,
+    operatingActivity = null,
+  } = {},
 ) => {
   const results = features.results ?? {};
   const yearlyTotals = results.yearlyTotals ?? {};
@@ -1393,6 +1400,16 @@ export const computeYearlyCosts = (
   if (busLengthM == null) return null;
 
   const yearlyEnergyBoundary = buildChargingEnergyBoundary(yearlyEnergyKwh);
+  const activityDistanceKm = fn(operatingActivity?.annualDistanceKm);
+  const operatingActivityScale =
+    activityDistanceKm != null && activityDistanceKm > 0 && yearlyDistanceKm != null
+      ? yearlyDistanceKm / activityDistanceKm
+      : distanceScale;
+  const yearlyDieselHeatingLiters =
+    (fn(operatingActivity?.dieselHeatingLiters) ?? 0) * operatingActivityScale;
+  const isDieselHeating = yearlyDieselHeatingLiters > 0;
+  const dieselHeatingMaintenanceFactor =
+    economicAssumptions.dieselHeatingMaintenanceFactor;
 
   const scenarioCosts = scenarioResults
     .filter((sr) => !sr.error && sr.kpis)
@@ -1428,7 +1445,12 @@ export const computeYearlyCosts = (
   const electricEnergyOpex = yearlyEnergyBoundary.gridKwh * energyPricePerKwh;
   const electricMaintOpex = yearlyDistanceKm != null && electricMaintPerKm != null
     ? yearlyDistanceKm * electricMaintPerKm : 0;
-  const electricTotalOpex = electricEnergyOpex + electricMaintOpex;
+  const dieselHeatingFuelOpex = yearlyDieselHeatingLiters * fuelPricePerL;
+  const dieselHeatingMaintOpex = isDieselHeating
+    ? electricMaintOpex * dieselHeatingMaintenanceFactor
+    : 0;
+  const electricTotalOpex = electricEnergyOpex + electricMaintOpex +
+    dieselHeatingFuelOpex + dieselHeatingMaintOpex;
 
   const dieselFuelOpex = yearlyDistanceKm != null && dieselEfficiencyLPerKm != null
     ? yearlyDistanceKm * dieselEfficiencyLPerKm * fuelPricePerL : 0;
@@ -1528,6 +1550,9 @@ export const computeYearlyCosts = (
       dieselMaintPerKm,
       electricMaintPerKm,
       annualizationRate,
+      dieselHeatingMaintenanceFactor,
+      yearlyDieselHeatingLiters,
+      yearlyDieselHeatingFuelKwh: null,
       gridToBusEfficiency: yearlyEnergyBoundary.gridToBusEfficiency,
       chargingEnergyPolicy: yearlyEnergyBoundary.policy,
     },
@@ -1537,6 +1562,8 @@ export const computeYearlyCosts = (
     yearlyDistanceKm,
     electric: {
       energyOpex: electricEnergyOpex, maintOpex: electricMaintOpex,
+      dieselHeatingFuelOpex,
+      dieselHeatingMaintOpex,
       totalOpex: electricTotalOpex, capex: electricCapexChf,
       capexPv: electricCapexPv,
       capexAnnual: electricCapexAnnual, totalAnnual: electricAnnual,
@@ -1555,6 +1582,9 @@ export const computeYearlyCosts = (
       capexAnnual: dieselCapexAnnual, totalAnnual: dieselAnnual,
     },
     annualSaving,
+    operatingActivity: operatingActivity?.dataAvailable
+      ? { ...operatingActivity }
+      : null,
     breakEvenYear: computeBreakEvenYear(yearly),
     lifecycle: yearly.lifecycle,
     yearly,
@@ -1575,7 +1605,12 @@ export const mapBackendCostsToLocal = (
   yearlyDistanceKm,
   yearlyEnergyKwh,
   busModelData,
-  { optimizedPacks, overrides, resolvedAssumptions } = {},
+  {
+    optimizedPacks,
+    overrides,
+    resolvedAssumptions,
+    operatingActivity = null,
+  } = {},
 ) => {
   const fn = (v) => toFiniteNumber(v);
   const ov = (key) => overrides?.[key] != null ? toFiniteNumber(overrides[key]) : null;
@@ -1610,9 +1645,29 @@ export const mapBackendCostsToLocal = (
     boundary: a.energy_boundary,
     boundaryDcEnergyKwh: fn(a.yearly_electric_kwh) ?? baseYElecKwh,
   });
-  const yDhLiters = (fn(a.yearly_diesel_heating_liters) ?? 0) * distanceScale;
+  const backendDhLiters = fn(a.yearly_diesel_heating_liters);
+  const activityDhLiters = fn(operatingActivity?.dieselHeatingLiters);
+  const activityDistanceKm = fn(operatingActivity?.annualDistanceKm);
+  const heatingScale = backendDhLiters !== null
+    ? distanceScale
+    : activityDistanceKm != null && activityDistanceKm > 0
+      ? yDistKm / activityDistanceKm
+      : distanceScale;
+  const yDhLiters = (backendDhLiters ?? activityDhLiters ?? 0) * heatingScale;
   const yDhFuelKwh = (fn(a.yearly_diesel_heating_fuel_kwh) ?? 0) * distanceScale;
   const isDieselHeating = yDhLiters > 0;
+  const resolvedOperatingActivity = backendDhLiters !== null
+    ? {
+        dataAvailable: true,
+        source: "yearly_costs_backend",
+        shiftId: null,
+        annualDistanceKm: yDistKm,
+        dieselHeatingLiters: yDhLiters,
+        issue: null,
+      }
+    : operatingActivity?.dataAvailable
+      ? { ...operatingActivity, dieselHeatingLiters: yDhLiters }
+      : null;
 
   /* ── OPEX: recalculate from physical quantities × unit prices ── */
   const electricEnergyOpex = yearlyEnergyBoundary.gridKwh * energyPerKwh;
@@ -1799,6 +1854,7 @@ export const mapBackendCostsToLocal = (
       totalAnnual: dieselAnnual,
     },
     annualSaving,
+    operatingActivity: resolvedOperatingActivity,
     breakEvenYear: computeBreakEvenYear(yearly),
     lifecycle: yearly.lifecycle,
     yearly,
@@ -4077,6 +4133,7 @@ export const buildCompleteYearlyExportPayload = ({
   const shiftCostOverrides = { ...costOverrides, yearlyDistanceKm: null };
   const sharedCostAssumptions = resolvedCostAssumptions ??
     generalCostState?.costsData?.assumptions ?? null;
+  const shiftRawCosts = [];
   const shifts = resultScopes
     .filter((scope) => scope?.kind === "shift")
     .map((scope) => {
@@ -4106,11 +4163,18 @@ export const buildCompleteYearlyExportPayload = ({
       });
       let scopedCostsData = null;
       try {
+        const operatingActivity = resolveYearlyOperatingActivity(
+          generalEmissionsState?.rawLca,
+          scope.shiftId,
+        );
         scopedCostsData = computeYearlyCosts(
           scopedFeatures,
           busModelData,
           shiftCostOverrides,
-          { resolvedAssumptions: sharedCostAssumptions },
+          {
+            resolvedAssumptions: sharedCostAssumptions,
+            operatingActivity,
+          },
         );
         const allocationBasis = resolveShiftCapitalAllocationBasis(
           features,
@@ -4129,6 +4193,7 @@ export const buildCompleteYearlyExportPayload = ({
       } catch {
         scopedCostsData = null;
       }
+      shiftRawCosts.push(scopedCostsData);
       const scopedCostState = scopedCostsData
         ? { status: "done", costsData: scopedCostsData, error: null }
         : { status: "error", costsData: null, error: "insufficient-data" };
@@ -4155,6 +4220,10 @@ export const buildCompleteYearlyExportPayload = ({
         emissions: scopedPayload.emissions,
       };
     });
+  generalCosts.operatingReconciliation = reconcileYearlyOperatingCosts(
+    generalCostState?.costsData,
+    shiftRawCosts,
+  );
 
   return {
     schemaVersion: 3,
@@ -4952,11 +5021,18 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     costState.error = null;
     costState.status = "loading";
     try {
+      const operatingActivity = resolveYearlyOperatingActivity(
+        emissionsState.rawLca,
+        activeScope?.kind === "shift" ? activeScope.shiftId : null,
+      );
       const result = computeYearlyCosts(
         activeFeatures,
         busModelData,
         costOverrides,
-        { resolvedAssumptions: resolvedCostAssumptions },
+        {
+          resolvedAssumptions: resolvedCostAssumptions,
+          operatingActivity,
+        },
       );
       if (!result) {
         costState.status = "error";
@@ -5009,10 +5085,14 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       try {
         const yearlyDistKm = toFiniteNumber(yearlyTotals.distanceKm);
         const yearlyEngKwh = toFiniteNumber(yearlyTotals.totalEnergyKwh);
+        const operatingActivity = resolveYearlyOperatingActivity(
+          emissionsState.rawLca,
+        );
         const mapped = mapBackendCostsToLocal(backendCostsRaw, yearlyDistKm, yearlyEngKwh, busModelData, {
           optimizedPacks: features.results?.optimizedPacks,
           overrides: costOverrides,
           resolvedAssumptions: resolvedCostAssumptions,
+          operatingActivity,
         });
         costState.costsData = mapped;
         costState.status = "done";
@@ -5485,7 +5565,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       emissionsState.emissionsMetadata = null;
       emissionsState.structured = null;
     }
-    if (activeScope?.kind === "shift") refreshCosts();
+    refreshCosts();
     syncEmissionsDistanceControl();
     refreshDerivedEmissionsViews();
   };

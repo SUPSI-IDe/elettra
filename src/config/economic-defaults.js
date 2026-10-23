@@ -46,6 +46,7 @@ export const getBusParameterDefaults = (length) => {
 export const DEFAULT_OPEX_ANNUALIZATION_RATE = 0.03;
 export const DEFAULT_FUEL_COST_PER_L = 1.85;
 export const DEFAULT_ENERGY_PRICE_PER_KWH = 0.20;
+export const DEFAULT_DIESEL_HEATING_MAINTENANCE_FACTOR = 0.10;
 export const DEFAULT_BUS_LIFETIME_YEARS = 12;
 export const DEFAULT_DIESEL_BUS_LIFETIME_YEARS = 10;
 export const DEFAULT_BATTERY_LIFETIME_YEARS = 8;

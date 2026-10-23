@@ -315,7 +315,12 @@ const mountResults = async (
   const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
   const lca = analysis.features?.results?.shiftResults || configuredShiftCount > 1
     ? multiShiftLca()
-    : lcaFixture;
+    : structuredClone(lcaFixture);
+  if (configuredShiftCount === 1 && Array.isArray(lca.vehicles)) {
+    lca.vehicles.forEach((vehicle) => {
+      vehicle.shift_id = analysis.features.config.shift_ids[0];
+    });
+  }
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
@@ -892,6 +897,7 @@ test("General, shifts, controls and export share one set of yearly economic assu
   await expect(electricMaintenance).toHaveValue("0.4");
   await expect(dieselMaintenance).toHaveValue("0.45");
   await expect(dieselEfficiency).toHaveValue("0.55");
+  await expect(page.locator('[data-role="ya-var-diesel-eff-value"]')).toHaveText("0.552");
 
   await scopeTabs.getByRole("tab", { name: "General" }).click();
   const initial = (await downloadAllResults(page)).exported;
@@ -903,11 +909,59 @@ test("General, shifts, controls and export share one set of yearly economic assu
     expect(costs.assumptions).toMatchObject({
       energyPrice_CHFPerKwh: 0.24,
       fuelPrice_CHFPerL: 1.91,
-      dieselComparator_efficiency_LPerKm: 0.55,
+      dieselComparator_efficiency_LPerKm: 0.5518,
       dieselComparator_maintenanceCost_CHFPerKm: 0.45,
       electricMaintenanceCost_CHFPerKm: 0.40,
       annualizationRate: 0.04,
     });
+  }
+  expect(initial.general.costs.operatingReconciliation).toMatchObject({
+    status: "consistent",
+    shiftCount: 2,
+    issue: null,
+  });
+  expect(
+    initial.general.costs.operatingReconciliation.metrics
+      .dieselHeatingFuelOpexChf.general,
+  ).toBeGreaterThan(0);
+  const shiftElectricAnnualizedCapex = initial.shifts.reduce(
+    (sum, shift) => sum +
+      shift.costs.capitalAllocation.electric.allocatedAnnualizedCAPEX_CHF,
+    0,
+  );
+  const shiftDieselAnnualizedCapex = initial.shifts.reduce(
+    (sum, shift) => sum +
+      shift.costs.capitalAllocation.diesel.allocatedAnnualizedCAPEX_CHF,
+    0,
+  );
+  expect(Math.abs(
+    initial.general.costs.capitalComparison.electric.annualizedCAPEX_CHF -
+      shiftElectricAnnualizedCapex,
+  )).toBeLessThanOrEqual(initial.shifts.length);
+  expect(Math.abs(
+    initial.general.costs.capitalComparison.diesel.annualizedCAPEX_CHF -
+      shiftDieselAnnualizedCapex,
+  )).toBeLessThanOrEqual(initial.shifts.length);
+  const generalTrend = initial.general.costs.capitalComparison.projectedCostTrend;
+  for (const [index, point] of generalTrend.entries()) {
+    const shiftPoints = initial.shifts.map((shift) =>
+      shift.costs.projectedCostTrend[index]);
+    expect(shiftPoints.every(Boolean)).toBe(true);
+    expect(shiftPoints.every((entry) => entry.year === point.year)).toBe(true);
+    const electricDelta = Math.abs(
+      point.electric_CHF -
+        shiftPoints.reduce((sum, entry) => sum + entry.electric_CHF, 0));
+    const dieselDelta = Math.abs(
+      point.diesel_CHF -
+        shiftPoints.reduce((sum, entry) => sum + entry.diesel_CHF, 0));
+    expect(
+      electricDelta,
+      `electric curve mismatch at year ${point.year}: General ${point.electric_CHF}, shifts ${shiftPoints.map((entry) => entry.electric_CHF).join(" + ")}`,
+    ).toBeLessThanOrEqual(initial.shifts.length);
+    expect(
+      dieselDelta,
+      `diesel curve mismatch at year ${point.year}`,
+    ).toBeLessThanOrEqual(initial.shifts.length);
   }
 
   await scopeTabs.getByRole("tab", { name: "Morning service" }).click();
@@ -934,6 +988,7 @@ test("General, shifts, controls and export share one set of yearly economic assu
       electricMaintenanceCost_CHFPerKm: 0.43,
     });
   }
+  expect(overridden.general.costs.operatingReconciliation.status).toBe("consistent");
 
   await scopeTabs.getByRole("tab", { name: "Morning service" }).click();
   await page.locator('[data-role="ya-var-reset-all"]').click();
@@ -952,6 +1007,112 @@ test("General, shifts, controls and export share one set of yearly economic assu
       electricMaintenanceCost_CHFPerKm: 0.40,
     });
   }
+  expect(reset.general.costs.operatingReconciliation.status).toBe("consistent");
+});
+
+for (const mode of ["joint", "charging_only", "battery_only"]) {
+  test(`${mode} multi-shift OPEX reconciles General with every shift`, async ({ page }) => {
+    const source = structuredClone(multishiftAnalysis);
+    source.id = `reconciliation-${mode}`;
+    source.features.config.mode = mode;
+    source.features.config.fixedConfiguration.mode = mode;
+    await mountResults(page, source);
+
+    const exported = (await downloadAllResults(page)).exported;
+    expect(exported.general.costs.operatingReconciliation).toMatchObject({
+      status: "consistent",
+      shiftCount: 2,
+      issue: null,
+    });
+  });
+}
+
+test("the two-shift TPL JOINT case reproduces its reconciled annual OPEX", async ({ page }) => {
+  await page.goto("./");
+  const values = await page.evaluate(async () => {
+    const resultsModule = await import(
+      "/elettra/src/pages/Simulation/YearlyAnalysis/yearly-analysis-results.js"
+    );
+    const scopeModule = await import(
+      "/elettra/src/utils/yearly-analysis-cost-scope.js"
+    );
+    const operatingModule = await import(
+      "/elettra/src/utils/yearly-analysis-operating-costs.js"
+    );
+    const shifts = [
+      { distanceKm: 100824.6998180805, totalEnergyKwh: 170037.46275370274 },
+      { distanceKm: 68039.72394037398, totalEnergyKwh: 117545.61315404146 },
+    ];
+    const totals = shifts.reduce((sum, shift) => ({
+      distanceKm: sum.distanceKm + shift.distanceKm,
+      totalEnergyKwh: sum.totalEnergyKwh + shift.totalEnergyKwh,
+    }), { distanceKm: 0, totalEnergyKwh: 0 });
+    const bus = {
+      bus_length_m: 18,
+      cost: 800000,
+      battery_pack_cost: 6000,
+      bus_lifetime: 12,
+      battery_pack_lifetime: 8,
+    };
+    const raw = {
+      assumptions: {
+        energy_price_per_kwh: 0.20,
+        fuel_cost_per_l: 1.85,
+        diesel_comparator_consumption_l_per_km: 0.5518,
+        diesel_comparator_maint_cost_per_km_chf: 0.50,
+        electric_maint_cost_per_km_chf: 0.2846,
+        interest_rate: 0.03,
+        diesel_heating_maintenance_factor: 0.10,
+      },
+      scenarios: [],
+    };
+    const unitGeneral = resultsModule.mapBackendCostsToLocal(
+      raw,
+      totals.distanceKm,
+      totals.totalEnergyKwh,
+      bus,
+      { optimizedPacks: 10, overrides: {} },
+    );
+    const general = scopeModule.applyGeneralFleetCapital(
+      unitGeneral,
+      {
+        dataAvailable: true,
+        source: "optimization_per_bus_summary",
+        scope: "general",
+        shiftId: null,
+        vehicleCount: 2,
+        fleetVehicleCount: 2,
+        issue: null,
+      },
+      { infrastructureInvestmentChf: 300000 },
+    );
+    const shiftCosts = shifts.map((yearlyTotals) =>
+      resultsModule.computeYearlyCosts(
+        { results: { optimizedPacks: 10, yearlyTotals, scenarioResults: [] } },
+        bus,
+        {},
+        { resolvedAssumptions: unitGeneral.assumptions },
+      ));
+    return {
+      electricOpex: general.electric.totalOpex,
+      dieselOpex: general.diesel.totalOpex,
+      operatingSaving: general.diesel.totalOpex - general.electric.totalOpex,
+      totalAnnualSaving: general.annualSaving,
+      breakEvenYear: general.breakEvenYear,
+      reconciliation: operatingModule.reconcileYearlyOperatingCosts(
+        general,
+        shiftCosts,
+      ),
+    };
+  });
+
+  expect(Math.round(values.electricOpex)).toBe(128734);
+  expect(Math.round(values.dieselOpex)).toBe(248371);
+  expect(Math.round(values.operatingSaving)).toBe(119637);
+  expect(Math.round(values.totalAnnualSaving)).toBe(24418);
+  expect(values.breakEvenYear).toBeGreaterThanOrEqual(9.9);
+  expect(values.breakEvenYear).toBeLessThanOrEqual(10.2);
+  expect(values.reconciliation.status).toBe("consistent");
 });
 
 test("annual-distance sensitivity remains isolated to the selected shift", async ({ page }) => {
@@ -1061,6 +1222,14 @@ test("historical single-shift results expose General and the configured shift", 
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();
   await expect(page.locator('[data-panel="emissions"]')).toBeVisible();
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Annual emissions");
+
+  await page.getByRole("tab", { name: "General" }).click();
+  const exported = (await downloadAllResults(page)).exported;
+  expect(exported.general.costs.operatingReconciliation).toMatchObject({
+    status: "consistent",
+    shiftCount: 1,
+    issue: null,
+  });
 });
 
 test("historical General recovers its physical configuration from the source feasibility", async ({ page }) => {

@@ -20,6 +20,12 @@ import {
   parseBusModelSpecs,
 } from "../YearlyAnalysis/yearly-analysis-results";
 import { buildYearlyResultScopes } from "../../../utils/yearly-analysis-result-scope";
+import {
+  applyGeneralFleetCapital,
+  buildGeneralSharedCostContext,
+  resolveFleetVehicleScope,
+} from "../../../utils/yearly-analysis-cost-scope";
+import { resolveYearlyOperatingActivity } from "../../../utils/yearly-analysis-operating-costs";
 
 /* ── Numeric helpers ───────────────────────────────────────────── */
 
@@ -341,6 +347,7 @@ export const buildModel = (input) => {
       dieselTotalAnnual,
       annualSaving,
       costPerKm,
+      capitalScope: costs?.capitalScope ?? null,
     },
     emissions: {
       co2Total,
@@ -983,10 +990,23 @@ const loadAnalysisModel = async (id) => {
     }
   }
 
-  // Costs: mirror the yearly-analysis results page exactly — prefer the backend
-  // /costs payload (mapped to the local model) and fall back to the client-side
-  // computation only if the backend call fails. This keeps the annualized
-  // figures identical to what the results page displays.
+  // Load the parameterized LCA before costs so diesel-heating activity can be
+  // attributed with the same physical vehicle rows as the result page.
+  let emissions = null;
+  let emissionsStatus = "error";
+  let rawLca = null;
+  try {
+    rawLca = await fetchYearlyAnalysisLca(id);
+    emissions = mapParameterizedLca(rawLca).structured;
+    emissionsStatus = "ready";
+  } catch {
+    rawLca = null;
+    emissions = null;
+  }
+
+  // Costs mirror the General result scope: backend physical totals are mapped
+  // through the common frontend assumptions, then fleet vehicles and shared
+  // infrastructure are applied exactly once.
   let costs = null;
   let costsStatus = "error";
   const yearlyTotals = features.results?.yearlyTotals ?? {};
@@ -998,6 +1018,7 @@ const loadAnalysisModel = async (id) => {
       costs = mapBackendCostsToLocal(raw, yearlyDistKm, yearlyEngKwh, busModelData, {
         optimizedPacks: features.results?.optimizedPacks,
         overrides: {},
+        operatingActivity: resolveYearlyOperatingActivity(rawLca),
       });
       if (costs) costsStatus = "ready";
     } catch {
@@ -1006,24 +1027,24 @@ const loadAnalysisModel = async (id) => {
   }
   if (!costs) {
     try {
-      costs = computeYearlyCosts(features, busModelData, {});
+      costs = computeYearlyCosts(features, busModelData, {}, {
+        operatingActivity: resolveYearlyOperatingActivity(rawLca),
+      });
       if (costs) costsStatus = "ready";
     } catch {
       costs = null;
     }
   }
-
-  // The comparison uses the same versioned vehicle LCA as the annual view.
-  let emissions = null;
-  let emissionsStatus = "error";
-  {
-    try {
-      const raw = await fetchYearlyAnalysisLca(id);
-      emissions = mapParameterizedLca(raw).structured;
-      emissionsStatus = "ready";
-    } catch {
-      emissions = null;
-    }
+  if (costs) {
+    const sharedCosts = buildGeneralSharedCostContext(features, busModelData);
+    costs = applyGeneralFleetCapital(
+      costs,
+      resolveFleetVehicleScope(features),
+      {
+        infrastructureInvestmentChf:
+          sharedCosts.chargingInfrastructure.investmentChf,
+      },
+    );
   }
 
   return buildModel({

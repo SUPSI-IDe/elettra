@@ -1,8 +1,10 @@
 import {
   DEFAULT_ENERGY_PRICE_PER_KWH,
   DEFAULT_FUEL_COST_PER_L,
+  DEFAULT_DIESEL_HEATING_MAINTENANCE_FACTOR,
   DEFAULT_OPEX_ANNUALIZATION_RATE,
-  getDieselEfficiencyForLength,
+  DIESEL_CONSUMPTION_BASE,
+  evalLinearModel,
   getDieselMaintenanceCostForLength,
   getElectricMaintenanceCostForLength,
 } from "../config/economic-defaults.js";
@@ -21,14 +23,25 @@ const firstFinite = (...values) => {
   return null;
 };
 
+const dieselConsumptionForLength = (busLengthM) => {
+  const length = finiteNumber(busLengthM) ?? 12;
+  return Number(evalLinearModel(
+    length,
+    DIESEL_CONSUMPTION_BASE.intercept,
+    DIESEL_CONSUMPTION_BASE.slope,
+  ).toFixed(10));
+};
+
 /**
  * Resolve the economic parameters shared by General and every shift.
  *
  * Prices and the annualization rate may be frozen by the yearly-cost endpoint.
- * Length-dependent vehicle parameters intentionally come from the frontend
- * bus defaults: these are the values shown by the controls and used by the
- * feasibility views. Backend OPEX totals are recalculated with this resolved
- * set, so a backend coefficient cannot silently disagree with the UI.
+ * Maintenance parameters intentionally come from the frontend bus defaults:
+ * these are the values shown by the controls and used by the feasibility
+ * views. Diesel consumption keeps a frozen backend value when available and
+ * otherwise uses the same continuous bus-length model. Backend OPEX totals
+ * are recalculated with this resolved set, so a coefficient cannot silently
+ * disagree between General and the individual shifts.
  */
 export const resolveYearlyEconomicAssumptions = ({
   busLengthM,
@@ -51,7 +64,8 @@ export const resolveYearlyEconomicAssumptions = ({
   dieselEfficiencyLPerKm: firstFinite(
     overrides.dieselEfficiency,
     baseAssumptions.dieselEfficiencyLPerKm,
-    getDieselEfficiencyForLength(busLengthM),
+    backendAssumptions.diesel_comparator_consumption_l_per_km,
+    dieselConsumptionForLength(busLengthM),
   ),
   dieselMaintPerKm: firstFinite(
     overrides.dieselMaintCost,
@@ -72,6 +86,6 @@ export const resolveYearlyEconomicAssumptions = ({
   dieselHeatingMaintenanceFactor: firstFinite(
     baseAssumptions.dieselHeatingMaintenanceFactor,
     backendAssumptions.diesel_heating_maintenance_factor,
-    0,
+    DEFAULT_DIESEL_HEATING_MAINTENANCE_FACTOR,
   ),
 });

@@ -47,6 +47,13 @@ const analysis = ({
         mode: "joint",
         busModelId: "bus-1",
         shiftIds: ["morning", "evening"],
+        fleet: {
+          dataAvailable: true,
+          source: "optimization_per_bus_summary",
+          vehicleCount: 2,
+          vehicleCountByShift: { morning: 1, evening: 1 },
+          issue: null,
+        },
         soc: { minFraction: 0.2, maxFraction: 0.9 },
         battery: {
           decision: "optimized",
@@ -366,6 +373,18 @@ test("the annual comparison UI stays on General and exports that scope", async (
   expect(exportedJson.analysisB.scope).toBe("general");
   expect(exportedJson.analysisA.efficiency.totalEnergyKwh).toBe(54750);
   expect(exportedJson.analysisA.configuration.battery.packs).toBe(12);
+  expect(exportedJson.analysisA.cost.capitalScope).toMatchObject({
+    scope: "general",
+    vehicleCount: 2,
+    includedInfrastructureChf: 200000,
+    electricVehicleAndBatteryCapexChf: 1040000,
+    electricInitialCapexChf: 1240000,
+    dieselVehicleCapexChf: 700000,
+  });
+  expect(exportedJson.analysisA.cost.totalAnnualCost).toBeGreaterThan(
+    exportedJson.analysisA.cost.energyOpex +
+      exportedJson.analysisA.cost.maintenanceOpex,
+  );
   expect(exportedJson.analysisA).not.toHaveProperty("shiftResults");
 
   await page.getByRole("tab", { name: "Details / Export" }).click();
