@@ -50,14 +50,10 @@ import {
   deriveScaledEmissionsState as deriveCompleteScaledEmissionsState,
 } from "./yearly-analysis-emissions";
 import {
-  DEFAULT_OPEX_ANNUALIZATION_RATE,
   DEFAULT_BUS_LIFETIME_YEARS,
   DEFAULT_DIESEL_BUS_LIFETIME_YEARS,
   DEFAULT_BATTERY_LIFETIME_YEARS,
   getEquivalentDieselBusCapexForLength,
-  getDieselEfficiencyForLength,
-  getDieselMaintenanceCostForLength,
-  getElectricMaintenanceCostForLength,
   getBusParameterDefaults,
 } from "../../../config/economic-defaults";
 import {
@@ -97,6 +93,7 @@ import {
   resolveFleetVehicleScope,
   resolveShiftCapitalAllocationBasis,
 } from "../../../utils/yearly-analysis-cost-scope";
+import { resolveYearlyEconomicAssumptions } from "../../../utils/yearly-analysis-cost-assumptions";
 
 const YEARLY_RESULT_VIEW_KEYS = Object.freeze(["efficiency", "costs", "emissions"]);
 
@@ -1285,8 +1282,6 @@ const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
 
 /* ── Costs: scenario-based computation ──────────────────────────── */
 
-const DEFAULT_FUEL_COST_PER_L = 1.85;
-const DEFAULT_ENERGY_PRICE_PER_KWH = 0.20;
 const LCA_SIZE_BUCKETS = ["9m", "13m", "18m"];
 
 const inferLcaSize = (busLengthM, busModelName) => {
@@ -1356,7 +1351,12 @@ const computeBreakEvenYear = (yearlyData) => {
  * weighted by its occurrence (days/year). This is the core advantage of the
  * yearly analysis over a single worst-case simulation.
  */
-export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
+export const computeYearlyCosts = (
+  features,
+  busModelData,
+  overrides = {},
+  { resolvedAssumptions = null } = {},
+) => {
   const results = features.results ?? {};
   const yearlyTotals = results.yearlyTotals ?? {};
   const scenarioResults = results.scenarioResults ?? [];
@@ -1366,13 +1366,19 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
   const fn = (v) => v != null ? toFiniteNumber(v) : null;
 
   const busLengthM = toFiniteNumber(busModelData?.bus_length_m);
-  const energyPricePerKwh = ov("energyPricePerKwh") ?? DEFAULT_ENERGY_PRICE_PER_KWH;
-  const fuelPricePerL = ov("fuelCostPerL") ?? DEFAULT_FUEL_COST_PER_L;
-  const annualizationRateOverride = ov("interestRate");
-
-  const dieselEfficiencyLPerKm = ov("dieselEfficiency") ?? (busLengthM != null ? 0.02 * busLengthM + 0.1918 : null);
-  const dieselMaintPerKm = ov("dieselMaintCost") ?? (busLengthM != null ? getDieselMaintenanceCostForLength(busLengthM) : null);
-  const electricMaintPerKm = ov("electricMaintCost") ?? (busLengthM != null ? getElectricMaintenanceCostForLength(busLengthM) : null);
+  const economicAssumptions = resolveYearlyEconomicAssumptions({
+    busLengthM,
+    baseAssumptions: resolvedAssumptions ?? {},
+    overrides,
+  });
+  const {
+    energyPricePerKwh,
+    fuelPricePerL,
+    dieselEfficiencyLPerKm,
+    dieselMaintPerKm,
+    electricMaintPerKm,
+    annualizationRate,
+  } = economicAssumptions;
 
   const baseYearlyEnergyKwh = toFiniteNumber(yearlyTotals.totalEnergyKwh);
   const baseYearlyDistanceKm = toFiniteNumber(yearlyTotals.distanceKm);
@@ -1440,7 +1446,6 @@ export const computeYearlyCosts = (features, busModelData, overrides = {}) => {
   const dieselCapexInput = ov("dieselCapex") ?? getEquivalentDieselBusCapexForLength(busLengthM);
   const dieselCapexChf = dieselCapexInput ?? 0;
 
-  const annualizationRate = annualizationRateOverride ?? DEFAULT_OPEX_ANNUALIZATION_RATE;
   const busLifetime = fn(busModelData?.bus_lifetime) ?? DEFAULT_BUS_LIFETIME_YEARS;
   const dieselBusLifetime = DEFAULT_DIESEL_BUS_LIFETIME_YEARS;
   const batteryLifetime = fn(busModelData?.battery_pack_lifetime) ?? DEFAULT_BATTERY_LIFETIME_YEARS;
@@ -1565,26 +1570,36 @@ const opexItemCost = (items, name) => {
   return toFiniteNumber(entry?.cost_chf_per_year) ?? 0;
 };
 
-export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, busModelData, { optimizedPacks, overrides } = {}) => {
+export const mapBackendCostsToLocal = (
+  raw,
+  yearlyDistanceKm,
+  yearlyEnergyKwh,
+  busModelData,
+  { optimizedPacks, overrides, resolvedAssumptions } = {},
+) => {
   const fn = (v) => toFiniteNumber(v);
   const ov = (key) => overrides?.[key] != null ? toFiniteNumber(overrides[key]) : null;
   const e = raw.ebus ?? {};
   const d = raw.diesel_comparator ?? {};
   const a = raw.assumptions ?? {};
 
-  /* ── Effective unit prices (slider overrides take precedence) ── */
-  const baseFuelPerL = fn(a.fuel_cost_per_l) ?? DEFAULT_FUEL_COST_PER_L;
-  const baseEnergyPerKwh = fn(a.energy_price_per_kwh) ?? DEFAULT_ENERGY_PRICE_PER_KWH;
-  const baseDieselEffLPerKm = fn(a.diesel_comparator_consumption_l_per_km) ?? 0;
-  const baseDieselMaintPerKm = fn(a.diesel_comparator_maint_cost_per_km_chf) ?? 0;
-  const baseElecMaintPerKm = fn(a.electric_maint_cost_per_km_chf) ?? 0;
-  const dhMaintFactor = fn(a.diesel_heating_maintenance_factor) ?? 0;
-
-  const fuelPerL = ov("fuelCostPerL") ?? baseFuelPerL;
-  const energyPerKwh = ov("energyPricePerKwh") ?? baseEnergyPerKwh;
-  const dieselEffLPerKm = ov("dieselEfficiency") ?? baseDieselEffLPerKm;
-  const dieselMaintPerKm = ov("dieselMaintCost") ?? baseDieselMaintPerKm;
-  const elecMaintPerKm = ov("electricMaintCost") ?? baseElecMaintPerKm;
+  /* ── One effective parameter set for General, shifts, UI and export ── */
+  const busLengthM = fn(busModelData?.bus_length_m);
+  const economicAssumptions = resolveYearlyEconomicAssumptions({
+    busLengthM,
+    backendAssumptions: a,
+    baseAssumptions: resolvedAssumptions ?? {},
+    overrides,
+  });
+  const {
+    fuelPricePerL: fuelPerL,
+    energyPricePerKwh: energyPerKwh,
+    dieselEfficiencyLPerKm: dieselEffLPerKm,
+    dieselMaintPerKm,
+    electricMaintPerKm: elecMaintPerKm,
+    annualizationRate,
+    dieselHeatingMaintenanceFactor: dhMaintFactor,
+  } = economicAssumptions;
 
   const baseYDistKm = fn(yearlyDistanceKm ?? a.yearly_distance_km) ?? 0;
   const yDistKm = ov("yearlyDistanceKm") ?? baseYDistKm;
@@ -1611,9 +1626,6 @@ export const mapBackendCostsToLocal = (raw, yearlyDistanceKm, yearlyEnergyKwh, b
   const dieselTotalOpex = dieselFuelOpex + dieselMaintOpex;
 
   /* ── CAPEX: use backend if available, else compute from bus model ── */
-  const annualizationRate = ov("interestRate") ?? fn(a.interest_rate) ?? DEFAULT_OPEX_ANNUALIZATION_RATE;
-  const busLengthM = fn(busModelData?.bus_length_m);
-
   const busCostInput = fn(busModelData?.cost);
   const packCostInput = fn(busModelData?.battery_pack_cost);
   const packCountInput = fn(optimizedPacks);
@@ -4019,6 +4031,7 @@ export const buildCompleteYearlyExportPayload = ({
   generalEmissionsState = { status: "idle" },
   costOverrides = {},
   resultScopes = buildYearlyResultScopes(features),
+  resolvedCostAssumptions = null,
 } = {}) => {
   const aggregate = buildExportPayload(
     features,
@@ -4062,6 +4075,8 @@ export const buildCompleteYearlyExportPayload = ({
       : null,
   };
   const shiftCostOverrides = { ...costOverrides, yearlyDistanceKm: null };
+  const sharedCostAssumptions = resolvedCostAssumptions ??
+    generalCostState?.costsData?.assumptions ?? null;
   const shifts = resultScopes
     .filter((scope) => scope?.kind === "shift")
     .map((scope) => {
@@ -4095,6 +4110,7 @@ export const buildCompleteYearlyExportPayload = ({
           scopedFeatures,
           busModelData,
           shiftCostOverrides,
+          { resolvedAssumptions: sharedCostAssumptions },
         );
         const allocationBasis = resolveShiftCapitalAllocationBasis(
           features,
@@ -4751,6 +4767,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     dieselEfficiency: null, dieselMaintCost: null, electricMaintCost: null,
     yearlyDistanceKm: null,
   };
+  let resolvedCostAssumptions = null;
   const shiftDistanceOverrides = new Map();
   const activeShiftId = () => activeScope?.kind === "shift"
     ? text(activeScope.shiftId).trim()
@@ -4935,7 +4952,12 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     costState.error = null;
     costState.status = "loading";
     try {
-      const result = computeYearlyCosts(activeFeatures, busModelData, costOverrides);
+      const result = computeYearlyCosts(
+        activeFeatures,
+        busModelData,
+        costOverrides,
+        { resolvedAssumptions: resolvedCostAssumptions },
+      );
       if (!result) {
         costState.status = "error";
         costState.error = t("yearly_analysis.insufficient_cost_data");
@@ -4990,6 +5012,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         const mapped = mapBackendCostsToLocal(backendCostsRaw, yearlyDistKm, yearlyEngKwh, busModelData, {
           optimizedPacks: features.results?.optimizedPacks,
           overrides: costOverrides,
+          resolvedAssumptions: resolvedCostAssumptions,
         });
         costState.costsData = mapped;
         costState.status = "done";
@@ -5206,6 +5229,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       generalEmissionsState: getGeneralDisplayedEmissionsState(),
       costOverrides,
       resultScopes,
+      resolvedCostAssumptions,
     });
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     downloadJson(payload, `yearly-analysis-${timestamp}.json`);
@@ -5256,8 +5280,9 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   /* ── Wire cost variable sliders ─────────────────────────── */
   const wireSliders = () => {
     const busLengthM = toFiniteNumber(busModelData?.bus_length_m);
-    const busLengthKey = busLengthM != null ? (busLengthM <= 10 ? 9 : busLengthM <= 15 ? 12 : 18) : 12;
-    const busDefaults = getBusParameterDefaults(busLengthKey);
+    const busDefaults = getBusParameterDefaults(busLengthM);
+    const defaultAssumptions = resolvedCostAssumptions ??
+      resolveYearlyEconomicAssumptions({ busLengthM });
 
     const q = (role) => section.querySelector(`[data-role="${role}"]`);
 
@@ -5283,11 +5308,11 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     applyYaSliderRange(dieselMaintInput, busDefaults.diesel_maintenance_chf_per_km);
     applyYaSliderRange(elecMaintInput, busDefaults.electric_maintenance_chf_per_km);
 
-    const defaultFuel = DEFAULT_FUEL_COST_PER_L;
-    const defaultEnergy = DEFAULT_ENERGY_PRICE_PER_KWH;
-    const defaultDieselEff = costState.costsData?.assumptions?.dieselEfficiencyLPerKm ?? (busLengthM != null ? 0.02 * busLengthM + 0.1918 : busDefaults.diesel_consumption_l_per_km.default);
-    const defaultDieselMaint = busLengthM != null ? getDieselMaintenanceCostForLength(busLengthM) : busDefaults.diesel_maintenance_chf_per_km.default;
-    const defaultElecMaint = busLengthM != null ? getElectricMaintenanceCostForLength(busLengthM) : busDefaults.electric_maintenance_chf_per_km.default;
+    const defaultFuel = defaultAssumptions.fuelPricePerL;
+    const defaultEnergy = defaultAssumptions.energyPricePerKwh;
+    const defaultDieselEff = defaultAssumptions.dieselEfficiencyLPerKm;
+    const defaultDieselMaint = defaultAssumptions.dieselMaintPerKm;
+    const defaultElecMaint = defaultAssumptions.electricMaintPerKm;
     const syncAll = () => {
       const defaultYearlyDistance =
         toFiniteNumber(yearlyTotals.distanceKm) ??
@@ -5564,12 +5589,29 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   /* Try backend yearly-analysis costs first; fall back to client-side */
   const busLengthForCosts = toFiniteNumber(busModelData?.bus_length_m);
+  resolvedCostAssumptions = resolveYearlyEconomicAssumptions({
+    busLengthM: busLengthForCosts,
+  });
   if (busLengthForCosts != null) {
     try {
       backendCostsRaw = await fetchYearlyAnalysisCosts(analysisId, { bus_length_m: busLengthForCosts });
+      resolvedCostAssumptions = resolveYearlyEconomicAssumptions({
+        busLengthM: busLengthForCosts,
+        backendAssumptions: backendCostsRaw?.assumptions,
+      });
       const yearlyDistKm = toFiniteNumber(yearlyTotals.distanceKm);
       const yearlyEngKwh = toFiniteNumber(yearlyTotals.totalEnergyKwh);
-      const mapped = mapBackendCostsToLocal(backendCostsRaw, yearlyDistKm, yearlyEngKwh, busModelData, { optimizedPacks: features.results?.optimizedPacks, overrides: {} });
+      const mapped = mapBackendCostsToLocal(
+        backendCostsRaw,
+        yearlyDistKm,
+        yearlyEngKwh,
+        busModelData,
+        {
+          optimizedPacks: features.results?.optimizedPacks,
+          overrides: {},
+          resolvedAssumptions: resolvedCostAssumptions,
+        },
+      );
       costState.costsData = mapped;
       costState.status = "done";
       generalCostsData = mapped;

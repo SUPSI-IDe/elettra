@@ -304,7 +304,13 @@ const multishiftAnalysis = {
 const mountResults = async (
   page,
   analysis,
-  { predictionRuns = [], optimizationRun = null, lcaRequests = null } = {},
+  {
+    predictionRuns = [],
+    optimizationRun = null,
+    lcaRequests = null,
+    yearlyCosts = null,
+    busSpecs = {},
+  } = {},
 ) => {
   const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
   const lca = analysis.features?.results?.shiftResults || configuredShiftCount > 1
@@ -320,7 +326,8 @@ const mountResults = async (
       lcaRequests?.push({ shiftId, annualKm });
       await route.fulfill({ json: lcaForShiftDistance(lca, shiftId, annualKm) });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}/costs`)) {
-      await route.fulfill({ status: 503, json: { detail: "Use deterministic local costs" } });
+      if (yearlyCosts) await route.fulfill({ json: yearlyCosts });
+      else await route.fulfill({ status: 503, json: { detail: "Use deterministic local costs" } });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}`)) {
       await route.fulfill({ json: analysis });
     } else if (path.endsWith("/simulation/prediction-runs/")) {
@@ -341,6 +348,7 @@ const mountResults = async (
           bus_lifetime: 12,
           battery_pack_lifetime: 8,
           cost: 400000,
+          ...busSpecs,
         },
       } });
     } else {
@@ -847,6 +855,103 @@ test("fleet and shift CAPEX expose multiple physical vehicles without reallocati
   await expect(capex).toContainText(/CHF 166['’,]667/);
   await expect(capex).toContainText(/CHF 1['’,]206['’,]667/);
   await expect(capex).toContainText(/CHF 700['’,]000/);
+});
+
+test("General, shifts, controls and export share one set of yearly economic assumptions", async ({ page }) => {
+  const conflictingBackendCosts = {
+    assumptions: {
+      yearly_electric_kwh: 54750,
+      yearly_distance_km: 36500,
+      energy_price_per_kwh: 0.24,
+      fuel_cost_per_l: 1.91,
+      diesel_comparator_consumption_l_per_km: 0.5518,
+      diesel_comparator_maint_cost_per_km_chf: 0.50,
+      electric_maint_cost_per_km_chf: 0.2846,
+      interest_rate: 0.04,
+      diesel_heating_maintenance_factor: 0.15,
+    },
+    ebus: { opex_items: [] },
+    diesel_comparator: { opex_items: [] },
+    scenarios: [],
+  };
+  await mountResults(page, multishiftAnalysis, {
+    yearlyCosts: conflictingBackendCosts,
+    busSpecs: { bus_length_m: 18 },
+  });
+
+  const scopeTabs = page.locator('[data-role="ya-result-scope-tabs"]');
+  await scopeTabs.getByRole("tab", { name: "Morning service" }).click();
+  await page
+    .locator('[data-role="ya-result-view-tabs"]')
+    .getByRole("tab", { name: "Costs" })
+    .click();
+
+  const electricMaintenance = page.locator('[data-role="ya-var-elec-maint"]');
+  const dieselMaintenance = page.locator('[data-role="ya-var-diesel-maint"]');
+  const dieselEfficiency = page.locator('[data-role="ya-var-diesel-eff"]');
+  await expect(electricMaintenance).toHaveValue("0.4");
+  await expect(dieselMaintenance).toHaveValue("0.45");
+  await expect(dieselEfficiency).toHaveValue("0.55");
+
+  await scopeTabs.getByRole("tab", { name: "General" }).click();
+  const initial = (await downloadAllResults(page)).exported;
+  const initialScopes = [
+    initial.general.costs.operatingCosts,
+    ...initial.shifts.map((shift) => shift.costs),
+  ];
+  for (const costs of initialScopes) {
+    expect(costs.assumptions).toMatchObject({
+      energyPrice_CHFPerKwh: 0.24,
+      fuelPrice_CHFPerL: 1.91,
+      dieselComparator_efficiency_LPerKm: 0.55,
+      dieselComparator_maintenanceCost_CHFPerKm: 0.45,
+      electricMaintenanceCost_CHFPerKm: 0.40,
+      annualizationRate: 0.04,
+    });
+  }
+
+  await scopeTabs.getByRole("tab", { name: "Morning service" }).click();
+  await electricMaintenance.evaluate((element) => {
+    element.value = "0.43";
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await dieselMaintenance.evaluate((element) => {
+    element.value = "0.52";
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(page.locator('[data-role="ya-var-elec-maint-value"]')).toHaveText("0.430");
+  await expect(page.locator('[data-role="ya-var-diesel-maint-value"]')).toHaveText("0.520");
+  await page.waitForTimeout(400);
+
+  await scopeTabs.getByRole("tab", { name: "General" }).click();
+  const overridden = (await downloadAllResults(page)).exported;
+  for (const costs of [
+    overridden.general.costs.operatingCosts,
+    ...overridden.shifts.map((shift) => shift.costs),
+  ]) {
+    expect(costs.assumptions).toMatchObject({
+      dieselComparator_maintenanceCost_CHFPerKm: 0.52,
+      electricMaintenanceCost_CHFPerKm: 0.43,
+    });
+  }
+
+  await scopeTabs.getByRole("tab", { name: "Morning service" }).click();
+  await page.locator('[data-role="ya-var-reset-all"]').click();
+  await expect(electricMaintenance).toHaveValue("0.4");
+  await expect(dieselMaintenance).toHaveValue("0.45");
+  await page.waitForTimeout(400);
+
+  await scopeTabs.getByRole("tab", { name: "General" }).click();
+  const reset = (await downloadAllResults(page)).exported;
+  for (const costs of [
+    reset.general.costs.operatingCosts,
+    ...reset.shifts.map((shift) => shift.costs),
+  ]) {
+    expect(costs.assumptions).toMatchObject({
+      dieselComparator_maintenanceCost_CHFPerKm: 0.45,
+      electricMaintenanceCost_CHFPerKm: 0.40,
+    });
+  }
 });
 
 test("annual-distance sensitivity remains isolated to the selected shift", async ({ page }) => {
