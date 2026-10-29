@@ -47,7 +47,7 @@ test("a multi-shift battery-only run produces one common worst-case battery", ()
 
   assert.equal(model.mode, "battery_only");
   assert.equal(model.electrificationFeasible, true);
-  assert.equal(model.fleet.scope, "common");
+  assert.equal(model.fleet.scope, "per_bus");
   assert.equal(model.fleet.busModelId, "bus-1");
   assert.deepEqual(model.fleet.battery, {
     decision: FEASIBILITY_DECISION.OPTIMIZED,
@@ -67,9 +67,9 @@ test("a multi-shift battery-only run produces one common worst-case battery", ()
       isSizing: shift.battery.isSizing,
     })),
     [
-      { id: "s1", commonPacks: 12, margin: 4, isSizing: false },
+      { id: "s1", commonPacks: 8, margin: 0, isSizing: false },
       { id: "s2", commonPacks: 12, margin: 0, isSizing: true },
-      { id: "s3", commonPacks: 12, margin: 2, isSizing: false },
+      { id: "s3", commonPacks: 10, margin: 0, isSizing: false },
     ],
   );
   assert.equal(model.infrastructure.scope, "shared");

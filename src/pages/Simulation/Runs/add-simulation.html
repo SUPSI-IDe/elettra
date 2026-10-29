@@ -156,6 +156,14 @@
               </div>
             </div>
 
+            <div class="form-group">
+              <label for="var-consumption-basis" data-i18n="simulation.aggregate_basis">Optimize for</label>
+              <select id="var-consumption-basis" name="consumption_basis">
+                <option value="mean" data-i18n="simulation.aggregate_mean">Mean</option>
+                <option value="aggregate_q95" data-i18n="simulation.aggregate_q95">Aggregate Q95</option>
+              </select>
+              <p data-i18n="simulation.aggregate_assumption">Q95 of total shift consumption, assuming independent trip errors. One optimization for the selected basis.</p>
+            </div>
             <div class="form-group" data-role="fixed-battery-group" hidden>
               <label for="var-fixed-battery-packs" data-i18n="simulation.fixed_battery_packs">Battery packs (fixed for charging optimisation)</label>
               <input id="var-fixed-battery-packs" name="fixed_battery_packs" type="number" min="1" step="1" />

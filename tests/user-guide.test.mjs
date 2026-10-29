@@ -104,19 +104,19 @@ test("the guide baseline follows the frontend version and exposes a valid update
 test("every guide language explains the two-level feasibility and yearly result navigation", () => {
   const expectedTerms = {
     en: {
-      feasibility: ["General", "shift", "common battery", "planned charging"],
+      feasibility: ["General", "shift", "selected battery", "planned charging", "Aggregate Q95"],
       yearly: ["General", "shift", "Efficiency", "Costs", "Emissions", "annual DC energy"],
     },
     de: {
-      feasibility: ["Allgemein", "Dienst", "gemeinsamen Batterie", "geplanten Ladevorgänge"],
+      feasibility: ["Allgemein", "Dienst", "eigene Batterie", "geplanten Ladevorgänge", "aggregiertes Q95"],
       yearly: ["Allgemein", "Dienst", "Effizienz", "Kosten", "Emissionen", "jährlichen DC-Energie"],
     },
     fr: {
-      feasibility: ["Général", "service", "batterie commune", "recharges planifiées"],
+      feasibility: ["Général", "service", "propre batterie", "recharges planifiées", "Q95 agrégé"],
       yearly: ["Général", "service", "Efficacité", "Coûts", "Émissions", "énergie DC annuelle"],
     },
     it: {
-      feasibility: ["Generale", "turno", "batteria comune", "ricariche pianificate"],
+      feasibility: ["Generale", "turno", "propria batteria", "ricariche pianificate", "Q95 aggregato"],
       yearly: ["Generale", "turno", "Efficienza", "Costi", "Emissioni", "energia DC annuale"],
     },
   };

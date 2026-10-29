@@ -40,6 +40,7 @@ const resolveShiftFeasibility = ({
   commonPackMargin,
 } = {}) => {
   const normalizedStatus = text(feasibilityStatus)?.toLowerCase() ?? null;
+  if (normalizedStatus === "unverified") return null;
 
   if (
     physicalFeasible === false ||

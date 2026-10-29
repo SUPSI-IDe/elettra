@@ -1,7 +1,7 @@
 import { useCaseSections } from "./use-cases.js";
 
-export const GUIDE_BASELINE_VERSION = "0.6.0";
-export const GUIDE_UPDATED_AT = "23 October 2026";
+export const GUIDE_BASELINE_VERSION = "0.7.0";
+export const GUIDE_UPDATED_AT = "29 October 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -271,20 +271,19 @@ export const guideContent = {
       {
         id: "results",
         title: "6. Interpreting feasibility results",
-        intro:
-          "Use the General tab for the common fleet design, then open each shift tab to verify that the same design works on every selected shift.",
+        intro: "Use General for the fleet summary and shared infrastructure, then check the battery and charging plan of each shift.",
         items: [
           {
             title: "Start with General",
-            text: "General shows the one bus configuration used by every selected shift. The common battery is sized for the highest shift requirement, while the charging infrastructure is shared. Fixed and optimised labels reflect the selected Battery only, Charging or Joint mode.",
+            text: "General summarizes all analyzed shifts and the largest selected battery. Each shift retains its own selected battery; all shifts participate in sizing and share the charging infrastructure. Fixed and optimized labels follow the selected mode.",
           },
           {
             title: "Check every shift tab",
-            text: "Each shift tab compares that shift’s battery requirement with the common battery and reports its margin, physical pack limit, minimum and maximum state of charge, charged energy and number of sessions. The common design is suitable only when it covers every shift.",
+            text: "Each shift shows nominal and usable capacity, selected packs, unused installable packs and diagnostic excess capacity in red. Read the energy margin together with planned charging and the verified SOC trajectory.",
           },
           {
             title: "Read visual analysis and energy adequacy together",
-            text: "The feasibility decision uses mean demand and includes the energy delivered by the planned charging sessions. Compare Q05, mean, Q50 and Q95 with the operational energy available; Q05–Q95 are sensitivity scenarios rather than exceedance probabilities.",
+            text: "Choose Mean or Aggregate Q95 next to the battery. Open a compatible result or explicitly start one new optimization. Mean and Q95 diagnostic bars replay the same chosen plan; the percentile of total shift consumption is not a 95% guarantee of trajectory feasibility. Any completion percentage is calculated from independent simulated trajectories. Historical trip quantiles keep their original meaning.",
           },
           {
             title: "Inspect the charging plan",
@@ -409,7 +408,7 @@ export const guideContent = {
       baselineLabel: "Stand der Benutzeroberfläche",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Handbuch aktualisiert",
-      updatedValue: "23. Oktober 2026",
+      updatedValue: "29. Oktober 2026",
       footer:
         "ELETTRA unterstützt Vorstudien. Endgültige Fahrzeug-, Lade-, Netz- und Infrastrukturentscheidungen müssen durch eine detaillierte Fachplanung bestätigt werden.",
       skipLink: "Zum Handbuch springen",
@@ -504,11 +503,11 @@ export const guideContent = {
       {
         id: "results",
         title: "6. Machbarkeitsergebnisse interpretieren",
-        intro: "Verwenden Sie Allgemein für die gemeinsame Flottenauslegung und öffnen Sie danach jeden Dienst, um zu prüfen, dass dieselbe Auslegung alle ausgewählten Dienste abdeckt.",
+        intro: "Allgemein zeigt die Flottenübersicht; prüfen Sie danach Batterie und Ladeplan jedes Dienstes.",
         items: [
-          { title: "Mit Allgemein beginnen", text: "Allgemein zeigt die eine Buskonfiguration für alle ausgewählten Dienste. Die gemeinsame Batterie richtet sich nach dem höchsten Dienstbedarf, die Ladeinfrastruktur wird geteilt. Die Kennzeichnungen Fest und Optimiert folgen dem Modus Nur Batterie, Laden oder Gemeinsam." },
-          { title: "Jeden Dienst prüfen", text: "Jede Dienstregisterkarte vergleicht ihren Batteriebedarf mit der gemeinsamen Batterie und zeigt Reserve, physische Packgrenze, minimalen und maximalen Ladezustand, geladene Energie und Anzahl Ladevorgänge. Die gemeinsame Auslegung ist nur geeignet, wenn sie jeden Dienst abdeckt." },
-          { title: "Visuelle Analyse und Energieeignung zusammen lesen", text: "Die Machbarkeitsentscheidung verwendet den Mittelwertbedarf und berücksichtigt die Energie der geplanten Ladevorgänge. Vergleichen Sie Q05, Mittelwert, Q50 und Q95 mit der verfügbaren Betriebsenergie; Q05–Q95 sind Sensitivitätsszenarien und keine Überschreitungswahrscheinlichkeiten." },
+          { title: "Mit Allgemein beginnen", text: "Allgemein fasst alle analysierten Dienste und die größte gewählte Batterie zusammen. Jeder Dienst behält seine eigene Batterie; alle Dienste nehmen an der Dimensionierung teil und teilen die Ladeinfrastruktur." },
+          { title: "Jeden Dienst prüfen", text: "Jeder Dienst zeigt nominale und nutzbare Kapazität, gewählte und freie Pakete sowie diagnostischen Überschuss in Rot. Prüfen Sie die Energiereserve mit den geplanten Ladevorgänge und dem verifizierten SOC-Verlauf." },
+          { title: "Visuelle Analyse und Energieeignung zusammen lesen", text: "Wählen Sie Mittelwert oder aggregiertes Q95 an der Batterie. Öffnen Sie ein kompatibles Ergebnis oder starten Sie explizit eine neue Optimierung. Beide Diagnoseprofile nutzen denselben Plan. Q95 des Gesamtverbrauchs garantiert keine 95% SOC-Machbarkeit; eine Abschlussquote wird separat aus unabhängigen Verläufen simuliert. Historische Fahrtquantile bleiben unverändert." },
           { title: "Ladeplan prüfen", text: "Prüfen Sie bei Laden und Gemeinsam Ort und Zeit jedes Ladevorgangs sowie Dauer, geladene Energie und mittlere Leistung. Bei Nur Batterie kann statt eines optimierten Plans ein fester oder kein Ladeplan erscheinen." },
           { title: "Bei Bedarf Weitere Informationen öffnen", text: "Dort finden Sie Prognosedetails, Betriebsannahmen und unterstützende Werte. Wenn ein Dienst nicht abgedeckt ist, ändern Sie Fahrzeug, Ladezustandsfenster, Szenario oder Ladeauslegung und führen Sie eine separat benannte Bewertung aus." },
         ],
@@ -572,7 +571,7 @@ export const guideContent = {
       baselineLabel: "Version de référence de l’interface",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guide mis à jour",
-      updatedValue: "23 octobre 2026",
+      updatedValue: "29 octobre 2026",
       footer:
         "ELETTRA soutient les études de préfaisabilité. Les décisions finales relatives aux véhicules, à la recharge, au réseau et aux infrastructures doivent être confirmées par des études d’ingénierie détaillées.",
       skipLink: "Accéder au guide",
@@ -653,11 +652,11 @@ export const guideContent = {
       {
         id: "results",
         title: "6. Interpréter les résultats de faisabilité",
-        intro: "Utilisez Général pour le dimensionnement commun, puis ouvrez chaque service afin de vérifier que le même dimensionnement couvre tous les services sélectionnés.",
+        intro: "Général résume la flotte ; vérifiez ensuite la batterie et le plan de recharge de chaque service.",
         items: [
-          { title: "Commencer par Général", text: "Général montre l’unique configuration de bus utilisée par tous les services sélectionnés. La batterie commune est dimensionnée sur le besoin maximal, tandis que l’infrastructure de recharge est partagée. Les mentions Fixe et Optimisé dépendent du mode Batterie uniquement, Recharge ou Conjoint." },
-          { title: "Vérifier chaque service", text: "Chaque onglet de service compare son besoin de batterie à la batterie commune et indique la marge, la limite physique de packs, les états de charge minimal et maximal, l’énergie chargée et le nombre de sessions. Le dimensionnement commun ne convient que s’il couvre chaque service." },
-          { title: "Lire ensemble l’analyse visuelle et l’adéquation énergétique", text: "La décision de faisabilité utilise la demande moyenne et inclut l’énergie fournie par les recharges planifiées. Comparez Q05, moyenne, Q50 et Q95 à l’énergie opérationnelle disponible; Q05–Q95 sont des scénarios de sensibilité, pas des probabilités de dépassement." },
+          { title: "Commencer par Général", text: "Général résume tous les services analysés et la plus grande batterie choisie. Chaque service conserve sa propre batterie ; tous participent au dimensionnement et partagent l’infrastructure." },
+          { title: "Vérifier chaque service", text: "Chaque service montre les capacités nominale et utilisable, les packs choisis, libres et diagnostiques en rouge. Lisez la marge avec les recharges planifiées et la trajectoire SOC vérifiée." },
+          { title: "Lire ensemble l’analyse visuelle et l’adéquation énergétique", text: "Choisissez Moyenne ou Q95 agrégé près de la batterie. Ouvrez un résultat compatible ou lancez explicitement une nouvelle optimisation. Les deux profils diagnostiques utilisent le même plan. Le Q95 du total ne garantit pas une faisabilité SOC de 95% ; le taux de réussite affiché est simulé sur des trajectoires indépendantes. Les quantiles historiques restent inchangés." },
           { title: "Contrôler le plan de recharge", text: "Pour les modes Recharge et Conjoint, vérifiez le lieu et l’heure de chaque session, sa durée, l’énergie fournie et la puissance moyenne. Le mode Batterie uniquement peut présenter un plan fixe ou aucun plan au lieu d’un plan optimisé." },
           { title: "Ouvrir Plus d’informations si nécessaire", text: "Cette zone contient les détails des prédictions, les hypothèses d’exploitation et les valeurs justificatives. Si un service échoue, modifiez le véhicule, la fenêtre d’état de charge, le scénario ou la recharge et lancez une évaluation portant un autre nom." },
         ],
@@ -721,7 +720,7 @@ export const guideContent = {
       baselineLabel: "Versione di riferimento dell’interfaccia",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guida aggiornata",
-      updatedValue: "23 ottobre 2026",
+      updatedValue: "29 ottobre 2026",
       footer:
         "ELETTRA supporta studi di prefattibilità. Le decisioni finali su veicoli, ricarica, rete e infrastrutture devono essere confermate mediante una progettazione tecnica dettagliata.",
       skipLink: "Vai alla guida",
@@ -802,11 +801,11 @@ export const guideContent = {
       {
         id: "results",
         title: "6. Interpretare i risultati di fattibilità",
-        intro: "Usare Generale per il progetto comune della flotta, quindi aprire ogni turno per verificare che lo stesso progetto funzioni su tutti i turni selezionati.",
+        intro: "Generale riepiloga la flotta; controlla poi batteria e piano di ricarica di ciascun turno.",
         items: [
-          { title: "Iniziare da Generale", text: "Generale mostra l’unica configurazione di autobus usata da tutti i turni selezionati. La batteria comune è dimensionata sul turno con il fabbisogno maggiore, mentre l’infrastruttura di ricarica è condivisa. Le indicazioni Fissa e Ottimizzata dipendono dalla modalità Solo batteria, Ricarica o Congiunta." },
-          { title: "Controllare ogni turno", text: "Ogni scheda di turno confronta il fabbisogno di quel turno con la batteria comune e mostra margine, limite fisico dei pacchi, SOC minimo e massimo, energia caricata e numero di sessioni. Il progetto comune è adeguato soltanto se copre tutti i turni." },
-          { title: "Leggere insieme analisi visiva e adeguatezza energetica", text: "La decisione di fattibilità usa la domanda media e include l’energia fornita dalle ricariche pianificate. Confrontare Q05, media, Q50 e Q95 con l’energia operativa disponibile; Q05–Q95 sono scenari di sensibilità, non probabilità di superamento." },
+          { title: "Iniziare da Generale", text: "Generale riepiloga tutti i turni analizzati e la batteria scelta più grande. Ogni turno mantiene la propria batteria; tutti partecipano al dimensionamento e condividono l’infrastruttura." },
+          { title: "Controllare ogni turno", text: "Ogni turno mostra capacità nominale e utilizzabile, pacchi scelti, ancora installabili ed eccessi diagnostici in rosso. Leggi il margine insieme alle ricariche pianificate e alla traiettoria SOC verificata." },
+          { title: "Leggere insieme analisi visiva e adeguatezza energetica", text: "Scegli Media o Q95 aggregato accanto alla batteria. Apri un risultato compatibile oppure avvia esplicitamente una nuova ottimizzazione. Le due righe diagnostiche usano lo stesso piano. Il Q95 del consumo totale non garantisce il 95% di fattibilità SOC; la percentuale di completamento è simulata separatamente su traiettorie indipendenti. I quantili storici mantengono il loro significato." },
           { title: "Verificare il piano di ricarica", text: "Per le modalità Ricarica e Congiunta, controllare dove e quando avviene ogni sessione, la durata, l’energia fornita e la potenza media. In Solo batteria può comparire un piano fisso o assente invece di uno ottimizzato." },
           { title: "Aprire Maggiori informazioni quando serve", text: "La sezione raccoglie dettagli delle previsioni, ipotesi operative e valori di supporto. Se un turno non è coperto, modificare veicolo, intervallo SOC, scenario o progetto di ricarica ed eseguire una valutazione con un nome distinto." },
         ],

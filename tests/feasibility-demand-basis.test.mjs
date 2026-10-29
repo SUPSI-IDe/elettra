@@ -9,7 +9,7 @@ import {
   resolveFeasibilityDemandBasis,
 } from "../src/utils/feasibility-demand-basis.js";
 
-test("the frontend optimization contract always uses the mean consumption basis", () => {
+test("the frontend defaults to an explicit mean basis while keeping the legacy field neutral", () => {
   assert.equal(MEAN_FEASIBILITY_CONSUMPTION_BASIS, "mean");
   assert.deepEqual(
     applyMeanFeasibilityBasis({
@@ -19,8 +19,15 @@ test("the frontend optimization contract always uses the mean consumption basis"
     {
       mode: "battery_only",
       quantile_consumption: "mean",
+      consumption_basis: "mean",
     }
   );
+});
+
+test("aggregate Q95 is explicit and never confused with the historical trip Q95", () => {
+  assert.equal(applyMeanFeasibilityBasis({consumption_basis:"aggregate_q95"}).consumption_basis, "aggregate_q95");
+  assert.equal(resolveFeasibilityDemandBasis({consumption_basis:"aggregate_q95",quantile_consumption:"mean"}), "aggregate_q95");
+  assert.equal(resolveFeasibilityDemandBasis({quantile_consumption:"0.95"}), "configured");
 });
 
 test("median aliases resolve to the Q50-based demand scenario", () => {

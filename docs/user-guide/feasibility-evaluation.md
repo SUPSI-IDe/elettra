@@ -1,6 +1,6 @@
 # Feasibility Evaluation
 
-> Last updated: 2026-06-01
+> Last updated: 2026-10-29
 
 A feasibility evaluation (optimization run) determines whether a shift can be operated with an electric bus given specific battery, charging, and environmental parameters.
 
@@ -44,6 +44,20 @@ Select the bus model to use for this evaluation. Defaults to the model assigned 
 | **charging_only** | Fixed battery. Optimize charging station placement and slot count. |
 | **joint** | Simultaneously optimize both battery sizing and charging infrastructure. |
 
+### Consumption basis
+
+Choose **Mean** or **Aggregate Q95**. Q95 is calculated from independent samples
+of each trip occurrence and then aggregated across the whole shift. It is not
+the sum of each trip's Q95. The default is 100,000 samples, with bounded
+refinement when precision is insufficient or a no-charging pack threshold is
+ambiguous. One optimization uses the chosen basis; there is no solver run per
+sample and no automatic second project.
+
+Battery-only optimizes packs with fixed infrastructure. Charging-only preserves
+the selected battery. Joint optimizes both. All selected shifts compete for the
+same chargers and power limits. A full forecast at the selected battery mass
+must verify the final design before it is reported as verified.
+
 ### Operational parameters
 
 | Parameter | Description | Default |
@@ -78,11 +92,11 @@ Depot/custom stops are pre-selected by default.
 
 ## What happens when you launch
 
-1. **Prediction runs** are created — one per battery pack count in the allowed range (e.g., 7 to 11 for a 12m bus). Each predicts energy consumption using the greybox model.
-2. The system **polls** until all prediction runs complete.
-3. An **optimization run** is submitted with all prediction results.
-4. The optimizer determines the minimum battery pack count (and/or charging station allocation) that keeps SOC within bounds.
-5. Results are displayed automatically.
+1. One physical reference forecast per shift is prepared (the fixed battery for charging-only, otherwise the model maximum).
+2. The selected mean or aggregate-Q95 profile is prepared.
+3. One design optimization chooses the allowed variables for all shifts.
+4. The complete forecast is recomputed at the chosen mass, then the fixed design is verified. A failed verification may reanchor within bounded iterations.
+5. Diagnostics replay mean and Q95 on the same plan, and independent trajectories estimate conditional shift completion. No additional sizing optimization is performed.
 
 ---
 
@@ -90,7 +104,7 @@ Depot/custom stops are pre-selected by default.
 
 Typical execution: 30 seconds to 3 minutes depending on:
 - Number of shifts
-- Number of battery pack variants
+- Forecast preparation, sampling and any required mass reanchoring
 - Solver complexity (joint mode is slower)
 
 A progress overlay shows the current status.

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 for (const mode of ["battery_only", "joint", "charging_only"]) {
-  test(`${mode}: keep seven forecasts, submit one physical reference`, async ({ page }) => {
+  test(`${mode}: forecast one physical reference; chosen mass is verified by backend`, async ({ page }) => {
     const runs = [];
     let submitted;
     await page.route("**/api/v1/**", async (route) => {
@@ -33,8 +33,8 @@ for (const mode of ["battery_only", "joint", "charging_only"]) {
       await createOptimizationRun({name: "Regression", mode, shift_ids: ["s"], bus_model_id: "bus",
         prediction_params: {}, fixed_battery_packs: mode === "charging_only" ? 12 : undefined});
     }, mode);
-    expect(runs).toHaveLength(7);
-    expect(submitted.prediction_run_ids).toHaveLength(7);
+    expect(runs).toHaveLength(1);
+    expect(submitted.prediction_run_ids).toHaveLength(1);
     expect(submitted.reference_prediction_run_ids).toEqual({s: mode === "charging_only" ? "p-12" : "p-16"});
     expect(submitted.fixed_battery_packs).toBeUndefined();
   });
