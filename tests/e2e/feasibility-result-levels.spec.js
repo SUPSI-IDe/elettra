@@ -1214,6 +1214,26 @@ test('a cached Q95 result opens without starting another optimization', async ({
   expect(writes).toBe(0);
 });
 
+test('the requested Q95 basis survives result rerenders without changing the stored result or starting work', async ({page})=>{
+  let writes=0;
+  await mountResults(page,{shiftIds:['morning'],consumptionBasis:'mean',consumptionAnalysis:aggregateAnalysis(),forecastVerification:{status:'verified'}});
+  await page.route('**/optimization-runs/level-test/basis/aggregate_q95',route=>{
+    if(route.request().method()==='POST') writes++;
+    return route.fulfill({json:{optimization_run_id:null,status:null}});
+  });
+  await selectShiftScope(page,'morning');
+  const card=page.locator('[data-role="aggregate-energy"]');
+  await card.locator('select').selectOption('aggregate_q95');
+  await expect(card.locator('[data-role="aggregate-basis-message"]')).toContainText('No compatible result');
+  await page.getByRole('tab',{name:'General',exact:true}).click();
+  await selectShiftScope(page,'morning');
+  await expect(card.locator('select')).toHaveValue('aggregate_q95');
+  await expect(card.locator('[data-role="aggregate-basis-message"]')).toContainText('No compatible result');
+  await expect(card.locator('[data-role="aggregate-current-basis"]')).toHaveText('Mean');
+  await expect(card.locator('.aggregate-pack--chosen')).toHaveCount(8);
+  expect(writes).toBe(0);
+});
+
 test('historical infeasible results show virtual packs separately without invented aggregate margins', async ({page})=>{
   await mountResults(page,{shiftIds:['morning'],electrificationFeasible:false,batteryResultOverrides:{morning:{optimized_packs:16,required_total_packs:19,excess_packs:3,optimized_kwh:950,physical_feasible:false}}});
   await selectShiftScope(page,'morning');

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4] - 2026-10-29
+
+### Fixed
+
+- Preserve the requested Mean/Q95 basis through asynchronous result refreshes and General/shift navigation. The stored result keeps its original basis until the user explicitly opens or creates another evaluation.
+- Added desktop/mobile regressions proving that rerendering restores the requested basis, repeats only a read-only compatibility lookup and never starts an optimization automatically.
+
 ## [0.7.3] - 2026-10-29
 
 ### Fixed
