@@ -157,3 +157,10 @@ test("guide content contains no editorial placeholders", () => {
     /\*to verify\*|\btodo\b|\bplaceholder\b|asset to be supplied/i,
   );
 });
+
+
+test("the release version has a changelog entry required by the publishing workflow", async () => {
+  const packageJson = JSON.parse(await readProjectFile("package.json"));
+  const changelog = await readProjectFile("CHANGELOG.md");
+  assert.ok(changelog.split("\n").some(line => line.startsWith(`## [${packageJson.version}]`)));
+});
