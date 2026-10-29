@@ -103,6 +103,8 @@ const renderEmpty = (tbody) => {
 };
 
 const resolveElectrificationFeasible = (run = {}) => {
+  const verification = run.verification_status ?? run.results?.forecast_verification?.status;
+  if (verification && !["verified", "physical_limits_exceeded"].includes(verification)) return null;
   // The new list endpoint exposes `electrification_feasible` directly on
   // the run; the legacy detail-only path under `results` is kept as a
   // fallback for cached / hydrated runs.
@@ -123,7 +125,9 @@ const formatFeasibilityLabel = (feasible, run = {}) => {
 
   const outcome = feasible ? "feasible" : "infeasible";
   const fallbackOutcome = feasible ? "Feasible" : "Infeasible";
-  const inputParams = run?.input_params ?? run?.inputParams;
+  const inputParams = run?.input_params ?? run?.inputParams ?? (run.consumption_basis || run.quantile_consumption ? {
+    consumption_basis: run.consumption_basis, quantile_consumption: run.quantile_consumption,
+  } : null);
   if (!inputParams || !Object.hasOwn(inputParams, "quantile_consumption")) {
     return (
       t(`simulation.feasibility_basis_in_results_${outcome}`) ||
@@ -133,6 +137,7 @@ const formatFeasibilityLabel = (feasible, run = {}) => {
 
   const basis = resolveFeasibilityDemandBasis(inputParams);
   const basisKey =
+    basis === FEASIBILITY_DEMAND_BASIS.AGGREGATE_Q95 ? "aggregate_q95" :
     basis === FEASIBILITY_DEMAND_BASIS.MEAN
       ? "mean"
       : basis === FEASIBILITY_DEMAND_BASIS.Q50
@@ -1170,6 +1175,7 @@ export const initializeSimulationRuns = async (
         name: resolveRunName(run),
         shiftIds: resolveShiftIds(run),
         optimizationMode: resolveRunMode(run) || "battery_only",
+        consumptionBasis: run.input_params?.consumption_basis || "mean",
         externalTempCelsius: resolveExternalTemp(run) ?? -5,
         occupancyPercent: resolveOccupancyPercent(run) ?? 50,
         heatingType: normalizeHeatingTypeForPrefill(resolveHeatingType(run)),

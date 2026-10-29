@@ -85,6 +85,7 @@ import {
   resolveFeasibilityScopeKeyboardTarget,
 } from "../../../utils/feasibility-result-navigation";
 import "./simulation-results.css";
+import { renderAggregateEnergy, bindAggregateEnergy } from "./aggregate-energy";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
 
@@ -2933,6 +2934,7 @@ const modeLabel = (key) =>
 
 const feasibilityDemandBasisLabel = (inputParams = {}) => {
   const basis = resolveFeasibilityDemandBasis(inputParams);
+  if (basis === FEASIBILITY_DEMAND_BASIS.AGGREGATE_Q95) return t("simulation.aggregate_q95");
   if (basis === FEASIBILITY_DEMAND_BASIS.MEAN) {
     return translateOr(
       "simulation.feasibility_basis_mean",
@@ -2957,6 +2959,7 @@ const feasibilityScenarioLabel = (feasible, inputParams = {}) => {
   const outcome = feasible ? "feasible" : "infeasible";
   const fallbackOutcome = feasible ? "Feasible" : "Infeasible";
   const basisKey =
+    basis === FEASIBILITY_DEMAND_BASIS.AGGREGATE_Q95 ? "aggregate_q95" :
     basis === FEASIBILITY_DEMAND_BASIS.MEAN
       ? "mean"
       : basis === FEASIBILITY_DEMAND_BASIS.Q50
@@ -6184,7 +6187,7 @@ const buildSharedInfrastructureDetailsHtml = (viewState) => {
     </section>`;
 };
 
-const buildFeasibilityGeneralLevelHtml = (viewState) => {
+const buildFeasibilityGeneralLevelHtml = (viewState, inputParams = {}) => {
   const general = viewState?.general ?? {};
   const battery = general.battery ?? {};
   const infrastructure = general.infrastructure ?? {};
@@ -6227,6 +6230,7 @@ const buildFeasibilityGeneralLevelHtml = (viewState) => {
           )}</p>
         </div>
         <div class="feasibility-level__header-meta">
+          <span>${textContent(t("simulation.feasibility_decision_basis"))}: ${textContent(feasibilityDemandBasisLabel(inputParams))}</span>
           <span
             class="feasibility-mode"
             data-role="feasibility-mode"
@@ -6796,7 +6800,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         </div>`);
   }
 
-  if (consumptionOverviewData.length) {
+  if (consumptionOverviewData.length && !results.consumption_analysis) {
     chartCards.unshift(`
         <div class="chart-section efficiency-chart-card">
           <div class="efficiency-chart-copy">
@@ -6841,6 +6845,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     ? `
     <section class="efficiency-section">
       <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</h3>
+      <p>${textContent(t("simulation.aggregate_trip_quantiles_note"))}</p>
       <div class="efficiency-table-wrap">
         <table class="efficiency-table">
           <thead>
@@ -6876,7 +6881,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     energyBalance
   );
 
-  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(feasibilityViewState);
+  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(feasibilityViewState, ip);
   const shiftLevelHtml = `
     <section class="feasibility-level feasibility-level--shift" data-role="feasibility-shift-level">
       ${buildFeasibilityShiftLevelHeaderHtml(
@@ -6885,8 +6890,9 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       )}
       <div class="feasibility-level__content">
         ${buildShiftOperationalSummaryHtml(feasibilityViewState)}
-        ${chartsHtml}
-        ${shiftEnergyAdequacyHtml}
+        ${renderAggregateEnergy(optimizationRun, viewOptions?.selectedShiftId)}
+        ${results.consumption_analysis ? "" : chartsHtml}
+        ${results.consumption_analysis ? "" : shiftEnergyAdequacyHtml}
         ${buildShiftChargingPlanHtml(feasibilityViewState)}
         <details class="ya-more-information"${keepMoreInformationOpen ? " open" : ""}>
           <summary class="ya-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
@@ -6913,6 +6919,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     </section>`;
 
   el.innerHTML = resultScope === "shift" ? shiftLevelHtml : generalLevelHtml;
+  bindAggregateEnergy(el, optimizationRun);
 
   renderEfficiencyEnergySplitChart(
     el.querySelector('[data-role="efficiency-energy-chart"]'),

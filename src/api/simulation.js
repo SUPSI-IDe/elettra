@@ -22,6 +22,16 @@ import {
 } from "./lca-request";
 
 const SIMULATION_PATH = `${API_ROOT}/api/v1/simulation`;
+
+export const resolveOptimizationBasis = async (runId, basis, { start = false } = {}) => {
+  if (!runId || !["mean", "aggregate_q95"].includes(basis)) throw new Error("Invalid optimization basis");
+  const response = await fetch(`${SIMULATION_PATH}/optimization-runs/${encodeURIComponent(runId)}/basis/${basis}`, {
+    method: start ? "POST" : "GET", headers: authHeaders(),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "Unable to load optimization basis");
+  return payload;
+};
 const YEARLY_ANALYSIS_PATH = `${API_ROOT}/api/v1/yearly-analysis`;
 const ECONOMIC_PATH = `${API_ROOT}/api/v1/economic`;
 
@@ -211,6 +221,7 @@ const createPredictionRunVariants = async ({
   prediction_params = {},
   pack_count_override = null,
   required_pack_count = null,
+  reference_only = false,
 }) => {
   const busModel = await fetchBusModelById(bus_model_id);
   const specs = parseSpecs(busModel?.specs);
@@ -223,13 +234,14 @@ const createPredictionRunVariants = async ({
     prediction_params.occupancy_percent == null
       ? 50
       : Number(prediction_params.occupancy_percent);
+  const allowedPacks = computeBatteryPackCases(specs);
   const batteryPackCases =
     pack_count_override != null
       ? [Math.round(Number(pack_count_override))]
-      : computeBatteryPackCases(specs);
+      : reference_only ? [required_pack_count ?? Math.max(...allowedPacks)] : allowedPacks;
 
   const createdIds = [];
-  if (required_pack_count != null && !batteryPackCases.includes(required_pack_count)) {
+  if (required_pack_count != null && !allowedPacks.includes(required_pack_count)) {
     throw new Error("Selected battery pack count is outside the bus model limits.");
   }
 
@@ -545,9 +557,10 @@ export const createOptimizationRun = async (params = {}) => {
     shift_ids,
     bus_model_id: rest.bus_model_id,
     prediction_params: rest.prediction_params,
-    // Keep every battery variant for comparison, even in charging-only mode.
+    // A physical reference is enough; the backend forecasts the chosen mass.
     pack_count_override: null,
     required_pack_count: rest.mode === "charging_only" ? fixedPacks : null,
+    reference_only: true,
   });
   const { runs } = await resolvePredictionRuns(predictionRunIds);
   const referenceIds = selectOptimizationReferences(runs, shift_ids, rest.mode,

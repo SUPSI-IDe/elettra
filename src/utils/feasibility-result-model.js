@@ -337,10 +337,10 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
         maxPhysicalKwh: toNonNegativeNumber(battery.max_physical_kwh),
         physicalFeasible: toBoolean(battery.physical_feasible),
         feasibilityStatus: firstText(battery.feasibility_status),
-        commonPacks: fleetPacks,
+        commonPacks: optimizedPacks,
         commonPackMargin:
-          fleetPacks !== null && requiredPacks !== null
-            ? fleetPacks - requiredPacks
+          optimizedPacks !== null && requiredPacks !== null
+            ? optimizedPacks - requiredPacks
             : null,
         isSizing:
           decisions.battery === FEASIBILITY_DECISION.OPTIMIZED &&
@@ -386,9 +386,10 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
 
   return {
     mode,
-    electrificationFeasible: toBoolean(results.electrification_feasible),
+    electrificationFeasible: results.forecast_verification?.status && !["verified", "physical_limits_exceeded"].includes(results.forecast_verification.status)
+      ? null : toBoolean(results.electrification_feasible),
     fleet: {
-      scope: "common",
+      scope: "per_bus",
       busModelId: firstText(inputParams.bus_model_id, run.bus_model_id),
       battery: {
         decision: decisions.battery,

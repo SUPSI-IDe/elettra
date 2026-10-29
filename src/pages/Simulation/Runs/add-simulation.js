@@ -996,6 +996,8 @@ export const initializeAddSimulation = async (
     }
 
     if (optimizationMode && modeSelect) modeSelect.value = optimizationMode;
+    const basisSelect = section.querySelector("#var-consumption-basis");
+    if (basisSelect && ["mean", "aggregate_q95"].includes(prefill.consumptionBasis)) basisSelect.value = prefill.consumptionBasis;
 
     if (externalTempCelsius != null) {
       const tempInput = section.querySelector("#var-external-temp");
@@ -1291,6 +1293,7 @@ export const initializeAddSimulation = async (
     const payload = {
       name,
       mode: optimizationMode,
+      consumption_basis: formData.get("consumption_basis") || "mean",
       shift_ids: selectedShiftIds,
       bus_model_id: busModelId,
       prediction_params: predictionParams,

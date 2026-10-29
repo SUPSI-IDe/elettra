@@ -1,6 +1,6 @@
 # Simulation Results
 
-> Last updated: 2026-06-01
+> Last updated: 2026-10-29
 
 After a feasibility evaluation completes, ELETTRA displays comprehensive results covering feasibility, costs, efficiency, emissions, and battery adequacy.
 
@@ -53,15 +53,41 @@ The results page is organized into sections (cards/panels):
 
 ---
 
-## Feasibility verdict
+## Feasibility verdict and battery margin
 
-The core output is explicitly qualified by its decision basis:
-**Feasible — mean-based demand scenario** or
-**Infeasible — mean-based demand scenario**.
+The verdict identifies the actual optimization basis: **Mean** or **Aggregate
+Q95**. Solver success, physical battery limits and full-forecast verification
+are separate facts. An unverified result does not certify feasibility.
 
-- **Feasible — mean-based demand scenario**: The optimizer found a valid battery/charging configuration that keeps SOC within bounds using mean demand.
-- **Infeasible — mean-based demand scenario**: No combination of available battery packs and charging stations satisfies mean demand within the SOC constraints.
-- **Q05, Q50 and Q95**: These remain visible as comparison scenarios. Q50 or Q95 exceeding usable energy does not contradict a mean-based feasible verdict; it means the design does not cover those comparison scenarios.
+General summarizes all analyzed shifts, shared infrastructure and the largest
+selected battery. Each bus retains its own selected battery; the maximum is not
+a common battery silently imposed on every shift. All selected shifts
+participate in sizing.
+
+The battery card in each shift shows nominal capacity, usable capacity between
+SOC limits (including SOH), selected packs and unused installable packs.
+Diagnostic excess packs are separated in red and never counted as installed
+capacity. Charging-only uses a fixed battery.
+
+Two bars compare the usable capacity required by the mean and representative
+Q95 profiles on the **same mass and charging plan**. These requirements come
+from maximum temporal energy drawdown, not total consumption minus charging.
+They are not independently optimized battery sizes. A red deficit for the
+alternative profile does not invalidate the verified basis of the displayed
+result. The SOC chart includes the persisted verified trajectory and the two
+fixed-plan diagnostic profiles; the charging plan gives actual session timing.
+
+The sampling details show sample count, seed and Monte Carlo uncertainty.
+When available, completion percentage is measured over independently sampled
+whole trajectories, with charging curtailed at maximum SOC. This conditional
+per-shift simulation does not guarantee fleet reliability.
+
+Choose **Mean / Aggregate Q95** beside the battery to check for a compatible
+result. Open it to switch the whole design, or explicitly start one new
+optimization. Until then the displayed values keep their original basis.
+Historical evaluations retain their original semantics; missing aggregate
+analysis requires a new evaluation. Historical per-trip quantiles are not
+relabelled as aggregate Q95.
 
 ---
 
