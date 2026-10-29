@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2] - 2026-10-29
+
+### Fixed
+
+- Battery diagrams distinguish diagnostic packs above a fixed battery from packs beyond the installable maximum. A diagnostic requirement of 18 packs with 10 fixed and 16 installable now shows 10 selected, 6 unused and 2 unavailable packs, with both deficits explicitly explained.
+- Added unit and desktop/mobile browser regressions for fixed-battery deficits within and beyond the physical limit, including historical results.
+
 ## [0.7.1] - 2026-10-29
 
 ### Added

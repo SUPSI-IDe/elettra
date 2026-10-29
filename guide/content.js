@@ -1,6 +1,6 @@
 import { useCaseSections } from "./use-cases.js";
 
-export const GUIDE_BASELINE_VERSION = "0.7.1";
+export const GUIDE_BASELINE_VERSION = "0.7.2";
 export const GUIDE_UPDATED_AT = "29 October 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
@@ -279,7 +279,7 @@ export const guideContent = {
           },
           {
             title: "Check every shift tab",
-            text: "Each shift shows nominal and usable capacity, selected packs, unused installable packs and diagnostic excess capacity in red. Read the energy margin together with planned charging and the verified SOC trajectory.",
+            text: "Each shift shows nominal and usable capacity, selected packs and unused installable packs. Red packs represent only diagnostic capacity beyond the installable maximum; the message separately reports the deficit above a fixed battery. Read the energy margin together with planned charging and the verified SOC trajectory.",
           },
           {
             title: "Read visual analysis and energy adequacy together",

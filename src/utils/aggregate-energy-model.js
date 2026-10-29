@@ -14,9 +14,12 @@ export function aggregateEnergyModel(run, shiftId) {
   const soh = detail?.state_of_health ?? input.state_of_health ?? 1;
   const usable = nominal === null ? null : nominal * soh * (maxSoc-minSoc);
   const basis = input.consumption_basis ?? ((input.quantile_consumption ?? "mean") === "mean" ? "mean" : "legacy");
+  const excess = battery.excess_packs ?? 0;
+  const diagnosticTotal = battery.required_total_packs ?? selected + excess;
+  const unavailablePacks = Math.max(0, diagnosticTotal - maximum);
   return { available, selected, maximum, packKwh, nominal, usable, minSoc, maxSoc, soh, basis,
-    excess: battery.excess_packs ?? 0, detail,
+    excess, diagnosticTotal, unavailablePacks, detail,
     verified: results.forecast_verification?.status === "verified",
-    physicalExceeded: (battery.required_total_packs ?? selected) > maximum,
+    physicalExceeded: unavailablePacks > 0,
     cases: available ? detail.cases : null };
 }
