@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3] - 2026-10-29
+
+### Fixed
+
+- Historical shift summaries and battery detail tables determine physical-limit status from required and installable pack counts. A deficit above a fixed battery remains a shortfall without being incorrectly called a physical-limit violation when its diagnostic requirement fits within the model's maximum.
+- Desktop/mobile regressions verify consistency between the shift summary and the battery card for diagnostic requirements both within and beyond the physical limit.
+
 ## [0.7.2] - 2026-10-29
 
 ### Fixed

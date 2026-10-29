@@ -3276,14 +3276,16 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
   if (batteryEntries.length) {
     let batteryOptimizedTooltipOptions = {};
     const rows = batteryEntries.map(([, b]) => {
-      const physFeasible = b.physical_feasible;
+      const reqPacks = toFiniteNumber(b.required_total_packs ?? b.optimized_packs);
+      const maxPacks = toFiniteNumber(b.max_physical_packs);
+      // Historical physical_feasible also included deficits above a fixed battery.
+      // The installable-limit label must compare the actual pack counts.
+      const physFeasible = reqPacks != null && maxPacks != null ? reqPacks <= maxPacks : null;
       const feasBadge = physFeasible === true
         ? "badge--positive"
         : physFeasible === false
           ? "badge--negative"
           : "badge--neutral";
-      const reqPacks = toFiniteNumber(b.required_total_packs);
-      const maxPacks = toFiniteNumber(b.max_physical_packs);
       const overLimit = reqPacks != null && maxPacks != null && reqPacks > maxPacks;
       const bOpen = overLimit ? "<strong>" : "";
       const bClose = overLimit ? "</strong>" : "";
@@ -6367,14 +6369,18 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
     coverageTone = "positive";
   }
 
-  const physicalStatus = battery.physicalFeasible === true
+  const requiredPacks = toOptionalFiniteNumber(battery.requiredPacks);
+  const maxPhysicalPacks = toOptionalFiniteNumber(battery.maxPhysicalPacks);
+  const withinPackLimit = requiredPacks !== null && maxPhysicalPacks !== null
+    ? requiredPacks <= maxPhysicalPacks : null;
+  const physicalStatus = withinPackLimit === true
     ? translateOr("simulation.feasibility_physical_within_limit", "Within physical pack limit")
-    : battery.physicalFeasible === false
+    : withinPackLimit === false
       ? translateOr("simulation.feasibility_physical_exceeds_limit", "Exceeds physical pack limit")
       : translateOr("simulation.feasibility_shift_status_unknown", "Status not available");
-  const physicalTone = battery.physicalFeasible === true
+  const physicalTone = withinPackLimit === true
     ? "positive"
-    : battery.physicalFeasible === false
+    : withinPackLimit === false
       ? "negative"
       : "unknown";
   const packUnit = t("simulation.unit_packs") || "packs";

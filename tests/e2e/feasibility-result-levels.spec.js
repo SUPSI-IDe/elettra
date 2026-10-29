@@ -1237,6 +1237,10 @@ for (const [required, excess, unavailable] of [[18,8,2],[13,3,0]]) {
     await expect(card.locator('.aggregate-pack--excess')).toHaveCount(unavailable);
     await expect(card).toContainText('500 kWh');
     await expect(card).toContainText(`${required} packs`);
+    const summary=page.locator('[data-role="feasibility-shift-summary"]');
+    await expect(summary).toContainText('Battery shortfall');
+    await expect(summary.locator('[data-role="feasibility-shift-physical-limit"]')).toContainText(
+      unavailable ? 'Exceeds physical pack limit' : 'Within physical pack limit');
     if(unavailable) await expect(card).toContainText(`+${unavailable} beyond the installable maximum`);
     else await expect(card).not.toContainText('Physical limit exceeded');
   });
