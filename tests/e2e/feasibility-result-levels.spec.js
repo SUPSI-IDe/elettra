@@ -1224,3 +1224,20 @@ test('historical infeasible results show virtual packs separately without invent
   await expect(card).toContainText('Physical limit exceeded');
   await expect(card.locator('.aggregate-demand')).toHaveCount(0);
 });
+
+for (const [required, excess, unavailable] of [[18,8,2],[13,3,0]]) {
+  test(`charging-only diagnostic ${required} packs does not add all excess beyond the physical limit`, async ({page})=>{
+    await mountResults(page,{mode:'charging_only',shiftIds:['morning'],electrificationFeasible:false,
+      batteryResultOverrides:{morning:{optimized_packs:10,required_total_packs:required,excess_packs:excess,
+        optimized_kwh:required*50,physical_feasible:false}}});
+    await selectShiftScope(page,'morning');
+    const card=page.locator('[data-role="aggregate-energy"]');
+    await expect(card.locator('.aggregate-pack--chosen')).toHaveCount(10);
+    await expect(card.locator('.aggregate-pack--unused')).toHaveCount(6);
+    await expect(card.locator('.aggregate-pack--excess')).toHaveCount(unavailable);
+    await expect(card).toContainText('500 kWh');
+    await expect(card).toContainText(`${required} packs`);
+    if(unavailable) await expect(card).toContainText(`+${unavailable} beyond the installable maximum`);
+    else await expect(card).not.toContainText('Physical limit exceeded');
+  });
+}
