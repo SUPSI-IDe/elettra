@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.7.1] - 2026-10-29
+
+### Added
+
+- Mean or aggregate-Q95 optimization for battery, charger and joint evaluations, with explicit reuse or creation of compatible results.
+- Battery pack visualization separating selected, unused and diagnostic excess packs, nominal and usable capacity, and SOH.
+- Fixed-plan mean/Q95 capacity margins, verified SOC and conditional whole-shift Monte Carlo completion results from backend 1.3.0.
+
+### Changed
+
+- New evaluations prepare one physical forecast reference per shift; the backend recalculates at the selected battery mass.
+- General reports all analyzed shifts and the largest selected battery without presenting it as a common verified battery.
+- Four-language guidance and historical-result states distinguish aggregate Q95 from sums of trip quantiles.
+
+### Fixed
+
+- Per-shift margins use each selected battery rather than the fleet maximum.
+- Unverified results remain distinct from physical battery-limit violations.
+- Release metadata includes the required changelog entry and a permanent version/changelog regression check. This release supersedes the unpublished v0.7.0 release candidate.
+
+### Verification
+
+- 474 unit tests, 202 desktop/mobile browser executions, production build and visual inspection.
+- Backend validation includes 698 tests and the 40502 reference: 13/14 packs without pantograph and 10/10 with pantograph for mean/aggregate Q95.
+
 ## [0.6.0] - 2026-10-23
 
 ### Added
