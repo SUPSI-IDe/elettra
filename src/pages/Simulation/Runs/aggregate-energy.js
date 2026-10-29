@@ -7,6 +7,9 @@ import { triggerPartialLoad } from "../../../events";
 const label = (key, values) => t(`simulation.aggregate_${key}`, values);
 const number = (value) => Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 1 }) : "—";
 const basisLabel = (basis) => label(basis === "aggregate_q95" ? "q95" : basis === "mean" ? "mean" : "legacy");
+// A late shift-data refresh may rebuild the whole result card. Keep the user's
+// requested basis separate from the basis of the stored result being displayed.
+const requestedBasisByRun = new Map();
 
 function socChart(model) {
   if (!model.available) return "";
@@ -29,6 +32,7 @@ function socChart(model) {
 
 export function renderAggregateEnergy(run, shiftId) {
   const model = aggregateEnergyModel(run, shiftId);
+  const requestedBasis = requestedBasisByRun.get(run.id) ?? model.basis;
   const safeCount = Math.min(64, Math.max(0, model.maximum || 0));
   const packs = Array.from({length: safeCount}, (_, i) => `<span class="aggregate-pack ${i<model.selected ? "aggregate-pack--chosen" : "aggregate-pack--unused"}" style="--reserve:${model.minSoc*100}%;--soc-max:${model.maxSoc*100}%" aria-label="${esc(label(i<model.selected ? "chosen" : "unused"))} ${i+1}"><b>${i+1}</b></span>`).join("");
   const overflow = Array.from({length: Math.min(32, model.unavailablePacks)}, (_, i) => `<span class="aggregate-pack aggregate-pack--excess"><b>+${i+1}</b></span>`).join("");
@@ -40,7 +44,7 @@ export function renderAggregateEnergy(run, shiftId) {
   const validation = model.detail?.trajectory_validation;
   return `<section class="aggregate-energy result-card" data-role="aggregate-energy" data-status="${model.available ? "available" : "unavailable"}">
     <header class="result-card__header"><div><h3>${esc(label("title"))}</h3><p>${esc(label("current"))}: <strong data-role="aggregate-current-basis">${esc(basisLabel(model.basis))}</strong> · ${esc(label(model.verified ? "verified" : "unverified"))}</p></div>
-      <label class="aggregate-basis-control">${esc(label("basis"))}<select data-role="aggregate-basis"><option value="mean" ${model.basis!=="aggregate_q95" ? "selected" : ""}>${esc(label("mean"))}</option><option value="aggregate_q95" ${model.basis==="aggregate_q95" ? "selected" : ""}>${esc(label("q95"))}</option></select></label></header>
+      <label class="aggregate-basis-control">${esc(label("basis"))}<select data-role="aggregate-basis"><option value="mean" ${requestedBasis!=="aggregate_q95" ? "selected" : ""}>${esc(label("mean"))}</option><option value="aggregate_q95" ${requestedBasis==="aggregate_q95" ? "selected" : ""}>${esc(label("q95"))}</option></select></label></header>
     <div class="result-card__body">
     <div class="aggregate-basis-action"><p data-role="aggregate-basis-message" aria-live="polite">${esc(label(model.available ? "switch_help" : "legacy_help"))}</p><button type="button" class="button" data-role="aggregate-basis-action" ${model.available ? "hidden" : ""}>${esc(label("calculate"))}</button></div>
     <div class="aggregate-metrics"><div><strong>${number(model.selected)} / ${number(model.maximum)}</strong><span>${esc(label(run.mode === "charging_only" || run.input_params?.mode === "charging_only" ? "fixed_packs" : "packs"))}</span></div><div><strong>${number(model.nominal)} kWh</strong><span>${esc(label("nominal"))}${model.soh < 1 ? ` · ${esc(label("effective"))}: ${number(model.nominal*model.soh)} kWh` : ""}</span></div><div><strong>${number(model.usable)} kWh</strong><span>${esc(label("usable"))} · SOC ${number(model.minSoc*100)}–${number(model.maxSoc*100)}% · SOH ${number(model.soh*100)}%</span></div></div>
@@ -73,7 +77,12 @@ export function bindAggregateEnergy(container, run) {
       if (token === generation) { message.textContent = error.message; button.disabled = true; }
     }
   };
-  select.addEventListener("change", lookup);
+  select.addEventListener("change", () => {
+    requestedBasisByRun.set(run.id, select.value);
+    // Bound session-only UI state without persisting user choices to a server.
+    if (requestedBasisByRun.size > 64) requestedBasisByRun.delete(requestedBasisByRun.keys().next().value);
+    void lookup();
+  });
   button.addEventListener("click", async () => {
     button.disabled = true; select.disabled = true;
     try {
@@ -83,4 +92,5 @@ export function bindAggregateEnergy(container, run) {
       message.textContent = error.message; button.disabled = false; select.disabled = false;
     }
   });
+  if (requestedBasisByRun.has(run.id)) void lookup();
 }
