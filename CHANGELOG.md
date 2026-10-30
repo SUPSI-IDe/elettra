@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0-rc.3] - 2026-10-30
+
+### Staging candidate
+
+- Use green for completed evaluations, yellow while either Mean or Q95 is pending/running, and red for errors or incomplete verification, including timeouts.
+- Explain indeterminate feasibility explicitly instead of implying that calculation errors prove infeasibility. Add localized status reasons and desktop/mobile regressions.
+- Publish as a GitHub Pre-release; stable Docker aliases remain unchanged.
+
 ## [0.8.0-rc.2] - 2026-10-30
 
 ### Staging candidate

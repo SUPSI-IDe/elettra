@@ -1,5 +1,5 @@
 import { t } from "../../../i18n";
-import { basisOutcome, pairedFeasibility } from "../../../utils/paired-feasibility";
+import { basisOutcome, pairedFeasibility, evaluationStatus } from "../../../utils/paired-feasibility";
 import "./simulation-runs.css";
 import { fetchAllBusModels, fetchBusModelById } from "../../../api";
 import {
@@ -108,6 +108,7 @@ const resolveElectrificationFeasible = (run = {}) => {
     const tone = pairedFeasibility(run).tone;
     return tone === "positive" ? true : tone === "negative" ? false : null;
   }
+  if (evaluationStatus(run).tone !== "positive") return null;
   const verification = run.verification_status ?? run.results?.forecast_verification?.status;
   if (verification && !["verified", "physical_limits_exceeded", "infeasible"].includes(verification)) return null;
   // The new list endpoint exposes `electrification_feasible` directly on
@@ -137,7 +138,7 @@ const formatFeasibilityLabel = (feasible, run = {}) => {
           ? t(`simulation.feasibility_${basis}_feasible`)
           : basisOutcome(row) === "infeasible"
             ? t(`simulation.feasibility_${basis}_infeasible`)
-            : `${name}: ${t("simulation.aggregate_unverified")}`
+            : `${name}: ${t("simulation.feasibility_not_determined")} — ${formatEvaluationStatus(row)}`
         : `${name}: ${formatStatusLabel(row.status ?? "failed")}`;
       return outcome;
     }).join(" · ");
@@ -169,11 +170,6 @@ const formatFeasibilityLabel = (feasible, run = {}) => {
     `${fallbackOutcome} — demand basis shown in results`
   );
 };
-
-const completionIndicatorClass = (status) =>
-  ["completed", "done"].includes(text(status).trim().toLowerCase())
-    ? "positive"
-    : "negative";
 
 const feasibilityIndicatorClass = (feasible, run) =>
   pairedFeasibility(run)?.tone ?? (feasible === true ? "positive" : feasible === false ? "negative" : "neutral");
@@ -594,6 +590,17 @@ const formatStatusLabel = (status) => {
   return (key && t(key)) || status || "—";
 };
 
+const formatEvaluationStatus = (run) => {
+  const status = evaluationStatus(run);
+  const label = formatStatusLabel(status.state);
+  if (run.basis_summaries) {
+    return `${label} · ` + ["mean", "aggregate_q95"].map(basis =>
+      `${t(`simulation.aggregate_${basis === "mean" ? "mean" : "q95"}`)}: ${formatEvaluationStatus(run.basis_summaries[basis] ?? {status: "unavailable"})}`
+    ).join(" · ");
+  }
+  return status.reason ? `${label} — ${t(`simulation.calculation_${status.reason}`)}` : label;
+};
+
 const DEFAULT_SORT = {
   key: "created_at",
   direction: "desc",
@@ -639,7 +646,7 @@ const getSortValue = (run = {}, key = "") => {
     case "optimization_mode":
       return resolveRunMode(run) || "—";
     case "status":
-      return formatStatusLabel(run?.status ?? "pending");
+      return formatEvaluationStatus(run);
     default:
       return text(run?.id);
   }
@@ -717,7 +724,7 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
   const rows = runs
     .map((run = {}) => {
       const rowId = text(run?.id);
-      const status = text(run?.status ?? "pending");
+      const status = evaluationStatus(run);
       const created = formatDate(resolveCreatedAt(run));
       const shiftIds = resolveShiftIds(run);
       const shiftTitle = shiftIds.length ? shiftIds.join(", ") : rowId;
@@ -733,10 +740,11 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
       const mainParameters = formatMainParameters(run);
       const feasible = resolveElectrificationFeasible(run);
       const feasibilityLabel = formatFeasibilityLabel(feasible, run);
-      const statusLabel = formatStatusLabel(status);
+      const statusLabel = formatEvaluationStatus(run);
+      const undetermined = feasibilityIndicatorClass(feasible, run) === "neutral";
       const accessibleFeasibilityLabel = run.basis_summaries || feasible === true || feasible === false
         ? feasibilityLabel
-        : t("simulation.feasibility_status_unavailable") || "Feasibility status unavailable";
+        : `${t("simulation.feasibility_not_determined")} — ${statusLabel}`;
 
       const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${textContent(rowId)}">${textContent(t("simulation.col_results") || "Results")}</a>`;
 
@@ -754,8 +762,9 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
           <td class="type">${textContent(mode)}</td>
           <td class="status">
             <span
-              class="simulation-state-indicator simulation-state-indicator--${completionIndicatorClass(status)}"
+              class="simulation-state-indicator simulation-state-indicator--${status.tone}"
               role="img"
+              tabindex="0"
               aria-label="${textContent(statusLabel)}"
               title="${textContent(statusLabel)}"
             ></span>
@@ -764,9 +773,11 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
             <span
               class="simulation-state-indicator simulation-state-indicator--${feasibilityIndicatorClass(feasible, run)}"
               role="img"
+              tabindex="0"
               aria-label="${textContent(accessibleFeasibilityLabel)}"
               title="${textContent(accessibleFeasibilityLabel)}"
             ></span>
+            ${undetermined ? `<small class="simulation-state-note">${textContent(t("simulation.feasibility_not_determined"))}</small>` : ""}
           </td>
           <td class="results">${resultsLink}</td>
         </tr>`;

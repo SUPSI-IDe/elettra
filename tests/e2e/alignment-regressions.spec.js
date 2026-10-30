@@ -242,7 +242,7 @@ test("dense list tables remain readable and scroll only when needed", async ({
 });
 
 
-test("feasibility list uses accessible red and green indicators without clipping Results", async ({
+test("feasibility list uses accessible traffic-light indicators without clipping Results", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1180, height: 800 });
@@ -265,7 +265,7 @@ test("feasibility list uses accessible red and green indicators without clipping
 
   const statusHelp = page.locator("th.status .simulation-column-help");
   const feasibilityHelp = page.locator("th.feasibility .simulation-column-help");
-  await expect(statusHelp).toHaveAttribute("title", /Green: evaluation completed.*Red:/);
+  await expect(statusHelp).toHaveAttribute("title", /Green: calculation completed.*Yellow:.*Red:/);
   await expect(feasibilityHelp).toHaveAttribute("title", /Green: feasible.*Red:/);
 
   const completedRow = page.locator('tbody tr[data-id="completed"]');
@@ -278,11 +278,11 @@ test("feasibility list uses accessible red and green indicators without clipping
   await expect(completedRow.locator("td.feasibility .simulation-state-indicator"))
     .toHaveAttribute("aria-label", /Feasible/);
   await expect(failedRow.locator("td.status .simulation-state-indicator"))
-    .toHaveAttribute("aria-label", "Failed");
+    .toHaveAttribute("aria-label", /Failed.*Calculation error/);
   await expect(failedRow.locator("td.feasibility .simulation-state-indicator"))
-    .toHaveAttribute("aria-label", /Infeasible/);
+    .toHaveAttribute("aria-label", /Not determined.*Failed/);
   await expect(runningRow.locator("td.feasibility .simulation-state-indicator"))
-    .toHaveAttribute("aria-label", "Feasibility status unavailable");
+    .toHaveAttribute("aria-label", /Not determined.*Running/);
 
   const colors = await page.locator("tbody tr").evaluateAll((rows) => rows.map((row) => ({
     status: getComputedStyle(row.querySelector("td.status .simulation-state-indicator")).backgroundColor,
@@ -290,8 +290,8 @@ test("feasibility list uses accessible red and green indicators without clipping
   })));
   expect(colors).toEqual([
     { status: "rgb(46, 125, 50)", feasibility: "rgb(46, 125, 50)" },
-    { status: "rgb(211, 47, 47)", feasibility: "rgb(211, 47, 47)" },
     { status: "rgb(211, 47, 47)", feasibility: "rgb(211, 211, 211)" },
+    { status: "rgb(245, 166, 35)", feasibility: "rgb(211, 211, 211)" },
   ]);
 
   const layout = await page.locator(".simulation-runs-table").evaluate((wrapper) => {
