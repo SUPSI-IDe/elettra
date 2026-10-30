@@ -1,8 +1,10 @@
 # Changelog
 
-## [0.8.0-rc.1] - 2026-10-30
+## [0.8.0-rc.2] - 2026-10-30
 
 ### Staging candidate
+
+- Align comparison fallback text with translations and allow long guide headings to wrap on narrow screens (RC1 stopped at the CI gate and was not published).
 
 - Add fleet and representative-bus annual analyses with assigned-duty consumption, editable mileage by bus/battery group, electric/diesel TCO, restored emissions comparisons and exports.
 - Save annual assumptions automatically with a compact explanatory tooltip, serialized writes and retry on failure; share physical assumptions between Costs and Emissions.

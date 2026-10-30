@@ -183,6 +183,7 @@ a:hover {
 
 .guide-main {
   min-width: 0;
+  overflow-wrap: anywhere;
   padding: clamp(1.5rem, 4vw, 3.5rem);
   border-left: 1px solid var(--guide-border);
   background: var(--guide-surface);
