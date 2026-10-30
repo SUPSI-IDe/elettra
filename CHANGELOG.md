@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0-rc.1] - 2026-10-30
+
+### Added
+
+- Calculate complete Mean and aggregate-Q95 designs in one feasibility evaluation. The result selector switches the entire design without starting another optimization; paired outcomes appear together in the list.
+- Show the selected design’s energy requirement and SOC, with a charging policy that favours lower SOC and occupies the pantograph for the complete dwell.
+- Preserve separate design identities for costs and yearly analyses, and explain pending or failed alternatives without relabelling the displayed result.
+- Add unit and desktop/mobile regressions for all three optimization modes and update the guide in four languages.
+
 ## [0.7.4] - 2026-10-29
 
 ### Fixed

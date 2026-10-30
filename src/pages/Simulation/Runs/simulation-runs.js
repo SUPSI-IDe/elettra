@@ -103,6 +103,12 @@ const renderEmpty = (tbody) => {
 };
 
 const resolveElectrificationFeasible = (run = {}) => {
+  if (run.basis_summaries) {
+    const rows = [run.basis_summaries.mean, run.basis_summaries.aggregate_q95];
+    if (rows.some(row => row?.verification_status === "physical_limits_exceeded")) return false;
+    return rows.every(row => row?.status === "completed" && row.verification_status === "verified"
+      && row.electrification_feasible === true) ? true : null;
+  }
   const verification = run.verification_status ?? run.results?.forecast_verification?.status;
   if (verification && !["verified", "physical_limits_exceeded"].includes(verification)) return null;
   // The new list endpoint exposes `electrification_feasible` directly on
@@ -121,6 +127,20 @@ const resolveElectrificationFeasible = (run = {}) => {
 };
 
 const formatFeasibilityLabel = (feasible, run = {}) => {
+  if (run.basis_summaries) {
+    return ["mean", "aggregate_q95"].map(basis => {
+      const row = run.basis_summaries[basis] ?? {};
+      const name = t(`simulation.aggregate_${basis === "mean" ? "mean" : "q95"}`);
+      const outcome = row.status === "completed"
+        ? row.verification_status === "verified"
+          ? t(`simulation.feasibility_${basis}_feasible`)
+          : row.verification_status === "physical_limits_exceeded"
+            ? t(`simulation.feasibility_${basis}_infeasible`)
+            : `${name}: ${t("simulation.aggregate_unverified")}`
+        : `${name}: ${formatStatusLabel(row.status ?? "failed")}`;
+      return outcome;
+    }).join(" · ");
+  }
   if (feasible !== true && feasible !== false) return "—";
 
   const outcome = feasible ? "feasible" : "infeasible";
@@ -712,7 +732,7 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
       const feasible = resolveElectrificationFeasible(run);
       const feasibilityLabel = formatFeasibilityLabel(feasible, run);
       const statusLabel = formatStatusLabel(status);
-      const accessibleFeasibilityLabel = feasible === true || feasible === false
+      const accessibleFeasibilityLabel = run.basis_summaries || feasible === true || feasible === false
         ? feasibilityLabel
         : t("simulation.feasibility_status_unavailable") || "Feasibility status unavailable";
 

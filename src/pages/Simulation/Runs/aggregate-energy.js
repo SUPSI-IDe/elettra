@@ -23,16 +23,16 @@ function socChart(model) {
   const verifiedLine = verified?.length ? `<polyline class="aggregate-soc--verified" points="${verified.map((v,i)=>`${x(i,verified.length).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}"/>` : "";
   const clock = (minute) => `${Math.floor(minute/60)%24}`.padStart(2,"0")+":"+`${minute%60}`.padStart(2,"0")+(minute>=1440 ? " +1" : "");
   const sample = profiles[0][1];
-  return `<figure class="aggregate-soc"><figcaption>${esc(label("soc"))}</figcaption>
-    <svg viewBox="0 0 680 205" role="img" aria-label="${esc(label("soc"))}">
+  return `<figure class="aggregate-soc"><figcaption>${esc(label(model.paired ? "selected_soc" : "soc"))}</figcaption>
+    <svg viewBox="0 0 680 205" role="img" aria-label="${esc(label(model.paired ? "selected_soc" : "soc"))}">
     ${[model.minSoc, model.maxSoc].map(v => `<line x1="52" x2="632" y1="${y(v*high)}" y2="${y(v*high)}" class="aggregate-soc-limit"/><text x="8" y="${y(v*high)+4}">${number(v*100)}%</text>`).join("")}
     ${lines}${verifiedLine}<text x="52" y="192">${clock(sample.first_minute)}</text><text x="632" text-anchor="end" y="192">${clock(sample.first_minute+sample.soc_kwh.length-1)}</text></svg>
-    <div class="aggregate-legend"><span class="aggregate-mean-dot">● ${esc(label("mean"))}</span><span class="aggregate-q95-dot">● ${esc(label("q95"))}</span>${verifiedLine ? `<span>⋯ ${esc(label("verified_soc"))}</span>` : ""}</div></figure>`;
+    <div class="aggregate-legend">${profiles.map(([key]) => `<span class="aggregate-${key === 'mean' ? 'mean' : 'q95'}-dot">● ${esc(basisLabel(key))}</span>`).join('')}${verifiedLine ? `<span>⋯ ${esc(label("verified_soc"))}</span>` : ""}</div></figure>`;
 }
 
 export function renderAggregateEnergy(run, shiftId) {
   const model = aggregateEnergyModel(run, shiftId);
-  const requestedBasis = requestedBasisByRun.get(run.id) ?? model.basis;
+  const requestedBasis = model.paired ? model.basis : requestedBasisByRun.get(run.id) ?? model.basis;
   const safeCount = Math.min(64, Math.max(0, model.maximum || 0));
   const packs = Array.from({length: safeCount}, (_, i) => `<span class="aggregate-pack ${i<model.selected ? "aggregate-pack--chosen" : "aggregate-pack--unused"}" style="--reserve:${model.minSoc*100}%;--soc-max:${model.maxSoc*100}%" aria-label="${esc(label(i<model.selected ? "chosen" : "unused"))} ${i+1}"><b>${i+1}</b></span>`).join("");
   const overflow = Array.from({length: Math.min(32, model.unavailablePacks)}, (_, i) => `<span class="aggregate-pack aggregate-pack--excess"><b>+${i+1}</b></span>`).join("");
@@ -46,18 +46,20 @@ export function renderAggregateEnergy(run, shiftId) {
     <header class="result-card__header"><div><h3>${esc(label("title"))}</h3><p>${esc(label("current"))}: <strong data-role="aggregate-current-basis">${esc(basisLabel(model.basis))}</strong> · ${esc(label(model.verified ? "verified" : "unverified"))}</p></div>
       <label class="aggregate-basis-control">${esc(label("basis"))}<select data-role="aggregate-basis"><option value="mean" ${requestedBasis!=="aggregate_q95" ? "selected" : ""}>${esc(label("mean"))}</option><option value="aggregate_q95" ${requestedBasis==="aggregate_q95" ? "selected" : ""}>${esc(label("q95"))}</option></select></label></header>
     <div class="result-card__body">
-    <div class="aggregate-basis-action"><p data-role="aggregate-basis-message" aria-live="polite">${esc(label(model.available ? "switch_help" : "legacy_help"))}</p><button type="button" class="button" data-role="aggregate-basis-action" ${model.available ? "hidden" : ""}>${esc(label("calculate"))}</button></div>
+    <div class="aggregate-basis-action"><p data-role="aggregate-basis-message" aria-live="polite">${esc(label(model.paired ? "paired_switch_help" : model.available ? "switch_help" : "legacy_help"))}</p><button type="button" class="button" data-role="aggregate-basis-action" ${model.available || model.paired ? "hidden" : ""}>${esc(label("calculate"))}</button></div>
     <div class="aggregate-metrics"><div><strong>${number(model.selected)} / ${number(model.maximum)}</strong><span>${esc(label(run.mode === "charging_only" || run.input_params?.mode === "charging_only" ? "fixed_packs" : "packs"))}</span></div><div><strong>${number(model.nominal)} kWh</strong><span>${esc(label("nominal"))}${model.soh < 1 ? ` · ${esc(label("effective"))}: ${number(model.nominal*model.soh)} kWh` : ""}</span></div><div><strong>${number(model.usable)} kWh</strong><span>${esc(label("usable"))} · SOC ${number(model.minSoc*100)}–${number(model.maxSoc*100)}% · SOH ${number(model.soh*100)}%</span></div></div>
     <div class="aggregate-packs" aria-label="${esc(label("packs"))}">${packs}${overflow ? `<span class="aggregate-overflow">${overflow}</span>` : ""}</div>
     <p class="aggregate-pack-key">${number(Math.max(0,model.maximum-model.selected))} ${esc(label("unused"))} · ${number(model.packKwh)} kWh / pack</p><p class="aggregate-pack-key">${esc(label("pack_legend"))}</p>
     ${model.excess>0 ? `<p class="aggregate-warning" role="status">${esc(label(model.physicalExceeded ? "exceeded" : "fixed_deficit", {count:model.physicalExceeded ? model.unavailablePacks : model.excess,required:model.diagnosticTotal,selected:model.selected,extra:model.excess,maximum:model.maximum}))}</p>` : ""}
-    ${model.available ? `<h4>${esc(label("required"))}</h4><p>${esc(label("same_plan"))}</p>${rows}${socChart(model)}${validation ? `<p class="aggregate-coverage">${esc(label("coverage", {percent:number(validation.completion_probability*100),samples:number(validation.samples)}))}</p>` : ""}<details><summary>${esc(label("method"))}</summary><p>${esc(label("assumption"))}</p><p>${esc(label("samples"))}: ${number(model.detail.statistics.samples)} · seed ${model.detail.statistics.seed} · Q95 ${number(model.detail.statistics.q95_total_kwh)} kWh · CI95 [${(model.detail.statistics.q95_monte_carlo_ci95_kwh ?? []).map(number).join("; ")}] kWh</p>${(model.detail.statistics.precision_met===false || model.detail.statistics.capacity_threshold_resolved===false) ? `<p class="aggregate-warning">${esc(label("precision"))}</p>` : ""}<p>${esc(label("coverage_note"))}</p></details>` : `<p class="aggregate-warning">${esc(label(model.verified ? "distribution_missing" : "not_verified"))}</p>`}
+    ${model.available ? `<h4>${esc(label("required"))}</h4><p>${esc(label(model.paired ? "selected_plan" : "same_plan"))}</p>${rows}${socChart(model)}${validation ? `<p class="aggregate-coverage">${esc(label("coverage", {percent:number(validation.completion_probability*100),samples:number(validation.samples)}))}</p>` : ""}<details><summary>${esc(label("method"))}</summary><p>${esc(label("assumption"))}</p><p>${esc(label("samples"))}: ${number(model.detail.statistics.samples)} · seed ${model.detail.statistics.seed} · Q95 ${number(model.detail.statistics.q95_total_kwh)} kWh · CI95 [${(model.detail.statistics.q95_monte_carlo_ci95_kwh ?? []).map(number).join("; ")}] kWh</p>${(model.detail.statistics.precision_met===false || model.detail.statistics.capacity_threshold_resolved===false) ? `<p class="aggregate-warning">${esc(label("precision"))}</p>` : ""}<p>${esc(label("coverage_note"))}</p></details>` : `<p class="aggregate-warning">${esc(label(model.verified ? "distribution_missing" : "not_verified"))}</p>`}
+    ${run.results?.charging_schedule_policy?.status === "optimized" ? `<p class="aggregate-coverage">${esc(label("reserve_policy"))}</p>` : ""}
     </div></section>`;
 }
 
 export function bindAggregateEnergy(container, run) {
   const section = container.querySelector('[data-role="aggregate-energy"]');
   if (!section) return;
+  if (run.input_params?.basis_run_ids) { bindPairedControl(section, run); return; }
   const select = section.querySelector('[data-role="aggregate-basis"]');
   const message = section.querySelector('[data-role="aggregate-basis-message"]');
   const button = section.querySelector('[data-role="aggregate-basis-action"]');
@@ -93,4 +95,42 @@ export function bindAggregateEnergy(container, run) {
     }
   });
   if (requestedBasisByRun.has(run.id)) void lookup();
+}
+
+
+function bindPairedControl(section, run) {
+  const select = section.querySelector('[data-role="aggregate-basis"]');
+  const message = section.querySelector('[data-role="aggregate-basis-message"]');
+  select.addEventListener("change", async () => {
+    const basis = select.value;
+    if (basis === run.input_params.consumption_basis) return;
+    select.disabled = true;
+    message.textContent = label("loading");
+    try {
+      const candidate = await resolveOptimizationBasis(run.id, basis);
+      if (!section.isConnected) return;
+      if (candidate.status === "completed" && candidate.optimization_run_id) {
+        triggerPartialLoad("simulation-results", {runId: candidate.optimization_run_id});
+        return;
+      }
+      message.textContent = label(candidate.status === "failed" || candidate.status === "not_calculated"
+        ? "paired_failed" : "pending");
+    } catch (error) { message.textContent = error.message; }
+    // Never relabel the design while its alternative is pending or unavailable.
+    select.value = run.input_params.consumption_basis;
+    select.disabled = false;
+  });
+}
+
+export function renderPairedBasisSwitch(container, run) {
+  if (!container) return;
+  const paired = Boolean(run.input_params?.basis_run_ids);
+  container.hidden = !paired;
+  if (!paired) { container.innerHTML = ""; return; }
+  const basis = run.input_params.consumption_basis;
+  container.innerHTML = `<label class="aggregate-basis-control">${esc(label("basis"))}
+    <select data-role="aggregate-basis">${["mean", "aggregate_q95"].map(key =>
+      `<option value="${key}" ${basis === key ? "selected" : ""}>${esc(basisLabel(key))}</option>`).join("")}</select></label>
+    <p data-role="aggregate-basis-message" aria-live="polite">${esc(label("paired_switch_help"))}</p>`;
+  bindPairedControl(container, run);
 }

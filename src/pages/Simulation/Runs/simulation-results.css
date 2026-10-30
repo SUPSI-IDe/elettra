@@ -2391,6 +2391,9 @@
 .aggregate-soc polyline { fill: none; stroke-width: 2.5; }
 .aggregate-soc--mean { stroke: #218b80; }
 .aggregate-soc--aggregate_q95 { stroke: #405ea9; }
+[data-role="paired-basis-switch"] { margin: 1rem 0; }
+[data-role="paired-basis-switch"] p { margin: .5rem 0 0; max-width: 70ch; }
+[data-role="paired-basis-switch"] select { max-width: 100%; }
 .aggregate-soc-limit { stroke: #85939e; stroke-dasharray: 5 4; }
 .aggregate-soc text { fill: #526578; font-size: 12px; }
 .aggregate-legend { display: flex; gap: 1.5rem; font-size: .9rem; }
