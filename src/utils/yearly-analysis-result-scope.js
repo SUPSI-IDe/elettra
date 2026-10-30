@@ -70,7 +70,7 @@ const resolveShiftLabel = (
  */
 export const buildYearlyResultScopes = (
   features = {},
-  { generalLabel = "General", shiftFallback = "Shift" } = {},
+  { generalLabel = "General", shiftFallback = "Vehicle block" } = {},
 ) => {
   const fixedById = fixedShiftMap(features);
   const metadataById = metadataShiftMap(features);
@@ -470,7 +470,7 @@ export const buildShiftParameterizedLca = (raw = {}, shiftId = "") => {
         );
 
   const attributionNote =
-    "Shift-level impacts attribute electricity by DC energy, diesel heating by fuel use, and remaining lifecycle impacts by annual distance.";
+    "Vehicle block-level impacts attribute electricity by DC energy, diesel heating by fuel use, and remaining lifecycle impacts by annual distance.";
   const limitations = uniqueStrings([
     ...(Array.isArray(raw.limitations) ? raw.limitations : []),
     attributionNote,

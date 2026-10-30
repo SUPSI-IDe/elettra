@@ -557,7 +557,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(shiftLevel.locator(".ya-scope-level__eyebrow")).toHaveCount(0);
   await expect(shiftLevel.locator('[data-role="ya-selected-shift"]')).toHaveCount(0);
   await expect(shiftLevel.locator(".ya-scope-status")).toHaveCount(0);
-  await expect(shiftLevel).not.toContainText("Shift detail");
+  await expect(shiftLevel).not.toContainText("Vehicle block detail");
   await expect(shiftLevel).not.toContainText("Complete");
   await expect(shiftLevel.locator(".ya-scope-level__subtitle")).toHaveCount(0);
   await expect(shiftLevel).not.toContainText("Energy demand and operating details");
@@ -636,13 +636,13 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(page.locator('[data-role="ya-cost-scope-note"]')).toContainText(
     "Operating costs use this shift's energy and distance",
   );
-  await expect(page.locator('[data-panel="costs"]')).toContainText("Shift costs");
-  await expect(page.locator('[data-panel="costs"]')).toContainText("Annual shift OPEX comparison");
-  await expect(page.locator('[data-panel="costs"]')).toContainText("Shift CAPEX");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Vehicle block costs");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Annual vehicle block OPEX comparison");
+  await expect(page.locator('[data-panel="costs"]')).toContainText("Vehicle block CAPEX");
   await expect(page.locator('[data-panel="costs"]')).toContainText("Cumulative cost and break-even");
   const capexAllocation = page.locator('[data-role="ya-costs-capex-section"]');
   await expect(capexAllocation).toHaveAttribute("data-allocation-method", "annual_dc_energy");
-  await expect(capexAllocation).toContainText("Vehicles in this shift");
+  await expect(capexAllocation).toContainText("Vehicles in this vehicle block");
   await expect(capexAllocation).toContainText("Owned bus + battery CAPEX");
   await expect(capexAllocation).toContainText(/CHF 520['’,]000/);
   await expect(capexAllocation).toContainText("Allocated infrastructure CAPEX");
@@ -1240,7 +1240,7 @@ test("historical single-shift results expose General and the configured shift", 
   await resultViewTabs.getByText("Costs", { exact: true }).click();
   await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
   await expect(page.locator('[data-panel="costs"]')).toBeVisible();
-  await expect(page.locator("#yearly-result-scope-content")).toContainText("Shift costs");
+  await expect(page.locator("#yearly-result-scope-content")).toContainText("Vehicle block costs");
 
   await resultViewTabs.getByText("Emissions", { exact: true }).click();
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();

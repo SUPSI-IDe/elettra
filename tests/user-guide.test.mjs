@@ -104,20 +104,20 @@ test("the guide baseline follows the frontend version and exposes a valid update
 test("every guide language explains the two-level feasibility and yearly result navigation", () => {
   const expectedTerms = {
     en: {
-      feasibility: ["General", "shift", "selected battery", "planned charging", "Aggregate Q95"],
-      yearly: ["General", "shift", "Efficiency", "Costs", "Emissions", "annual DC energy"],
+      feasibility: ["General", "vehicle block", "selected battery", "planned charging", "Aggregate Q95"],
+      yearly: ["General", "vehicle block", "Efficiency", "Costs", "Emissions", "annual DC energy"],
     },
     de: {
-      feasibility: ["Allgemein", "Dienst", "eigene Batterie", "geplanten Ladevorgänge", "aggregiertes Q95"],
-      yearly: ["Allgemein", "Dienst", "Effizienz", "Kosten", "Emissionen", "jährlichen DC-Energie"],
+      feasibility: ["Allgemein", "Fahrzeugumlauf", "eigene Batterie", "geplanten Ladevorgänge", "aggregiertes Q95"],
+      yearly: ["Allgemein", "Fahrzeugumlauf", "Effizienz", "Kosten", "Emissionen", "jährlichen DC-Energie"],
     },
     fr: {
-      feasibility: ["Général", "service", "propre batterie", "recharges planifiées", "Q95 agrégé"],
-      yearly: ["Général", "service", "Efficacité", "Coûts", "Émissions", "énergie DC annuelle"],
+      feasibility: ["Général", "service voiture", "propre batterie", "recharges planifiées", "Q95 agrégé"],
+      yearly: ["Général", "service voiture", "Efficacité", "Coûts", "Émissions", "énergie DC annuelle"],
     },
     it: {
-      feasibility: ["Generale", "turno", "propria batteria", "ricariche pianificate", "Q95 aggregato"],
-      yearly: ["Generale", "turno", "Efficienza", "Costi", "Emissioni", "energia DC annuale"],
+      feasibility: ["Generale", "turno macchina", "propria batteria", "ricariche pianificate", "Q95 aggregato"],
+      yearly: ["Generale", "turno macchina", "Efficienza", "Costi", "Emissioni", "energia DC annuale"],
     },
   };
 

@@ -1,6 +1,11 @@
+import { formatNumber, formatChf } from "../../../utils/number-format";
+import { infrastructureCostHtml } from './infrastructure-costs';
+import { fleetInvestmentHtml } from './fleet-investment';
 import * as d3 from "d3";
 import { gridFromDc } from "../../../utils/charging-energy";
 import { t } from "../../../i18n";
+import { pairedFeasibility } from "../../../utils/paired-feasibility";
+import { renderInfeasibilityReasons, renderInfeasibilityBatteries } from "./infeasibility-diagnostics";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
 import {
@@ -86,6 +91,7 @@ import {
 } from "../../../utils/feasibility-result-navigation";
 import "./simulation-results.css";
 import { renderAggregateEnergy, bindAggregateEnergy, renderPairedBasisSwitch } from "./aggregate-energy";
+import { renderDepotCycle } from "./depot-cycle";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
 
@@ -116,7 +122,7 @@ const generalLabels = () => ({
   simulation_type: t("simulation.general_simulation_type") || "Simulation type",
   day: t("simulation.general_day") || "Day",
   lines: t("simulation.general_lines") || "Lines",
-  shift_name: t("simulation.general_shift_name") || "Shift name",
+  shift_name: t("simulation.general_shift_name") || "Vehicle block name",
   min_soc: t("simulation.efficiency_min_soc") || "Min SoC",
   max_soc: t("simulation.efficiency_max_soc") || "Max SoC",
   external_temp_celsius:
@@ -209,7 +215,7 @@ const COST_VARIABLE_REFRESH_DEBOUNCE_MS = 450;
 
 const formatCHF = (value) => {
   const num = Number(value);
-  return Number.isFinite(num) ? num.toLocaleString("de-CH") : "—";
+  return Number.isFinite(num) ? formatNumber(num, 3) : "—";
 };
 
 const firstText = (...values) => {
@@ -642,13 +648,6 @@ const mergeBusModelData = (current = {}, specs = {}, busModel = {}) => ({
 
 const hydrateBusModelDataFromOptimization = async (optimizationRun, options = {}) => {
   const current = options?.busModelData ?? {};
-  if (
-    toFiniteNumber(current?.bus_length_m) != null &&
-    toFiniteNumber(current?.battery_pack_size_kwh) != null
-  ) {
-    return current;
-  }
-
   const modelId = String(
     options?.busModelId ??
     optimizationRun?.input_params?.bus_model_id ??
@@ -656,6 +655,15 @@ const hydrateBusModelDataFromOptimization = async (optimizationRun, options = {}
     ""
   ).trim();
   if (!modelId) return current;
+  options.busModelId = modelId;
+  if (
+    toFiniteNumber(current?.bus_length_m) != null &&
+    toFiniteNumber(current?.battery_pack_size_kwh) != null &&
+    toFiniteNumber(current?.cost) != null &&
+    toFiniteNumber(current?.battery_pack_cost) != null
+  ) {
+    return current;
+  }
 
   const busModel = await fetchBusModelById(modelId);
   const specs = parseBusModelSpecs(busModel?.specs);
@@ -801,6 +809,14 @@ const buildDefaultSlotCosts = (slotCount) => {
 const resolveInfrastructureInvestment = (optimizationRun = {}, options = {}) => {
   const rows = buildChargingStationRows(optimizationRun);
   const mode = resolveOptimizationMode(optimizationRun, options);
+
+  const priced = Object.values(optimizationRun?.results?.installed_chargers ?? {});
+  if (priced.some(station=>station.cost_breakdown)) {
+    const active=priced.filter(station=>station.num_slots>0);
+    return {mode, stationCount:active.length, totalSlots:d3.sum(active,s=>s.num_slots),
+      totalCostChf:d3.sum(active,s=>s.cost_chf), includedInCapex:true,
+      usedDefaultCosts:false, usedBatteryOnlyDefaults:false};
+  }
 
   let totalCostChf = 0;
   let totalSlots = 0;
@@ -1447,14 +1463,7 @@ const renderCostsAssumption = (el, annualization = null) => {
     `Current economic comparison assumes \`weekly_once\` recurrence. CAPEX is annualized at ${formatFixed((annualization?.opexAnnualizationRate ?? DEFAULT_OPEX_ANNUALIZATION_RATE) * 100, 1)}% in the EAC calculation.`;
 };
 
-const formatChfValue = (value, fractionDigits = 0) => {
-  const numeric = toFiniteNumber(value);
-  if (numeric == null) return "—";
-  return `CHF ${numeric.toLocaleString("de-CH", {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  })}`;
-};
+const formatChfValue = formatChf;
 
 const formatChfPerKmValue = (annualCost, yearlyDistanceKm) => {
   const cost = toFiniteNumber(annualCost);
@@ -1513,7 +1522,7 @@ const buildChargingConfigurationSection = (costInputs = {}) => {
   const noteByMode = {
     battery_only: translateOr(
       "simulation.costs_input_charging_mode_battery_only",
-      "Battery-only mode shows the configured charging locations and technical limits used for the shift."
+      "Battery-only mode shows the configured charging locations and technical limits used for the vehicle block."
     ),
     charging_only: translateOr(
       "simulation.costs_input_charging_mode_charging_only",
@@ -1848,7 +1857,7 @@ const renderOpexInputsTable = (el, state, options = {}) => {
 
   const scenarioRows = [
     [
-      t("simulation.general_shift_name") || "Shift name",
+      t("simulation.general_shift_name") || "Vehicle block name",
       state.costInputs.shiftName || "—",
     ],
     [t("simulation.costs_input_line") || "Line", state.costInputs.shiftLineLabel],
@@ -1933,7 +1942,7 @@ const renderOpexInputsTable = (el, state, options = {}) => {
     ],
     [
       t("simulation.costs_input_prediction_distance") ||
-        "Prediction distance per shift (km)",
+        "Prediction distance per vehicle block (km)",
       state.costInputs.predictedShiftDistanceKm == null
         ? "—"
         : formatFixed(state.costInputs.predictedShiftDistanceKm, 3),
@@ -1963,7 +1972,7 @@ const renderEfficiencyPredictionSummary = (costInputs) => {
   const items = [
     [
       t("simulation.costs_input_prediction_consumption") ||
-        "Prediction consumption per shift (kWh)",
+        "Prediction consumption per vehicle block (kWh)",
       predictedShiftConsumption == null ? "—" : formatFixed(predictedShiftConsumption, 0),
     ],
     [
@@ -2992,7 +3001,7 @@ const formatPct = (val) => {
 
 const formatFixed = (val, dec = 1) => {
   const n = Number(val);
-  return Number.isNaN(n) ? "—" : n.toLocaleString("de-CH", { maximumFractionDigits: dec, minimumFractionDigits: dec });
+  return Number.isNaN(n) ? "—" : formatNumber(n, dec, dec);
 };
 
 const escapeHtml = (value) =>
@@ -3101,7 +3110,7 @@ const maxUsableLimitCellHtml = (maxUsableKwh, shiftConsumptionKwh) => {
     t("simulation.opt_max_usable_limit_exceeded", {
       consumption_kwh: formatFixed(comparison, 0),
     }) ||
-    `Limit exceeded: shift needs ${formatFixed(comparison, 0)} kWh.`;
+    `Limit exceeded: vehicle block needs ${formatFixed(comparison, 0)} kWh.`;
 
   return `<span class="efficiency-limit-cell">
     <span>${valueHtml}</span>
@@ -3247,7 +3256,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
         <table class="efficiency-table">
           <thead>
             <tr>
-              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_shift") || "Shift")}</th>
+              <th class="efficiency-th-text">${textContent(t("simulation.opt_col_shift") || "Vehicle block")}</th>
               <th>${textContent(t("simulation.opt_col_required_packs") || "Required Packs")}</th>
               <th>${usableSocInfoLabelHtml(t("simulation.opt_col_required_usable_kwh") || "Required usable (kWh)", electSummaryRequiredTooltipOptions)}</th>
               <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical Packs")}</th>
@@ -3369,7 +3378,7 @@ const buildOptimizationBatteryChartData = (batteryResults = {}, viewOptions = {}
       shiftName:
         result?.shift_name ??
         shiftKey ??
-        `${t("simulation.opt_col_shift") || "Shift"} ${index + 1}`,
+        `${t("simulation.opt_col_shift") || "Vehicle block"} ${index + 1}`,
       basePacks: toFiniteNumber(result?.base_packs),
       optimizedPacks: toFiniteNumber(result?.optimized_packs),
     }))
@@ -4301,7 +4310,7 @@ const renderTripUncertaintySection = (run = {}, { tripStopLookup = new Map() } =
 const renderBatteryAdequacyPanel = (status = {}) => {
   const title = translateOr(
     "simulation.battery_adequacy_title",
-    "Shift energy adequacy"
+    "Vehicle block energy adequacy"
   );
   const note = status.chargingDataAvailable
     ? translateOr(
@@ -6026,7 +6035,7 @@ const feasibilityOverallStatus = (value) => {
       tone: "feasible",
       label: translateOr(
         "simulation.feasibility_all_shifts_feasible",
-        "All shifts are feasible"
+        "All vehicle blocks are feasible"
       ),
     };
   }
@@ -6035,7 +6044,7 @@ const feasibilityOverallStatus = (value) => {
       tone: "infeasible",
       label: translateOr(
         "simulation.feasibility_not_all_shifts_feasible",
-        "Not all shifts are feasible"
+        "Not all vehicle blocks are feasible"
       ),
     };
   }
@@ -6046,6 +6055,14 @@ const feasibilityOverallStatus = (value) => {
       "Feasibility status unavailable"
     ),
   };
+};
+
+const pairedOverallStatus = (run) => {
+  const pair = pairedFeasibility(run);
+  return pair ? {
+    tone: {positive: "feasible", negative: "infeasible", warning: "warning", neutral: "unknown"}[pair.tone],
+    label: t(`simulation.paired_${pair.key}`),
+  } : null;
 };
 
 const feasibilityStationStatusLabel = (status) => {
@@ -6065,7 +6082,7 @@ const infrastructureMetricValue = (value, suffix = "") =>
     ? "—"
     : textContent(`${formatFixed(value, 0)}${suffix ? ` ${suffix}` : ""}`);
 
-const buildSharedInfrastructureDetailsHtml = (viewState) => {
+const buildSharedInfrastructureDetailsHtml = (viewState, inputParams = {}) => {
   const summary = viewState?.general?.infrastructureSummary ?? {};
   const stations = Array.isArray(summary.stations) ? summary.stations : [];
   const configurationState = summary.selectionComplete
@@ -6102,7 +6119,7 @@ const buildSharedInfrastructureDetailsHtml = (viewState) => {
         <td class="efficiency-td-num">${station.totalPowerKw == null ? "—" : textContent(formatFixed(station.totalPowerKw, 0))}</td>
         <td class="efficiency-td-num">${station.peakConcurrentBuses == null ? "—" : textContent(formatFixed(station.peakConcurrentBuses, 0))}</td>
         <td class="efficiency-td-num">${station.totalEnergyKwh == null ? "—" : textContent(formatFixed(station.totalEnergyKwh, 1))}</td>
-        <td class="efficiency-td-num">${station.installationCostChf == null ? "—" : textContent(`CHF ${formatCHF(station.installationCostChf)}`)}</td>
+        <td class="efficiency-td-num">${textContent(formatChfValue(station.installationCostChf))}</td>
       </tr>`).join("");
 
     bodyHtml = `
@@ -6146,12 +6163,12 @@ const buildSharedInfrastructureDetailsHtml = (viewState) => {
       <div class="feasibility-infrastructure__header">
         <div>
           <h4>${textContent(
-            translateOr("simulation.feasibility_infrastructure_title", "Shared charging infrastructure")
+            inputParams.daily_cycle ? t('simulation.depot_infrastructure_title') : translateOr("simulation.feasibility_infrastructure_title", "Shared charging infrastructure")
           )}</h4>
           <p>${textContent(
-            translateOr(
+            inputParams.daily_cycle ? t('simulation.depot_infrastructure_help') : translateOr(
               "simulation.feasibility_infrastructure_subtitle",
-              "Global charging resources available to the whole fleet across all selected shifts."
+              "Global charging resources available to the whole fleet across all selected vehicle blocks."
             )
           )}</p>
         </div>
@@ -6181,37 +6198,25 @@ const buildSharedInfrastructureDetailsHtml = (viewState) => {
             translateOr("simulation.feasibility_installation_cost", "Installation cost")
           )}</span>
           <strong class="result-metric__value" data-role="feasibility-total-installation-cost">${summary.totalInstallationCostChf == null
-            ? "—"
-            : textContent(`CHF ${formatCHF(summary.totalInstallationCostChf)}`)}</strong>
+            ? textContent(viewState?.general?.infrastructure?.decision === 'fixed' ? t('simulation.depot_cost_not_evaluated') : "—")
+            : textContent(formatChfValue(summary.totalInstallationCostChf))}</strong>
         </div>
       </div>
       ${bodyHtml}
+      ${infrastructureCostHtml(stations, viewState?.general?.electrificationFeasible === true)}
     </section>`;
 };
 
-const buildFeasibilityGeneralLevelHtml = (viewState, inputParams = {}) => {
+const buildFeasibilityGeneralLevelHtml = (viewState, inputParams = {}, run = {}, currentModel = {}) => {
   const general = viewState?.general ?? {};
   const battery = general.battery ?? {};
-  const infrastructure = general.infrastructure ?? {};
-  const batteryPacks = toOptionalFiniteNumber(battery.packs);
-  const nominalKwh = toOptionalFiniteNumber(battery.nominalKwh);
-  const nominalCapacityValue = nominalKwh === null
-    ? ""
-    : `${formatFixed(nominalKwh, 0)} kWh`;
-  const batteryConfigurationValue = batteryPacks === null
-    ? "—"
-    : `${formatFixed(batteryPacks, 0)} ${t("simulation.unit_packs") || "packs"}${
-        nominalCapacityValue ? ` · ${nominalCapacityValue}` : ""
-      }`;
-  const batteryDecision = feasibilityDecisionLabel(battery.decision);
-  const infrastructureDecision = feasibilityDecisionLabel(infrastructure.decision);
   const limitingNames = battery.decision === FEASIBILITY_DECISION.OPTIMIZED
     ? general.sizingShiftNames ?? []
     : general.mostDemandingShiftNames ?? [];
   const limitingLabel = battery.decision === FEASIBILITY_DECISION.OPTIMIZED
-    ? translateOr("simulation.feasibility_sizing_shifts", "Sizing shift")
-    : translateOr("simulation.feasibility_most_demanding_shifts", "Most demanding shift");
-  const overallStatus = feasibilityOverallStatus(
+    ? translateOr("simulation.feasibility_sizing_shifts", "Sizing vehicle block")
+    : translateOr("simulation.feasibility_most_demanding_shifts", "Most demanding vehicle block");
+  const overallStatus = pairedOverallStatus(run) ?? feasibilityOverallStatus(
     general.electrificationFeasible
   );
   const optimizationMode = modeLabel(general.mode) ||
@@ -6227,7 +6232,7 @@ const buildFeasibilityGeneralLevelHtml = (viewState, inputParams = {}) => {
           <p class="feasibility-level__subtitle result-card__subtitle">${textContent(
             translateOr(
               "simulation.feasibility_general_subtitle",
-              "One bus configuration and one charging infrastructure shared by every selected shift."
+              "Battery sizes and bus investment for all selected vehicle blocks, with shared charging infrastructure."
             )
           )}</p>
         </div>
@@ -6244,50 +6249,19 @@ const buildFeasibilityGeneralLevelHtml = (viewState, inputParams = {}) => {
             )
           )}</span>
           <span
-            class="feasibility-overall-status feasibility-overall-status--${overallStatus.tone} result-status result-status--${overallStatus.tone === "feasible" ? "positive" : overallStatus.tone === "infeasible" ? "negative" : "neutral"}"
+            class="feasibility-overall-status feasibility-overall-status--${overallStatus.tone} result-status result-status--${overallStatus.tone === "feasible" ? "positive" : overallStatus.tone === "infeasible" ? "negative" : overallStatus.tone === "warning" ? "warning" : "neutral"}"
             data-role="feasibility-overall-status"
           >${textContent(overallStatus.label)}</span>
         </div>
       </header>
       <div class="feasibility-level__content result-card__body">
-      <div class="feasibility-general-grid feasibility-general-grid--configuration result-metric-grid">
-        <article class="feasibility-general-card result-metric" data-role="feasibility-fleet-battery">
-          <div class="feasibility-general-card__heading">
-            <span class="result-metric__label">${textContent(
-              translateOr("simulation.feasibility_fleet_battery", "Fleet battery")
-            )}</span>
-            <div class="feasibility-general-card__result">
-              <strong class="feasibility-general-card__value result-metric__value">
-                ${textContent(batteryConfigurationValue)}
-              </strong>
-              <span class="feasibility-decision feasibility-decision--${feasibilityDecisionTone(
-                battery.decision
-              )}">${textContent(batteryDecision)}</span>
-            </div>
-          </div>
-        </article>
-        <article class="feasibility-general-card result-metric" data-role="feasibility-shared-infrastructure">
-          <div class="feasibility-general-card__heading">
-            <span class="result-metric__label">${textContent(
-              translateOr("simulation.feasibility_shared_infrastructure", "Charging infrastructure")
-            )}</span>
-            <div class="feasibility-general-card__result">
-              <strong class="feasibility-general-card__value feasibility-general-card__value--text result-metric__value">
-                ${textContent(translateOr("simulation.feasibility_shared_value", "Shared"))}
-              </strong>
-              <span class="feasibility-decision feasibility-decision--${feasibilityDecisionTone(
-                infrastructure.decision
-              )}">${textContent(infrastructureDecision)}</span>
-            </div>
-          </div>
-        </article>
-      </div>
-      ${buildSharedInfrastructureDetailsHtml(viewState)}
+      ${fleetInvestmentHtml(run, currentModel)}
+      ${buildSharedInfrastructureDetailsHtml(viewState, inputParams)}
       <div class="feasibility-general-grid feasibility-general-grid--coverage result-metric-grid">
         <article class="feasibility-general-card result-metric" data-role="feasibility-shift-count">
           <div class="feasibility-general-card__heading">
             <span class="result-metric__label">${textContent(
-              translateOr("simulation.feasibility_shifts_covered", "Shifts covered")
+              translateOr("simulation.feasibility_shifts_covered", "Vehicle blocks covered")
             )}</span>
             <strong class="feasibility-general-card__value result-metric__value">${textContent(
               String(general.shiftCount ?? 0)
@@ -6328,7 +6302,7 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
           <p class="efficiency-chart-empty">${textContent(
             translateOr(
               "simulation.feasibility_shift_data_unavailable",
-              "Operational details are not available for this shift."
+              "Operational details are not available for this vehicle block."
             )
           )}</p>
         </div>
@@ -6352,7 +6326,7 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
   } else if (battery.isSizing) {
     coverageLabel = translateOr(
       "simulation.feasibility_shift_is_sizing",
-      "Sizing shift"
+      "Sizing vehicle block"
     );
     coverageTone = "sizing";
   } else if (margin !== null && margin >= 0) {
@@ -6390,7 +6364,7 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
       <div class="feasibility-shift-summary__header result-card__header">
         <div class="result-card__heading">
           <h4>${textContent(
-            translateOr("simulation.feasibility_shift_summary_title", "Shift operational summary")
+            translateOr("simulation.feasibility_shift_summary_title", "Vehicle block operational summary")
           )}</h4>
         </div>
         <span class="feasibility-shift-status feasibility-shift-status--${coverageTone} result-status result-status--${coverageTone === "negative" ? "negative" : coverageTone === "unknown" ? "neutral" : "positive"}" data-role="feasibility-shift-coverage-status">${textContent(
@@ -6401,7 +6375,7 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
       <div class="feasibility-shift-metrics result-metric-grid">
         <article class="result-metric" data-role="feasibility-shift-required-packs">
           <span class="result-metric__label">${textContent(
-            translateOr("simulation.feasibility_shift_required_battery", "Shift battery requirement")
+            translateOr("simulation.feasibility_shift_required_battery", "Vehicle block battery requirement")
           )}</span>
           <strong class="result-metric__value">${shiftMetricValue(battery.requiredPacks, packUnit)}</strong>
         </article>
@@ -6485,7 +6459,7 @@ const buildChargingPlanStateHtml = (plan) => {
     return `<p class="feasibility-charging-plan__state feasibility-charging-plan__state--empty" data-role="feasibility-charging-plan-empty">${textContent(
       translateOr(
         "simulation.feasibility_charging_plan_empty",
-        "No charging sessions are required for this shift."
+        "No charging sessions are required for this vehicle block."
       )
     )}</p>`;
   }
@@ -6500,7 +6474,7 @@ const buildChargingPlanStateHtml = (plan) => {
         )
       : translateOr(
           "simulation.feasibility_charging_plan_unavailable",
-          "Charging times and locations are not available for this shift."
+          "Charging times and locations are not available for this vehicle block."
         );
     return `<p class="feasibility-charging-plan__state" data-role="feasibility-charging-plan-unavailable">${textContent(
       message
@@ -6638,6 +6612,18 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   );
   const ip = optimizationRun?.input_params ?? {};
   const results = optimizationRun?.results ?? {};
+  if (results.solver_status === "infeasible" && !Object.keys(results.battery_results ?? {}).length) {
+    const pair = pairedFeasibility(optimizationRun);
+    const diagnosticShift = resultScope === "shift" ? viewOptions?.selectedShiftId : null;
+    el.innerHTML = `<section class="result-card" data-role="feasibility-no-solution">
+      <header class="result-card__header">
+        <h3 class="result-card__title">${textContent(feasibilityScenarioLabel(false, ip))}</h3>
+        ${pair ? `<span class="result-status result-status--${pair.tone}" data-role="feasibility-overall-status">${textContent(t(`simulation.paired_${pair.key}`))}</span>` : ""}
+      </header>
+      <div class="result-card__body">${renderInfeasibilityReasons(optimizationRun, diagnosticShift)}</div>
+    </section>${renderInfeasibilityBatteries(optimizationRun, diagnosticShift)}`;
+    return;
+  }
   const firstRun = scopedPredictionRuns[0] ?? {};
   const perBusSummary = results.per_bus_summary ?? [];
   const batteryResults = results.battery_results ?? {};
@@ -6887,7 +6873,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     energyBalance
   );
 
-  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(feasibilityViewState, ip);
+  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(feasibilityViewState, ip, optimizationRun, viewOptions.currentBusModel) + renderDepotCycle(optimizationRun);
   const shiftLevelHtml = `
     <section class="feasibility-level feasibility-level--shift" data-role="feasibility-shift-level">
       ${buildFeasibilityShiftLevelHeaderHtml(
@@ -6897,6 +6883,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       <div class="feasibility-level__content">
         ${buildShiftOperationalSummaryHtml(feasibilityViewState)}
         ${renderAggregateEnergy(optimizationRun, viewOptions?.selectedShiftId)}
+        ${renderDepotCycle(optimizationRun, viewOptions?.selectedShiftId)}
         ${results.consumption_analysis ? "" : chartsHtml}
         ${results.consumption_analysis ? "" : shiftEnergyAdequacyHtml}
         ${buildShiftChargingPlanHtml(feasibilityViewState)}
@@ -7643,7 +7630,7 @@ const renderOverviewPanel = (el, effState, cState, emState, opts = {}) => {
         true
       ),
       overviewRowHtml(
-        translateOr("simulation.overview_consumption_shift_mean", "Mean consumption / shift — decision basis"),
+        translateOr("simulation.overview_consumption_shift_mean", "Mean consumption / vehicle block — decision basis"),
         predictedConsumption != null ? `${formatFixed(predictedConsumption, 0)} kWh` : "—"
       ),
       overviewRowHtml(
@@ -8889,6 +8876,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   let activeResultScopeKey = FEASIBILITY_GENERAL_SCOPE_KEY;
   let loadedOptimizationRun = null;
   let loadedPredictionRuns = [];
+  const loadedDesigns = new Map();
+  let disposed = false;
   let shiftRefreshSeq = 0;
   let costVariableRefreshTimer = null;
 
@@ -8959,7 +8948,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
           shiftName:
             result?.shift_name ??
             shiftKey ??
-            `${t("simulation.opt_col_shift") || "Shift"} ${index + 1}`,
+            `${t("simulation.opt_col_shift") || "Vehicle block"} ${index + 1}`,
           maxPacks: toFiniteNumber(result?.max_physical_packs),
           maxNominalKwh,
           maxKwh: applyUsableSocWindow(maxNominalKwh, usableSocFraction),
@@ -8982,7 +8971,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
             <thead>
               <tr>
                 <th class="efficiency-th-text">${textContent(
-                  t("simulation.opt_col_shift") || "Shift"
+                  t("simulation.opt_col_shift") || "Vehicle block"
                 )}</th>
                 <th>${textContent(
                   t("simulation.opt_col_max_packs") || "Max Physical Packs"
@@ -9058,6 +9047,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       efficiencyState,
       {
         ...scopeOptions,
+        currentBusModel: { ...options.busModelData, id: options.busModelId },
         costInputs:
           scopeOptions.resultScope === "shift" ? costState.costInputs : null,
       }
@@ -9743,6 +9733,40 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     );
   }
 
+  // Keep the current scope and page mounted while switching the paired design.
+  // Completed designs are immutable, so switching back can reuse their payloads.
+  const switchOptimizationRun = async (runId) => {
+    let design = loadedDesigns.get(runId);
+    if (!design) {
+      const run = await fetchOptimizationRun(runId);
+      const { runs } = await resolvePredictionRuns(run.prediction_run_ids ?? []);
+      design = { run, predictionRuns: runs };
+      loadedDesigns.set(runId, design);
+    }
+    if (disposed || !section.isConnected) return;
+
+    const scroller = section.closest(".layout-article") ?? document.scrollingElement;
+    const scrollTop = scroller?.scrollTop;
+    const control = section.querySelector('[data-role="paired-basis-switch"]');
+    const restoreFocus = control?.contains(document.activeElement);
+    ++shiftRefreshSeq;
+    loadedOptimizationRun = design.run;
+    loadedPredictionRuns = design.predictionRuns;
+    options.runId = runId;
+    options.simulationName = resolveSimulationName(design.run, options);
+    efficiencyState.status = "done";
+    efficiencyState.optimizationRun = design.run;
+    efficiencyState.predictionRuns = design.predictionRuns;
+    renderPageTitle();
+    renderChargingInfrastructure(section.querySelector('[data-role="charging-info"]'), design.run);
+    renderPairedBasisSwitch(control, design.run, switchOptimizationRun);
+    // The visible result updates synchronously; secondary cost/emission requests
+    // retain their existing generation guard and never navigate the page.
+    void refreshShiftScopedData();
+    if (scroller) scroller.scrollTop = scrollTop;
+    if (restoreFocus) control.querySelector("select")?.focus({ preventScroll: true });
+  };
+
   /* Async: fetch optimization run + prediction runs, then derive costs */
   const loadResultData = async () => {
     if (!options.runId) return;
@@ -9768,7 +9792,6 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       economicDefaults.fuelCostPerL = normalizeFuelCostPerL(
         economicDefaultsPayload?.fuel_cost_per_l
       );
-      renderPairedBasisSwitch(section.querySelector('[data-role="paired-basis-switch"]'), optimizationRun);
       economicDefaults.energyPricePerKwh = normalizeEnergyPricePerKwh(
         economicDefaultsPayload?.energy_price_per_kwh
       );
@@ -9833,6 +9856,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
         );
       }
       loadedPredictionRuns = predictionRuns;
+      loadedDesigns.set(optimizationRun.id, { run: optimizationRun, predictionRuns });
 
       const inputShiftIds = Array.isArray(optimizationRun?.input_params?.shift_ids)
         ? optimizationRun.input_params.shift_ids
@@ -9857,6 +9881,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       efficiencyState.status = "done";
       efficiencyState.optimizationRun = optimizationRun;
       efficiencyState.predictionRuns = predictionRuns;
+      renderPairedBasisSwitch(section.querySelector('[data-role="paired-basis-switch"]'), optimizationRun, switchOptimizationRun);
 
       costState.optimizationRun = optimizationRun;
       await refreshShiftScopedData();
@@ -9884,6 +9909,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   loadResultData();
 
   return () => {
+    disposed = true;
+    ++shiftRefreshSeq;
     if (costVariableRefreshTimer) {
       clearTimeout(costVariableRefreshTimer);
     }

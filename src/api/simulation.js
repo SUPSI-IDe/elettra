@@ -161,8 +161,12 @@ const buildContextualParameters = ({
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 60;
 
-const waitForPredictionRuns = async (runIds) => {
+const waitForPredictionRuns = async (runIds, { onProgress } = {}) => {
   const pending = new Set(runIds);
+  const reportProgress = () => onProgress?.({
+    stage: "predictions", completed: runIds.length - pending.size, total: runIds.length,
+  });
+  reportProgress();
 
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     // `refresh` because polling is the one caller that must not be served a
@@ -190,6 +194,7 @@ const waitForPredictionRuns = async (runIds) => {
       }
     }
 
+    reportProgress();
     if (pending.size === 0) return;
 
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
@@ -222,6 +227,7 @@ const createPredictionRunVariants = async ({
   pack_count_override = null,
   required_pack_count = null,
   reference_only = false,
+  onProgress,
 }) => {
   const busModel = await fetchBusModelById(bus_model_id);
   const specs = parseSpecs(busModel?.specs);
@@ -278,7 +284,7 @@ const createPredictionRunVariants = async ({
   }
 
   const uniqueIds = [...new Set(createdIds)];
-  await waitForPredictionRuns(uniqueIds);
+  await waitForPredictionRuns(uniqueIds, { onProgress });
   return uniqueIds;
 };
 
@@ -351,7 +357,7 @@ export const createPredictionRuns = async ({
   yearly_analysis_id = undefined,
 } = {}) => {
   if (!Array.isArray(shift_ids) || !shift_ids.length) {
-    throw new Error("At least one shift is required.");
+    throw new Error("At least one vehicle block is required.");
   }
   if (!bus_model_id) {
     throw new Error("Bus model is required.");
@@ -537,11 +543,11 @@ export const fetchEconomicComparison = async (params = {}) => {
 
 // ── Optimization Runs ────────────────────────────────────────────────
 
-export const createOptimizationRun = async (params = {}) => {
+export const createOptimizationRun = async (params = {}, { onProgress } = {}) => {
   const { shift_ids, charging_stations, pack_count_override, fixed_battery_packs, ...rest } = params;
 
   if (!Array.isArray(shift_ids) || !shift_ids.length) {
-    throw new Error("At least one shift is required.");
+    throw new Error("At least one vehicle block is required.");
   }
   const fixedPacks = fixed_battery_packs ?? pack_count_override ?? null;
   if (rest.mode === "charging_only" && (!Number.isInteger(fixedPacks) || fixedPacks < 1)) {
@@ -561,6 +567,7 @@ export const createOptimizationRun = async (params = {}) => {
     pack_count_override: null,
     required_pack_count: rest.mode === "charging_only" ? fixedPacks : null,
     reference_only: true,
+    onProgress,
   });
   const { runs } = await resolvePredictionRuns(predictionRunIds);
   const referenceIds = selectOptimizationReferences(runs, shift_ids, rest.mode,
@@ -608,6 +615,7 @@ export const createOptimizationRun = async (params = {}) => {
 
   let response;
   try {
+    onProgress?.({ stage: "submitting" });
     response = await fetch(`${SIMULATION_PATH}/optimization-runs/`, {
       method: "POST",
       headers,
@@ -690,12 +698,12 @@ export const deleteOptimizationRun = async (runId) => {
   return readDeleteResponse(response, "Unable to delete optimization run.");
 };
 
-export const fetchOptimizationRun = async (runId) => {
+export const fetchOptimizationRun = async (runId, { signal } = {}) => {
   if (!runId) throw new Error("Missing runId");
   const headers = authHeaders();
   const response = await fetch(
     `${SIMULATION_PATH}/optimization-runs/${encodeURIComponent(runId)}`,
-    { method: "GET", headers }
+    { method: "GET", headers, signal }
   );
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -719,17 +727,27 @@ const TERMINAL_OPTIMIZATION_STATUSES = new Set([
   "error",
 ]);
 
-export const waitForOptimizationCompletion = async (runId) => {
+export const waitForOptimizationCompletion = async (runId, { signal, onUpdate } = {}) => {
   for (let attempt = 0; attempt < OPTIMIZATION_MAX_POLL_ATTEMPTS; attempt++) {
-    const run = await fetchOptimizationRun(runId);
+    signal?.throwIfAborted();
+    const run = await fetchOptimizationRun(runId, { signal });
+    onUpdate?.(run);
     const status = text(run?.status ?? "").trim().toLowerCase();
     if (TERMINAL_OPTIMIZATION_STATUSES.has(status)) {
       return run;
     }
-    await new Promise((resolve) => setTimeout(resolve, OPTIMIZATION_POLL_INTERVAL_MS));
+    await new Promise((resolve, reject) => {
+      const abort = () => { clearTimeout(timer); reject(signal.reason); };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener("abort", abort);
+        resolve();
+      }, OPTIMIZATION_POLL_INTERVAL_MS);
+      signal?.addEventListener("abort", abort, { once: true });
+      if (signal?.aborted) abort();
+    });
   }
   throw new Error(
-    "Simulation did not complete in time. Refresh later to see results."
+    "Evaluation is still running. Open the evaluation list later to see its results."
   );
 };
 

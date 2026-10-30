@@ -76,7 +76,7 @@ const renderResults = (container, runs) => {
       return `
         <div class="result-card">
           <div class="result-header">
-            <span class="result-shift">${textContent(t("simulation.shift_label", { id: shiftId.slice(0, 8) }) || `Shift: ${shiftId.slice(0, 8)}…`)}</span>
+            <span class="result-shift">${textContent(t("simulation.shift_label", { id: shiftId.slice(0, 8) }) || `Vehicle block: ${shiftId.slice(0, 8)}…`)}</span>
             <span class="status-badge ${textContent(status)}">${textContent(formatStatusLabel(status))}</span>
           </div>
           ${summaryHtml || `<div class="result-row"><span class="result-label">${textContent(t("simulation.waiting_results") || "Waiting for results…")}</span></div>`}
@@ -129,7 +129,7 @@ export const initializeSimulationDetail = async (
       section,
       !shiftIds.length
         ? t("simulation.no_shifts_selected") ||
-          "No shifts selected. Go back and select shifts first."
+          "No vehicle blocks selected. Go back and select vehicle blocks first."
         : (t("simulation.please_login") || "Please login.")
     );
     return () => cleanupHandlers.forEach((h) => h());
@@ -159,7 +159,7 @@ export const initializeSimulationDetail = async (
       setFeedback(
         section,
         t("simulation.no_bus_model_detected") ||
-          "Could not determine bus model from the selected shifts. Please go back and try again."
+          "Could not determine bus model from the selected vehicle blocks. Please go back and try again."
       );
       return;
     }

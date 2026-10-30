@@ -68,6 +68,7 @@ const mountResults = async (page, {
   consumptionBasis,
   forecastVerification,
   basisRunIds,
+  dailyCycle,
 } = {}) => {
   const shiftNames = {
     morning: "Morning service",
@@ -151,6 +152,8 @@ const mountResults = async (page, {
             mode,
             consumption_basis: consumptionBasis,
             basis_run_ids: basisRunIds,
+            daily_cycle: Boolean(dailyCycle),
+            depot_peak_shaving: Boolean(dailyCycle),
             min_soc: 0.2,
             max_soc: 0.9,
             ...(includeInfrastructureInput ? { charging_stations: chargingStations } : {}),
@@ -160,6 +163,7 @@ const mountResults = async (page, {
             predictionRunIds ?? shiftIds.map((shiftId) => `prediction-${shiftId}`),
           results: {
             consumption_analysis: consumptionAnalysis,
+            daily_cycle: dailyCycle,
             forecast_verification: forecastVerification,
             ...(includeElectrificationFeasible
               ? { electrification_feasible: electrificationFeasible }
@@ -286,7 +290,7 @@ for (const mode of ["battery_only", "charging_only", "joint"]) {
     await selectShiftScope(page, "morning");
 
     const adequacy = page.locator(".efficiency-adequacy-panel");
-    await expect(adequacy).toContainText("Shift energy adequacy");
+    await expect(adequacy).toContainText("Vehicle block energy adequacy");
     await expect(adequacy.locator('[data-role="battery-adequacy-usable"]')).toHaveText("560.0 kWh (20%–90%)");
     await expect(adequacy.locator('[data-role="battery-adequacy-charging"]')).toContainText("84.1 kWh");
     await expect(adequacy.locator('[data-role="battery-adequacy-operational"]')).toContainText("644.1 kWh");
@@ -386,23 +390,20 @@ test("separates the common result from one selected shift without an aggregate o
     "Optimization mode: Battery only",
   );
   await expect(general.locator('[data-role="feasibility-overall-status"]')).toHaveText(
-    "All shifts are feasible",
+    "All vehicle blocks are feasible",
   );
   await expect(general.locator('[data-role="feasibility-overall-status"]')).toHaveClass(
     /feasibility-overall-status--feasible/,
   );
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
-  await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("Optimized");
-  await expect(general.locator('[data-role="feasibility-shared-infrastructure"]')).toContainText("Fixed");
   await expect(general.locator('[data-role="feasibility-shift-count"]')).toContainText("2");
   await expect(general.locator('[data-role="feasibility-limiting-shifts"]')).toContainText("Evening service");
   await expect(general.locator('[data-station-status="fixed"]')).toContainText("Fixed");
   await expect(general.locator('[data-role="feasibility-active-locations"]')).toHaveText("1");
   await expect(general.locator('[data-role="feasibility-total-plugs"]')).toHaveText("2");
   await expect(general.locator('[data-role="feasibility-total-power"]')).toHaveText("300 kW DC");
-  await expect(
-    general.locator('[data-role="feasibility-fleet-battery"] .feasibility-general-card__value'),
-  ).toHaveText("12 packs · 600 kWh");
+  await expect(general.locator('[data-role="feasibility-fleet-battery"] tbody tr')).toHaveCount(2);
+  await expect(general.locator('[data-role="feasibility-fleet-battery"] tfoot')).toContainText("20");
   await expect(general.locator(".feasibility-general-card__value small")).toHaveCount(0);
   await expect(general.locator(".feasibility-infrastructure-metrics small")).toHaveCount(0);
   await expect(general.locator(".feasibility-level__eyebrow")).toHaveCount(0);
@@ -410,23 +411,18 @@ test("separates the common result from one selected shift without an aggregate o
     const cardStyle = getComputedStyle(section);
     const metricGrid = section.querySelector(".result-metric-grid");
     const metric = section.querySelector(".result-metric");
-    const decision = section.querySelector(".feasibility-decision");
     return {
       background: cardStyle.backgroundColor,
       borderStyle: cardStyle.borderStyle,
       shadow: cardStyle.boxShadow,
       metricGridColumns: metricGrid ? getComputedStyle(metricGrid).gridTemplateColumns : "",
       metricBackground: metric ? getComputedStyle(metric).backgroundColor : "",
-      decisionBorderWidth: decision ? getComputedStyle(decision).borderWidth : "",
-      decisionBackground: decision ? getComputedStyle(decision).backgroundColor : "",
     };
   });
   expect(generalPresentation).toMatchObject({
     background: "rgb(255, 255, 255)",
     borderStyle: "solid",
     metricBackground: "rgba(0, 0, 0, 0)",
-    decisionBorderWidth: "0px",
-    decisionBackground: "rgba(0, 0, 0, 0)",
   });
   expect(generalPresentation.shadow).not.toBe("none");
   expect(generalPresentation.metricGridColumns).not.toBe("");
@@ -454,7 +450,7 @@ test("separates the common result from one selected shift without an aggregate o
     }).filter(Boolean);
     return { pairs, viewportWidth: window.innerWidth };
   });
-  expect(generalMetricLayout.pairs).toHaveLength(8);
+  expect(generalMetricLayout.pairs).toHaveLength(6);
   generalMetricLayout.pairs.forEach((pair) => {
     expect(pair.labelFontFamily).toBe(pair.valueFontFamily);
     expect(pair.labelFontSize).toBe(pair.valueFontSize);
@@ -489,9 +485,9 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(
     shiftDetail.locator('[data-role="feasibility-selected-shift"]'),
   ).toHaveClass(/sr-only/);
-  await expect(shiftDetail).not.toContainText("Shift detail");
+  await expect(shiftDetail).not.toContainText("Vehicle block detail");
   await expect(shiftDetail).not.toContainText(
-    "Energy demand and operating details for the selected shift.",
+    "Energy demand and operating details for the selected vehicle block.",
   );
 
   const shiftSummary = shiftDetail.locator('[data-role="feasibility-shift-summary"]');
@@ -504,7 +500,7 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("2");
   await expect(
     shiftSummary.locator('[data-role="feasibility-shift-required-packs"]'),
-  ).toHaveText(/Shift battery requirement\s+8 packs/);
+  ).toHaveText(/Vehicle block battery requirement\s+8 packs/);
   await expect(shiftSummary.locator(".feasibility-shift-metrics strong small")).toHaveCount(0);
   const shiftMetricLayout = await shiftSummary
     .locator(".feasibility-shift-metrics")
@@ -576,7 +572,7 @@ test("separates the common result from one selected shift without an aggregate o
     expect(Math.abs(chartCardLayout.cards[0].height - chartCardLayout.cards[1].height)).toBeLessThanOrEqual(1);
   }
   await expect(energyAdequacy).toHaveAttribute("data-feasibility", "feasible");
-  await expect(energyAdequacy).toContainText("Shift energy adequacy");
+  await expect(energyAdequacy).toContainText("Vehicle block energy adequacy");
   await expect(energyAdequacy).toContainText("Sensitivity drivers");
   await expect(energyAdequacy).toContainText("350.0 kWh");
   await expect(energyAdequacy).not.toContainText("550.0 kWh");
@@ -830,7 +826,8 @@ test("renders unavailable values safely when a historical result has no shift de
   await expect(selector.getByRole("tab")).toHaveCount(1);
   await expect(selector.getByRole("tab", { name: "General" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator('[data-role="feasibility-shift-count"]')).toContainText("0");
-  await expect(page.locator('[data-role="feasibility-fleet-battery"] .feasibility-general-card__value')).toHaveText("—");
+  await expect(page.locator('[data-role="feasibility-fleet-battery"] tbody tr')).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-fleet-battery"] tfoot')).toContainText("—");
   await expect(page.locator('[data-role="feasibility-infrastructure-unavailable"]')).toBeVisible();
   await expect(page.locator('[data-role="feasibility-shift-summary"]')).toHaveCount(0);
   await expect(page.locator('[data-role="feasibility-charging-plan"]')).toHaveCount(0);
@@ -841,7 +838,7 @@ test("shows an explicit overall infeasible status without replacing the general 
 
   const general = page.locator('[data-role="feasibility-general-level"]');
   const status = general.locator('[data-role="feasibility-overall-status"]');
-  await expect(status).toHaveText("Not all shifts are feasible");
+  await expect(status).toHaveText("Not all vehicle blocks are feasible");
   await expect(status).toHaveClass(/feasibility-overall-status--infeasible/);
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-infrastructure"]')).toBeVisible();
@@ -1084,8 +1081,6 @@ test("shows one complete shared infrastructure for joint optimization across eve
   await expect(page.locator('[data-role="feasibility-mode"]')).toHaveText(
     "Optimization mode: Joint",
   );
-  await expect(page.locator('[data-role="feasibility-fleet-battery"]')).toContainText("Optimized");
-  await expect(page.locator('[data-role="feasibility-shared-infrastructure"]')).toContainText("Optimized");
   await expect(infrastructure).toContainText("Configuration available");
   await expect(infrastructure.locator('tbody tr')).toHaveCount(2);
   await expect(infrastructure.locator('[data-station-status="installed"]')).toContainText("Installed");
@@ -1118,8 +1113,6 @@ test("keeps unresolved candidates visible without presenting partial totals as f
   await expect(page.locator('[data-role="feasibility-mode"]')).toHaveText(
     "Optimization mode: Charging",
   );
-  await expect(page.locator('[data-role="feasibility-fleet-battery"]')).toContainText("Fixed");
-  await expect(page.locator('[data-role="feasibility-shared-infrastructure"]')).toContainText("Optimized");
   await expect(infrastructure).toContainText("Configuration incomplete");
   await expect(infrastructure.locator('[data-role="feasibility-infrastructure-incomplete"]')).toBeVisible();
   await expect(infrastructure.locator('[data-station-status="candidate"]')).toContainText("Candidate");
@@ -1150,7 +1143,9 @@ const aggregateAnalysis = () => ({
     nominal_kwh: 400, usable_kwh: 280, min_soc: .2, max_soc: .9, state_of_health: 1,
     verified_soc_kwh: [360,200,260,120],
     trajectory_validation: {samples:100000,completion_probability:.932},
-    statistics: {samples:100000,seed:42,q95_total_kwh:360,q95_monte_carlo_ci95_kwh:[359.8,360.2],precision_met:true},
+    reference: {battery_packs:8},
+    statistics: {samples:100000,seed:42,mean_total_kwh:300,q95_total_kwh:360,q95_monte_carlo_ci95_kwh:[359.8,360.2],precision_met:true,
+      total_energy_histogram:{bin_edges_kwh:[240,260,280,300,320,340,360,380],counts:[1000,9000,25000,35000,20000,5000,5000]}},
     cases: {
       mean: {required_usable_kwh:240,margin_kwh:40,total_consumption_kwh:300,accepted_charge_kwh:60,soc_kwh:[360,200,260,120],first_minute:480},
       aggregate_q95: {required_usable_kwh:300,margin_kwh:-20,total_consumption_kwh:360,accepted_charge_kwh:60,soc_kwh:[360,170,230,60],first_minute:480},
@@ -1169,8 +1164,8 @@ for (const mode of ['battery_only','charging_only','joint']) {
     await expect(card).toContainText('400 kWh');
     await expect(card).toContainText('280 kWh');
     await expect(card.locator('[data-basis="aggregate_q95"]')).toContainText('deficit 20 kWh');
-    await expect(card.locator('svg')).toBeVisible();
-    await expect(card.locator('.aggregate-coverage')).toContainText('93.2%');
+    await expect(card.locator('.aggregate-soc svg')).toBeVisible();
+    await expect(card.locator('[role="tooltip"]').filter({hasText:'93.2%'})).toContainText('independently simulated trajectories');
     await expect(card.locator('.aggregate-soc--verified')).toHaveCount(1);
     await expect(page.locator('[data-role="efficiency-consumption-coverage-chart"]')).toHaveCount(0);
     const box=await card.boundingBox();
@@ -1237,12 +1232,17 @@ test('the requested Q95 basis survives result rerenders without changing the sto
 });
 
 test('historical infeasible results show virtual packs separately without invented aggregate margins', async ({page})=>{
-  await mountResults(page,{shiftIds:['morning'],electrificationFeasible:false,batteryResultOverrides:{morning:{optimized_packs:16,required_total_packs:19,excess_packs:3,optimized_kwh:950,physical_feasible:false}}});
+  await mountResults(page,{shiftIds:['morning'],electrificationFeasible:false,batteryResultOverrides:{morning:{optimized_packs:16,required_total_packs:17,excess_packs:1,optimized_kwh:850,physical_feasible:false}}});
   await selectShiftScope(page,'morning');
   const card=page.locator('[data-role="aggregate-energy"]');
   await expect(card.locator('.aggregate-pack--chosen')).toHaveCount(16);
-  await expect(card.locator('.aggregate-pack--excess')).toHaveCount(3);
-  await expect(card).toContainText('800 kWh');
+  await expect(card.locator('.aggregate-pack--excess')).toHaveCount(1);
+  const kpis=card.locator('.result-kpis');
+  await expect(kpis.locator('strong').first()).toHaveText('17 / 16');
+  await expect(kpis.locator('strong').first()).toHaveClass('aggregate-pack-count--exceeded');
+  await expect(kpis).toContainText('Estimated required / installable packs');
+  await expect(kpis.locator('strong').nth(1)).toHaveText('800 kWh');
+  await expect(kpis).toContainText('Selected battery · nominal capacity');
   await expect(card).toContainText('Physical limit exceeded');
   await expect(card.locator('.aggregate-demand')).toHaveCount(0);
 });
@@ -1258,6 +1258,7 @@ for (const [required, excess, unavailable] of [[18,8,2],[13,3,0]]) {
     await expect(card.locator('.aggregate-pack--unused')).toHaveCount(6);
     await expect(card.locator('.aggregate-pack--excess')).toHaveCount(unavailable);
     await expect(card).toContainText('500 kWh');
+    await expect(card.locator('.result-kpis strong').first()).toHaveText(`${required} / 16`);
     await expect(card).toContainText(`${required} packs`);
     const summary=page.locator('[data-role="feasibility-shift-summary"]');
     await expect(summary).toContainText('Battery shortfall');
@@ -1282,6 +1283,11 @@ for (const mode of ['battery_only','charging_only','joint']) {
     other.results.total_installation_cost_chf=9000;
     other.results.consumption_analysis.optimization_basis='aggregate_q95';
     Object.assign(other.results.consumption_analysis.per_shift.morning,{selected_packs:9,nominal_kwh:450,usable_kwh:315});
+    const otherDetail=other.results.consumption_analysis.per_shift.morning;
+    otherDetail.reference.battery_packs=9;
+    otherDetail.statistics.mean_total_kwh=320;
+    otherDetail.statistics.q95_total_kwh=380;
+    otherDetail.statistics.total_energy_histogram.bin_edges_kwh=otherDetail.statistics.total_energy_histogram.bin_edges_kwh.map(v=>v+20);
     await page.route('**/optimization-runs/paired-q95',route=>route.fulfill({json:other}));
     await page.route('**/optimization-runs/level-test/basis/aggregate_q95',route=>{
       if(route.request().method()==='POST')writes++;
@@ -1290,27 +1296,55 @@ for (const mode of ['battery_only','charging_only','joint']) {
     const header=page.locator('[data-role="paired-basis-switch"]');
     await expect(header).toBeVisible();
     await expect(header).toContainText('entire displayed design');
+    await expect(header.locator('[data-role="aggregate-basis-message"]')).toBeHidden();
+    const basisInfo=header.getByRole('button',{name:'Show optimized result',exact:true});
+    await basisInfo.click();
+    await expect(basisInfo.getByRole('tooltip')).toBeVisible();
+    await basisInfo.press('Escape');
+    const scopeBounds=await page.locator('[data-role="shift-tabs"]').boundingBox();
+    const basisBounds=await header.boundingBox();
+    expect(basisBounds.x+basisBounds.width).toBeLessThanOrEqual(page.viewportSize().width);
+    if(page.viewportSize().width>700){
+      expect(basisBounds.x).toBeGreaterThanOrEqual(scopeBounds.x+scopeBounds.width);
+      expect(Math.abs((basisBounds.y+basisBounds.height/2)-(scopeBounds.y+scopeBounds.height/2))).toBeLessThan(3);
+    }
     await selectShiftScope(page,'morning');
     const card=page.locator('[data-role="aggregate-energy"]');
-    await expect(card.locator('[data-basis="mean"]')).toHaveCount(1);
+    await expect(card.locator('.aggregate-demand[data-basis="mean"]')).toHaveCount(1);
     await expect(card.locator('[data-basis="aggregate_q95"]')).toHaveCount(0);
+    const histogram=card.locator('[data-role="energy-distribution"]');
+    await expect(histogram).toHaveAttribute('data-packs','8');
+    await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveCount(1);
+    await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveAttribute('data-value','300');
+    await expect(card.locator('.aggregate-demand strong')).toHaveCount(0);
+    await expect(card).toContainText('Energy charged during the vehicle block');
+    const capacityInfo=card.getByRole('button',{name:'Usable capacity required to complete the vehicle block',exact:true});
+    await capacityInfo.click();
+    await expect(capacityInfo.getByRole('tooltip')).toBeVisible();
+    await expect(capacityInfo.getByRole('tooltip')).toContainText('selected battery mass');
+    await card.getByRole('button',{name:'Simulated vehicle block completion',exact:true}).click();
+    await expect(card.getByRole('tooltip').filter({hasText:'93.2%'})).toBeVisible();
+    await expect(card.locator('select')).toHaveCount(0);
     await expect(card.locator('[data-role="aggregate-basis-action"]')).toBeHidden();
-    await page.evaluate(()=>document.addEventListener('partial:request',event=>{
-      window.__basisNavigation=event.detail;event.stopImmediatePropagation();
-    },{capture:true,once:true}));
-    await header.locator('select').selectOption('aggregate_q95');
-    await expect.poll(()=>page.evaluate(()=>window.__basisNavigation?.runId)).toBe(ids.aggregate_q95);
-    await page.evaluate(async()=>{
-      window.__cleanupSimulationResults?.();
-      const {initializeSimulationResults}=await import('/elettra/src/pages/Simulation/Runs/simulation-results.js');
-      window.__cleanupSimulationResults=initializeSimulationResults(document,{runId:'paired-q95'});
+    await page.evaluate(()=>{
+      window.__originalResultsPage=document.querySelector('.simulation-results-page');
+      document.addEventListener('partial:request',event=>{
+        window.__basisNavigation=event.detail;event.stopImmediatePropagation();
+      },{capture:true,once:true});
     });
+    await header.locator('select').selectOption('aggregate_q95');
     await expect(header.locator('select')).toHaveValue('aggregate_q95');
-    await selectShiftScope(page,'morning');
     await expect(card.locator('.aggregate-pack--chosen')).toHaveCount(9);
-    await expect(card.locator('[data-role="aggregate-current-basis"]')).toHaveText('Aggregate Q95');
-    await expect(card.locator('[data-basis="aggregate_q95"]')).toHaveCount(1);
+    await expect(page.locator('[data-shift-id="morning"]')).toHaveAttribute('aria-selected','true');
+    expect(await page.evaluate(()=>window.__basisNavigation)).toBeUndefined();
+    expect(await page.evaluate(()=>window.__originalResultsPage===document.querySelector('.simulation-results-page'))).toBe(true);
+    await expect(card.locator('[data-role="aggregate-current-basis"]')).toHaveText('Q95');
+    await expect(card.locator('.aggregate-demand[data-basis="aggregate_q95"]')).toHaveCount(1);
     await expect(card.locator('[data-basis="mean"]')).toHaveCount(0);
+    await expect(histogram).toHaveAttribute('data-packs','9');
+    await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveCount(1);
+    await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveAttribute('data-basis','aggregate_q95');
+    await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveAttribute('data-value','380');
     await expect(page.locator('[data-role="charging-info"]')).toContainText('3');
     expect(writes).toBe(0);
   });
@@ -1327,11 +1361,65 @@ for (const status of ['pending','failed']) {
     });
     await selectShiftScope(page,'morning');
     const card=page.locator('[data-role="aggregate-energy"]');
-    await card.locator('select').selectOption('aggregate_q95');
-    await expect(card.locator('select')).toHaveValue('mean');
+    const header=page.locator('[data-role="paired-basis-switch"]');
+    await header.locator('select').selectOption('aggregate_q95');
+    await expect(header.locator('select')).toHaveValue('mean');
     await expect(card.locator('[data-role="aggregate-current-basis"]')).toHaveText('Mean');
     await expect(card.locator('[data-role="aggregate-basis-action"]')).toBeHidden();
-    await expect(card.locator('[data-role="aggregate-basis-message"]')).toContainText(
+    await expect(header.locator('[data-role="aggregate-basis-message"]')).toContainText(
       status==='pending'?'already running':'unavailable or failed');
   });
 }
+
+test('daily depot cycle separates energy and discloses simulated peak shaving', async ({page}) => {
+  const dailyCycle={status:'verified',peak_shaving:{status:'optimized'},per_shift:{morning:{
+    ready:true,depot_name:'Depot',slot_number:1,depot_arrival_minute:1080,next_departure_minute:1800,
+    target_soc_kwh:360,departure_soc_kwh:360,during_shift_kwh:80,outside_shift_kwh:220,total_charged_kwh:300,
+    charging_intervals:[{start_minute:1081,end_minute:1800,power_kw_dc:18.36,energy_kwh:220}],
+  }},stations:{depot:{stop_name:'Depot',is_depot:true,during_shift_kwh:80,outside_shift_kwh:220,
+    total_charged_kwh:300,available_power_kw_dc:100,previous_plan_peak_kw_dc:100,simulated_peak_kw_dc:18.36}}};
+  await mountResults(page,{shiftIds:['morning'],dailyCycle,forecastVerification:{status:'verified'},totalInstallationCostChf:0});
+  const card=page.locator('[data-role="depot-cycle"]');
+  await expect(card).toContainText('1 / 1 buses ready');
+  await expect(card).toContainText('220 kWh');
+  await expect(page.locator('[data-role="feasibility-total-installation-cost"]')).toContainText('Not evaluated');
+  const peak=card.locator('[data-role="depot-peak-shaving"]');
+  await expect(peak).not.toHaveAttribute('open');
+  await peak.locator('summary').click();
+  await expect(peak).toContainText('Other site loads are excluded');
+  await selectShiftScope(page,'morning');
+  await expect(card).toContainText('06:00 +1');
+  await expect(card).toContainText('360 / 360 kWh');
+  await expect(card).toContainText('plug is reserved for the whole stay');
+});
+
+
+test("shows every selected battery and complete vehicle investment totals", async ({ page }) => {
+  await mountResults(page, {
+    mode: 'joint',
+    installedChargers: {depot: {stop_name: 'Depot', num_slots: 2, cost_chf: 548947.3684210526,
+      cost_breakdown: {station_type: 'depot', chargers_cost_chf: 220000, site_fixed_cost_chf: 250000,
+        site_power_cost_chf: 78947.36842105263, total_cost_chf: 548947.3684210526}}},
+    totalInstallationCostChf: 548947.3684210526,
+    batteryResultOverrides: {
+      morning: { investment_cost_source: "bus_model_snapshot", bus_cost_chf: 300000, battery_pack_cost_chf: 6000 },
+      evening: { investment_cost_source: "bus_model_snapshot", bus_cost_chf: 400000, battery_pack_cost_chf: 7000 },
+    },
+  });
+  const fleet = page.locator('[data-role="feasibility-fleet-battery"]');
+  await expect(fleet.locator('tbody tr').nth(0)).toContainText('Morning service');
+  await expect(fleet.locator('tbody tr').nth(0).locator('td')).toHaveText(['8', '400', "CHF 300'000", "CHF 48'0008 × CHF 6'000", "CHF 348'000"]);
+  await expect(fleet.locator('tbody tr').nth(1).locator('td')).toHaveText(['12', '600', "CHF 400'000", "CHF 84'00012 × CHF 7'000", "CHF 484'000"]);
+  await expect(fleet.locator('tfoot td')).toHaveText(['20', "1'000", "CHF 700'000", "CHF 132'000", "CHF 832'000"]);
+  const infrastructure = page.locator('.infrastructure-cost-breakdown');
+  await expect(infrastructure.locator('tbody td')).toHaveText(['Depot', 'Depot', "CHF 220'000", "CHF 250'000", "CHF 78'947", "CHF 548'947"]);
+  await expect(infrastructure.locator('tfoot td')).toHaveText(["CHF 220'000", "CHF 250'000", "CHF 78'947", "CHF 548'947"]);
+  await expect(page.locator('[data-role="feasibility-total-installation-cost"]')).toHaveText("CHF 548'947");
+  await expect(fleet).not.toContainText('kCHF');
+  await expect(infrastructure).not.toContainText('kCHF');
+
+  await selectShiftScope(page, 'morning');
+  await expect(fleet).toHaveCount(0);
+  await scopeSelector(page).getByRole('tab', { name: 'General' }).click();
+  await expect(fleet.locator('tfoot td').last()).toHaveText("CHF 832'000");
+});

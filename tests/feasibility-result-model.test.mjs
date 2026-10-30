@@ -88,11 +88,48 @@ test("a multi-shift battery-only run produces one common worst-case battery", ()
     powerPerSlotKw: 150,
     totalPowerKw: 300,
     slotCostsChf: [],
+    costBreakdown: null,
     installationCostChf: null,
     peakConcurrentBuses: null,
     totalEnergyKwh: null,
   });
 });
+
+for (const mode of ['charging_only', 'joint']) {
+  test(`${mode} displays investment for installed points, not all candidates`, () => {
+    const costBreakdown = {
+      chargers_cost_chf: 110000,
+      site_fixed_cost_chf: 250000,
+      site_power_cost_chf: 600 / .95 * 250,
+      total_cost_chf: 110000 + 250000 + 600 / .95 * 250,
+    };
+    const model = buildFeasibilityResultModel({
+      input_params: {
+        mode, shift_ids: ['s1'],
+        charging_stations: ['depot', 'terminus'].map(stop_id => ({
+          stop_id, num_slots: 4, max_power_per_slot_kw: 150, max_total_power_kw: 600,
+        })),
+      },
+      results: {
+        electrification_feasible: true,
+        battery_results: {s1: battery('40502', 12)},
+        total_installation_cost_chf: costBreakdown.total_cost_chf,
+        installed_chargers: {
+          depot: {num_slots: 1, cost_chf: costBreakdown.total_cost_chf, cost_breakdown: costBreakdown},
+          terminus: {num_slots: 0, cost_chf: 0, cost_breakdown: {total_cost_chf: 0}},
+        },
+      },
+    });
+    const [depot, terminus] = model.infrastructure.stations;
+    assert.equal(depot.configuredSlots, 4);
+    assert.equal(depot.slots, 1);
+    assert.equal(depot.installationCostChf, costBreakdown.total_cost_chf);
+    assert.deepEqual(depot.costBreakdown, costBreakdown);
+    assert.equal(terminus.selected, false);
+    assert.equal(terminus.installationCostChf, 0);
+    assert.equal(model.infrastructure.totalInstallationCostChf, costBreakdown.total_cost_chf);
+  });
+}
 
 test("all shifts tied at the maximum are identified as sizing shifts", () => {
   const model = buildFeasibilityResultModel({

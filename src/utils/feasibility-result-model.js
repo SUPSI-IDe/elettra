@@ -193,6 +193,7 @@ const normalizeStations = ({ inputParams, results, infrastructureDecision }) => 
     const input = inputById.get(stopId) ?? {};
     const installed = installedById.get(stopId) ?? {};
     const utilization = utilizationById.get(stopId) ?? {};
+    const dailySite = results.daily_cycle?.status === 'verified' ? results.daily_cycle.stations?.[stopId] : null;
     const hasInput = inputById.has(stopId);
     const hasInstalledResult = installedById.has(stopId);
     const configuredSlots = toNonNegativeNumber(input.num_slots ?? input.slots);
@@ -263,9 +264,10 @@ const normalizeStations = ({ inputParams, results, infrastructureDecision }) => 
             .map(toNonNegativeNumber)
             .filter((value) => value !== null)
         : [],
-      installationCostChf: toNonNegativeNumber(installed.cost_chf),
-      peakConcurrentBuses: toNonNegativeNumber(utilization.peak_concurrent_buses),
-      totalEnergyKwh: toNonNegativeNumber(utilization.total_energy_kwh),
+      costBreakdown: installed.cost_breakdown ?? null,
+      installationCostChf: infrastructureDecision === FEASIBILITY_DECISION.FIXED && !installed.cost_breakdown ? null : toNonNegativeNumber(installed.cost_chf),
+      peakConcurrentBuses: toNonNegativeNumber(dailySite?.peak_connected_buses ?? utilization.peak_concurrent_buses),
+      totalEnergyKwh: toNonNegativeNumber(dailySite?.total_charged_kwh ?? utilization.total_energy_kwh),
     };
   });
 };
@@ -386,7 +388,7 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
 
   return {
     mode,
-    electrificationFeasible: results.forecast_verification?.status && !["verified", "physical_limits_exceeded"].includes(results.forecast_verification.status)
+    electrificationFeasible: results.forecast_verification?.status && !["verified", "physical_limits_exceeded", "infeasible"].includes(results.forecast_verification.status)
       ? null : toBoolean(results.electrification_feasible),
     fleet: {
       scope: "per_bus",
@@ -411,7 +413,7 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
       dataAvailable: infrastructureDataAvailable,
       resultAvailable: infrastructureResultAvailable,
       selectionComplete: infrastructureSelectionComplete,
-      totalInstallationCostChf: toNonNegativeNumber(
+      totalInstallationCostChf: decisions.infrastructure === FEASIBILITY_DECISION.FIXED && !stations.some(s=>s.costBreakdown) ? null : toNonNegativeNumber(
         results.total_installation_cost_chf,
       ),
       stations,

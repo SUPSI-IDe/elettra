@@ -502,9 +502,9 @@ export const buildYearlyScenarioOutcome = ({
     const matches = runsByShift.get(shiftId) ?? [];
     let error = failureMessage || null;
     if (!error && matches.length === 0) {
-      error = `No prediction result returned for shift ${shiftId}.`;
+      error = `No prediction result returned for vehicle block ${shiftId}.`;
     } else if (!error && matches.length > 1) {
-      error = `Multiple prediction results returned for shift ${shiftId}.`;
+      error = `Multiple prediction results returned for vehicle block ${shiftId}.`;
     }
     const predictionRun = !error ? matches[0] : null;
     return {
@@ -641,7 +641,7 @@ export const buildYearlyAnalysisResults = ({
         shiftId,
         kpis: null,
         predRunId: null,
-        error: `Prediction result is unavailable for shift ${shiftId}.`,
+        error: `Prediction result is unavailable for vehicle block ${shiftId}.`,
       },
     );
     return {

@@ -157,7 +157,7 @@ export const renderStopsTable = (thead, tbody, stops, mode) => {
 
   if (!stops.length) {
     tbody.innerHTML = `<tr><td colspan="${2 + cols.length}">
-      ${t("simulation.no_stops_for_shifts") || "No stops found for the selected shifts."}
+      ${t("simulation.no_stops_for_shifts") || "No stops found for the selected vehicle blocks."}
     </td></tr>`;
     return;
   }

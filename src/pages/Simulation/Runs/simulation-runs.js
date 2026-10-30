@@ -1,4 +1,5 @@
 import { t } from "../../../i18n";
+import { basisOutcome, pairedFeasibility } from "../../../utils/paired-feasibility";
 import "./simulation-runs.css";
 import { fetchAllBusModels, fetchBusModelById } from "../../../api";
 import {
@@ -104,13 +105,11 @@ const renderEmpty = (tbody) => {
 
 const resolveElectrificationFeasible = (run = {}) => {
   if (run.basis_summaries) {
-    const rows = [run.basis_summaries.mean, run.basis_summaries.aggregate_q95];
-    if (rows.some(row => row?.verification_status === "physical_limits_exceeded")) return false;
-    return rows.every(row => row?.status === "completed" && row.verification_status === "verified"
-      && row.electrification_feasible === true) ? true : null;
+    const tone = pairedFeasibility(run).tone;
+    return tone === "positive" ? true : tone === "negative" ? false : null;
   }
   const verification = run.verification_status ?? run.results?.forecast_verification?.status;
-  if (verification && !["verified", "physical_limits_exceeded"].includes(verification)) return null;
+  if (verification && !["verified", "physical_limits_exceeded", "infeasible"].includes(verification)) return null;
   // The new list endpoint exposes `electrification_feasible` directly on
   // the run; the legacy detail-only path under `results` is kept as a
   // fallback for cached / hydrated runs.
@@ -128,13 +127,15 @@ const resolveElectrificationFeasible = (run = {}) => {
 
 const formatFeasibilityLabel = (feasible, run = {}) => {
   if (run.basis_summaries) {
+    const pair = pairedFeasibility(run);
+    if (pair.key !== "incomplete") return t(`simulation.paired_${pair.key}`);
     return ["mean", "aggregate_q95"].map(basis => {
       const row = run.basis_summaries[basis] ?? {};
       const name = t(`simulation.aggregate_${basis === "mean" ? "mean" : "q95"}`);
       const outcome = row.status === "completed"
-        ? row.verification_status === "verified"
+        ? basisOutcome(row) === "feasible"
           ? t(`simulation.feasibility_${basis}_feasible`)
-          : row.verification_status === "physical_limits_exceeded"
+          : basisOutcome(row) === "infeasible"
             ? t(`simulation.feasibility_${basis}_infeasible`)
             : `${name}: ${t("simulation.aggregate_unverified")}`
         : `${name}: ${formatStatusLabel(row.status ?? "failed")}`;
@@ -174,8 +175,8 @@ const completionIndicatorClass = (status) =>
     ? "positive"
     : "negative";
 
-const feasibilityIndicatorClass = (feasible) =>
-  feasible === true ? "positive" : "negative";
+const feasibilityIndicatorClass = (feasible, run) =>
+  pairedFeasibility(run)?.tone ?? (feasible === true ? "positive" : feasible === false ? "negative" : "neutral");
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "—";
@@ -622,10 +623,11 @@ const getSortValue = (run = {}, key = "") => {
     case "bus_model":
       return resolveBusModelName(run) || resolveBusModelId(run) || "—";
     case "feasibility": {
+      if (pairedFeasibility(run)?.tone === "warning") return "b_partial";
       const feasible = resolveElectrificationFeasible(run);
       if (feasible === true) return "a_feasible";
-      if (feasible === false) return "b_infeasible";
-      return "c_unknown";
+      if (feasible === false) return "c_infeasible";
+      return "d_unknown";
     }
     case "main_parameters":
       return [
@@ -760,7 +762,7 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
           </td>
           <td class="feasibility">
             <span
-              class="simulation-state-indicator simulation-state-indicator--${feasibilityIndicatorClass(feasible)}"
+              class="simulation-state-indicator simulation-state-indicator--${feasibilityIndicatorClass(feasible, run)}"
               role="img"
               aria-label="${textContent(accessibleFeasibilityLabel)}"
               title="${textContent(accessibleFeasibilityLabel)}"
@@ -1204,6 +1206,8 @@ export const initializeSimulationRuns = async (
         batteryCostPerKwh: resolveBatteryCostPerKwh(run),
         batterySizingMode: resolveBatterySizingMode(run) || "per_bus",
         chargingStations: resolveChargingStations(run),
+        dailyCycle: run.input_params?.daily_cycle ?? false,
+        depotPeakShaving: run.input_params?.depot_peak_shaving ?? false,
       },
     });
   };

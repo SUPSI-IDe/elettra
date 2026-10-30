@@ -1,7 +1,7 @@
 <section class="shifts">
   <header class="page-header">
     <div class="title-container">
-      <h1 class="page-title" data-i18n="nav.shifts">Shifts</h1>
+      <h1 class="page-title" data-i18n="nav.shifts">Vehicle blocks</h1>
     </div>
   </header>
   <p
@@ -13,11 +13,11 @@
   ></p>
   <main class="shifts-main">
     <div class="table-controls shifts-table-controls">
-      <label class="sr-only" for="shifts-filter" data-i18n="shifts.filter_label">Filter shifts</label>
+      <label class="sr-only" for="shifts-filter" data-i18n="shifts.filter_label">Filter vehicle blocks</label>
       <input
         id="shifts-filter"
         type="search"
-        placeholder="Search shifts"
+        placeholder="Search vehicle blocks"
         data-i18n-placeholder="shifts.search_placeholder"
       />
       <div class="shifts-toolbar-actions">
@@ -27,7 +27,7 @@
           data-action="add-shift"
           data-i18n="shifts.add_shift"
         >
-          Add Shift
+          Add vehicle block
         </button>
         <button
           type="button"
@@ -50,20 +50,20 @@
     <div class="shifts-table">
       <table class="table-standard table-selectable">
         <caption class="sr-only" data-i18n="shifts.caption">
-          Current shifts
+          Current vehicle blocks
         </caption>
         <thead>
           <tr>
             <th class="checkbox">
               <input
                 type="checkbox"
-                aria-label="Select all shifts"
+                aria-label="Select all vehicle blocks"
                 data-i18n-aria-label="shifts.select_all"
               />
             </th>
             <th class="name" scope="col" data-sort-key="name" aria-sort="ascending">
               <button type="button" class="sort-button" data-sort-key="name">
-                <span data-i18n="shifts.col_name">Shift name</span>
+                <span data-i18n="shifts.col_name">Vehicle block name</span>
                 <span class="sort-arrow" aria-hidden="true">↑</span>
               </button>
             </th>

@@ -170,7 +170,7 @@ test("loaded feasibility results use mean for the decision and show the full dis
     "Heating type: Diesel",
   );
   await expect(energyAdequacy).toHaveAttribute("data-feasibility", "feasible");
-  await expect(energyAdequacy).toContainText("Shift energy adequacy");
+  await expect(energyAdequacy).toContainText("Vehicle block energy adequacy");
   await expect(page.locator('[data-role="feasibility-shift-sensitivity"]')).toHaveCount(0);
   const adequacyGrid = energyAdequacy.locator(".efficiency-adequacy-grid");
   await expect(adequacyGrid).toContainText(

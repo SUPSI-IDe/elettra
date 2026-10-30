@@ -1800,7 +1800,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
     content.innerHTML = `<p class="ya-status-msg">${textContent(
       translateOr(
         "yearly_analysis.shift_capex_allocation_unavailable",
-        "Shift CAPEX is unavailable because the vehicle count, investment inputs, or a complete annual allocation basis could not be resolved.",
+        "Vehicle block CAPEX is unavailable because the vehicle count, investment inputs, or a complete annual allocation basis could not be resolved.",
       ),
     )}</p>`;
     return;
@@ -1819,7 +1819,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
   const basisNote = usesEnergy
     ? translateOr(
         "yearly_analysis.annual_dc_energy_allocation_note",
-        "Only the shared charging infrastructure is allocated: {share}% to this shift from {basis} of annual DC energy shown in Emissions. Bus and battery CAPEX belongs in full to the vehicles assigned to this shift.",
+        "Only the shared charging infrastructure is allocated: {share}% to this vehicle block from {basis} of annual DC energy shown in Emissions. Bus and battery CAPEX belongs in full to the vehicles assigned to this vehicle block.",
         {
           share: formatFixed(allocation.share * 100, 1),
           basis: basisValue,
@@ -1827,7 +1827,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
       )
     : translateOr(
         "yearly_analysis.annual_distance_allocation_note",
-        "Only the shared charging infrastructure is allocated: {share}% to this shift from {basis} of annual distance because complete DC energy was unavailable. Bus and battery CAPEX belongs in full to the vehicles assigned to this shift.",
+        "Only the shared charging infrastructure is allocated: {share}% to this vehicle block from {basis} of annual distance because complete DC energy was unavailable. Bus and battery CAPEX belongs in full to the vehicles assigned to this vehicle block.",
         {
           share: formatFixed(allocation.share * 100, 1),
           basis: basisValue,
@@ -1836,7 +1836,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
   const metrics = [
     {
       key: "vehicles",
-      label: translateOr("yearly_analysis.shift_vehicle_count", "Vehicles in this shift"),
+      label: translateOr("yearly_analysis.shift_vehicle_count", "Vehicles in this vehicle block"),
       value: formatFixed(allocation.vehicleCount, 0),
     },
     {
@@ -1869,7 +1869,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
   content.innerHTML = `
     <div class="ya-compact-metrics ya-capex-allocation-summary">
       <table class="ya-compact-metrics__table" aria-label="${textContent(
-        translateOr("yearly_analysis.allocated_capex_title", "Shift CAPEX"),
+        translateOr("yearly_analysis.allocated_capex_title", "Vehicle block CAPEX"),
       )}">
         <thead><tr>${metrics.map((metric) => `<th scope="col" data-metric="${metric.key}">${textContent(metric.label)}</th>`).join("")}</tr></thead>
         <tbody><tr>${metrics.map((metric) => `<td data-metric="${metric.key}">${textContent(metric.value)}</td>`).join("")}</tr></tbody>
@@ -4327,7 +4327,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
       value: nominalKwh != null ? `${formatFixed(nominalKwh, 1)} kWh` : "—",
     },
     {
-      label: translateOr("yearly_analysis.sizing_shifts", "Sizing shift"),
+      label: translateOr("yearly_analysis.sizing_shifts", "Sizing vehicle block"),
       value: sizingShiftNames.length ? sizingShiftNames.join(", ") : "—",
     },
   ];
@@ -4337,7 +4337,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
       value: busName,
     },
     {
-      label: translateOr("yearly_analysis.covered_shifts", "Covered shifts"),
+      label: translateOr("yearly_analysis.covered_shifts", "Covered vehicle blocks"),
       value: shiftNames.length ? String(shiftNames.length) : "—",
     },
     {
@@ -4424,7 +4424,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
         : "—",
     },
     {
-      label: translateOr("yearly_analysis.shift_capex_allocation", "Allocation to shifts"),
+      label: translateOr("yearly_analysis.shift_capex_allocation", "Allocation to vehicle blocks"),
       value: translateOr(
         "yearly_analysis.allocated_by_annual_dc_energy",
         "Only infrastructure, by annual DC energy",
@@ -4473,7 +4473,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
         <p class="ya-scope-level__subtitle result-card__subtitle">${textContent(
           translateOr(
             "simulation.feasibility_general_subtitle",
-            "One bus configuration and one charging infrastructure shared by every selected shift.",
+            "One bus configuration and one charging infrastructure shared by every selected vehicle block.",
           ),
         )}</p>
       </div>
@@ -4532,12 +4532,12 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
         )}</h3>
         ${infoTip(translateOr(
           "yearly_analysis.general_cost_scope_tooltip",
-          "Bus and battery CAPEX is multiplied by the physical vehicle count inherited from the feasibility result. Charging infrastructure is counted once for the fleet; only its cost is allocated to shifts by annual DC energy.",
+          "Bus and battery CAPEX is multiplied by the physical vehicle count inherited from the feasibility result. Charging infrastructure is counted once for the fleet; only its cost is allocated to vehicle blocks by annual DC energy.",
         ))}
       </div>
       <p class="ya-general-costs__note">${textContent(translateOr(
         "yearly_analysis.general_cost_scope_note",
-        "The fleet total includes every simulated physical vehicle with its common battery. The charging infrastructure is a single shared investment and is the only CAPEX allocated between shifts.",
+        "The fleet total includes every simulated physical vehicle with its common battery. The charging infrastructure is a single shared investment and is the only CAPEX allocated between vehicle blocks.",
       ))}</p>
       ${definitionRowsHtml(sharedCostRows)}
     </article>
@@ -4615,7 +4615,7 @@ const buildScopedEmissionsState = (state, scope) => {
       status: "error",
       error: translateOr(
         "yearly_analysis.shift_emissions_unavailable",
-        "Shift-level emissions are unavailable for this historical analysis.",
+        "Vehicle block-level emissions are unavailable for this historical analysis.",
       ),
     };
   }
@@ -4627,7 +4627,7 @@ const buildScopedEmissionsState = (state, scope) => {
       status: "error",
       error: translateOr(
         "yearly_analysis.shift_emissions_unavailable",
-        "Shift-level emissions are unavailable for this historical analysis.",
+        "Vehicle block-level emissions are unavailable for this historical analysis.",
       ),
     };
   }
@@ -4747,7 +4747,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   );
   const resultScopes = buildYearlyResultScopes(features, {
     generalLabel: translateOr("yearly_analysis.scope_general", "General"),
-    shiftFallback: translateOr("yearly_analysis.scope_shift", "Shift"),
+    shiftFallback: translateOr("yearly_analysis.scope_shift", "Vehicle block"),
   });
   let activeScopeKey = YEARLY_GENERAL_SCOPE_KEY;
   let activeScope = resolveYearlyResultScope(resultScopes, activeScopeKey);
@@ -5102,7 +5102,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         ? costState.error || t("yearly_analysis.unable_compute_costs")
         : translateOr(
             "yearly_analysis.shift_cost_scope_note",
-            "Operating costs use this shift's energy and distance. Shared CAPEX remains counted once in General and is attributed here by the shift's share of annual DC energy for comparison and break-even analysis.",
+            "Operating costs use this vehicle block's energy and distance. Shared CAPEX remains counted once in General and is attributed here by the vehicle block's share of annual DC energy for comparison and break-even analysis.",
           );
     }
   };

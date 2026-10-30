@@ -30,7 +30,7 @@
 
       <div class="form-card-grid">
         <section
-          class="form-card"
+          class="form-card evaluation-information"
           aria-labelledby="simulation-information-heading"
         >
           <header class="form-card__header">
@@ -66,7 +66,7 @@
 
             <div class="form-group shift-selection">
               <label for="sim-shift-filter">
-                <span data-i18n="simulation.field_shifts">Shift</span>
+                <span data-i18n="simulation.field_shifts">Vehicle block</span>
                 <span class="required-mark">*</span>
               </label>
               <div class="shift-search">
@@ -81,10 +81,10 @@
                 <table class="shift-table">
                   <thead>
                     <tr>
-                      <th class="checkbox"></th>
+                      <th class="checkbox" scope="col"><input type="checkbox" data-role="select-filtered-shifts" aria-label="Select all filtered vehicle blocks" data-i18n-aria-label="simulation.select_filtered_shifts" disabled /></th>
                       <th scope="col" data-sort-key="name" aria-sort="ascending">
                         <button type="button" class="sort-button" data-sort-key="name">
-                          <span data-i18n="simulation.shift_col_name">Shift name</span>
+                          <span data-i18n="simulation.shift_col_name">Vehicle block name</span>
                           <span class="sort-arrow" aria-hidden="true">↑</span>
                         </button>
                       </th>
@@ -116,7 +116,7 @@
         </section>
 
         <section
-          class="form-card"
+          class="form-card evaluation-optimization"
           aria-labelledby="simulation-optimization-heading"
         >
           <header class="form-card__header">
@@ -136,7 +136,7 @@
                 </label>
                 <select id="var-bus-model-override" name="bus_model_id" required>
                   <option value="" disabled selected data-i18n="simulation.select_shift_first">
-                    Select a shift first…
+                    Select a vehicle block first…
                   </option>
                 </select>
               </div>
@@ -157,38 +157,40 @@
             </div>
 
             <div class="form-group">
-              <strong data-i18n="simulation.aggregate_both">Mean and aggregate Q95</strong>
-              <p data-i18n="simulation.aggregate_both_help">Both complete designs are calculated together. Switch between their results after the evaluation.</p>
+              <strong data-i18n="simulation.aggregate_both">Mean and Q95</strong>
+              <p class="helper-text" data-i18n="simulation.aggregate_both_help">Both complete designs are calculated together. Switch between their results after the evaluation.</p>
             </div>
             <div class="form-group" data-role="fixed-battery-group" hidden>
               <label for="var-fixed-battery-packs" data-i18n="simulation.fixed_battery_packs">Battery packs (fixed for charging optimisation)</label>
               <input id="var-fixed-battery-packs" name="fixed_battery_packs" type="number" min="1" step="1" />
-              <p data-i18n="simulation.fixed_battery_help">Choose an allowed pack count for the selected bus model. All battery forecasts remain available for comparison.</p>
+              <p class="helper-text" data-i18n="simulation.fixed_battery_help">Choose an allowed pack count for the selected bus model. All battery forecasts remain available for comparison.</p>
             </div>
 
-            <div class="compact-row compact-row--2" data-role="battery-cost-group" hidden>
-              <div class="form-group">
-                <label for="var-battery-cost-per-kwh" data-i18n="simulation.var_battery_cost_per_kwh">
-                  Battery cost (CHF / kWh)
-                </label>
-                <input
-                  type="number"
-                  id="var-battery-cost-per-kwh"
-                  name="battery_cost_per_kwh"
-                  min="0"
-                  step="10"
-                  value="300"
-                />
+            <div class="form-group">
+              <div class="depot-option">
+                <label><input type="checkbox" id="var-daily-cycle" checked /> <span data-i18n="simulation.depot_cycle_option">Verify next-day departure with depot charging</span></label>
+                <button type="button" class="info-icon form-info" aria-label="Verify next-day departure with depot charging" data-i18n-aria-label="simulation.depot_cycle_option" aria-describedby="depot-cycle-help" aria-expanded="false">i<span id="depot-cycle-help" class="info-tooltip" role="tooltip" data-i18n="simulation.depot_cycle_help" hidden>Same bus and same vehicle block every day. Uses the depot transfers already in the vehicle block; a connected bus occupies its plug for the entire stay.</span></button>
               </div>
-              <div class="form-group">
+              <div class="depot-option">
+                <label><input type="checkbox" id="var-depot-peak-shaving" checked /> <span data-i18n="simulation.depot_peak_option">Simulate smart charging in the depot</span></label>
+                <button type="button" class="info-icon form-info" aria-label="Simulate smart charging in the depot" data-i18n-aria-label="simulation.depot_peak_option" aria-describedby="depot-peak-help" aria-expanded="false">i<span id="depot-peak-help" class="info-tooltip" role="tooltip" data-i18n="simulation.depot_peak_help" hidden>Assumes controllable chargers. Minimizes depot charging peaks while preserving the selected design and daytime charging. Other site loads are excluded.</span></button>
+              </div>
+            </div>
+
+            <div class="form-group" data-role="battery-cost-group" hidden>
+                <label data-i18n="simulation.cost_bus_pack">Battery pack cost from the bus model</label>
+                <div class="pack-cost-value"><output data-role="bus-pack-cost"></output>
+                <button type="button" class="info-icon form-info" aria-label="Battery pack cost" aria-describedby="battery-cost-help" aria-expanded="false">i<span id="battery-cost-help" class="info-tooltip" role="tooltip" data-i18n="simulation.cost_bus_pack_help" hidden></span></button></div>
+            </div>
+            <div class="form-group" data-role="battery-sizing-group" hidden>
                 <label for="var-battery-sizing-mode" data-i18n="simulation.var_battery_sizing_mode">
                   Battery sizing mode
                 </label>
                 <select id="var-battery-sizing-mode" name="battery_sizing_mode">
-                  <option value="per_bus" data-i18n="simulation.sizing_per_bus">Per bus</option>
-                  <option value="per_route" data-i18n="simulation.sizing_per_route">Per route</option>
+                  <option value="per_bus" data-i18n="simulation.sizing_individual">Individual batteries</option>
+                  <option value="uniform" data-i18n="simulation.sizing_uniform">Same size for all</option>
                 </select>
-              </div>
+                <p class="helper-text" data-i18n="simulation.sizing_uniform_help">Size each battery independently, or choose one size that works for all selected vehicle blocks.</p>
             </div>
 
             <p
@@ -196,9 +198,9 @@
               data-role="stops-hint"
               data-i18n="simulation.configure_stations_missing_both"
             >
-              Select at least one shift and an optimization mode to configure charging stations.
+              Select at least one vehicle block and an optimization mode to configure charging stations.
             </p>
-            <div class="stops-table-wrapper" data-role="stops-table-wrapper">
+            <div class="stops-table-wrapper" data-role="stops-table-wrapper" hidden>
               <table class="stops-table">
                 <thead data-role="stops-thead">
                   <tr>
@@ -208,83 +210,84 @@
                 <tbody data-role="stops-tbody"></tbody>
               </table>
             </div>
+            <details class="infrastructure-cost-options" data-role="cost-options" hidden>
+              <summary data-i18n="simulation.cost_advanced">Advanced infrastructure costs</summary>
+              <p class="helper-text"><span data-i18n="simulation.cost_default_note">Defaults calibrated on INFRAS 2026. All values can be changed.</span>
+                <span data-i18n="simulation.cost_calculation">Calculation</span> <button type="button" class="info-icon form-info" aria-label="Infrastructure cost calculation" aria-describedby="infrastructure-cost-help" aria-expanded="false">i<span id="infrastructure-cost-help" class="info-tooltip" role="tooltip" data-i18n="simulation.cost_formula_help" hidden></span></button>
+                · <span data-i18n="simulation.cost_sources">Sources</span> <button type="button" class="info-icon form-info" aria-label="Cost assumptions and sources" aria-describedby="infrastructure-source-help" aria-expanded="false">i<span id="infrastructure-source-help" class="info-tooltip" role="tooltip" data-i18n="simulation.cost_source_help" hidden></span></button>
+              </p>
+              <div data-role="station-cost-cards"></div>
+            </details>
           </div>
         </section>
-      </div>
-
-      <details class="add-simulation-options" data-role="optional-variables">
-        <summary
-          class="add-simulation-options__toggle"
-          data-i18n="simulation.set_optional_variables"
-        >
-          Set optional variables
-        </summary>
-        <div class="add-simulation-options__content">
-          <div class="form-card">
-            <div class="form-card__body">
-              <div class="compact-row compact-row--2">
-                <div class="form-group">
-                  <label for="var-external-temp" data-i18n="simulation.var_external_temp">
-                    External temperature (°C)
-                  </label>
-                  <input
-                    type="number"
-                    id="var-external-temp"
-                    name="external_temp_celsius"
-                    step="0.5"
-                    value="-5"
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="var-occupancy" data-i18n="simulation.var_occupancy">
-                    Avg. passengers (%)
-                  </label>
-                  <select id="var-occupancy" name="occupancy_percent">
-                    <option value="0">0%</option>
-                    <option value="10">10%</option>
-                    <option value="20">20%</option>
-                    <option value="30">30%</option>
-                    <option value="40">40%</option>
-                    <option value="50">50%</option>
-                    <option value="60">60%</option>
-                    <option value="70">70%</option>
-                    <option value="80">80%</option>
-                    <option value="90">90%</option>
-                    <option value="100" selected>100%</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="var-heating-type" data-i18n="simulation.var_heating_type">
-                    Heating type
-                  </label>
-                  <select id="var-heating-type" name="auxiliary_heating_type">
-                    <option value="default" data-i18n="simulation.heating_hp">HP</option>
-                    <option value="diesel" data-i18n="simulation.heating_diesel">Diesel</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="var-usable-soc-percent" data-i18n="simulation.var_usable_soc_percent">
-                    Usable SOC (% of nominal)
-                  </label>
-                  <select id="var-usable-soc-percent" name="usable_soc_percent">
-                    <option value="100">100%</option>
-                    <option value="90">90%</option>
-                    <option value="80">80%</option>
-                    <option value="70">70%</option>
-                    <option value="60">60%</option>
-                    <option value="50" selected>50%</option>
-                    <option value="40">40%</option>
-                    <option value="30">30%</option>
-                    <option value="20">20%</option>
-                    <option value="10">10%</option>
-                  </select>
-                </div>
-              </div>
+      <section class="form-card evaluation-parameters" aria-labelledby="simulation-parameters-heading">
+        <header class="form-card__header">
+          <h2 id="simulation-parameters-heading" data-i18n="simulation.evaluation_parameters">Evaluation parameters</h2>
+        </header>
+        <div class="form-card__body">
+          <div class="compact-row compact-row--2">
+            <div class="form-group">
+              <label for="var-external-temp" data-i18n="simulation.var_external_temp">
+                External temperature (°C)
+              </label>
+              <input
+                type="number"
+                id="var-external-temp"
+                name="external_temp_celsius"
+                step="0.5"
+                value="-5"
+              />
+            </div>
+            <div class="form-group">
+              <label for="var-occupancy" data-i18n="simulation.var_occupancy">
+                Avg. passengers (%)
+              </label>
+              <select id="var-occupancy" name="occupancy_percent">
+                <option value="0">0%</option>
+                <option value="10">10%</option>
+                <option value="20">20%</option>
+                <option value="30">30%</option>
+                <option value="40">40%</option>
+                <option value="50">50%</option>
+                <option value="60">60%</option>
+                <option value="70">70%</option>
+                <option value="80">80%</option>
+                <option value="90">90%</option>
+                <option value="100" selected>100%</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="var-heating-type" data-i18n="simulation.var_heating_type">
+                Heating type
+              </label>
+              <select id="var-heating-type" name="auxiliary_heating_type">
+                <option value="default" data-i18n="simulation.heating_hp">HP</option>
+                <option value="diesel" data-i18n="simulation.heating_diesel">Diesel</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="var-usable-soc-percent" data-i18n="simulation.var_usable_soc_percent">
+                Usable SOC (% of nominal)
+              </label>
+              <select id="var-usable-soc-percent" name="usable_soc_percent">
+                <option value="100">100%</option>
+                <option value="90">90%</option>
+                <option value="80">80%</option>
+                <option value="70">70%</option>
+                <option value="60">60%</option>
+                <option value="50" selected>50%</option>
+                <option value="40">40%</option>
+                <option value="30">30%</option>
+                <option value="20">20%</option>
+                <option value="10">10%</option>
+              </select>
             </div>
           </div>
         </div>
-      </details>
+      </section>
+      </div>
 
+      <div class="evaluation-form-footer">
       <p class="required-note">
         <span class="required-mark">*</span>
         <span data-i18n="simulation.required_info">Required information</span>
@@ -294,18 +297,8 @@
         <button type="button" data-action="cancel" data-i18n="common.cancel">
           Cancel
         </button>
-        <button type="submit" data-i18n="simulation.run">Run simulation</button>
+        <button type="submit" data-i18n="simulation.run">Start evaluation</button>
       </div>
-
-      <div class="simulation-progress" data-role="simulation-progress" hidden>
-        <div class="simulation-progress__overlay">
-          <div class="simulation-progress__content">
-            <div class="simulation-progress__spinner"></div>
-            <p class="simulation-progress__message" data-role="progress-message" data-i18n="simulation.creating_predictions">
-              Creating prediction runs…
-            </p>
-          </div>
-        </div>
       </div>
 
       <div class="usable-soc-warning" data-role="usable-soc-warning" hidden>
@@ -343,5 +336,69 @@
         </div>
       </div>
     </form>
+    <dialog class="simulation-progress" data-role="simulation-progress" aria-labelledby="evaluation-progress-title" aria-describedby="progress-evaluation-name progress-evaluation-context">
+      <header class="simulation-progress__header">
+        <h2 id="evaluation-progress-title" tabindex="-1" autofocus data-i18n="simulation.progress_title">Evaluation in progress</h2>
+        <div class="simulation-progress__time">
+          <span data-i18n="simulation.progress_elapsed">Elapsed</span>
+          <span data-role="progress-elapsed" aria-live="off">0:00</span>
+        </div>
+      </header>
+      <p class="simulation-progress__name" data-role="progress-name" id="progress-evaluation-name"></p>
+      <p class="simulation-progress__context" data-role="progress-context" id="progress-evaluation-context"></p>
+      <p class="simulation-progress__message" data-role="progress-message" role="status"></p>
+      <ul class="simulation-progress__steps" aria-live="polite" aria-relevant="text">
+        <li data-progress-step="predictions" data-state="pending">
+          <span class="simulation-progress__symbol" data-role="step-symbol" aria-hidden="true"></span>
+          <div class="simulation-progress__step-body">
+            <div class="simulation-progress__step-heading">
+              <strong data-i18n="simulation.progress_estimates">Consumption estimates</strong>
+              <span class="simulation-progress__state" data-role="step-state"></span>
+            </div>
+            <p data-role="step-detail"></p>
+          </div>
+        </li>
+        <li data-progress-step="mean" data-state="pending">
+          <span class="simulation-progress__symbol" data-role="step-symbol" aria-hidden="true"></span>
+          <div class="simulation-progress__step-body">
+            <div class="simulation-progress__step-heading">
+              <strong data-i18n="simulation.aggregate_mean">Mean</strong>
+              <span class="simulation-progress__state" data-role="step-state"></span>
+            </div>
+            <p data-role="step-detail"></p>
+          </div>
+        </li>
+        <li data-progress-step="aggregate_q95" data-state="pending">
+          <span class="simulation-progress__symbol" data-role="step-symbol" aria-hidden="true"></span>
+          <div class="simulation-progress__step-body">
+            <div class="simulation-progress__step-heading">
+              <strong data-i18n="simulation.aggregate_q95">Q95</strong>
+              <span class="simulation-progress__state" data-role="step-state"></span>
+            </div>
+            <p data-role="step-detail"></p>
+          </div>
+        </li>
+      </ul>
+      <p class="simulation-progress__note" data-i18n="simulation.progress_auto_results">The results will open automatically when both calculations finish.</p>
+    </dialog>
+    <dialog class="evaluation-confirm" data-role="evaluation-confirm" aria-labelledby="evaluation-confirm-title" aria-describedby="evaluation-confirm-description">
+      <h2 id="evaluation-confirm-title" data-i18n="simulation.run_confirm">Start this evaluation?</h2>
+      <p class="evaluation-confirm__name" data-role="evaluation-confirm-name"></p>
+      <dl class="evaluation-confirm__summary">
+        <div>
+          <dt data-i18n="simulation.field_shifts">Vehicle blocks</dt>
+          <dd data-role="evaluation-confirm-count"></dd>
+        </div>
+        <div>
+          <dt data-i18n="simulation.var_optimization_mode">Optimization mode</dt>
+          <dd data-role="evaluation-confirm-mode"></dd>
+        </div>
+      </dl>
+      <p id="evaluation-confirm-description" data-i18n="simulation.run_confirm_description">Mean and Q95 will be calculated together. The results will open automatically when the evaluation is complete.</p>
+      <div class="evaluation-confirm__actions">
+        <button type="button" data-role="evaluation-confirm-cancel" data-i18n="common.cancel" autofocus>Cancel</button>
+        <button type="button" data-role="evaluation-confirm-start" data-i18n="simulation.run">Start evaluation</button>
+      </div>
+    </dialog>
   </main>
 </section>
