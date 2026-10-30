@@ -17,9 +17,10 @@ export function aggregateEnergyModel(run, shiftId) {
   const excess = battery.excess_packs ?? 0;
   const diagnosticTotal = battery.required_total_packs ?? selected + excess;
   const unavailablePacks = Math.max(0, diagnosticTotal - maximum);
+  const paired = Boolean(input.basis_run_ids?.mean && input.basis_run_ids?.aggregate_q95);
   return { available, selected, maximum, packKwh, nominal, usable, minSoc, maxSoc, soh, basis,
-    excess, diagnosticTotal, unavailablePacks, detail,
+    excess, diagnosticTotal, unavailablePacks, detail, paired,
     verified: results.forecast_verification?.status === "verified",
     physicalExceeded: unavailablePacks > 0,
-    cases: available ? detail.cases : null };
+    cases: available ? (paired ? { [basis]: detail.cases[basis] } : detail.cases) : null };
 }

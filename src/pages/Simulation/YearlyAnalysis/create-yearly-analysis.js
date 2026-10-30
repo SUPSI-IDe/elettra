@@ -531,7 +531,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         throw new Error("Unable to resolve current user.");
       }
       const [allRuns, models] = await Promise.all([
-        fetchAllOptimizationRuns(),
+        fetchAllOptimizationRuns({ includeBasisVariants: true }),
         fetchAllBusModels({ userId: currentUserId }),
       ]);
 

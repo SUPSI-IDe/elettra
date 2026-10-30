@@ -1,7 +1,7 @@
 import { useCaseSections } from "./use-cases.js";
 
-export const GUIDE_BASELINE_VERSION = "0.7.4";
-export const GUIDE_UPDATED_AT = "29 October 2026";
+export const GUIDE_BASELINE_VERSION = "0.8.0-rc.1";
+export const GUIDE_UPDATED_AT = "30 October 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -283,7 +283,7 @@ export const guideContent = {
           },
           {
             title: "Read visual analysis and energy adequacy together",
-            text: "Choose Mean or Aggregate Q95 next to the battery. Open a compatible result or explicitly start one new optimization. Mean and Q95 diagnostic bars replay the same chosen plan; the percentile of total shift consumption is not a 95% guarantee of trajectory feasibility. Any completion percentage is calculated from independent simulated trajectories. Historical trip quantiles keep their original meaning.",
+            text: "New evaluations calculate Mean and Aggregate Q95 together. The selector opens the complete optimized design for that profile, including battery, chargers and charging schedule, without starting another calculation. Charging favours low SOC subject to feasibility; a connected bus holds its pantograph for its whole stop. Q95 of total consumption is not a 95% guarantee of trajectory feasibility. Historical evaluations retain their original basis.",
           },
           {
             title: "Inspect the charging plan",
@@ -507,7 +507,7 @@ export const guideContent = {
         items: [
           { title: "Mit Allgemein beginnen", text: "Allgemein fasst alle analysierten Dienste und die größte gewählte Batterie zusammen. Jeder Dienst behält seine eigene Batterie; alle Dienste nehmen an der Dimensionierung teil und teilen die Ladeinfrastruktur." },
           { title: "Jeden Dienst prüfen", text: "Jeder Dienst zeigt nominale und nutzbare Kapazität, gewählte und freie Pakete sowie diagnostischen Überschuss in Rot. Prüfen Sie die Energiereserve mit den geplanten Ladevorgänge und dem verifizierten SOC-Verlauf." },
-          { title: "Visuelle Analyse und Energieeignung zusammen lesen", text: "Wählen Sie Mittelwert oder aggregiertes Q95 an der Batterie. Öffnen Sie ein kompatibles Ergebnis oder starten Sie explizit eine neue Optimierung. Beide Diagnoseprofile nutzen denselben Plan. Q95 des Gesamtverbrauchs garantiert keine 95% SOC-Machbarkeit; eine Abschlussquote wird separat aus unabhängigen Verläufen simuliert. Historische Fahrtquantile bleiben unverändert." },
+          { title: "Visuelle Analyse und Energieeignung zusammen lesen", text: "Neue Bewertungen berechnen Mittelwert und aggregiertes Q95 gemeinsam. Die Auswahl öffnet die vollständige Auslegung des Profils mit Batterie, Ladeinfrastruktur und Ladeplan ohne neue Berechnung. Niedrige SOC werden bevorzugt, sofern alle Dienste durchführbar bleiben. Ein verbundener Bus belegt den Pantografen für den gesamten Halt. Q95 des Gesamtverbrauchs garantiert keine 95% SOC-Machbarkeit. Historische Ergebnisse behalten ihre ursprüngliche Basis." },
           { title: "Ladeplan prüfen", text: "Prüfen Sie bei Laden und Gemeinsam Ort und Zeit jedes Ladevorgangs sowie Dauer, geladene Energie und mittlere Leistung. Bei Nur Batterie kann statt eines optimierten Plans ein fester oder kein Ladeplan erscheinen." },
           { title: "Bei Bedarf Weitere Informationen öffnen", text: "Dort finden Sie Prognosedetails, Betriebsannahmen und unterstützende Werte. Wenn ein Dienst nicht abgedeckt ist, ändern Sie Fahrzeug, Ladezustandsfenster, Szenario oder Ladeauslegung und führen Sie eine separat benannte Bewertung aus." },
         ],
@@ -656,7 +656,7 @@ export const guideContent = {
         items: [
           { title: "Commencer par Général", text: "Général résume tous les services analysés et la plus grande batterie choisie. Chaque service conserve sa propre batterie ; tous participent au dimensionnement et partagent l’infrastructure." },
           { title: "Vérifier chaque service", text: "Chaque service montre les capacités nominale et utilisable, les packs choisis, libres et diagnostiques en rouge. Lisez la marge avec les recharges planifiées et la trajectoire SOC vérifiée." },
-          { title: "Lire ensemble l’analyse visuelle et l’adéquation énergétique", text: "Choisissez Moyenne ou Q95 agrégé près de la batterie. Ouvrez un résultat compatible ou lancez explicitement une nouvelle optimisation. Les deux profils diagnostiques utilisent le même plan. Le Q95 du total ne garantit pas une faisabilité SOC de 95% ; le taux de réussite affiché est simulé sur des trajectoires indépendantes. Les quantiles historiques restent inchangés." },
+          { title: "Lire ensemble l’analyse visuelle et l’adéquation énergétique", text: "Les nouvelles évaluations calculent ensemble la moyenne et le Q95 agrégé. Le sélecteur ouvre le projet complet du profil : batterie, chargeurs et plan de recharge, sans nouveau calcul. Les SOC bas sont favorisés sous réserve de la faisabilité de tous les services. Le bus connecté occupe le pantographe pendant tout l’arrêt. Le Q95 du total ne garantit pas une faisabilité SOC de 95%. Les résultats historiques conservent leur base initiale." },
           { title: "Contrôler le plan de recharge", text: "Pour les modes Recharge et Conjoint, vérifiez le lieu et l’heure de chaque session, sa durée, l’énergie fournie et la puissance moyenne. Le mode Batterie uniquement peut présenter un plan fixe ou aucun plan au lieu d’un plan optimisé." },
           { title: "Ouvrir Plus d’informations si nécessaire", text: "Cette zone contient les détails des prédictions, les hypothèses d’exploitation et les valeurs justificatives. Si un service échoue, modifiez le véhicule, la fenêtre d’état de charge, le scénario ou la recharge et lancez une évaluation portant un autre nom." },
         ],
@@ -805,7 +805,7 @@ export const guideContent = {
         items: [
           { title: "Iniziare da Generale", text: "Generale riepiloga tutti i turni analizzati e la batteria scelta più grande. Ogni turno mantiene la propria batteria; tutti partecipano al dimensionamento e condividono l’infrastruttura." },
           { title: "Controllare ogni turno", text: "Ogni turno mostra capacità nominale e utilizzabile, pacchi scelti, ancora installabili ed eccessi diagnostici in rosso. Leggi il margine insieme alle ricariche pianificate e alla traiettoria SOC verificata." },
-          { title: "Leggere insieme analisi visiva e adeguatezza energetica", text: "Scegli Media o Q95 aggregato accanto alla batteria. Apri un risultato compatibile oppure avvia esplicitamente una nuova ottimizzazione. Le due righe diagnostiche usano lo stesso piano. Il Q95 del consumo totale non garantisce il 95% di fattibilità SOC; la percentuale di completamento è simulata separatamente su traiettorie indipendenti. I quantili storici mantengono il loro significato." },
+          { title: "Leggere insieme analisi visiva e adeguatezza energetica", text: "Le nuove valutazioni calcolano insieme Media e Q95 aggregato. Il selettore apre il progetto completo del profilo, con batteria, caricatori e piano di ricarica ottimizzati, senza avviare altri calcoli. La ricarica favorisce i SOC più bassi rispettando la fattibilità di tutti i turni; il bus connesso occupa il pantografo per tutta la sosta. Il Q95 del consumo totale non garantisce il 95% di fattibilità SOC. I risultati storici mantengono la loro base originale." },
           { title: "Verificare il piano di ricarica", text: "Per le modalità Ricarica e Congiunta, controllare dove e quando avviene ogni sessione, la durata, l’energia fornita e la potenza media. In Solo batteria può comparire un piano fisso o assente invece di uno ottimizzato." },
           { title: "Aprire Maggiori informazioni quando serve", text: "La sezione raccoglie dettagli delle previsioni, ipotesi operative e valori di supporto. Se un turno non è coperto, modificare veicolo, intervallo SOC, scenario o progetto di ricarica ed eseguire una valutazione con un nome distinto." },
         ],

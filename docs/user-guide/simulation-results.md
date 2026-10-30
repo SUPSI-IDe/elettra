@@ -69,22 +69,24 @@ SOC limits (including SOH), selected packs and unused installable packs.
 Diagnostic excess packs are separated in red and never counted as installed
 capacity. Charging-only uses a fixed battery.
 
-Two bars compare the usable capacity required by the mean and representative
-Q95 profiles on the **same mass and charging plan**. These requirements come
-from maximum temporal energy drawdown, not total consumption minus charging.
-They are not independently optimized battery sizes. A red deficit for the
-alternative profile does not invalidate the verified basis of the displayed
-result. The SOC chart includes the persisted verified trajectory and the two
-fixed-plan diagnostic profiles; the charging plan gives actual session timing.
+For new paired evaluations, the card shows the capacity requirement and SOC
+for the selected optimized design. Switching Mean/Q95 changes the complete
+battery, infrastructure and charging plan. Required usable energy comes from
+maximum temporal energy drawdown at that mass and schedule; it is not total
+consumption minus charging or another independently optimized battery size.
+Historical single-basis evaluations keep both diagnostic bars on their original
+fixed plan. Those alternative-profile diagnostics are not independent designs.
 
 The sampling details show sample count, seed and Monte Carlo uncertainty.
 When available, completion percentage is measured over independently sampled
 whole trajectories, with charging curtailed at maximum SOC. This conditional
 per-shift simulation does not guarantee fleet reliability.
 
-Choose **Mean / Aggregate Q95** beside the battery to check for a compatible
-result. Open it to switch the whole design, or explicitly start one new
-optimization. Until then the displayed values keep their original basis.
+Choose **Mean / Aggregate Q95** at the page header or beside the battery to open
+the corresponding complete design without starting another calculation.
+Pending or failed alternatives leave the displayed result unchanged. Historical
+single-basis evaluations still offer an explicit compatibility lookup and
+calculation when the alternative was never computed.
 Historical evaluations retain their original semantics; missing aggregate
 analysis requires a new evaluation. Historical per-trip quantiles are not
 relabelled as aggregate Q95.

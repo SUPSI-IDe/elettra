@@ -67,6 +67,7 @@ const mountResults = async (page, {
   consumptionAnalysis,
   consumptionBasis,
   forecastVerification,
+  basisRunIds,
 } = {}) => {
   const shiftNames = {
     morning: "Morning service",
@@ -149,6 +150,7 @@ const mountResults = async (page, {
             shift_ids: shiftIds,
             mode,
             consumption_basis: consumptionBasis,
+            basis_run_ids: basisRunIds,
             min_soc: 0.2,
             max_soc: 0.9,
             ...(includeInfrastructureInput ? { charging_stations: chargingStations } : {}),
@@ -1263,5 +1265,73 @@ for (const [required, excess, unavailable] of [[18,8,2],[13,3,0]]) {
       unavailable ? 'Exceeds physical pack limit' : 'Within physical pack limit');
     if(unavailable) await expect(card).toContainText(`+${unavailable} beyond the installable maximum`);
     else await expect(card).not.toContainText('Physical limit exceeded');
+  });
+}
+
+for (const mode of ['battery_only','charging_only','joint']) {
+  test(`paired ${mode} changes the full design without starting another calculation`, async ({page}) => {
+    let writes=0;
+    const ids={mean:'level-test',aggregate_q95:'paired-q95'};
+    await mountResults(page,{mode,shiftIds:['morning'],consumptionBasis:'mean',
+      consumptionAnalysis:aggregateAnalysis(),forecastVerification:{status:'verified'},basisRunIds:ids});
+    const original=await page.evaluate(async()=> (await fetch('/api/v1/simulation/optimization-runs/level-test')).json());
+    const other=structuredClone(original);
+    other.id=ids.aggregate_q95; other.name='Q95 design';other.input_params.consumption_basis='aggregate_q95';
+    other.results.battery_results.morning={...battery('Morning service',9),reference_packs:9};
+    other.results.installed_chargers={depot:{stop_name:'Depot',num_slots:3,cost_chf:9000}};
+    other.results.total_installation_cost_chf=9000;
+    other.results.consumption_analysis.optimization_basis='aggregate_q95';
+    Object.assign(other.results.consumption_analysis.per_shift.morning,{selected_packs:9,nominal_kwh:450,usable_kwh:315});
+    await page.route('**/optimization-runs/paired-q95',route=>route.fulfill({json:other}));
+    await page.route('**/optimization-runs/level-test/basis/aggregate_q95',route=>{
+      if(route.request().method()==='POST')writes++;
+      return route.fulfill({json:{optimization_run_id:ids.aggregate_q95,status:'completed'}});
+    });
+    const header=page.locator('[data-role="paired-basis-switch"]');
+    await expect(header).toBeVisible();
+    await expect(header).toContainText('entire displayed design');
+    await selectShiftScope(page,'morning');
+    const card=page.locator('[data-role="aggregate-energy"]');
+    await expect(card.locator('[data-basis="mean"]')).toHaveCount(1);
+    await expect(card.locator('[data-basis="aggregate_q95"]')).toHaveCount(0);
+    await expect(card.locator('[data-role="aggregate-basis-action"]')).toBeHidden();
+    await page.evaluate(()=>document.addEventListener('partial:request',event=>{
+      window.__basisNavigation=event.detail;event.stopImmediatePropagation();
+    },{capture:true,once:true}));
+    await header.locator('select').selectOption('aggregate_q95');
+    await expect.poll(()=>page.evaluate(()=>window.__basisNavigation?.runId)).toBe(ids.aggregate_q95);
+    await page.evaluate(async()=>{
+      window.__cleanupSimulationResults?.();
+      const {initializeSimulationResults}=await import('/elettra/src/pages/Simulation/Runs/simulation-results.js');
+      window.__cleanupSimulationResults=initializeSimulationResults(document,{runId:'paired-q95'});
+    });
+    await expect(header.locator('select')).toHaveValue('aggregate_q95');
+    await selectShiftScope(page,'morning');
+    await expect(card.locator('.aggregate-pack--chosen')).toHaveCount(9);
+    await expect(card.locator('[data-role="aggregate-current-basis"]')).toHaveText('Aggregate Q95');
+    await expect(card.locator('[data-basis="aggregate_q95"]')).toHaveCount(1);
+    await expect(card.locator('[data-basis="mean"]')).toHaveCount(0);
+    await expect(page.locator('[data-role="charging-info"]')).toContainText('3');
+    expect(writes).toBe(0);
+  });
+}
+
+for (const status of ['pending','failed']) {
+  test(`paired ${status} result never relabels the current design or offers a duplicate calculation`,async({page})=>{
+    await mountResults(page,{shiftIds:['morning'],consumptionBasis:'mean',
+      consumptionAnalysis:aggregateAnalysis(),forecastVerification:{status:'verified'},
+      basisRunIds:{mean:'level-test',aggregate_q95:'paired-q95'}});
+    await page.route('**/optimization-runs/level-test/basis/aggregate_q95',route=>{
+      expect(route.request().method()).toBe('GET');
+      return route.fulfill({json:{optimization_run_id:'paired-q95',status}});
+    });
+    await selectShiftScope(page,'morning');
+    const card=page.locator('[data-role="aggregate-energy"]');
+    await card.locator('select').selectOption('aggregate_q95');
+    await expect(card.locator('select')).toHaveValue('mean');
+    await expect(card.locator('[data-role="aggregate-current-basis"]')).toHaveText('Mean');
+    await expect(card.locator('[data-role="aggregate-basis-action"]')).toBeHidden();
+    await expect(card.locator('[data-role="aggregate-basis-message"]')).toContainText(
+      status==='pending'?'already running':'unavailable or failed');
   });
 }

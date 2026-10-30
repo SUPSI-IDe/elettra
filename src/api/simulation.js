@@ -576,6 +576,8 @@ export const createOptimizationRun = async (params = {}) => {
 
   const { prediction_params: _discarded, ...restWithoutPrediction } = normalizedRest;
   const body = applyMeanFeasibilityBasis({
+    evaluate_both_bases: true,
+    lock_entire_dwell: true,
     shift_ids,
     prediction_run_ids: predictionRunIds,
     ...restWithoutPrediction,
@@ -642,7 +644,7 @@ export const createOptimizationRun = async (params = {}) => {
  *
  * @param {{ skip?: number, limit?: 20 | 50 | 100 }} [params]
  */
-export const fetchOptimizationRuns = async ({ skip = 0, limit = 20 } = {}) => {
+export const fetchOptimizationRuns = async ({ skip = 0, limit = 20, includeBasisVariants = false } = {}) => {
   const headers = authHeaders();
   const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
     skip,
@@ -651,6 +653,7 @@ export const fetchOptimizationRuns = async ({ skip = 0, limit = 20 } = {}) => {
   const query = new URLSearchParams();
   query.set("skip", String(normalizedSkip));
   query.set("limit", String(normalizedLimit));
+  if (includeBasisVariants) query.set("include_basis_variants", "true");
   const response = await fetch(
     `${SIMULATION_PATH}/optimization-runs/?${query.toString()}`,
     {
@@ -674,8 +677,8 @@ export const fetchOptimizationRuns = async ({ skip = 0, limit = 20 } = {}) => {
  * through `fetchOptimizationRuns`.  Use only when the entire list is
  * actually needed (e.g. selectors building lookup maps).
  */
-export const fetchAllOptimizationRuns = () =>
-  fetchAllPages((params) => fetchOptimizationRuns(params));
+export const fetchAllOptimizationRuns = ({ includeBasisVariants = false } = {}) =>
+  fetchAllPages((params) => fetchOptimizationRuns({...params, includeBasisVariants}));
 
 export const deleteOptimizationRun = async (runId) => {
   if (!runId) throw new Error("Missing runId");

@@ -85,7 +85,7 @@ import {
   resolveFeasibilityScopeKeyboardTarget,
 } from "../../../utils/feasibility-result-navigation";
 import "./simulation-results.css";
-import { renderAggregateEnergy, bindAggregateEnergy } from "./aggregate-energy";
+import { renderAggregateEnergy, bindAggregateEnergy, renderPairedBasisSwitch } from "./aggregate-energy";
 
 /* ── Fake simulation-data fields ──────────────────────────────── */
 
@@ -9768,6 +9768,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       economicDefaults.fuelCostPerL = normalizeFuelCostPerL(
         economicDefaultsPayload?.fuel_cost_per_l
       );
+      renderPairedBasisSwitch(section.querySelector('[data-role="paired-basis-switch"]'), optimizationRun);
       economicDefaults.energyPricePerKwh = normalizeEnergyPricePerKwh(
         economicDefaultsPayload?.energy_price_per_kwh
       );
