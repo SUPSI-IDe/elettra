@@ -881,7 +881,15 @@ export const computeTripStatistics = async (tripIds = []) => {
 
 // ── Yearly Analysis ──────────────────────────────────────────────────
 
-export const createYearlyAnalysis = async ({ name, optimization_run_id = null, features = {} } = {}) => {
+export const fetchYearlyWeatherReference = async (optimizationRunId) => {
+  const params = new URLSearchParams({ optimization_run_id: optimizationRunId });
+  const response = await fetch(`${YEARLY_ANALYSIS_PATH}/weather-reference?${params}`, { headers: authHeaders() });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.detail ?? 'Unable to resolve yearly weather reference.');
+  return payload;
+};
+
+export const createYearlyAnalysis = async ({ name, optimization_run_id = null, features = {}, weather_temperature_series_id = null } = {}) => {
   if (!name) throw new Error("Yearly analysis name is required.");
 
   const headers = {
@@ -890,6 +898,7 @@ export const createYearlyAnalysis = async ({ name, optimization_run_id = null, f
   };
 
   const body = { name, features };
+  if (weather_temperature_series_id) body.weather_temperature_series_id = weather_temperature_series_id;
   if (optimization_run_id) body.optimization_run_id = optimization_run_id;
 
   const response = await fetch(`${YEARLY_ANALYSIS_PATH}/`, {

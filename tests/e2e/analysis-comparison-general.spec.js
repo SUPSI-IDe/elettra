@@ -345,7 +345,7 @@ test("the annual comparison UI stays on General and exports that scope", async (
   const scope = page.locator('[data-role="comparison-scope"]');
   await expect(scope).toHaveAttribute("data-scope", "general");
   await expect(scope).toContainText("General");
-  await expect(scope).toContainText("Per-shift results are not compared");
+  await expect(scope).toContainText("Per-vehicle block results are not compared");
   await expect(page.getByRole("tab")).toHaveText([
     "Overview",
     "Efficiency",

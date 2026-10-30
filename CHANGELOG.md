@@ -2,6 +2,15 @@
 
 ## [0.8.0-rc.1] - 2026-10-30
 
+### Staging candidate
+
+- Add fleet and representative-bus annual analyses with assigned-duty consumption, editable mileage by bus/battery group, electric/diesel TCO, restored emissions comparisons and exports.
+- Save annual assumptions automatically with a compact explanatory tooltip, serialized writes and retry on failure; share physical assumptions between Costs and Emissions.
+- Default charging-infrastructure maintenance to 2% of initial investment per year and diesel service life to 12 years; keep both editable.
+- Show bus, battery and infrastructure investment consistently in CHF, including fixed-site and power-dependent costs.
+- Support multiple arrival depots using the weather of the depot receiving most buses. Improve annual confirmation/progress dialogs and evaluation layouts.
+- Publish this RC as a GitHub Pre-release with version-specific images; stable Docker aliases, including `latest`, are unchanged. Deployment targets staging only.
+
 ### Added
 
 - Calculate complete Mean and aggregate-Q95 designs in one feasibility evaluation. The result selector switches the entire design without starting another optimization; paired outcomes appear together in the list.

@@ -21,7 +21,9 @@ release, or deployment requested by the user:
    build. Results obtained before synchronization are not a release gate.
 5. Immediately before pushing a release tag, confirm that the tag does not
    already exist remotely and that the exact tagged commit is present on
-   `origin/main`.
+   `origin/main` for a stable release. Explicitly requested `-rc.N` prereleases
+   may be tagged from the separate integration branch; publish them as GitHub
+   Pre-releases and never move Docker `latest` or stable version aliases.
 6. A semantic-version tag triggers `.github/workflows/container-release.yml`,
    which builds the container and creates the GitHub release. Do not create a
    duplicate release manually. Wait for the workflow to succeed and obtain its

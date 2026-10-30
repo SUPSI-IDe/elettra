@@ -634,7 +634,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   await expect(page.locator('[data-role="ya-cost-scope-note"]')).toBeVisible();
   await expect(page.locator('[data-role="ya-cost-scope-note"]')).toContainText(
-    "Operating costs use this shift's energy and distance",
+    "Operating costs use this vehicle block's energy and distance",
   );
   await expect(page.locator('[data-panel="costs"]')).toContainText("Vehicle block costs");
   await expect(page.locator('[data-panel="costs"]')).toContainText("Annual vehicle block OPEX comparison");
@@ -651,7 +651,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(capexAllocation).toContainText(/CHF 686['’,]667/);
   await expect(capexAllocation).toContainText("Diesel comparator CAPEX");
   await expect(capexAllocation).toContainText(/CHF 350['’,]000/);
-  await expect(capexAllocation).toContainText("66.7% to this shift");
+  await expect(capexAllocation).toContainText("66.7% to this vehicle block");
   await expect(capexAllocation).toContainText("shown in Emissions");
   await expect(capexAllocation).toContainText("Bus and battery CAPEX belongs in full");
   await expect(capexAllocation.locator(".ya-costs-kpi-card")).toHaveCount(0);
@@ -670,7 +670,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(page.locator('[data-panel="costs"]')).toContainText("Annual operating saving");
   const shiftCostTooltip = page.locator('[data-panel="costs"] .ya-scope-section-title').getByRole("button");
   await expect(shiftCostTooltip).toHaveAccessibleName(
-    /operating costs use this shift's energy and distance/i,
+    /operating costs use this vehicle block's energy and distance/i,
   );
   await shiftCostTooltip.hover();
   await expect(shiftCostTooltip.locator(".ya-info-tooltip")).toBeVisible();
@@ -924,14 +924,14 @@ test("General, shifts, controls and export share one set of yearly economic assu
     electricBus: { lifetime_years: 12 },
     battery: { lifetime_years: 8, replacementYears: [8] },
     chargingInfrastructure: { lifetime_years: 15 },
-    dieselBus: { lifetime_years: 10, replacementYears: [10] },
+    dieselBus: { lifetime_years: 12, replacementYears: [] },
   });
   for (const shift of initial.shifts) {
     expect(shift.costs.capitalAnnualization).toMatchObject({
       electricBus: { lifetime_years: 12 },
       battery: { lifetime_years: 8, replacementYears: [8] },
       chargingInfrastructure: { lifetime_years: 15 },
-      dieselBus: { lifetime_years: 10, replacementYears: [10] },
+      dieselBus: { lifetime_years: 12, replacementYears: [] },
     });
   }
   expect(
@@ -1124,18 +1124,18 @@ test("the two-shift TPL JOINT case reconciles OPEX and component CAPEX", async (
   expect(Math.round(values.electricOpex)).toBe(128734);
   expect(Math.round(values.dieselOpex)).toBe(248371);
   expect(Math.round(values.operatingSaving)).toBe(119637);
-  expect(Math.round(values.totalAnnualSaving)).toBe(33904);
+  expect(Math.round(values.totalAnnualSaving)).toBe(17135);
   expect(values.capitalComponents.electricBus.lifetimeYears).toBe(12);
   expect(values.capitalComponents.battery.lifetimeYears).toBe(8);
   expect(values.capitalComponents.chargingInfrastructure.lifetimeYears).toBe(15);
-  expect(values.capitalComponents.dieselBus.lifetimeYears).toBe(10);
+  expect(values.capitalComponents.dieselBus.lifetimeYears).toBe(12);
   expect(Math.round(
     values.capitalComponents.electricBus.annualizedCostChfPerYear +
       values.capitalComponents.battery.annualizedCostChfPerYear +
       values.capitalComponents.chargingInfrastructure.annualizedCostChfPerYear,
   )).toBe(202964);
-  expect(values.breakEvenYear).toBeGreaterThanOrEqual(9.9);
-  expect(values.breakEvenYear).toBeLessThanOrEqual(10.2);
+  expect(values.breakEvenYear).toBeGreaterThanOrEqual(11);
+  expect(values.breakEvenYear).toBeLessThanOrEqual(11.2);
   expect(values.reconciliation.status).toBe("consistent");
 });
 

@@ -13,7 +13,7 @@ for (const { mode, entry, outcome } of scenarios) {
       const ids = { mean: "paired-mean", aggregate_q95: "paired-q95" };
       const model = { id: "model", user_id: "user", name: "Local test bus", specs: {
         min_battery_packs: 10, max_battery_packs: 16, battery_pack_size_kwh: 50,
-        battery_pack_weight_kg: 300, bus_length_m: 18, empty_weight_kg: 18000, max_passengers: 100,
+        battery_pack_weight_kg: 300, battery_pack_cost_chf: 6000, bus_length_m: 18, empty_weight_kg: 18000, max_passengers: 100,
       }};
       const shift = { id: "shift", name: "Test duty", bus_id: "bus", trip_count: 1, structure: [] };
       const runs = [];
@@ -116,7 +116,6 @@ for (const { mode, entry, outcome } of scenarios) {
       await page.locator("#var-optimization-mode").selectOption(mode);
       await page.locator("#var-bus-model-override").selectOption("model");
       if (mode === "charging_only") await page.locator('[name="fixed_battery_packs"]').fill("14");
-      if (mode === "joint") await page.locator('[name="battery_cost_per_kwh"]').fill("300");
       const start = page.getByRole("button", {name: "Start evaluation", exact: true});
       await start.click();
       const confirmation = page.getByRole("dialog", {name: "Start this evaluation?"});
@@ -210,7 +209,9 @@ for (const { mode, entry, outcome } of scenarios) {
       }
       await switcher.selectOption("aggregate_q95");
       await expect(page.getByRole("heading", {level: 1})).toContainText("Paired aggregate_q95");
-      await expect(page.getByText("14 packs · 700 kWh", {exact: true})).toBeVisible();
+      const batteryRow = page.locator('[data-role="feasibility-fleet-battery"] tbody tr[data-shift-id="shift"]');
+      await expect(batteryRow.locator('td').nth(0)).toHaveText('14');
+      await expect(batteryRow.locator('td').nth(1)).toHaveText('700');
       await expect(page.getByRole("button", {name: "Run new optimization", exact: true})).toHaveCount(0);
       await switcher.selectOption("mean");
       await expect(page.getByRole("heading", {level: 1})).toContainText("Paired mean");

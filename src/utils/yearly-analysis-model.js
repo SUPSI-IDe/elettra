@@ -1,4 +1,5 @@
 import { buildFeasibilityResultModel } from "./feasibility-result-model.js";
+import { buildFleetInvestment } from "./fleet-investment.js";
 import { resolvePredictionRunShiftIds } from "./feasibility-shift-scope.js";
 
 export const YEARLY_ANALYSIS_SCHEMA_VERSION = 2;
@@ -278,7 +279,8 @@ export const buildFixedYearlyConfiguration = (
     const battery = source?.battery
       ? {
           ...source.battery,
-          commonPacks,
+          selectedPacks: feasibility.fleet.battery.decision === 'fixed' ? fixedPacks ?? source.battery.optimizedPacks : source.battery.optimizedPacks,
+          commonPacks: feasibility.fleet.battery.decision === 'fixed' ? fixedPacks ?? source.battery.optimizedPacks : source.battery.optimizedPacks,
           commonPackMargin:
             commonPacks !== null && source.battery.requiredPacks !== null
               ? commonPacks - source.battery.requiredPacks
@@ -305,6 +307,7 @@ export const buildFixedYearlyConfiguration = (
   const battery = {
     ...feasibility.fleet.battery,
     packs: commonPacks,
+    uniform: new Set(shifts.map(shift => shift.battery?.selectedPacks)).size === 1,
     packSizeKwh,
     nominalKwh:
       commonPacks !== null && packSizeKwh !== null
@@ -323,6 +326,7 @@ export const buildFixedYearlyConfiguration = (
     busModelId: feasibility.fleet.busModelId,
     shiftIds,
     fleet: buildYearlyFleetSnapshot(optimizationRun, shiftIds),
+    investment: buildFleetInvestment(optimizationRun),
     soc: {
       minFraction: toFiniteNumber(inputParams.min_soc) ?? 0,
       maxFraction: toFiniteNumber(inputParams.max_soc) ?? 1,
@@ -331,6 +335,18 @@ export const buildFixedYearlyConfiguration = (
     infrastructure: feasibility.infrastructure,
     shifts,
   };
+};
+
+/** Batch predictions only for duties with the same selected physical battery. */
+export const buildYearlyPredictionGroups = (fixedConfiguration = {}) => {
+  const groups = new Map();
+  for (const shift of fixedConfiguration.shifts ?? []) {
+    const packs = shift.battery?.selectedPacks ?? shift.battery?.optimizedPacks;
+    if (!Number.isInteger(packs) || packs <= 0) throw new Error("Missing selected battery size");
+    if (!groups.has(packs)) groups.set(packs, { packs, shiftIds: [] });
+    groups.get(packs).shiftIds.push(shift.shiftId);
+  }
+  return [...groups.values()];
 };
 
 /** Add stable, unique identities without relying on a cluster label. */

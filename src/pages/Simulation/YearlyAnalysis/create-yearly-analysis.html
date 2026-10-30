@@ -116,6 +116,7 @@
             >
               Temperature scenarios are loaded from the location's weather clustering data.
             </p>
+            <p class="helper-text" data-role="weather-reference" hidden></p>
             <div class="ya-scenarios-table-wrapper">
               <table class="ya-scenarios-table">
                 <thead>
@@ -151,14 +152,32 @@
         <button type="submit" data-i18n="yearly_analysis.run">Run yearly analysis</button>
       </div>
 
-      <div class="simulation-progress" data-role="simulation-progress" hidden>
-        <div class="simulation-progress__overlay">
-          <div class="simulation-progress__content">
-            <div class="simulation-progress__spinner"></div>
-            <p class="simulation-progress__message" data-role="progress-message" data-i18n="yearly_analysis.running_predictions">Running predictions…</p>
-          </div>
+      <dialog class="evaluation-confirm" data-role="yearly-confirm" aria-labelledby="yearly-confirm-title" aria-describedby="yearly-confirm-description">
+        <h2 id="yearly-confirm-title" data-i18n="yearly_analysis.confirm_title">Start this yearly analysis?</h2>
+        <p class="evaluation-confirm__name" data-role="confirm-name"></p>
+        <dl class="evaluation-confirm__summary">
+          <div><dt data-i18n="simulation.field_shifts">Vehicle blocks</dt><dd data-role="confirm-shifts"></dd></div>
+          <div><dt data-i18n="yearly_analysis.temperature_scenarios">Temperature scenarios</dt><dd data-role="confirm-scenarios"></dd></div>
+          <div class="yearly-confirm__weather"><dt data-i18n="yearly_analysis.weather_depot">Weather reference depot</dt><dd data-role="confirm-weather"></dd></div>
+        </dl>
+        <p class="evaluation-confirm__description" id="yearly-confirm-description" data-i18n="yearly_analysis.confirm_description">Consumption is calculated for each weather scenario using the selected battery and charging infrastructure. Results will open automatically.</p>
+        <div class="evaluation-confirm__actions">
+          <button type="button" data-role="evaluation-confirm-cancel" data-i18n="common.cancel" autofocus>Cancel</button>
+          <button type="button" data-role="evaluation-confirm-start" data-i18n="yearly_analysis.start">Start analysis</button>
         </div>
-      </div>
+      </dialog>
+      <dialog class="simulation-progress" data-role="simulation-progress" aria-labelledby="yearly-progress-title" aria-describedby="yearly-progress-name">
+        <header class="simulation-progress__header">
+          <h2 id="yearly-progress-title" tabindex="-1" autofocus data-i18n="yearly_analysis.progress_title">Yearly analysis in progress</h2>
+          <div class="simulation-progress__time"><span data-i18n="simulation.progress_elapsed">Elapsed</span><span data-role="progress-elapsed" aria-live="off">0:00</span></div>
+        </header>
+        <p class="simulation-progress__name" id="yearly-progress-name" data-role="progress-name"></p>
+        <p class="simulation-progress__context" data-role="progress-context"></p>
+        <p class="simulation-progress__message" data-role="progress-message" role="status"></p>
+        <progress class="yearly-progress__bar" data-role="progress-bar" value="0" max="1" aria-labelledby="yearly-progress-count"></progress>
+        <p class="simulation-progress__context" id="yearly-progress-count" data-role="progress-count" aria-live="polite"></p>
+        <p class="simulation-progress__note" data-i18n="yearly_analysis.progress_note">Each weather scenario is applied to all selected vehicle blocks. Results will open automatically when the analysis finishes.</p>
+      </dialog>
     </form>
   </main>
 </section>

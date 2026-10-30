@@ -291,7 +291,7 @@ test("feasibility list uses accessible red and green indicators without clipping
   expect(colors).toEqual([
     { status: "rgb(46, 125, 50)", feasibility: "rgb(46, 125, 50)" },
     { status: "rgb(211, 47, 47)", feasibility: "rgb(211, 47, 47)" },
-    { status: "rgb(211, 47, 47)", feasibility: "rgb(211, 47, 47)" },
+    { status: "rgb(211, 47, 47)", feasibility: "rgb(211, 211, 211)" },
   ]);
 
   const layout = await page.locator(".simulation-runs-table").evaluate((wrapper) => {

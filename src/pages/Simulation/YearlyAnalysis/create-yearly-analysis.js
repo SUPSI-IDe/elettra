@@ -1,4 +1,6 @@
+import "../evaluation-dialogs.css";
 import "./create-yearly-analysis.css";
+import { createYearlyDialogs } from "./yearly-dialogs";
 import { t } from "../../../i18n";
 import { fetchAllBusModels } from "../../../api";
 import {
@@ -8,12 +10,12 @@ import {
   fetchPredictionRun,
   fetchPvgisTmy,
   fetchWeatherTemperatureClusters,
+  fetchYearlyWeatherReference,
   createWeatherTemperatureClusters,
   createYearlyAnalysis,
   updateYearlyAnalysis,
 } from "../../../api/simulation";
 import { fetchShiftById } from "../../../api/shifts";
-import { fetchStopsByTripId } from "../../../api/gtfs";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, resolveBusModelDisplayName } from "../../../ui-helpers";
@@ -28,6 +30,7 @@ import { extractShiftDistanceKm } from "../../../utils/shift-distance";
 import { getOptimizationRunDisplayName } from "../../../utils/optimization-run";
 import {
   buildFixedYearlyConfiguration,
+  buildYearlyPredictionGroups,
   buildYearlyAnalysisResults,
   buildYearlyScenarioOutcome,
   normalizeYearlyScenarios,
@@ -120,21 +123,24 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
   const occupancySelect = section.querySelector('[data-role="occupancy-select"]');
   const occupancyNote = section.querySelector('[data-role="occupancy-note"]');
   const feedbackEl = section.querySelector('[data-role="feedback"]');
-  const progressOverlay = section.querySelector('[data-role="simulation-progress"]');
-  const progressMsg = section.querySelector('[data-role="progress-message"]');
+  const dialogs = createYearlyDialogs(section);
+  cleanups.push(() => dialogs.dispose());
 
   let feasibleRuns = [];
   let resolvedNames = {};
   const shiftMap = new Map();
   let scenarioRows = [];
+  let weatherReference = null;
+  let weatherRequestVersion = 0;
+  const weatherReferenceNote = section.querySelector('[data-role="weather-reference"]');
 
   const setFeedback = (msg, tone = "error") => {
     if (!feedbackEl) return;
     if (msg) { feedbackEl.textContent = msg; feedbackEl.dataset.tone = tone; feedbackEl.hidden = false; }
     else { feedbackEl.textContent = ""; feedbackEl.hidden = true; }
   };
-  const showProgress = (msg) => { if (progressMsg) progressMsg.textContent = msg; if (progressOverlay) progressOverlay.hidden = false; };
-  const hideProgress = () => { if (progressOverlay) progressOverlay.hidden = true; };
+  const showProgress = dialogs.showProgress;
+  const hideProgress = dialogs.closeProgress;
 
   // ── Scenarios tracking ──────────────────────────────────────────
 
@@ -212,34 +218,10 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     });
   };
 
-  const getShiftTripIds = (shift) => {
-    const direct = shift?.trip_ids ?? shift?.tripIds ?? [];
-    if (Array.isArray(direct) && direct.length) return direct.filter(Boolean);
-    const structure = Array.isArray(shift?.structure) ? shift.structure : [];
-    return structure.map((item) => item?.trip_id).filter(Boolean);
-  };
-
-  const resolveShiftLocation = async (shiftIds, shiftMapLocal) => {
-    for (const sid of shiftIds) {
-      const shift = shiftMapLocal.get(sid);
-      if (!shift) continue;
-      const tripIds = getShiftTripIds(shift);
-      if (!tripIds.length) continue;
-      try {
-        const stops = await fetchStopsByTripId(tripIds[0]);
-        const first = Array.isArray(stops) && stops.length ? stops[0] : null;
-        if (first?.stop_lat != null && first?.stop_lon != null) {
-          return {
-            lat: Math.round(first.stop_lat * 100) / 100,
-            lon: Math.round(first.stop_lon * 100) / 100,
-          };
-        }
-      } catch { /* skip */ }
-    }
-    return null;
-  };
-
   const loadClustersForRun = async (run) => {
+    const version = ++weatherRequestVersion;
+    weatherReference = null;
+    if (weatherReferenceNote) weatherReferenceNote.hidden = true;
     const sids = resolveShiftIds(run);
     if (!sids.length) {
       renderScenariosPlaceholder(t("yearly_analysis.no_shifts_for_clusters"));
@@ -247,12 +229,11 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     }
     renderScenariosPlaceholder(t("yearly_analysis.loading_temperature_clusters"));
     try {
-      const loc = await resolveShiftLocation(sids, shiftMap);
-      if (!loc) {
-        renderScenariosPlaceholder(t("yearly_analysis.no_shift_location"));
-        return;
-      }
+      const reference = await fetchYearlyWeatherReference(run.id);
+      if (version !== weatherRequestVersion) return;
+      const loc = {lat: reference.latitude, lon: reference.longitude};
       let payload = await fetchWeatherTemperatureClusters({ latitude: loc.lat, longitude: loc.lon });
+      if (version !== weatherRequestVersion) return;
 
       if (!payload) {
         renderScenariosPlaceholder(t("yearly_analysis.creating_temperature_clusters"));
@@ -265,13 +246,20 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         renderScenariosPlaceholder(t("yearly_analysis.no_weather_cluster_data"));
         return;
       }
+      if (version !== weatherRequestVersion) return;
       const clusters = parseClusters(payload);
       if (!clusters.length) {
         renderScenariosPlaceholder(t("yearly_analysis.no_clusters_returned"));
         return;
       }
+      weatherReference = {...reference, runId: text(run.id)};
+      if (weatherReferenceNote) {
+        weatherReferenceNote.textContent = t('yearly_analysis.weather_reference', {depot: reference.depot_name});
+        weatherReferenceNote.hidden = false;
+      }
       renderClusterScenarios(clusters);
     } catch (err) {
+      if (version !== weatherRequestVersion) return;
       renderScenariosPlaceholder(t("yearly_analysis.failed_load_clusters", { message: err?.message ?? t("buses.unknown") }));
     }
   };
@@ -312,8 +300,9 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       shiftNamesById: meta.shiftNamesById ?? {},
       packSizeKwh: meta.packSizeKwh,
     });
-    const packs = fixedConfiguration.battery.packs;
-    const kwh = fixedConfiguration.battery.nominalKwh;
+    const selectedSizes = [...new Set(fixedConfiguration.shifts.map(s => s.battery?.selectedPacks).filter(v => v != null))];
+    const packs = selectedSizes.join(" / ");
+    const kwh = fixedConfiguration.battery.uniform ? fixedConfiguration.battery.nominalKwh : null;
     const mode = ip.mode ?? "—";
     const shiftLabel = meta.shiftLabel ?? "—";
     const sizingTemp = meta.sizingTemp;
@@ -379,7 +368,12 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     });
     const commonPacks = fixedConfiguration.battery.packs;
     if (commonPacks == null) { alert(t("yearly_analysis.no_optimized_pack_count")); return; }
+    const predictionGroups = buildYearlyPredictionGroups(fixedConfiguration);
 
+    if (weatherReference?.runId !== text(baseRun.id)) {
+      setFeedback(t('yearly_analysis.loading_temperature_clusters'));
+      return;
+    }
     const scenarios = normalizeYearlyScenarios(readScenarios());
     for (let i = 0; i < scenarios.length; i++) {
       const sc = scenarios[i];
@@ -390,8 +384,10 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     const totalOcc = scenarios.reduce((s, sc) => s + sc.occurrences, 0);
     if (totalOcc === 0) { alert(t("yearly_analysis.total_occurrences_zero")); return; }
 
-    const confirmMessage = t("yearly_analysis.run_confirm");
-    if (!confirm(confirmMessage)) return;
+    if (!await dialogs.confirm({
+      name: analysisName, shiftCount: shiftIds.length,
+      scenarioCount: scenarios.length, depot: weatherReference.depot_name,
+    })) return;
 
     const chosenOccupancy = toFiniteNumber(occupancySelect?.value) ?? 50;
 
@@ -411,12 +407,14 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         config: {
           shift_ids: shiftIds,
           bus_model_id: busModelId,
+          bus_model_snapshot: saveMeta.busModelSnapshot ?? null,
           mode: ip.mode ?? "battery_only",
           min_soc: ip.min_soc ?? 0,
           max_soc: ip.max_soc ?? 1,
           occupancy_percent: basePredParams.occupancy_percent,
           auxiliary_heating_type: basePredParams.auxiliary_heating_type,
           fixedConfiguration,
+          weather_reference: weatherReference,
         },
         scenarios,
         meta: {
@@ -432,10 +430,11 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       };
 
       // 2) Create the yearly analysis record on the backend FIRST
-      showProgress(t("yearly_analysis.creating_analysis"));
+      showProgress(t("yearly_analysis.creating_analysis"), 0, scenarios.length);
       const analysis = await createYearlyAnalysis({
         name: analysisName,
         optimization_run_id: text(baseRun.id) || null,
+        weather_temperature_series_id: weatherReference.weather_temperature_series_id,
         features,
       });
 
@@ -451,17 +450,20 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
           total: scenarios.length,
           label: sc.label,
           temperature: sc.temperature,
-          packs: commonPacks,
-        }));
+          packs: predictionGroups.map(group => group.packs).join(" / "),
+        }), i, scenarios.length);
 
         try {
-          const predRuns = await createSinglePredictionRun({
-            shift_ids: shiftIds,
-            bus_model_id: busModelId,
-            prediction_params: { ...basePredParams, external_temp_celsius: sc.temperature },
-            num_battery_packs: commonPacks,
-            yearly_analysis_id: analysisId,
-          });
+          const predRuns = [];
+          for (const group of predictionGroups) {
+            predRuns.push(...await createSinglePredictionRun({
+              shift_ids: group.shiftIds,
+              bus_model_id: busModelId,
+              prediction_params: { ...basePredParams, external_temp_celsius: sc.temperature },
+              num_battery_packs: group.packs,
+              yearly_analysis_id: analysisId,
+            }));
+          }
           outcomes.push(buildYearlyScenarioOutcome({
             scenario: sc,
             shiftIds,
@@ -476,7 +478,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         }
       }
 
-      hideProgress();
+      showProgress(t("yearly_analysis.saving_results"), scenarios.length, scenarios.length);
 
       // 4) Resolve nominal shift distance (reference/planned distance)
       const nominalDailyDistanceKmByShiftId = {};
@@ -514,6 +516,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
       hideProgress();
       setFeedback(err?.message ?? t("yearly_analysis.failed"));
     } finally {
+      hideProgress();
       if (submitBtn) submitBtn.disabled = false;
     }
   };
@@ -616,7 +619,7 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
           : bmId.slice(0, 8);
         const packSizeKwh = toFiniteNumber(bm?.specs?.battery_pack_size_kwh ?? (typeof bm?.specs === "string" ? JSON.parse(bm.specs)?.battery_pack_size_kwh : null));
         const predParams = predParamsMap.get(id) ?? {};
-        resolvedNames[id] = { shiftLabel, shiftNames, shiftNamesById, modelLabel, packSizeKwh, predParams, sizingTemp: predParams.external_temp_celsius ?? null };
+        resolvedNames[id] = { busModelSnapshot: bm?.specs ?? null, shiftLabel, shiftNames, shiftNamesById, modelLabel, packSizeKwh, predParams, sizingTemp: predParams.external_temp_celsius ?? null };
       }
 
       // Populate dropdown
@@ -640,8 +643,9 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
               shiftNamesById: meta.shiftNamesById ?? {},
               packSizeKwh: meta.packSizeKwh,
             });
-            const packs = fixedConfiguration.battery.packs;
-            const kwh = fixedConfiguration.battery.nominalKwh;
+            const selectedSizes = [...new Set(fixedConfiguration.shifts.map(s => s.battery?.selectedPacks).filter(v => v != null))];
+    const packs = selectedSizes.join(" / ");
+            const kwh = fixedConfiguration.battery.uniform ? fixedConfiguration.battery.nominalKwh : null;
             const date = run.created_at ? new Date(run.created_at).toLocaleDateString() : "";
 
             const evaluationName = getOptimizationRunDisplayName(run, meta.shiftLabel);

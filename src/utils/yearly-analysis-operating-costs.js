@@ -35,9 +35,9 @@ export const resolveYearlyOperatingActivity = (rawLca, shiftId = null) => {
   }
 
   const liters = selected.map((vehicle) =>
-    toFiniteNumber(vehicle?.diesel_heating_liters));
+    vehicle?.diesel_heating_liters == null ? null : toFiniteNumber(vehicle.diesel_heating_liters * (vehicle.vehicle_count ?? 1)));
   const distances = selected.map((vehicle) =>
-    toFiniteNumber(vehicle?.annual_km));
+    vehicle?.annual_km == null ? null : toFiniteNumber(vehicle.annual_km * (vehicle.vehicle_count ?? 1)));
   if (
     liters.some((value) => value === null || value < 0) ||
     distances.some((value) => value === null || value < 0)
@@ -56,7 +56,7 @@ export const resolveYearlyOperatingActivity = (rawLca, shiftId = null) => {
     dataAvailable: true,
     source: "lca_vehicles",
     shiftId: normalizedShiftId || null,
-    vehicleCount: selected.length,
+    vehicleCount: selected.reduce((sum, vehicle) => sum + (vehicle.vehicle_count ?? 1), 0),
     annualDistanceKm: distances.reduce((sum, value) => sum + value, 0),
     dieselHeatingLiters: liters.reduce((sum, value) => sum + value, 0),
     issue: null,

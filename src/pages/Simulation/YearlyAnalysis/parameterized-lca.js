@@ -262,7 +262,10 @@ export function validateParameterizedLca(raw) {
   if (!vehiclesValid) {
     issues.push("vehicles must be an array.");
   } else {
-    if (vehicleCountValid && raw.vehicles.length !== raw.vehicle_count) {
+    if (raw.vehicles.some(v => !Number.isInteger(v?.vehicle_count ?? 1) || (v?.vehicle_count ?? 1) < 1)) {
+      issues.push("Invalid representative vehicle multiplicity.");
+    }
+    if (vehicleCountValid && raw.vehicles.reduce((sum, v) => sum + (v?.vehicle_count ?? 1), 0) !== raw.vehicle_count) {
       issues.push("vehicles length does not match vehicle_count.");
     }
     raw.vehicles.forEach((vehicle, index) => validateVehicle(issues, vehicle, index));
@@ -289,7 +292,7 @@ export function validateParameterizedLca(raw) {
   }
 
   if (vehiclesValid && annualKmValid) {
-    const annualKmValues = raw.vehicles.map(vehicle => vehicle?.annual_km);
+    const annualKmValues = raw.vehicles.map(vehicle => vehicle?.annual_km * (vehicle?.vehicle_count ?? 1));
     if (
       annualKmValues.every(isFiniteNumber) &&
       !nearlyEqual(annualKmValues.reduce((total, value) => total + value, 0), raw.annual_km)
@@ -298,7 +301,7 @@ export function validateParameterizedLca(raw) {
     }
   }
   if (vehiclesValid && boundaryValid) {
-    const dcValues = raw.vehicles.map(vehicle => vehicle?.dc_kwh);
+    const dcValues = raw.vehicles.map(vehicle => vehicle?.dc_kwh * (vehicle?.vehicle_count ?? 1));
     if (
       dcValues.every(isFiniteNumber) &&
       !nearlyEqual(dcValues.reduce((total, value) => total + value, 0), raw.energy_boundary.dc_kwh)
@@ -361,7 +364,7 @@ export function getParameterizedLcaDisclosure(raw) {
   };
 }
 
-const fmt = value => Number(value).toLocaleString(undefined, {maximumFractionDigits: 2});
+const fmt = value => Number(value).toLocaleString('de-CH', {maximumFractionDigits: 2}).replaceAll('’', "'");
 const displayUnits = {gwp100a:[1e6,"t CO₂-eq/year","g CO₂-eq/km"],nox:[1e6,"kg NO₂-eq/year","mg NO₂-eq/km"],pm10:[1e6,"kg PM₁₀/year","mg PM₁₀/km"],primaryEnergy:[1000,"GJ/year","MJ/km"],primaryEnergyNonRenewable:[1000,"GJ/year","MJ/km"]};
 const indicatorLabels = {gwp100a:"CO₂-eq",nox:"NOx",pm10:"PM₁₀",primaryEnergy:"PE",primaryEnergyNonRenewable:"PE non-renewable"};
 const phases = [

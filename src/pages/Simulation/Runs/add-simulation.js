@@ -1,3 +1,4 @@
+import "../evaluation-dialogs.css";
 import { formatChf } from "../../../utils/number-format";
 import { defaultCostModel, renderCostCards, readCostModel, syncCostCards } from './infrastructure-costs';
 import { t } from "../../../i18n";

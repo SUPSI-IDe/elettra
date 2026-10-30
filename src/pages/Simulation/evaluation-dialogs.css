@@ -1,0 +1,211 @@
+/* Evaluation progress: actual API stages, with no estimated percentage. */
+.simulation-progress {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  box-sizing: border-box;
+  width: min(35rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  background: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: var(--shadow-modal);
+  font-size: var(--font-size-lg);
+  line-height: 1.5;
+}
+
+.simulation-progress::backdrop {
+  background: var(--color-overlay);
+  backdrop-filter: blur(3px);
+}
+
+.simulation-progress__header,
+.simulation-progress__step-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.simulation-progress h2 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: var(--font-size-xl);
+}
+
+.simulation-progress__time {
+  display: flex;
+  gap: var(--space-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+}
+
+.simulation-progress [data-role="progress-elapsed"] {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+}
+
+.simulation-progress__name {
+  margin: var(--space-md) 0 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.simulation-progress__context,
+.simulation-progress__steps p {
+  margin: var(--space-2xs) 0 0;
+  color: var(--text-secondary);
+}
+
+.simulation-progress__message {
+  margin: var(--space-md) 0;
+}
+
+.simulation-progress__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.simulation-progress__steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
+.simulation-progress__steps li + li {
+  border-top: 1px solid var(--border-light);
+}
+
+.simulation-progress__step-body { flex: 1; min-width: 0; }
+.simulation-progress__state { color: var(--text-secondary); font-size: var(--font-size-md); }
+.simulation-progress__steps [data-state="completed"] .simulation-progress__symbol { color: var(--success-color); border-color: currentColor; }
+.simulation-progress__steps [data-state="failed"] .simulation-progress__symbol { color: var(--error-color); border-color: currentColor; }
+
+.simulation-progress__symbol {
+  flex: 0 0 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.15rem;
+  border: 2px solid var(--border-medium);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.simulation-progress__steps [data-state="running"] .simulation-progress__symbol {
+  border-top-color: var(--color-primary);
+  animation: evaluation-spin 0.9s linear infinite;
+}
+
+.simulation-progress__note {
+  margin: var(--space-md) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+}
+
+@keyframes evaluation-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .simulation-progress__steps [data-state="running"] .simulation-progress__symbol { animation: none; }
+}
+
+.evaluation-confirm {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(30rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  box-sizing: border-box;
+  padding: var(--space-lg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  background: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: var(--shadow-modal);
+  font-size: var(--font-size-lg);
+  line-height: 1.5;
+}
+
+.evaluation-confirm::backdrop {
+  background: var(--color-overlay);
+  backdrop-filter: blur(3px);
+}
+
+.evaluation-confirm h2 {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-xl);
+  color: var(--text-main);
+}
+
+.evaluation-confirm__name {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.evaluation-confirm__summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin: var(--space-md) 0;
+  padding: var(--space-md) 0;
+  border-block: 1px solid var(--border-light);
+}
+
+.evaluation-confirm dt,
+.evaluation-confirm__description {
+  color: var(--text-secondary);
+}
+
+.evaluation-confirm dd {
+  margin: var(--space-2xs) 0 0;
+  font-weight: 600;
+}
+
+.evaluation-confirm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.evaluation-confirm__actions button {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.evaluation-confirm__actions button:hover {
+  background: var(--bg-hover);
+}
+
+.evaluation-confirm__actions [data-role="evaluation-confirm-start"] {
+  border-color: var(--color-action-positive);
+  background: var(--color-action-positive);
+  color: var(--color-action-positive-text);
+}
+
+.evaluation-confirm__actions [data-role="evaluation-confirm-start"]:hover {
+  border-color: var(--color-action-positive-hover);
+  background: var(--color-action-positive-hover);
+}
+
+.evaluation-confirm__actions button:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--shadow-focus-ring);
+}

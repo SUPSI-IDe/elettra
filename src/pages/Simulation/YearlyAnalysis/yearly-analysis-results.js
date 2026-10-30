@@ -3,11 +3,13 @@ import {
   buildChargingEnergyBoundary,
 } from "../../../utils/charging-energy";
 import { mapParameterizedLca, renderParameterizedLca } from "./parameterized-lca";
+import { createYearlyFleetDashboard } from './yearly-fleet-dashboard';
 import "./yearly-analysis-results.css";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, toText } from "../../../ui-helpers";
 import {
   fetchYearlyAnalysis,
+  updateYearlyAnalysis,
   fetchYearlyAnalysisCosts,
   fetchYearlyAnalysisLca,
   fetchOptimizationRun,
@@ -4794,6 +4796,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     emissionsMetadata: null, error: null,
   };
   let generalCostsData = null;
+  let fleetDashboard = null;
   let generalCostsError = null;
   let syncCostSliders = () => {};
   let syncEmissionsDistanceControl = () => {};
@@ -5109,11 +5112,9 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   /* ── Scope section renderers ─────────────────────────────── */
   const TAB_RENDERERS = {
-    overview: () => renderOverviewPanel(
-      overviewPanel,
-      busModelData,
-      features,
-    ),
+    overview: () => fleetDashboard
+      ? fleetDashboard.mount(overviewPanel, emissionsState)
+      : renderOverviewPanel(overviewPanel, busModelData, features),
     efficiency: () => renderEfficiency(),
     costs: () => {
       renderScopeContextNotes();
@@ -5144,6 +5145,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         translateOr("yearly_analysis.result_view_selector", "Annual result section"),
       );
       resultViewTabsEl.querySelectorAll("[data-result-view]").forEach((button) => {
+        button.hidden = Boolean(fleetDashboard && button.dataset.resultView !== 'efficiency');
         const isActive = isShift && button.dataset.resultView === activeResultViewKey;
         button.classList.toggle("active", isActive);
         button.setAttribute("aria-selected", String(isActive));
@@ -5179,9 +5181,11 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const refreshDerivedEmissionsViews = () => {
     const visibility = applyScopeSectionVisibility();
     if (visibility.emissions) TAB_RENDERERS.emissions();
+    if (activeScope?.kind === 'general') fleetDashboard?.update(emissionsState);
   };
 
   const activateResultView = (requestedKey, { focus = false } = {}) => {
+    if (fleetDashboard && requestedKey !== 'efficiency') return;
     if (activeScope?.kind !== "shift" || !YEARLY_RESULT_VIEW_KEYS.includes(requestedKey)) return;
     activeResultViewKey = requestedKey;
     const visibility = applyScopeSectionVisibility();
@@ -5467,7 +5471,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         annual_km: shiftAnnualKm,
         shift_id: shiftAnnualKm != null ? shiftId : null,
         // No fleet-wide overwrite with the first bus model.
-        diesel_consumption_l_per_km: costOverrides.dieselEfficiency,
+        diesel_consumption_l_per_km: features.assessment_assumptions?.tco?.dieselConsumption ?? costOverrides.dieselEfficiency,
       }, { signal: lcaController.signal });
       if (requestId !== lcaRequestId) return;
       const mapped = mapParameterizedLca(backendEmissionsRaw);
@@ -5598,7 +5602,34 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       };
       activeFeatures = buildScopedYearlyFeatures(features, activeScope);
     }
+    if (features.config?.fixedConfiguration && !features.config.fixedConfiguration.investment) {
+      features.config.fixedConfiguration.investment = fixedConfiguration.investment;
+    }
   }
+
+  // Historical analyses without the saved fleet investment ledger retain the
+  // original duty views; never replace useful results with an incomplete card.
+  const savedInvestmentRows = features.config?.fixedConfiguration?.investment?.rows;
+  if (savedInvestmentRows?.length && savedInvestmentRows.every(row => row.busCost != null && row.batteryCost != null)) fleetDashboard = createYearlyFleetDashboard({
+    features, model: busModelData, predictionRuns: analysisPredictionRuns,
+    onPreviewLca: async (values) => {
+      const raw = await fetchYearlyAnalysisLca(analysisId, {
+        annual_km_by_shift: JSON.stringify(values.annualKmByShift),
+        lifetime_bus: values.bodyLife, lifetime_battery: values.batteryLife,
+        lifetime_diesel_bus: values.dieselLife,
+        diesel_consumption_l_per_km: values.dieselConsumption,
+      });
+      mapParameterizedLca(raw);
+      return raw;
+    },
+    onSave: async (tco) => {
+      const latest = await fetchYearlyAnalysis(analysisId);
+      const assessment = { ...(latest.features?.assessment_assumptions ?? {}), tco };
+      await updateYearlyAnalysis(analysisId, { features: { ...latest.features, assessment_assumptions: assessment } });
+      features.assessment_assumptions = assessment;
+    },
+  });
+  cleanups.push(() => fleetDashboard?.dispose());
 
   /* Try backend yearly-analysis costs first; fall back to client-side */
   const busLengthForCosts = toFiniteNumber(busModelData?.bus_length_m);
