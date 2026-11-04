@@ -1,5 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
+import { resolveStagingTargets } from "./test-support/staging-targets.mjs";
 
+const stagingTargets = resolveStagingTargets();
+
+// The browser source suite is served by Vite so it can import individual
+// modules. Any request not fulfilled by a test mock is forced to the staging
+// backend; an already-running server with unknown proxy settings is rejected.
+process.env.ELETTRA_TEST_FRONTEND_URL = stagingTargets.frontendUrl;
+process.env.ELETTRA_TEST_BACKEND_URL = stagingTargets.backendUrl;
+process.env.VITE_API_ROOT = "";
+process.env.VITE_API_PROXY_TARGET = stagingTargets.backendUrl;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -17,7 +27,7 @@ export default defineConfig({
   webServer: {
     command: "npm run dev -- --host 127.0.0.1",
     url: "http://127.0.0.1:9010/elettra/",
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });
