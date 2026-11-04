@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.8.0-rc.4] - 2026-11-04
+
+### Staging candidate
+
+- Use the ELETTRA E as the favicon, with a transparent symbol on a blue background.
+- Validate fixed battery pack counts against the selected bus model's minimum and maximum, including model changes and loading states, with localized inline explanations.
+- Batch charging-stop candidate loading and load vehicle-block distances on demand.
+- Integrate the annual fleet analysis, electric/diesel TCO and emissions comparisons, depot charging and paired Mean/Q95 evaluation work into main.
+- Skip GitHub Pages deployment for pre-release versions. Publish as a GitHub Pre-release and preserve stable Docker aliases, including `latest`.
+
+## [0.8.0-rc.3] - 2026-10-30
+
+### Staging candidate
+
+- Use green for completed evaluations, yellow while either Mean or Q95 is pending/running, and red for errors or incomplete verification, including timeouts.
+- Explain indeterminate feasibility explicitly instead of implying that calculation errors prove infeasibility. Add localized status reasons and desktop/mobile regressions.
+- Publish as a GitHub Pre-release; stable Docker aliases remain unchanged.
+
+## [0.8.0-rc.2] - 2026-10-30
+
+### Staging candidate
+
+- Align comparison fallback text with translations and allow long guide headings to wrap on narrow screens (RC1 stopped at the CI gate and was not published).
+
+- Add fleet and representative-bus annual analyses with assigned-duty consumption, editable mileage by bus/battery group, electric/diesel TCO, restored emissions comparisons and exports.
+- Save annual assumptions automatically with a compact explanatory tooltip, serialized writes and retry on failure; share physical assumptions between Costs and Emissions.
+- Default charging-infrastructure maintenance to 2% of initial investment per year and diesel service life to 12 years; keep both editable.
+- Show bus, battery and infrastructure investment consistently in CHF, including fixed-site and power-dependent costs.
+- Support multiple arrival depots using the weather of the depot receiving most buses. Improve annual confirmation/progress dialogs and evaluation layouts.
+- Publish this RC as a GitHub Pre-release with version-specific images; stable Docker aliases, including `latest`, are unchanged. Deployment targets staging only.
+
+### Added
+
+- Calculate complete Mean and aggregate-Q95 designs in one feasibility evaluation. The result selector switches the entire design without starting another optimization; paired outcomes appear together in the list.
+- Show the selected design’s energy requirement and SOC, with a charging policy that favours lower SOC and occupies the pantograph for the complete dwell.
+- Preserve separate design identities for costs and yearly analyses, and explain pending or failed alternatives without relabelling the displayed result.
+- Add unit and desktop/mobile regressions for all three optimization modes and update the guide in four languages.
+
 ## [0.7.4] - 2026-10-29
 
 ### Fixed

@@ -351,7 +351,7 @@ const enrichShiftsWithDepotStopIds = async ({
   concurrency = DEFAULT_DETAIL_CONCURRENCY,
 } = {}) => {
   if (typeof fetchShiftInfo !== "function") {
-    throw new Error("Missing shift info fetcher.");
+    throw new Error("Missing vehicle block info fetcher.");
   }
   if (typeof fetchTripStops !== "function") {
     throw new Error("Missing trip stops fetcher.");
@@ -368,7 +368,7 @@ const enrichShiftsWithDepotStopIds = async ({
   const enrichOne = async (shift) => {
     const shiftId = text(shift?.id);
     if (!shiftId) {
-      failures.push(new Error("Missing shift id."));
+      failures.push(new Error("Missing vehicle block id."));
       return;
     }
 

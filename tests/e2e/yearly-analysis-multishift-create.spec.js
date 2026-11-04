@@ -47,6 +47,9 @@ test("creation persists every cluster and shift with one fixed feasibility confi
   const predictionRequests = [];
   let initialCreateBody = null;
   let savedPatch = null;
+  let releasePredictions;
+  const predictionGate = new Promise(resolve => { releasePredictions = resolve; });
+  page.on("dialog", dialog => { throw new Error(`Unexpected browser dialog: ${dialog.message()}`); });
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -150,7 +153,16 @@ test("creation persists every cluster and shift with one fixed feasibility confi
       return;
     }
 
+    if (method === "GET" && path === "/api/v1/yearly-analysis/weather-reference") {
+      expect(new URL(request.url()).searchParams.get('optimization_run_id')).toBe('base-run');
+      await route.fulfill({json: {latitude: 47.2, longitude: 9.3, depot_name: 'Arrival depot B',
+        weather_temperature_series_id: 'series-arrival-b', resolution: 'arrival-depot:b'}});
+      return;
+    }
+
     if (method === "GET" && path === "/api/v1/simulation/weather-temperature-clusters/") {
+      expect(new URL(request.url()).searchParams.get('latitude')).toBe('47.2');
+      expect(new URL(request.url()).searchParams.get('longitude')).toBe('9.3');
       await route.fulfill({ json: { clusters: [
         { label: "Cold", centroid_daily_avg_temp: -5, occurrences: 100 },
         { label: "Warm", centroid_daily_avg_temp: 20, occurrences: 265 },
@@ -172,6 +184,8 @@ test("creation persists every cluster and shift with one fixed feasibility confi
 
     if (method === "POST" && path === "/api/v1/yearly-analysis/") {
       initialCreateBody = request.postDataJSON();
+      expect(initialCreateBody.weather_temperature_series_id).toBe('series-arrival-b');
+      expect(initialCreateBody.features.config.weather_reference.depot_name).toBe('Arrival depot B');
       await route.fulfill({ json: { id: "yearly-1", ...initialCreateBody } });
       return;
     }
@@ -179,12 +193,11 @@ test("creation persists every cluster and shift with one fixed feasibility confi
     if (method === "POST" && path === "/api/v1/simulation/prediction-runs/") {
       const body = request.postDataJSON();
       predictionRequests.push(body);
+      await predictionGate;
       const cold = body.external_temp_celsius === -5;
       // Deliberately return the IDs in reverse shift order.
       await route.fulfill({ json: {
-        prediction_run_ids: cold
-          ? ["cold-evening", "cold-morning"]
-          : ["warm-evening", "warm-morning"],
+        prediction_run_ids: [...body.shift_ids].reverse().map(id => `${cold ? "cold" : "warm"}-${id}`),
       } });
       return;
     }
@@ -222,10 +235,41 @@ test("creation persists every cluster and shift with one fixed feasibility confi
   await page.locator('[data-role="base-run-select"]').selectOption("base-run");
   await expect(page.locator('[data-role="scenarios-body"] tr')).toHaveCount(2);
   await page.locator("#ya-analysis-name").fill("Multi-shift annual analysis");
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.locator('button[type="submit"]').click();
+  const submit = page.locator('button[type="submit"]');
+  await submit.click();
+  const confirmation = page.getByRole('dialog', {name: 'Start this yearly analysis?'});
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation.locator('[data-role="confirm-weather"]')).toHaveText('Arrival depot B');
+  await expect(confirmation.locator('[data-role="confirm-shifts"]')).toHaveText('2');
+  await expect(confirmation.locator('[data-role="confirm-scenarios"]')).toHaveText('2');
+  await confirmation.getByRole('button', {name:'Cancel', exact:true}).click();
+  await expect(confirmation).not.toBeVisible();
+  expect(initialCreateBody).toBeNull();
+  await expect(page.locator('#ya-analysis-name')).toHaveValue('Multi-shift annual analysis');
+  await submit.click();
+  await page.keyboard.press('Escape');
+  await expect(confirmation).not.toBeVisible();
+  expect(initialCreateBody).toBeNull();
+  await submit.click();
+  await confirmation.getByRole('button', {name:'Start analysis', exact:true}).click();
+  const progress = page.getByRole('dialog', {name:'Yearly analysis in progress'});
+  await expect(progress).toBeVisible();
+  await expect(progress.locator('[data-role="progress-message"]')).toContainText('Prediction 1/2');
+  await expect(progress.locator('progress')).toHaveAttribute('value','0');
+  await expect(progress.locator('progress')).toHaveAttribute('max','2');
+  const bounds = await progress.boundingBox();
+  const viewport = page.viewportSize();
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.y).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+  await page.keyboard.press('Escape');
+  await expect(progress).toBeVisible();
+  releasePredictions();
 
   await expect.poll(() => savedPatch).not.toBeNull();
+
+  await expect(progress).not.toBeVisible();
 
   expect(initialCreateBody.features.config.fixedConfiguration).toMatchObject({
     fixed: true,
@@ -245,14 +289,14 @@ test("creation persists every cluster and shift with one fixed feasibility confi
     "cluster-2",
   ]);
 
-  expect(predictionRequests).toHaveLength(2);
+  expect(predictionRequests).toHaveLength(4);
   expect(predictionRequests.map(({ shift_ids }) => shift_ids)).toEqual([
-    ["morning", "evening"],
-    ["morning", "evening"],
+    ["morning"], ["evening"],
+    ["morning"], ["evening"],
   ]);
   expect(
     predictionRequests.map(({ contextual_parameters }) => contextual_parameters.num_battery_packs),
-  ).toEqual([12, 12]);
+  ).toEqual([8, 12, 8, 12]);
 
   const { results } = savedPatch.features;
   expect(savedPatch.features.status).toBe("completed");

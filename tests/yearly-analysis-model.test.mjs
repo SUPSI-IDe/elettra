@@ -240,7 +240,7 @@ test("uses only requested physical shifts and preserves missing feasibility deta
   assert.equal(fixed.battery.packs, 8);
   assert.equal(fixed.shifts[1].shiftName, "missing");
   assert.equal(fixed.shifts[1].battery.optimizedPacks, null);
-  assert.equal(fixed.shifts[1].battery.commonPacks, 8);
+  assert.equal(fixed.shifts[1].battery.commonPacks, null);
   assert.deepEqual(fixed.shifts[1].operation, {
     minSocKwh: null,
     maxSocKwh: null,

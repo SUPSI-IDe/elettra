@@ -1,7 +1,7 @@
 <section class="form-page shift-form">
   <header class="page-header">
     <div class="header-with-close">
-      <h1 class="page-title" data-i18n="shifts.add_shift">Add Shift</h1>
+      <h1 class="page-title" data-i18n="shifts.add_shift">Add vehicle block</h1>
       <button
         type="button"
         data-action="close"
@@ -32,7 +32,7 @@
           <div class="shift-control-grid shift-control-grid--details">
             <div class="form-group">
               <label for="shift-name" data-i18n="shifts.field_shift_name"
-                >Shift name <span aria-hidden="true">*</span></label
+                >Vehicle block name <span aria-hidden="true">*</span></label
               >
               <input
                 type="text"
@@ -77,7 +77,7 @@
           <div class="table-wrapper">
             <table>
               <caption class="sr-only" data-i18n="shifts.scheduled_trips_caption">
-                Scheduled trips available to add to the shift
+                Scheduled trips available to add to the vehicle block
               </caption>
               <thead>
                 <tr>
@@ -123,7 +123,7 @@
             <div class="table-wrapper">
               <table>
                 <caption class="sr-only" data-i18n="shifts.trips_caption">
-                  Trips included in the shift
+                  Trips included in the vehicle block
                 </caption>
                 <thead>
                   <tr>
@@ -138,7 +138,7 @@
                 <tbody data-role="shift-trips-body"></tbody>
               </table>
               <p class="table-empty" data-role="shift-trips-empty" data-i18n="shifts.no_trips_added" hidden>
-                No trips added to this shift yet.
+                No trips added to this vehicle block yet.
               </p>
             </div>
           </section>
@@ -156,31 +156,31 @@
           </div>
           <section
             class="shift-timeline-section"
-            aria-label="Shift timeline"
+            aria-label="Vehicle block timeline"
             data-i18n-aria-label="shifts.timeline_section_label"
           >
             <div
               class="timeline shift-form-timeline"
               data-role="shift-timeline"
               role="img"
-              aria-label="Shift timeline chart"
+              aria-label="Vehicle block timeline chart"
               data-i18n-aria-label="shifts.timeline_chart_label"
             >
-              <p class="timeline__placeholder" data-i18n="shifts.timeline_placeholder">Add trips to visualize the shift timeline.</p>
+              <p class="timeline__placeholder" data-i18n="shifts.timeline_placeholder">Add trips to visualize the vehicle block timeline.</p>
             </div>
           </section>
         </section>
       </div>
       <div class="form-actions">
         <button type="button" data-action="cancel" data-i18n="common.cancel">Cancel</button>
-        <button type="submit" data-i18n="shifts.save_shift">Save shift</button>
+        <button type="submit" data-i18n="shifts.save_shift">Save vehicle block</button>
       </div>
       <div class="shift-progress" data-role="shift-progress" hidden>
         <div class="shift-progress__overlay">
           <div class="shift-progress__content">
             <div class="shift-progress__spinner"></div>
             <p class="shift-progress__message" data-role="shift-progress-message" data-i18n="shifts.saving_shift">
-              Saving shift...
+              Saving vehicle block...
             </p>
           </div>
         </div>

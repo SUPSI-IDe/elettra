@@ -160,6 +160,8 @@
   --kpi-tint-strength: 10%;
 
   --color-chart-primary: #00639a;
+  --color-chart-mean: #218b80;
+  --color-chart-q95: #405ea9;
   --color-chart-neutral: #95a5a6;
   --color-neutral-accent: var(--color-chart-neutral);
   --color-chart-track: #d7e1e8;
@@ -235,6 +237,10 @@ select,
 textarea {
   font: inherit;
   color: inherit;
+}
+
+input:is([type="checkbox"], [type="radio"]) {
+  accent-color: var(--brand-teal);
 }
 
 button {
@@ -820,6 +826,22 @@ nav .nav-links a:focus-visible {
   display: flex;
   align-items: center;
   gap: var(--space-2xs);
+  flex-wrap: wrap;
+}
+
+.deployment-versions {
+  margin-inline-start: var(--space-sm);
+  color: var(--color-text-subtle);
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+  .deployment-versions {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+  }
 }
 
 .privacy-policy {
@@ -1388,6 +1410,9 @@ table input[type="checkbox"] {
   border-radius: var(--panel-radius);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
+  color: var(--text-main);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
 }
 
 .result-card__header {
@@ -1426,6 +1451,77 @@ table input[type="checkbox"] {
   gap: var(--space-md);
   min-width: 0;
   padding: var(--space-md) var(--space-lg);
+}
+
+.result-card__note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+}
+
+.result-card__note strong {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+/* Headline figures use the same type and neutral text as the other cards.
+   Chart and status colours retain their meaning without colouring all copy. */
+.result-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-md);
+  padding-block: var(--space-sm);
+}
+
+.result-kpis > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.result-kpis strong {
+  color: var(--text-main);
+  font-size: var(--font-size-heading-md);
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-kpis span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.result-disclosure {
+  border-top: 1px solid var(--border-light);
+  padding-top: var(--space-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+}
+
+.result-disclosure > summary {
+  width: fit-content;
+  color: var(--text-main);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.result-disclosure > summary:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.result-disclosure > :not(summary) {
+  margin-top: var(--space-sm);
+}
+
+@media (width <= 700px) {
+  .result-kpis { grid-template-columns: 1fr; }
 }
 
 .result-status {
@@ -1578,6 +1674,8 @@ table input[type="checkbox"] {
   gap: var(--space-md);
   min-width: 0;
   padding: var(--space-md) var(--space-lg);
+  font-size: var(--font-size-md);
+  color: var(--text-main);
 }
 
 .kpi-grid {

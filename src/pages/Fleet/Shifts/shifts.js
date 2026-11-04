@@ -97,7 +97,7 @@ const renderEmpty = (tbody) => {
         <tr class="table-state-row">
             <td class="checkbox"></td>
             <td class="id table-state-cell table-empty" colspan="7">${textContent(
-              t("shifts.no_shifts_found") || "No shifts found."
+              t("shifts.no_shifts_found") || "No vehicle blocks found."
             )}</td>
         </tr>
     `;
@@ -726,7 +726,7 @@ export const initializeShifts = async (root = document, options = {}) => {
     pagination?.setBusy(true);
 
     if (!isAuthenticated()) {
-      const authMessage = t("shifts.login_required") || "Please login to view your shifts.";
+      const authMessage = t("shifts.login_required") || "Please login to view your vehicle blocks.";
       renderError(tbody, authMessage);
       pagination?.setBusy(false);
       return;

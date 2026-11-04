@@ -24,7 +24,7 @@ export const fetchShiftYearlyImpact = async (
     const message =
       payload?.detail?.[0]?.msg ??
       payload?.detail ??
-      "Unable to load shift yearly environmental impact.";
+      "Unable to load vehicle block yearly environmental impact.";
     throw new Error(message);
   }
   return payload;

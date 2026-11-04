@@ -19,7 +19,7 @@ const EN = {
     "Delete the related items first and then try again.",
   "protected_delete.blocker_type.yearly_analysis": "Yearly analysis",
   "protected_delete.blocker_type.optimization_run": "Feasibility evaluation",
-  "protected_delete.blocker_type.shift": "Shift",
+  "protected_delete.blocker_type.shift": "Vehicle block",
   "protected_delete.blocker_type.custom_stop": "Custom stop",
   "protected_delete.blocker_type.bus_model": "Bus model",
   "protected_delete.blocker_type.unknown": "Related item",
@@ -89,7 +89,7 @@ test("formatDeletionBlockerLabel falls back when name is unavailable", () => {
     translate
   );
 
-  assert.equal(label, "Shift");
+  assert.equal(label, "Vehicle block");
 });
 
 test("formatDeletionBlockerLabel uses id when name is unavailable", () => {

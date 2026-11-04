@@ -22,14 +22,14 @@ const LANGUAGES = {
     landingLink: "User guide",
     guideTitle: "ELETTRA user guide",
     backLink: "Back to ELETTRA",
-    resultTerms: ["Start with General", "Check every shift tab"],
+    resultTerms: ["Start with General", "Check every vehicle block tab"],
     yearlyTerms: ["Use Efficiency, Costs and Emissions", "annual DC energy"],
   },
   de: {
     landingLink: "Benutzerhandbuch",
     guideTitle: "ELETTRA-Benutzerhandbuch",
     backLink: "Zurück zu ELETTRA",
-    resultTerms: ["Mit Allgemein beginnen", "Jeden Dienst prüfen"],
+    resultTerms: ["Mit Allgemein beginnen", "Jeden Fahrzeugumlauf prüfen"],
     yearlyTerms: ["Effizienz, Kosten und Emissionen verwenden", "jährlichen DC-Energie"],
   },
   fr: {

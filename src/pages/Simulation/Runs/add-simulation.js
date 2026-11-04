@@ -1,16 +1,20 @@
-import { t } from "../../../i18n";
+import "../evaluation-dialogs.css";
+import { formatChf } from "../../../utils/number-format";
+import { defaultCostModel, renderCostCards, readCostModel, syncCostCards } from './infrastructure-costs';
+import { t, I18N_CHANGE_EVENT } from "../../../i18n";
 import "./add-simulation.css";
+import { createEvaluationProgress } from "./evaluation-progress";
 import {
   fetchAllBusModels,
+  fetchBusModelById,
   fetchAllShifts,
   fetchBuses,
-  fetchStopsByTripId,
 } from "../../../api";
 import {
   createOptimizationRun,
+  fetchChargingStopCandidates,
   waitForOptimizationCompletion,
 } from "../../../api/simulation";
-import { fetchShiftById } from "../../../api/shifts";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { triggerPartialLoad } from "../../../events";
@@ -31,9 +35,15 @@ import {
   DEFAULT_PREDICTION_QUANTILES,
 } from "../../../config/simulation-defaults";
 import { normalizeOptimizationRunName } from "../../../utils/optimization-run";
+import { createChargingStopCandidateLoader } from "./charging-stop-candidates";
+import { createLazyShiftDistanceLoader } from "./lazy-shift-distances";
+import { batteryPackLimits, batteryPackValidation } from "../../../utils/battery-pack-limits";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUUID = (value) => UUID_RE.test(value);
 
 const findRowById = (tbody, id) =>
   Array.from(tbody?.querySelectorAll("tr[data-id]") ?? []).find(
@@ -181,7 +191,7 @@ const updateSortHeaders = (table, sortState) => {
 export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
   if (!tbody) return;
   if (!shifts.length) {
-    tbody.innerHTML = `<tr><td colspan="5">${textContent(t("simulation.no_shifts_in_table") || "No shifts found.")}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5">${textContent(t("simulation.no_shifts_in_table") || "No vehicle blocks found.")}</td></tr>`;
     return;
   }
 
@@ -198,7 +208,7 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } 
       return `
         <tr data-id="${textContent(shiftId)}">
           <td class="checkbox">
-            <input type="checkbox" aria-label="${textContent(t("simulation.select_shift") || "Select shift")}" ${
+            <input type="checkbox" aria-label="${textContent(t("simulation.select_shift") || "Select vehicle block")}" ${
               selectedIds.has(shiftId) ? "checked" : ""
             } />
           </td>
@@ -211,130 +221,6 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } 
     .join("");
 };
 
-// ── Stop extraction ─────────────────────────────────────────────────
-
-const shiftCache = new Map();
-const tripStopsCache = new Map();
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isUUID = (v) => UUID_RE.test(v);
-
-/**
- * Fetch GTFS stops for a trip, returning them sorted by stop_sequence.
- * Results are cached per trip_id.
- */
-const fetchTripStops = async (tripId) => {
-  if (tripStopsCache.has(tripId)) return tripStopsCache.get(tripId);
-  try {
-    const raw = await fetchStopsByTripId(tripId);
-    const stops = Array.isArray(raw) ? raw : [];
-    stops.sort((a, b) => (a?.stop_sequence ?? 0) - (b?.stop_sequence ?? 0));
-    tripStopsCache.set(tripId, stops);
-    return stops;
-  } catch {
-    tripStopsCache.set(tripId, []);
-    return [];
-  }
-};
-
-/**
- * From a GTFS stop object, pick the database UUID.
- * `id` is the DB primary key (UUID); `stop_id` is the GTFS string identifier.
- */
-const resolveStopUUID = (stop) => {
-  const candidates = [stop?.id, stop?.stop_id];
-  return candidates.map((v) => text(v)).find(isUUID) ?? "";
-};
-
-/**
- * Load unique end-stops for the given shift IDs.
- *
- * The shift object (from GET /shifts/{id}) has a `structure` array where each
- * item represents a trip.  Regular trip items carry a `trip_id` (GTFS ID) that
- * we can pass to the /gtfs-stops/by-trip/ endpoint.  Depot / auxiliary items
- * are included using the shift-level start_depot_id / end_depot_id.
- */
-const loadEndStopsForShifts = async (shiftIds) => {
-  const seen = new Map();
-
-  // 1. Fetch all shift details in parallel
-  const shiftPromises = shiftIds.map(async (id) => {
-    if (shiftCache.has(id)) return shiftCache.get(id);
-    try {
-      const s = await fetchShiftById(id);
-      shiftCache.set(id, s);
-      return s;
-    } catch {
-      return null;
-    }
-  });
-  const shifts = await Promise.all(shiftPromises);
-
-  // 2. Collect unique trip_ids we need to fetch stops for
-  const tripIdSet = new Set();
-  for (const shift of shifts) {
-    if (!shift) continue;
-    const structure = Array.isArray(shift.structure) ? shift.structure : [];
-    for (const item of structure) {
-      const isDepot =
-        item?.status === "depot" ||
-        item?.trip?.status === "depot" ||
-        item?.trip_type === "auxiliary" ||
-        item?.trip?.trip_type === "auxiliary";
-      if (isDepot) continue;
-
-      const tripId = text(
-        item?.trip_id ?? item?.trip?.trip_id ?? item?.id ?? ""
-      );
-      if (tripId) tripIdSet.add(tripId);
-    }
-  }
-
-  // 3. Fetch stops for all unique trips in parallel
-  const tripIds = [...tripIdSet];
-  await Promise.all(tripIds.map(fetchTripStops));
-
-  // 4. Extract end-stop (last by sequence) from each trip, deduplicate
-  for (const tripId of tripIds) {
-    const stops = tripStopsCache.get(tripId) ?? [];
-    if (!stops.length) continue;
-    const last = stops[stops.length - 1];
-    const id = resolveStopUUID(last);
-    const name = text(last?.stop_name ?? last?.name ?? id);
-    if (id && !seen.has(id)) {
-      seen.set(id, { stop_id: id, stop_name: name, isCustom: false });
-    }
-  }
-
-  // 5. Include depot / custom stops using the shift-level depot UUIDs
-  for (const shift of shifts) {
-    if (!shift) continue;
-
-    const depotPairs = [
-      {
-        id: text(shift?.start_depot_id ?? shift?.start_depot?.id ?? ""),
-        name: text(shift?.start_depot?.name ?? shift?.start_depot_name ?? ""),
-      },
-      {
-        id: text(shift?.end_depot_id ?? shift?.end_depot?.id ?? ""),
-        name: text(shift?.end_depot?.name ?? shift?.end_depot_name ?? ""),
-      },
-    ];
-
-    for (const depot of depotPairs) {
-      if (!depot.id || !isUUID(depot.id)) continue;
-      if (seen.has(depot.id)) continue;
-      seen.set(depot.id, {
-        stop_id: depot.id,
-        stop_name: depot.name || depot.id,
-        isCustom: true,
-      });
-    }
-  }
-
-  return [...seen.values()];
-};
-
 // ── Charging-stations table rendering ────────────────────────────────
 
 const COLUMN_DEFS = {
@@ -343,16 +229,17 @@ const COLUMN_DEFS = {
     { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 150 },
   ],
   charging_only: [
-    { key: "slot_cost_chf", label: "simulation.cs_cost_per_plug", fallback: "CHF / plug", min: 0, step: 1000, defaultVal: 150000 },
     { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Max plugs", min: 1, step: 1, defaultVal: 2 },
     { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 450 },
   ],
   joint: [
-    { key: "slot_cost_chf", label: "simulation.cs_cost_per_plug", fallback: "CHF / plug", min: 0, step: 1000, defaultVal: 150000 },
     { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Max plugs", min: 1, step: 1, defaultVal: 2 },
     { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 450 },
   ],
 };
+for (const cols of Object.values(COLUMN_DEFS)) cols.push({
+  key:'max_total_power_kw', label:'simulation.depot_site_power', fallback:'Site limit (kW DC)', min:0, step:10, defaultVal:300,
+});
 
 const syncSelectAllCheckbox = (thead, tbody) => {
   const selectAll = thead?.querySelector('[data-role="select-all-stops"]');
@@ -399,7 +286,7 @@ const renderStopsTable = (thead, tbody, stops, mode) => {
         ${cols
           .map(
             (c) =>
-              `<td><input type="number" data-field="${c.key}" min="${c.min}" step="${c.step}" value="${c.defaultVal}" /></td>`
+              `<td><input type="number" data-field="${c.key}" min="${c.min}" step="${c.step}" value="${c.key === 'num_slots' && stop.depotBusCount ? stop.depotBusCount : c.key === 'max_total_power_kw' ? (stop.depotBusCount || 2) * (stop.isDepot ? 150 : 450) : c.key === 'max_power_per_slot_kw' ? (stop.isDepot ? 150 : 450) : c.defaultVal}" /></td>`
           )
           .join("")}
       </tr>`
@@ -430,24 +317,12 @@ const collectChargingStations = (tbody, mode) => {
 
     const station = { stop_id: stopId };
 
-    if (mode === "battery_only") {
-      const numSlots = values.num_slots ?? 2;
-      const powerPerSlot = values.max_power_per_slot_kw ?? 150;
-      station.num_slots = numSlots;
-      station.max_total_power_kw = numSlots * powerPerSlot;
-      station.max_power_per_slot_kw = powerPerSlot;
-    } else {
-      const numSlots = values.num_slots ?? 2;
-      const costPerPlug = values.slot_cost_chf ?? 150000;
-      const powerPerSlot = values.max_power_per_slot_kw ?? 450;
-      station.num_slots = numSlots;
-      station.slot_costs_chf = Array.from(
-        { length: numSlots },
-        (_, i) => (i === 0 ? costPerPlug * 2 : costPerPlug)
-      );
-      station.max_total_power_kw = numSlots * powerPerSlot;
-      station.max_power_per_slot_kw = powerPerSlot;
-    }
+    station.num_slots = values.num_slots;
+    station.max_total_power_kw = values.max_total_power_kw;
+    station.max_power_per_slot_kw = values.max_power_per_slot_kw;
+    const card = [...tbody.closest('section.add-simulation').querySelectorAll('[data-cost-stop-id]')]
+      .find(card => card.dataset.costStopId === stopId);
+    station.cost_model = card ? readCostModel(card) : defaultCostModel('pantograph');
 
     stations.push(station);
   }
@@ -466,18 +341,6 @@ const resolveStationPowerPerSlotKw = (station = {}) => {
   const slots = toFiniteNumber(station?.num_slots ?? station?.slots);
   if (totalPower == null || slots == null || slots <= 0) return null;
   return totalPower / slots;
-};
-
-const resolveStationCostPerPlug = (station = {}) => {
-  const slotCosts = Array.isArray(station?.slot_costs_chf)
-    ? station.slot_costs_chf.map((value) => toFiniteNumber(value)).filter((value) => value != null)
-    : [];
-
-  if (!slotCosts.length) return null;
-  if (slotCosts.length > 1 && slotCosts[1] != null) {
-    return slotCosts[1];
-  }
-  return slotCosts[0] / 2;
 };
 
 const applyChargingStationPrefill = ({
@@ -508,11 +371,18 @@ const applyChargingStationPrefill = ({
     if (!station || !checkbox) return;
 
     checkbox.checked = true;
+    const costCard = [...tbody.closest('section.add-simulation').querySelectorAll('[data-cost-stop-id]')].find(card=>card.dataset.costStopId===stopId);
+    if (costCard && station.cost_model) {
+      costCard.dataset.model = JSON.stringify(station.cost_model);
+      costCard.querySelectorAll('[data-cost-field]').forEach(input=> {
+        input.value = station.cost_model[input.dataset.costField] / (input.dataset.costField === 'connection_cost_per_kw_chf' ? 1 : 1000);
+      });
+    }
 
     const slotValues = {
-      slot_cost_chf: resolveStationCostPerPlug(station),
-      num_slots: toFiniteNumber(station?.num_slots ?? station?.slots),
+      num_slots: toFiniteNumber(station?.num_slots ?? station?.slots ?? station?.slot_costs_chf?.length),
       max_power_per_slot_kw: resolveStationPowerPerSlotKw(station),
+      max_total_power_kw: toFiniteNumber(station?.max_total_power_kw),
     };
 
     cols.forEach((col) => {
@@ -538,12 +408,40 @@ export const initializeAddSimulation = async (
   if (!section) return null;
 
   const cleanupHandlers = [];
+  let disposed = false;
+  section.querySelectorAll('.form-info').forEach(button => {
+    const tooltip = button.querySelector('.info-tooltip');
+    const show = open => {
+      button.setAttribute('aria-expanded', String(open));
+      tooltip.hidden = !open;
+      if (open) {
+        const left = button.getBoundingClientRect().left;
+        const width = Math.min(320, window.innerWidth - 32);
+        tooltip.style.width = `${width}px`;
+        tooltip.style.maxWidth = `${width}px`;
+        tooltip.style.left = `${Math.max(16, Math.min(left, window.innerWidth - width - 16)) - left}px`;
+      }
+    };
+    const handlers = {mouseenter: () => show(true), focus: () => show(true), click: () => show(true),
+      mouseleave: () => { if (document.activeElement !== button) show(false); },
+      blur: () => show(false), keydown: event => { if (event.key === 'Escape') show(false); }};
+    Object.entries(handlers).forEach(([event, handler]) => button.addEventListener(event, handler));
+    cleanupHandlers.push(() => Object.entries(handlers).forEach(([event, handler]) => button.removeEventListener(event, handler)));
+  });
+  let submitting = false;
+  const completionController = new AbortController();
+  const dailyCycleControl = section.querySelector('#var-daily-cycle');
+  const peakControl = section.querySelector('#var-depot-peak-shaving');
+  const updatePeakControl = () => { peakControl.disabled = !dailyCycleControl.checked; };
+  dailyCycleControl.addEventListener('change', updatePeakControl);
+  cleanupHandlers.push(() => dailyCycleControl.removeEventListener('change', updatePeakControl));
   const form = section.querySelector("form");
   const shiftTable = section.querySelector(".shift-table");
   const shiftTbody = section.querySelector(
     'tbody[data-role="shift-selection-body"]'
   );
   const shiftFilter = section.querySelector("#sim-shift-filter");
+  const selectFilteredShifts = section.querySelector('[data-role="select-filtered-shifts"]');
   const modeSelect = section.querySelector("#var-optimization-mode");
   const busModelOverride = section.querySelector("#var-bus-model-override");
   const usableSocSelect = section.querySelector("#var-usable-soc-percent");
@@ -555,24 +453,39 @@ export const initializeAddSimulation = async (
   const usableSocWarningConfirm = section.querySelector(
     '[data-role="usable-soc-warning-confirm"]'
   );
-  const optionalVariablesDetails = section.querySelector(
-    '[data-role="optional-variables"]'
-  );
 
-  const progressOverlay = section.querySelector(
-    '[data-role="simulation-progress"]'
-  );
-  const progressMessage = section.querySelector(
-    '[data-role="progress-message"]'
-  );
+  const progress = createEvaluationProgress(section);
+  const hideProgress = () => progress.close();
+  cleanupHandlers.push(() => progress.dispose());
 
-  const showProgress = (message) => {
-    if (progressMessage) progressMessage.textContent = message;
-    if (progressOverlay) progressOverlay.hidden = false;
+  const confirmation = section.querySelector('[data-role="evaluation-confirm"]');
+  let resolveConfirmation = null;
+  const settleConfirmation = () => {
+    resolveConfirmation?.(!disposed && confirmation.returnValue === "start");
+    resolveConfirmation = null;
   };
-  const hideProgress = () => {
-    if (progressOverlay) progressOverlay.hidden = true;
-  };
+  const cancelConfirmation = () => confirmation.close("cancel");
+  const startConfirmation = () => confirmation.close("start");
+  const confirmationCancel = confirmation.querySelector('[data-role="evaluation-confirm-cancel"]');
+  const confirmationStart = confirmation.querySelector('[data-role="evaluation-confirm-start"]');
+  confirmation.addEventListener("close", settleConfirmation);
+  confirmationCancel.addEventListener("click", cancelConfirmation);
+  confirmationStart.addEventListener("click", startConfirmation);
+  cleanupHandlers.push(() => {
+    confirmation.close("cancel");
+    settleConfirmation();
+    confirmation.removeEventListener("close", settleConfirmation);
+    confirmationCancel.removeEventListener("click", cancelConfirmation);
+    confirmationStart.removeEventListener("click", startConfirmation);
+  });
+  const confirmEvaluation = (name, count) => new Promise((resolve) => {
+    confirmation.querySelector('[data-role="evaluation-confirm-name"]').textContent = name;
+    confirmation.querySelector('[data-role="evaluation-confirm-count"]').textContent = count;
+    confirmation.querySelector('[data-role="evaluation-confirm-mode"]').textContent = modeSelect.selectedOptions[0].textContent;
+    confirmation.returnValue = "";
+    resolveConfirmation = resolve;
+    confirmation.showModal();
+  });
 
   const batteryCostGroup = section.querySelector(
     '[data-role="battery-cost-group"]'
@@ -586,7 +499,93 @@ export const initializeAddSimulation = async (
 
   let allShifts = [];
   let allUserModels = [];
+  const fixedGroup = section.querySelector('[data-role="fixed-battery-group"]');
+  const fixedPacks = section.querySelector('#var-fixed-battery-packs');
+  const fixedPacksHelp = section.querySelector('#fixed-battery-help');
+  const fixedPacksFeedback = section.querySelector('#fixed-battery-feedback');
+  const modelDetailsRequests = new Map();
+  let loadingBusModelId = null;
+  let fixedPacksTouched = false;
+
+  const syncFixedBatteryField = ({ showError = false } = {}) => {
+    const active = modeSelect.value === 'charging_only';
+    const model = allUserModels.find(m => String(m.id) === busModelOverride.value);
+    const loading = loadingBusModelId === busModelOverride.value;
+    const limits = batteryPackLimits(model?.specs);
+    const params = { model: resolveBusModelDisplayName(model), ...limits };
+    fixedGroup.hidden = !active;
+    fixedPacks.required = active;
+    fixedPacks.disabled = !active || loading || !limits;
+    for (const key of ['min', 'max']) {
+      if (limits) fixedPacks.setAttribute(key, String(limits[key]));
+      else fixedPacks.removeAttribute(key);
+    }
+    fixedPacksHelp.textContent = !model ? t('simulation.fixed_battery_select_model')
+      : loading ? t('simulation.fixed_battery_loading')
+      : t(limits ? 'simulation.fixed_battery_range' : 'simulation.fixed_battery_unavailable', params);
+    const issue = loading ? 'loading' : batteryPackValidation(fixedPacks.value, limits);
+    const message = active && issue ? t(`simulation.fixed_battery_${issue}`, params) : '';
+    fixedPacks.setCustomValidity(message);
+    const visible = Boolean(message && (showError || fixedPacksTouched || fixedPacks.value !== ''));
+    fixedPacksFeedback.textContent = visible ? message : '';
+    fixedPacksFeedback.hidden = !visible;
+    fixedPacks.setAttribute('aria-invalid', String(visible));
+    return !active || !issue;
+  };
+  const handleFixedPacksInput = () => {
+    fixedPacksTouched = true;
+    syncFixedBatteryField();
+  };
+  for (const event of ['input', 'change', 'blur']) {
+    fixedPacks.addEventListener(event, handleFixedPacksInput);
+    cleanupHandlers.push(() => fixedPacks.removeEventListener(event, handleFixedPacksInput));
+  }
+  const refreshFixedPacksTranslation = () => syncFixedBatteryField();
+  document.addEventListener(I18N_CHANGE_EVENT, refreshFixedPacksTranslation);
+  cleanupHandlers.push(() => document.removeEventListener(I18N_CHANGE_EVENT, refreshFixedPacksTranslation));
   let currentStops = [];
+  let currentStopsKey = "";
+  let activeCandidateRequest = null;
+  const candidateLoader = createChargingStopCandidateLoader(
+    fetchChargingStopCandidates
+  );
+  const costOptions = section.querySelector('[data-role="cost-options"]');
+  const costCards = section.querySelector('[data-role="station-cost-cards"]');
+  const stationEdits = new Map();
+  const captureStationEdits = () => {
+    for (const row of stopsTbody.querySelectorAll('[data-stop-id]')) {
+      const card=[...costCards.querySelectorAll('[data-cost-stop-id]')].find(c=>c.dataset.costStopId===row.dataset.stopId);
+      stationEdits.set(row.dataset.stopId,{checked:row.querySelector('[type="checkbox"]').checked,
+        values:Object.fromEntries([...row.querySelectorAll('[data-field]')].map(i=>[i.dataset.field,i.value])),
+        cost_model:card ? readCostModel(card) : undefined});
+    }
+  };
+  const updateCostCards = () => syncCostCards(costCards, stopsTbody);
+  costCards.addEventListener('input', updateCostCards);
+  cleanupHandlers.push(()=>costCards.removeEventListener('input', updateCostCards));
+  const updatePackCost = async () => {
+    const id=busModelOverride.value;
+    const model=allUserModels.find(m=>String(m.id)===id);
+    const needsDetails = model && (!model.specs || !batteryPackLimits(model.specs));
+    loadingBusModelId = needsDetails ? id : null;
+    syncFixedBatteryField();
+    if (needsDetails) {
+      let request = modelDetailsRequests.get(id);
+      if (!request) {
+        request = fetchBusModelById(id);
+        modelDetailsRequests.set(id, request);
+      }
+      try { Object.assign(model, await request); } catch { /* Keep missing specifications explicit. */ }
+      finally { if (modelDetailsRequests.get(id) === request) modelDetailsRequests.delete(id); }
+    }
+    if (disposed || busModelOverride.value !== id) return;
+    loadingBusModelId = null;
+    syncFixedBatteryField();
+    const value=model?.specs?.battery_pack_cost_chf;
+    section.querySelector('[data-role="bus-pack-cost"]').textContent = value == null ? t('simulation.cost_bus_pack_missing') : formatChf(value);
+  };
+  busModelOverride.addEventListener('change',updatePackCost);
+  cleanupHandlers.push(()=>busModelOverride.removeEventListener('change',updatePackCost));
   let selectedShiftIds = new Set();
   let sortState = { ...DEFAULT_SHIFT_SORT };
   let usableSocWasRisky = isRiskyUsableSocPercent(usableSocSelect?.value);
@@ -651,7 +650,66 @@ export const initializeAddSimulation = async (
     setNameFeedback(message);
   };
 
-  const hydrateShiftDistances = (shifts = []) => {
+  const updateShiftDistanceDisplay = (
+    shift,
+    dailyDistanceKm,
+    yearlyDistanceKm
+  ) => {
+    if (disposed) return;
+
+    shift._resolved_daily_distance_km = dailyDistanceKm;
+    shift._resolved_daily_distance_label = formatShiftDistanceValue(
+      dailyDistanceKm
+    );
+    shift._resolved_yearly_distance_km = yearlyDistanceKm;
+    shift._resolved_yearly_distance_label = formatShiftDistanceValue(
+      yearlyDistanceKm
+    );
+
+    const row = findRowById(shiftTbody, shift.id);
+    const distanceCell = row?.querySelector('[data-role="shift-distance"]');
+    const yearlyDistanceCell = row?.querySelector(
+      '[data-role="shift-yearly-distance"]'
+    );
+    if (distanceCell) {
+      distanceCell.textContent = toText(shift._resolved_daily_distance_label);
+    }
+    if (yearlyDistanceCell) {
+      yearlyDistanceCell.textContent = toText(
+        shift._resolved_yearly_distance_label
+      );
+    }
+  };
+
+  const shiftDistanceLoader = createLazyShiftDistanceLoader({
+    keyFor: (shift) => text(shift?.id).trim(),
+    concurrency: 4,
+    load: async (shift) => {
+      const [dailyDistanceKm, yearlyDistanceKm] = await Promise.all([
+        shift._resolved_daily_distance_km != null
+          ? Promise.resolve(shift._resolved_daily_distance_km)
+          : resolveShiftDailyDistanceKm(shift),
+        shift._resolved_yearly_distance_km != null
+          ? Promise.resolve(shift._resolved_yearly_distance_km)
+          : resolveShiftYearlyDistanceKm(shift),
+      ]);
+      return { dailyDistanceKm, yearlyDistanceKm };
+    },
+    onLoaded: ({ dailyDistanceKm, yearlyDistanceKm }, shift) => {
+      updateShiftDistanceDisplay(shift, dailyDistanceKm, yearlyDistanceKm);
+    },
+    onError: (error, shift) => {
+      console.warn(
+        `[elettra] Unable to resolve distances for shift ${text(shift?.id)}`,
+        error
+      );
+    },
+  });
+
+  const hydrateShiftDistances = async (
+    shifts = [],
+    { rerenderAfter = false } = {}
+  ) => {
     const pendingShifts = shifts.filter(
       (shift) =>
         shift &&
@@ -660,57 +718,68 @@ export const initializeAddSimulation = async (
         text(shift?.id).trim()
     );
 
-    pendingShifts.forEach((shift) => {
-      Promise.all([
-        shift._resolved_daily_distance_km != null
-          ? Promise.resolve(shift._resolved_daily_distance_km)
-          : resolveShiftDailyDistanceKm(shift),
-        shift._resolved_yearly_distance_km != null
-          ? Promise.resolve(shift._resolved_yearly_distance_km)
-          : resolveShiftYearlyDistanceKm(shift),
-      ])
-        .then(([dailyDistanceKm, yearlyDistanceKm]) => {
-          shift._resolved_daily_distance_km = dailyDistanceKm;
-          shift._resolved_daily_distance_label = formatShiftDistanceValue(
-            dailyDistanceKm
-          );
-          shift._resolved_yearly_distance_km = yearlyDistanceKm;
-          shift._resolved_yearly_distance_label = formatShiftDistanceValue(
-            yearlyDistanceKm
-          );
-
-          if (
-            sortState.key === "distance" ||
-            sortState.key === "yearly_distance"
-          ) {
-            renderCurrentView();
-            return;
-          }
-
-          const row = findRowById(shiftTbody, shift.id);
-          const distanceCell = row?.querySelector('[data-role="shift-distance"]');
-          const yearlyDistanceCell = row?.querySelector(
-            '[data-role="shift-yearly-distance"]'
-          );
-          if (distanceCell) {
-            distanceCell.textContent = toText(
-              shift._resolved_daily_distance_label
-            );
-          }
-          if (yearlyDistanceCell) {
-            yearlyDistanceCell.textContent = toText(
-              shift._resolved_yearly_distance_label
-            );
-          }
-        })
-        .catch((error) => {
-          console.warn(
-            `[elettra] Unable to resolve distances for shift ${text(shift?.id)}`,
-            error
-          );
-        });
-    });
+    await shiftDistanceLoader.scheduleAll(pendingShifts);
+    if (rerenderAfter && !disposed) renderCurrentView();
   };
+
+  const shiftTableWrapper = shiftTable?.closest(".shift-table-wrapper");
+  let shiftDistanceObserver = null;
+
+  const shiftsForRows = (rows = []) => {
+    const ids = new Set(
+      rows.map((row) => text(row?.dataset?.id).trim()).filter(Boolean)
+    );
+    return allShifts.filter((shift) => ids.has(text(shift?.id)));
+  };
+
+  if (typeof globalThis.IntersectionObserver === "function") {
+    shiftDistanceObserver = new globalThis.IntersectionObserver(
+      (entries) => {
+        const visibleRows = [];
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          shiftDistanceObserver.unobserve(entry.target);
+          visibleRows.push(entry.target);
+        });
+        if (visibleRows.length) {
+          void hydrateShiftDistances(shiftsForRows(visibleRows));
+        }
+      },
+      {
+        root: shiftTableWrapper ?? null,
+        rootMargin: "80px 0px",
+        threshold: 0,
+      }
+    );
+  }
+
+  const observeRenderedShiftDistances = () => {
+    const shiftsById = new Map(
+      allShifts.map((shift) => [text(shift?.id), shift])
+    );
+    const unresolvedRows = Array.from(
+      shiftTbody?.querySelectorAll("tr[data-id]") ?? []
+    ).filter((row) => {
+      const shift = shiftsById.get(text(row.dataset.id));
+      return shift && (
+        shift._resolved_daily_distance_km == null ||
+        shift._resolved_yearly_distance_km == null
+      );
+    });
+
+    if (shiftDistanceObserver) {
+      shiftDistanceObserver.disconnect();
+      unresolvedRows.forEach((row) => shiftDistanceObserver.observe(row));
+      return;
+    }
+
+    void hydrateShiftDistances(shiftsForRows(unresolvedRows.slice(0, 10)));
+  };
+
+  cleanupHandlers.push(() => {
+    shiftDistanceObserver?.disconnect();
+    shiftDistanceLoader.dispose();
+  });
 
   const getSelectedShiftIds = () => [...selectedShiftIds];
 
@@ -734,7 +803,7 @@ export const initializeAddSimulation = async (
       placeholder.disabled = true;
       placeholder.selected = true;
       placeholder.textContent =
-        t("simulation.select_shift_first") || "Select a shift first…";
+        t("simulation.select_shift_first") || "Select a vehicle block first…";
       busModelOverride.appendChild(placeholder);
       return;
     }
@@ -761,24 +830,35 @@ export const initializeAddSimulation = async (
   // ── Rebuild the charging-stations panel ───────────────────────────
   let rebuildSeq = 0;
 
-  const rebuildStopsTable = async () => {
-    const mode = (modeSelect?.value ?? "").trim();
-    const fixedGroup = section.querySelector('[data-role="fixed-battery-group"]');
-    const fixedPacks = section.querySelector('#var-fixed-battery-packs');
-    if (fixedGroup) fixedGroup.hidden = mode !== "charging_only";
-    if (fixedPacks) {
-      fixedPacks.required = mode === "charging_only";
-      fixedPacks.disabled = mode !== "charging_only";
+  const abortActiveCandidateRequest = (preserveKey = "") => {
+    if (!activeCandidateRequest || activeCandidateRequest.key === preserveKey) {
+      return;
     }
+    activeCandidateRequest.controller.abort();
+    candidateLoader.delete(activeCandidateRequest.key);
+    activeCandidateRequest = null;
+  };
+
+  const rebuildStopsTable = async () => {
+    captureStationEdits();
+    costOptions.hidden = true;
+    updatePackCost();
+    const mode = (modeSelect?.value ?? "").trim();
     const selectedIds = getSelectedShiftIds();
+    const selectionKey = candidateLoader.keyFor(selectedIds);
     const seq = ++rebuildSeq;
 
     if (batteryCostGroup) {
       batteryCostGroup.hidden = mode !== "joint";
     }
+    const sizingGroup = section.querySelector('[data-role="battery-sizing-group"]');
+    sizingGroup.hidden = !['battery_only', 'joint'].includes(mode);
+    section.querySelector('#var-battery-sizing-mode').disabled = sizingGroup.hidden;
 
     if (!mode) {
+      abortActiveCandidateRequest();
       currentStops = [];
+      currentStopsKey = "";
       renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
       if (stopsHint) {
         const hasSelectedShifts = selectedIds.length > 0;
@@ -786,53 +866,112 @@ export const initializeAddSimulation = async (
           ? (t("simulation.configure_stations_missing_mode") ||
             "Select an optimization mode to configure charging stations.")
           : (t("simulation.configure_stations_missing_both") ||
-            "Select at least one shift and an optimization mode to configure charging stations.");
+            "Select at least one vehicle block and an optimization mode to configure charging stations.");
         stopsHint.hidden = false;
       }
-      if (stopsWrapper) stopsWrapper.hidden = false;
+      if (stopsWrapper) stopsWrapper.hidden = true;
       return;
     }
 
     if (!selectedIds.length) {
+      abortActiveCandidateRequest();
       currentStops = [];
+      currentStopsKey = "";
       renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
       if (stopsHint) {
         stopsHint.textContent =
           t("simulation.configure_stations_missing_shifts") ||
-          "Select at least one shift to configure charging stations.";
+          "Select at least one vehicle block to configure charging stations.";
         stopsHint.hidden = false;
       }
-      if (stopsWrapper) stopsWrapper.hidden = false;
+      if (stopsWrapper) stopsWrapper.hidden = true;
       return;
     }
 
-    // Show loading feedback while fetching
-    if (stopsHint) {
-      stopsHint.textContent =
-        t("common.loading") || "Loading…";
-      stopsHint.hidden = false;
+    abortActiveCandidateRequest(selectionKey);
+
+    if (currentStopsKey !== selectionKey) {
+      if (stopsHint) {
+        stopsHint.textContent = t("common.loading") || "Loading…";
+        stopsHint.hidden = false;
+      }
+      renderStopsTable(stopsThead, stopsTbody, [], mode);
+      if (stopsWrapper) stopsWrapper.hidden = true;
+
+      let request = activeCandidateRequest;
+      if (!request || request.key !== selectionKey) {
+        const controller = new AbortController();
+        request = {
+          key: selectionKey,
+          controller,
+          promise: candidateLoader.load(selectedIds, {
+            signal: controller.signal,
+          }),
+        };
+        activeCandidateRequest = request;
+      }
+
+      try {
+        const candidates = await request.promise;
+        if (seq !== rebuildSeq || disposed) return;
+        currentStops = candidates;
+        currentStopsKey = selectionKey;
+      } catch (error) {
+        if (
+          error?.name === "AbortError" ||
+          seq !== rebuildSeq ||
+          disposed
+        ) {
+          return;
+        }
+        currentStops = [];
+        currentStopsKey = "";
+        if (stopsHint) {
+          stopsHint.textContent =
+            error?.message ||
+            t("simulation.no_stops_for_shifts") ||
+            "Unable to load charging-stop candidates.";
+          stopsHint.hidden = false;
+        }
+        if (stopsWrapper) stopsWrapper.hidden = true;
+        renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
+        return;
+      } finally {
+        if (activeCandidateRequest?.promise === request.promise) {
+          activeCandidateRequest = null;
+        }
+      }
     }
-    renderStopsTable(stopsThead, stopsTbody, [], mode);
-    if (stopsWrapper) stopsWrapper.hidden = false;
 
-    currentStops = await loadEndStopsForShifts(selectedIds);
-
-    // Guard against stale results if user changed selection while loading
-    if (seq !== rebuildSeq) return;
+    if (seq !== rebuildSeq || disposed) return;
 
     if (currentStops.length) {
       if (stopsHint) stopsHint.hidden = true;
       if (stopsWrapper) stopsWrapper.hidden = false;
       renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
+      for (const row of stopsTbody.querySelectorAll('[data-stop-id]')) {
+        const saved = stationEdits.get(row.dataset.stopId);
+        if (!saved) continue;
+        row.querySelector('[type="checkbox"]').checked = saved.checked;
+        row.querySelectorAll('[data-field]').forEach((input) => {
+          if (saved.values[input.dataset.field] != null) {
+            input.value = saved.values[input.dataset.field];
+          }
+        });
+      }
+      syncSelectAllCheckbox(stopsThead, stopsTbody);
+      renderCostCards(costCards, currentStops, stationEdits);
+      costOptions.hidden = false;
+      updateCostCards();
     } else {
       if (stopsHint) {
         stopsHint.textContent =
           t("simulation.no_stops_for_shifts") ||
-          "No stops found for the selected shifts.";
+          "No stops found for the selected vehicle blocks.";
         stopsHint.hidden = false;
       }
       renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
-      if (stopsWrapper) stopsWrapper.hidden = false;
+      if (stopsWrapper) stopsWrapper.hidden = true;
     }
   };
 
@@ -928,7 +1067,6 @@ export const initializeAddSimulation = async (
       allUserModels = userModels;
 
       renderCurrentView();
-      hydrateShiftDistances(allShifts);
       refreshBusModelOverride();
 
       if (options.prefill) {
@@ -951,23 +1089,15 @@ export const initializeAddSimulation = async (
       heatingType,
       usableSocPercent,
       busModelId,
-      batteryCostPerKwh,
       batterySizingMode,
       chargingStations,
       name,
+      dailyCycle = false,
+      depotPeakShaving = false,
     } = prefill;
-
-    if (
-      optionalVariablesDetails &&
-      [
-        externalTempCelsius,
-        occupancyPercent,
-        heatingType,
-        usableSocPercent,
-      ].some((value) => value != null)
-    ) {
-      optionalVariablesDetails.open = true;
-    }
+    section.querySelector('#var-daily-cycle').checked = dailyCycle;
+    section.querySelector('#var-depot-peak-shaving').checked = depotPeakShaving;
+    section.querySelector('#var-depot-peak-shaving').disabled = !dailyCycle;
 
     const normalizedName = normalizeOptimizationRunName(name);
     if (normalizedName && nameInput) {
@@ -996,8 +1126,6 @@ export const initializeAddSimulation = async (
     }
 
     if (optimizationMode && modeSelect) modeSelect.value = optimizationMode;
-    const basisSelect = section.querySelector("#var-consumption-basis");
-    if (basisSelect && ["mean", "aggregate_q95"].includes(prefill.consumptionBasis)) basisSelect.value = prefill.consumptionBasis;
 
     if (externalTempCelsius != null) {
       const tempInput = section.querySelector("#var-external-temp");
@@ -1033,14 +1161,9 @@ export const initializeAddSimulation = async (
       }
     }
 
-    if (batteryCostPerKwh != null) {
-      const batteryCostInput = section.querySelector("#var-battery-cost-per-kwh");
-      if (batteryCostInput) batteryCostInput.value = String(batteryCostPerKwh);
-    }
-
     if (batterySizingMode) {
       const batterySizingSelect = section.querySelector("#var-battery-sizing-mode");
-      if (batterySizingSelect) batterySizingSelect.value = batterySizingMode;
+      if (batterySizingSelect) batterySizingSelect.value = batterySizingMode === 'per_route' ? 'uniform' : batterySizingMode;
     }
 
     await rebuildStopsTable();
@@ -1050,24 +1173,52 @@ export const initializeAddSimulation = async (
       mode: text(modeSelect?.value).trim(),
       chargingStations,
     });
+    updateCostCards();
+    updatePackCost();
   }
 
   // ── Shift filter ─────────────────────────────────────────────────
-  function renderCurrentView() {
+  function filteredShifts() {
     const query = (shiftFilter?.value ?? "").toLowerCase().trim();
-    const filtered = query
+    return query
       ? allShifts.filter(
           (s) =>
             text(s?.name).toLowerCase().includes(query) ||
             text(s?._resolved_bus_model).toLowerCase().includes(query)
         )
       : allShifts;
+  }
 
-    renderShiftRows(shiftTbody, sortShifts(filtered, sortState), {
+  function syncFilteredSelection() {
+    if (!selectFilteredShifts) return;
+    const filtered = filteredShifts();
+    const selected = filtered.filter(shift => selectedShiftIds.has(text(shift.id))).length;
+    selectFilteredShifts.disabled = !filtered.length;
+    selectFilteredShifts.checked = filtered.length > 0 && selected === filtered.length;
+    selectFilteredShifts.indeterminate = selected > 0 && selected < filtered.length;
+  }
+
+  function renderCurrentView() {
+    renderShiftRows(shiftTbody, sortShifts(filteredShifts(), sortState), {
       selectedIds: selectedShiftIds,
     });
     updateSortHeaders(shiftTable, sortState);
+    syncFilteredSelection();
+    observeRenderedShiftDistances();
   }
+
+  const handleSelectFiltered = () => {
+    filteredShifts().forEach(shift => {
+      const id = text(shift.id);
+      if (selectFilteredShifts.checked) selectedShiftIds.add(id);
+      else selectedShiftIds.delete(id);
+    });
+    renderCurrentView();
+    refreshBusModelOverride();
+    void rebuildStopsTable();
+  };
+  selectFilteredShifts?.addEventListener('change', handleSelectFiltered);
+  cleanupHandlers.push(() => selectFilteredShifts?.removeEventListener('change', handleSelectFiltered));
 
   if (shiftFilter) {
     shiftFilter.addEventListener("input", renderCurrentView);
@@ -1130,6 +1281,7 @@ export const initializeAddSimulation = async (
       }
     }
 
+    syncFilteredSelection();
     refreshBusModelOverride();
     rebuildStopsTable();
   };
@@ -1170,6 +1322,9 @@ export const initializeAddSimulation = async (
           };
 
     renderCurrentView();
+    if (nextKey === "distance" || nextKey === "yearly_distance") {
+      void hydrateShiftDistances(filteredShifts(), { rerenderAfter: true });
+    }
   };
 
   shiftTable?.querySelector("thead")?.addEventListener("click", handleSortClick);
@@ -1188,6 +1343,7 @@ export const initializeAddSimulation = async (
     } else if (target.type === "checkbox") {
       syncSelectAllCheckbox(stopsThead, stopsTbody);
     }
+    updateCostCards();
   };
 
   if (stopsThead) {
@@ -1218,6 +1374,7 @@ export const initializeAddSimulation = async (
   // ── Submit ───────────────────────────────────────────────────────
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (submitting || disposed) return;
     setFeedback(section, "");
     clearNameValidation();
 
@@ -1241,7 +1398,7 @@ export const initializeAddSimulation = async (
     if (!selectedShiftIds.length) {
       setFeedback(
         section,
-        t("simulation.shift_required") || "Select at least one shift."
+        t("simulation.shift_required") || "Select at least one vehicle block."
       );
       return;
     }
@@ -1293,7 +1450,11 @@ export const initializeAddSimulation = async (
     const payload = {
       name,
       mode: optimizationMode,
-      consumption_basis: formData.get("consumption_basis") || "mean",
+      consumption_basis: "mean",
+      evaluate_both_bases: true,
+      daily_cycle: section.querySelector('#var-daily-cycle').checked,
+      depot_peak_shaving: section.querySelector('#var-daily-cycle').checked && section.querySelector('#var-depot-peak-shaving').checked,
+      lock_entire_dwell: true,
       shift_ids: selectedShiftIds,
       bus_model_id: busModelId,
       prediction_params: predictionParams,
@@ -1305,41 +1466,44 @@ export const initializeAddSimulation = async (
     };
 
     if (optimizationMode === "charging_only") {
-      const packs = Number(formData.get("fixed_battery_packs"));
-      if (!Number.isInteger(packs) || packs < 1) {
-        setFeedback(section, t("simulation.fixed_battery_invalid"));
+      if (!syncFixedBatteryField({ showError: true })) {
+        if (!fixedPacks.disabled) fixedPacks.focus();
+        else fixedGroup.scrollIntoView({ block: 'nearest' });
         return;
       }
-      payload.fixed_battery_packs = packs;
+      payload.fixed_battery_packs = Number(fixedPacks.value);
     }
 
     if (optimizationMode === "joint") {
-      const costPerKwh = Number(formData.get("battery_cost_per_kwh"));
-      if (costPerKwh > 0) payload.battery_cost_per_kwh = costPerKwh;
+      await updatePackCost();
+      const model=allUserModels.find(m=>String(m.id)===busModelOverride.value);
+      if (model?.specs?.battery_pack_cost_chf == null || !Number.isFinite(Number(model.specs.battery_pack_cost_chf)) || Number(model.specs.battery_pack_cost_chf) < 0) {
+        setFeedback(section,t('simulation.cost_bus_pack_missing'));
+        return;
+      }
+    }
+    if (['battery_only', 'joint'].includes(optimizationMode)) {
       payload.battery_sizing_mode =
         text(formData.get("battery_sizing_mode") ?? "per_bus").trim() ||
         "per_bus";
     }
 
-    const confirmMessage =
-      t("simulation.run_confirm") || "Launch this simulation?";
-    if (!confirm(confirmMessage)) return;
-
+    if (payload.charging_stations.some(station=>Object.entries(station.cost_model).some(([key,value])=>key.endsWith('chf') && (!Number.isFinite(value) || value < 0)))) {
+      setFeedback(section,t('simulation.cost_invalid'));
+      costOptions.open=true;
+      return;
+    }
+    submitting = true;
     const submitBtn = form?.querySelector('[type="submit"]');
-    if (submitBtn) submitBtn.disabled = true;
 
     try {
-      showProgress(
-        t("simulation.creating_predictions") ||
-          "Creating prediction runs and waiting for completion…"
-      );
+      if (!await confirmEvaluation(name, selectedShiftIds.length)) return;
+      if (submitBtn) submitBtn.disabled = true;
+      progress.start({ name, count: selectedShiftIds.length, optimizationMode,
+        modeLabel: modeSelect.selectedOptions[0].textContent });
 
-      const response = await createOptimizationRun(payload);
-
-      showProgress(
-        t("simulation.optimization_submitted") ||
-          "Optimization run submitted. Redirecting…"
-      );
+      const response = await createOptimizationRun(payload, { onProgress: progress.preparation });
+      if (disposed) return;
 
       const runId = response?.id ?? response?.optimization_run_id ?? "";
       if (!runId) {
@@ -1348,31 +1512,54 @@ export const initializeAddSimulation = async (
         setFeedback(
           section,
           t("simulation.no_run_ids") ||
-            "Simulation submitted but no run IDs returned."
+            "Evaluation submitted but no run IDs returned."
         );
         return;
       }
 
       saveRunIds([runId]);
 
-      const completedRun = await waitForOptimizationCompletion(runId);
-      const finalStatus = text(completedRun?.status).trim().toLowerCase();
+      const basisRunIds = response?.basis_run_ids ?? { mean: runId };
+      progress.submitted(basisRunIds);
+      const runIds = [...new Set([runId, ...Object.values(basisRunIds)].filter(Boolean))];
+      const completedRuns = await Promise.all(runIds.map((id) =>
+        waitForOptimizationCompletion(id, {
+          signal: completionController.signal,
+          onUpdate: (run) => {
+            const basis = Object.keys(basisRunIds).find((key) => basisRunIds[key] === id);
+            if (basis === "mean" || basis === "aggregate_q95") progress.update(basis, run);
+          },
+        })
+      ));
+      if (disposed) return;
+      // Prefer Mean, but still open a completed Q95 result if only Mean failed.
+      // A completed, infeasible evaluation also has useful diagnostic results.
+      const resultIndex = completedRuns.findIndex((run) =>
+        ["completed", "done"].includes(text(run?.status).trim().toLowerCase())
+      );
 
       hideProgress();
 
-      triggerPartialLoad("simulation-runs", {
-        flashMessage:
-          finalStatus === "failed" || finalStatus === "error"
-            ? t("simulation.finished_with_failures", { failed: 1, total: 1 }) ||
-              "Simulation finished with failures."
-            : t("simulation.completed") ||
-              "Simulation completed successfully.",
-      });
+      if (resultIndex >= 0) {
+        triggerPartialLoad("simulation-results", {
+          runId: runIds[resultIndex],
+          simulationName: completedRuns[resultIndex]?.name || name,
+          busModelId,
+        });
+      } else {
+        triggerPartialLoad("simulation-runs", {
+          flashMessage: t("simulation.finished_with_failures", {
+            failed: completedRuns.length, total: completedRuns.length,
+          }),
+        });
+      }
     } catch (error) {
-      console.error("Failed to submit simulation", error);
+      if (disposed) return;
+      console.error("Failed to submit evaluation", error);
       hideProgress();
-      setFeedback(section, error?.message ?? "Failed to submit simulation.");
+      setFeedback(section, error?.message ?? "Failed to submit evaluation.");
     } finally {
+      submitting = false;
       if (submitBtn) submitBtn.disabled = false;
     }
   };
@@ -1385,6 +1572,10 @@ export const initializeAddSimulation = async (
   }
 
   return () => {
+    disposed = true;
+    completionController.abort();
+    abortActiveCandidateRequest();
+    candidateLoader.clear();
     cleanupHandlers.forEach((handler) => handler());
   };
 };

@@ -37,5 +37,7 @@ for (const mode of ["battery_only", "joint", "charging_only"]) {
     expect(submitted.prediction_run_ids).toHaveLength(1);
     expect(submitted.reference_prediction_run_ids).toEqual({s: mode === "charging_only" ? "p-12" : "p-16"});
     expect(submitted.fixed_battery_packs).toBeUndefined();
+    expect(submitted.evaluate_both_bases).toBe(true);
+    expect(submitted.lock_entire_dwell).toBe(true);
   });
 }

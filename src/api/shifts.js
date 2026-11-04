@@ -46,7 +46,7 @@ export const fetchShifts = async ({
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
-      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load shifts.";
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load vehicle blocks.";
     throw new Error(message);
   }
   return normalizePaginatedResponse(payload, normalizedSkip, normalizedLimit);
@@ -82,7 +82,7 @@ export const fetchShiftById = async (shiftId) => {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
-      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load shift.";
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load vehicle block.";
     throw new Error(message);
   }
   return payload;
@@ -104,7 +104,7 @@ export const fetchShiftInfo = async (shiftId) => {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
-      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load shift info.";
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load vehicle block info.";
     throw new Error(message);
   }
   return payload;
@@ -135,7 +135,7 @@ export const fetchShiftYearlyDistance = async (
     const message =
       payload?.detail?.[0]?.msg ??
       payload?.detail ??
-      "Unable to load shift yearly distance.";
+      "Unable to load vehicle block yearly distance.";
     throw new Error(message);
   }
   return payload;
@@ -190,7 +190,7 @@ export const createShift = async ({ name, busId, tripIds, startTime, endTime, st
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
-      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to create shift.";
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to create vehicle block.";
     throw new Error(message);
   }
   return payload;
@@ -245,7 +245,7 @@ export const updateShift = async (shiftId, { name, busId, tripIds, startTime, en
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
-      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to update shift.";
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to update vehicle block.";
     throw new Error(message);
   }
   return payload;
@@ -261,5 +261,5 @@ export const deleteShift = async (shiftId) => {
     method: "DELETE",
     headers,
   });
-  return readDeleteResponse(response, "Unable to delete shift.");
+  return readDeleteResponse(response, "Unable to delete vehicle block.");
 };

@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { readFileSync } from "node:fs";
 
 const API_ROOT = process.env.VITE_API_PROXY_TARGET || "http://isaac-elettra.dacd.supsi.ch:8002";
 const DEFAULT_ALLOWED_HOSTS = ["isaac-elettra.dacd.supsi.ch", "bismuto.supsi.ch"];
@@ -30,6 +31,9 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   base: "/elettra/",
+  define: {
+    __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version),
+  },
   build: {
     rollupOptions: {
       input: {

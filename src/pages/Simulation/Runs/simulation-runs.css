@@ -152,3 +152,20 @@
   color: var(--badge-danger-text);
   background: var(--color-danger);
 }
+
+.simulation-state-indicator--warning {
+  color: var(--badge-warning-text);
+  background: var(--color-warning);
+}
+
+.simulation-state-indicator--neutral {
+  color: var(--text-secondary);
+  background: var(--border-medium);
+}
+
+.simulation-state-note {
+  display: block;
+  margin-top: var(--space-2xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs, 0.75rem);
+}

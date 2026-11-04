@@ -16,7 +16,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release-channel:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      channel: ${{ steps.channel.outputs.name }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check application release channel
+        id: channel
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          echo "name=$(bash .github/scripts/release-channel.sh "refs/tags/v${version}")" >> "$GITHUB_OUTPUT"
+
   deploy:
+    needs: release-channel
+    if: needs.release-channel.outputs.channel == 'stable'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -33,7 +33,7 @@ const EN = {
   "custom_stops.delete_dependency_check_failed":
     "ELETTRA could not verify whether the selected custom stop(s) are in use. Please try again.",
   "protected_delete.blocked_item_named": '{typeLabel} "{name}"',
-  "protected_delete.blocker_type.shift": "Shift",
+  "protected_delete.blocker_type.shift": "Vehicle block",
   "protected_delete.blocker_type.optimization_run": "Feasibility evaluation",
   "delete_error.blocked": "Unable to delete: this resource is still in use.",
   "delete_error.generic": "Unable to delete resource.",

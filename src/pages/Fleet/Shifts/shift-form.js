@@ -666,7 +666,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
             departure: eligibility?.departure ?? "",
             start: eligibility?.boundary ?? "",
           }) ||
-          `Trip departs at ${eligibility?.departure ?? ""} but the shift starts at ${eligibility?.boundary ?? ""}. The bus cannot be at a stop before leaving the depot.`
+          `Trip departs at ${eligibility?.departure ?? ""} but the vehicle block starts at ${eligibility?.boundary ?? ""}. The bus cannot be at a stop before leaving the depot.`
         );
       case "after_shift_end":
         return (
@@ -674,7 +674,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
             arrival: eligibility?.arrival ?? "",
             end: eligibility?.boundary ?? "",
           }) ||
-          `Trip arrives at ${eligibility?.arrival ?? ""} but the shift ends at ${eligibility?.boundary ?? ""}. The bus must return to the depot by the shift end time.`
+          `Trip arrives at ${eligibility?.arrival ?? ""} but the vehicle block ends at ${eligibility?.boundary ?? ""}. The bus must return to the depot by the vehicle block end time.`
         );
       case "location_mismatch":
         return (
@@ -792,7 +792,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateFeedback(
       feedback,
       t("shifts.bulk_added_trips", { count: addedCount }) ||
-        `${addedCount} trip(s) added to the shift.`,
+        `${addedCount} trip(s) added to the vehicle block.`,
       "success"
     );
   };
@@ -801,7 +801,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     if (selectedTrips.length === 0) {
       updateFeedback(
         feedback,
-        t("shifts.no_trips_to_remove") || "There are no trips to remove from the shift.",
+        t("shifts.no_trips_to_remove") || "There are no trips to remove from the vehicle block.",
         "info"
       );
       return;
@@ -818,7 +818,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateFeedback(
       feedback,
       t("shifts.bulk_removed_trips", { count: removedCount }) ||
-        `${removedCount} trip(s) removed from the shift.`,
+        `${removedCount} trip(s) removed from the vehicle block.`,
       "success"
     );
   };
@@ -1577,7 +1577,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       }
     } catch (error) {
       console.error(
-        isEditMode ? "Failed to update shift" : "Failed to create shift",
+        isEditMode ? "Failed to update vehicle block" : "Failed to create vehicle block",
         error
       );
       hideProgress();

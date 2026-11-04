@@ -1,7 +1,7 @@
 /** Forecast variants are alternatives, not additional physical buses. */
 export function selectOptimizationReferences(runs, shiftIds, mode, fixedPackCount = null) {
   if (!shiftIds.length || new Set(shiftIds).size !== shiftIds.length) {
-    throw new Error("Select distinct physical shifts.");
+    throw new Error("Select distinct physical vehicle blocks.");
   }
   if (mode === "charging_only" && (!Number.isInteger(fixedPackCount) || fixedPackCount < 1)) {
     throw new Error("Select the battery pack count for charging-only optimisation.");
@@ -14,7 +14,7 @@ export function selectOptimizationReferences(runs, shiftIds, mode, fixedPackCoun
         (mode !== "charging_only" || packs === fixedPackCount);
     }).sort((a, b) => b.contextual_parameters.num_battery_packs - a.contextual_parameters.num_battery_packs ||
       String(b.id).localeCompare(String(a.id)));
-    if (!candidates.length) throw new Error(`No completed reference forecast for shift ${shiftId}.`);
+    if (!candidates.length) throw new Error(`No completed reference forecast for vehicle block ${shiftId}.`);
     return [shiftId, candidates[0].id];
   }));
 }

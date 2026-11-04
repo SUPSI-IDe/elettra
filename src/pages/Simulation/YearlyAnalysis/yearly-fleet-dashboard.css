@@ -1,0 +1,58 @@
+.annual-fleet-card { padding: 1.75rem; margin-bottom: 1.5rem; min-width: 0; }
+.annual-fleet-card h2 { font-size: 1.1rem; margin: 0 0 1rem; }
+.annual-fleet-card h3 { font-size: 1rem; margin: 1.5rem 0 .6rem; }
+.annual-fleet-card .helper-text { line-height: 1.5; color: #505860; font-size: .9rem; }
+.annual-fleet-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+.annual-fleet-scope { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; font-size: .9rem; }
+.annual-fleet-scope select { max-width: 100%; padding: .5rem; border: 1px solid #ccd8df; border-radius: .45rem; background: white; color: inherit; }
+.annual-fleet-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; padding: 1.2rem 0; }
+.annual-fleet-metric { display: flex; flex-direction: column; gap: .45rem; }
+.annual-fleet-metric > span, .annual-fleet-metric small { font-size: .9rem; color: #505860; }
+.annual-fleet-metric strong { font-size: 1.45rem; font-variant-numeric: tabular-nums; }
+.annual-fleet-metrics--tco { border-bottom: 1px solid #dce4e9; margin-bottom: 1rem; }
+.annual-fleet-metrics--tco .annual-fleet-metric:first-child strong { color: #103b3d; }
+.annual-fleet-card details { margin-top: 1.2rem; }
+.annual-fleet-card summary { cursor: pointer; font-size: .95rem; font-weight: 600; }
+.annual-fleet-table { overflow-x: auto; margin: .75rem 0; }
+.annual-fleet-table table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.annual-fleet-table th, .annual-fleet-table td { padding: .65rem .75rem; border-bottom: 1px solid #dce4e9; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.annual-fleet-table th:first-child { text-align: left; white-space: normal; }
+.annual-fleet-table tbody th { font-weight: 400; }
+.annual-fleet-table thead { color: #566779; }
+.annual-fleet-table tfoot { font-weight: 600; background: #f6f9fa; }
+.annual-fleet-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; margin: 1rem 0; }
+.annual-fleet-inputs label { display: flex; flex-direction: column; gap: .4rem; font-size: .9rem; }
+.annual-fleet-inputs input { padding: .55rem; width: 100%; box-sizing: border-box; border: 1px solid #c8d2d8; border-radius: .4rem; }
+.annual-fleet-autosave { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; color: #647480; font-size: .8rem; margin-top: .75rem; }
+.annual-fleet-autosave [data-status="error"], .annual-fleet-autosave [data-status="invalid"] { color: #b13c28; }
+.annual-fleet-autosave [data-autosave-retry] { border: 0; background: transparent; color: #103b3d; text-decoration: underline; font: inherit; cursor: pointer; }
+.annual-autosave-info { position: relative; display: inline-flex; }
+.annual-autosave-info > button { border: 0; border-radius: 50%; width: 1.1rem; height: 1.1rem; padding: 0; background: #e8eef2; color: #36566a; font: italic 600 .8rem Georgia, serif; cursor: help; }
+.annual-autosave-info [role="tooltip"] { display: none; position: absolute; bottom: calc(100% + .5rem); left: -8rem; width: min(340px, 75vw); padding: .65rem .8rem; background: #243d4b; color: white; border-radius: .4rem; box-shadow: 0 3px 12px #0002; z-index: 5; line-height: 1.5; }
+.annual-autosave-info:hover [role="tooltip"], .annual-autosave-info:focus-within [role="tooltip"] { display: block; }
+.annual-fleet-warning { border-left: 3px solid #da9400; background: #fff4d1; padding: .8rem; font-size: .9rem; }
+.annual-result-tabs { display: flex; gap: .5rem; border-bottom: 1px solid #dce4e9; margin: 0 0 1.5rem; }
+.annual-result-tabs button { background: transparent; color: #505860; border: 0; border-bottom: 3px solid transparent; padding: .8rem 1.2rem; cursor: pointer; font: inherit; font-weight: 600; }
+.annual-result-tabs button[aria-selected="true"] { color: #103b3d; border-color: #103b3d; }
+.annual-fleet-inputs .annual-slider { display: grid; grid-template-columns: 1fr; gap: .5rem; }
+.annual-slider input[type="range"] { accent-color: #103b3d; padding: 0; cursor: pointer; }
+.annual-slider input[type="number"] { font-variant-numeric: tabular-nums; }
+.annual-slider small { color: #647480; font-variant-numeric: tabular-nums; }
+.annual-fleet-inputs select { width: 100%; padding: .55rem; border: 1px solid #c8d2d8; border-radius: .4rem; font: inherit; }
+.annual-cost-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; margin: 1.5rem 0; }
+.annual-cost-charts figure { margin: 0; min-width: 0; }
+.annual-cost-charts figcaption { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; }
+.annual-chart-scroll { overflow-x: auto; }
+.annual-chart-scroll svg { display: block; width: 100%; min-width: 550px; font-size: 12px; }
+.annual-chart-scroll svg text { font-family: inherit; fill: #40505b; font-size: 12px; }
+.annual-chart-scroll .domain, .annual-chart-scroll .tick line { stroke: #aab9c1; }
+.annual-chart-scroll .annual-chart-grid line { stroke: #e6edf0; }
+.annual-chart-legend { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .85rem; margin-top: .5rem; }
+.annual-chart-legend > span { display: flex; align-items: center; gap: .4rem; }
+.annual-chart-legend i { width: .75rem; height: .75rem; border-radius: .15rem; }
+.annual-emissions-panel { min-width: 0; }
+.annual-emissions-panel .helper-text { font-size: .9rem; line-height: 1.5; }
+#annual-cost-panel[hidden], #annual-emissions-panel[hidden] { display: none; }
+[data-tco-form] [hidden] { display: none; }
+@media (max-width: 1350px) { .annual-cost-charts { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .annual-fleet-card { padding: 1rem; } .annual-fleet-metrics { grid-template-columns: 1fr; gap: 1rem; } .annual-fleet-inputs { grid-template-columns: 1fr; } }

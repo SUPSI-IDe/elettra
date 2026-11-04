@@ -61,6 +61,20 @@ test("the canonical complete LCA passes validation and mapping without mutation"
   assert.equal(mapped.yearlyDistanceKm, raw.annual_km);
 });
 
+test('one representative row reconciles multiple physical buses', () => {
+  const raw = structuredClone(fixture);
+  // The fixture's one-bus result is now the representative of two identical buses.
+  assert.equal(raw.vehicles.length, 1);
+  raw.vehicles[0].vehicle_count = 2;
+  raw.vehicles[0].shift_ids = ['a', 'b'];
+  raw.vehicle_count = 2;
+  raw.annual_km *= 2;
+  for (const key of ['dc_kwh', 'grid_kwh', 'charging_losses_kwh']) raw.energy_boundary[key] *= 2;
+  assert.deepEqual(validateParameterizedLca(raw), { valid: true, issues: [] });
+  raw.vehicles[0].vehicle_count = 3;
+  assert.equal(validateParameterizedLca(raw).valid, false);
+});
+
 test("additional backend indicators remain in the raw export but cannot alter mapped totals", () => {
   const raw = candidate(value => {
     value.indicators.futureIndicator = { untrusted: true };

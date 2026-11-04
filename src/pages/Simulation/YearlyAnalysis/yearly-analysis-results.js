@@ -3,11 +3,13 @@ import {
   buildChargingEnergyBoundary,
 } from "../../../utils/charging-energy";
 import { mapParameterizedLca, renderParameterizedLca } from "./parameterized-lca";
+import { createYearlyFleetDashboard } from './yearly-fleet-dashboard';
 import "./yearly-analysis-results.css";
 import { triggerPartialLoad } from "../../../events";
 import { textContent, toText } from "../../../ui-helpers";
 import {
   fetchYearlyAnalysis,
+  updateYearlyAnalysis,
   fetchYearlyAnalysisCosts,
   fetchYearlyAnalysisLca,
   fetchOptimizationRun,
@@ -1800,7 +1802,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
     content.innerHTML = `<p class="ya-status-msg">${textContent(
       translateOr(
         "yearly_analysis.shift_capex_allocation_unavailable",
-        "Shift CAPEX is unavailable because the vehicle count, investment inputs, or a complete annual allocation basis could not be resolved.",
+        "Vehicle block CAPEX is unavailable because the vehicle count, investment inputs, or a complete annual allocation basis could not be resolved.",
       ),
     )}</p>`;
     return;
@@ -1819,7 +1821,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
   const basisNote = usesEnergy
     ? translateOr(
         "yearly_analysis.annual_dc_energy_allocation_note",
-        "Only the shared charging infrastructure is allocated: {share}% to this shift from {basis} of annual DC energy shown in Emissions. Bus and battery CAPEX belongs in full to the vehicles assigned to this shift.",
+        "Only the shared charging infrastructure is allocated: {share}% to this vehicle block from {basis} of annual DC energy shown in Emissions. Bus and battery CAPEX belongs in full to the vehicles assigned to this vehicle block.",
         {
           share: formatFixed(allocation.share * 100, 1),
           basis: basisValue,
@@ -1827,7 +1829,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
       )
     : translateOr(
         "yearly_analysis.annual_distance_allocation_note",
-        "Only the shared charging infrastructure is allocated: {share}% to this shift from {basis} of annual distance because complete DC energy was unavailable. Bus and battery CAPEX belongs in full to the vehicles assigned to this shift.",
+        "Only the shared charging infrastructure is allocated: {share}% to this vehicle block from {basis} of annual distance because complete DC energy was unavailable. Bus and battery CAPEX belongs in full to the vehicles assigned to this vehicle block.",
         {
           share: formatFixed(allocation.share * 100, 1),
           basis: basisValue,
@@ -1836,7 +1838,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
   const metrics = [
     {
       key: "vehicles",
-      label: translateOr("yearly_analysis.shift_vehicle_count", "Vehicles in this shift"),
+      label: translateOr("yearly_analysis.shift_vehicle_count", "Vehicles in this vehicle block"),
       value: formatFixed(allocation.vehicleCount, 0),
     },
     {
@@ -1869,7 +1871,7 @@ const renderShiftCapitalAllocation = (section, cd) => {
   content.innerHTML = `
     <div class="ya-compact-metrics ya-capex-allocation-summary">
       <table class="ya-compact-metrics__table" aria-label="${textContent(
-        translateOr("yearly_analysis.allocated_capex_title", "Shift CAPEX"),
+        translateOr("yearly_analysis.allocated_capex_title", "Vehicle block CAPEX"),
       )}">
         <thead><tr>${metrics.map((metric) => `<th scope="col" data-metric="${metric.key}">${textContent(metric.label)}</th>`).join("")}</tr></thead>
         <tbody><tr>${metrics.map((metric) => `<td data-metric="${metric.key}">${textContent(metric.value)}</td>`).join("")}</tr></tbody>
@@ -4327,7 +4329,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
       value: nominalKwh != null ? `${formatFixed(nominalKwh, 1)} kWh` : "—",
     },
     {
-      label: translateOr("yearly_analysis.sizing_shifts", "Sizing shift"),
+      label: translateOr("yearly_analysis.sizing_shifts", "Sizing vehicle block"),
       value: sizingShiftNames.length ? sizingShiftNames.join(", ") : "—",
     },
   ];
@@ -4337,7 +4339,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
       value: busName,
     },
     {
-      label: translateOr("yearly_analysis.covered_shifts", "Covered shifts"),
+      label: translateOr("yearly_analysis.covered_shifts", "Covered vehicle blocks"),
       value: shiftNames.length ? String(shiftNames.length) : "—",
     },
     {
@@ -4424,7 +4426,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
         : "—",
     },
     {
-      label: translateOr("yearly_analysis.shift_capex_allocation", "Allocation to shifts"),
+      label: translateOr("yearly_analysis.shift_capex_allocation", "Allocation to vehicle blocks"),
       value: translateOr(
         "yearly_analysis.allocated_by_annual_dc_energy",
         "Only infrastructure, by annual DC energy",
@@ -4473,7 +4475,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
         <p class="ya-scope-level__subtitle result-card__subtitle">${textContent(
           translateOr(
             "simulation.feasibility_general_subtitle",
-            "One bus configuration and one charging infrastructure shared by every selected shift.",
+            "One bus configuration and one charging infrastructure shared by every selected vehicle block.",
           ),
         )}</p>
       </div>
@@ -4532,12 +4534,12 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
         )}</h3>
         ${infoTip(translateOr(
           "yearly_analysis.general_cost_scope_tooltip",
-          "Bus and battery CAPEX is multiplied by the physical vehicle count inherited from the feasibility result. Charging infrastructure is counted once for the fleet; only its cost is allocated to shifts by annual DC energy.",
+          "Bus and battery CAPEX is multiplied by the physical vehicle count inherited from the feasibility result. Charging infrastructure is counted once for the fleet; only its cost is allocated to vehicle blocks by annual DC energy.",
         ))}
       </div>
       <p class="ya-general-costs__note">${textContent(translateOr(
         "yearly_analysis.general_cost_scope_note",
-        "The fleet total includes every simulated physical vehicle with its common battery. The charging infrastructure is a single shared investment and is the only CAPEX allocated between shifts.",
+        "The fleet total includes every simulated physical vehicle with its common battery. The charging infrastructure is a single shared investment and is the only CAPEX allocated between vehicle blocks.",
       ))}</p>
       ${definitionRowsHtml(sharedCostRows)}
     </article>
@@ -4615,7 +4617,7 @@ const buildScopedEmissionsState = (state, scope) => {
       status: "error",
       error: translateOr(
         "yearly_analysis.shift_emissions_unavailable",
-        "Shift-level emissions are unavailable for this historical analysis.",
+        "Vehicle block-level emissions are unavailable for this historical analysis.",
       ),
     };
   }
@@ -4627,7 +4629,7 @@ const buildScopedEmissionsState = (state, scope) => {
       status: "error",
       error: translateOr(
         "yearly_analysis.shift_emissions_unavailable",
-        "Shift-level emissions are unavailable for this historical analysis.",
+        "Vehicle block-level emissions are unavailable for this historical analysis.",
       ),
     };
   }
@@ -4747,7 +4749,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   );
   const resultScopes = buildYearlyResultScopes(features, {
     generalLabel: translateOr("yearly_analysis.scope_general", "General"),
-    shiftFallback: translateOr("yearly_analysis.scope_shift", "Shift"),
+    shiftFallback: translateOr("yearly_analysis.scope_shift", "Vehicle block"),
   });
   let activeScopeKey = YEARLY_GENERAL_SCOPE_KEY;
   let activeScope = resolveYearlyResultScope(resultScopes, activeScopeKey);
@@ -4794,6 +4796,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     emissionsMetadata: null, error: null,
   };
   let generalCostsData = null;
+  let fleetDashboard = null;
   let generalCostsError = null;
   let syncCostSliders = () => {};
   let syncEmissionsDistanceControl = () => {};
@@ -5102,18 +5105,16 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         ? costState.error || t("yearly_analysis.unable_compute_costs")
         : translateOr(
             "yearly_analysis.shift_cost_scope_note",
-            "Operating costs use this shift's energy and distance. Shared CAPEX remains counted once in General and is attributed here by the shift's share of annual DC energy for comparison and break-even analysis.",
+            "Operating costs use this vehicle block's energy and distance. Shared CAPEX remains counted once in General and is attributed here by the vehicle block's share of annual DC energy for comparison and break-even analysis.",
           );
     }
   };
 
   /* ── Scope section renderers ─────────────────────────────── */
   const TAB_RENDERERS = {
-    overview: () => renderOverviewPanel(
-      overviewPanel,
-      busModelData,
-      features,
-    ),
+    overview: () => fleetDashboard
+      ? fleetDashboard.mount(overviewPanel, emissionsState)
+      : renderOverviewPanel(overviewPanel, busModelData, features),
     efficiency: () => renderEfficiency(),
     costs: () => {
       renderScopeContextNotes();
@@ -5144,6 +5145,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         translateOr("yearly_analysis.result_view_selector", "Annual result section"),
       );
       resultViewTabsEl.querySelectorAll("[data-result-view]").forEach((button) => {
+        button.hidden = Boolean(fleetDashboard && button.dataset.resultView !== 'efficiency');
         const isActive = isShift && button.dataset.resultView === activeResultViewKey;
         button.classList.toggle("active", isActive);
         button.setAttribute("aria-selected", String(isActive));
@@ -5179,9 +5181,11 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const refreshDerivedEmissionsViews = () => {
     const visibility = applyScopeSectionVisibility();
     if (visibility.emissions) TAB_RENDERERS.emissions();
+    if (activeScope?.kind === 'general') fleetDashboard?.update(emissionsState);
   };
 
   const activateResultView = (requestedKey, { focus = false } = {}) => {
+    if (fleetDashboard && requestedKey !== 'efficiency') return;
     if (activeScope?.kind !== "shift" || !YEARLY_RESULT_VIEW_KEYS.includes(requestedKey)) return;
     activeResultViewKey = requestedKey;
     const visibility = applyScopeSectionVisibility();
@@ -5467,7 +5471,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
         annual_km: shiftAnnualKm,
         shift_id: shiftAnnualKm != null ? shiftId : null,
         // No fleet-wide overwrite with the first bus model.
-        diesel_consumption_l_per_km: costOverrides.dieselEfficiency,
+        diesel_consumption_l_per_km: features.assessment_assumptions?.tco?.dieselConsumption ?? costOverrides.dieselEfficiency,
       }, { signal: lcaController.signal });
       if (requestId !== lcaRequestId) return;
       const mapped = mapParameterizedLca(backendEmissionsRaw);
@@ -5598,7 +5602,34 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       };
       activeFeatures = buildScopedYearlyFeatures(features, activeScope);
     }
+    if (features.config?.fixedConfiguration && !features.config.fixedConfiguration.investment) {
+      features.config.fixedConfiguration.investment = fixedConfiguration.investment;
+    }
   }
+
+  // Historical analyses without the saved fleet investment ledger retain the
+  // original duty views; never replace useful results with an incomplete card.
+  const savedInvestmentRows = features.config?.fixedConfiguration?.investment?.rows;
+  if (savedInvestmentRows?.length && savedInvestmentRows.every(row => row.busCost != null && row.batteryCost != null)) fleetDashboard = createYearlyFleetDashboard({
+    features, model: busModelData, predictionRuns: analysisPredictionRuns,
+    onPreviewLca: async (values) => {
+      const raw = await fetchYearlyAnalysisLca(analysisId, {
+        annual_km_by_shift: JSON.stringify(values.annualKmByShift),
+        lifetime_bus: values.bodyLife, lifetime_battery: values.batteryLife,
+        lifetime_diesel_bus: values.dieselLife,
+        diesel_consumption_l_per_km: values.dieselConsumption,
+      });
+      mapParameterizedLca(raw);
+      return raw;
+    },
+    onSave: async (tco) => {
+      const latest = await fetchYearlyAnalysis(analysisId);
+      const assessment = { ...(latest.features?.assessment_assumptions ?? {}), tco };
+      await updateYearlyAnalysis(analysisId, { features: { ...latest.features, assessment_assumptions: assessment } });
+      features.assessment_assumptions = assessment;
+    },
+  });
+  cleanups.push(() => fleetDashboard?.dispose());
 
   /* Try backend yearly-analysis costs first; fall back to client-side */
   const busLengthForCosts = toFiniteNumber(busModelData?.bus_length_m);
