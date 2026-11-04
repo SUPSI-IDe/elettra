@@ -1,7 +1,7 @@
 import "../evaluation-dialogs.css";
 import { formatChf } from "../../../utils/number-format";
 import { defaultCostModel, renderCostCards, readCostModel, syncCostCards } from './infrastructure-costs';
-import { t } from "../../../i18n";
+import { t, I18N_CHANGE_EVENT } from "../../../i18n";
 import "./add-simulation.css";
 import { createEvaluationProgress } from "./evaluation-progress";
 import {
@@ -37,6 +37,7 @@ import {
 import { normalizeOptimizationRunName } from "../../../utils/optimization-run";
 import { createChargingStopCandidateLoader } from "./charging-stop-candidates";
 import { createLazyShiftDistanceLoader } from "./lazy-shift-distances";
+import { batteryPackLimits, batteryPackValidation } from "../../../utils/battery-pack-limits";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -498,6 +499,50 @@ export const initializeAddSimulation = async (
 
   let allShifts = [];
   let allUserModels = [];
+  const fixedGroup = section.querySelector('[data-role="fixed-battery-group"]');
+  const fixedPacks = section.querySelector('#var-fixed-battery-packs');
+  const fixedPacksHelp = section.querySelector('#fixed-battery-help');
+  const fixedPacksFeedback = section.querySelector('#fixed-battery-feedback');
+  const modelDetailsRequests = new Map();
+  let loadingBusModelId = null;
+  let fixedPacksTouched = false;
+
+  const syncFixedBatteryField = ({ showError = false } = {}) => {
+    const active = modeSelect.value === 'charging_only';
+    const model = allUserModels.find(m => String(m.id) === busModelOverride.value);
+    const loading = loadingBusModelId === busModelOverride.value;
+    const limits = batteryPackLimits(model?.specs);
+    const params = { model: resolveBusModelDisplayName(model), ...limits };
+    fixedGroup.hidden = !active;
+    fixedPacks.required = active;
+    fixedPacks.disabled = !active || loading || !limits;
+    for (const key of ['min', 'max']) {
+      if (limits) fixedPacks.setAttribute(key, String(limits[key]));
+      else fixedPacks.removeAttribute(key);
+    }
+    fixedPacksHelp.textContent = !model ? t('simulation.fixed_battery_select_model')
+      : loading ? t('simulation.fixed_battery_loading')
+      : t(limits ? 'simulation.fixed_battery_range' : 'simulation.fixed_battery_unavailable', params);
+    const issue = loading ? 'loading' : batteryPackValidation(fixedPacks.value, limits);
+    const message = active && issue ? t(`simulation.fixed_battery_${issue}`, params) : '';
+    fixedPacks.setCustomValidity(message);
+    const visible = Boolean(message && (showError || fixedPacksTouched || fixedPacks.value !== ''));
+    fixedPacksFeedback.textContent = visible ? message : '';
+    fixedPacksFeedback.hidden = !visible;
+    fixedPacks.setAttribute('aria-invalid', String(visible));
+    return !active || !issue;
+  };
+  const handleFixedPacksInput = () => {
+    fixedPacksTouched = true;
+    syncFixedBatteryField();
+  };
+  for (const event of ['input', 'change', 'blur']) {
+    fixedPacks.addEventListener(event, handleFixedPacksInput);
+    cleanupHandlers.push(() => fixedPacks.removeEventListener(event, handleFixedPacksInput));
+  }
+  const refreshFixedPacksTranslation = () => syncFixedBatteryField();
+  document.addEventListener(I18N_CHANGE_EVENT, refreshFixedPacksTranslation);
+  cleanupHandlers.push(() => document.removeEventListener(I18N_CHANGE_EVENT, refreshFixedPacksTranslation));
   let currentStops = [];
   let currentStopsKey = "";
   let activeCandidateRequest = null;
@@ -521,10 +566,21 @@ export const initializeAddSimulation = async (
   const updatePackCost = async () => {
     const id=busModelOverride.value;
     const model=allUserModels.find(m=>String(m.id)===id);
-    if (model && !model.specs) {
-      try { Object.assign(model, await fetchBusModelById(id)); } catch { /* Display missing data, never invent a price. */ }
+    const needsDetails = model && (!model.specs || !batteryPackLimits(model.specs));
+    loadingBusModelId = needsDetails ? id : null;
+    syncFixedBatteryField();
+    if (needsDetails) {
+      let request = modelDetailsRequests.get(id);
+      if (!request) {
+        request = fetchBusModelById(id);
+        modelDetailsRequests.set(id, request);
+      }
+      try { Object.assign(model, await request); } catch { /* Keep missing specifications explicit. */ }
+      finally { if (modelDetailsRequests.get(id) === request) modelDetailsRequests.delete(id); }
     }
     if (disposed || busModelOverride.value !== id) return;
+    loadingBusModelId = null;
+    syncFixedBatteryField();
     const value=model?.specs?.battery_pack_cost_chf;
     section.querySelector('[data-role="bus-pack-cost"]').textContent = value == null ? t('simulation.cost_bus_pack_missing') : formatChf(value);
   };
@@ -788,13 +844,6 @@ export const initializeAddSimulation = async (
     costOptions.hidden = true;
     updatePackCost();
     const mode = (modeSelect?.value ?? "").trim();
-    const fixedGroup = section.querySelector('[data-role="fixed-battery-group"]');
-    const fixedPacks = section.querySelector('#var-fixed-battery-packs');
-    if (fixedGroup) fixedGroup.hidden = mode !== "charging_only";
-    if (fixedPacks) {
-      fixedPacks.required = mode === "charging_only";
-      fixedPacks.disabled = mode !== "charging_only";
-    }
     const selectedIds = getSelectedShiftIds();
     const selectionKey = candidateLoader.keyFor(selectedIds);
     const seq = ++rebuildSeq;
@@ -1417,12 +1466,12 @@ export const initializeAddSimulation = async (
     };
 
     if (optimizationMode === "charging_only") {
-      const packs = Number(formData.get("fixed_battery_packs"));
-      if (!Number.isInteger(packs) || packs < 1) {
-        setFeedback(section, t("simulation.fixed_battery_invalid"));
+      if (!syncFixedBatteryField({ showError: true })) {
+        if (!fixedPacks.disabled) fixedPacks.focus();
+        else fixedGroup.scrollIntoView({ block: 'nearest' });
         return;
       }
-      payload.fixed_battery_packs = packs;
+      payload.fixed_battery_packs = Number(fixedPacks.value);
     }
 
     if (optimizationMode === "joint") {

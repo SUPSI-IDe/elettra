@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.0-rc.4] - 2026-11-04
+
+### Staging candidate
+
+- Use the ELETTRA E as the favicon, with a transparent symbol on a blue background.
+- Validate fixed battery pack counts against the selected bus model's minimum and maximum, including model changes and loading states, with localized inline explanations.
+- Batch charging-stop candidate loading and load vehicle-block distances on demand.
+- Integrate the annual fleet analysis, electric/diesel TCO and emissions comparisons, depot charging and paired Mean/Q95 evaluation work into main.
+- Skip GitHub Pages deployment for pre-release versions. Publish as a GitHub Pre-release and preserve stable Docker aliases, including `latest`.
+
 ## [0.8.0-rc.3] - 2026-10-30
 
 ### Staging candidate

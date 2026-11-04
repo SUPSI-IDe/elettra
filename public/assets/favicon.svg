@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+  <defs>
+    <mask id="e-cutout" maskUnits="userSpaceOnUse" x="0" y="0" width="160" height="160">
+      <rect width="160" height="160" fill="#fff"/>
+      <!-- Transparent E symbol from the existing ELETTRA logo. -->
+      <g fill="#000" transform="translate(22 15)">
+        <polygon points="31.6 107.7 31.6 125.8 110.8 125.8 110.8 107.7 51.2 107.7 31.6 107.7"/>
+        <polygon points="31.6 21.3 51.2 21.3 110.8 21.3 110.8 3.4 31.6 3.4 31.6 21.3"/>
+        <polygon points="31.6 102.2 54.2 102.2 54.2 75.8 80.6 75.8 80.6 53.2 54.2 53.2 54.2 26.9 31.6 26.9 31.6 53.2 5.3 53.2 5.3 75.8 31.6 75.8 31.6 102.2"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="160" height="160" rx="24" fill="#00adef" mask="url(#e-cutout)"/>
+</svg>

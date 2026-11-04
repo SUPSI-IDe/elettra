@@ -79,12 +79,13 @@
   width: 100%;
 }
 
-.add-simulation #simulation-name[aria-invalid="true"] {
+.add-simulation :is(#simulation-name, #var-fixed-battery-packs)[aria-invalid="true"] {
   border-color: var(--error-color);
   box-shadow: 0 0 0 3px var(--color-negative-muted);
 }
 
-.add-simulation [data-role="name-feedback"] {
+.add-simulation [data-role="name-feedback"],
+.add-simulation #fixed-battery-feedback {
   min-height: 0;
 }
 
