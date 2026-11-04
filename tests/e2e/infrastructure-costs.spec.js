@@ -17,9 +17,8 @@ for (const mode of ['battery_only', 'joint']) test(`advanced costs and uniform b
     else if(path.endsWith('/bus-models/model'))data=model;
     else if(path.endsWith('/buses/'))data=[{id:'bus',user_id:'user',bus_model_id:'model'}];
     else if(path.endsWith('/shifts/'))data=shifts;
+    else if(path.endsWith('/simulation/charging-stops/candidates'))data=[{stop_id:arrival,stop_name:'Arrival depot',is_depot:true,is_custom:true,depot_bus_count:2}];
     else if(path.includes('/shifts/'))data=shifts.find(s=>path.includes('/shifts/'+s.id))??{};
-    else if(path.includes('/gtfs-stops/by-trip/'))data=[{id:departure,stop_name:'Departure depot',stop_sequence:1},{id:arrival,stop_name:'Arrival depot',stop_sequence:2}];
-    else if(path.endsWith('/depots/'))data=[{id:'da',stop_id:departure,name:'Departure depot'},{id:'db',stop_id:arrival,name:'Arrival depot'}];
     else if(path.endsWith('/prediction-runs/')&&request.method()==='POST')data={prediction_run_ids:predictions.map(run=>run.id)};
     else if(path.endsWith('/prediction-runs/'))data=predictions;
     else if(path.includes('/prediction-runs/'))data=predictions.find(run=>path.endsWith('/'+run.id));

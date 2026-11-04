@@ -9,14 +9,12 @@ import {
   fetchBusModelById,
   fetchAllShifts,
   fetchBuses,
-  fetchStopsByTripId,
 } from "../../../api";
 import {
   createOptimizationRun,
+  fetchChargingStopCandidates,
   waitForOptimizationCompletion,
 } from "../../../api/simulation";
-import { fetchShiftById } from "../../../api/shifts";
-import { fetchDepots } from "../../../api/depots";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { triggerPartialLoad } from "../../../events";
@@ -37,9 +35,13 @@ import {
   DEFAULT_PREDICTION_QUANTILES,
 } from "../../../config/simulation-defaults";
 import { normalizeOptimizationRunName } from "../../../utils/optimization-run";
+import { createChargingStopCandidateLoader } from "./charging-stop-candidates";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUUID = (value) => UUID_RE.test(value);
 
 const findRowById = (tbody, id) =>
   Array.from(tbody?.querySelectorAll("tr[data-id]") ?? []).find(
@@ -217,141 +219,6 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } 
     .join("");
 };
 
-// ── Stop extraction ─────────────────────────────────────────────────
-
-const shiftCache = new Map();
-const tripStopsCache = new Map();
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isUUID = (v) => UUID_RE.test(v);
-
-/**
- * Fetch GTFS stops for a trip, returning them sorted by stop_sequence.
- * Results are cached per trip_id.
- */
-const fetchTripStops = async (tripId) => {
-  if (tripStopsCache.has(tripId)) return tripStopsCache.get(tripId);
-  try {
-    const raw = await fetchStopsByTripId(tripId);
-    const stops = Array.isArray(raw) ? raw : [];
-    stops.sort((a, b) => (a?.stop_sequence ?? 0) - (b?.stop_sequence ?? 0));
-    tripStopsCache.set(tripId, stops);
-    return stops;
-  } catch {
-    tripStopsCache.set(tripId, []);
-    return [];
-  }
-};
-
-/**
- * From a GTFS stop object, pick the database UUID.
- * `id` is the DB primary key (UUID); `stop_id` is the GTFS string identifier.
- */
-const resolveStopUUID = (stop) => {
-  const candidates = [stop?.id, stop?.stop_id];
-  return candidates.map((v) => text(v)).find(isUUID) ?? "";
-};
-
-/**
- * Load unique end-stops for the given shift IDs.
- *
- * The shift object (from GET /shifts/{id}) has a `structure` array where each
- * item represents a trip.  Regular trip items carry a `trip_id` (GTFS ID) that
- * we can pass to the /gtfs-stops/by-trip/ endpoint.  Depot / auxiliary items
- * are included using the shift-level start_depot_id / end_depot_id.
- */
-const loadEndStopsForShifts = async (shiftIds) => {
-  const seen = new Map();
-
-  // 1. Fetch all shift details in parallel
-  const shiftPromises = shiftIds.map(async (id) => {
-    if (shiftCache.has(id)) return shiftCache.get(id);
-    try {
-      const s = await fetchShiftById(id);
-      shiftCache.set(id, s);
-      return s;
-    } catch {
-      return null;
-    }
-  });
-  const shifts = await Promise.all(shiftPromises);
-
-  // 2. Collect unique trip_ids we need to fetch stops for
-  const tripIdSet = new Set();
-  for (const shift of shifts) {
-    if (!shift) continue;
-    const structure = Array.isArray(shift.structure) ? shift.structure : [];
-    for (const item of structure) {
-      const tripId = text(
-        item?.trip_id ?? item?.trip?.trip_id ?? item?.id ?? ""
-      );
-      if (tripId) tripIdSet.add(tripId);
-    }
-  }
-
-  // 3. Fetch stops for all unique trips in parallel
-  const tripIds = [...tripIdSet];
-  await Promise.all(tripIds.map(fetchTripStops));
-
-  // 4. Extract end-stop (last by sequence) from each trip, deduplicate
-  for (const tripId of tripIds) {
-    const stops = tripStopsCache.get(tripId) ?? [];
-    if (!stops.length) continue;
-    const last = stops[stops.length - 1];
-    const id = resolveStopUUID(last);
-    const name = text(last?.stop_name ?? last?.name ?? id);
-    if (id && !seen.has(id)) {
-      seen.set(id, { stop_id: id, stop_name: name, isCustom: false });
-    }
-  }
-
-  // 5. Include depot / custom stops using the shift-level depot UUIDs
-  for (const shift of shifts) {
-    if (!shift) continue;
-
-    const depotPairs = [
-      {
-        id: text(shift?.start_depot_id ?? shift?.start_depot?.id ?? ""),
-        name: text(shift?.start_depot?.name ?? shift?.start_depot_name ?? ""),
-      },
-      {
-        id: text(shift?.end_depot_id ?? shift?.end_depot?.id ?? ""),
-        name: text(shift?.end_depot?.name ?? shift?.end_depot_name ?? ""),
-      },
-    ];
-
-    for (const depot of depotPairs) {
-      if (!depot.id || !isUUID(depot.id)) continue;
-      if (seen.has(depot.id)) continue;
-      seen.set(depot.id, {
-        stop_id: depot.id,
-        stop_name: depot.name || depot.id,
-        isCustom: true,
-      });
-    }
-  }
-
-  // The current API represents depot transfers as ordinary ordered trips.
-  // Resolve the actual endpoints, rather than assuming extra depot fields.
-  const depots = await fetchDepots().catch(() => []);
-  const depotByStop = new Map((Array.isArray(depots) ? depots : []).map(d => [text(d.stop_id), d]));
-  for (const shift of shifts) {
-    const ordered = [...(shift?.structure ?? [])].sort((a,b) => a.sequence_number - b.sequence_number);
-    const last = ordered.at(-1);
-    const tripId = text(last?.trip_id ?? last?.trip?.trip_id ?? last?.id);
-    const endId = resolveStopUUID((tripStopsCache.get(tripId) ?? []).at(-1));
-    const depot = depotByStop.get(endId);
-    if (!depot) continue;
-    const stop = seen.get(endId) ?? {stop_id:endId,stop_name:depot.name};
-    stop.isCustom = true;
-    stop.depotBusCount = (stop.depotBusCount ?? 0) + 1;
-    seen.set(endId, stop);
-  }
-
-  for (const stop of seen.values()) stop.isDepot = depotByStop.has(stop.stop_id);
-  return [...seen.values()];
-};
-
 // ── Charging-stations table rendering ────────────────────────────────
 
 const COLUMN_DEFS = {
@@ -417,7 +284,7 @@ const renderStopsTable = (thead, tbody, stops, mode) => {
         ${cols
           .map(
             (c) =>
-              `<td><input type="number" data-field="${c.key}" min="${c.min}" step="${c.step}" value="${c.key === 'num_slots' && stop.depotBusCount ? stop.depotBusCount : c.key === 'max_total_power_kw' ? (stop.depotBusCount ?? 2) * (stop.isDepot ? 150 : 450) : c.key === 'max_power_per_slot_kw' ? (stop.isDepot ? 150 : 450) : c.defaultVal}" /></td>`
+              `<td><input type="number" data-field="${c.key}" min="${c.min}" step="${c.step}" value="${c.key === 'num_slots' && stop.depotBusCount ? stop.depotBusCount : c.key === 'max_total_power_kw' ? (stop.depotBusCount || 2) * (stop.isDepot ? 150 : 450) : c.key === 'max_power_per_slot_kw' ? (stop.isDepot ? 150 : 450) : c.defaultVal}" /></td>`
           )
           .join("")}
       </tr>`
@@ -631,6 +498,11 @@ export const initializeAddSimulation = async (
   let allShifts = [];
   let allUserModels = [];
   let currentStops = [];
+  let currentStopsKey = "";
+  let activeCandidateRequest = null;
+  const candidateLoader = createChargingStopCandidateLoader(
+    fetchChargingStopCandidates
+  );
   const costOptions = section.querySelector('[data-role="cost-options"]');
   const costCards = section.querySelector('[data-role="station-cost-cards"]');
   const stationEdits = new Map();
@@ -831,9 +703,18 @@ export const initializeAddSimulation = async (
   // ── Rebuild the charging-stations panel ───────────────────────────
   let rebuildSeq = 0;
 
+  const abortActiveCandidateRequest = (preserveKey = "") => {
+    if (!activeCandidateRequest || activeCandidateRequest.key === preserveKey) {
+      return;
+    }
+    activeCandidateRequest.controller.abort();
+    candidateLoader.delete(activeCandidateRequest.key);
+    activeCandidateRequest = null;
+  };
+
   const rebuildStopsTable = async () => {
     captureStationEdits();
-    costOptions.hidden=true;
+    costOptions.hidden = true;
     updatePackCost();
     const mode = (modeSelect?.value ?? "").trim();
     const fixedGroup = section.querySelector('[data-role="fixed-battery-group"]');
@@ -844,6 +725,7 @@ export const initializeAddSimulation = async (
       fixedPacks.disabled = mode !== "charging_only";
     }
     const selectedIds = getSelectedShiftIds();
+    const selectionKey = candidateLoader.keyFor(selectedIds);
     const seq = ++rebuildSeq;
 
     if (batteryCostGroup) {
@@ -854,7 +736,9 @@ export const initializeAddSimulation = async (
     section.querySelector('#var-battery-sizing-mode').disabled = sizingGroup.hidden;
 
     if (!mode) {
+      abortActiveCandidateRequest();
       currentStops = [];
+      currentStopsKey = "";
       renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
       if (stopsHint) {
         const hasSelectedShifts = selectedIds.length > 0;
@@ -870,7 +754,9 @@ export const initializeAddSimulation = async (
     }
 
     if (!selectedIds.length) {
+      abortActiveCandidateRequest();
       currentStops = [];
+      currentStopsKey = "";
       renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
       if (stopsHint) {
         stopsHint.textContent =
@@ -882,33 +768,80 @@ export const initializeAddSimulation = async (
       return;
     }
 
-    // Show loading feedback while fetching
-    if (stopsHint) {
-      stopsHint.textContent =
-        t("common.loading") || "Loading…";
-      stopsHint.hidden = false;
+    abortActiveCandidateRequest(selectionKey);
+
+    if (currentStopsKey !== selectionKey) {
+      if (stopsHint) {
+        stopsHint.textContent = t("common.loading") || "Loading…";
+        stopsHint.hidden = false;
+      }
+      renderStopsTable(stopsThead, stopsTbody, [], mode);
+      if (stopsWrapper) stopsWrapper.hidden = true;
+
+      let request = activeCandidateRequest;
+      if (!request || request.key !== selectionKey) {
+        const controller = new AbortController();
+        request = {
+          key: selectionKey,
+          controller,
+          promise: candidateLoader.load(selectedIds, {
+            signal: controller.signal,
+          }),
+        };
+        activeCandidateRequest = request;
+      }
+
+      try {
+        const candidates = await request.promise;
+        if (seq !== rebuildSeq || disposed) return;
+        currentStops = candidates;
+        currentStopsKey = selectionKey;
+      } catch (error) {
+        if (
+          error?.name === "AbortError" ||
+          seq !== rebuildSeq ||
+          disposed
+        ) {
+          return;
+        }
+        currentStops = [];
+        currentStopsKey = "";
+        if (stopsHint) {
+          stopsHint.textContent =
+            error?.message ||
+            t("simulation.no_stops_for_shifts") ||
+            "Unable to load charging-stop candidates.";
+          stopsHint.hidden = false;
+        }
+        if (stopsWrapper) stopsWrapper.hidden = true;
+        renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
+        return;
+      } finally {
+        if (activeCandidateRequest?.promise === request.promise) {
+          activeCandidateRequest = null;
+        }
+      }
     }
-    renderStopsTable(stopsThead, stopsTbody, [], mode);
-    if (stopsWrapper) stopsWrapper.hidden = true;
 
-    currentStops = await loadEndStopsForShifts(selectedIds);
-
-    // Guard against stale results if user changed selection while loading
-    if (seq !== rebuildSeq) return;
+    if (seq !== rebuildSeq || disposed) return;
 
     if (currentStops.length) {
       if (stopsHint) stopsHint.hidden = true;
       if (stopsWrapper) stopsWrapper.hidden = false;
       renderStopsTable(stopsThead, stopsTbody, currentStops, mode);
       for (const row of stopsTbody.querySelectorAll('[data-stop-id]')) {
-        const saved=stationEdits.get(row.dataset.stopId);
+        const saved = stationEdits.get(row.dataset.stopId);
         if (!saved) continue;
-        row.querySelector('[type="checkbox"]').checked=saved.checked;
-        row.querySelectorAll('[data-field]').forEach(input=>{if(saved.values[input.dataset.field]!=null)input.value=saved.values[input.dataset.field];});
+        row.querySelector('[type="checkbox"]').checked = saved.checked;
+        row.querySelectorAll('[data-field]').forEach((input) => {
+          if (saved.values[input.dataset.field] != null) {
+            input.value = saved.values[input.dataset.field];
+          }
+        });
       }
-      syncSelectAllCheckbox(stopsThead,stopsTbody);
-      renderCostCards(costCards,currentStops,stationEdits);
-      costOptions.hidden=false;
+      syncSelectAllCheckbox(stopsThead, stopsTbody);
+      renderCostCards(costCards, currentStops, stationEdits);
+      costOptions.hidden = false;
       updateCostCards();
     } else {
       if (stopsHint) {
@@ -1518,6 +1451,8 @@ export const initializeAddSimulation = async (
   return () => {
     disposed = true;
     completionController.abort();
+    abortActiveCandidateRequest();
+    candidateLoader.clear();
     cleanupHandlers.forEach((handler) => handler());
   };
 };

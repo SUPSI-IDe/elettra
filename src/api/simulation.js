@@ -61,6 +61,43 @@ const formatErrorMessage = (response, rawBody, fallbackMessage) => {
   return `${fallbackMessage} (HTTP ${response.status})${normalized ? `: ${normalized}` : ""}`;
 };
 
+export const fetchChargingStopCandidates = async (
+  shiftIds,
+  { signal } = {}
+) => {
+  const normalizedShiftIds = [...new Set(
+    (Array.isArray(shiftIds) ? shiftIds : [])
+      .map((shiftId) => text(shiftId).trim())
+      .filter(Boolean)
+  )];
+
+  if (!normalizedShiftIds.length) return [];
+
+  const response = await fetch(`${SIMULATION_PATH}/charging-stops/candidates`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ shift_ids: normalizedShiftIds }),
+    signal,
+  });
+  const rawBody = await response.text();
+
+  if (!response.ok) {
+    throw new Error(
+      formatErrorMessage(
+        response,
+        rawBody,
+        "Unable to load charging-stop candidates"
+      )
+    );
+  }
+
+  const payload = parseJsonBody(rawBody);
+  return Array.isArray(payload) ? payload : [];
+};
+
 const normalizeAuxiliaryHeatingType = (value) => {
   const heatingType = text(value).trim().toLowerCase();
   if (!heatingType || heatingType === "default" || heatingType === "hp") {

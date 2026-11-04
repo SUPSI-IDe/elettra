@@ -15,9 +15,8 @@ test('filtered bulk selection preserves other selections and the form reveals re
     else if (path.endsWith('/bus-models/model')) data = model;
     else if (path.endsWith('/buses/')) data = [{id:'bus',user_id:'user',bus_model_id:'model'}];
     else if (path.endsWith('/shifts/')) data = shifts;
+    else if (path.endsWith('/simulation/charging-stops/candidates')) data = [{stop_id:depot,stop_name:'TPL depot',is_depot:true,is_custom:true,depot_bus_count:3}];
     else if (path.includes('/shifts/')) data = shifts.find(s => path.includes('/shifts/'+s.id)) ?? {};
-    else if (path.includes('/gtfs-stops/by-trip/')) data = [{id:depot,stop_name:'TPL depot',stop_sequence:1}];
-    else if (path.endsWith('/depots/')) data = [{id:'depot',stop_id:depot,name:'TPL depot'}];
     return route.fulfill({json:data});
   });
   await page.goto('./#add-simulation');
