@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0-rc.5] - 2026-11-04
+
+### Staging candidate
+
+- Submit all annual weather scenarios and vehicle blocks in one forecast request, preserving each block's assigned battery size and progress reporting.
+- Initialize charging-only battery packs at the selected model's integer midpoint. Model changes refresh the default; subsequent user edits remain intact.
+- Show validation feedback beside the first invalid field and scroll/focus it before evaluation confirmation, including missing selections, battery limits and infrastructure inputs.
+- Publish as a GitHub Pre-release; stable Docker aliases, including `latest`, remain unchanged.
+
 ## [0.8.0-rc.4] - 2026-11-04
 
 ### Staging candidate

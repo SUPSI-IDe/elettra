@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 const modelA = { id: 'model-a', user_id: 'user', name: 'Bus A', specs: { min_battery_packs: 10, max_battery_packs: 16, battery_pack_cost_chf: 6000 } };
 const modelB = { id: 'model-b', user_id: 'user', name: 'Bus B', specs: { min_battery_packs: 12, max_battery_packs: 14, battery_pack_cost_chf: 6000 } };
 
-async function setup(page, { lang = 'en', models = [modelA, modelB], details } = {}) {
+async function setup(page, { lang = 'en', models = [modelA, modelB], details, mode = 'charging_only', stops = [] } = {}) {
   const writes = [];
   await page.addInitScript((lang) => {
     localStorage.setItem('access_token', 'test');
@@ -14,7 +14,8 @@ async function setup(page, { lang = 'en', models = [modelA, modelB], details } =
     const path = new URL(route.request().url()).pathname;
     let data = [];
     if (route.request().method() === 'POST' && !path.endsWith('/charging-stops/candidates')) writes.push(path);
-    if (path.endsWith('/version')) data = { version: 'test' };
+    if (path.endsWith('/charging-stops/candidates')) data = stops;
+    else if (path.endsWith('/version')) data = { version: 'test' };
     else if (path.endsWith('/bus-models/')) data = models;
     else if (path.includes('/bus-models/')) {
       const id = path.split('/').at(-1);
@@ -26,7 +27,7 @@ async function setup(page, { lang = 'en', models = [modelA, modelB], details } =
   await page.goto('./#add-simulation');
   await page.locator('.shift-table tbody input[type="checkbox"]').check();
   await page.locator('#simulation-name').fill('Pack limits test');
-  await page.locator('#var-optimization-mode').selectOption('charging_only');
+  if (mode) await page.locator('#var-optimization-mode').selectOption(mode);
   return {
     input: page.locator('#var-fixed-battery-packs'),
     help: page.locator('#fixed-battery-help'),
@@ -39,6 +40,7 @@ async function setup(page, { lang = 'en', models = [modelA, modelB], details } =
 
 test('manual entries show precise errors and cannot start an evaluation; limits are inclusive', async ({ page }) => {
   const { input, help, error, confirm, submit, writes } = await setup(page);
+  await expect(input).toHaveValue('13');
   await expect(input).toHaveAttribute('min', '10');
   await expect(input).toHaveAttribute('max', '16');
   await expect(help).toContainText('Bus A');
@@ -71,19 +73,17 @@ test('manual entries show precise errors and cannot start an evaluation; limits 
   await expect(input).toHaveValue('10');
 });
 
-test('changing bus model preserves the value and revalidates it; other modes are not blocked', async ({ page }) => {
+test('changing bus model initializes its midpoint; edits survive unrelated mode changes', async ({ page }) => {
   const { input, help, error, confirm, submit } = await setup(page);
   await input.fill('16');
   await page.locator('[name="bus_model_id"]').selectOption('model-b');
   await expect(input).toHaveAttribute('min', '12');
   await expect(input).toHaveAttribute('max', '14');
-  await expect(input).toHaveValue('16');
-  await expect(error).toContainText('Bus B allows at most 14');
-  await submit.click();
-  await expect(confirm).not.toBeVisible();
+  await expect(input).toHaveValue('13');
+  await expect(error).toBeHidden();
   await input.fill('12');
   await page.locator('[name="bus_model_id"]').selectOption('model-a');
-  await expect(input).toHaveValue('12');
+  await expect(input).toHaveValue('13');
   await expect(help).toContainText('10 and 16');
   await expect(error).toBeHidden();
   await input.fill('390000');
@@ -128,9 +128,12 @@ test('asynchronous model details cannot restore obsolete limits after switching 
   await page.locator('[name="bus_model_id"]').selectOption('model-b');
   await expect(input).toBeEnabled();
   await expect(input).toHaveAttribute('max', '14');
+  await expect(input).toHaveValue('13');
+  await input.fill('12');
   const response = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/bus-models/model-a'));
   release();
   await response;
+  await expect(input).toHaveValue('12');
   await expect(input).toHaveAttribute('max', '14');
   await page.locator('[name="bus_model_id"]').selectOption('model-a');
   await expect(input).toHaveAttribute('max', '16');
@@ -158,4 +161,59 @@ test('app and guide load the ELETTRA favicon under the application base path', a
     expect(response.ok()).toBe(true);
     expect(response.headers()['content-type']).toContain('image/svg+xml');
   }
+});
+
+for (const width of [1053, 2302]) {
+  test(`submit focuses and scrolls to the first problem at width ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    const { input, submit, confirm, writes } = await setup(page);
+    const name = page.locator('#simulation-name');
+    await name.fill('');
+    await input.fill('390000');
+    await submit.click();
+    await expect(name).toBeFocused();
+    await expect(name).toBeInViewport();
+    await expect(page.locator('#evaluation-field-problem')).toBeVisible();
+    await name.fill('Validation test');
+    await page.locator('.shift-table tbody input[type="checkbox"]').uncheck();
+    await submit.click();
+    await expect(page.locator('#sim-shift-filter')).toBeFocused();
+    await expect(page.locator('#sim-shift-filter')).toBeInViewport();
+    await page.locator('.shift-table tbody input[type="checkbox"]').check();
+    await input.fill('390000');
+    await submit.click();
+    await expect(input).toBeFocused();
+    await expect(input).toBeInViewport();
+    await expect(page.locator('#evaluation-field-problem')).toContainText('at most 16');
+    await input.fill('13');
+    const temp = page.locator('#var-external-temp');
+    await temp.fill('');
+    await submit.click();
+    await expect(temp).toBeFocused();
+    await expect(temp).toBeInViewport();
+    await expect(confirm).not.toBeVisible();
+    expect(writes).toEqual([]);
+  });
+}
+
+test('missing mode and invalid collapsed infrastructure costs are revealed before confirmation', async ({ page }) => {
+  const { submit, confirm, writes } = await setup(page, { mode: null, stops: [
+    { stop_id: 'depot', stop_name: 'Depot', is_depot: true, is_custom: true, depot_bus_count: 1 },
+  ] });
+  const mode = page.locator('#var-optimization-mode');
+  await submit.click();
+  await expect(mode).toBeFocused();
+  await expect(mode).toBeInViewport();
+  await mode.selectOption('charging_only');
+  const options = page.locator('[data-role="cost-options"]');
+  await options.locator('summary').click();
+  const cost = options.locator('[data-cost-field="point_cost_chf"]');
+  await cost.fill('-1');
+  await options.locator('summary').click();
+  await submit.click();
+  await expect(options).toHaveAttribute('open', '');
+  await expect(cost).toBeFocused();
+  await expect(cost).toBeInViewport();
+  await expect(confirm).not.toBeVisible();
+  expect(writes).toEqual([]);
 });

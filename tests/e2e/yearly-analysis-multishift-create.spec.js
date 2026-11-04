@@ -37,7 +37,8 @@ const completedPrediction = (id, shiftId, temperature, energy, distance) => ({
   },
 });
 
-test("creation persists every cluster and shift with one fixed feasibility configuration", async ({ page }) => {
+for (const failure of [false, true]) {
+test(`annual forecast in one request: ${failure ? "failure" : "success"}`, async ({ page }) => {
   const predictionRuns = {
     "cold-evening": completedPrediction("cold-evening", "evening", -5, 80, 40),
     "cold-morning": completedPrediction("cold-morning", "morning", -5, 120, 60),
@@ -190,15 +191,25 @@ test("creation persists every cluster and shift with one fixed feasibility confi
       return;
     }
 
-    if (method === "POST" && path === "/api/v1/simulation/prediction-runs/") {
+    if (method === "POST" && path === "/api/v1/simulation/yearly-prediction-runs/") {
       const body = request.postDataJSON();
       predictionRequests.push(body);
       await predictionGate;
-      const cold = body.external_temp_celsius === -5;
-      // Deliberately return the IDs in reverse shift order.
+      // Reverse both scenarios and duty IDs: association must use IDs, not positions.
+      const scenarios = [...body.scenarios].reverse().map(scenario => ({
+        scenario_id: scenario.scenario_id,
+        prediction_run_ids: [...body.assignments].reverse().map(({ shift_id }) =>
+          `${scenario.external_temp_celsius === -5 ? "cold" : "warm"}-${shift_id}`),
+      }));
       await route.fulfill({ json: {
-        prediction_run_ids: [...body.shift_ids].reverse().map(id => `${cold ? "cold" : "warm"}-${id}`),
+        prediction_run_ids: scenarios.flatMap(scenario => scenario.prediction_run_ids), scenarios,
       } });
+      return;
+    }
+
+    if (method === "GET" && path === "/api/v1/simulation/prediction-runs/") {
+      expect(new URL(request.url()).searchParams.get('yearly_analysis_id')).toBe('yearly-1');
+      await route.fulfill({ json: Object.values(predictionRuns).reverse().map(run => failure ? { ...run, status: 'failed' } : run) });
       return;
     }
 
@@ -254,9 +265,10 @@ test("creation persists every cluster and shift with one fixed feasibility confi
   await confirmation.getByRole('button', {name:'Start analysis', exact:true}).click();
   const progress = page.getByRole('dialog', {name:'Yearly analysis in progress'});
   await expect(progress).toBeVisible();
-  await expect(progress.locator('[data-role="progress-message"]')).toContainText('Prediction 1/2');
+  await expect(progress.locator('[data-role="progress-message"]')).toContainText('Forecasting all 2 weather scenarios together');
   await expect(progress.locator('progress')).toHaveAttribute('value','0');
-  await expect(progress.locator('progress')).toHaveAttribute('max','2');
+  await expect(progress.locator('progress')).toHaveAttribute('max','4');
+  await expect(progress.locator('[data-role="progress-count"]')).toHaveText('Forecasts completed: 0/4');
   const bounds = await progress.boundingBox();
   const viewport = page.viewportSize();
   expect(bounds.x).toBeGreaterThanOrEqual(0);
@@ -289,16 +301,23 @@ test("creation persists every cluster and shift with one fixed feasibility confi
     "cluster-2",
   ]);
 
-  expect(predictionRequests).toHaveLength(4);
-  expect(predictionRequests.map(({ shift_ids }) => shift_ids)).toEqual([
-    ["morning"], ["evening"],
-    ["morning"], ["evening"],
+  expect(predictionRequests).toHaveLength(1);
+  expect(predictionRequests[0].assignments).toEqual([
+    { shift_id: "morning", num_battery_packs: 8 },
+    { shift_id: "evening", num_battery_packs: 12 },
   ]);
-  expect(
-    predictionRequests.map(({ contextual_parameters }) => contextual_parameters.num_battery_packs),
-  ).toEqual([8, 12, 8, 12]);
+  expect(predictionRequests[0].scenarios).toEqual([
+    { scenario_id: "cluster-1", external_temp_celsius: -5 },
+    { scenario_id: "cluster-2", external_temp_celsius: 20 },
+  ]);
 
   const { results } = savedPatch.features;
+  if (failure) {
+    expect(savedPatch.features.status).toBe("failed");
+    expect(results.yearlyTotals.totalEnergyKwh).toBeNull();
+    expect(results.completion.completedPredictionCount).toBe(0);
+    return;
+  }
   expect(savedPatch.features.status).toBe("completed");
   expect(results.schemaVersion).toBe(2);
   expect(results.status).toBe("completed");
@@ -316,6 +335,8 @@ test("creation persists every cluster and shift with one fixed feasibility confi
   expect(results.shiftResults[0].yearlyTotals.totalEnergyKwh).toBe(120 * 100 + 90 * 265);
   expect(results.shiftResults[1].yearlyTotals.totalEnergyKwh).toBe(80 * 100 + 60 * 265);
 });
+
+}
 
 test.afterEach(async ({ page }) => {
   await page.evaluate(() => window.__yearlyCleanup?.());

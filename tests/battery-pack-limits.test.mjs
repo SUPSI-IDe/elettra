@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { batteryPackLimits, batteryPackValidation } from '../src/utils/battery-pack-limits.js';
+import { batteryPackLimits, batteryPackValidation, defaultBatteryPacks } from '../src/utils/battery-pack-limits.js';
 
 test('only a complete, positive integer model range is usable', () => {
   for (const specs of [undefined, {}, { min_battery_packs: null, max_battery_packs: 16 },
@@ -21,4 +21,11 @@ test('pack counts enforce both inclusive limits and reject missing or fractional
   for (const value of ['12.5', 'NaN', 'Infinity', '9007199254740992']) assert.equal(batteryPackValidation(value, limits), 'integer');
   assert.equal(batteryPackValidation('12', null), 'unavailable');
   assert.equal(batteryPackValidation('12', { min: 12, max: 12 }), null);
+});
+
+test('default packs use the integer midpoint, rounding half a pack up', () => {
+  assert.equal(defaultBatteryPacks({ min: 10, max: 16 }), 13);
+  assert.equal(defaultBatteryPacks({ min: 10, max: 15 }), 13);
+  assert.equal(defaultBatteryPacks({ min: 12, max: 12 }), 12);
+  assert.equal(defaultBatteryPacks(null), null);
 });

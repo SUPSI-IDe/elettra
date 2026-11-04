@@ -1,9 +1,9 @@
 /**
  * Resolves prediction runs by id without issuing one request per id.
  *
- * `GET /prediction-runs/` cannot serve as a filtered batch call: it declares no
- * query parameters and ignores the ones we send, always returning the caller's
- * entire history as a bare array. It is still the cheaper option once a page
+ * Generic callers request the user's entire history as a bare array. Annual
+ * forecasting supplies a fetchAll callback filtered by yearly_analysis_id.
+ * The list is the cheaper option once a page
  * needs more ids than the browser will fetch in parallel — one response instead
  * of a queue of requests. Below that point the per-id route wins, because the
  * list grows with the account's history and never paginates.
