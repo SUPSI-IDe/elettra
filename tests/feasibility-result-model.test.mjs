@@ -5,6 +5,7 @@ import {
   buildFeasibilityResultModel,
   FEASIBILITY_DECISION,
   FEASIBILITY_STATION_STATUS,
+  hasFeasibilityEvaluationFailure,
 } from "../src/utils/feasibility-result-model.js";
 
 const battery = (shiftName, optimizedPacks, overrides = {}) => ({
@@ -682,6 +683,40 @@ test("legacy errors and issue-only failures produce a stable failure model", () 
     blockedByShiftIds: [],
     issues: issueOnly.failure.issues,
   });
+});
+
+test("failed run status is a fallback failure signal without hiding real infeasibility", () => {
+  const failedWithoutPayload = {
+    status: "failed",
+    input_params: { shift_ids: ["one"] },
+    results: {},
+  };
+  assert.equal(hasFeasibilityEvaluationFailure(failedWithoutPayload), true);
+  assert.deepEqual(buildFeasibilityResultModel(failedWithoutPayload).failure, {
+    code: null,
+    phase: null,
+    message: null,
+    issues: [],
+    shiftOutcomes: [],
+  });
+
+  for (const results of [
+    { solver_status: "infeasible" },
+    { electrification_feasible: false },
+  ]) {
+    const infeasibleRun = { status: "failed", results };
+    assert.equal(hasFeasibilityEvaluationFailure(infeasibleRun), false);
+    assert.equal(buildFeasibilityResultModel(infeasibleRun).failure, null);
+  }
+
+  assert.equal(hasFeasibilityEvaluationFailure({ status: "completed", results: {} }), false);
+  assert.equal(
+    hasFeasibilityEvaluationFailure({
+      status: "completed",
+      results: { error: "Explicit calculation failure" },
+    }),
+    true,
+  );
 });
 
 test("empty, null and non-object payloads produce a stable empty model", () => {

@@ -75,6 +75,7 @@ import {
 import {
   buildFeasibilityResultModel,
   FEASIBILITY_DECISION,
+  hasFeasibilityEvaluationFailure,
 } from "../../../utils/feasibility-result-model";
 import { buildFeasibilityViewState } from "../../../utils/feasibility-view-state";
 import { formatFeasibilityClockMinute } from "../../../utils/feasibility-charging-plan";
@@ -6136,8 +6137,8 @@ const buildFeasibilityFailureHtml = (
   const namesById = new Map(
     shiftOptions.map((option) => [option.shiftId, option.shiftName]),
   );
-  const blockingNames = (outcome = {}) =>
-    (Array.isArray(outcome.blockedByShiftIds)
+  const blockingNames = (outcome = null) =>
+    (Array.isArray(outcome?.blockedByShiftIds)
       ? outcome.blockedByShiftIds
       : [])
       .map((shiftId) => namesById.get(shiftId) || shiftId)
@@ -9173,6 +9174,9 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const isElectrificationFeasible = () =>
     loadedOptimizationRun?.results?.electrification_feasible !== false;
 
+  const hasFailedFeasibilityEvaluation = () =>
+    hasFeasibilityEvaluationFailure(loadedOptimizationRun);
+
   const getActiveResultScope = () =>
     resolveFeasibilityResultScope(resultScopes, activeResultScopeKey);
 
@@ -9559,6 +9563,25 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     refreshEfficiencyTab();
 
     if (!loadedOptimizationRun) return;
+
+    if (hasFailedFeasibilityEvaluation()) {
+      costState.status = "idle";
+      costState.comparison = null;
+      costState.annualization = null;
+      costState.costInputs = null;
+      costState.error = null;
+      costState.optimizationRun = loadedOptimizationRun;
+      emissionsState.status = "idle";
+      emissionsState.yearlyImpact = null;
+      emissionsState.electricYearly = null;
+      emissionsState.dieselYearly = null;
+      emissionsState.dieselVehicleName = null;
+      emissionsState.error = null;
+      refreshCostsTab();
+      refreshEmissionsTab();
+      refreshOverviewTab();
+      return;
+    }
 
     costState.status = preserveExistingCostData ? "refreshing" : "loading";
     if (!preserveExistingCostData) {
@@ -10009,7 +10032,9 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     let design = loadedDesigns.get(runId);
     if (!design) {
       const run = await fetchOptimizationRun(runId);
-      const { runs } = await resolvePredictionRuns(run.prediction_run_ids ?? []);
+      const { runs } = hasFeasibilityEvaluationFailure(run)
+        ? { runs: [] }
+        : await resolvePredictionRuns(run.prediction_run_ids ?? []);
       design = { run, predictionRuns: runs };
       loadedDesigns.set(runId, design);
     }
@@ -10052,13 +10077,14 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     refreshCostsTab();
 
     try {
-      const [optimizationRun, economicDefaultsPayload] = await Promise.all([
-        fetchOptimizationRun(options.runId),
-        fetchEconomicDefaults().catch((error) => {
+      const optimizationRun = await fetchOptimizationRun(options.runId);
+      const evaluationFailed = hasFeasibilityEvaluationFailure(optimizationRun);
+      const economicDefaultsPayload = evaluationFailed
+        ? null
+        : await fetchEconomicDefaults().catch((error) => {
           console.warn("[elettra] Unable to load economic defaults:", error);
           return null;
-        }),
-      ]);
+        });
       economicDefaults.fuelCostPerL = normalizeFuelCostPerL(
         economicDefaultsPayload?.fuel_cost_per_l
       );
@@ -10106,7 +10132,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       loadedOptimizationRun = optimizationRun;
       options.simulationName = resolveSimulationName(optimizationRun, options);
       renderPageTitle();
-      const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
+      const predRunIds = !evaluationFailed && Array.isArray(optimizationRun?.prediction_run_ids)
         ? optimizationRun.prediction_run_ids
         : [];
       const { runs: predictionRuns, missing, errors } = predRunIds.length

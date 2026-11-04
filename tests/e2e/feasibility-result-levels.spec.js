@@ -76,6 +76,7 @@ const mountResults = async (page, {
   basisRunIds,
   dailyCycle,
 } = {}) => {
+  const requestedApiPaths = [];
   const shiftNames = {
     morning: "Morning service",
     evening: "Evening service",
@@ -149,6 +150,7 @@ const mountResults = async (page, {
 
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
+    requestedApiPaths.push(path);
 
     if (path.endsWith("/api/v1/simulation/optimization-runs/level-test")) {
       await route.fulfill({
@@ -250,6 +252,7 @@ const mountResults = async (page, {
       runId: "level-test",
     });
   });
+  return requestedApiPaths;
 };
 
 const scopeSelector = (page) => page.locator('[data-role="shift-tabs"]');
@@ -259,6 +262,14 @@ const selectShiftScope = async (page, shiftId) => {
     .locator(`[data-action="select-result-scope"][data-shift-id="${shiftId}"]`)
     .click();
 };
+
+const failedResultDerivedRequests = (paths) => paths.filter((path) =>
+  path.includes("/prediction-runs") ||
+  path.endsWith("/economic/defaults") ||
+  path.includes("/economic/comparison") ||
+  path.includes("/yearly-distance") ||
+  path.includes("/environmental/"),
+);
 
 test.afterEach(async ({ page }) => {
   await page.evaluate(() => window.__cleanupSimulationResults?.());
@@ -856,6 +867,7 @@ test("shows an explicit overall infeasible status without replacing the general 
   const status = general.locator('[data-role="feasibility-overall-status"]');
   await expect(status).toHaveText("Not all vehicle blocks are feasible");
   await expect(status).toHaveClass(/feasibility-overall-status--infeasible/);
+  await expect(page.locator('[data-role="feasibility-failure-general"]')).toHaveCount(0);
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-infrastructure"]')).toBeVisible();
 });
@@ -1468,7 +1480,7 @@ test("uses current shift metadata instead of stale result names throughout the g
 });
 
 test("explains a failed multi-shift evaluation at general and individual shift level", async ({ page }) => {
-  await mountResults(page, {
+  const requestedApiPaths = await mountResults(page, {
     shiftIds: ["valid-one", "invalid", "valid-two"],
     shiftNames: {
       "valid-one": "40101",
@@ -1568,4 +1580,49 @@ test("explains a failed multi-shift evaluation at general and individual shift l
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     ),
   ).toBe(false);
+  expect(failedResultDerivedRequests(requestedApiPaths)).toEqual([]);
+});
+
+test("keeps legacy failure text safe and skips derived result requests", async ({ page }) => {
+  const unsafeMessage = '<img data-role="failure-injected" src=x onerror="window.__failureXss=true"> Legacy calculation failure';
+  const requestedApiPaths = await mountResults(page, {
+    runStatus: "failed",
+    legacyError: unsafeMessage,
+    includeElectrificationFeasible: false,
+    includeBatteryResults: false,
+    includePerBusSummary: false,
+  });
+
+  const general = page.locator('[data-role="feasibility-failure-general"]');
+  await expect(general).toBeVisible();
+  await expect(general).toContainText(unsafeMessage);
+  await expect(page.locator('[data-role="failure-injected"]')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__failureXss)).toBeUndefined();
+
+  await selectShiftScope(page, "morning");
+  const shift = page.locator('[data-role="feasibility-failure-shift"]');
+  await expect(shift).toBeVisible();
+  await expect(shift.locator('[data-role="feasibility-failure-reason"]')).toContainText(
+    unsafeMessage,
+  );
+  expect(failedResultDerivedRequests(requestedApiPaths)).toEqual([]);
+});
+
+test("shows a stable diagnostic for historical failed runs without an error payload", async ({ page }) => {
+  const requestedApiPaths = await mountResults(page, {
+    runStatus: "failed",
+    includeElectrificationFeasible: false,
+    includeBatteryResults: false,
+    includePerBusSummary: false,
+  });
+
+  const general = page.locator('[data-role="feasibility-failure-general"]');
+  await expect(general).toBeVisible();
+  await expect(general).toContainText("Evaluation not completed");
+  await expect(general).toContainText(
+    "The calculation did not produce a feasibility result.",
+  );
+  await expect(page.locator('[data-role="feasibility-general-level"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-no-solution"]')).toHaveCount(0);
+  expect(failedResultDerivedRequests(requestedApiPaths)).toEqual([]);
 });

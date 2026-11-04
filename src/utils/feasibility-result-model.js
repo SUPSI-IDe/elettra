@@ -151,10 +151,22 @@ const mergeShiftOutcome = (current, candidate) => {
   };
 };
 
-const normalizeFailure = (results) => {
+export function hasFeasibilityEvaluationFailure(optimizationRun = {}) {
+  const run = isRecord(optimizationRun) ? optimizationRun : {};
+  const results = isRecord(run.results) ? run.results : {};
+  if (isRecord(results.failure) || firstText(results.error)) return true;
+
+  const runFailed = firstText(run.status)?.toLowerCase() === "failed";
+  const completedInfeasibleResult =
+    firstText(results.solver_status)?.toLowerCase() === "infeasible" ||
+    results.electrification_feasible === false;
+  return runFailed && !completedInfeasibleResult;
+}
+
+const normalizeFailure = (results, { implicitFailure = false } = {}) => {
   const source = isRecord(results.failure) ? results.failure : null;
   const legacyMessage = firstText(results.error);
-  if (!source && !legacyMessage) return null;
+  if (!source && !legacyMessage && !implicitFailure) return null;
 
   const issues = normalizeFailureIssues(source?.issues);
   const outcomes = new Map();
@@ -424,7 +436,9 @@ export function buildFeasibilityResultModel(
   const summaryEntries = toRecordsById(results.per_bus_summary, ["shift_id", "id"]);
   const batteryByShift = new Map(batteryEntries);
   const summaryByShift = new Map(summaryEntries);
-  const failure = normalizeFailure(results);
+  const failure = normalizeFailure(results, {
+    implicitFailure: hasFeasibilityEvaluationFailure(run),
+  });
   const failureOutcomes = failure?.shiftOutcomes ?? [];
   const failureOutcomeByShift = new Map(
     failureOutcomes.map((outcome) => [outcome.shiftId, outcome]),
