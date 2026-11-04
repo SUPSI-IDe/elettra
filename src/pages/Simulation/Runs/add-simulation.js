@@ -36,6 +36,7 @@ import {
 } from "../../../config/simulation-defaults";
 import { normalizeOptimizationRunName } from "../../../utils/optimization-run";
 import { createChargingStopCandidateLoader } from "./charging-stop-candidates";
+import { createLazyShiftDistanceLoader } from "./lazy-shift-distances";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -593,7 +594,66 @@ export const initializeAddSimulation = async (
     setNameFeedback(message);
   };
 
-  const hydrateShiftDistances = (shifts = []) => {
+  const updateShiftDistanceDisplay = (
+    shift,
+    dailyDistanceKm,
+    yearlyDistanceKm
+  ) => {
+    if (disposed) return;
+
+    shift._resolved_daily_distance_km = dailyDistanceKm;
+    shift._resolved_daily_distance_label = formatShiftDistanceValue(
+      dailyDistanceKm
+    );
+    shift._resolved_yearly_distance_km = yearlyDistanceKm;
+    shift._resolved_yearly_distance_label = formatShiftDistanceValue(
+      yearlyDistanceKm
+    );
+
+    const row = findRowById(shiftTbody, shift.id);
+    const distanceCell = row?.querySelector('[data-role="shift-distance"]');
+    const yearlyDistanceCell = row?.querySelector(
+      '[data-role="shift-yearly-distance"]'
+    );
+    if (distanceCell) {
+      distanceCell.textContent = toText(shift._resolved_daily_distance_label);
+    }
+    if (yearlyDistanceCell) {
+      yearlyDistanceCell.textContent = toText(
+        shift._resolved_yearly_distance_label
+      );
+    }
+  };
+
+  const shiftDistanceLoader = createLazyShiftDistanceLoader({
+    keyFor: (shift) => text(shift?.id).trim(),
+    concurrency: 4,
+    load: async (shift) => {
+      const [dailyDistanceKm, yearlyDistanceKm] = await Promise.all([
+        shift._resolved_daily_distance_km != null
+          ? Promise.resolve(shift._resolved_daily_distance_km)
+          : resolveShiftDailyDistanceKm(shift),
+        shift._resolved_yearly_distance_km != null
+          ? Promise.resolve(shift._resolved_yearly_distance_km)
+          : resolveShiftYearlyDistanceKm(shift),
+      ]);
+      return { dailyDistanceKm, yearlyDistanceKm };
+    },
+    onLoaded: ({ dailyDistanceKm, yearlyDistanceKm }, shift) => {
+      updateShiftDistanceDisplay(shift, dailyDistanceKm, yearlyDistanceKm);
+    },
+    onError: (error, shift) => {
+      console.warn(
+        `[elettra] Unable to resolve distances for shift ${text(shift?.id)}`,
+        error
+      );
+    },
+  });
+
+  const hydrateShiftDistances = async (
+    shifts = [],
+    { rerenderAfter = false } = {}
+  ) => {
     const pendingShifts = shifts.filter(
       (shift) =>
         shift &&
@@ -602,57 +662,68 @@ export const initializeAddSimulation = async (
         text(shift?.id).trim()
     );
 
-    pendingShifts.forEach((shift) => {
-      Promise.all([
-        shift._resolved_daily_distance_km != null
-          ? Promise.resolve(shift._resolved_daily_distance_km)
-          : resolveShiftDailyDistanceKm(shift),
-        shift._resolved_yearly_distance_km != null
-          ? Promise.resolve(shift._resolved_yearly_distance_km)
-          : resolveShiftYearlyDistanceKm(shift),
-      ])
-        .then(([dailyDistanceKm, yearlyDistanceKm]) => {
-          shift._resolved_daily_distance_km = dailyDistanceKm;
-          shift._resolved_daily_distance_label = formatShiftDistanceValue(
-            dailyDistanceKm
-          );
-          shift._resolved_yearly_distance_km = yearlyDistanceKm;
-          shift._resolved_yearly_distance_label = formatShiftDistanceValue(
-            yearlyDistanceKm
-          );
-
-          if (
-            sortState.key === "distance" ||
-            sortState.key === "yearly_distance"
-          ) {
-            renderCurrentView();
-            return;
-          }
-
-          const row = findRowById(shiftTbody, shift.id);
-          const distanceCell = row?.querySelector('[data-role="shift-distance"]');
-          const yearlyDistanceCell = row?.querySelector(
-            '[data-role="shift-yearly-distance"]'
-          );
-          if (distanceCell) {
-            distanceCell.textContent = toText(
-              shift._resolved_daily_distance_label
-            );
-          }
-          if (yearlyDistanceCell) {
-            yearlyDistanceCell.textContent = toText(
-              shift._resolved_yearly_distance_label
-            );
-          }
-        })
-        .catch((error) => {
-          console.warn(
-            `[elettra] Unable to resolve distances for shift ${text(shift?.id)}`,
-            error
-          );
-        });
-    });
+    await shiftDistanceLoader.scheduleAll(pendingShifts);
+    if (rerenderAfter && !disposed) renderCurrentView();
   };
+
+  const shiftTableWrapper = shiftTable?.closest(".shift-table-wrapper");
+  let shiftDistanceObserver = null;
+
+  const shiftsForRows = (rows = []) => {
+    const ids = new Set(
+      rows.map((row) => text(row?.dataset?.id).trim()).filter(Boolean)
+    );
+    return allShifts.filter((shift) => ids.has(text(shift?.id)));
+  };
+
+  if (typeof globalThis.IntersectionObserver === "function") {
+    shiftDistanceObserver = new globalThis.IntersectionObserver(
+      (entries) => {
+        const visibleRows = [];
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          shiftDistanceObserver.unobserve(entry.target);
+          visibleRows.push(entry.target);
+        });
+        if (visibleRows.length) {
+          void hydrateShiftDistances(shiftsForRows(visibleRows));
+        }
+      },
+      {
+        root: shiftTableWrapper ?? null,
+        rootMargin: "80px 0px",
+        threshold: 0,
+      }
+    );
+  }
+
+  const observeRenderedShiftDistances = () => {
+    const shiftsById = new Map(
+      allShifts.map((shift) => [text(shift?.id), shift])
+    );
+    const unresolvedRows = Array.from(
+      shiftTbody?.querySelectorAll("tr[data-id]") ?? []
+    ).filter((row) => {
+      const shift = shiftsById.get(text(row.dataset.id));
+      return shift && (
+        shift._resolved_daily_distance_km == null ||
+        shift._resolved_yearly_distance_km == null
+      );
+    });
+
+    if (shiftDistanceObserver) {
+      shiftDistanceObserver.disconnect();
+      unresolvedRows.forEach((row) => shiftDistanceObserver.observe(row));
+      return;
+    }
+
+    void hydrateShiftDistances(shiftsForRows(unresolvedRows.slice(0, 10)));
+  };
+
+  cleanupHandlers.push(() => {
+    shiftDistanceObserver?.disconnect();
+    shiftDistanceLoader.dispose();
+  });
 
   const getSelectedShiftIds = () => [...selectedShiftIds];
 
@@ -947,7 +1018,6 @@ export const initializeAddSimulation = async (
       allUserModels = userModels;
 
       renderCurrentView();
-      hydrateShiftDistances(allShifts);
       refreshBusModelOverride();
 
       if (options.prefill) {
@@ -1085,6 +1155,7 @@ export const initializeAddSimulation = async (
     });
     updateSortHeaders(shiftTable, sortState);
     syncFilteredSelection();
+    observeRenderedShiftDistances();
   }
 
   const handleSelectFiltered = () => {
@@ -1202,6 +1273,9 @@ export const initializeAddSimulation = async (
           };
 
     renderCurrentView();
+    if (nextKey === "distance" || nextKey === "yearly_distance") {
+      void hydrateShiftDistances(filteredShifts(), { rerenderAfter: true });
+    }
   };
 
   shiftTable?.querySelector("thead")?.addEventListener("click", handleSortClick);
