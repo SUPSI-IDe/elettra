@@ -37,7 +37,7 @@ import {
 import { normalizeOptimizationRunName } from "../../../utils/optimization-run";
 import { createChargingStopCandidateLoader } from "./charging-stop-candidates";
 import { createLazyShiftDistanceLoader } from "./lazy-shift-distances";
-import { batteryPackLimits, batteryPackValidation } from "../../../utils/battery-pack-limits";
+import { batteryPackLimits, batteryPackValidation, defaultBatteryPacks } from "../../../utils/battery-pack-limits";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -506,12 +506,24 @@ export const initializeAddSimulation = async (
   const modelDetailsRequests = new Map();
   let loadingBusModelId = null;
   let fixedPacksTouched = false;
+  let fixedPacksModelId = null;
+  let fixedPacksDefaultPending = true;
 
   const syncFixedBatteryField = ({ showError = false } = {}) => {
     const active = modeSelect.value === 'charging_only';
     const model = allUserModels.find(m => String(m.id) === busModelOverride.value);
     const loading = loadingBusModelId === busModelOverride.value;
     const limits = batteryPackLimits(model?.specs);
+    if (fixedPacksModelId !== busModelOverride.value) {
+      fixedPacksModelId = busModelOverride.value;
+      fixedPacksDefaultPending = true;
+      fixedPacksTouched = false;
+      fixedPacks.value = '';
+    }
+    if (fixedPacksDefaultPending && limits && !loading) {
+      fixedPacks.value = String(defaultBatteryPacks(limits));
+      fixedPacksDefaultPending = false;
+    }
     const params = { model: resolveBusModelDisplayName(model), ...limits };
     fixedGroup.hidden = !active;
     fixedPacks.required = active;
@@ -1371,6 +1383,42 @@ export const initializeAddSimulation = async (
     );
   });
 
+  let clearFieldProblem = () => {};
+  const showFieldProblem = (field, message) => {
+    clearFieldProblem();
+    for (let parent = field.parentElement; parent && parent !== form; parent = parent.parentElement) {
+      if (parent.tagName === 'DETAILS') parent.open = true;
+    }
+    const feedback = document.createElement('p');
+    feedback.id = 'evaluation-field-problem';
+    feedback.className = 'form-feedback';
+    feedback.dataset.tone = 'error';
+    feedback.setAttribute('role', 'alert');
+    feedback.textContent = message;
+    field.insertAdjacentElement('afterend', feedback);
+    if (field === fixedPacks) fixedPacksFeedback.hidden = true;
+    const describedBy = field.getAttribute('aria-describedby');
+    field.setAttribute('aria-describedby', [describedBy, feedback.id].filter(Boolean).join(' '));
+    field.setAttribute('aria-invalid', 'true');
+    const focusTarget = field.disabled ? field.parentElement : field;
+    if (field.disabled) focusTarget.setAttribute('tabindex', '-1');
+    focusTarget.focus({ preventScroll: true });
+    focusTarget.scrollIntoView({ block: 'center', behavior: 'instant' });
+    clearFieldProblem = () => {
+      feedback.remove();
+      if (field === fixedPacks) syncFixedBatteryField();
+      else field.removeAttribute('aria-invalid');
+      if (describedBy === null) field.removeAttribute('aria-describedby');
+      else field.setAttribute('aria-describedby', describedBy);
+      field.removeEventListener('input', clearFieldProblem);
+      field.removeEventListener('change', clearFieldProblem);
+      clearFieldProblem = () => {};
+    };
+    field.addEventListener('input', clearFieldProblem);
+    field.addEventListener('change', clearFieldProblem);
+  };
+  cleanupHandlers.push(() => clearFieldProblem());
+
   // ── Submit ───────────────────────────────────────────────────────
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -1385,33 +1433,28 @@ export const initializeAddSimulation = async (
       nameInput.value = name;
     }
 
-    if (!name) {
-      const message = t("simulation.name_required") || "Name is required.";
-      setNameValidationError(message);
-      alert(message);
-      nameInput?.focus();
-      return;
-    }
-
+    clearFieldProblem();
     const selectedShiftIds = getSelectedShiftIds();
-
-    if (!selectedShiftIds.length) {
-      setFeedback(
-        section,
-        t("simulation.shift_required") || "Select at least one vehicle block."
-      );
-      return;
+    const optimizationMode = text(formData.get('optimization_mode') ?? '').trim();
+    const busModelId = text(formData.get('bus_model_id') ?? '').trim();
+    const problems = new Map();
+    if (!name) problems.set(nameInput, t('simulation.name_required'));
+    if (!selectedShiftIds.length) problems.set(shiftFilter, t('simulation.shift_required'));
+    if (!busModelId) problems.set(busModelOverride, t('simulation.bus_model_required'));
+    if (!optimizationMode) problems.set(modeSelect, t('simulation.mode_required'));
+    if (!syncFixedBatteryField()) problems.set(fixedPacks, fixedPacks.validationMessage || fixedPacksHelp.textContent);
+    // Include native range/step/required checks even though the form uses novalidate.
+    // Collapsed advanced costs are checked; unused station rows are not submitted.
+    for (const field of form.querySelectorAll('input, select')) {
+      if (field.disabled || field.closest('[hidden]')) continue;
+      const row = field.closest('[data-stop-id]');
+      if (row && !row.querySelector('[type="checkbox"]')?.checked) continue;
+      if (field.type === 'number') field.required = true;
+      if (!field.validity.valid && !problems.has(field)) problems.set(field, field.validationMessage);
     }
-
-    const optimizationMode = text(
-      formData.get("optimization_mode") ?? ""
-    ).trim();
-
-    if (!optimizationMode) {
-      setFeedback(
-        section,
-        t("simulation.mode_required") || "Select an optimization mode."
-      );
+    const firstProblem = [...form.querySelectorAll('input, select')].find(field => problems.has(field));
+    if (firstProblem) {
+      showFieldProblem(firstProblem, problems.get(firstProblem));
       return;
     }
 
@@ -1437,16 +1480,6 @@ export const initializeAddSimulation = async (
       quantiles: DEFAULT_PREDICTION_QUANTILES,
     };
 
-    const busModelId = text(formData.get("bus_model_id") ?? "").trim();
-
-    if (!busModelId) {
-      setFeedback(
-        section,
-        t("simulation.bus_model_required") || "Select a bus model."
-      );
-      return;
-    }
-
     const payload = {
       name,
       mode: optimizationMode,
@@ -1466,11 +1499,6 @@ export const initializeAddSimulation = async (
     };
 
     if (optimizationMode === "charging_only") {
-      if (!syncFixedBatteryField({ showError: true })) {
-        if (!fixedPacks.disabled) fixedPacks.focus();
-        else fixedGroup.scrollIntoView({ block: 'nearest' });
-        return;
-      }
       payload.fixed_battery_packs = Number(fixedPacks.value);
     }
 
@@ -1478,7 +1506,7 @@ export const initializeAddSimulation = async (
       await updatePackCost();
       const model=allUserModels.find(m=>String(m.id)===busModelOverride.value);
       if (model?.specs?.battery_pack_cost_chf == null || !Number.isFinite(Number(model.specs.battery_pack_cost_chf)) || Number(model.specs.battery_pack_cost_chf) < 0) {
-        setFeedback(section,t('simulation.cost_bus_pack_missing'));
+        showFieldProblem(busModelOverride, t('simulation.cost_bus_pack_missing'));
         return;
       }
     }

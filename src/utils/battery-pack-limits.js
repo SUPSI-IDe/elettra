@@ -10,6 +10,10 @@ export const batteryPackLimits = (specs) => {
   return min !== null && max !== null && min <= max ? { min, max } : null;
 };
 
+export const defaultBatteryPacks = (limits) => limits
+  ? limits.min + Math.round((limits.max - limits.min) / 2)
+  : null;
+
 export const batteryPackValidation = (value, limits) => {
   if (!limits) return "unavailable";
   if (value == null || String(value).trim() === "") return "required";

@@ -79,7 +79,7 @@
   width: 100%;
 }
 
-.add-simulation :is(#simulation-name, #var-fixed-battery-packs)[aria-invalid="true"] {
+.add-simulation [aria-invalid="true"] {
   border-color: var(--error-color);
   box-shadow: 0 0 0 3px var(--color-negative-muted);
 }

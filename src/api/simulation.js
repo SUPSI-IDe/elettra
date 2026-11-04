@@ -198,7 +198,7 @@ const buildContextualParameters = ({
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 60;
 
-const waitForPredictionRuns = async (runIds, { onProgress } = {}) => {
+const waitForPredictionRuns = async (runIds, { onProgress, resolveRuns = resolvePredictionRuns } = {}) => {
   const pending = new Set(runIds);
   const reportProgress = () => onProgress?.({
     stage: "predictions", completed: runIds.length - pending.size, total: runIds.length,
@@ -209,7 +209,7 @@ const waitForPredictionRuns = async (runIds, { onProgress } = {}) => {
     // `refresh` because polling is the one caller that must not be served a
     // cached status. While many runs are pending this collapses each cycle to a
     // single list request; as the set drains it reverts to per-id lookups.
-    const { runs: checks, missing } = await resolvePredictionRuns([...pending], {
+    const { runs: checks, missing } = await resolveRuns([...pending], {
       refresh: true,
     });
 
@@ -377,6 +377,59 @@ export const createSinglePredictionRun = async ({
   await waitForPredictionRuns(ids);
   const { runs } = await resolvePredictionRuns(ids);
   return runs;
+};
+
+/** Submit the full annual forecast matrix once, preserving explicit scenario IDs. */
+export const createYearlyPredictionRuns = async ({
+  yearly_analysis_id, bus_model_id, scenarios, predictionGroups,
+  prediction_params = {}, onProgress,
+}) => {
+  const response = await fetch(`${SIMULATION_PATH}/yearly-prediction-runs/`, {
+    method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      yearly_analysis_id, bus_model_id,
+      ...(prediction_params.model_name ? { model_name: prediction_params.model_name } : {}),
+      occupancy_percent: prediction_params.occupancy_percent ?? 50,
+      auxiliary_heating_type: normalizeAuxiliaryHeatingType(prediction_params.auxiliary_heating_type),
+      quantiles: prediction_params.quantiles ?? DEFAULT_PREDICTION_QUANTILES,
+      scenarios: scenarios.map(scenario => ({
+        scenario_id: scenario.scenarioId, external_temp_celsius: scenario.temperature,
+      })),
+      assignments: predictionGroups.flatMap(group => group.shiftIds.map(shift_id => ({
+        shift_id, num_battery_packs: group.packs,
+      }))),
+    }),
+  });
+  const rawBody = await response.text();
+  if (!response.ok) throw new Error(formatErrorMessage(response, rawBody, "Unable to create yearly predictions."));
+  const payload = parseJsonBody(rawBody);
+  const ids = extractPredictionRunIds(payload);
+  const expected = scenarios.length * predictionGroups.reduce((total, group) => total + group.shiftIds.length, 0);
+  if (ids.length !== expected || new Set(ids).size !== expected) {
+    throw new Error("The yearly forecast response does not cover all scenarios and vehicle blocks.");
+  }
+  const references = new Map((payload.scenarios ?? []).map(item => [item.scenario_id, item.prediction_run_ids]));
+  const referencedIds = [...references.values()].flat();
+  if (references.size !== scenarios.length || referencedIds.length !== expected
+      || new Set(referencedIds).size !== expected || referencedIds.some(id => !ids.includes(id))) {
+    throw new Error("The yearly forecast response contains an invalid scenario mapping.");
+  }
+  // Poll only this analysis, never the user's entire prediction history.
+  const index = createPredictionRunIndex({
+    fetchOne: fetchPredictionRun,
+    fetchAll: () => fetchPredictionRuns({ yearly_analysis_id }), listThreshold: 1,
+  });
+  await waitForPredictionRuns(ids, { onProgress, resolveRuns: index.resolve });
+  const { byId } = await index.resolve(ids);
+  return scenarios.map(scenario => {
+    const scenarioIds = references.get(scenario.scenarioId);
+    if (scenarioIds?.length !== expected / scenarios.length
+        || scenarioIds.some(id => !byId.has(id)
+          || Number(byId.get(id).external_temp_celsius) !== Number(scenario.temperature))) {
+      throw new Error(`Missing predictions for scenario ${scenario.scenarioId}.`);
+    }
+    return { scenario, predictionRuns: scenarioIds.map(id => byId.get(id)) };
+  });
 };
 
 // ── Prediction Runs ──────────────────────────────────────────────────

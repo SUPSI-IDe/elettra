@@ -4,7 +4,7 @@ import { createYearlyDialogs } from "./yearly-dialogs";
 import { t } from "../../../i18n";
 import { fetchAllBusModels } from "../../../api";
 import {
-  createSinglePredictionRun,
+  createYearlyPredictionRuns,
   fetchAllOptimizationRuns,
   fetchOptimizationRun,
   fetchPredictionRun,
@@ -429,8 +429,10 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         },
       };
 
+      const totalPredictions = scenarios.length * shiftIds.length;
+
       // 2) Create the yearly analysis record on the backend FIRST
-      showProgress(t("yearly_analysis.creating_analysis"), 0, scenarios.length);
+      showProgress(t("yearly_analysis.creating_analysis"), 0, totalPredictions);
       const analysis = await createYearlyAnalysis({
         name: analysisName,
         optimization_run_id: text(baseRun.id) || null,
@@ -440,45 +442,32 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
 
       const analysisId = text(analysis.id);
 
-      // 3) Run prediction runs, linked to the analysis via yearly_analysis_id
+      // 3) Submit every weather scenario together, retaining each duty's battery.
       const outcomes = [];
-
-      for (let i = 0; i < scenarios.length; i++) {
-        const sc = scenarios[i];
-        showProgress(t("yearly_analysis.prediction_progress", {
-          current: i + 1,
-          total: scenarios.length,
-          label: sc.label,
-          temperature: sc.temperature,
-          packs: predictionGroups.map(group => group.packs).join(" / "),
-        }), i, scenarios.length);
-
-        try {
-          const predRuns = [];
-          for (const group of predictionGroups) {
-            predRuns.push(...await createSinglePredictionRun({
-              shift_ids: group.shiftIds,
-              bus_model_id: busModelId,
-              prediction_params: { ...basePredParams, external_temp_celsius: sc.temperature },
-              num_battery_packs: group.packs,
-              yearly_analysis_id: analysisId,
-            }));
-          }
+      const reportPredictions = ({ completed = 0, total = totalPredictions } = {}) => {
+        showProgress(t("yearly_analysis.combined_prediction_progress", {
+          completed, total, scenarios: scenarios.length,
+        }), completed, total);
+      };
+      reportPredictions();
+      try {
+        const forecasts = await createYearlyPredictionRuns({
+          yearly_analysis_id: analysisId, bus_model_id: busModelId,
+          scenarios, predictionGroups, prediction_params: basePredParams,
+          onProgress: reportPredictions,
+        });
+        for (const { scenario, predictionRuns } of forecasts) {
+          outcomes.push(buildYearlyScenarioOutcome({ scenario, shiftIds, predictionRuns }));
+        }
+      } catch (err) {
+        for (const scenario of scenarios) {
           outcomes.push(buildYearlyScenarioOutcome({
-            scenario: sc,
-            shiftIds,
-            predictionRuns: predRuns,
-          }));
-        } catch (err) {
-          outcomes.push(buildYearlyScenarioOutcome({
-            scenario: sc,
-            shiftIds,
-            failure: err?.message ?? t("yearly_analysis.prediction_failed"),
+            scenario, shiftIds, failure: err?.message ?? t("yearly_analysis.prediction_failed"),
           }));
         }
       }
 
-      showProgress(t("yearly_analysis.saving_results"), scenarios.length, scenarios.length);
+      showProgress(t("yearly_analysis.saving_results"), totalPredictions, totalPredictions);
 
       // 4) Resolve nominal shift distance (reference/planned distance)
       const nominalDailyDistanceKmByShiftId = {};
