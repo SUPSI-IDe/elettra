@@ -431,7 +431,11 @@ const resolveShiftSummary = async (shiftIds = []) => {
 
 const resolveShiftTabs = async (
   shiftIds = [],
-  { fallbackShiftId = "", fallbackShiftName = "" } = {}
+  {
+    fallbackShiftId = "",
+    fallbackShiftName = "",
+    fallbackShiftNamesById = new Map(),
+  } = {}
 ) => {
   const ids = [
     ...new Set(
@@ -460,7 +464,12 @@ const resolveShiftTabs = async (
     ids.map((shiftId, index) =>
       resolveShiftPresentation(
         shiftId,
-        index === 0 ? fallbackShiftName : ""
+        firstText(
+          fallbackShiftNamesById instanceof Map
+            ? fallbackShiftNamesById.get(shiftId)
+            : fallbackShiftNamesById?.[shiftId],
+          index === 0 ? fallbackShiftName : "",
+        )
       )
     )
   );
@@ -6207,7 +6216,13 @@ const buildSharedInfrastructureDetailsHtml = (viewState, inputParams = {}) => {
     </section>`;
 };
 
-const buildFeasibilityGeneralLevelHtml = (viewState, inputParams = {}, run = {}, currentModel = {}) => {
+const buildFeasibilityGeneralLevelHtml = (
+  viewState,
+  inputParams = {},
+  run = {},
+  currentModel = {},
+  shiftNamesById = {},
+) => {
   const general = viewState?.general ?? {};
   const battery = general.battery ?? {};
   const limitingNames = battery.decision === FEASIBILITY_DECISION.OPTIMIZED
@@ -6255,7 +6270,7 @@ const buildFeasibilityGeneralLevelHtml = (viewState, inputParams = {}, run = {},
         </div>
       </header>
       <div class="feasibility-level__content result-card__body">
-      ${fleetInvestmentHtml(run, currentModel)}
+      ${fleetInvestmentHtml(run, currentModel, shiftNamesById)}
       ${buildSharedInfrastructureDetailsHtml(viewState, inputParams)}
       <div class="feasibility-general-grid feasibility-general-grid--coverage result-metric-grid">
         <article class="feasibility-general-card result-metric" data-role="feasibility-shift-count">
@@ -6601,7 +6616,9 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
 
   const { optimizationRun, predictionRuns } = state;
   const resultScope = viewOptions?.resultScope === "shift" ? "shift" : "general";
-  const feasibilityModel = buildFeasibilityResultModel(optimizationRun);
+  const feasibilityModel = buildFeasibilityResultModel(optimizationRun, {
+    shiftNamesById: viewOptions?.shiftNamesById,
+  });
   const feasibilityViewState = buildFeasibilityViewState(
     feasibilityModel,
     resultScope === "shift" ? viewOptions?.selectedShiftId : null
@@ -6873,7 +6890,16 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     energyBalance
   );
 
-  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(feasibilityViewState, ip, optimizationRun, viewOptions.currentBusModel) + renderDepotCycle(optimizationRun);
+  const resolvedShiftNamesById = new Map(
+    feasibilityModel.shifts.map((shift) => [shift.shiftId, shift.shiftName]),
+  );
+  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(
+    feasibilityViewState,
+    ip,
+    optimizationRun,
+    viewOptions.currentBusModel,
+    resolvedShiftNamesById,
+  ) + renderDepotCycle(optimizationRun);
   const shiftLevelHtml = `
     <section class="feasibility-level feasibility-level--shift" data-role="feasibility-shift-level">
       ${buildFeasibilityShiftLevelHeaderHtml(
@@ -8912,8 +8938,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   const getActiveResultViewOptions = () => {
     const scope = getActiveResultScope();
+    const shiftNamesById = new Map(
+      availableShiftTabs.map((shift) => [shift.id, shift.shiftName]),
+    );
     if (scope?.kind !== "shift") {
-      return { resultScope: "general" };
+      return { resultScope: "general", shiftNamesById };
     }
     const activeShift =
       availableShiftTabs.find((shift) => shift.id === scope.shiftId) ?? null;
@@ -8921,6 +8950,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       resultScope: "shift",
       selectedShiftId: scope.shiftId,
       selectedShiftName: scope.shiftName,
+      shiftNamesById,
       tripStopLookup: activeShift?.tripStopLookup,
     };
   };
@@ -9861,9 +9891,16 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       const inputShiftIds = Array.isArray(optimizationRun?.input_params?.shift_ids)
         ? optimizationRun.input_params.shift_ids
         : [];
+      const resultShiftNamesById = new Map(
+        buildFeasibilityResultModel(optimizationRun).shifts.map((shift) => [
+          shift.shiftId,
+          shift.shiftName,
+        ]),
+      );
       availableShiftTabs = await resolveShiftTabs(inputShiftIds, {
         fallbackShiftId: options.shiftId,
         fallbackShiftName: options.shiftName,
+        fallbackShiftNamesById: resultShiftNamesById,
       });
       resultScopes = buildFeasibilityResultScopes(availableShiftTabs, {
         generalLabel: translateOr("simulation.feasibility_scope_general", "General"),

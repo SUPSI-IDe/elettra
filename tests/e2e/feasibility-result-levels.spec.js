@@ -46,6 +46,7 @@ const prediction = (id, shiftId, packs, consumption) => ({
 const mountResults = async (page, {
   shiftIds = ["morning", "evening"],
   shiftNames: shiftNameOverrides = {},
+  resultShiftNames: resultShiftNameOverrides = {},
   predictionRunIds,
   predictionOverrides = {},
   mode = "battery_only",
@@ -75,6 +76,10 @@ const mountResults = async (page, {
     evening: "Evening service",
     ...shiftNameOverrides,
   };
+  const resultShiftNames = {
+    ...shiftNames,
+    ...resultShiftNameOverrides,
+  };
   const predictions = {
     "prediction-morning": prediction("prediction-morning", "morning", 8, 350),
     "prediction-evening": prediction("prediction-evening", "evening", 12, 550),
@@ -84,7 +89,7 @@ const mountResults = async (page, {
     shiftIds.map((shiftId) => [
       shiftId,
       battery(
-        shiftNames[shiftId],
+        resultShiftNames[shiftId],
         shiftId === "evening" ? 12 : 8,
         batteryResultOverrides[shiftId] ?? {},
       ),
@@ -171,7 +176,7 @@ const mountResults = async (page, {
             battery_results: batteryResults,
             per_bus_summary: shiftIds.map((shiftId) => ({
               shift_id: shiftId,
-              shift_name: shiftNames[shiftId],
+              shift_name: resultShiftNames[shiftId],
               min_soc_kwh: shiftId === "evening" ? 60 : 120,
               max_soc_kwh: shiftId === "evening" ? 500 : 400,
               total_charged_kwh: shiftId === "evening" ? 140 : 80,
@@ -1422,4 +1427,31 @@ test("shows every selected battery and complete vehicle investment totals", asyn
   await expect(fleet).toHaveCount(0);
   await scopeSelector(page).getByRole('tab', { name: 'General' }).click();
   await expect(fleet.locator('tfoot td').last()).toHaveText("CHF 832'000");
+});
+
+test("uses current shift metadata instead of stale result names throughout the general level", async ({ page }) => {
+  await mountResults(page, {
+    shiftNames: {
+      morning: "Current morning block",
+      evening: "Current evening block",
+    },
+    resultShiftNames: {
+      morning: "Historical morning name",
+      evening: "Historical evening name",
+    },
+  });
+
+  const selector = scopeSelector(page);
+  await expect(selector.getByRole("tab", { name: "Current morning block" })).toBeVisible();
+  await expect(selector.getByRole("tab", { name: "Current evening block" })).toBeVisible();
+
+  const fleetRows = page.locator('[data-role="feasibility-fleet-battery"] tbody tr');
+  await expect(fleetRows.nth(0)).toContainText("Current morning block");
+  await expect(fleetRows.nth(1)).toContainText("Current evening block");
+  await expect(page.locator('[data-role="feasibility-general-level"]')).not.toContainText(
+    "Historical morning name",
+  );
+  await expect(page.locator('[data-role="feasibility-limiting-shifts"]')).toContainText(
+    "Current evening block",
+  );
 });

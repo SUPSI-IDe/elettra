@@ -99,6 +99,132 @@ const uniqueIds = (...groups) => {
   return result;
 };
 
+const uniqueTexts = (values) =>
+  uniqueIds(Array.isArray(values) ? values : values == null ? [] : [values]);
+
+const readShiftName = (namesById, shiftId) => {
+  const candidate = namesById instanceof Map
+    ? namesById.get(shiftId)
+    : isRecord(namesById)
+      ? namesById[shiftId]
+      : null;
+
+  return isRecord(candidate)
+    ? firstText(candidate.shiftName, candidate.shift_name, candidate.name)
+    : firstText(candidate);
+};
+
+const normalizeFailureIssues = (value) => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(isRecord)
+    .map((issue) => ({
+      code: firstText(issue.code),
+      shiftId: firstText(issue.shift_id, issue.shiftId),
+      shiftName: firstText(issue.shift_name, issue.shiftName),
+      message: firstText(issue.message),
+      startStopId: firstText(issue.start_stop_id, issue.startStopId),
+      startStopName: firstText(issue.start_stop_name, issue.startStopName),
+      endStopId: firstText(issue.end_stop_id, issue.endStopId),
+      endStopName: firstText(issue.end_stop_name, issue.endStopName),
+    }))
+    .filter((issue) => issue.code || issue.shiftId || issue.message);
+};
+
+const mergeShiftOutcome = (current, candidate) => {
+  if (!current) return candidate;
+
+  const status = current.status === "validation_failed" || candidate.status === "validation_failed"
+    ? "validation_failed"
+    : firstText(current.status, candidate.status);
+  return {
+    shiftId: current.shiftId,
+    shiftName: firstText(current.shiftName, candidate.shiftName),
+    status,
+    failureCodes: uniqueIds(current.failureCodes, candidate.failureCodes),
+    blockedByShiftIds: uniqueIds(
+      current.blockedByShiftIds,
+      candidate.blockedByShiftIds,
+    ),
+    issues: [],
+  };
+};
+
+const normalizeFailure = (results) => {
+  const source = isRecord(results.failure) ? results.failure : null;
+  const legacyMessage = firstText(results.error);
+  if (!source && !legacyMessage) return null;
+
+  const issues = normalizeFailureIssues(source?.issues);
+  const outcomes = new Map();
+  const outcomeOrder = [];
+  const rawOutcomes = Array.isArray(source?.shift_outcomes)
+    ? source.shift_outcomes
+    : [];
+
+  for (const rawOutcome of rawOutcomes) {
+    if (!isRecord(rawOutcome)) continue;
+    const shiftId = firstText(rawOutcome.shift_id, rawOutcome.shiftId);
+    if (!shiftId) continue;
+    const candidate = {
+      shiftId,
+      shiftName: firstText(rawOutcome.shift_name, rawOutcome.shiftName),
+      status: firstText(rawOutcome.status),
+      failureCodes: uniqueTexts(
+        rawOutcome.failure_codes ?? rawOutcome.failureCodes ?? rawOutcome.issue_codes,
+      ),
+      blockedByShiftIds: uniqueTexts(
+        rawOutcome.blocked_by_shift_ids ?? rawOutcome.blockedByShiftIds,
+      ),
+      issues: [],
+    };
+    if (!outcomes.has(shiftId)) outcomeOrder.push(shiftId);
+    outcomes.set(shiftId, mergeShiftOutcome(outcomes.get(shiftId), candidate));
+  }
+
+  for (const issue of issues) {
+    if (!issue.shiftId) continue;
+    if (!outcomes.has(issue.shiftId)) {
+      outcomeOrder.push(issue.shiftId);
+      outcomes.set(issue.shiftId, {
+        shiftId: issue.shiftId,
+        shiftName: issue.shiftName,
+        status: "validation_failed",
+        failureCodes: issue.code ? [issue.code] : [],
+        blockedByShiftIds: [],
+        issues: [],
+      });
+      continue;
+    }
+    const outcome = outcomes.get(issue.shiftId);
+    outcomes.set(issue.shiftId, {
+      ...outcome,
+      shiftName: firstText(outcome.shiftName, issue.shiftName),
+      failureCodes: uniqueIds(
+        outcome.failureCodes,
+        issue.code ? [issue.code] : [],
+      ),
+    });
+  }
+
+  const shiftOutcomes = outcomeOrder.map((shiftId) => {
+    const outcome = outcomes.get(shiftId);
+    return {
+      ...outcome,
+      issues: issues.filter((issue) => issue.shiftId === shiftId),
+    };
+  });
+
+  return {
+    code: firstText(source?.code),
+    phase: firstText(source?.phase),
+    message: firstText(source?.message, legacyMessage),
+    issues,
+    shiftOutcomes,
+  };
+};
+
 const maximum = (values) => {
   const valid = values.filter((value) => value !== null);
   return valid.length ? Math.max(...valid) : null;
@@ -279,7 +405,10 @@ const normalizeStations = ({ inputParams, results, infrastructureDecision }) => 
  * shared charging infrastructure. Per-shift battery values remain diagnostics:
  * they never become independent bus configurations.
  */
-export function buildFeasibilityResultModel(optimizationRun = {}) {
+export function buildFeasibilityResultModel(
+  optimizationRun = {},
+  { shiftNamesById = {} } = {},
+) {
   const run = isRecord(optimizationRun) ? optimizationRun : {};
   const inputParams = isRecord(run.input_params) ? run.input_params : {};
   const results = isRecord(run.results) ? run.results : {};
@@ -295,6 +424,17 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
   const summaryEntries = toRecordsById(results.per_bus_summary, ["shift_id", "id"]);
   const batteryByShift = new Map(batteryEntries);
   const summaryByShift = new Map(summaryEntries);
+  const failure = normalizeFailure(results);
+  const failureOutcomes = failure?.shiftOutcomes ?? [];
+  const failureOutcomeByShift = new Map(
+    failureOutcomes.map((outcome) => [outcome.shiftId, outcome]),
+  );
+  const failureIssueNamesByShift = new Map();
+  for (const issue of failure?.issues ?? []) {
+    if (issue.shiftId && issue.shiftName && !failureIssueNamesByShift.has(issue.shiftId)) {
+      failureIssueNamesByShift.set(issue.shiftId, issue.shiftName);
+    }
+  }
   const requestedShiftIds = Array.isArray(inputParams.shift_ids)
     ? inputParams.shift_ids
     : [];
@@ -302,6 +442,8 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
     requestedShiftIds,
     batteryEntries.map(([id]) => id),
     summaryEntries.map(([id]) => id),
+    failureOutcomes.map((outcome) => outcome.shiftId),
+    (failure?.issues ?? []).map((issue) => issue.shiftId),
   );
 
   const optimizedPackValues = batteryEntries
@@ -317,6 +459,7 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
   const shifts = shiftIds.map((shiftId) => {
     const battery = batteryByShift.get(shiftId) ?? {};
     const summary = summaryByShift.get(shiftId) ?? {};
+    const outcome = failureOutcomeByShift.get(shiftId) ?? null;
     const optimizedPacks = toNonNegativeNumber(battery.optimized_packs);
     const requiredPacks = toNonNegativeNumber(
       battery.required_total_packs ?? summary.required_total_packs,
@@ -326,7 +469,15 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
 
     return {
       shiftId,
-      shiftName: firstText(summary.shift_name, battery.shift_name, shiftId),
+      shiftName: firstText(
+        readShiftName(shiftNamesById, shiftId),
+        outcome?.shiftName,
+        failureIssueNamesByShift.get(shiftId),
+        summary.shift_name,
+        battery.shift_name,
+        shiftId,
+      ),
+      outcome,
       battery: {
         referencePacks: toNonNegativeNumber(battery.reference_packs),
         basePacks: toNonNegativeNumber(battery.base_packs),
@@ -418,6 +569,7 @@ export function buildFeasibilityResultModel(optimizationRun = {}) {
       ),
       stations,
     },
+    failure,
     shifts,
   };
 }

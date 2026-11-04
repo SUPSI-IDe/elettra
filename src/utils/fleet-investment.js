@@ -5,9 +5,18 @@ const number = value => {
 };
 const completeSum = values => values.length && values.every(value => value !== null)
   ? values.reduce((sum, value) => sum + value, 0) : null;
+const text = value => value == null ? '' : String(value).trim();
+const readShiftName = (namesById, shiftId) => {
+  const candidate = namesById instanceof Map
+    ? namesById.get(shiftId)
+    : namesById && typeof namesById === 'object' && !Array.isArray(namesById)
+      ? namesById[shiftId]
+      : null;
+  return text(candidate?.shiftName ?? candidate?.shift_name ?? candidate?.name ?? candidate);
+};
 
 // One bus per selected vehicle block. Never price virtual diagnostic excess packs.
-export function buildFleetInvestment(run = {}, currentModel = {}) {
+export function buildFleetInvestment(run = {}, currentModel = {}, {shiftNamesById = {}} = {}) {
   const results = run.results ?? {};
   const batteries = results.battery_results ?? {};
   const summaries = new Map((results.per_bus_summary ?? []).map(row => [row.shift_id, row]));
@@ -42,7 +51,7 @@ export function buildFleetInvestment(run = {}, currentModel = {}) {
     const batteryCost = packs !== null && packCost !== null
       ? packs * packCost : number(battery.selected_battery_cost_chf);
     return {
-      id, name: summary.shift_name ?? battery.shift_name ?? id,
+      id, name: readShiftName(shiftNamesById, id) || summary.shift_name || battery.shift_name || id,
       modelName: battery.bus_model_name ?? summary.bus_model_name ?? '',
       packs, capacity, busCost, packCost, batteryCost,
       totalCost: busCost !== null && batteryCost !== null ? busCost + batteryCost : null,

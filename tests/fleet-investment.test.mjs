@@ -50,3 +50,19 @@ test('requested vehicle blocks missing a result are not silently left out of tot
   assert.equal(model.totals.packs,null);
   assert.equal(model.totals.totalCost,null);
 });
+
+test('resolved shift metadata names every requested row, including rows without results', () => {
+  const evaluation = run({a:row(12, {shift_name: 'Stored A'})});
+  evaluation.input_params.shift_ids.push('b');
+  const names = new Map([
+    ['a', 'Fetched A'],
+    ['b', 'Fetched B'],
+  ]);
+
+  const model = buildFleetInvestment(evaluation, {}, {shiftNamesById: names});
+
+  assert.deepEqual(model.rows.map(({id, name}) => ({id, name})), [
+    {id: 'a', name: 'Fetched A'},
+    {id: 'b', name: 'Fetched B'},
+  ]);
+});
