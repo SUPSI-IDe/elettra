@@ -75,6 +75,7 @@ import {
 import {
   buildFeasibilityResultModel,
   FEASIBILITY_DECISION,
+  hasFeasibilityEvaluationFailure,
 } from "../../../utils/feasibility-result-model";
 import { buildFeasibilityViewState } from "../../../utils/feasibility-view-state";
 import { formatFeasibilityClockMinute } from "../../../utils/feasibility-charging-plan";
@@ -431,7 +432,11 @@ const resolveShiftSummary = async (shiftIds = []) => {
 
 const resolveShiftTabs = async (
   shiftIds = [],
-  { fallbackShiftId = "", fallbackShiftName = "" } = {}
+  {
+    fallbackShiftId = "",
+    fallbackShiftName = "",
+    fallbackShiftNamesById = new Map(),
+  } = {}
 ) => {
   const ids = [
     ...new Set(
@@ -460,7 +465,12 @@ const resolveShiftTabs = async (
     ids.map((shiftId, index) =>
       resolveShiftPresentation(
         shiftId,
-        index === 0 ? fallbackShiftName : ""
+        firstText(
+          fallbackShiftNamesById instanceof Map
+            ? fallbackShiftNamesById.get(shiftId)
+            : fallbackShiftNamesById?.[shiftId],
+          index === 0 ? fallbackShiftName : "",
+        )
       )
     )
   );
@@ -6057,6 +6067,238 @@ const feasibilityOverallStatus = (value) => {
   };
 };
 
+const feasibilityFailureStatus = (outcome = {}) => {
+  if (outcome?.status === "validation_failed") {
+    return {
+      key: "validation_failed",
+      label: translateOr(
+        "simulation.feasibility_failed_status_validation",
+        "Input validation failed",
+      ),
+      tone: "negative",
+    };
+  }
+  if (outcome?.status === "not_evaluated") {
+    return {
+      key: "not_evaluated",
+      label: translateOr(
+        "simulation.feasibility_failed_status_not_evaluated",
+        "Not evaluated",
+      ),
+      tone: "neutral",
+    };
+  }
+  return {
+    key: "failed",
+    label: translateOr(
+      "simulation.feasibility_failed_status_unknown",
+      "Calculation failed",
+    ),
+    tone: "negative",
+  };
+};
+
+const feasibilityFailureIssueReason = (issue = {}, fallback = "") => {
+  if (issue?.code === "daily_cycle_depot_mismatch") {
+    return translateOr(
+      "simulation.feasibility_failed_reason_depot_mismatch",
+      `Daily repetition requires the vehicle block to start and end at the same depot. Start: ${firstText(
+        issue.startStopName,
+        issue.startStopId,
+        "—",
+      )}; end: ${firstText(issue.endStopName, issue.endStopId, "—")}. Transfers are not added automatically.`,
+      {
+        start: firstText(issue.startStopName, issue.startStopId, "—"),
+        end: firstText(issue.endStopName, issue.endStopId, "—"),
+      },
+    );
+  }
+  return firstText(
+    issue?.message,
+    fallback,
+    translateOr(
+      "simulation.feasibility_failed_reason_unknown",
+      "The calculation did not produce a feasibility result.",
+    ),
+  );
+};
+
+const buildFeasibilityFailureHtml = (
+  feasibilityModel,
+  viewState,
+  resultScope,
+) => {
+  const failure = feasibilityModel?.failure;
+  if (!failure) return "";
+
+  const shiftOptions = Array.isArray(viewState?.shiftOptions)
+    ? viewState.shiftOptions
+    : [];
+  const namesById = new Map(
+    shiftOptions.map((option) => [option.shiftId, option.shiftName]),
+  );
+  const blockingNames = (outcome = null) =>
+    (Array.isArray(outcome?.blockedByShiftIds)
+      ? outcome.blockedByShiftIds
+      : [])
+      .map((shiftId) => namesById.get(shiftId) || shiftId)
+      .filter(Boolean);
+  const reasonForOutcome = (outcome = null) => {
+    if (outcome?.status === "not_evaluated") {
+      const blockers = blockingNames(outcome);
+      return blockers.length
+        ? translateOr(
+            "simulation.feasibility_failed_reason_not_evaluated",
+            `Not evaluated because input validation failed for: ${blockers.join(", ")}.`,
+            { shifts: blockers.join(", ") },
+          )
+        : translateOr(
+            "simulation.feasibility_failed_reason_not_evaluated_generic",
+            "Not evaluated because another selected vehicle block failed input validation.",
+          );
+    }
+    const issue = Array.isArray(outcome?.issues) ? outcome.issues[0] : null;
+    return feasibilityFailureIssueReason(issue, failure.message);
+  };
+  const statusBadge = (outcome) => {
+    const status = feasibilityFailureStatus(outcome);
+    return `<span class="result-status result-status--${status.tone} feasibility-failure__status" data-failure-status="${status.key}">${textContent(
+      status.label,
+    )}</span>`;
+  };
+
+  if (resultScope === "shift") {
+    const selected = viewState?.selectedShift ?? null;
+    const outcome = selected?.shift?.outcome ?? null;
+    const status = feasibilityFailureStatus(outcome);
+    const blockers = blockingNames(outcome);
+    const intro = outcome?.status === "validation_failed"
+      ? translateOr(
+          "simulation.feasibility_failed_shift_validation_intro",
+          "This vehicle block failed input validation before the optimization started.",
+        )
+      : outcome?.status === "not_evaluated"
+        ? translateOr(
+            "simulation.feasibility_failed_shift_not_evaluated_intro",
+            "This vehicle block was not evaluated because another selected vehicle block failed input validation.",
+          )
+        : translateOr(
+            "simulation.feasibility_failed_shift_unknown_intro",
+            "No feasibility result is available for this vehicle block.",
+          );
+
+    return `
+      <section class="feasibility-failure result-card" data-role="feasibility-failure-shift" data-failure-status="${textContent(status.key)}">
+        <header class="result-card__header feasibility-failure__header">
+          <div class="result-card__heading">
+            <h3 class="result-card__title">${textContent(
+              translateOr(
+                "simulation.feasibility_failed_shift_title",
+                "Vehicle block evaluation not completed",
+              ),
+            )}</h3>
+            <p class="result-card__subtitle" data-role="feasibility-failure-shift-name">${textContent(
+              selected?.shiftName ?? "—",
+            )}</p>
+          </div>
+          ${statusBadge(outcome)}
+        </header>
+        <div class="result-card__body feasibility-failure__body">
+          <p>${textContent(intro)}</p>
+          <p class="feasibility-failure__reason" data-role="feasibility-failure-reason">${textContent(
+            reasonForOutcome(outcome),
+          )}</p>
+          ${blockers.length
+            ? `<p class="feasibility-failure__blocked-by" data-role="feasibility-failure-blocked-by">${textContent(
+                translateOr(
+                  "simulation.feasibility_failed_blocked_by",
+                  `Blocking vehicle block(s): ${blockers.join(", ")}`,
+                  { shifts: blockers.join(", ") },
+                ),
+              )}</p>`
+            : ""}
+        </div>
+      </section>`;
+  }
+
+  const rows = shiftOptions.map((option) => {
+    const outcome = option.shift?.outcome ?? null;
+    return `
+      <tr data-shift-id="${textContent(option.shiftId)}" data-failure-status="${textContent(
+        feasibilityFailureStatus(outcome).key,
+      )}">
+        <th scope="row">${textContent(option.shiftName)}</th>
+        <td>${statusBadge(outcome)}</td>
+        <td>${textContent(reasonForOutcome(outcome))}</td>
+      </tr>`;
+  }).join("");
+
+  return `
+    <section class="feasibility-failure result-card" data-role="feasibility-failure-general">
+      <header class="result-card__header feasibility-failure__header">
+        <div class="result-card__heading">
+          <h3 class="result-card__title">${textContent(
+            translateOr(
+              "simulation.feasibility_failed_title",
+              "Evaluation not completed",
+            ),
+          )}</h3>
+          <p class="result-card__subtitle">${textContent(
+            translateOr(
+              "simulation.feasibility_failed_intro",
+              "The feasibility calculation stopped before an optimization result was produced. This does not mean that the configuration is infeasible.",
+            ),
+          )}</p>
+        </div>
+        <span class="result-status result-status--negative">${textContent(
+          translateOr(
+            "simulation.feasibility_failed_status_unknown",
+            "Calculation failed",
+          ),
+        )}</span>
+      </header>
+      <div class="result-card__body feasibility-failure__body">
+        ${rows
+          ? `<h4>${textContent(
+              translateOr(
+                "simulation.feasibility_failed_outcomes_title",
+                "Vehicle block outcomes",
+              ),
+            )}</h4>
+            <div class="table-scroll feasibility-failure__table-wrap">
+              <table class="table-standard feasibility-failure__table">
+                <thead>
+                  <tr>
+                    <th>${textContent(
+                      translateOr(
+                        "simulation.feasibility_failed_col_shift",
+                        "Vehicle block",
+                      ),
+                    )}</th>
+                    <th>${textContent(
+                      translateOr(
+                        "simulation.feasibility_failed_col_status",
+                        "Status",
+                      ),
+                    )}</th>
+                    <th>${textContent(
+                      translateOr(
+                        "simulation.feasibility_failed_col_reason",
+                        "Reason",
+                      ),
+                    )}</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>`
+          : `<p class="feasibility-failure__reason" data-role="feasibility-failure-reason">${textContent(
+              feasibilityFailureIssueReason(failure.issues?.[0], failure.message),
+            )}</p>`}
+      </div>
+    </section>`;
+};
+
 const pairedOverallStatus = (run) => {
   const pair = pairedFeasibility(run);
   return pair ? {
@@ -6207,7 +6449,13 @@ const buildSharedInfrastructureDetailsHtml = (viewState, inputParams = {}) => {
     </section>`;
 };
 
-const buildFeasibilityGeneralLevelHtml = (viewState, inputParams = {}, run = {}, currentModel = {}) => {
+const buildFeasibilityGeneralLevelHtml = (
+  viewState,
+  inputParams = {},
+  run = {},
+  currentModel = {},
+  shiftNamesById = {},
+) => {
   const general = viewState?.general ?? {};
   const battery = general.battery ?? {};
   const limitingNames = battery.decision === FEASIBILITY_DECISION.OPTIMIZED
@@ -6255,7 +6503,7 @@ const buildFeasibilityGeneralLevelHtml = (viewState, inputParams = {}, run = {},
         </div>
       </header>
       <div class="feasibility-level__content result-card__body">
-      ${fleetInvestmentHtml(run, currentModel)}
+      ${fleetInvestmentHtml(run, currentModel, shiftNamesById)}
       ${buildSharedInfrastructureDetailsHtml(viewState, inputParams)}
       <div class="feasibility-general-grid feasibility-general-grid--coverage result-metric-grid">
         <article class="feasibility-general-card result-metric" data-role="feasibility-shift-count">
@@ -6601,11 +6849,21 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
 
   const { optimizationRun, predictionRuns } = state;
   const resultScope = viewOptions?.resultScope === "shift" ? "shift" : "general";
-  const feasibilityModel = buildFeasibilityResultModel(optimizationRun);
+  const feasibilityModel = buildFeasibilityResultModel(optimizationRun, {
+    shiftNamesById: viewOptions?.shiftNamesById,
+  });
   const feasibilityViewState = buildFeasibilityViewState(
     feasibilityModel,
     resultScope === "shift" ? viewOptions?.selectedShiftId : null
   );
+  if (feasibilityModel.failure) {
+    el.innerHTML = buildFeasibilityFailureHtml(
+      feasibilityModel,
+      feasibilityViewState,
+      resultScope,
+    );
+    return;
+  }
   const scopedPredictionRuns = scopePredictionRunsByShift(
     predictionRuns,
     viewOptions
@@ -6873,7 +7131,16 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     energyBalance
   );
 
-  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(feasibilityViewState, ip, optimizationRun, viewOptions.currentBusModel) + renderDepotCycle(optimizationRun);
+  const resolvedShiftNamesById = new Map(
+    feasibilityModel.shifts.map((shift) => [shift.shiftId, shift.shiftName]),
+  );
+  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(
+    feasibilityViewState,
+    ip,
+    optimizationRun,
+    viewOptions.currentBusModel,
+    resolvedShiftNamesById,
+  ) + renderDepotCycle(optimizationRun);
   const shiftLevelHtml = `
     <section class="feasibility-level feasibility-level--shift" data-role="feasibility-shift-level">
       ${buildFeasibilityShiftLevelHeaderHtml(
@@ -8907,13 +9174,19 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const isElectrificationFeasible = () =>
     loadedOptimizationRun?.results?.electrification_feasible !== false;
 
+  const hasFailedFeasibilityEvaluation = () =>
+    hasFeasibilityEvaluationFailure(loadedOptimizationRun);
+
   const getActiveResultScope = () =>
     resolveFeasibilityResultScope(resultScopes, activeResultScopeKey);
 
   const getActiveResultViewOptions = () => {
     const scope = getActiveResultScope();
+    const shiftNamesById = new Map(
+      availableShiftTabs.map((shift) => [shift.id, shift.shiftName]),
+    );
     if (scope?.kind !== "shift") {
-      return { resultScope: "general" };
+      return { resultScope: "general", shiftNamesById };
     }
     const activeShift =
       availableShiftTabs.find((shift) => shift.id === scope.shiftId) ?? null;
@@ -8921,6 +9194,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       resultScope: "shift",
       selectedShiftId: scope.shiftId,
       selectedShiftName: scope.shiftName,
+      shiftNamesById,
       tripStopLookup: activeShift?.tripStopLookup,
     };
   };
@@ -9289,6 +9563,25 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     refreshEfficiencyTab();
 
     if (!loadedOptimizationRun) return;
+
+    if (hasFailedFeasibilityEvaluation()) {
+      costState.status = "idle";
+      costState.comparison = null;
+      costState.annualization = null;
+      costState.costInputs = null;
+      costState.error = null;
+      costState.optimizationRun = loadedOptimizationRun;
+      emissionsState.status = "idle";
+      emissionsState.yearlyImpact = null;
+      emissionsState.electricYearly = null;
+      emissionsState.dieselYearly = null;
+      emissionsState.dieselVehicleName = null;
+      emissionsState.error = null;
+      refreshCostsTab();
+      refreshEmissionsTab();
+      refreshOverviewTab();
+      return;
+    }
 
     costState.status = preserveExistingCostData ? "refreshing" : "loading";
     if (!preserveExistingCostData) {
@@ -9739,7 +10032,9 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     let design = loadedDesigns.get(runId);
     if (!design) {
       const run = await fetchOptimizationRun(runId);
-      const { runs } = await resolvePredictionRuns(run.prediction_run_ids ?? []);
+      const { runs } = hasFeasibilityEvaluationFailure(run)
+        ? { runs: [] }
+        : await resolvePredictionRuns(run.prediction_run_ids ?? []);
       design = { run, predictionRuns: runs };
       loadedDesigns.set(runId, design);
     }
@@ -9782,13 +10077,14 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     refreshCostsTab();
 
     try {
-      const [optimizationRun, economicDefaultsPayload] = await Promise.all([
-        fetchOptimizationRun(options.runId),
-        fetchEconomicDefaults().catch((error) => {
+      const optimizationRun = await fetchOptimizationRun(options.runId);
+      const evaluationFailed = hasFeasibilityEvaluationFailure(optimizationRun);
+      const economicDefaultsPayload = evaluationFailed
+        ? null
+        : await fetchEconomicDefaults().catch((error) => {
           console.warn("[elettra] Unable to load economic defaults:", error);
           return null;
-        }),
-      ]);
+        });
       economicDefaults.fuelCostPerL = normalizeFuelCostPerL(
         economicDefaultsPayload?.fuel_cost_per_l
       );
@@ -9836,7 +10132,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       loadedOptimizationRun = optimizationRun;
       options.simulationName = resolveSimulationName(optimizationRun, options);
       renderPageTitle();
-      const predRunIds = Array.isArray(optimizationRun?.prediction_run_ids)
+      const predRunIds = !evaluationFailed && Array.isArray(optimizationRun?.prediction_run_ids)
         ? optimizationRun.prediction_run_ids
         : [];
       const { runs: predictionRuns, missing, errors } = predRunIds.length
@@ -9861,9 +10157,16 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       const inputShiftIds = Array.isArray(optimizationRun?.input_params?.shift_ids)
         ? optimizationRun.input_params.shift_ids
         : [];
+      const resultShiftNamesById = new Map(
+        buildFeasibilityResultModel(optimizationRun).shifts.map((shift) => [
+          shift.shiftId,
+          shift.shiftName,
+        ]),
+      );
       availableShiftTabs = await resolveShiftTabs(inputShiftIds, {
         fallbackShiftId: options.shiftId,
         fallbackShiftName: options.shiftName,
+        fallbackShiftNamesById: resultShiftNamesById,
       });
       resultScopes = buildFeasibilityResultScopes(availableShiftTabs, {
         generalLabel: translateOr("simulation.feasibility_scope_general", "General"),

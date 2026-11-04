@@ -3,8 +3,8 @@ import { textContent } from '../../../ui-helpers';
 import { buildFleetInvestment } from '../../../utils/fleet-investment';
 import { formatNumber as fmt, formatChf } from '../../../utils/number-format';
 
-export function fleetInvestmentHtml(run, currentModel) {
-  const model = buildFleetInvestment(run, currentModel);
+export function fleetInvestmentHtml(run, currentModel, shiftNamesById = {}) {
+  const model = buildFleetInvestment(run, currentModel, { shiftNamesById });
   const key = name => textContent(t(`simulation.fleet_${name}`));
   const values = row => `<td>${fmt(row.packs)}</td><td>${fmt(row.capacity)}</td>
     <td>${formatChf(row.busCost)}</td><td>${formatChf(row.batteryCost)}${row.packCost != null && row.packs != null

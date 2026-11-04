@@ -5,6 +5,7 @@ import {
   buildFeasibilityResultModel,
   FEASIBILITY_DECISION,
   FEASIBILITY_STATION_STATUS,
+  hasFeasibilityEvaluationFailure,
 } from "../src/utils/feasibility-result-model.js";
 
 const battery = (shiftName, optimizedPacks, overrides = {}) => ({
@@ -495,6 +496,229 @@ test("result-only stations and shifts are retained after requested items, and in
   assert.deepEqual(run, snapshot);
 });
 
+test("structured input failures keep every requested shift and normalize per-shift outcomes", () => {
+  const run = {
+    input_params: {
+      mode: "joint",
+      shift_ids: ["one", "two", "three"],
+    },
+    results: {
+      error: "40104: daily repetition requires matching depots",
+      failure: {
+        code: "input_validation_failed",
+        phase: "input_validation",
+        issues: [{
+          code: "daily_cycle_depot_mismatch",
+          shift_id: "two",
+          shift_name: "Backend 40104",
+          message: "Backend 40104 starts and ends at different depots.",
+          start_stop_id: "depot-2",
+          start_stop_name: "TPL Rimessa 2",
+          end_stop_id: "depot-1",
+          end_stop_name: "TPL Rimessa 1",
+        }],
+        shift_outcomes: [
+          {
+            shift_id: "one",
+            shift_name: "Backend 40101",
+            status: "not_evaluated",
+            blocked_by_shift_ids: ["two"],
+          },
+          {
+            shift_id: "two",
+            shift_name: "Backend 40104",
+            status: "validation_failed",
+            failure_codes: ["daily_cycle_depot_mismatch"],
+          },
+          {
+            shift_id: "three",
+            shift_name: "Backend 40105",
+            status: "not_evaluated",
+            blocked_by_shift_ids: ["two"],
+          },
+        ],
+      },
+    },
+  };
+  const snapshot = structuredClone(run);
+  const model = buildFeasibilityResultModel(run, {
+    shiftNamesById: new Map([
+      ["one", "Fetched 40101"],
+      ["two", "Fetched 40104"],
+      ["three", "Fetched 40105"],
+    ]),
+  });
+
+  assert.deepEqual(
+    model.shifts.map(({ shiftId, shiftName, outcome }) => ({
+      shiftId,
+      shiftName,
+      status: outcome?.status,
+    })),
+    [
+      { shiftId: "one", shiftName: "Fetched 40101", status: "not_evaluated" },
+      { shiftId: "two", shiftName: "Fetched 40104", status: "validation_failed" },
+      { shiftId: "three", shiftName: "Fetched 40105", status: "not_evaluated" },
+    ],
+  );
+  assert.deepEqual(model.failure, {
+    code: "input_validation_failed",
+    phase: "input_validation",
+    message: "40104: daily repetition requires matching depots",
+    issues: [{
+      code: "daily_cycle_depot_mismatch",
+      shiftId: "two",
+      shiftName: "Backend 40104",
+      message: "Backend 40104 starts and ends at different depots.",
+      startStopId: "depot-2",
+      startStopName: "TPL Rimessa 2",
+      endStopId: "depot-1",
+      endStopName: "TPL Rimessa 1",
+    }],
+    shiftOutcomes: [
+      {
+        shiftId: "one",
+        shiftName: "Backend 40101",
+        status: "not_evaluated",
+        failureCodes: [],
+        blockedByShiftIds: ["two"],
+        issues: [],
+      },
+      {
+        shiftId: "two",
+        shiftName: "Backend 40104",
+        status: "validation_failed",
+        failureCodes: ["daily_cycle_depot_mismatch"],
+        blockedByShiftIds: [],
+        issues: model.failure.issues,
+      },
+      {
+        shiftId: "three",
+        shiftName: "Backend 40105",
+        status: "not_evaluated",
+        failureCodes: [],
+        blockedByShiftIds: ["two"],
+        issues: [],
+      },
+    ],
+  });
+  assert.deepEqual(run, snapshot);
+});
+
+test("shift names follow authoritative, failure, result, and identifier fallbacks", () => {
+  const model = buildFeasibilityResultModel({
+    input_params: {
+      shift_ids: ["fetched", "outcome", "issue", "summary", "battery", "id-only"],
+    },
+    results: {
+      battery_results: {
+        fetched: battery("Battery fetched", 8),
+        outcome: battery("Battery outcome", 8),
+        issue: battery("Battery issue", 8),
+        summary: battery("Battery summary", 8),
+        battery: battery("Battery fallback", 8),
+      },
+      per_bus_summary: [
+        { shift_id: "fetched", shift_name: "Summary fetched" },
+        { shift_id: "outcome", shift_name: "Summary outcome" },
+        { shift_id: "issue", shift_name: "Summary issue" },
+        { shift_id: "summary", shift_name: "Summary fallback" },
+      ],
+      failure: {
+        issues: [{
+          code: "issue",
+          shift_id: "issue",
+          shift_name: "Issue fallback",
+          message: "Issue",
+        }],
+        shift_outcomes: [{
+          shift_id: "outcome",
+          shift_name: "Outcome fallback",
+          status: "not_evaluated",
+        }],
+      },
+    },
+  }, {
+    shiftNamesById: { fetched: "Fetched name" },
+  });
+
+  assert.deepEqual(
+    model.shifts.map(({ shiftName }) => shiftName),
+    [
+      "Fetched name",
+      "Outcome fallback",
+      "Issue fallback",
+      "Summary fallback",
+      "Battery fallback",
+      "id-only",
+    ],
+  );
+});
+
+test("legacy errors and issue-only failures produce a stable failure model", () => {
+  const legacy = buildFeasibilityResultModel({
+    results: { error: "Legacy failure" },
+  });
+  assert.deepEqual(legacy.failure, {
+    code: null,
+    phase: null,
+    message: "Legacy failure",
+    issues: [],
+    shiftOutcomes: [],
+  });
+
+  const issueOnly = buildFeasibilityResultModel({
+    results: {
+      failure: {
+        issues: [{ code: "invalid", shift_id: "extra", shift_name: "Extra shift" }],
+      },
+    },
+  });
+  assert.equal(issueOnly.shifts[0].shiftName, "Extra shift");
+  assert.deepEqual(issueOnly.shifts[0].outcome, {
+    shiftId: "extra",
+    shiftName: "Extra shift",
+    status: "validation_failed",
+    failureCodes: ["invalid"],
+    blockedByShiftIds: [],
+    issues: issueOnly.failure.issues,
+  });
+});
+
+test("failed run status is a fallback failure signal without hiding real infeasibility", () => {
+  const failedWithoutPayload = {
+    status: "failed",
+    input_params: { shift_ids: ["one"] },
+    results: {},
+  };
+  assert.equal(hasFeasibilityEvaluationFailure(failedWithoutPayload), true);
+  assert.deepEqual(buildFeasibilityResultModel(failedWithoutPayload).failure, {
+    code: null,
+    phase: null,
+    message: null,
+    issues: [],
+    shiftOutcomes: [],
+  });
+
+  for (const results of [
+    { solver_status: "infeasible" },
+    { electrification_feasible: false },
+  ]) {
+    const infeasibleRun = { status: "failed", results };
+    assert.equal(hasFeasibilityEvaluationFailure(infeasibleRun), false);
+    assert.equal(buildFeasibilityResultModel(infeasibleRun).failure, null);
+  }
+
+  assert.equal(hasFeasibilityEvaluationFailure({ status: "completed", results: {} }), false);
+  assert.equal(
+    hasFeasibilityEvaluationFailure({
+      status: "completed",
+      results: { error: "Explicit calculation failure" },
+    }),
+    true,
+  );
+});
+
 test("empty, null and non-object payloads produce a stable empty model", () => {
   for (const payload of [undefined, null, [], "invalid"]) {
     const model = buildFeasibilityResultModel(payload);
@@ -503,6 +727,7 @@ test("empty, null and non-object payloads produce a stable empty model", () => {
     assert.equal(model.fleet.battery.packs, null);
     assert.deepEqual(model.fleet.battery.sizingShiftIds, []);
     assert.equal(model.infrastructure.scope, "shared");
+    assert.equal(model.failure, null);
     assert.deepEqual(model.infrastructure.stations, []);
     assert.deepEqual(model.shifts, []);
   }

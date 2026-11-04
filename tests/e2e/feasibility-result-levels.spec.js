@@ -46,6 +46,7 @@ const prediction = (id, shiftId, packs, consumption) => ({
 const mountResults = async (page, {
   shiftIds = ["morning", "evening"],
   shiftNames: shiftNameOverrides = {},
+  resultShiftNames: resultShiftNameOverrides = {},
   predictionRunIds,
   predictionOverrides = {},
   mode = "battery_only",
@@ -61,6 +62,11 @@ const mountResults = async (page, {
   includeInfrastructureInput = true,
   includeElectrificationFeasible = true,
   electrificationFeasible = true,
+  runStatus = "completed",
+  failure,
+  legacyError,
+  includeBatteryResults = true,
+  includePerBusSummary = true,
   fixedBatteryPacks = 12,
   batteryResultOverrides = {},
   perBusSummaryOverrides = {},
@@ -70,10 +76,15 @@ const mountResults = async (page, {
   basisRunIds,
   dailyCycle,
 } = {}) => {
+  const requestedApiPaths = [];
   const shiftNames = {
     morning: "Morning service",
     evening: "Evening service",
     ...shiftNameOverrides,
+  };
+  const resultShiftNames = {
+    ...shiftNames,
+    ...resultShiftNameOverrides,
   };
   const predictions = {
     "prediction-morning": prediction("prediction-morning", "morning", 8, 350),
@@ -84,7 +95,7 @@ const mountResults = async (page, {
     shiftIds.map((shiftId) => [
       shiftId,
       battery(
-        shiftNames[shiftId],
+        resultShiftNames[shiftId],
         shiftId === "evening" ? 12 : 8,
         batteryResultOverrides[shiftId] ?? {},
       ),
@@ -139,6 +150,7 @@ const mountResults = async (page, {
 
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
+    requestedApiPaths.push(path);
 
     if (path.endsWith("/api/v1/simulation/optimization-runs/level-test")) {
       await route.fulfill({
@@ -146,7 +158,7 @@ const mountResults = async (page, {
           id: "level-test",
           name: "Multi-shift feasibility",
           mode,
-          status: "completed",
+          status: runStatus,
           input_params: {
             shift_ids: shiftIds,
             mode,
@@ -168,17 +180,23 @@ const mountResults = async (page, {
             ...(includeElectrificationFeasible
               ? { electrification_feasible: electrificationFeasible }
               : {}),
-            battery_results: batteryResults,
-            per_bus_summary: shiftIds.map((shiftId) => ({
-              shift_id: shiftId,
-              shift_name: shiftNames[shiftId],
-              min_soc_kwh: shiftId === "evening" ? 60 : 120,
-              max_soc_kwh: shiftId === "evening" ? 500 : 400,
-              total_charged_kwh: shiftId === "evening" ? 140 : 80,
-              num_charging_sessions: shiftId === "evening" ? 3 : 2,
-              charging_sessions: defaultChargingSessions[shiftId] ?? [],
-              ...(perBusSummaryOverrides[shiftId] ?? {}),
-            })),
+            ...(failure === undefined ? {} : { failure }),
+            ...(legacyError === undefined ? {} : { error: legacyError }),
+            ...(includeBatteryResults ? { battery_results: batteryResults } : {}),
+            ...(includePerBusSummary
+              ? {
+                  per_bus_summary: shiftIds.map((shiftId) => ({
+                    shift_id: shiftId,
+                    shift_name: resultShiftNames[shiftId],
+                    min_soc_kwh: shiftId === "evening" ? 60 : 120,
+                    max_soc_kwh: shiftId === "evening" ? 500 : 400,
+                    total_charged_kwh: shiftId === "evening" ? 140 : 80,
+                    num_charging_sessions: shiftId === "evening" ? 3 : 2,
+                    charging_sessions: defaultChargingSessions[shiftId] ?? [],
+                    ...(perBusSummaryOverrides[shiftId] ?? {}),
+                  })),
+                }
+              : {}),
             ...(installedChargers === undefined
               ? {}
               : { installed_chargers: installedChargers }),
@@ -234,6 +252,7 @@ const mountResults = async (page, {
       runId: "level-test",
     });
   });
+  return requestedApiPaths;
 };
 
 const scopeSelector = (page) => page.locator('[data-role="shift-tabs"]');
@@ -243,6 +262,14 @@ const selectShiftScope = async (page, shiftId) => {
     .locator(`[data-action="select-result-scope"][data-shift-id="${shiftId}"]`)
     .click();
 };
+
+const failedResultDerivedRequests = (paths) => paths.filter((path) =>
+  path.includes("/prediction-runs") ||
+  path.endsWith("/economic/defaults") ||
+  path.includes("/economic/comparison") ||
+  path.includes("/yearly-distance") ||
+  path.includes("/environmental/"),
+);
 
 test.afterEach(async ({ page }) => {
   await page.evaluate(() => window.__cleanupSimulationResults?.());
@@ -840,6 +867,7 @@ test("shows an explicit overall infeasible status without replacing the general 
   const status = general.locator('[data-role="feasibility-overall-status"]');
   await expect(status).toHaveText("Not all vehicle blocks are feasible");
   await expect(status).toHaveClass(/feasibility-overall-status--infeasible/);
+  await expect(page.locator('[data-role="feasibility-failure-general"]')).toHaveCount(0);
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-infrastructure"]')).toBeVisible();
 });
@@ -1422,4 +1450,179 @@ test("shows every selected battery and complete vehicle investment totals", asyn
   await expect(fleet).toHaveCount(0);
   await scopeSelector(page).getByRole('tab', { name: 'General' }).click();
   await expect(fleet.locator('tfoot td').last()).toHaveText("CHF 832'000");
+});
+
+test("uses current shift metadata instead of stale result names throughout the general level", async ({ page }) => {
+  await mountResults(page, {
+    shiftNames: {
+      morning: "Current morning block",
+      evening: "Current evening block",
+    },
+    resultShiftNames: {
+      morning: "Historical morning name",
+      evening: "Historical evening name",
+    },
+  });
+
+  const selector = scopeSelector(page);
+  await expect(selector.getByRole("tab", { name: "Current morning block" })).toBeVisible();
+  await expect(selector.getByRole("tab", { name: "Current evening block" })).toBeVisible();
+
+  const fleetRows = page.locator('[data-role="feasibility-fleet-battery"] tbody tr');
+  await expect(fleetRows.nth(0)).toContainText("Current morning block");
+  await expect(fleetRows.nth(1)).toContainText("Current evening block");
+  await expect(page.locator('[data-role="feasibility-general-level"]')).not.toContainText(
+    "Historical morning name",
+  );
+  await expect(page.locator('[data-role="feasibility-limiting-shifts"]')).toContainText(
+    "Current evening block",
+  );
+});
+
+test("explains a failed multi-shift evaluation at general and individual shift level", async ({ page }) => {
+  const requestedApiPaths = await mountResults(page, {
+    shiftIds: ["valid-one", "invalid", "valid-two"],
+    shiftNames: {
+      "valid-one": "40101",
+      invalid: "40104",
+      "valid-two": "40105",
+    },
+    predictionRunIds: [],
+    runStatus: "failed",
+    includeElectrificationFeasible: false,
+    includeBatteryResults: false,
+    includePerBusSummary: false,
+    legacyError: "40104: daily repetition requires matching depots",
+    failure: {
+      code: "input_validation_failed",
+      phase: "input_validation",
+      issues: [{
+        code: "daily_cycle_depot_mismatch",
+        shift_id: "invalid",
+        shift_name: "Historical 40104",
+        message: "Historical 40104 starts and ends at different depots.",
+        start_stop_id: "depot-2",
+        start_stop_name: "TPL Rimessa 2",
+        end_stop_id: "depot-1",
+        end_stop_name: "TPL Rimessa 1",
+      }],
+      shift_outcomes: [
+        {
+          shift_id: "valid-one",
+          shift_name: "Historical 40101",
+          status: "not_evaluated",
+          blocked_by_shift_ids: ["invalid"],
+        },
+        {
+          shift_id: "invalid",
+          shift_name: "Historical 40104",
+          status: "validation_failed",
+          failure_codes: ["daily_cycle_depot_mismatch"],
+        },
+        {
+          shift_id: "valid-two",
+          shift_name: "Historical 40105",
+          status: "not_evaluated",
+          blocked_by_shift_ids: ["invalid"],
+        },
+      ],
+    },
+  });
+
+  const general = page.locator('[data-role="feasibility-failure-general"]');
+  await expect(general).toBeVisible();
+  await expect(general).toContainText("Evaluation not completed");
+  await expect(general).toContainText(
+    "This does not mean that the configuration is infeasible.",
+  );
+  await expect(page.locator('[data-role="feasibility-general-level"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-fleet-battery"]')).toHaveCount(0);
+  await expect(page.locator(".results-shift-tabs")).toContainText("40101");
+  await expect(page.locator(".results-shift-tabs")).toContainText("40104");
+  await expect(page.locator(".results-shift-tabs")).toContainText("40105");
+
+  const outcomeRows = general.locator("tbody tr");
+  await expect(outcomeRows).toHaveCount(3);
+  await expect(outcomeRows.nth(0)).toContainText("40101");
+  await expect(outcomeRows.nth(0)).toContainText("Not evaluated");
+  await expect(outcomeRows.nth(0)).toContainText("40104");
+  await expect(outcomeRows.nth(1)).toContainText("40104");
+  await expect(outcomeRows.nth(1)).toContainText("Input validation failed");
+  await expect(outcomeRows.nth(1)).toContainText("TPL Rimessa 2");
+  await expect(outcomeRows.nth(1)).toContainText("TPL Rimessa 1");
+
+  await selectShiftScope(page, "invalid");
+  const invalidDetail = page.locator('[data-role="feasibility-failure-shift"]');
+  await expect(invalidDetail).toBeVisible();
+  await expect(invalidDetail).toHaveAttribute("data-failure-status", "validation_failed");
+  await expect(invalidDetail.locator('[data-role="feasibility-failure-shift-name"]')).toHaveText("40104");
+  await expect(invalidDetail.locator('[data-role="feasibility-failure-reason"]')).toContainText(
+    "TPL Rimessa 2",
+  );
+  await expect(invalidDetail.locator('[data-role="feasibility-failure-reason"]')).toContainText(
+    "TPL Rimessa 1",
+  );
+  await expect(page.locator('[data-role="feasibility-shift-summary"]')).toHaveCount(0);
+
+  await selectShiftScope(page, "valid-one");
+  const blockedDetail = page.locator('[data-role="feasibility-failure-shift"]');
+  await expect(blockedDetail).toHaveAttribute("data-failure-status", "not_evaluated");
+  await expect(blockedDetail.locator('[data-role="feasibility-failure-shift-name"]')).toHaveText("40101");
+  await expect(blockedDetail.locator('[data-role="feasibility-failure-reason"]')).toContainText(
+    "40104",
+  );
+  await expect(blockedDetail.locator('[data-role="feasibility-failure-blocked-by"]')).toContainText(
+    "40104",
+  );
+  await expect(page.locator('[data-action="toggle-sim-data"]')).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    ),
+  ).toBe(false);
+  expect(failedResultDerivedRequests(requestedApiPaths)).toEqual([]);
+});
+
+test("keeps legacy failure text safe and skips derived result requests", async ({ page }) => {
+  const unsafeMessage = '<img data-role="failure-injected" src=x onerror="window.__failureXss=true"> Legacy calculation failure';
+  const requestedApiPaths = await mountResults(page, {
+    runStatus: "failed",
+    legacyError: unsafeMessage,
+    includeElectrificationFeasible: false,
+    includeBatteryResults: false,
+    includePerBusSummary: false,
+  });
+
+  const general = page.locator('[data-role="feasibility-failure-general"]');
+  await expect(general).toBeVisible();
+  await expect(general).toContainText(unsafeMessage);
+  await expect(page.locator('[data-role="failure-injected"]')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__failureXss)).toBeUndefined();
+
+  await selectShiftScope(page, "morning");
+  const shift = page.locator('[data-role="feasibility-failure-shift"]');
+  await expect(shift).toBeVisible();
+  await expect(shift.locator('[data-role="feasibility-failure-reason"]')).toContainText(
+    unsafeMessage,
+  );
+  expect(failedResultDerivedRequests(requestedApiPaths)).toEqual([]);
+});
+
+test("shows a stable diagnostic for historical failed runs without an error payload", async ({ page }) => {
+  const requestedApiPaths = await mountResults(page, {
+    runStatus: "failed",
+    includeElectrificationFeasible: false,
+    includeBatteryResults: false,
+    includePerBusSummary: false,
+  });
+
+  const general = page.locator('[data-role="feasibility-failure-general"]');
+  await expect(general).toBeVisible();
+  await expect(general).toContainText("Evaluation not completed");
+  await expect(general).toContainText(
+    "The calculation did not produce a feasibility result.",
+  );
+  await expect(page.locator('[data-role="feasibility-general-level"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-no-solution"]')).toHaveCount(0);
+  expect(failedResultDerivedRequests(requestedApiPaths)).toEqual([]);
 });

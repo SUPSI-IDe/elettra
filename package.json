@@ -1,14 +1,15 @@
 {
   "name": "elettra",
   "private": true,
-  "version": "0.8.0-rc.5",
+  "version": "0.8.0-rc.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:staging": "playwright test --config playwright.staging.config.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

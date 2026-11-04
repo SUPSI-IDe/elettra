@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0-rc.6] - 2026-11-04
+
+### Staging candidate
+
+- Preserve every selected vehicle block when a feasibility evaluation stops during input validation, using current vehicle-block names and per-block outcomes from the backend.
+- Explain which vehicle blocks failed validation, which were not evaluated, and the exact depot mismatch without presenting a calculation failure as an infeasible design.
+- Keep legacy failed evaluations safe and usable, including results with only an error string or failed status, while preventing unavailable cost, distance, prediction and emissions calculations.
+- Require the complete staging frontend, backend and database targets for integration tests. Publish as a GitHub Pre-release without changing stable Docker aliases.
+
 ## [0.8.0-rc.5] - 2026-11-04
 
 ### Staging candidate

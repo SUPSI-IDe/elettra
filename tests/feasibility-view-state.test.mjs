@@ -500,6 +500,24 @@ test("both feasibility levels are translated in every supported locale", () => {
     "simulation.feasibility_minutes_short",
     "simulation.feasibility_charging_next_day",
     "simulation.feasibility_charging_day_offset",
+    "simulation.feasibility_failed_title",
+    "simulation.feasibility_failed_intro",
+    "simulation.feasibility_failed_outcomes_title",
+    "simulation.feasibility_failed_col_shift",
+    "simulation.feasibility_failed_col_status",
+    "simulation.feasibility_failed_col_reason",
+    "simulation.feasibility_failed_status_validation",
+    "simulation.feasibility_failed_status_not_evaluated",
+    "simulation.feasibility_failed_status_unknown",
+    "simulation.feasibility_failed_reason_depot_mismatch",
+    "simulation.feasibility_failed_reason_not_evaluated",
+    "simulation.feasibility_failed_reason_not_evaluated_generic",
+    "simulation.feasibility_failed_reason_unknown",
+    "simulation.feasibility_failed_shift_title",
+    "simulation.feasibility_failed_shift_validation_intro",
+    "simulation.feasibility_failed_shift_not_evaluated_intro",
+    "simulation.feasibility_failed_shift_unknown_intro",
+    "simulation.feasibility_failed_blocked_by",
   ];
 
   for (const [locale, dictionary] of Object.entries(translations)) {
@@ -531,6 +549,16 @@ test("both feasibility levels are translated in every supported locale", () => {
     assert.ok(
       dictionary["simulation.feasibility_charging_day_offset"].includes("{days}"),
       `${locale}: missing day offset placeholder`,
+    );
+    assert.ok(
+      dictionary["simulation.feasibility_failed_reason_depot_mismatch"].includes("{start}") &&
+        dictionary["simulation.feasibility_failed_reason_depot_mismatch"].includes("{end}"),
+      `${locale}: missing depot mismatch placeholders`,
+    );
+    assert.ok(
+      dictionary["simulation.feasibility_failed_reason_not_evaluated"].includes("{shifts}") &&
+        dictionary["simulation.feasibility_failed_blocked_by"].includes("{shifts}"),
+      `${locale}: missing blocking shift placeholders`,
     );
   }
 });
