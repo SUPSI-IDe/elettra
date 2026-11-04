@@ -1760,6 +1760,84 @@
   line-height: 1.6;
 }
 
+.feasibility-failure {
+  width: 100%;
+}
+
+.feasibility-failure__header {
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.feasibility-failure__body > p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.feasibility-failure__body > p + p {
+  margin-top: var(--space-sm);
+}
+
+.feasibility-failure__body h4 {
+  margin: 0 0 var(--space-sm);
+  color: var(--text-primary);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.feasibility-failure__reason {
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  background: var(--color-negative-muted);
+  color: var(--text-primary) !important;
+}
+
+.feasibility-failure__blocked-by {
+  font-size: var(--font-size-sm);
+}
+
+.feasibility-failure__table-wrap {
+  margin: 0;
+}
+
+.feasibility-failure__table {
+  min-width: 640px;
+}
+
+.feasibility-failure__table th:first-child {
+  width: 24%;
+}
+
+.feasibility-failure__table th:nth-child(2) {
+  width: 18%;
+}
+
+.feasibility-failure__table tbody th,
+.feasibility-failure__table tbody td {
+  vertical-align: top;
+}
+
+.feasibility-failure__table tbody th {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.feasibility-failure__status {
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .feasibility-failure__header {
+    align-items: stretch;
+  }
+
+  .feasibility-failure__header > .result-status {
+    align-self: flex-start;
+  }
+}
+
 /* Predictions panel */
 
 .predictions-card__header {

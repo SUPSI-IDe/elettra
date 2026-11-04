@@ -62,6 +62,11 @@ const mountResults = async (page, {
   includeInfrastructureInput = true,
   includeElectrificationFeasible = true,
   electrificationFeasible = true,
+  runStatus = "completed",
+  failure,
+  legacyError,
+  includeBatteryResults = true,
+  includePerBusSummary = true,
   fixedBatteryPacks = 12,
   batteryResultOverrides = {},
   perBusSummaryOverrides = {},
@@ -151,7 +156,7 @@ const mountResults = async (page, {
           id: "level-test",
           name: "Multi-shift feasibility",
           mode,
-          status: "completed",
+          status: runStatus,
           input_params: {
             shift_ids: shiftIds,
             mode,
@@ -173,17 +178,23 @@ const mountResults = async (page, {
             ...(includeElectrificationFeasible
               ? { electrification_feasible: electrificationFeasible }
               : {}),
-            battery_results: batteryResults,
-            per_bus_summary: shiftIds.map((shiftId) => ({
-              shift_id: shiftId,
-              shift_name: resultShiftNames[shiftId],
-              min_soc_kwh: shiftId === "evening" ? 60 : 120,
-              max_soc_kwh: shiftId === "evening" ? 500 : 400,
-              total_charged_kwh: shiftId === "evening" ? 140 : 80,
-              num_charging_sessions: shiftId === "evening" ? 3 : 2,
-              charging_sessions: defaultChargingSessions[shiftId] ?? [],
-              ...(perBusSummaryOverrides[shiftId] ?? {}),
-            })),
+            ...(failure === undefined ? {} : { failure }),
+            ...(legacyError === undefined ? {} : { error: legacyError }),
+            ...(includeBatteryResults ? { battery_results: batteryResults } : {}),
+            ...(includePerBusSummary
+              ? {
+                  per_bus_summary: shiftIds.map((shiftId) => ({
+                    shift_id: shiftId,
+                    shift_name: resultShiftNames[shiftId],
+                    min_soc_kwh: shiftId === "evening" ? 60 : 120,
+                    max_soc_kwh: shiftId === "evening" ? 500 : 400,
+                    total_charged_kwh: shiftId === "evening" ? 140 : 80,
+                    num_charging_sessions: shiftId === "evening" ? 3 : 2,
+                    charging_sessions: defaultChargingSessions[shiftId] ?? [],
+                    ...(perBusSummaryOverrides[shiftId] ?? {}),
+                  })),
+                }
+              : {}),
             ...(installedChargers === undefined
               ? {}
               : { installed_chargers: installedChargers }),
@@ -1454,4 +1465,107 @@ test("uses current shift metadata instead of stale result names throughout the g
   await expect(page.locator('[data-role="feasibility-limiting-shifts"]')).toContainText(
     "Current evening block",
   );
+});
+
+test("explains a failed multi-shift evaluation at general and individual shift level", async ({ page }) => {
+  await mountResults(page, {
+    shiftIds: ["valid-one", "invalid", "valid-two"],
+    shiftNames: {
+      "valid-one": "40101",
+      invalid: "40104",
+      "valid-two": "40105",
+    },
+    predictionRunIds: [],
+    runStatus: "failed",
+    includeElectrificationFeasible: false,
+    includeBatteryResults: false,
+    includePerBusSummary: false,
+    legacyError: "40104: daily repetition requires matching depots",
+    failure: {
+      code: "input_validation_failed",
+      phase: "input_validation",
+      issues: [{
+        code: "daily_cycle_depot_mismatch",
+        shift_id: "invalid",
+        shift_name: "Historical 40104",
+        message: "Historical 40104 starts and ends at different depots.",
+        start_stop_id: "depot-2",
+        start_stop_name: "TPL Rimessa 2",
+        end_stop_id: "depot-1",
+        end_stop_name: "TPL Rimessa 1",
+      }],
+      shift_outcomes: [
+        {
+          shift_id: "valid-one",
+          shift_name: "Historical 40101",
+          status: "not_evaluated",
+          blocked_by_shift_ids: ["invalid"],
+        },
+        {
+          shift_id: "invalid",
+          shift_name: "Historical 40104",
+          status: "validation_failed",
+          failure_codes: ["daily_cycle_depot_mismatch"],
+        },
+        {
+          shift_id: "valid-two",
+          shift_name: "Historical 40105",
+          status: "not_evaluated",
+          blocked_by_shift_ids: ["invalid"],
+        },
+      ],
+    },
+  });
+
+  const general = page.locator('[data-role="feasibility-failure-general"]');
+  await expect(general).toBeVisible();
+  await expect(general).toContainText("Evaluation not completed");
+  await expect(general).toContainText(
+    "This does not mean that the configuration is infeasible.",
+  );
+  await expect(page.locator('[data-role="feasibility-general-level"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-fleet-battery"]')).toHaveCount(0);
+  await expect(page.locator(".results-shift-tabs")).toContainText("40101");
+  await expect(page.locator(".results-shift-tabs")).toContainText("40104");
+  await expect(page.locator(".results-shift-tabs")).toContainText("40105");
+
+  const outcomeRows = general.locator("tbody tr");
+  await expect(outcomeRows).toHaveCount(3);
+  await expect(outcomeRows.nth(0)).toContainText("40101");
+  await expect(outcomeRows.nth(0)).toContainText("Not evaluated");
+  await expect(outcomeRows.nth(0)).toContainText("40104");
+  await expect(outcomeRows.nth(1)).toContainText("40104");
+  await expect(outcomeRows.nth(1)).toContainText("Input validation failed");
+  await expect(outcomeRows.nth(1)).toContainText("TPL Rimessa 2");
+  await expect(outcomeRows.nth(1)).toContainText("TPL Rimessa 1");
+
+  await selectShiftScope(page, "invalid");
+  const invalidDetail = page.locator('[data-role="feasibility-failure-shift"]');
+  await expect(invalidDetail).toBeVisible();
+  await expect(invalidDetail).toHaveAttribute("data-failure-status", "validation_failed");
+  await expect(invalidDetail.locator('[data-role="feasibility-failure-shift-name"]')).toHaveText("40104");
+  await expect(invalidDetail.locator('[data-role="feasibility-failure-reason"]')).toContainText(
+    "TPL Rimessa 2",
+  );
+  await expect(invalidDetail.locator('[data-role="feasibility-failure-reason"]')).toContainText(
+    "TPL Rimessa 1",
+  );
+  await expect(page.locator('[data-role="feasibility-shift-summary"]')).toHaveCount(0);
+
+  await selectShiftScope(page, "valid-one");
+  const blockedDetail = page.locator('[data-role="feasibility-failure-shift"]');
+  await expect(blockedDetail).toHaveAttribute("data-failure-status", "not_evaluated");
+  await expect(blockedDetail.locator('[data-role="feasibility-failure-shift-name"]')).toHaveText("40101");
+  await expect(blockedDetail.locator('[data-role="feasibility-failure-reason"]')).toContainText(
+    "40104",
+  );
+  await expect(blockedDetail.locator('[data-role="feasibility-failure-blocked-by"]')).toContainText(
+    "40104",
+  );
+  await expect(page.locator('[data-action="toggle-sim-data"]')).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    ),
+  ).toBe(false);
 });
