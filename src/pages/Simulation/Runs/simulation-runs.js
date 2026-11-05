@@ -1,4 +1,5 @@
 import { t } from "../../../i18n";
+import { resolveCopiedBatteryPacks, copiedPredictionParams } from '../../../utils/evaluation-duplication';
 import { basisOutcome, pairedFeasibility, evaluationStatus } from "../../../utils/paired-feasibility";
 import "./simulation-runs.css";
 import { fetchAllBusModels, fetchBusModelById } from "../../../api";
@@ -264,6 +265,8 @@ const resolveShiftIds = (run = {}) => {
 
 const resolvePredictionRunIds = (run = {}) => {
   const directIds = [
+    run?.input_params?.prediction_run_ids,
+    run?.inputParams?.prediction_run_ids,
     run?.prediction_run_ids,
     run?.predictionRunIds,
     run?.results?.prediction_run_ids,
@@ -433,6 +436,7 @@ const resolveHeatingType = (run = {}) =>
       run?._resolved_prediction_run?.auxiliary_heating_type ??
       run?._resolved_prediction_run?.auxiliaryHeatingType ??
       run?.input_params?.prediction_params?.auxiliary_heating_type ??
+      run?.input_params?.auxiliary_heating_type ??
       run?.inputParams?.prediction_params?.auxiliary_heating_type ??
       run?.prediction_params?.auxiliary_heating_type ??
       run?.predictionParams?.auxiliary_heating_type
@@ -1216,7 +1220,36 @@ export const initializeSimulationRuns = async (
         }
       } catch (error) {
         console.warn("Failed to load detail for duplication", error);
+        setFlashMessage(section, t('simulation.duplicate_load_failed'));
+        return;
       }
+    }
+
+    if (!run.input_params) {
+      setFlashMessage(section, t('simulation.duplicate_load_failed'));
+      return;
+    }
+
+    let predictionParams;
+    try {
+      const referenceIds = Object.values(run.input_params.reference_prediction_run_ids ?? {});
+      const predictionIds = referenceIds.length ? referenceIds : resolvePredictionRunIds(run);
+      const { byId } = await resolvePredictionRuns(predictionIds);
+      const predictions = predictionIds.map(id => byId.get(String(id)));
+      if (predictions.some(prediction => !prediction)) throw new Error('Missing source prediction');
+      if (predictions.length && resolveShiftIds(run).some(id => !predictions.some(prediction => text(prediction.shift_id) === id))) {
+        throw new Error('Missing source prediction for a selected shift');
+      }
+      if (new Set(predictions.map(prediction => prediction.bus_model_id).filter(Boolean)).size > 1) {
+        throw new Error('Multiple source bus models cannot be represented by this form');
+      }
+      run._resolved_prediction_runs = predictions;
+      if (predictions.length) run._resolved_prediction_run = predictions[0];
+      predictionParams = copiedPredictionParams(predictions, run.input_params.prediction_params);
+    } catch (error) {
+      console.warn('Unable to preserve source prediction settings', error);
+      setFlashMessage(section, t('simulation.duplicate_predictions_unavailable'));
+      return;
     }
 
     triggerPartialLoad("add-simulation", {
@@ -1229,9 +1262,12 @@ export const initializeSimulationRuns = async (
         occupancyPercent: resolveOccupancyPercent(run) ?? 50,
         heatingType: normalizeHeatingTypeForPrefill(resolveHeatingType(run)),
         usableSocPercent: resolveUsableSocPercent(run),
-        busModelId: resolveBusModelId(run),
+        busModelId: run.input_params.bus_model_id ?? run._resolved_prediction_run?.bus_model_id ?? resolveBusModelId(run),
         batteryCostPerKwh: resolveBatteryCostPerKwh(run),
         batterySizingMode: resolveBatterySizingMode(run) || "per_bus",
+        fixedBatteryPacks: resolveCopiedBatteryPacks(run),
+        inputParams: run.input_params,
+        predictionParams,
         chargingStations: resolveChargingStations(run),
         dailyCycle: run.input_params?.daily_cycle ?? false,
         depotPeakShaving: run.input_params?.depot_peak_shaving ?? false,

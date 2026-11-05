@@ -1,6 +1,6 @@
 import { t } from '../../../i18n';
 import { textContent } from '../../../ui-helpers';
-import { formatChf } from '../../../utils/number-format';
+import { formatChf, formatCostInput } from '../../../utils/number-format';
 
 export const COST_DEFAULTS = {
   depot: {point_cost_chf:110000, site_fixed_cost_chf:250000, connection_cost_per_kw_chf:250},
@@ -18,8 +18,11 @@ const fields = [
 ];
 export const readCostModel = card => {
   const model = JSON.parse(card.dataset.model);
+  if (!model) return null;
   for (const [key,,scale] of fields) {
-    const raw = card.querySelector(`[data-cost-field="${key}"]`).value.trim();
+    const input = card.querySelector(`[data-cost-field="${key}"]`);
+    const raw = input.value.trim();
+    if (input.dataset.costEdited !== 'true' && raw === formatCostInput(model[key] / scale)) continue;
     model[key] = raw === '' ? NaN : Number(raw) * scale;
   }
   if (fields.some(([key])=>model[key] !== JSON.parse(card.dataset.model)[key])) model.source='custom';
@@ -28,11 +31,20 @@ export const readCostModel = card => {
 export function renderCostCards(container, stops, stored = new Map()) {
   container.innerHTML = stops.map(stop => {
     const type=stop.isDepot ? 'depot' : 'pantograph';
-    const model=stored.get(stop.stop_id)?.cost_model ?? defaultCostModel(type);
+    const saved=stored.get(stop.stop_id);
+    const model=saved?.cost_model === null ? null : saved?.cost_model ?? defaultCostModel(type);
+    if (!model) {
+      const costs=saved.sourceStation?.slot_costs_chf ?? [];
+      return `<div class="station-cost-card" data-cost-stop-id="${textContent(stop.stop_id)}" data-model="null">
+        <strong>${textContent(stop.stop_name)}</strong>
+        <p>${textContent(t('simulation.cost_saved_legacy'))}</p>
+        <p>${costs.length ? costs.map(value => formatChf(value, 2)).join(', ') : textContent(t('simulation.cost_saved_none'))}</p>
+      </div>`;
+    }
     return `<div class="station-cost-card" data-cost-stop-id="${textContent(stop.stop_id)}" data-model="${textContent(JSON.stringify(model))}">
       <strong>${textContent(stop.stop_name)} <span class="helper-text">· ${textContent(t('simulation.cost_type_'+model.station_type))}</span></strong>
       <div class="station-cost-fields">${fields.map(([key,label,scale])=>`<label>${textContent(t('simulation.'+label))}
-        <input type="number" min="0" step="any" data-cost-field="${key}" value="${model[key]/scale}" /></label>`).join('')}</div>
+        <input type="number" min="0" step="any" data-cost-field="${key}" value="${formatCostInput(model[key]/scale)}" /></label>`).join('')}</div>
       <p class="helper-text" data-role="station-cost-total"></p>
     </div>`;
   }).join('');
@@ -42,6 +54,7 @@ export function syncCostCards(container, tbody) {
     const row=[...tbody.querySelectorAll('[data-stop-id]')].find(row=>row.dataset.stopId===card.dataset.costStopId);
     card.hidden=!row?.querySelector('input[type="checkbox"]')?.checked;
     if (!row) continue;
+    if (!JSON.parse(card.dataset.model)) continue;
     const n=Number(row.querySelector('[data-field="num_slots"]').value);
     const p=Number(row.querySelector('[data-field="max_total_power_kw"]').value);
     card.querySelector('[data-role="station-cost-total"]').textContent = `${t('simulation.cost_configured_total')}: ${formatChf(costTotal(readCostModel(card),n,p))}`;

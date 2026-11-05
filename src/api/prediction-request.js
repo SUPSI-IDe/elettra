@@ -12,6 +12,7 @@ export const buildPredictionRunRequestBody = ({
   shift_ids,
   bus_model_id,
   model_name,
+  prediction_stack,
   external_temp_celsius,
   occupancy_percent,
   auxiliary_heating_type,
@@ -30,6 +31,7 @@ export const buildPredictionRunRequestBody = ({
 
   const explicitModelName = text(model_name).trim();
   if (explicitModelName) body.model_name = explicitModelName;
+  if (prediction_stack) body.prediction_stack = prediction_stack;
   if (Array.isArray(quantiles) && quantiles.length) body.quantiles = quantiles;
   if (num_battery_packs != null) {
     body.num_battery_packs = Number(num_battery_packs);

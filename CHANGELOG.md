@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.0-rc.3] - 2026-11-05
+
+### Fixed
+
+- Preserve the full feasibility configuration when duplicating: selected vehicle blocks and bus model, battery reference packs, SOC bounds, charging limits and costs, legacy per-point prices, timing constraints, forecast settings and solver options.
+- Show infrastructure cost inputs below CHF 0.000000001 as `0`. Preserve the saved value when untouched; an explicit edit to zero is saved as zero.
+- Refuse partial copies when original resources or forecasts cannot be recovered. Preserve nonstandard occupancy/SOC values and legacy battery sizing instead of silently replacing them with defaults.
+- Compare complete optimization and forecast requests across repeated Mean/Q95 copies in every optimization mode, with standard, custom, near-zero and legacy costs.
+
+### Staging candidate
+
+- Frontend-only correction, compatible with backend 1.4.1-rc.2. Existing evaluations and historical costs are not rewritten; previously incorrect inputs still require review and recalculation.
+
 ## [0.9.0-rc.2] - 2026-11-05
 
 ### Fixed

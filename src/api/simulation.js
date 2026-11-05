@@ -300,6 +300,7 @@ const createPredictionRunVariants = async ({
       shift_ids,
       bus_model_id,
       model_name: prediction_params.model_name,
+      prediction_stack: prediction_params.prediction_stack,
       external_temp_celsius:
         prediction_params.external_temp_celsius ?? 15,
       occupancy_percent: occupancyPercent,
@@ -358,6 +359,7 @@ export const createSinglePredictionRun = async ({
     shift_ids,
     bus_model_id,
     model_name: prediction_params.model_name,
+    prediction_stack: prediction_params.prediction_stack,
     external_temp_celsius: prediction_params.external_temp_celsius ?? 15,
     occupancy_percent: occupancyPercent,
     auxiliary_heating_type: normalizeAuxiliaryHeatingType(
@@ -438,6 +440,7 @@ export const createPredictionRuns = async ({
   shift_ids,
   bus_model_id,
   model_name,
+  prediction_stack,
   external_temp_celsius = 15,
   occupancy_percent = 50,
   auxiliary_heating_type = "default",
@@ -462,6 +465,7 @@ export const createPredictionRuns = async ({
     shift_ids,
     bus_model_id,
     model_name,
+    prediction_stack,
     external_temp_celsius: Number(external_temp_celsius),
     occupancy_percent: Number(occupancy_percent),
     auxiliary_heating_type: normalizeAuxiliaryHeatingType(auxiliary_heating_type),

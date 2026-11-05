@@ -1,5 +1,6 @@
 import "../evaluation-dialogs.css";
 import { formatChf } from "../../../utils/number-format";
+import { retainedEvaluationSettings } from '../../../utils/evaluation-duplication';
 import { defaultCostModel, renderCostCards, readCostModel, syncCostCards } from './infrastructure-costs';
 import { t, I18N_CHANGE_EVENT } from "../../../i18n";
 import "./add-simulation.css";
@@ -286,7 +287,7 @@ const renderStopsTable = (thead, tbody, stops, mode) => {
         ${cols
           .map(
             (c) =>
-              `<td><input type="number" data-field="${c.key}" min="${c.min}" step="${c.step}" value="${c.key === 'num_slots' && stop.depotBusCount ? stop.depotBusCount : c.key === 'max_total_power_kw' ? (stop.depotBusCount || 2) * (stop.isDepot ? 150 : 450) : c.key === 'max_power_per_slot_kw' ? (stop.isDepot ? 150 : 450) : c.defaultVal}" /></td>`
+              `<td><input type="number" data-field="${c.key}" min="${c.min}" step="${c.key === 'num_slots' ? c.step : 'any'}" ${c.key === 'max_power_per_slot_kw' ? `placeholder="${textContent(t('simulation.cs_no_plug_limit'))}"` : ''} value="${c.key === 'num_slots' && stop.depotBusCount ? stop.depotBusCount : c.key === 'max_total_power_kw' ? (stop.depotBusCount || 2) * (stop.isDepot ? 150 : 450) : c.key === 'max_power_per_slot_kw' ? (stop.isDepot ? 150 : 450) : c.defaultVal}" /></td>`
           )
           .join("")}
       </tr>`
@@ -312,7 +313,7 @@ const collectChargingStations = (tbody, mode) => {
     const values = {};
     for (const col of cols) {
       const input = row.querySelector(`input[data-field="${col.key}"]`);
-      values[col.key] = input ? Number(input.value) : col.defaultVal;
+      values[col.key] = input ? (col.key === 'max_power_per_slot_kw' && input.value === '' ? null : Number(input.value)) : col.defaultVal;
     }
 
     const station = { stop_id: stopId };
@@ -323,24 +324,15 @@ const collectChargingStations = (tbody, mode) => {
     const card = [...tbody.closest('section.add-simulation').querySelectorAll('[data-cost-stop-id]')]
       .find(card => card.dataset.costStopId === stopId);
     station.cost_model = card ? readCostModel(card) : defaultCostModel('pantograph');
+    if (!station.cost_model && row.dataset.sourceStation) {
+      const original = JSON.parse(row.dataset.sourceStation);
+      if (original.slot_costs_chf != null) station.slot_costs_chf = original.slot_costs_chf;
+      if (mode !== 'battery_only' && original.num_slots == null) delete station.num_slots;
+    }
 
     stations.push(station);
   }
   return stations;
-};
-
-const resolveStationPowerPerSlotKw = (station = {}) => {
-  const direct = toFiniteNumber(
-    station?.max_power_per_slot_kw ?? station?.power_per_slot_kw
-  );
-  if (direct != null) return direct;
-
-  const totalPower = toFiniteNumber(
-    station?.max_total_power_kw ?? station?.total_power_kw ?? station?.max_power_kw
-  );
-  const slots = toFiniteNumber(station?.num_slots ?? station?.slots);
-  if (totalPower == null || slots == null || slots <= 0) return null;
-  return totalPower / slots;
 };
 
 const applyChargingStationPrefill = ({
@@ -371,18 +363,15 @@ const applyChargingStationPrefill = ({
     if (!station || !checkbox) return;
 
     checkbox.checked = true;
-    const costCard = [...tbody.closest('section.add-simulation').querySelectorAll('[data-cost-stop-id]')].find(card=>card.dataset.costStopId===stopId);
-    if (costCard && station.cost_model) {
-      costCard.dataset.model = JSON.stringify(station.cost_model);
-      costCard.querySelectorAll('[data-cost-field]').forEach(input=> {
-        // Stored models and form fields both use CHF (CHF/kW for connection costs).
-        input.value = station.cost_model[input.dataset.costField];
-      });
+    row.dataset.sourceStation = JSON.stringify(station);
+    if (!station.cost_model && station.slot_costs_chf?.length) {
+      // Marginal slot prices have a fixed length; do not silently invent prices.
+      row.querySelector('[data-field="num_slots"]').readOnly = true;
     }
 
     const slotValues = {
       num_slots: toFiniteNumber(station?.num_slots ?? station?.slots ?? station?.slot_costs_chf?.length),
-      max_power_per_slot_kw: resolveStationPowerPerSlotKw(station),
+      max_power_per_slot_kw: station.max_power_per_slot_kw ?? station.power_per_slot_kw ?? null,
       max_total_power_kw: toFiniteNumber(station?.max_total_power_kw),
     };
 
@@ -392,6 +381,8 @@ const applyChargingStationPrefill = ({
       const nextValue = slotValues[col.key];
       if (nextValue != null) {
         input.value = String(nextValue);
+      } else if (col.key === 'max_power_per_slot_kw') {
+        input.value = '';
       }
     });
   });
@@ -409,6 +400,9 @@ export const initializeAddSimulation = async (
   if (!section) return null;
 
   const cleanupHandlers = [];
+  const copiedSettings = retainedEvaluationSettings(options.prefill?.inputParams);
+  let copiedSocBounds = null;
+  let duplicationError = false;
   let disposed = false;
   section.querySelectorAll('.form-info').forEach(button => {
     const tooltip = button.querySelector('.info-tooltip');
@@ -570,10 +564,14 @@ export const initializeAddSimulation = async (
       const card=[...costCards.querySelectorAll('[data-cost-stop-id]')].find(c=>c.dataset.costStopId===row.dataset.stopId);
       stationEdits.set(row.dataset.stopId,{checked:row.querySelector('[type="checkbox"]').checked,
         values:Object.fromEntries([...row.querySelectorAll('[data-field]')].map(i=>[i.dataset.field,i.value])),
-        cost_model:card ? readCostModel(card) : undefined});
+        cost_model:card ? readCostModel(card) : undefined,
+        sourceStation:row.dataset.sourceStation ? JSON.parse(row.dataset.sourceStation) : undefined});
     }
   };
-  const updateCostCards = () => syncCostCards(costCards, stopsTbody);
+  const updateCostCards = (event) => {
+    if (event?.target?.matches('[data-cost-field]')) event.target.dataset.costEdited = 'true';
+    syncCostCards(costCards, stopsTbody);
+  };
   costCards.addEventListener('input', updateCostCards);
   cleanupHandlers.push(()=>costCards.removeEventListener('input', updateCostCards));
   const updatePackCost = async () => {
@@ -965,6 +963,10 @@ export const initializeAddSimulation = async (
       for (const row of stopsTbody.querySelectorAll('[data-stop-id]')) {
         const saved = stationEdits.get(row.dataset.stopId);
         if (!saved) continue;
+        if (saved.sourceStation) {
+          row.dataset.sourceStation = JSON.stringify(saved.sourceStation);
+          row.querySelector('[data-field="num_slots"]').readOnly = !saved.cost_model && Boolean(saved.sourceStation.slot_costs_chf?.length);
+        }
         row.querySelector('[type="checkbox"]').checked = saved.checked;
         row.querySelectorAll('[data-field]').forEach((input) => {
           if (saved.values[input.dataset.field] != null) {
@@ -1103,6 +1105,8 @@ export const initializeAddSimulation = async (
       usableSocPercent,
       busModelId,
       batterySizingMode,
+      fixedBatteryPacks,
+      inputParams = {},
       chargingStations,
       name,
       dailyCycle = false,
@@ -1125,6 +1129,7 @@ export const initializeAddSimulation = async (
       .filter(Boolean);
 
     if (normalizedShiftIds.length && shiftTbody) {
+      if (normalizedShiftIds.some(id => !allShifts.some(shift => text(shift.id) === id))) duplicationError = true;
       selectedShiftIds = new Set(normalizedShiftIds);
       renderCurrentView();
 
@@ -1147,7 +1152,12 @@ export const initializeAddSimulation = async (
 
     if (occupancyPercent != null) {
       const occupancyInput = section.querySelector("#var-occupancy");
-      if (occupancyInput) occupancyInput.value = occupancyPercent;
+      if (occupancyInput) {
+        if (![...occupancyInput.options].some(option => Number(option.value) === occupancyPercent)) {
+          occupancyInput.add(new Option(`${occupancyPercent}%`, String(occupancyPercent)));
+        }
+        occupancyInput.value = occupancyPercent;
+      }
     }
 
     if (heatingType) {
@@ -1165,21 +1175,43 @@ export const initializeAddSimulation = async (
       }
     }
 
+    if (Number.isFinite(inputParams.min_soc) && Number.isFinite(inputParams.max_soc)) {
+      const minSoc = inputParams.min_soc, maxSoc = inputParams.max_soc;
+      const percent = Number(((maxSoc - minSoc) * 100).toFixed(6));
+      const standard = resolveSocBounds(percent);
+      const select = section.querySelector('#var-usable-soc-percent');
+      let value = String(percent);
+      if (!ALLOWED_USABLE_SOC_PERCENTS.has(percent) || Math.abs(standard.minSoc - minSoc) > 1e-10 || Math.abs(standard.maxSoc - maxSoc) > 1e-10) {
+        value = 'saved';
+        select.add(new Option(`${percent}% (SOC ${minSoc * 100}–${maxSoc * 100}%)`, value));
+      }
+      select.value = value;
+      copiedSocBounds = { value, minSoc, maxSoc };
+    }
+
     refreshBusModelOverride();
 
     if (busModelId && busModelOverride) {
       const normalizedBusModelId = text(busModelId).trim();
       if ([...busModelOverride.options].some((option) => option.value === normalizedBusModelId)) {
         busModelOverride.value = normalizedBusModelId;
+      } else {
+        duplicationError = true;
       }
     }
 
     if (batterySizingMode) {
       const batterySizingSelect = section.querySelector("#var-battery-sizing-mode");
-      if (batterySizingSelect) batterySizingSelect.value = batterySizingMode === 'per_route' ? 'uniform' : batterySizingMode;
+      if (batterySizingSelect) {
+        if (batterySizingMode === 'per_route') batterySizingSelect.add(new Option(t('simulation.sizing_per_route'), 'per_route'));
+        batterySizingSelect.value = batterySizingMode;
+      }
     }
 
     await rebuildStopsTable();
+    if ((chargingStations ?? []).some(station => !currentStops.some(stop => stop.stop_id === station.stop_id))) duplicationError = true;
+    renderCostCards(costCards, currentStops, new Map((chargingStations ?? []).map(station => [station.stop_id,
+      {cost_model:station.cost_model ?? null, sourceStation:station}])));
     applyChargingStationPrefill({
       tbody: stopsTbody,
       thead: stopsThead,
@@ -1187,7 +1219,13 @@ export const initializeAddSimulation = async (
       chargingStations,
     });
     updateCostCards();
-    updatePackCost();
+    await updatePackCost();
+    if (optimizationMode === 'charging_only') {
+      fixedPacks.value = fixedBatteryPacks == null ? '' : String(fixedBatteryPacks);
+      fixedPacksDefaultPending = false;
+      syncFixedBatteryField();
+    }
+    if (duplicationError) setFeedback(section, t('simulation.duplicate_inputs_missing'));
   }
 
   // ── Shift filter ─────────────────────────────────────────────────
@@ -1424,6 +1462,10 @@ export const initializeAddSimulation = async (
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (submitting || disposed) return;
+    if (duplicationError) {
+      setFeedback(section, t('simulation.duplicate_inputs_missing'));
+      return;
+    }
     setFeedback(section, "");
     clearNameValidation();
 
@@ -1450,7 +1492,7 @@ export const initializeAddSimulation = async (
       if (field.disabled || field.closest('[hidden]')) continue;
       const row = field.closest('[data-stop-id]');
       if (row && !row.querySelector('[type="checkbox"]')?.checked) continue;
-      if (field.type === 'number') field.required = true;
+      if (field.type === 'number') field.required = field.dataset.field !== 'max_power_per_slot_kw';
       if (!field.validity.valid && !problems.has(field)) problems.set(field, field.validationMessage);
     }
     const firstProblem = [...form.querySelectorAll('input, select')].find(field => problems.has(field));
@@ -1467,7 +1509,8 @@ export const initializeAddSimulation = async (
     const usableSocPercent = Number(
       formData.get("usable_soc_percent") ?? DEFAULT_USABLE_SOC_PERCENT
     );
-    const { minSoc, maxSoc } = resolveSocBounds(usableSocPercent);
+    const { minSoc, maxSoc } = copiedSocBounds?.value === formData.get('usable_soc_percent')
+      ? copiedSocBounds : resolveSocBounds(usableSocPercent);
 
     const chargingStations = collectChargingStations(
       stopsTbody,
@@ -1475,10 +1518,11 @@ export const initializeAddSimulation = async (
     );
 
     const predictionParams = {
+      ...options.prefill?.predictionParams,
       external_temp_celsius: externalTemp,
       occupancy_percent: occupancy,
       auxiliary_heating_type: heatingType,
-      quantiles: DEFAULT_PREDICTION_QUANTILES,
+      quantiles: options.prefill?.predictionParams?.quantiles ?? DEFAULT_PREDICTION_QUANTILES,
     };
 
     const payload = {
@@ -1492,11 +1536,13 @@ export const initializeAddSimulation = async (
       shift_ids: selectedShiftIds,
       bus_model_id: busModelId,
       prediction_params: predictionParams,
+      auxiliary_heating_type: heatingType,
       charging_stations: chargingStations,
       min_soc: minSoc,
       max_soc: maxSoc,
       solver_name: "highs",
       max_solver_time_seconds: 300,
+      ...copiedSettings,
     };
 
     if (optimizationMode === "charging_only") {
@@ -1517,7 +1563,7 @@ export const initializeAddSimulation = async (
         "per_bus";
     }
 
-    if (payload.charging_stations.some(station=>Object.entries(station.cost_model).some(([key,value])=>key.endsWith('chf') && (!Number.isFinite(value) || value < 0)))) {
+    if (payload.charging_stations.some(station=>Object.entries(station.cost_model ?? {}).some(([key,value])=>key.endsWith('chf') && (!Number.isFinite(value) || value < 0)))) {
       setFeedback(section,t('simulation.cost_invalid'));
       costOptions.open=true;
       return;
