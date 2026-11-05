@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.0] - 2026-11-05
+
+### Added
+
+- Add complete fleet and representative-bus annual analyses with electric/diesel TCO, emissions comparisons, multi-depot support, saved assumptions and auditable exports.
+- Calculate paired Mean and aggregate-Q95 feasibility designs, with independent charging plans, SOC verification and consistent General/vehicle-block results.
+- Add a multilingual user guide covering the current planning use cases and workflows, with an always-visible sidebar link that opens the guide in a new tab.
+
+### Changed
+
+- Batch forecasting and charging-stop loading, load distances on demand and keep long-running simulation jobs bounded and recoverable.
+- Present localized optimization modes, validation feedback and per-vehicle-block outcomes, including explicit guidance when a result cannot be determined.
+- Align forms, deletion flows, pagination, runtime configuration and frontend/backend contracts across desktop and mobile layouts.
+
+### Security
+
+- Harden authentication, role permissions, user-data isolation, HTML rendering, destructive operations and external runtime dependencies.
+- Require the dedicated staging frontend, backend and database targets for integration tests.
+
 ## [0.8.0-rc.6] - 2026-11-04
 
 ### Staging candidate

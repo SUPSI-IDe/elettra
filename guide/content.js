@@ -1,7 +1,7 @@
 import { useCaseSections } from "./use-cases.js";
 
-export const GUIDE_BASELINE_VERSION = "0.8.0-rc.6";
-export const GUIDE_UPDATED_AT = "4 November 2026";
+export const GUIDE_BASELINE_VERSION = "0.8.0";
+export const GUIDE_UPDATED_AT = "5 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -293,6 +293,10 @@ export const guideContent = {
             title: "Open More information when needed",
             text: "Use More information for prediction details, operating assumptions and supporting values. If any vehicle block fails, revise the vehicle, state-of-charge window, scenario or charging design and run a separately named evaluation.",
           },
+          {
+            title: "Distinguish infeasible from not determined",
+            text: "Infeasible means that the optimisation completed and rejected the design. Not determined means that the calculation stopped before producing a feasibility verdict. General lists the outcome of every selected vehicle block; each vehicle-block tab identifies the reason, any blocking vehicle block and translated How to resolve guidance. Correct the indicated source data or configuration, then run a new evaluation. One invalid vehicle block can prevent the others from being evaluated without making them infeasible.",
+          },
         ],
         figures: getGuideFigures("en", "feasibilityEfficiency", "feasibilitySizing"),
       },
@@ -408,7 +412,7 @@ export const guideContent = {
       baselineLabel: "Stand der Benutzeroberfläche",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Handbuch aktualisiert",
-      updatedValue: "29. Oktober 2026",
+      updatedValue: "5. November 2026",
       footer:
         "ELETTRA unterstützt Vorstudien. Endgültige Fahrzeug-, Lade-, Netz- und Infrastrukturentscheidungen müssen durch eine detaillierte Fachplanung bestätigt werden.",
       skipLink: "Zum Handbuch springen",
@@ -510,6 +514,7 @@ export const guideContent = {
           { title: "Visuelle Analyse und Energieeignung zusammen lesen", text: "Neue Bewertungen berechnen Mittelwert und aggregiertes Q95 gemeinsam. Die Auswahl öffnet die vollständige Auslegung des Profils mit Batterie, Ladeinfrastruktur und Ladeplan ohne neue Berechnung. Niedrige SOC werden bevorzugt, sofern alle Fahrzeugumläufe durchführbar bleiben. Ein verbundener Bus belegt den Pantografen für den gesamten Halt. Q95 des Gesamtverbrauchs garantiert keine 95% SOC-Machbarkeit. Historische Ergebnisse behalten ihre ursprüngliche Basis." },
           { title: "Ladeplan prüfen", text: "Prüfen Sie bei Laden und Gemeinsam Ort und Zeit jedes Ladevorgangs sowie Dauer, geladene Energie und mittlere Leistung. Bei Nur Batterie kann statt eines optimierten Plans ein fester oder kein Ladeplan erscheinen." },
           { title: "Bei Bedarf Weitere Informationen öffnen", text: "Dort finden Sie Prognosedetails, Betriebsannahmen und unterstützende Werte. Wenn ein Fahrzeugumlauf nicht abgedeckt ist, ändern Sie Fahrzeug, Ladezustandsfenster, Szenario oder Ladeauslegung und führen Sie eine separat benannte Bewertung aus." },
+          { title: "Nicht machbar und Nicht bestimmt unterscheiden", text: "Nicht machbar bedeutet, dass die Optimierung abgeschlossen und die Auslegung verworfen wurde. Nicht bestimmt bedeutet, dass die Berechnung vor einem Machbarkeitsurteil abgebrochen ist. Allgemein zeigt das Ergebnis jedes ausgewählten Fahrzeugumlaufs; die jeweilige Registerkarte nennt den Grund, blockierende Fahrzeugumläufe und übersetzte Hinweise unter So beheben Sie das Problem. Korrigieren Sie die angegebenen Ausgangsdaten oder die Konfiguration und starten Sie eine neue Bewertung. Ein ungültiger Fahrzeugumlauf kann die Bewertung der anderen verhindern, ohne dass diese dadurch nicht machbar sind." },
         ],
         figures: getGuideFigures("de", "feasibilityEfficiency", "feasibilitySizing"),
       },
@@ -571,7 +576,7 @@ export const guideContent = {
       baselineLabel: "Version de référence de l’interface",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guide mis à jour",
-      updatedValue: "29 octobre 2026",
+      updatedValue: "5 novembre 2026",
       footer:
         "ELETTRA soutient les études de préfaisabilité. Les décisions finales relatives aux véhicules, à la recharge, au réseau et aux infrastructures doivent être confirmées par des études d’ingénierie détaillées.",
       skipLink: "Accéder au guide",
@@ -659,6 +664,7 @@ export const guideContent = {
           { title: "Lire ensemble l’analyse visuelle et l’adéquation énergétique", text: "Les nouvelles évaluations calculent ensemble la moyenne et le Q95 agrégé. Le sélecteur ouvre le projet complet du profil : batterie, chargeurs et plan de recharge, sans nouveau calcul. Les SOC bas sont favorisés sous réserve de la faisabilité de tous les services voiture. Le bus connecté occupe le pantographe pendant tout l’arrêt. Le Q95 du total ne garantit pas une faisabilité SOC de 95%. Les résultats historiques conservent leur base initiale." },
           { title: "Contrôler le plan de recharge", text: "Pour les modes Recharge et Conjoint, vérifiez le lieu et l’heure de chaque session, sa durée, l’énergie fournie et la puissance moyenne. Le mode Batterie uniquement peut présenter un plan fixe ou aucun plan au lieu d’un plan optimisé." },
           { title: "Ouvrir Plus d’informations si nécessaire", text: "Cette zone contient les détails des prédictions, les hypothèses d’exploitation et les valeurs justificatives. Si un service voiture échoue, modifiez le véhicule, la fenêtre d’état de charge, le scénario ou la recharge et lancez une évaluation portant un autre nom." },
+          { title: "Distinguer non faisable de non déterminée", text: "Non faisable signifie que l’optimisation s’est terminée et a rejeté le dimensionnement. Non déterminée signifie que le calcul s’est arrêté avant de produire un verdict de faisabilité. Général présente le résultat de chaque service voiture sélectionné; l’onglet correspondant indique le motif, les services bloquants et des conseils traduits sous Comment résoudre le problème. Corrigez les données sources ou la configuration indiquées, puis lancez une nouvelle évaluation. Un service voiture non valide peut empêcher l’évaluation des autres sans les rendre non faisables." },
         ],
         figures: getGuideFigures("fr", "feasibilityEfficiency", "feasibilitySizing"),
       },
@@ -720,7 +726,7 @@ export const guideContent = {
       baselineLabel: "Versione di riferimento dell’interfaccia",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guida aggiornata",
-      updatedValue: "29 ottobre 2026",
+      updatedValue: "5 novembre 2026",
       footer:
         "ELETTRA supporta studi di prefattibilità. Le decisioni finali su veicoli, ricarica, rete e infrastrutture devono essere confermate mediante una progettazione tecnica dettagliata.",
       skipLink: "Vai alla guida",
@@ -808,6 +814,7 @@ export const guideContent = {
           { title: "Leggere insieme analisi visiva e adeguatezza energetica", text: "Le nuove valutazioni calcolano insieme Media e Q95 aggregato. Il selettore apre il progetto completo del profilo, con batteria, caricatori e piano di ricarica ottimizzati, senza avviare altri calcoli. La ricarica favorisce i SOC più bassi rispettando la fattibilità di tutti i turni macchina; il bus connesso occupa il pantografo per tutta la sosta. Il Q95 del consumo totale non garantisce il 95% di fattibilità SOC. I risultati storici mantengono la loro base originale." },
           { title: "Verificare il piano di ricarica", text: "Per le modalità Ricarica e Congiunta, controllare dove e quando avviene ogni sessione, la durata, l’energia fornita e la potenza media. In Solo batteria può comparire un piano fisso o assente invece di uno ottimizzato." },
           { title: "Aprire Maggiori informazioni quando serve", text: "La sezione raccoglie dettagli delle previsioni, ipotesi operative e valori di supporto. Se un turno macchina non è coperto, modificare veicolo, intervallo SOC, scenario o progetto di ricarica ed eseguire una valutazione con un nome distinto." },
+          { title: "Distinguere non fattibile da non determinata", text: "Non fattibile significa che l’ottimizzazione è terminata e ha escluso la configurazione. Non determinata significa che il calcolo si è interrotto prima di produrre un verdetto di fattibilità. Generale mostra l’esito di ogni turno macchina selezionato; la relativa scheda indica il motivo, gli eventuali turni bloccanti e i suggerimenti tradotti sotto Come risolvere. Correggere i dati di origine o la configurazione indicati, quindi eseguire una nuova valutazione. Un turno macchina non valido può impedire la valutazione degli altri senza renderli non fattibili." },
         ],
         figures: getGuideFigures("it", "feasibilityEfficiency", "feasibilitySizing"),
       },

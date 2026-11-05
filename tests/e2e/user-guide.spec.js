@@ -62,27 +62,77 @@ test("the bare application URL opens the landing page with one guide link", asyn
   await page.goto("./");
 
   await expectLandingGuideLink(page);
-  await expect(page.locator('a[href="./guide/"]')).toHaveCount(1);
+  await expect(page.locator('#primary-nav a[href="./guide/"]')).toHaveCount(1);
+  await expect(page.locator('#primary-nav a[href="./guide/"]')).toBeHidden();
 });
 
 
-test("the guide link exists only on the landing view", async ({ page }) => {
+test("the public guide link stays on the landing view while the authenticated link stays hidden", async ({ page }) => {
   await page.goto("./#landing");
   await expectLandingGuideLink(page);
+  const sidebarLink = page.locator("#primary-nav .nav-guide-link");
+  await expect(sidebarLink).toHaveCount(1);
+  await expect(sidebarLink).toBeHidden();
 
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
   await expect(page).toHaveURL(/\/elettra\/#login$/);
-  await expect(page.locator('a[href="./guide/"]')).toHaveCount(0);
+  await expect(page.locator('.landing-page a[href="./guide/"]')).toHaveCount(0);
+  await expect(sidebarLink).toBeHidden();
 
   await page.getByRole("button", { name: "Back to landing page" }).click();
   await expectLandingGuideLink(page);
 
   await page.getByRole("button", { name: "Create Account", exact: true }).click();
   await expect(page).toHaveURL(/\/elettra\/#register$/);
-  await expect(page.locator('a[href="./guide/"]')).toHaveCount(0);
+  await expect(page.locator('.landing-page a[href="./guide/"]')).toHaveCount(0);
+  await expect(sidebarLink).toBeHidden();
 
   await page.getByRole("button", { name: "Back to landing page" }).click();
   await expectLandingGuideLink(page);
+});
+
+
+test("the authenticated sidebar opens the translated guide in a new tab", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("access_token", "user-guide-test-token");
+    localStorage.setItem("elettra_lang", "it");
+  });
+  await page.route("**/auth/me", (route) => route.fulfill({
+    json: { id: "guide-user", email: "guide@example.invalid" },
+  }));
+
+  await page.goto("./#about");
+  const sidebarLink = page.locator("#primary-nav .nav-guide-link");
+  if (!(await sidebarLink.isVisible())) {
+    await page.locator(".nav-toggle").click();
+  }
+  await expect(sidebarLink).toBeVisible();
+  await expect(sidebarLink).toHaveText(/Guida utente/);
+  await expect(sidebarLink).toHaveAttribute("target", "_blank");
+  await expect(sidebarLink).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(sidebarLink).toHaveAttribute(
+    "aria-label",
+    "Guida utente (si apre in una nuova scheda)",
+  );
+
+  const [navigationBox, guideLinkBox] = await Promise.all([
+    page.locator("#primary-nav").boundingBox(),
+    sidebarLink.boundingBox(),
+  ]);
+  expect(navigationBox).not.toBeNull();
+  expect(guideLinkBox).not.toBeNull();
+  const bottomGap =
+    navigationBox.y + navigationBox.height - (guideLinkBox.y + guideLinkBox.height);
+  expect(bottomGap).toBeGreaterThanOrEqual(0);
+  expect(bottomGap).toBeLessThanOrEqual(16);
+
+  const popupPromise = page.waitForEvent("popup");
+  await sidebarLink.click();
+  const guide = await popupPromise;
+  await expect(guide).toHaveURL(/\/elettra\/guide\/$/);
+  await expect(guide.getByRole("heading", { level: 1, name: "Guida utente ELETTRA" })).toBeVisible();
 });
 
 

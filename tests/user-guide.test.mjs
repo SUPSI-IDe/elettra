@@ -8,6 +8,7 @@ import {
   SUPPORTED_GUIDE_LANGUAGES,
   guideContent,
 } from "../guide/content.js";
+import { translations } from "../src/i18n/translations.js";
 
 const readProjectFile = (path) =>
   readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -21,6 +22,25 @@ test("the landing page links to the public user guide", async () => {
     const html = await readProjectFile(`src/pages/Auth/${authView}.html`);
     assert.doesNotMatch(html, /href="\.\/guide\/"/);
     assert.doesNotMatch(html, /landing\.user_guide/);
+  }
+});
+
+test("the authenticated shell keeps a translated user-guide link at the bottom of the sidebar", async () => {
+  const shell = await readProjectFile("index.html");
+  const styles = await readProjectFile("src/style.css");
+
+  assert.equal(shell.match(/class="nav-guide-link"/g)?.length, 1);
+  assert.equal(shell.match(/href="\.\/guide\/"/g)?.length, 1);
+  assert.match(shell, /class="nav-guide-link"[\s\S]*target="_blank"/);
+  assert.match(shell, /class="nav-guide-link"[\s\S]*rel="noopener noreferrer"/);
+  assert.match(shell, /data-i18n-aria-label="nav\.user_guide_new_tab"/);
+  assert.match(shell, /data-i18n="landing\.user_guide"/);
+  assert.match(styles, /nav \.nav-links \{[\s\S]*flex: 1 1 auto;[\s\S]*overflow-y: auto;/);
+  assert.match(styles, /\.nav-guide \{[\s\S]*flex: 0 0 auto;/);
+
+  for (const language of SUPPORTED_GUIDE_LANGUAGES) {
+    assert.ok(translations[language]["landing.user_guide"]);
+    assert.ok(translations[language]["nav.user_guide_new_tab"]);
   }
 });
 
@@ -65,6 +85,12 @@ test("all supported guide languages expose the same complete section structure",
 });
 
 test("use cases have complete translations, stable modes and valid documentation links", () => {
+  const failureGuidanceTerms = {
+    en: ["not completed", "correction guidance"],
+    de: ["nicht abgeschlossen", "Korrekturhinweisen"],
+    fr: ["n’est pas terminée", "conseils de correction"],
+    it: ["non viene completata", "suggerimenti correttivi"],
+  };
   const shape = (value) => {
     if (Array.isArray(value)) return value.map(shape);
     if (typeof value === "object") {
@@ -85,6 +111,10 @@ test("use cases have complete translations, stable modes and valid documentation
       { id: "use-case-charging", mode: "CHARGING" },
       { id: "use-case-initial", mode: "JOINT" },
     ]);
+    const serializedUseCases = JSON.stringify(useCases);
+    for (const term of failureGuidanceTerms[language]) {
+      assert.ok(serializedUseCases.includes(term), `${language} use cases are missing ${term}`);
+    }
     const ids = sections.map(({ id }) => id);
     for (const item of useCases.items) {
       assert.deepEqual(item.steps.map(({ section }) => section), [
@@ -99,24 +129,28 @@ test("the guide baseline follows the frontend version and exposes a valid update
   const packageJson = JSON.parse(await readProjectFile("package.json"));
   assert.equal(GUIDE_BASELINE_VERSION, packageJson.version);
   assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
+  assert.deepEqual(
+    SUPPORTED_GUIDE_LANGUAGES.map((language) => guideContent[language].ui.updatedValue),
+    ["5 November 2026", "5. November 2026", "5 novembre 2026", "5 novembre 2026"],
+  );
 });
 
 test("every guide language explains the two-level feasibility and yearly result navigation", () => {
   const expectedTerms = {
     en: {
-      feasibility: ["General", "vehicle block", "selected battery", "planned charging", "Aggregate Q95"],
+      feasibility: ["General", "vehicle block", "selected battery", "planned charging", "Aggregate Q95", "not determined", "How to resolve"],
       yearly: ["General", "vehicle block", "Efficiency", "Costs", "Emissions", "annual DC energy"],
     },
     de: {
-      feasibility: ["Allgemein", "Fahrzeugumlauf", "eigene Batterie", "geplanten Ladevorgänge", "aggregiertes Q95"],
+      feasibility: ["Allgemein", "Fahrzeugumlauf", "eigene Batterie", "geplanten Ladevorgänge", "aggregiertes Q95", "Nicht bestimmt", "So beheben"],
       yearly: ["Allgemein", "Fahrzeugumlauf", "Effizienz", "Kosten", "Emissionen", "jährlichen DC-Energie"],
     },
     fr: {
-      feasibility: ["Général", "service voiture", "propre batterie", "recharges planifiées", "Q95 agrégé"],
+      feasibility: ["Général", "service voiture", "propre batterie", "recharges planifiées", "Q95 agrégé", "non déterminée", "Comment résoudre"],
       yearly: ["Général", "service voiture", "Efficacité", "Coûts", "Émissions", "énergie DC annuelle"],
     },
     it: {
-      feasibility: ["Generale", "turno macchina", "propria batteria", "ricariche pianificate", "Q95 aggregato"],
+      feasibility: ["Generale", "turno macchina", "propria batteria", "ricariche pianificate", "Q95 aggregato", "non determinata", "Come risolvere"],
       yearly: ["Generale", "turno macchina", "Efficienza", "Costi", "Emissioni", "energia DC annuale"],
     },
   };
