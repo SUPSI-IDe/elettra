@@ -10,6 +10,9 @@ export const DELETION_BLOCKER_TYPES = Object.freeze({
   SHIFT: "shift",
   CUSTOM_STOP: "custom_stop",
   BUS_MODEL: "bus_model",
+  BUS: "bus",
+  PREDICTION_RUN: "prediction_run",
+  DEPOT: "depot",
 });
 
 /**
@@ -31,6 +34,10 @@ const BLOCKER_TYPE_I18N_KEYS = Object.freeze({
     "protected_delete.blocker_type.custom_stop",
   [DELETION_BLOCKER_TYPES.BUS_MODEL]:
     "protected_delete.blocker_type.bus_model",
+  [DELETION_BLOCKER_TYPES.BUS]: "protected_delete.blocker_type.bus",
+  [DELETION_BLOCKER_TYPES.PREDICTION_RUN]:
+    "protected_delete.blocker_type.prediction_run",
+  [DELETION_BLOCKER_TYPES.DEPOT]: "protected_delete.blocker_type.depot",
 });
 
 const textValue = (value) =>

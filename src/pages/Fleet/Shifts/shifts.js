@@ -17,6 +17,10 @@ import {
   prepareShiftDeletion,
   resolveShiftDeleteFailure,
 } from "../../../utils/shift-deletion";
+import {
+  formatBatchDeletionFeedback,
+  settleBatchDeletion,
+} from "../../../utils/batch-delete";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
 import { bindSelectAll } from "../../../dom/tables";
@@ -887,9 +891,18 @@ export const initializeShifts = async (root = document, options = {}) => {
         return;
       }
 
-      await Promise.all(ids.map((id) => deleteShift(id)));
-      ids.forEach((id) => invalidateShiftDistanceCache(id));
-      setFlashMessage(section, t("shifts.deleted"));
+      const result = await settleBatchDeletion(ids, deleteShift);
+      result.succeeded.forEach(({ item: id }) =>
+        invalidateShiftDistanceCache(id)
+      );
+      setFlashMessage(
+        section,
+        result.failedCount
+          ? formatBatchDeletionFeedback(result, t, (error) =>
+              resolveShiftDeleteFailure(error, t)
+            )
+          : t("shifts.deleted")
+      );
       await loadShifts();
     } catch (error) {
       const resolved = resolveShiftDeleteFailure(error, t);

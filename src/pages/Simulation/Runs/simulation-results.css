@@ -1794,6 +1794,26 @@
   color: var(--text-primary) !important;
 }
 
+.feasibility-failure__guidance {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2xs);
+  margin-top: var(--space-sm);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.feasibility-failure__guidance strong {
+  flex: 0 0 auto;
+}
+
+.feasibility-failure__guidance ul {
+  margin: 0;
+  padding-left: var(--space-md);
+}
+
 .feasibility-failure__blocked-by {
   font-size: var(--font-size-sm);
 }
@@ -1831,6 +1851,15 @@
 @media (max-width: 720px) {
   .feasibility-failure__header {
     align-items: stretch;
+  }
+
+  .feasibility-failure__guidance {
+    display: block;
+  }
+
+  .feasibility-failure__guidance strong {
+    display: block;
+    margin-bottom: var(--space-2xs);
   }
 
   .feasibility-failure__header > .result-status {

@@ -119,16 +119,39 @@ const normalizeFailureIssues = (value) => {
 
   return value
     .filter(isRecord)
-    .map((issue) => ({
-      code: firstText(issue.code),
-      shiftId: firstText(issue.shift_id, issue.shiftId),
-      shiftName: firstText(issue.shift_name, issue.shiftName),
-      message: firstText(issue.message),
-      startStopId: firstText(issue.start_stop_id, issue.startStopId),
-      startStopName: firstText(issue.start_stop_name, issue.startStopName),
-      endStopId: firstText(issue.end_stop_id, issue.endStopId),
-      endStopName: firstText(issue.end_stop_name, issue.endStopName),
-    }))
+    .map((issue) => {
+      const details = isRecord(issue.details) ? issue.details : {};
+      return {
+        code: firstText(issue.code),
+        shiftId: firstText(issue.shift_id, issue.shiftId),
+        shiftName: firstText(issue.shift_name, issue.shiftName),
+        message: firstText(issue.message),
+        startStopId: firstText(
+          issue.start_stop_id,
+          issue.startStopId,
+          details.start_stop_id,
+          details.startStopId,
+        ),
+        startStopName: firstText(
+          issue.start_stop_name,
+          issue.startStopName,
+          details.start_stop_name,
+          details.startStopName,
+        ),
+        endStopId: firstText(
+          issue.end_stop_id,
+          issue.endStopId,
+          details.end_stop_id,
+          details.endStopId,
+        ),
+        endStopName: firstText(
+          issue.end_stop_name,
+          issue.endStopName,
+          details.end_stop_name,
+          details.endStopName,
+        ),
+      };
+    })
     .filter((issue) => issue.code || issue.shiftId || issue.message);
 };
 

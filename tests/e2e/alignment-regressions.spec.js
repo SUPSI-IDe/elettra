@@ -273,6 +273,8 @@ test("feasibility list uses accessible traffic-light indicators without clipping
   const runningRow = page.locator('tbody tr[data-id="running"]');
   await expect(completedRow.locator("td.status")).toHaveText("");
   await expect(completedRow.locator("td.feasibility")).toHaveText("");
+  await expect(failedRow.locator("td.feasibility")).toHaveText("");
+  await expect(runningRow.locator("td.feasibility")).toHaveText("");
   await expect(completedRow.locator("td.status .simulation-state-indicator"))
     .toHaveAttribute("aria-label", "Completed");
   await expect(completedRow.locator("td.feasibility .simulation-state-indicator"))

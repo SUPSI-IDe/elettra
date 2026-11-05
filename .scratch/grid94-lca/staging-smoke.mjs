@@ -1,8 +1,14 @@
 import { chromium } from 'playwright';
 const base = process.env.GRID94_UI_URL || 'http://127.0.0.1:18558/elettra/';
-const login = await fetch('http://127.0.0.1:18002/auth/login', {
+const apiBase = process.env.GRID94_API_URL || 'http://127.0.0.1:9005';
+const email = process.env.GRID94_TEST_LOGIN_EMAIL;
+const password = process.env.GRID94_TEST_LOGIN_PASSWORD;
+if (!email || !password) {
+  throw new Error('GRID94_TEST_LOGIN_EMAIL and GRID94_TEST_LOGIN_PASSWORD are required');
+}
+const login = await fetch(`${apiBase}/auth/login`, {
   method:'POST', headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({email:'ci-release@example.com',password:'CI-release-gate_Str0ng!'})
+  body:JSON.stringify({email,password})
 });
 if (!login.ok) throw new Error(`Login failed: ${login.status}`);
 const token = (await login.json()).access_token;

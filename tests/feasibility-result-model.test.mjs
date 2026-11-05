@@ -512,10 +512,12 @@ test("structured input failures keep every requested shift and normalize per-shi
           shift_id: "two",
           shift_name: "Backend 40104",
           message: "Backend 40104 starts and ends at different depots.",
-          start_stop_id: "depot-2",
-          start_stop_name: "TPL Rimessa 2",
-          end_stop_id: "depot-1",
-          end_stop_name: "TPL Rimessa 1",
+          details: {
+            start_stop_id: "depot-2",
+            start_stop_name: "TPL Rimessa 2",
+            end_stop_id: "depot-1",
+            end_stop_name: "TPL Rimessa 1",
+          },
         }],
         shift_outcomes: [
           {

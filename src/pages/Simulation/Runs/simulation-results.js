@@ -77,6 +77,10 @@ import {
   FEASIBILITY_DECISION,
   hasFeasibilityEvaluationFailure,
 } from "../../../utils/feasibility-result-model";
+import {
+  buildFeasibilityFailureGuidance,
+  FEASIBILITY_FAILURE_GUIDANCE,
+} from "../../../utils/feasibility-failure-guidance";
 import { buildFeasibilityViewState } from "../../../utils/feasibility-view-state";
 import { formatFeasibilityClockMinute } from "../../../utils/feasibility-charging-plan";
 import {
@@ -6123,6 +6127,120 @@ const feasibilityFailureIssueReason = (issue = {}, fallback = "") => {
   );
 };
 
+const feasibilityFailureGuidanceCopy = Object.freeze({
+  [FEASIBILITY_FAILURE_GUIDANCE.DEPOT_MISMATCH]: [
+    "simulation.feasibility_failed_guidance_depot_mismatch",
+    "Edit {shift} so that it uses the same departure and return depot, then recreate its depot connections. Run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.STOP_NOT_DEPOT]: [
+    "simulation.feasibility_failed_guidance_stop_not_depot",
+    "Edit {shift} so that its common start and end point is a registered depot, recreate its depot connections, then run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.DEPOT_NOT_SELECTED]: [
+    "simulation.feasibility_failed_guidance_depot_not_selected",
+    "Add the departure and return depot of {shift} to the selected charging infrastructure, then run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.DEPOT_DWELL]: [
+    "simulation.feasibility_failed_guidance_depot_dwell",
+    "Adjust {shift} so that it leaves enough time for the daily depot stay, then run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.PREDICTION_REFRESH]: [
+    "simulation.feasibility_failed_guidance_prediction_refresh",
+    "Regenerate the energy predictions from the current trip sequences, then run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.PREDICTION_DISTRIBUTION]: [
+    "simulation.feasibility_failed_guidance_prediction_distribution",
+    "Regenerate the energy predictions with a current supported prediction model, then run the feasibility evaluation again. If no supported model is available, contact the administrator.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.PREDICTION_CONSISTENCY]: [
+    "simulation.feasibility_failed_guidance_prediction_consistency",
+    "Regenerate the predictions for all selected vehicle blocks with the same bus model, weather, occupancy, heating system and prediction release, then run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.BUS_MODEL]: [
+    "simulation.feasibility_failed_guidance_bus_model",
+    "Assign and select a valid, consistent bus model for all selected vehicle blocks, regenerate their predictions, then run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.BUS_COSTS]: [
+    "simulation.feasibility_failed_guidance_bus_costs",
+    "Complete the selected bus model with valid bus and battery-pack costs, then run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.OPERATIONAL_DATA]: [
+    "simulation.feasibility_failed_guidance_operational_data",
+    "Correct the trip sequence and its GTFS stop and time data, regenerate the predictions, then run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.TIME_BUDGET]: [
+    "simulation.feasibility_failed_guidance_time_budget",
+    "Run the evaluation again. If the time limit is reached again, reduce the number of selected vehicle blocks or charging candidates and contact the administrator.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.CONFIGURATION]: [
+    "simulation.feasibility_failed_guidance_configuration",
+    "Review the battery and charging-infrastructure configuration, correct duplicate or inconsistent values, then run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.SYSTEM]: [
+    "simulation.feasibility_failed_guidance_system",
+    "Run the feasibility evaluation again. If the error persists, contact the administrator and provide the evaluation name.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.BLOCKED]: [
+    "simulation.feasibility_failed_guidance_blocked",
+    "Correct the blocking vehicle block(s) {shifts}, then run the feasibility evaluation again.",
+  ],
+  [FEASIBILITY_FAILURE_GUIDANCE.GENERIC]: [
+    "simulation.feasibility_failed_guidance_generic",
+    "Check the selected vehicle blocks, bus model and charging infrastructure, then run the feasibility evaluation again. If the problem persists, contact the administrator and provide the evaluation name.",
+  ],
+});
+
+const feasibilityFailureGuidanceHtml = ({
+  failure,
+  outcome = null,
+  blockingShiftNames = [],
+  selectedShiftName = null,
+  shiftNamesById = null,
+} = {}) => {
+  const guidance = buildFeasibilityFailureGuidance({
+    failure,
+    outcome,
+    blockingShiftNames,
+    selectedShiftName,
+    shiftNamesById,
+  });
+  const messages = guidance.map((item) => {
+    const [key, fallback] = feasibilityFailureGuidanceCopy[item.kind]
+      ?? feasibilityFailureGuidanceCopy[FEASIBILITY_FAILURE_GUIDANCE.GENERIC];
+    const shift = item.shiftName
+      ? translateOr(
+          "simulation.feasibility_failed_guidance_shift_named",
+          `vehicle block ${item.shiftName}`,
+          { shift: item.shiftName },
+        )
+      : translateOr(
+          "simulation.feasibility_failed_guidance_shift_affected",
+          "the affected vehicle block",
+        );
+    const shifts = item.blockingShiftNames?.length
+      ? item.blockingShiftNames.join(", ")
+      : translateOr(
+          "simulation.feasibility_failed_guidance_shift_affected",
+          "the affected vehicle block",
+        );
+    return translateOr(key, fallback, { shift, shifts });
+  });
+  if (!messages.length) return "";
+
+  return `
+    <div class="feasibility-failure__guidance" data-role="feasibility-failure-guidance">
+      <strong>${textContent(
+        translateOr(
+          "simulation.feasibility_failed_guidance_title",
+          "How to resolve:",
+        ),
+      )}</strong>
+      ${messages.length === 1
+        ? `<span>${textContent(messages[0])}</span>`
+        : `<ul>${messages.map((message) => `<li>${textContent(message)}</li>`).join("")}</ul>`}
+    </div>`;
+};
+
 const buildFeasibilityFailureHtml = (
   feasibilityModel,
   viewState,
@@ -6208,6 +6326,13 @@ const buildFeasibilityFailureHtml = (
           <p class="feasibility-failure__reason" data-role="feasibility-failure-reason">${textContent(
             reasonForOutcome(outcome),
           )}</p>
+          ${feasibilityFailureGuidanceHtml({
+            failure,
+            outcome,
+            blockingShiftNames: blockers,
+            selectedShiftName: selected?.shiftName,
+            shiftNamesById: namesById,
+          })}
           ${blockers.length
             ? `<p class="feasibility-failure__blocked-by" data-role="feasibility-failure-blocked-by">${textContent(
                 translateOr(
@@ -6258,6 +6383,7 @@ const buildFeasibilityFailureHtml = (
         )}</span>
       </header>
       <div class="result-card__body feasibility-failure__body">
+        ${feasibilityFailureGuidanceHtml({ failure, shiftNamesById: namesById })}
         ${rows
           ? `<h4>${textContent(
               translateOr(

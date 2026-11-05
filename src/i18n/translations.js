@@ -353,6 +353,10 @@ export const translations = {
     "common.optional": "(optional)",
     "common.loading": "Loading…",
     "common.unknown_error": "Unknown error",
+    "common.delete_partial":
+      "Deleted {deleted} of {total} selected items. {failed} could not be deleted.",
+    "common.delete_none":
+      "None of the {total} selected items could be deleted.",
 
     // Protected deletion (shared)
     "protected_delete.blocked_intro":
@@ -367,6 +371,9 @@ export const translations = {
     "protected_delete.blocker_type.shift": "Vehicle block",
     "protected_delete.blocker_type.custom_stop": "Custom stop",
     "protected_delete.blocker_type.bus_model": "Bus model",
+    "protected_delete.blocker_type.bus": "Bus",
+    "protected_delete.blocker_type.prediction_run": "Prediction run",
+    "protected_delete.blocker_type.depot": "Depot",
     "protected_delete.blocker_type.unknown": "Related item",
     "delete_error.blocked":
       "Unable to delete: this resource is still in use.",
@@ -962,6 +969,24 @@ export const translations = {
     "simulation.feasibility_failed_shift_not_evaluated_intro": "This vehicle block was not evaluated because another selected vehicle block failed input validation.",
     "simulation.feasibility_failed_shift_unknown_intro": "No feasibility result is available for this vehicle block.",
     "simulation.feasibility_failed_blocked_by": "Blocking vehicle block(s): {shifts}",
+    "simulation.feasibility_failed_guidance_title": "How to resolve:",
+    "simulation.feasibility_failed_guidance_shift_named": "vehicle block {shift}",
+    "simulation.feasibility_failed_guidance_shift_affected": "the affected vehicle block",
+    "simulation.feasibility_failed_guidance_depot_mismatch": "Edit {shift} so that it uses the same departure and return depot, then recreate its depot connections. Run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_stop_not_depot": "Edit {shift} so that its common start and end point is a registered depot, recreate its depot connections, then run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_depot_not_selected": "Add the departure and return depot of {shift} to the selected charging infrastructure, then run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_depot_dwell": "Adjust {shift} so that it leaves enough time for the daily depot stay, then run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_prediction_refresh": "Regenerate the energy predictions from the current trip sequences, then run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_prediction_distribution": "Regenerate the energy predictions with a current supported prediction model, then run the feasibility evaluation again. If no supported model is available, contact the administrator.",
+    "simulation.feasibility_failed_guidance_prediction_consistency": "Regenerate the predictions for all selected vehicle blocks with the same bus model, weather, occupancy, heating system and prediction release, then run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_bus_model": "Assign and select a valid, consistent bus model for all selected vehicle blocks, regenerate their predictions, then run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_bus_costs": "Complete the selected bus model with valid bus and battery-pack costs, then run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_operational_data": "Correct the trip sequence and its GTFS stop and time data, regenerate the predictions, then run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_time_budget": "Run the evaluation again. If the time limit is reached again, reduce the number of selected vehicle blocks or charging candidates and contact the administrator.",
+    "simulation.feasibility_failed_guidance_configuration": "Review the battery and charging-infrastructure configuration, correct duplicate or inconsistent values, then run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_system": "Run the feasibility evaluation again. If the error persists, contact the administrator and provide the evaluation name.",
+    "simulation.feasibility_failed_guidance_blocked": "Correct the blocking vehicle block(s) {shifts}, then run the feasibility evaluation again.",
+    "simulation.feasibility_failed_guidance_generic": "Check the selected vehicle blocks, bus model and charging infrastructure, then run the feasibility evaluation again. If the problem persists, contact the administrator and provide the evaluation name.",
     "simulation.col_feasibility": "Feasibility",
     "simulation.col_feasibility_help": "Green: feasible. Yellow: feasible for only one profile (Mean or Q95). Red: infeasible. Grey: not determined; a failed calculation does not prove infeasibility.",
 
@@ -1243,7 +1268,7 @@ export const translations = {
     "password.confirm": "Confirm New Password",
     "password.update": "Update Password",
     "password.mismatch": "New passwords do not match.",
-    "password.too_short": "Password must be at least 8 characters.",
+    "password.too_short": "Password must be at least 12 characters.",
     "password.success": "Password updated successfully!",
     "settings.title": "Account settings",
     "settings.intro": "Update your account details and password here.",
@@ -1303,7 +1328,7 @@ export const translations = {
     "register.company": "Company (optional)",
     "register.agency": "Agency",
     "register.password": "Password",
-    "register.password_hint": "Must be at least 8 characters",
+    "register.password_hint": "Must be at least 12 characters",
     "register.confirm_password": "Confirm Password",
     "register.terms": "I agree to the Terms of Service and Privacy Policy",
     "register.submit": "Create Account",
@@ -1317,7 +1342,7 @@ export const translations = {
     "register.email_password_required": "Please enter your email and password.",
     "register.company_required": "Please select a company/agency from the list.",
     "register.passwords_mismatch": "Passwords do not match.",
-    "register.password_too_short": "Password must be at least 8 characters.",
+    "register.password_too_short": "Password must be at least 12 characters.",
 
     // Additional i18n coverage
         "common.logo_alt": "ELETTRA logo",
@@ -2322,6 +2347,10 @@ export const translations = {
     "common.optional": "(optional)",
     "common.loading": "Laden…",
     "common.unknown_error": "Unbekannter Fehler",
+    "common.delete_partial":
+      "{deleted} von {total} ausgewählten Elementen wurden gelöscht. {failed} konnten nicht gelöscht werden.",
+    "common.delete_none":
+      "Keines der {total} ausgewählten Elemente konnte gelöscht werden.",
 
     // Protected deletion (shared)
     "protected_delete.blocked_intro":
@@ -2336,6 +2365,9 @@ export const translations = {
     "protected_delete.blocker_type.shift": "Fahrzeugumlauf",
     "protected_delete.blocker_type.custom_stop": "Individuelle Haltestelle",
     "protected_delete.blocker_type.bus_model": "Busmodell",
+    "protected_delete.blocker_type.bus": "Bus",
+    "protected_delete.blocker_type.prediction_run": "Prognoselauf",
+    "protected_delete.blocker_type.depot": "Depot",
     "protected_delete.blocker_type.unknown": "Zugehöriges Element",
     "delete_error.blocked":
       "Löschen nicht möglich: Diese Ressource wird noch verwendet.",
@@ -2927,6 +2959,24 @@ export const translations = {
     "simulation.feasibility_failed_shift_not_evaluated_intro": "Dieser Fahrzeugumlauf wurde nicht bewertet, weil die Eingabevalidierung eines anderen ausgewählten Fahrzeugumlaufs fehlgeschlagen ist.",
     "simulation.feasibility_failed_shift_unknown_intro": "Für diesen Fahrzeugumlauf ist kein Machbarkeitsergebnis verfügbar.",
     "simulation.feasibility_failed_blocked_by": "Blockierende Fahrzeugumläufe: {shifts}",
+    "simulation.feasibility_failed_guidance_title": "So beheben Sie das Problem:",
+    "simulation.feasibility_failed_guidance_shift_named": "Fahrzeugumlauf {shift}",
+    "simulation.feasibility_failed_guidance_shift_affected": "den betroffenen Fahrzeugumlauf",
+    "simulation.feasibility_failed_guidance_depot_mismatch": "Bearbeiten Sie {shift} so, dass dasselbe Depot für Abfahrt und Rückkehr verwendet wird, und erstellen Sie anschließend die Depotverbindungen neu. Führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_stop_not_depot": "Bearbeiten Sie {shift} so, dass der gemeinsame Start- und Endpunkt ein registriertes Depot ist, erstellen Sie die Depotverbindungen neu und führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_depot_not_selected": "Nehmen Sie für {shift} das Abfahrts- und Rückkehrdepot in die ausgewählte Ladeinfrastruktur auf und führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_depot_dwell": "Passen Sie {shift} so an, dass genügend Zeit für den täglichen Depotaufenthalt bleibt, und führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_prediction_refresh": "Erstellen Sie die Energieprognosen anhand der aktuellen Fahrtenfolgen neu und führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_prediction_distribution": "Erstellen Sie die Energieprognosen mit einem aktuellen unterstützten Prognosemodell neu und führen Sie danach die Machbarkeitsbewertung erneut aus. Ist kein unterstütztes Modell verfügbar, wenden Sie sich an die Administration.",
+    "simulation.feasibility_failed_guidance_prediction_consistency": "Erstellen Sie die Prognosen für alle ausgewählten Fahrzeugumläufe mit demselben Busmodell, Wetter, derselben Belegung, demselben Heizsystem und derselben Prognoseversion neu und führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_bus_model": "Weisen Sie allen ausgewählten Fahrzeugumläufen ein gültiges und einheitliches Busmodell zu, erstellen Sie deren Prognosen neu und führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_bus_costs": "Ergänzen Sie im ausgewählten Busmodell gültige Kosten für Bus und Batteriepakete und führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_operational_data": "Korrigieren Sie die Fahrtenfolge sowie die zugehörigen GTFS-Haltestellen- und Zeitdaten, erstellen Sie die Prognosen neu und führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_time_budget": "Führen Sie die Bewertung erneut aus. Wird das Zeitlimit wieder erreicht, reduzieren Sie die Anzahl der ausgewählten Fahrzeugumläufe oder Ladestandorte und wenden Sie sich an die Administration.",
+    "simulation.feasibility_failed_guidance_configuration": "Prüfen Sie die Konfiguration von Batterie und Ladeinfrastruktur, korrigieren Sie doppelte oder widersprüchliche Werte und führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_system": "Führen Sie die Machbarkeitsbewertung erneut aus. Besteht der Fehler weiter, wenden Sie sich mit dem Namen der Bewertung an die Administration.",
+    "simulation.feasibility_failed_guidance_blocked": "Korrigieren Sie die blockierenden Fahrzeugumläufe {shifts} und führen Sie danach die Machbarkeitsbewertung erneut aus.",
+    "simulation.feasibility_failed_guidance_generic": "Prüfen Sie die ausgewählten Fahrzeugumläufe, das Busmodell und die Ladeinfrastruktur und führen Sie danach die Machbarkeitsbewertung erneut aus. Besteht das Problem weiter, wenden Sie sich mit dem Namen der Bewertung an die Administration.",
     "simulation.col_feasibility": "Machbarkeit",
     "simulation.col_feasibility_help": "Grün: machbar. Gelb: nur für ein Profil (Mittelwert oder Q95) machbar. Rot: nicht machbar. Grau: nicht bestimmt; eine fehlgeschlagene Berechnung beweist keine Unmachbarkeit.",
 
@@ -3208,7 +3258,7 @@ export const translations = {
     "password.confirm": "Neues Passwort bestätigen",
     "password.update": "Passwort aktualisieren",
     "password.mismatch": "Neue Passwörter stimmen nicht überein.",
-    "password.too_short": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+    "password.too_short": "Das Passwort muss mindestens 12 Zeichen lang sein.",
     "password.success": "Passwort erfolgreich aktualisiert!",
     "settings.title": "Kontoeinstellungen",
     "settings.intro": "Aktualisieren Sie hier Ihre Kontodaten und Ihr Passwort.",
@@ -3268,7 +3318,7 @@ export const translations = {
     "register.company": "Unternehmen (optional)",
     "register.agency": "Agentur",
     "register.password": "Passwort",
-    "register.password_hint": "Mindestens 8 Zeichen",
+    "register.password_hint": "Mindestens 12 Zeichen",
     "register.confirm_password": "Passwort bestätigen",
     "register.terms": "Ich stimme den Nutzungsbedingungen und der Datenschutzerklärung zu",
     "register.submit": "Konto erstellen",
@@ -3282,7 +3332,7 @@ export const translations = {
     "register.email_password_required": "Bitte geben Sie Ihre E-Mail und Ihr Passwort ein.",
     "register.company_required": "Bitte wählen Sie ein Unternehmen/eine Agentur aus der Liste.",
     "register.passwords_mismatch": "Passwörter stimmen nicht überein.",
-    "register.password_too_short": "Passwort muss mindestens 8 Zeichen lang sein.",
+    "register.password_too_short": "Passwort muss mindestens 12 Zeichen lang sein.",
 
     // Additional i18n coverage
         "common.logo_alt": "ELETTRA-Logo",
@@ -4287,6 +4337,10 @@ export const translations = {
     "common.optional": "(optionnel)",
     "common.loading": "Chargement…",
     "common.unknown_error": "Erreur inconnue",
+    "common.delete_partial":
+      "{deleted} élément(s) sur {total} ont été supprimé(s). {failed} n'ont pas pu être supprimé(s).",
+    "common.delete_none":
+      "Aucun des {total} éléments sélectionnés n'a pu être supprimé.",
 
     // Protected deletion (shared)
     "protected_delete.blocked_intro":
@@ -4301,6 +4355,9 @@ export const translations = {
     "protected_delete.blocker_type.shift": "Service voiture",
     "protected_delete.blocker_type.custom_stop": "Arrêt personnalisé",
     "protected_delete.blocker_type.bus_model": "Modèle de bus",
+    "protected_delete.blocker_type.bus": "Bus",
+    "protected_delete.blocker_type.prediction_run": "Exécution de prédiction",
+    "protected_delete.blocker_type.depot": "Dépôt",
     "protected_delete.blocker_type.unknown": "Élément associé",
     "delete_error.blocked":
       "Suppression impossible : cette ressource est encore utilisée.",
@@ -4892,6 +4949,24 @@ export const translations = {
     "simulation.feasibility_failed_shift_not_evaluated_intro": "Ce service véhicule n'a pas été évalué, car la validation des entrées d'un autre service sélectionné a échoué.",
     "simulation.feasibility_failed_shift_unknown_intro": "Aucun résultat de faisabilité n'est disponible pour ce service véhicule.",
     "simulation.feasibility_failed_blocked_by": "Services véhicule bloquants : {shifts}",
+    "simulation.feasibility_failed_guidance_title": "Comment résoudre le problème :",
+    "simulation.feasibility_failed_guidance_shift_named": "le service véhicule {shift}",
+    "simulation.feasibility_failed_guidance_shift_affected": "le service véhicule concerné",
+    "simulation.feasibility_failed_guidance_depot_mismatch": "Modifiez {shift} afin d'utiliser le même dépôt au départ et au retour, puis recréez ses liaisons avec le dépôt. Relancez ensuite l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_stop_not_depot": "Modifiez {shift} afin que son point commun de départ et d'arrivée soit un dépôt enregistré, recréez ses liaisons avec le dépôt, puis relancez l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_depot_not_selected": "Ajoutez le dépôt de départ et de retour de {shift} à l'infrastructure de recharge sélectionnée, puis relancez l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_depot_dwell": "Adaptez {shift} afin de laisser suffisamment de temps pour le séjour quotidien au dépôt, puis relancez l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_prediction_refresh": "Régénérez les prévisions énergétiques à partir des séquences de courses actuelles, puis relancez l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_prediction_distribution": "Régénérez les prévisions énergétiques avec un modèle de prévision actuel et pris en charge, puis relancez l'évaluation de faisabilité. Si aucun modèle pris en charge n'est disponible, contactez l'administration.",
+    "simulation.feasibility_failed_guidance_prediction_consistency": "Régénérez les prévisions de tous les services véhicule sélectionnés avec le même modèle d'autobus, la même météo, la même occupation, le même système de chauffage et la même version de prévision, puis relancez l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_bus_model": "Attribuez et sélectionnez un modèle d'autobus valide et cohérent pour tous les services véhicule, régénérez leurs prévisions, puis relancez l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_bus_costs": "Complétez le modèle d'autobus sélectionné avec des coûts valides pour l'autobus et les packs de batteries, puis relancez l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_operational_data": "Corrigez la séquence de courses ainsi que les données GTFS d'arrêts et d'horaires, régénérez les prévisions, puis relancez l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_time_budget": "Relancez l'évaluation. Si la limite de temps est de nouveau atteinte, réduisez le nombre de services véhicule ou de sites de recharge sélectionnés et contactez l'administration.",
+    "simulation.feasibility_failed_guidance_configuration": "Vérifiez la configuration de la batterie et de l'infrastructure de recharge, corrigez les valeurs en double ou incohérentes, puis relancez l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_system": "Relancez l'évaluation de faisabilité. Si l'erreur persiste, contactez l'administration en indiquant le nom de l'évaluation.",
+    "simulation.feasibility_failed_guidance_blocked": "Corrigez les services véhicule bloquants {shifts}, puis relancez l'évaluation de faisabilité.",
+    "simulation.feasibility_failed_guidance_generic": "Vérifiez les services véhicule sélectionnés, le modèle d'autobus et l'infrastructure de recharge, puis relancez l'évaluation de faisabilité. Si le problème persiste, contactez l'administration en indiquant le nom de l'évaluation.",
     "simulation.col_feasibility": "Faisabilité",
     "simulation.col_feasibility_help": "Vert : faisable. Jaune : faisable pour un seul profil (moyenne ou Q95). Rouge : non faisable. Gris : non déterminée ; un échec de calcul ne prouve pas la non-faisabilité.",
 
@@ -5173,7 +5248,7 @@ export const translations = {
     "password.confirm": "Confirmer le nouveau mot de passe",
     "password.update": "Mettre à jour le mot de passe",
     "password.mismatch": "Les nouveaux mots de passe ne correspondent pas.",
-    "password.too_short": "Le mot de passe doit contenir au moins 8 caractères.",
+    "password.too_short": "Le mot de passe doit contenir au moins 12 caractères.",
     "password.success": "Mot de passe mis à jour avec succès !",
     "settings.title": "Paramètres du compte",
     "settings.intro": "Mettez à jour ici les informations de votre compte et votre mot de passe.",
@@ -5233,7 +5308,7 @@ export const translations = {
     "register.company": "Entreprise (optionnel)",
     "register.agency": "Agence",
     "register.password": "Mot de passe",
-    "register.password_hint": "Au moins 8 caractères",
+    "register.password_hint": "Au moins 12 caractères",
     "register.confirm_password": "Confirmer le mot de passe",
     "register.terms": "J'accepte les Conditions d'utilisation et la Politique de confidentialité",
     "register.submit": "Créer un compte",
@@ -5247,7 +5322,7 @@ export const translations = {
     "register.email_password_required": "Veuillez saisir votre e-mail et votre mot de passe.",
     "register.company_required": "Veuillez sélectionner une entreprise/agence dans la liste.",
     "register.passwords_mismatch": "Les mots de passe ne correspondent pas.",
-    "register.password_too_short": "Le mot de passe doit contenir au moins 8 caractères.",
+    "register.password_too_short": "Le mot de passe doit contenir au moins 12 caractères.",
 
     // Additional i18n coverage
         "common.logo_alt": "Logo ELETTRA",
@@ -6252,6 +6327,10 @@ export const translations = {
     "common.optional": "(opzionale)",
     "common.loading": "Caricamento…",
     "common.unknown_error": "Errore sconosciuto",
+    "common.delete_partial":
+      "Eliminati {deleted} elementi selezionati su {total}. {failed} non sono stati eliminati.",
+    "common.delete_none":
+      "Non è stato possibile eliminare nessuno dei {total} elementi selezionati.",
 
     // Protected deletion (shared)
     "protected_delete.blocked_intro":
@@ -6266,6 +6345,9 @@ export const translations = {
     "protected_delete.blocker_type.shift": "Turno macchina",
     "protected_delete.blocker_type.custom_stop": "Fermata personalizzata",
     "protected_delete.blocker_type.bus_model": "Modello di autobus",
+    "protected_delete.blocker_type.bus": "Autobus",
+    "protected_delete.blocker_type.prediction_run": "Simulazione di previsione",
+    "protected_delete.blocker_type.depot": "Deposito",
     "protected_delete.blocker_type.unknown": "Elemento correlato",
     "delete_error.blocked":
       "Impossibile eliminare: questa risorsa è ancora in uso.",
@@ -6347,7 +6429,7 @@ export const translations = {
     "simulation.var_optimization_mode": "Modalità di ottimizzazione",
     "simulation.mode_battery_only": "Solo batteria",
     "simulation.mode_charging": "Ricarica",
-    "simulation.mode_joint": "Congiunto",
+    "simulation.mode_joint": "Congiunta",
     "simulation.var_heating_type": "Tipo riscaldamento ausiliario",
     "simulation.var_usable_soc_percent": "SOC utilizzabile (% del nominale)",
     "simulation.usable_soc_warning_title": "Ipotesi aggressiva sul SoC utilizzabile",
@@ -6857,6 +6939,24 @@ export const translations = {
     "simulation.feasibility_failed_shift_not_evaluated_intro": "Questo turno macchina non è stato valutato perché un altro turno selezionato non ha superato la validazione degli input.",
     "simulation.feasibility_failed_shift_unknown_intro": "Non è disponibile alcun risultato di fattibilità per questo turno macchina.",
     "simulation.feasibility_failed_blocked_by": "Turni macchina bloccanti: {shifts}",
+    "simulation.feasibility_failed_guidance_title": "Come risolvere:",
+    "simulation.feasibility_failed_guidance_shift_named": "il turno macchina {shift}",
+    "simulation.feasibility_failed_guidance_shift_affected": "il turno macchina interessato",
+    "simulation.feasibility_failed_guidance_depot_mismatch": "Modifica {shift} impostando lo stesso deposito di partenza e ritorno e ricrea i relativi collegamenti con il deposito. Quindi rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_stop_not_depot": "Modifica {shift} affinché il punto comune di partenza e arrivo sia un deposito registrato, ricrea i collegamenti con il deposito e rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_depot_not_selected": "Aggiungi il deposito di partenza e ritorno di {shift} all'infrastruttura di ricarica selezionata, quindi rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_depot_dwell": "Modifica {shift} lasciando tempo sufficiente per la sosta giornaliera al deposito, quindi rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_prediction_refresh": "Rigenera le previsioni energetiche usando le sequenze di corse attuali, quindi rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_prediction_distribution": "Rigenera le previsioni energetiche con un modello di previsione aggiornato e supportato, quindi rilancia la valutazione di fattibilità. Se non è disponibile un modello supportato, contatta l'amministratore.",
+    "simulation.feasibility_failed_guidance_prediction_consistency": "Rigenera le previsioni di tutti i turni macchina selezionati usando lo stesso modello di autobus, meteo, occupazione, sistema di riscaldamento e versione del modello, quindi rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_bus_model": "Assegna e seleziona un modello di autobus valido e coerente per tutti i turni macchina, rigenera le previsioni e rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_bus_costs": "Completa il modello di autobus selezionato con costi validi per l'autobus e i pacchi batteria, quindi rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_operational_data": "Correggi la sequenza delle corse e i relativi dati GTFS di fermate e orari, rigenera le previsioni e rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_time_budget": "Rilancia la valutazione. Se viene nuovamente raggiunto il limite di tempo, riduci il numero di turni macchina o di siti di ricarica selezionati e contatta l'amministratore.",
+    "simulation.feasibility_failed_guidance_configuration": "Controlla la configurazione della batteria e dell'infrastruttura di ricarica, correggi eventuali valori duplicati o incoerenti e rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_system": "Rilancia la valutazione di fattibilità. Se l'errore persiste, contatta l'amministratore indicando il nome della valutazione.",
+    "simulation.feasibility_failed_guidance_blocked": "Correggi i turni macchina bloccanti {shifts}, quindi rilancia la valutazione di fattibilità.",
+    "simulation.feasibility_failed_guidance_generic": "Controlla i turni macchina selezionati, il modello di autobus e l'infrastruttura di ricarica, quindi rilancia la valutazione di fattibilità. Se il problema persiste, contatta l'amministratore indicando il nome della valutazione.",
     "simulation.col_feasibility": "Fattibilità",
     "simulation.col_feasibility_help": "Verde: fattibile. Giallo: fattibile solo per un profilo (Mean o Q95). Rosso: non fattibile. Grigio: non determinata; un calcolo fallito non dimostra la non fattibilità.",
 
@@ -7138,7 +7238,7 @@ export const translations = {
     "password.confirm": "Conferma nuova password",
     "password.update": "Aggiorna password",
     "password.mismatch": "Le nuove password non corrispondono.",
-    "password.too_short": "La password deve contenere almeno 8 caratteri.",
+    "password.too_short": "La password deve contenere almeno 12 caratteri.",
     "password.success": "Password aggiornata con successo!",
     "settings.title": "Impostazioni account",
     "settings.intro": "Aggiorna qui i dati del tuo account e la password.",
@@ -7198,7 +7298,7 @@ export const translations = {
     "register.company": "Azienda (opzionale)",
     "register.agency": "Agenzia",
     "register.password": "Password",
-    "register.password_hint": "Almeno 8 caratteri",
+    "register.password_hint": "Almeno 12 caratteri",
     "register.confirm_password": "Conferma password",
     "register.terms": "Accetto i Termini di servizio e l'Informativa sulla privacy",
     "register.submit": "Crea account",
@@ -7212,7 +7312,7 @@ export const translations = {
     "register.email_password_required": "Inserisci e-mail e password.",
     "register.company_required": "Seleziona un'azienda/agenzia dalla lista.",
     "register.passwords_mismatch": "Le password non corrispondono.",
-    "register.password_too_short": "La password deve contenere almeno 8 caratteri.",
+    "register.password_too_short": "La password deve contenere almeno 12 caratteri.",
 
     // Additional i18n coverage
         "common.logo_alt": "Logo ELETTRA",

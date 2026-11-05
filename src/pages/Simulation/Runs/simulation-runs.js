@@ -15,6 +15,10 @@ import {
   prepareOptimizationRunDeletion,
   resolveOptimizationRunDeleteFailure,
 } from "../../../utils/optimization-run-deletion";
+import {
+  formatBatchDeletionFeedback,
+  settleBatchDeletion,
+} from "../../../utils/batch-delete";
 import { fetchShiftById, screenShiftIds } from "../../../api/shifts";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
@@ -387,6 +391,17 @@ const resolveRunMode = (run = {}) =>
     ""
   ).trim();
 
+const formatRunMode = (mode) => {
+  const normalized = text(mode).trim();
+  const labels = {
+    battery_only: ["simulation.mode_battery_only", "Battery only"],
+    charging_only: ["simulation.mode_charging", "Charging"],
+    joint: ["simulation.mode_joint", "Joint"],
+  };
+  const [key, fallback] = labels[normalized] ?? [];
+  return key ? (t(key) || fallback) : (normalized || "—");
+};
+
 const resolveExternalTemp = (run = {}) =>
   toFiniteNumber(
     run?.external_temp_celsius ??
@@ -736,15 +751,17 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
       const busModelLabel = busModelName || busModelId || "—";
       const busModelTooltip =
         text(run?._resolved_bus_model_tooltip).trim() || busModelLabel;
-      const mode = resolveRunMode(run) || "—";
+      const mode = formatRunMode(resolveRunMode(run));
       const mainParameters = formatMainParameters(run);
       const feasible = resolveElectrificationFeasible(run);
       const feasibilityLabel = formatFeasibilityLabel(feasible, run);
+      const feasibilityTone = feasibilityIndicatorClass(feasible, run);
       const statusLabel = formatEvaluationStatus(run);
-      const undetermined = feasibilityIndicatorClass(feasible, run) === "neutral";
-      const accessibleFeasibilityLabel = run.basis_summaries || feasible === true || feasible === false
-        ? feasibilityLabel
-        : `${t("simulation.feasibility_not_determined")} — ${statusLabel}`;
+      const accessibleFeasibilityLabel = feasibilityTone === "neutral"
+        ? `${t("simulation.feasibility_not_determined")} — ${
+            feasibilityLabel !== "—" ? feasibilityLabel : statusLabel
+          }`
+        : feasibilityLabel;
 
       const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${textContent(rowId)}">${textContent(t("simulation.col_results") || "Results")}</a>`;
 
@@ -771,13 +788,12 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
           </td>
           <td class="feasibility">
             <span
-              class="simulation-state-indicator simulation-state-indicator--${feasibilityIndicatorClass(feasible, run)}"
+              class="simulation-state-indicator simulation-state-indicator--${feasibilityTone}"
               role="img"
               tabindex="0"
               aria-label="${textContent(accessibleFeasibilityLabel)}"
               title="${textContent(accessibleFeasibilityLabel)}"
             ></span>
-            ${undetermined ? `<small class="simulation-state-note">${textContent(t("simulation.feasibility_not_determined"))}</small>` : ""}
           </td>
           <td class="results">${resultsLink}</td>
         </tr>`;
@@ -1259,66 +1275,27 @@ export const initializeSimulationRuns = async (
         .replace("{count}", ids.length);
       if (!confirm(msg)) return;
 
-      const deletedIds = new Set();
-      let serverFailed = 0;
-      let blockedDeleteMessage = null;
-
-      for (const id of ids) {
-        try {
-          const result = await deleteOptimizationRun(id);
-          if (result.deleted) {
-            deletedIds.add(id);
-          } else {
-            serverFailed++;
-          }
-        } catch (error) {
-          serverFailed++;
-          if (isBlockedDeleteError(error)) {
-            const resolved = resolveOptimizationRunDeleteFailure(error, t);
-            if (resolved.message) {
-              blockedDeleteMessage = resolved.message;
-            }
-          }
+      const result = await settleBatchDeletion(ids, async (id) => {
+        const response = await deleteOptimizationRun(id);
+        if (!response?.deleted) {
+          throw new Error(t("simulation.delete_not_supported"));
         }
-      }
-
-      const removedIds = deletedIds;
-
-      if (removedIds.size) {
-        allRuns = allRuns.filter((r) => !removedIds.has(text(r?.id)));
-        applyFilter();
-      }
-
-      if (!removedIds.size && serverFailed) {
-        setFlashMessage(
-          section,
-          blockedDeleteMessage ||
-            t("simulation.delete_not_supported") ||
-            "These simulations could not be deleted. They remain visible."
-        );
-        await loadRuns();
-        return;
-      }
-
-      if (serverFailed) {
-        setFlashMessage(
-          section,
-          t("simulation.delete_partial_success", {
-            removed: removedIds.size,
-            failed: serverFailed,
-          }) ||
-            `${removedIds.size} simulation(s) removed. ${serverFailed} could not be deleted.`
-        );
-        await loadRuns();
-        return;
-      }
-
-      const removedCount = removedIds.size;
+        return response;
+      });
+      const removedCount = result.succeededCount;
       setFlashMessage(
         section,
-        t("simulation.removed", { count: removedCount }) ||
-          `${removedCount} simulation(s) removed.`
+        result.failedCount
+          ? formatBatchDeletionFeedback(result, t, (error) => {
+              if (isBlockedDeleteError(error)) {
+                return resolveOptimizationRunDeleteFailure(error, t);
+              }
+              return error?.message || t("simulation.delete_not_supported");
+            })
+          : t("simulation.removed", { count: removedCount }) ||
+              `${removedCount} simulation(s) removed.`
       );
+      await loadRuns();
     } finally {
       if (deleteButton) {
         deleteButton.disabled = false;

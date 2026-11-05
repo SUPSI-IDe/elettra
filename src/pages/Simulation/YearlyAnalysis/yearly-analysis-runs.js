@@ -1,5 +1,9 @@
 import "./yearly-analysis-runs.css";
 import { triggerPartialLoad } from "../../../events";
+import {
+  formatBatchDeletionFeedback,
+  settleBatchDeletion,
+} from "../../../utils/batch-delete";
 import { t } from "../../../i18n";
 import { textContent } from "../../../ui-helpers";
 import { MODE_LABELS, MODE_LABEL_KEYS } from "./yearly-analysis-store";
@@ -281,23 +285,20 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
     });
     if (!confirm(confirmMessage)) return;
 
-    let deleteFailed = false;
-
-    for (const row of checked) {
-      const id = row.dataset.id;
-      if (!id) continue;
-      try {
+    const ids = Array.from(checked, (row) => row.dataset.id).filter(Boolean);
+    const result = await settleBatchDeletion(ids, async (id) => {
         await deleteLinkedPredictionRuns(id);
         await deleteYearlyAnalysis(id);
-      } catch (err) {
-        console.error(`Failed to delete analysis ${id}:`, err);
-        deleteFailed = true;
-      }
-    }
+    });
 
-    if (deleteFailed) {
-      setFlashMessage(section, t("yearly_analysis.delete_failed"));
-    }
+    setFlashMessage(
+      section,
+      result.failedCount
+        ? formatBatchDeletionFeedback(result, t, (error) =>
+            error?.message || t("yearly_analysis.delete_failed")
+          )
+        : ""
+    );
 
     await loadAnalyses();
   };

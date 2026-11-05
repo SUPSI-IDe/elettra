@@ -1,22 +1,8 @@
+import * as d3 from "d3";
+
 import { toText } from "../../../ui-helpers";
 import { t } from "../../../i18n";
 import { text, parseTimeToMinutes, formatMinutes } from "./shift-utils";
-
-const ensureD3 = (() => {
-  let loader = null;
-  return () => {
-    if (!loader) {
-      loader = import("https://cdn.jsdelivr.net/npm/d3@7/+esm").catch(
-        (error) => {
-          console.error("Unable to load d3", error);
-          loader = null;
-          throw error;
-        }
-      );
-    }
-    return loader;
-  };
-})();
 
 const ensurePlaceholder = (container, message) => {
   if (!container) {
@@ -120,14 +106,6 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
       container,
       t("shifts.insufficient_stops")
     );
-    return;
-  }
-
-  let d3;
-  try {
-    d3 = await ensureD3();
-  } catch (error) {
-    ensurePlaceholder(container, t("shifts.unable_to_load_library"));
     return;
   }
 

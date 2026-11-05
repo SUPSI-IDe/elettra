@@ -3,7 +3,9 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readFileSync } from "node:fs";
 
-const API_ROOT = process.env.VITE_API_PROXY_TARGET || "http://isaac-elettra.dacd.supsi.ch:8002";
+// Local development must never fall through to production. Deployments can
+// still provide their explicit target through VITE_API_PROXY_TARGET.
+const API_ROOT = process.env.VITE_API_PROXY_TARGET || "http://127.0.0.1:9005";
 const DEFAULT_ALLOWED_HOSTS = ["isaac-elettra.dacd.supsi.ch", "bismuto.supsi.ch"];
 const allowedHosts = [
   ...new Set([
@@ -35,10 +37,52 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version),
   },
   build: {
+    // The translation catalogue is intentionally a single shared module and
+    // currently minifies to about 612 kB. Feature and vendor code must stay
+    // below that explicit ceiling instead of being folded into one app chunk.
+    chunkSizeWarningLimit: 650,
     rollupOptions: {
       input: {
         app: path.resolve(rootDir, "index.html"),
         guide: path.resolve(rootDir, "guide/index.html"),
+      },
+      output: {
+        codeSplitting: {
+          includeDependenciesRecursively: false,
+          groups: [
+            {
+              name: "vendor-leaflet",
+              test: /node_modules[\\/]leaflet/,
+              priority: 20,
+            },
+            {
+              name: "vendor-d3",
+              test: /node_modules[\\/]d3(?:-|[\\/])/,
+              priority: 20,
+            },
+            { name: "app-i18n", test: /src[\\/]i18n[\\/]/, priority: 10 },
+            {
+              name: "feature-feasibility",
+              test: /src[\\/]pages[\\/]Simulation[\\/]Runs[\\/]/,
+              priority: 10,
+            },
+            {
+              name: "feature-yearly-analysis",
+              test: /src[\\/]pages[\\/]Simulation[\\/]YearlyAnalysis[\\/]/,
+              priority: 10,
+            },
+            {
+              name: "feature-analysis-comparison",
+              test: /src[\\/]pages[\\/]Simulation[\\/]AnalysisComparison[\\/]/,
+              priority: 10,
+            },
+            {
+              name: "feature-fleet",
+              test: /src[\\/]pages[\\/]Fleet[\\/]/,
+              priority: 10,
+            },
+          ],
+        },
       },
     },
   },

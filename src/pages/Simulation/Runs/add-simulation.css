@@ -79,6 +79,24 @@
   width: 100%;
 }
 
+.add-simulation .fixed-battery-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.add-simulation .fixed-battery-control label {
+  margin: 0;
+}
+
+.add-simulation .fixed-battery-control input {
+  width: 6rem;
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .add-simulation [aria-invalid="true"] {
   border-color: var(--error-color);
   box-shadow: 0 0 0 3px var(--color-negative-muted);
