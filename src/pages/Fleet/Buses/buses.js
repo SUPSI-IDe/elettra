@@ -6,9 +6,7 @@ import {
   fetchBusModels,
   fetchBusModelById,
 } from "../../../api";
-import { fetchAllOptimizationRuns } from "../../../api/simulation";
 import {
-  prepareBusModelDeletion,
   resolveBusModelDeleteFailure,
 } from "../../../utils/bus-model-deletion";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
@@ -82,16 +80,6 @@ const initializeModelControls = (section, cleanupHandlers) => {
     if (action === "delete-selected-models") {
       actionButton.disabled = true;
       try {
-        const preparation = await prepareBusModelDeletion({
-          selectedModelIds: selectedIds,
-          fetchAllOptimizationRuns,
-          showFlash: (message) => setFlashMessage(section, message),
-          translate: t,
-        });
-        if (!preparation.proceed) {
-          return;
-        }
-
         const confirmDelete = confirm(
           t("buses.delete_confirm_models", { count: selectedIds.length })
         );

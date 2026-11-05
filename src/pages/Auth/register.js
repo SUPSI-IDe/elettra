@@ -1,5 +1,5 @@
 import { registerUser } from "../../api/auth";
-import { fetchAgencies } from "../../api/gtfs";
+import { fetchAllAgencies } from "../../api/gtfs";
 import { triggerPartialLoad } from "../../events";
 import { t } from "../../i18n";
 import { meetsPasswordMinimumLength } from "../../utils/password-policy";
@@ -14,7 +14,7 @@ const loadAgencies = async () => {
   }
 
   try {
-    const data = await fetchAgencies();
+    const data = await fetchAllAgencies();
     // Handle both array response and paginated response
     agenciesCache = Array.isArray(data) ? data : data?.items || data?.results || [];
     return agenciesCache;

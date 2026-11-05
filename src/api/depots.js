@@ -1,13 +1,18 @@
 import { authHeaders, API_ROOT } from "./client";
 import { readDeleteResponse } from "./delete-response.js";
+import { buildPaginationParams, fetchAllLegacyPages } from "./pagination";
 
 const DEPOTS_PATH = `${API_ROOT}/api/v1/user/depots/`;
 
 export const fetchDepots = async ({ skip = 0, limit = 100 } = {}) => {
   const headers = authHeaders();
+  const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
+    skip,
+    limit
+  );
   const url = `${DEPOTS_PATH}?skip=${encodeURIComponent(
-    String(skip)
-  )}&limit=${encodeURIComponent(String(limit))}`;
+    String(normalizedSkip)
+  )}&limit=${encodeURIComponent(String(normalizedLimit))}`;
 
   const response = await fetch(url, { method: "GET", headers });
   const payload = await response.json().catch(() => null);
@@ -22,6 +27,9 @@ export const fetchDepots = async ({ skip = 0, limit = 100 } = {}) => {
 
   return payload;
 };
+
+export const fetchAllDepots = () =>
+  fetchAllLegacyPages((params) => fetchDepots(params));
 
 export const fetchDepotById = async (depotId) => {
   if (!depotId) {

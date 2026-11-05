@@ -6,9 +6,9 @@ import "./add-simulation.css";
 import { createEvaluationProgress } from "./evaluation-progress";
 import {
   fetchAllBusModels,
+  fetchAllBuses,
   fetchBusModelById,
   fetchAllShifts,
-  fetchBuses,
 } from "../../../api";
 import {
   createOptimizationRun,
@@ -1001,7 +1001,7 @@ export const initializeAddSimulation = async (
       }
       const [shifts, busesPayload, models] = await Promise.all([
         fetchAllShifts(),
-        fetchBuses({ skip: 0, limit: 1000 }),
+        fetchAllBuses(),
         fetchAllBusModels({ userId: currentUserId }),
       ]);
 
