@@ -1,13 +1,18 @@
 import { authHeaders, API_ROOT } from "./client";
+import { buildPaginationParams, fetchAllLegacyPages } from "./pagination";
 
 const BUSES_PATH = `${API_ROOT}/api/v1/user/buses/`;
 
 
 export const fetchBuses = async ({ skip = 0, limit = 100 } = {}) => {
   const headers = authHeaders();
+  const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
+    skip,
+    limit
+  );
   const url = `${BUSES_PATH}?skip=${encodeURIComponent(
-    String(skip)
-  )}&limit=${encodeURIComponent(String(limit))}`;
+    String(normalizedSkip)
+  )}&limit=${encodeURIComponent(String(normalizedLimit))}`;
   const response = await fetch(url, { method: "GET", headers });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -17,6 +22,9 @@ export const fetchBuses = async ({ skip = 0, limit = 100 } = {}) => {
   }
   return payload;
 };
+
+export const fetchAllBuses = () =>
+  fetchAllLegacyPages((params) => fetchBuses(params));
 
 export const fetchBusById = async (busId) => {
   if (!busId) {

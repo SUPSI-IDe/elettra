@@ -48,6 +48,12 @@ test(`annual forecast in one request: ${failure ? "failure" : "success"}`, async
   const predictionRequests = [];
   let initialCreateBody = null;
   let savedPatch = null;
+  const selectionLoads = {
+    optimization: 0,
+    busModel: 0,
+    shifts: 0,
+    prediction: 0,
+  };
   let releasePredictions;
   const predictionGate = new Promise(resolve => { releasePredictions = resolve; });
   page.on("dialog", dialog => { throw new Error(`Unexpected browser dialog: ${dialog.message()}`); });
@@ -63,11 +69,15 @@ test(`annual forecast in one request: ${failure ? "failure" : "success"}`, async
         user_id: "user-1",
         status: "completed",
         electrification_feasible: true,
+        yearly_eligible: true,
+        bus_model_id: "bus-1",
+        name: "Worst-case feasibility",
       }] });
       return;
     }
 
     if (method === "GET" && path === "/api/v1/simulation/optimization-runs/base-run") {
+      selectionLoads.optimization += 1;
       await route.fulfill({ json: {
         id: "base-run",
         user_id: "user-1",
@@ -112,18 +122,12 @@ test(`annual forecast in one request: ${failure ? "failure" : "success"}`, async
         user_id: "user-1",
         name: "Bus model",
         manufacturer: "Maker",
-        specs: {
-          battery_pack_size_kwh: 50,
-          battery_pack_weight_kg: 400,
-          empty_weight_kg: 12_000,
-          max_passengers: 80,
-          bus_length_m: 12,
-        },
       }] });
       return;
     }
 
     if (method === "GET" && path === "/api/v1/user/bus-models/bus-1") {
+      selectionLoads.busModel += 1;
       await route.fulfill({ json: {
         id: "bus-1",
         specs: {
@@ -139,6 +143,7 @@ test(`annual forecast in one request: ${failure ? "failure" : "success"}`, async
 
     const shiftMatch = path.match(/^\/api\/v1\/user\/shifts\/(morning|evening)$/);
     if (method === "GET" && shiftMatch) {
+      selectionLoads.shifts += 1;
       const shiftId = shiftMatch[1];
       await route.fulfill({ json: {
         id: shiftId,
@@ -172,6 +177,7 @@ test(`annual forecast in one request: ${failure ? "failure" : "success"}`, async
     }
 
     if (method === "GET" && path === "/api/v1/simulation/prediction-runs/base-prediction") {
+      selectionLoads.prediction += 1;
       await route.fulfill({ json: {
         id: "base-prediction",
         shift_id: "morning",
@@ -243,8 +249,21 @@ test(`annual forecast in one request: ${failure ? "failure" : "success"}`, async
     window.__yearlyCleanup = await initializeCreateYearlyAnalysis(document);
   });
 
+  expect(selectionLoads).toEqual({
+    optimization: 0,
+    busModel: 0,
+    shifts: 0,
+    prediction: 0,
+  });
+
   await page.locator('[data-role="base-run-select"]').selectOption("base-run");
   await expect(page.locator('[data-role="scenarios-body"] tr')).toHaveCount(2);
+  expect(selectionLoads).toEqual({
+    optimization: 1,
+    busModel: 1,
+    shifts: 2,
+    prediction: 1,
+  });
   await page.locator("#ya-analysis-name").fill("Multi-shift annual analysis");
   const submit = page.locator('button[type="submit"]');
   await submit.click();

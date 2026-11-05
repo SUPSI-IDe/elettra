@@ -1,6 +1,7 @@
 import { authHeaders, API_ROOT } from "./client";
 import {
   buildPaginationParams,
+  fetchAllLegacyPages,
   fetchAllPages,
   normalizePaginatedResponse,
 } from "./pagination";
@@ -9,7 +10,6 @@ import { normalizeAuxiliaryTripResponse } from "./auxiliary-trip";
 const AGENCIES_PATH = `${API_ROOT}/api/v1/agency/agencies/`;
 const GTFS_ROUTES_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-routes/`;
 const GTFS_ROUTES_BY_AGENCY_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-routes/by-agency/`;
-const GTFS_DAYS_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-days/`;
 const GTFS_TRIPS_BY_ROUTE_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-trips/by-route/`;
 const GTFS_STOPS_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-stops/`;
 const GTFS_STOPS_BY_TRIP_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-stops/by-trip/`;
@@ -72,10 +72,14 @@ export const fetchGtfsStopById = async (stopPk) => {
   return payload;
 };
 
-export const fetchAgencies = async ({ skip = 0, limit = 500 } = {}) => {
+export const fetchAgencies = async ({ skip = 0, limit = 100 } = {}) => {
+  const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
+    skip,
+    limit
+  );
   const params = new URLSearchParams();
-  params.set("skip", String(skip));
-  params.set("limit", String(limit));
+  params.set("skip", String(normalizedSkip));
+  params.set("limit", String(normalizedLimit));
   const query = params.toString();
   const url = query ? `${AGENCIES_PATH}?${query}` : AGENCIES_PATH;
 
@@ -90,6 +94,9 @@ export const fetchAgencies = async ({ skip = 0, limit = 500 } = {}) => {
   return payload;
 };
 
+export const fetchAllAgencies = () =>
+  fetchAllLegacyPages((params) => fetchAgencies(params));
+
 export const fetchRoutes = async ({
   skip = 0,
   limit = 100,
@@ -97,9 +104,13 @@ export const fetchRoutes = async ({
   gtfs_file_date,
 } = {}) => {
   const headers = authHeaders();
+  const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
+    skip,
+    limit
+  );
   const params = new URLSearchParams();
-  params.set("skip", String(skip));
-  params.set("limit", String(limit));
+  params.set("skip", String(normalizedSkip));
+  params.set("limit", String(normalizedLimit));
   if (gtfs_year !== undefined && gtfs_year !== null) {
     params.set("gtfs_year", String(gtfs_year));
   }
@@ -119,16 +130,17 @@ export const fetchRoutes = async ({
   return payload;
 };
 
-export const fetchRoutesByAgency = async (agencyId, { skip = 0, limit = 100 } = {}) => {
+export const fetchAllRoutes = ({ gtfs_year, gtfs_file_date } = {}) =>
+  fetchAllLegacyPages((params) =>
+    fetchRoutes({ ...params, gtfs_year, gtfs_file_date })
+  );
+
+export const fetchRoutesByAgency = async (agencyId) => {
   if (!agencyId) {
     throw new Error("Missing agencyId");
   }
   const headers = authHeaders();
-  const params = new URLSearchParams();
-  params.set("skip", String(skip));
-  params.set("limit", String(limit));
-  const query = params.toString();
-  const url = `${GTFS_ROUTES_BY_AGENCY_PATH}${encodeURIComponent(agencyId)}${query ? `?${query}` : ""}`;
+  const url = `${GTFS_ROUTES_BY_AGENCY_PATH}${encodeURIComponent(agencyId)}`;
 
   const response = await fetch(url, { method: "GET", headers });
   const payload = await response.json().catch(() => null);
@@ -152,18 +164,6 @@ export const fetchRoutesByAgencyWithVariant1 = async (agencyId) => {
   if (!response.ok) {
     const message =
       payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load routes with variants for agency.";
-    throw new Error(message);
-  }
-  return payload;
-};
-
-export const fetchServiceDays = async () => {
-  const headers = authHeaders();
-  const response = await fetch(GTFS_DAYS_PATH, { method: "GET", headers });
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message =
-      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load service days.";
     throw new Error(message);
   }
   return payload;

@@ -4,14 +4,13 @@ import {
   createShift,
   createAuxiliaryTrip,
   createWeatherTemperatureClusters,
-  fetchBuses,
+  fetchAllBuses,
   fetchBusById,
   fetchAllBusModels,
-  fetchDepots,
+  fetchAllDepots,
   fetchPvgisTmy,
-  fetchRoutes,
+  fetchAllRoutes,
   fetchRoutesByAgency,
-  fetchServiceDays,
   fetchShiftById,
   fetchShiftInfo,
   fetchStopsByTripId,
@@ -1077,7 +1076,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         throw new Error("Unable to resolve current user.");
       }
       const [payload, models] = await Promise.all([
-        fetchBuses({ skip: 0, limit: 1000 }),
+        fetchAllBuses(),
         // Bus models are paginated server-side — page through them with
         // the dedicated helper rather than requesting an oversized page.
         fetchAllBusModels({ userId: userId || "" }),
@@ -1125,7 +1124,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     try {
       const [payload, userId] = await Promise.all([
-        fetchDepots({ skip: 0, limit: 100 }),
+        fetchAllDepots(),
         resolveUserId().catch(() => null),
       ]);
 
@@ -1166,11 +1165,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       let payload;
       if (agencyId) {
         // Fetch only routes belonging to the user's agency/company
-        payload = await fetchRoutesByAgency(agencyId, { skip: 0, limit: 1000 });
+        payload = await fetchRoutesByAgency(agencyId);
       } else {
         // Fallback to all routes if no agency is set (shouldn't happen in production)
         console.warn("No agency ID found - showing all routes. This may include routes from other companies.");
-        payload = await fetchRoutes({ skip: 0, limit: 1000 });
+        payload = await fetchAllRoutes();
       }
       
       const routes =
@@ -1190,17 +1189,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const loadDays = async () => {
-    try {
-      const payload = await fetchServiceDays();
-      const days =
-        Array.isArray(payload) ? payload : (
-          (payload?.items ?? payload?.results ?? [])
-        );
-      populateDayOptions(daySelect, days);
-    } catch (error) {
-      console.warn("Failed to load days from API, falling back to defaults", error);
-      populateDayOptions(daySelect, DAYS_OF_WEEK);
-    }
+    // The backend has no /gtfs-days endpoint.  Weekday values are the stable
+    // contract consumed by /gtfs-trips/by-route, so populate them locally and
+    // avoid a guaranteed 404 every time the form opens.
+    populateDayOptions(daySelect, DAYS_OF_WEEK);
   };
 
   const loadTrips = async ({ includeNextDay = false } = {}) => {

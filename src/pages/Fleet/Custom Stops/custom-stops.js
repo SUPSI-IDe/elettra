@@ -1,14 +1,7 @@
 import { t } from "../../../i18n";
 import "./custom-stops.css";
-import { deleteDepot, fetchDepots } from "../../../api";
-import { fetchAllShifts, fetchShiftById, fetchShiftInfo } from "../../../api/shifts";
-import { fetchStopsByTripId } from "../../../api/gtfs";
+import { deleteDepot, fetchAllDepots } from "../../../api";
 import {
-  fetchAllOptimizationRuns,
-  fetchOptimizationRun,
-} from "../../../api/simulation";
-import {
-  prepareCustomStopDeletion,
   resolveCustomStopDeleteFailure,
 } from "../../../utils/custom-stop-deletion";
 import {
@@ -162,7 +155,7 @@ export const initializeCustomStops = async (root = document, options = {}) => {
 
     try {
       const [payload, userId] = await Promise.all([
-        fetchDepots({ skip: 0, limit: 100 }),
+        fetchAllDepots(),
         resolveUserId().catch(() => null),
       ]);
 
@@ -202,22 +195,6 @@ export const initializeCustomStops = async (root = document, options = {}) => {
     }
 
     try {
-      const preparation = await prepareCustomStopDeletion({
-        selectedDepotIds: ids,
-        depots: allDepots,
-        fetchAllShifts,
-        fetchShiftDetail: fetchShiftById,
-        fetchShiftInfo,
-        fetchTripStops: fetchStopsByTripId,
-        fetchAllOptimizationRuns,
-        fetchOptimizationRunDetail: fetchOptimizationRun,
-        showFlash: (message) => setFlashMessage(section, message),
-        translate: t,
-      });
-      if (!preparation.proceed) {
-        return;
-      }
-
       const confirmDelete = confirm(
         t("custom_stops.delete_confirm", { count: ids.length })
       );

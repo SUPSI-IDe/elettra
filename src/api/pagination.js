@@ -191,6 +191,55 @@ export const fetchAllPages = async (fetchPage, options = {}) => {
 };
 
 /**
+ * Fetch every page from a legacy endpoint that still returns a bare array.
+ *
+ * A bare array has no `total` or `has_next` metadata, so iteration continues
+ * while a full page is returned.  The extra request needed when the total is
+ * an exact multiple of the page size is intentional and keeps selectors from
+ * silently dropping records beyond the first 100 rows.
+ *
+ * Envelope responses are accepted as well so callers remain compatible while
+ * the backend endpoints are migrated independently.
+ *
+ * @template T
+ * @param {(params: { skip: number; limit: number }) => Promise<T[] | {items?: T[], results?: T[], total?: number, count?: number, has_next?: boolean}>} fetchPage
+ * @param {{ pageSize?: number; extraParams?: Record<string, unknown>; maxPages?: number }} [options]
+ * @returns {Promise<T[]>}
+ */
+export const fetchAllLegacyPages = async (fetchPage, options = {}) => {
+  const pageSize = coercePageSize(options.pageSize, MAX_PAGE_SIZE);
+  const maxPages = Number.isFinite(options.maxPages)
+    ? Math.max(1, Math.floor(Number(options.maxPages)))
+    : 200;
+  const extraParams = options.extraParams ?? {};
+
+  const aggregated = [];
+  let skip = 0;
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const response = await fetchPage({ ...extraParams, skip, limit: pageSize });
+    const isBareArray = Array.isArray(response);
+    const envelope = normalizePaginatedResponse(response, skip, pageSize);
+    aggregated.push(...envelope.items);
+
+    const advanced = envelope.items.length;
+    const hasNext = isBareArray
+      ? advanced === pageSize
+      : envelope.has_next;
+    if (!hasNext || advanced === 0) {
+      break;
+    }
+
+    skip += advanced;
+    if (!isBareArray && Number.isFinite(envelope.total) && skip >= envelope.total) {
+      break;
+    }
+  }
+
+  return aggregated;
+};
+
+/**
  * Compute the human-readable range "Showing {start}–{end} of {total}"
  * style numbers based on the paginated response state.
  *

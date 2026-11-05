@@ -10,11 +10,6 @@ import {
   fetchStopsByTripId,
 } from "../../../api";
 import {
-  fetchAllOptimizationRuns,
-  fetchOptimizationRun,
-} from "../../../api/simulation";
-import {
-  prepareShiftDeletion,
   resolveShiftDeleteFailure,
 } from "../../../utils/shift-deletion";
 import {
@@ -873,17 +868,6 @@ export const initializeShifts = async (root = document, options = {}) => {
     deleteButton.disabled = true;
 
     try {
-      const preparation = await prepareShiftDeletion({
-        selectedShiftIds: ids,
-        fetchAllOptimizationRuns,
-        fetchOptimizationRunDetail: fetchOptimizationRun,
-        showFlash: (message) => setFlashMessage(section, message),
-        translate: t,
-      });
-      if (!preparation.proceed) {
-        return;
-      }
-
       const confirmDelete = confirm(
         t("shifts.delete_confirm", { count: ids.length })
       );

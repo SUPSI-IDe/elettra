@@ -2,7 +2,7 @@ import "../evaluation-dialogs.css";
 import "./create-yearly-analysis.css";
 import { createYearlyDialogs } from "./yearly-dialogs";
 import { t } from "../../../i18n";
-import { fetchAllBusModels } from "../../../api";
+import { fetchAllBusModels, fetchBusModelById } from "../../../api";
 import {
   createYearlyPredictionRuns,
   fetchAllOptimizationRuns,
@@ -128,7 +128,11 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
 
   let feasibleRuns = [];
   let resolvedNames = {};
+  let modelsById = {};
   const shiftMap = new Map();
+  const runDetailPromises = new Map();
+  const modelDetailPromises = new Map();
+  let runSelectionVersion = 0;
   let scenarioRows = [];
   let weatherReference = null;
   let weatherRequestVersion = 0;
@@ -141,6 +145,125 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
   };
   const showProgress = dialogs.showProgress;
   const hideProgress = dialogs.closeProgress;
+
+  const loadModelDetail = async (modelId) => {
+    const id = text(modelId).trim();
+    if (!id) return null;
+    const cached = modelsById[id];
+    if (cached?.specs) return cached;
+    if (!modelDetailPromises.has(id)) {
+      modelDetailPromises.set(
+        id,
+        fetchBusModelById(id)
+          .then((detail) => {
+            const merged = { ...(cached ?? {}), ...(detail ?? {}) };
+            modelsById[id] = merged;
+            return merged;
+          })
+          .catch((error) => {
+            modelDetailPromises.delete(id);
+            throw error;
+          })
+      );
+    }
+    return modelDetailPromises.get(id);
+  };
+
+  const hydrateRunForSelection = async (summaryRun) => {
+    const id = text(summaryRun?.id).trim();
+    if (!id) throw new Error(t("yearly_analysis.select_feasibility"));
+    if (runDetailPromises.has(id)) return runDetailPromises.get(id);
+
+    const pending = (async () => {
+      const run =
+        summaryRun?.results && summaryRun?.input_params
+          ? summaryRun
+          : { ...summaryRun, ...(await fetchOptimizationRun(id)) };
+
+      if (
+        resolveElectrificationFeasible(run) !== true ||
+        resolveOptimizedPacks(run?.results?.battery_results ?? {}) == null
+      ) {
+        throw new Error(t("yearly_analysis.no_feasible_evaluations"));
+      }
+
+      const shiftIds = resolveShiftIds(run);
+      const busModelId = resolveBusModelId(run);
+      const predictionIds = run?.input_params?.prediction_run_ids ?? [];
+      const firstPredictionId = Array.isArray(predictionIds)
+        ? predictionIds[0]
+        : null;
+
+      const [busModel, prediction] = await Promise.all([
+        loadModelDetail(busModelId),
+        firstPredictionId
+          ? fetchPredictionRun(firstPredictionId).catch(() => null)
+          : Promise.resolve(null),
+        ...shiftIds.map(async (shiftId) => {
+          if (shiftMap.has(shiftId)) return shiftMap.get(shiftId);
+          try {
+            const shift = await fetchShiftById(shiftId);
+            shiftMap.set(shiftId, shift);
+            return shift;
+          } catch {
+            return null;
+          }
+        }),
+      ]);
+
+      const shiftNamesById = Object.fromEntries(
+        shiftIds.map((shiftId) => [
+          shiftId,
+          text(shiftMap.get(shiftId)?.name ?? "").trim() || shiftId,
+        ])
+      );
+      const shiftNames = shiftIds.map((shiftId) => shiftNamesById[shiftId]);
+      const shiftLabel = shiftNames.length
+        ? shiftNames.join(", ")
+        : shiftIds.map((shiftId) => shiftId.slice(0, 8)).join(", ");
+      const modelLabel = busModel
+        ? resolveBusModelDisplayName(busModel) || busModelId.slice(0, 8)
+        : busModelId.slice(0, 8);
+      const modelSpecs =
+        typeof busModel?.specs === "string"
+          ? JSON.parse(busModel.specs)
+          : busModel?.specs;
+      const packSizeKwh = toFiniteNumber(modelSpecs?.battery_pack_size_kwh);
+      const predParams = prediction
+        ? {
+            external_temp_celsius: toFiniteNumber(
+              prediction.external_temp_celsius
+            ),
+            occupancy_percent: toFiniteNumber(prediction.occupancy_percent),
+            auxiliary_heating_type:
+              text(prediction.auxiliary_heating_type).trim() || null,
+            model_name: text(prediction.model_name).trim() || null,
+            quantiles: prediction?.contextual_parameters?.quantiles ?? null,
+          }
+        : {};
+
+      resolvedNames[id] = {
+        busModelSnapshot: modelSpecs ?? null,
+        shiftLabel,
+        shiftNames,
+        shiftNamesById,
+        modelLabel,
+        packSizeKwh,
+        predParams,
+        sizingTemp: predParams.external_temp_celsius ?? null,
+      };
+      feasibleRuns = feasibleRuns.map((candidate) =>
+        text(candidate?.id) === id ? run : candidate
+      );
+      return run;
+    })().catch((error) => {
+      runDetailPromises.delete(id);
+      throw error;
+    });
+
+    runDetailPromises.set(id, pending);
+    return pending;
+  };
 
   // ── Scenarios tracking ──────────────────────────────────────────
 
@@ -322,14 +445,73 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     setOccupancyFromRun(run);
   };
 
-  const handleRunChange = () => {
+  const formatRunOptionLabel = (run) => {
+    const id = text(run?.id);
+    const meta = resolvedNames[id] ?? {};
+    const date = run?.created_at
+      ? new Date(run.created_at).toLocaleDateString()
+      : "";
+    const parts = [
+      getOptimizationRunDisplayName(run, meta.shiftLabel),
+      date,
+      meta.modelLabel,
+    ];
+
+    if (run?.results && run?.input_params) {
+      const fixedConfiguration = buildFixedYearlyConfiguration(run, {
+        shiftNamesById: meta.shiftNamesById ?? {},
+        packSizeKwh: meta.packSizeKwh,
+      });
+      const selectedSizes = [
+        ...new Set(
+          fixedConfiguration.shifts
+            .map((shift) => shift.battery?.selectedPacks)
+            .filter((value) => value != null)
+        ),
+      ];
+      const packs = selectedSizes.join(" / ");
+      const kwh = fixedConfiguration.battery.uniform
+        ? fixedConfiguration.battery.nominalKwh
+        : null;
+      parts.push(
+        packs ? t("yearly_analysis.packs_value", { count: packs }) : "",
+        kwh != null ? `${Math.round(kwh)} kWh` : "",
+        meta.sizingTemp != null ? `@ ${meta.sizingTemp} °C` : ""
+      );
+    }
+
+    return parts.filter(Boolean).join(" · ");
+  };
+
+  const handleRunChange = async () => {
+    const version = ++runSelectionVersion;
     const id = baseSelect?.value ?? "";
-    const run = feasibleRuns.find((r) => text(r.id) === id);
-    renderConfigSummary(run ?? null);
-    if (run) {
-      loadClustersForRun(run);
-    } else {
+    const summaryRun = feasibleRuns.find((r) => text(r.id) === id);
+    renderConfigSummary(null);
+    if (!summaryRun) {
       renderScenariosPlaceholder(t("yearly_analysis.select_evaluation_for_scenarios"));
+      return;
+    }
+
+    setFeedback(t("yearly_analysis.loading_evaluations"), "info");
+    try {
+      const run = await hydrateRunForSelection(summaryRun);
+      if (version !== runSelectionVersion) return;
+      const option = Array.from(baseSelect?.options ?? []).find(
+        (candidate) => candidate.value === id
+      );
+      if (option) option.textContent = formatRunOptionLabel(run);
+      setFeedback("");
+      renderConfigSummary(run);
+      void loadClustersForRun(run);
+    } catch (error) {
+      if (version !== runSelectionVersion) return;
+      setFeedback(
+        error?.message ?? t("yearly_analysis.failed_load_simulations")
+      );
+      renderScenariosPlaceholder(
+        t("yearly_analysis.select_evaluation_for_scenarios")
+      );
     }
   };
 
@@ -351,8 +533,15 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
     if (!analysisName) { alert(t("yearly_analysis.enter_name")); nameInput?.focus(); return; }
 
     const runId = baseSelect?.value ?? "";
-    const baseRun = feasibleRuns.find((r) => text(r.id) === runId);
-    if (!baseRun) { alert(t("yearly_analysis.select_feasibility")); baseSelect?.focus(); return; }
+    const summaryRun = feasibleRuns.find((r) => text(r.id) === runId);
+    if (!summaryRun) { alert(t("yearly_analysis.select_feasibility")); baseSelect?.focus(); return; }
+    let baseRun;
+    try {
+      baseRun = await hydrateRunForSelection(summaryRun);
+    } catch (error) {
+      setFeedback(error?.message ?? t("yearly_analysis.failed_load_simulations"));
+      return;
+    }
 
     const ip = baseRun.input_params ?? {};
     const shiftIds = resolveShiftIds(baseRun);
@@ -531,7 +720,9 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         currentUserId && Array.isArray(models)
           ? models.filter((m) => text(m?.user_id) === currentUserId)
           : (models ?? []);
-      const modelsById = Object.fromEntries(userModels.filter((m) => m?.id).map((m) => [text(m.id), m]));
+      modelsById = Object.fromEntries(
+        userModels.filter((model) => model?.id).map((model) => [text(model.id), model])
+      );
 
       // First pass: cheap server-side filter using fields available on
       // the lightweight list response (status, electrification_feasible).
@@ -540,76 +731,26 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
         if (currentUserId && runUserId && runUserId !== currentUserId) return false;
         const status = text(run?.status ?? "").trim().toLowerCase();
         if (status !== "completed" && status !== "done") return false;
-        return run?.electrification_feasible === true;
+        return (
+          run?.electrification_feasible === true &&
+          run?.yearly_eligible !== false
+        );
       });
-
-      // Second pass: hydrate each candidate run's heavy detail (results
-      // / input_params) only after the cheap filter, then keep the runs
-      // that actually have battery results we can build sizing from.
-      const candidateDetails = await Promise.all(
-        candidateRuns.map(async (run) => {
-          if (run?.results && run?.input_params) return run;
-          try {
-            const detail = await fetchOptimizationRun(text(run.id));
-            return detail ? { ...run, ...detail } : run;
-          } catch (error) {
-            console.warn(`Failed to load detail for run ${run?.id}`, error);
-            return run;
-          }
+      feasibleRuns = candidateRuns;
+      resolvedNames = Object.fromEntries(
+        feasibleRuns.map((run) => {
+          const busModelId = resolveBusModelId(run);
+          const busModel = modelsById[busModelId];
+          return [
+            text(run.id),
+            {
+              modelLabel: busModel
+                ? resolveBusModelDisplayName(busModel) || busModelId.slice(0, 8)
+                : busModelId.slice(0, 8),
+            },
+          ];
         })
       );
-
-      feasibleRuns = candidateDetails.filter((run) => {
-        if (resolveElectrificationFeasible(run) !== true) return false;
-        if (resolveOptimizedPacks(run?.results?.battery_results ?? {}) == null) return false;
-        return true;
-      });
-
-      // Resolve shift names (batch-fetch unique shift IDs)
-      const shiftIdSet = new Set();
-      for (const run of feasibleRuns) resolveShiftIds(run).forEach((id) => shiftIdSet.add(id));
-      const shiftFetches = [...shiftIdSet].map(async (id) => {
-        try { const s = await fetchShiftById(id); shiftMap.set(id, s); } catch { /* skip */ }
-      });
-      await Promise.all(shiftFetches);
-
-      // Resolve temperature + prediction params from each run's first prediction run
-      const predParamsMap = new Map();
-      const predFetches = feasibleRuns.map(async (run) => {
-        const predIds = run?.input_params?.prediction_run_ids ?? [];
-        const firstId = (Array.isArray(predIds) ? predIds : [])[0];
-        if (!firstId) return;
-        try {
-          const pred = await fetchPredictionRun(firstId);
-          predParamsMap.set(text(run.id), {
-            external_temp_celsius: toFiniteNumber(pred?.external_temp_celsius),
-            occupancy_percent: toFiniteNumber(pred?.occupancy_percent),
-            auxiliary_heating_type: text(pred?.auxiliary_heating_type ?? "").trim() || null,
-            model_name: text(pred?.model_name ?? "").trim() || null,
-            quantiles: pred?.contextual_parameters?.quantiles ?? null,
-          });
-        } catch { /* skip */ }
-      });
-      await Promise.all(predFetches);
-
-      // Build resolved display names per run
-      for (const run of feasibleRuns) {
-        const id = text(run.id);
-        const sids = resolveShiftIds(run);
-        const shiftNamesById = Object.fromEntries(
-          sids.map((sid) => [sid, text(shiftMap.get(sid)?.name ?? "").trim() || sid]),
-        );
-        const shiftNames = sids.map((sid) => shiftNamesById[sid]);
-        const shiftLabel = shiftNames.length ? shiftNames.join(", ") : sids.map((s) => s.slice(0, 8)).join(", ");
-        const bmId = resolveBusModelId(run);
-        const bm = modelsById[bmId];
-        const modelLabel = bm
-          ? resolveBusModelDisplayName(bm) || bmId.slice(0, 8)
-          : bmId.slice(0, 8);
-        const packSizeKwh = toFiniteNumber(bm?.specs?.battery_pack_size_kwh ?? (typeof bm?.specs === "string" ? JSON.parse(bm.specs)?.battery_pack_size_kwh : null));
-        const predParams = predParamsMap.get(id) ?? {};
-        resolvedNames[id] = { busModelSnapshot: bm?.specs ?? null, shiftLabel, shiftNames, shiftNamesById, modelLabel, packSizeKwh, predParams, sizingTemp: predParams.external_temp_celsius ?? null };
-      }
 
       // Populate dropdown
       if (baseSelect) {
@@ -627,28 +768,9 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
 
           for (const run of feasibleRuns) {
             const id = text(run.id);
-            const meta = resolvedNames[id] ?? {};
-            const fixedConfiguration = buildFixedYearlyConfiguration(run, {
-              shiftNamesById: meta.shiftNamesById ?? {},
-              packSizeKwh: meta.packSizeKwh,
-            });
-            const selectedSizes = [...new Set(fixedConfiguration.shifts.map(s => s.battery?.selectedPacks).filter(v => v != null))];
-    const packs = selectedSizes.join(" / ");
-            const kwh = fixedConfiguration.battery.uniform ? fixedConfiguration.battery.nominalKwh : null;
-            const date = run.created_at ? new Date(run.created_at).toLocaleDateString() : "";
-
-            const evaluationName = getOptimizationRunDisplayName(run, meta.shiftLabel);
-            const label = [
-              evaluationName,
-              date,
-              packs != null ? t("yearly_analysis.packs_value", { count: packs }) : "",
-              kwh != null ? `${Math.round(kwh)} kWh` : "",
-              meta.sizingTemp != null ? `@ ${meta.sizingTemp} °C` : "",
-            ].filter(Boolean).join(" · ");
-
             const o = document.createElement("option");
             o.value = id;
-            o.textContent = label;
+            o.textContent = formatRunOptionLabel(run);
             baseSelect.appendChild(o);
           }
         }
