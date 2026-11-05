@@ -3,7 +3,10 @@
 
 # Stage 1: Build the application
 # Vite 7.x requires Node.js 20.19+ or 22.12+
-FROM node:22.22.0-alpine AS builder
+# The Vite bundle is architecture-independent. Building it on the runner's
+# native platform avoids executing Node/npm through QEMU during multi-platform
+# releases; the final nginx stage still targets every requested architecture.
+FROM --platform=$BUILDPLATFORM node:22.22.0-alpine AS builder
 
 WORKDIR /app
 
