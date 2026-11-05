@@ -37,6 +37,7 @@ src/
 │   └── translations.js  # All translation strings (en/de/fr/it)
 ├── pages/               # Page components (HTML + JS + CSS per page)
 │   ├── Auth/            # Login, Register, Landing
+│   ├── Home/            # Authenticated overview and section/guide links
 │   ├── Account/         # Settings
 │   ├── Fleet/
 │   │   ├── Buses/       # Bus model management
@@ -79,11 +80,20 @@ Routes are identified by slugs. The `SHELL_SECTION_BY_SLUG` map groups related s
 
 | Slug | Nav section |
 |------|-------------|
+| `home` | home |
 | `buses`, `add-bus-model` | buses |
 | `custom-stops`, `add-custom-stop` | custom-stops |
 | `shifts`, `shift-form`, `visualize-shift` | shifts |
 | `simulation-runs`, `add-simulation`, `simulation-detail`, `simulation-results`, `simulation-comparison` | simulation-runs |
 | `yearly-analysis-runs`, `create-yearly-analysis`, `yearly-analysis-results` | yearly-analysis-runs |
+
+The application entry point resolves to `home` for an authenticated session and
+`landing` for a visitor. Login opens `home`; authenticated visits to `landing`,
+`login`, or `register` are replaced with `home`. Protected deep links retain
+their destination when authenticated and otherwise resolve to `login`.
+These rules also apply to browser Back/Forward navigation. The sidebar logo
+and Home entry both link to `#home`. The public guide returns to `../`, leaving
+session validation and the choice of destination to the application router.
 
 ### Navigation events
 

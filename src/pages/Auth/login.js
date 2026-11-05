@@ -156,8 +156,8 @@ const handleLogin = async (form, feedback) => {
       // Update header UI
       updateHeaderUI();
       
-      // Navigate to buses page
-      triggerPartialLoad("buses");
+      // Start from the authenticated workspace overview.
+      triggerPartialLoad("home");
     }, 500);
 
   } catch (error) {

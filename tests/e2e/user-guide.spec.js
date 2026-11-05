@@ -158,12 +158,12 @@ test("the landing page opens the guide and browser history preserves the passage
 });
 
 
-test("both guide return links lead explicitly to the landing page", async ({ page }) => {
+test("both guide return links resolve to the landing page for visitors", async ({ page }) => {
   for (const returnLink of ["header", "footer"]) {
     await page.goto("./guide/");
 
     const link = page.locator(`${returnLink} a[data-guide-ui="backToApp"]`);
-    await expect(link).toHaveAttribute("href", "../#landing");
+    await expect(link).toHaveAttribute("href", "../");
     await link.click();
     await expectLandingGuideLink(page);
   }

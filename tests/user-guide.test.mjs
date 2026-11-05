@@ -48,7 +48,7 @@ test("the public guide contains the expected accessible shell", async () => {
   const guide = await readProjectFile("guide/index.html");
   assert.match(guide, /id="guide-language"/);
   assert.match(guide, /id="guide-content"/);
-  assert.equal(guide.match(/href="\.\.\/#landing"/g)?.length, 2);
+  assert.equal(guide.match(/href="\.\.\/"/g)?.length, 2);
   assert.doesNotMatch(guide, /to verify|placeholder|asset to be supplied/i);
 });
 

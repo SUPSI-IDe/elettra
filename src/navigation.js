@@ -18,9 +18,11 @@ import { initializeLanding } from "./pages/Auth/landing";
 import { initializeRegister } from "./pages/Auth/register";
 import { initializeAbout } from "./pages/About/about";
 import { initializeSettings } from "./pages/Account/settings";
+import { initializeHome } from "./pages/Home/home";
 import { applyTranslations, getCurrentLang, I18N_CHANGE_EVENT } from "./i18n";
 import { isAuthenticated } from "./api/session";
 import { consumeWindowRouteState, normalizeRouteOptions } from "./events";
+import { resolveRouteSlug } from "./utils/route-access";
 
 const partials = import.meta.glob("./pages/**/*.html", {
   query: "?raw",
@@ -28,9 +30,8 @@ const partials = import.meta.glob("./pages/**/*.html", {
 });
 
 const slugFrom = (node) => node?.dataset.partial?.trim() || "";
-const PUBLIC_PARTIALS = new Set(["landing", "login", "register", "about"]);
-const isProtectedPartial = (slug) => Boolean(slug) && !PUBLIC_PARTIALS.has(slug);
 const SHELL_SECTION_BY_SLUG = {
+  home: "home",
   about: "about",
   settings: "settings",
   buses: "buses",
@@ -82,6 +83,7 @@ const renderInto =
 
 const createPartialLoader = (render, onBeforeLoad) => {
   let state = { current: "", pending: "" };
+  let loadGeneration = 0;
 
   const transition = (next) => {
     state = { ...state, ...next };
@@ -91,9 +93,11 @@ const createPartialLoader = (render, onBeforeLoad) => {
   return async (slug, options = {}) => {
     const force = options?.force === true;
 
-    if (!slug || (!force && (slug === state.current || slug === state.pending))) {
+    if (!slug || (!force && (slug === state.pending || (slug === state.current && !state.pending)))) {
       return state;
     }
+
+    const generation = ++loadGeneration;
 
     // Call cleanup before loading new partial
     onBeforeLoad?.();
@@ -110,8 +114,8 @@ const createPartialLoader = (render, onBeforeLoad) => {
 
     const html = await loader();
 
-    if (state.pending !== slug) {
-      return state;
+    if (generation !== loadGeneration) {
+      return null;
     }
 
     transition({ current: slug, pending: "" });
@@ -125,7 +129,7 @@ const createPartialLoader = (render, onBeforeLoad) => {
 export const initializeNavigation = (root = document) => {
   const container = root.querySelector(".layout-article");
   const nav = root.querySelector("nav");
-  const navLinks = Array.from(root.querySelectorAll('nav a[data-partial]'));
+  const navLinks = Array.from(root.querySelectorAll('nav .nav-links a[data-partial]'));
   const aboutBtn = root.querySelector(".about-btn[data-partial]");
   const footerAboutLink = root.querySelector(".footer-about-link[data-partial]");
   const userSection = root.querySelector(".user-section");
@@ -193,6 +197,9 @@ export const initializeNavigation = (root = document) => {
     let cleanup = null;
 
     switch (slug) {
+      case "home":
+        cleanup = initializeHome(target, options);
+        break;
       case "landing":
         cleanup = initializeLanding(target, options);
         break;
@@ -261,24 +268,28 @@ export const initializeNavigation = (root = document) => {
   };
 
   const loadAndInitialize = (slug, options = {}, loaderOptions = {}) => {
-    const resolvedSlug =
-      isProtectedPartial(slug) && !isAuthenticated() ? "login" : slug;
-    const routeOptions = normalizeRouteOptions(options);
+    const resolvedSlug = resolveRouteSlug(slug, isAuthenticated());
+    const redirected = resolvedSlug !== slug;
+    const routeOptions = redirected ? {} : normalizeRouteOptions(options);
 
     currentRoute = { slug: resolvedSlug, options: routeOptions };
     updateNavVisibility();
     updateShellActiveState(resolvedSlug);
 
-    const hashAction = loaderOptions.hashAction ?? "push";
+    // Replace rejected routes even during Back/Forward, keeping URL and view aligned.
+    const hashAction = redirected ? "replace" : (loaderOptions.hashAction ?? "push");
     if (hashAction !== "none") {
       const hash = buildHash(resolvedSlug, routeOptions);
       const method = hashAction === "replace" ? "replaceState" : "pushState";
       history[method]({ route: { slug: resolvedSlug, options: routeOptions } }, "", `#${hash}`);
     }
 
-    return loadPartial(resolvedSlug, loaderOptions).then(() =>
-      initializePartial(resolvedSlug, container, routeOptions)
-    );
+    return loadPartial(resolvedSlug, loaderOptions).then((state) => {
+      if (!state || state.current !== resolvedSlug || state.pending) return;
+      // Reinitializing the current page must not accumulate event listeners.
+      runCleanup();
+      return initializePartial(resolvedSlug, container, routeOptions);
+    });
   };
 
   // Below the drawer breakpoint the nav is an `auto` popover opened by
@@ -315,6 +326,10 @@ export const initializeNavigation = (root = document) => {
       return;
     }
 
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+
     event.preventDefault();
     closeNavDrawer();
     const slug = slugFrom(link);
@@ -335,20 +350,17 @@ export const initializeNavigation = (root = document) => {
   }
 
   // Determine initial page based on authentication and URL hash
-  const authenticated = isAuthenticated();
   updateNavVisibility();
 
-  const fromHistory = history.state?.route?.slug
+  const fromHash = parseHash();
+  const fromHistory = history.state?.route?.slug === fromHash?.slug && fromHash?.slug
     ? {
         slug: history.state.route.slug,
         options: normalizeRouteOptions(history.state.route.options ?? {}),
       }
     : null;
-  const fromHash = parseHash();
   const fromWindow = fromHash?.slug ? consumeWindowRouteState(fromHash.slug) : null;
-  const defaultSlug = authenticated
-    ? slugFrom(nav.querySelector("a[data-partial]"))
-    : "landing";
+  const defaultSlug = resolveRouteSlug("", isAuthenticated());
   const initialSlug = fromHistory?.slug || fromHash?.slug || defaultSlug;
   const initialOptions = fromHistory?.options || fromWindow || fromHash?.options || {};
   loadAndInitialize(initialSlug, initialOptions, { hashAction: "replace" });
@@ -378,10 +390,8 @@ export const initializeNavigation = (root = document) => {
     const targetRoute = fromHistoryState || (fromHash?.slug
       ? { slug: fromHash.slug, options: windowRoute || fromHash.options || {} }
       : null);
-    if (targetRoute?.slug) {
-      updateNavVisibility();
-      loadAndInitialize(targetRoute.slug, targetRoute.options, { hashAction: "none" });
-    }
+    updateNavVisibility();
+    loadAndInitialize(targetRoute?.slug || "", targetRoute?.options || {}, { hashAction: "none" });
   });
 
   document.addEventListener(I18N_CHANGE_EVENT, () => {
