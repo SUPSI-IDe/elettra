@@ -1,4 +1,4 @@
-import { API_ROOT } from "../config";
+import { API_ROOT } from "../config.js";
 
 export const readAccessToken = () =>
   localStorage.getItem("access_token") || "";
@@ -13,6 +13,17 @@ export const authHeaders = () => {
 };
 
 let authRedirectHandlerInstalled = false;
+
+export const shouldRedirectUnauthorizedResponse = ({
+  url,
+  headers,
+  status,
+  apiRoot = API_ROOT,
+}) =>
+  String(url).startsWith(apiRoot) &&
+  headers instanceof Headers &&
+  headers.has("Authorization") &&
+  status === 401;
 
 export const installAuthRedirectHandler = (onUnauthorized) => {
   if (authRedirectHandlerInstalled || typeof onUnauthorized !== "function") {
@@ -38,11 +49,11 @@ export const installAuthRedirectHandler = (onUnauthorized) => {
         undefined
     );
 
-    if (
-      url.startsWith(API_ROOT) &&
-      headers.has("Authorization") &&
-      (response.status === 401 || response.status === 403)
-    ) {
+    if (shouldRedirectUnauthorizedResponse({
+      url,
+      headers,
+      status: response.status,
+    })) {
       onUnauthorized();
     }
 

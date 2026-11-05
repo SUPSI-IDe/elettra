@@ -1,3 +1,6 @@
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
 import { fetchElevationByTripId, fetchStopsByTripId } from "../../../api";
 import {
   buildCartoVoyagerTileUrl,
@@ -55,18 +58,6 @@ const renderMap = async (container, elevationData, stops) => {
   }
   
   console.log(`[TripPreview] Rendering map with ${coordinates.length} coordinates`);
-  
-  // Check if Leaflet is loaded
-  if (typeof L === "undefined") {
-    try {
-      await loadLeaflet();
-      console.log("[TripPreview] Leaflet loaded successfully");
-    } catch (e) {
-      console.error("[TripPreview] Failed to load Leaflet:", e);
-      container.innerHTML = previewMessage("trip_preview.failed_map_library");
-      return;
-    }
-  }
   
   // Clean up existing map if any
   if (mapInstance) {
@@ -222,29 +213,6 @@ const renderElevation = (container, elevationData) => {
       <text x="12" y="${padTop + innerHeight / 2}" text-anchor="middle" font-size="10" fill="#9ca3af" transform="rotate(-90 12 ${padTop + innerHeight / 2})">m</text>
     </svg>
   `;
-};
-
-const loadLeaflet = () => {
-  return new Promise((resolve, reject) => {
-    // Check if already loaded
-    if (typeof L !== "undefined") {
-      resolve();
-      return;
-    }
-    
-    // Load CSS
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-    document.head.appendChild(link);
-    
-    // Load JS
-    const script = document.createElement("script");
-    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
 };
 
 // Get the database UUID (id field) - this is what the API expects
