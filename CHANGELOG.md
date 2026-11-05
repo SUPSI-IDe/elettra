@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1] - 2026-11-05
+
+### Fixed
+
+- Prevent circular production chunks from stopping the application before its first view is rendered.
+- Exercise the optimized `dist` bundle in Chromium during release and Pages workflows so source-only browser tests cannot miss packaging regressions.
+
 ## [0.8.0] - 2026-11-05
 
 ### Added

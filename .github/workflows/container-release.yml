@@ -33,6 +33,8 @@ jobs:
         run: npm run test:e2e
       - name: Build
         run: npm run build
+      - name: Production bundle smoke test
+        run: npm run test:dist
 
   publish-image:
     needs: verify

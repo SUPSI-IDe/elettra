@@ -38,9 +38,11 @@ export default defineConfig({
   },
   build: {
     // The translation catalogue is intentionally a single shared module and
-    // currently minifies to about 612 kB. Feature and vendor code must stay
-    // below that explicit ceiling instead of being folded into one app chunk.
-    chunkSizeWarningLimit: 650,
+    // currently minifies to about 612 kB. Keep vendor and translation chunks
+    // explicit, while leaving lazy feature boundaries to Rolldown. Forcing
+    // overlapping feature groups can create circular chunks whose imports are
+    // still undefined when the production bundle is evaluated.
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       input: {
         app: path.resolve(rootDir, "index.html"),
@@ -61,26 +63,6 @@ export default defineConfig({
               priority: 20,
             },
             { name: "app-i18n", test: /src[\\/]i18n[\\/]/, priority: 10 },
-            {
-              name: "feature-feasibility",
-              test: /src[\\/]pages[\\/]Simulation[\\/]Runs[\\/]/,
-              priority: 10,
-            },
-            {
-              name: "feature-yearly-analysis",
-              test: /src[\\/]pages[\\/]Simulation[\\/]YearlyAnalysis[\\/]/,
-              priority: 10,
-            },
-            {
-              name: "feature-analysis-comparison",
-              test: /src[\\/]pages[\\/]Simulation[\\/]AnalysisComparison[\\/]/,
-              priority: 10,
-            },
-            {
-              name: "feature-fleet",
-              test: /src[\\/]pages[\\/]Fleet[\\/]/,
-              priority: 10,
-            },
           ],
         },
       },
