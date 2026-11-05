@@ -161,8 +161,10 @@
               <p class="helper-text" data-i18n="simulation.aggregate_both_help">Both complete designs are calculated together. Switch between their results after the evaluation.</p>
             </div>
             <div class="form-group" data-role="fixed-battery-group" hidden>
-              <label for="var-fixed-battery-packs" data-i18n="simulation.fixed_battery_packs">Battery packs (fixed for charging optimisation)</label>
-              <input id="var-fixed-battery-packs" name="fixed_battery_packs" type="number" step="1" disabled aria-describedby="fixed-battery-help fixed-battery-feedback" />
+              <div class="fixed-battery-control">
+                <label for="var-fixed-battery-packs" data-i18n="simulation.fixed_battery_packs">Battery packs (fixed for charging optimisation)</label>
+                <input id="var-fixed-battery-packs" name="fixed_battery_packs" type="number" step="1" disabled aria-describedby="fixed-battery-help fixed-battery-feedback" />
+              </div>
               <p class="helper-text" id="fixed-battery-help" aria-live="polite"></p>
               <p class="form-feedback" id="fixed-battery-feedback" data-tone="error" role="alert" aria-live="polite" hidden></p>
             </div>

@@ -75,8 +75,12 @@ const mountResults = async (page, {
   forecastVerification,
   basisRunIds,
   dailyCycle,
+  language = "en",
 } = {}) => {
   const requestedApiPaths = [];
+  await page.addInitScript((selectedLanguage) => {
+    localStorage.setItem("elettra_lang", selectedLanguage);
+  }, language);
   const shiftNames = {
     morning: "Morning service",
     evening: "Evening service",
@@ -1501,10 +1505,12 @@ test("explains a failed multi-shift evaluation at general and individual shift l
         shift_id: "invalid",
         shift_name: "Historical 40104",
         message: "Historical 40104 starts and ends at different depots.",
-        start_stop_id: "depot-2",
-        start_stop_name: "TPL Rimessa 2",
-        end_stop_id: "depot-1",
-        end_stop_name: "TPL Rimessa 1",
+        details: {
+          start_stop_id: "depot-2",
+          start_stop_name: "TPL Rimessa 2",
+          end_stop_id: "depot-1",
+          end_stop_name: "TPL Rimessa 1",
+        },
       }],
       shift_outcomes: [
         {
@@ -1535,6 +1541,9 @@ test("explains a failed multi-shift evaluation at general and individual shift l
   await expect(general).toContainText(
     "This does not mean that the configuration is infeasible.",
   );
+  await expect(general.locator('[data-role="feasibility-failure-guidance"]')).toContainText(
+    "Edit vehicle block 40104 so that it uses the same departure and return depot",
+  );
   await expect(page.locator('[data-role="feasibility-general-level"]')).toHaveCount(0);
   await expect(page.locator('[data-role="feasibility-fleet-battery"]')).toHaveCount(0);
   await expect(page.locator(".results-shift-tabs")).toContainText("40101");
@@ -1562,6 +1571,9 @@ test("explains a failed multi-shift evaluation at general and individual shift l
   await expect(invalidDetail.locator('[data-role="feasibility-failure-reason"]')).toContainText(
     "TPL Rimessa 1",
   );
+  await expect(invalidDetail.locator('[data-role="feasibility-failure-guidance"]')).toContainText(
+    "Edit vehicle block 40104 so that it uses the same departure and return depot",
+  );
   await expect(page.locator('[data-role="feasibility-shift-summary"]')).toHaveCount(0);
 
   await selectShiftScope(page, "valid-one");
@@ -1574,6 +1586,9 @@ test("explains a failed multi-shift evaluation at general and individual shift l
   await expect(blockedDetail.locator('[data-role="feasibility-failure-blocked-by"]')).toContainText(
     "40104",
   );
+  await expect(blockedDetail.locator('[data-role="feasibility-failure-guidance"]')).toContainText(
+    "Correct the blocking vehicle block(s) 40104",
+  );
   await expect(page.locator('[data-action="toggle-sim-data"]')).toBeVisible();
   expect(
     await page.evaluate(
@@ -1581,6 +1596,37 @@ test("explains a failed multi-shift evaluation at general and individual shift l
     ),
   ).toBe(false);
   expect(failedResultDerivedRequests(requestedApiPaths)).toEqual([]);
+});
+
+test("renders the legacy depot remediation in Italian with emphasized danger styling", async ({ page }) => {
+  await mountResults(page, {
+    language: "it",
+    shiftIds: ["invalid"],
+    shiftNames: { invalid: "40104" },
+    predictionRunIds: [],
+    runStatus: "failed",
+    includeElectrificationFeasible: false,
+    includeBatteryResults: false,
+    includePerBusSummary: false,
+    legacyError: "40104: daily repetition requires the existing trips to start and end at the same depot; no transfers are added",
+  });
+
+  const guidance = page.locator(
+    '[data-role="feasibility-failure-general"] [data-role="feasibility-failure-guidance"]',
+  );
+  await expect(guidance).toContainText("Come risolvere:");
+  await expect(guidance).toContainText(
+    "Modifica il turno macchina 40104 impostando lo stesso deposito di partenza e ritorno e ricrea i relativi collegamenti con il deposito. Quindi rilancia la valutazione di fattibilità.",
+  );
+  const style = await guidance.evaluate((element) => {
+    const computed = getComputedStyle(element);
+    return {
+      color: computed.color,
+      fontWeight: Number.parseInt(computed.fontWeight, 10),
+    };
+  });
+  expect(style.color).toBe("rgb(211, 47, 47)");
+  expect(style.fontWeight).toBeGreaterThanOrEqual(600);
 });
 
 test("keeps legacy failure text safe and skips derived result requests", async ({ page }) => {
@@ -1596,6 +1642,9 @@ test("keeps legacy failure text safe and skips derived result requests", async (
   const general = page.locator('[data-role="feasibility-failure-general"]');
   await expect(general).toBeVisible();
   await expect(general).toContainText(unsafeMessage);
+  await expect(general.locator('[data-role="feasibility-failure-guidance"]')).toContainText(
+    "Check the selected vehicle blocks, bus model and charging infrastructure",
+  );
   await expect(page.locator('[data-role="failure-injected"]')).toHaveCount(0);
   expect(await page.evaluate(() => window.__failureXss)).toBeUndefined();
 

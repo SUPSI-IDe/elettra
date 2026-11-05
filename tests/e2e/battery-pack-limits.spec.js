@@ -73,6 +73,32 @@ test('manual entries show precise errors and cannot start an evaluation; limits 
   await expect(input).toHaveValue('10');
 });
 
+test('the fixed battery control stays compact and aligned with its label', async ({ page }) => {
+  const { input } = await setup(page, { lang: 'it' });
+  const control = page.locator('.fixed-battery-control');
+  await expect(control).toBeVisible();
+  await expect(control.locator('label')).toHaveText(
+    'Pacchi batteria (fissi per l’ottimizzazione della ricarica)',
+  );
+
+  const layout = await control.evaluate((element) => {
+    const label = element.querySelector('label').getBoundingClientRect();
+    const field = element.querySelector('input').getBoundingClientRect();
+    const container = element.getBoundingClientRect();
+    return {
+      containerWidth: container.width,
+      fieldWidth: field.width,
+      centerDifference: Math.abs(
+        (label.top + label.height / 2) - (field.top + field.height / 2),
+      ),
+    };
+  });
+  expect(layout.fieldWidth).toBeLessThanOrEqual(100);
+  expect(layout.fieldWidth).toBeLessThan(layout.containerWidth / 2);
+  expect(layout.centerDifference).toBeLessThanOrEqual(1);
+  await expect(input).toBeEnabled();
+});
+
 test('changing bus model initializes its midpoint; edits survive unrelated mode changes', async ({ page }) => {
   const { input, help, error, confirm, submit } = await setup(page);
   await input.fill('16');

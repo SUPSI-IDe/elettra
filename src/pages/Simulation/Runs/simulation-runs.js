@@ -387,6 +387,17 @@ const resolveRunMode = (run = {}) =>
     ""
   ).trim();
 
+const formatRunMode = (mode) => {
+  const normalized = text(mode).trim();
+  const labels = {
+    battery_only: ["simulation.mode_battery_only", "Battery only"],
+    charging_only: ["simulation.mode_charging", "Charging"],
+    joint: ["simulation.mode_joint", "Joint"],
+  };
+  const [key, fallback] = labels[normalized] ?? [];
+  return key ? (t(key) || fallback) : (normalized || "—");
+};
+
 const resolveExternalTemp = (run = {}) =>
   toFiniteNumber(
     run?.external_temp_celsius ??
@@ -736,15 +747,17 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
       const busModelLabel = busModelName || busModelId || "—";
       const busModelTooltip =
         text(run?._resolved_bus_model_tooltip).trim() || busModelLabel;
-      const mode = resolveRunMode(run) || "—";
+      const mode = formatRunMode(resolveRunMode(run));
       const mainParameters = formatMainParameters(run);
       const feasible = resolveElectrificationFeasible(run);
       const feasibilityLabel = formatFeasibilityLabel(feasible, run);
+      const feasibilityTone = feasibilityIndicatorClass(feasible, run);
       const statusLabel = formatEvaluationStatus(run);
-      const undetermined = feasibilityIndicatorClass(feasible, run) === "neutral";
-      const accessibleFeasibilityLabel = run.basis_summaries || feasible === true || feasible === false
-        ? feasibilityLabel
-        : `${t("simulation.feasibility_not_determined")} — ${statusLabel}`;
+      const accessibleFeasibilityLabel = feasibilityTone === "neutral"
+        ? `${t("simulation.feasibility_not_determined")} — ${
+            feasibilityLabel !== "—" ? feasibilityLabel : statusLabel
+          }`
+        : feasibilityLabel;
 
       const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${textContent(rowId)}">${textContent(t("simulation.col_results") || "Results")}</a>`;
 
@@ -771,13 +784,12 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
           </td>
           <td class="feasibility">
             <span
-              class="simulation-state-indicator simulation-state-indicator--${feasibilityIndicatorClass(feasible, run)}"
+              class="simulation-state-indicator simulation-state-indicator--${feasibilityTone}"
               role="img"
               tabindex="0"
               aria-label="${textContent(accessibleFeasibilityLabel)}"
               title="${textContent(accessibleFeasibilityLabel)}"
             ></span>
-            ${undetermined ? `<small class="simulation-state-note">${textContent(t("simulation.feasibility_not_determined"))}</small>` : ""}
           </td>
           <td class="results">${resultsLink}</td>
         </tr>`;
