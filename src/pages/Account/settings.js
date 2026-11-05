@@ -11,6 +11,7 @@ import {
 } from "../../api/session";
 import { t } from "../../i18n";
 import { toggleFormDisabled, updateFeedback } from "../../ui-helpers";
+import { meetsPasswordMinimumLength } from "../../utils/password-policy";
 
 const isUnauthorizedError = (error) =>
   error?.status === 401 ||
@@ -161,7 +162,7 @@ export const initializeSettings = async (root = document) => {
       return;
     }
 
-    if (newPassword.length < 8) {
+    if (!meetsPasswordMinimumLength(newPassword)) {
       updateFeedback(passwordFeedback, t("password.too_short"), "error");
       return;
     }

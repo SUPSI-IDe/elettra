@@ -11,6 +11,10 @@ import {
   prepareCustomStopDeletion,
   resolveCustomStopDeleteFailure,
 } from "../../../utils/custom-stop-deletion";
+import {
+  formatBatchDeletionFeedback,
+  settleBatchDeletion,
+} from "../../../utils/batch-delete";
 import { resolveUserId, isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
@@ -221,8 +225,15 @@ export const initializeCustomStops = async (root = document, options = {}) => {
         return;
       }
 
-      await Promise.all(ids.map((id) => deleteDepot(id)));
-      setFlashMessage(section, t("custom_stops.deleted"));
+      const result = await settleBatchDeletion(ids, deleteDepot);
+      setFlashMessage(
+        section,
+        result.failedCount
+          ? formatBatchDeletionFeedback(result, t, (error) =>
+              resolveCustomStopDeleteFailure(error, t)
+            )
+          : t("custom_stops.deleted")
+      );
       await reload();
     } catch (error) {
       const resolved = resolveCustomStopDeleteFailure(error, t);

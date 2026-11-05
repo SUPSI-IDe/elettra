@@ -52,3 +52,13 @@ test("staging smoke script requires credentials from the environment", async () 
   assert.match(source, /GRID94_TEST_LOGIN_PASSWORD/);
   assert.doesNotMatch(source, /ci-release@example\.com|CI-release-gate/);
 });
+
+test("local Vite proxy defaults to staging and never falls through to production", async () => {
+  const source = await readFile(
+    new URL("../vite.config.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(source, /VITE_API_PROXY_TARGET\s*\|\|\s*["']http:\/\/127\.0\.0\.1:9005["']/);
+  assert.doesNotMatch(source, /VITE_API_PROXY_TARGET\s*\|\|[^\n]*:8002/);
+});

@@ -15,6 +15,10 @@ import {
   prepareOptimizationRunDeletion,
   resolveOptimizationRunDeleteFailure,
 } from "../../../utils/optimization-run-deletion";
+import {
+  formatBatchDeletionFeedback,
+  settleBatchDeletion,
+} from "../../../utils/batch-delete";
 import { fetchShiftById, screenShiftIds } from "../../../api/shifts";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
@@ -1271,66 +1275,27 @@ export const initializeSimulationRuns = async (
         .replace("{count}", ids.length);
       if (!confirm(msg)) return;
 
-      const deletedIds = new Set();
-      let serverFailed = 0;
-      let blockedDeleteMessage = null;
-
-      for (const id of ids) {
-        try {
-          const result = await deleteOptimizationRun(id);
-          if (result.deleted) {
-            deletedIds.add(id);
-          } else {
-            serverFailed++;
-          }
-        } catch (error) {
-          serverFailed++;
-          if (isBlockedDeleteError(error)) {
-            const resolved = resolveOptimizationRunDeleteFailure(error, t);
-            if (resolved.message) {
-              blockedDeleteMessage = resolved.message;
-            }
-          }
+      const result = await settleBatchDeletion(ids, async (id) => {
+        const response = await deleteOptimizationRun(id);
+        if (!response?.deleted) {
+          throw new Error(t("simulation.delete_not_supported"));
         }
-      }
-
-      const removedIds = deletedIds;
-
-      if (removedIds.size) {
-        allRuns = allRuns.filter((r) => !removedIds.has(text(r?.id)));
-        applyFilter();
-      }
-
-      if (!removedIds.size && serverFailed) {
-        setFlashMessage(
-          section,
-          blockedDeleteMessage ||
-            t("simulation.delete_not_supported") ||
-            "These simulations could not be deleted. They remain visible."
-        );
-        await loadRuns();
-        return;
-      }
-
-      if (serverFailed) {
-        setFlashMessage(
-          section,
-          t("simulation.delete_partial_success", {
-            removed: removedIds.size,
-            failed: serverFailed,
-          }) ||
-            `${removedIds.size} simulation(s) removed. ${serverFailed} could not be deleted.`
-        );
-        await loadRuns();
-        return;
-      }
-
-      const removedCount = removedIds.size;
+        return response;
+      });
+      const removedCount = result.succeededCount;
       setFlashMessage(
         section,
-        t("simulation.removed", { count: removedCount }) ||
-          `${removedCount} simulation(s) removed.`
+        result.failedCount
+          ? formatBatchDeletionFeedback(result, t, (error) => {
+              if (isBlockedDeleteError(error)) {
+                return resolveOptimizationRunDeleteFailure(error, t);
+              }
+              return error?.message || t("simulation.delete_not_supported");
+            })
+          : t("simulation.removed", { count: removedCount }) ||
+              `${removedCount} simulation(s) removed.`
       );
+      await loadRuns();
     } finally {
       if (deleteButton) {
         deleteButton.disabled = false;

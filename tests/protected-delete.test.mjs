@@ -22,6 +22,9 @@ const EN = {
   "protected_delete.blocker_type.shift": "Vehicle block",
   "protected_delete.blocker_type.custom_stop": "Custom stop",
   "protected_delete.blocker_type.bus_model": "Bus model",
+  "protected_delete.blocker_type.bus": "Bus",
+  "protected_delete.blocker_type.prediction_run": "Prediction run",
+  "protected_delete.blocker_type.depot": "Depot",
   "protected_delete.blocker_type.unknown": "Related item",
 };
 
@@ -99,6 +102,42 @@ test("formatDeletionBlockerLabel uses id when name is unavailable", () => {
   );
 
   assert.equal(label, "Custom stop (ID: depot-42)");
+});
+
+test("new backend blocker types have stable localized labels", () => {
+  assert.equal(
+    formatDeletionBlockerLabel(
+      { type: DELETION_BLOCKER_TYPES.BUS, name: "Vehicle 12" },
+      translate
+    ),
+    'Bus "Vehicle 12"'
+  );
+  assert.equal(
+    formatDeletionBlockerLabel(
+      { type: DELETION_BLOCKER_TYPES.PREDICTION_RUN, id: "pr-2" },
+      translate
+    ),
+    "Prediction run (ID: pr-2)"
+  );
+  assert.equal(
+    formatDeletionBlockerLabel(
+      { type: DELETION_BLOCKER_TYPES.DEPOT },
+      translate
+    ),
+    "Depot"
+  );
+});
+
+test("all blocker labels are translated in every supported locale", async () => {
+  const { translations } = await import("../src/i18n/translations.js");
+  const keys = [
+    "protected_delete.blocker_type.bus",
+    "protected_delete.blocker_type.prediction_run",
+    "protected_delete.blocker_type.depot",
+  ];
+  for (const [locale, dictionary] of Object.entries(translations)) {
+    keys.forEach((key) => assert.ok(dictionary[key]?.trim(), `${locale}.${key}`));
+  }
 });
 
 test("guardProtectedDeletion blocks deletion and flashes message", () => {

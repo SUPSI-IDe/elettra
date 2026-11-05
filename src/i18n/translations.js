@@ -353,6 +353,10 @@ export const translations = {
     "common.optional": "(optional)",
     "common.loading": "Loading…",
     "common.unknown_error": "Unknown error",
+    "common.delete_partial":
+      "Deleted {deleted} of {total} selected items. {failed} could not be deleted.",
+    "common.delete_none":
+      "None of the {total} selected items could be deleted.",
 
     // Protected deletion (shared)
     "protected_delete.blocked_intro":
@@ -367,6 +371,9 @@ export const translations = {
     "protected_delete.blocker_type.shift": "Vehicle block",
     "protected_delete.blocker_type.custom_stop": "Custom stop",
     "protected_delete.blocker_type.bus_model": "Bus model",
+    "protected_delete.blocker_type.bus": "Bus",
+    "protected_delete.blocker_type.prediction_run": "Prediction run",
+    "protected_delete.blocker_type.depot": "Depot",
     "protected_delete.blocker_type.unknown": "Related item",
     "delete_error.blocked":
       "Unable to delete: this resource is still in use.",
@@ -1261,7 +1268,7 @@ export const translations = {
     "password.confirm": "Confirm New Password",
     "password.update": "Update Password",
     "password.mismatch": "New passwords do not match.",
-    "password.too_short": "Password must be at least 8 characters.",
+    "password.too_short": "Password must be at least 12 characters.",
     "password.success": "Password updated successfully!",
     "settings.title": "Account settings",
     "settings.intro": "Update your account details and password here.",
@@ -1321,7 +1328,7 @@ export const translations = {
     "register.company": "Company (optional)",
     "register.agency": "Agency",
     "register.password": "Password",
-    "register.password_hint": "Must be at least 8 characters",
+    "register.password_hint": "Must be at least 12 characters",
     "register.confirm_password": "Confirm Password",
     "register.terms": "I agree to the Terms of Service and Privacy Policy",
     "register.submit": "Create Account",
@@ -1335,7 +1342,7 @@ export const translations = {
     "register.email_password_required": "Please enter your email and password.",
     "register.company_required": "Please select a company/agency from the list.",
     "register.passwords_mismatch": "Passwords do not match.",
-    "register.password_too_short": "Password must be at least 8 characters.",
+    "register.password_too_short": "Password must be at least 12 characters.",
 
     // Additional i18n coverage
         "common.logo_alt": "ELETTRA logo",
@@ -2340,6 +2347,10 @@ export const translations = {
     "common.optional": "(optional)",
     "common.loading": "Laden…",
     "common.unknown_error": "Unbekannter Fehler",
+    "common.delete_partial":
+      "{deleted} von {total} ausgewählten Elementen wurden gelöscht. {failed} konnten nicht gelöscht werden.",
+    "common.delete_none":
+      "Keines der {total} ausgewählten Elemente konnte gelöscht werden.",
 
     // Protected deletion (shared)
     "protected_delete.blocked_intro":
@@ -2354,6 +2365,9 @@ export const translations = {
     "protected_delete.blocker_type.shift": "Fahrzeugumlauf",
     "protected_delete.blocker_type.custom_stop": "Individuelle Haltestelle",
     "protected_delete.blocker_type.bus_model": "Busmodell",
+    "protected_delete.blocker_type.bus": "Bus",
+    "protected_delete.blocker_type.prediction_run": "Prognoselauf",
+    "protected_delete.blocker_type.depot": "Depot",
     "protected_delete.blocker_type.unknown": "Zugehöriges Element",
     "delete_error.blocked":
       "Löschen nicht möglich: Diese Ressource wird noch verwendet.",
@@ -3244,7 +3258,7 @@ export const translations = {
     "password.confirm": "Neues Passwort bestätigen",
     "password.update": "Passwort aktualisieren",
     "password.mismatch": "Neue Passwörter stimmen nicht überein.",
-    "password.too_short": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+    "password.too_short": "Das Passwort muss mindestens 12 Zeichen lang sein.",
     "password.success": "Passwort erfolgreich aktualisiert!",
     "settings.title": "Kontoeinstellungen",
     "settings.intro": "Aktualisieren Sie hier Ihre Kontodaten und Ihr Passwort.",
@@ -3304,7 +3318,7 @@ export const translations = {
     "register.company": "Unternehmen (optional)",
     "register.agency": "Agentur",
     "register.password": "Passwort",
-    "register.password_hint": "Mindestens 8 Zeichen",
+    "register.password_hint": "Mindestens 12 Zeichen",
     "register.confirm_password": "Passwort bestätigen",
     "register.terms": "Ich stimme den Nutzungsbedingungen und der Datenschutzerklärung zu",
     "register.submit": "Konto erstellen",
@@ -3318,7 +3332,7 @@ export const translations = {
     "register.email_password_required": "Bitte geben Sie Ihre E-Mail und Ihr Passwort ein.",
     "register.company_required": "Bitte wählen Sie ein Unternehmen/eine Agentur aus der Liste.",
     "register.passwords_mismatch": "Passwörter stimmen nicht überein.",
-    "register.password_too_short": "Passwort muss mindestens 8 Zeichen lang sein.",
+    "register.password_too_short": "Passwort muss mindestens 12 Zeichen lang sein.",
 
     // Additional i18n coverage
         "common.logo_alt": "ELETTRA-Logo",
@@ -4323,6 +4337,10 @@ export const translations = {
     "common.optional": "(optionnel)",
     "common.loading": "Chargement…",
     "common.unknown_error": "Erreur inconnue",
+    "common.delete_partial":
+      "{deleted} élément(s) sur {total} ont été supprimé(s). {failed} n'ont pas pu être supprimé(s).",
+    "common.delete_none":
+      "Aucun des {total} éléments sélectionnés n'a pu être supprimé.",
 
     // Protected deletion (shared)
     "protected_delete.blocked_intro":
@@ -4337,6 +4355,9 @@ export const translations = {
     "protected_delete.blocker_type.shift": "Service voiture",
     "protected_delete.blocker_type.custom_stop": "Arrêt personnalisé",
     "protected_delete.blocker_type.bus_model": "Modèle de bus",
+    "protected_delete.blocker_type.bus": "Bus",
+    "protected_delete.blocker_type.prediction_run": "Exécution de prédiction",
+    "protected_delete.blocker_type.depot": "Dépôt",
     "protected_delete.blocker_type.unknown": "Élément associé",
     "delete_error.blocked":
       "Suppression impossible : cette ressource est encore utilisée.",
@@ -5227,7 +5248,7 @@ export const translations = {
     "password.confirm": "Confirmer le nouveau mot de passe",
     "password.update": "Mettre à jour le mot de passe",
     "password.mismatch": "Les nouveaux mots de passe ne correspondent pas.",
-    "password.too_short": "Le mot de passe doit contenir au moins 8 caractères.",
+    "password.too_short": "Le mot de passe doit contenir au moins 12 caractères.",
     "password.success": "Mot de passe mis à jour avec succès !",
     "settings.title": "Paramètres du compte",
     "settings.intro": "Mettez à jour ici les informations de votre compte et votre mot de passe.",
@@ -5287,7 +5308,7 @@ export const translations = {
     "register.company": "Entreprise (optionnel)",
     "register.agency": "Agence",
     "register.password": "Mot de passe",
-    "register.password_hint": "Au moins 8 caractères",
+    "register.password_hint": "Au moins 12 caractères",
     "register.confirm_password": "Confirmer le mot de passe",
     "register.terms": "J'accepte les Conditions d'utilisation et la Politique de confidentialité",
     "register.submit": "Créer un compte",
@@ -5301,7 +5322,7 @@ export const translations = {
     "register.email_password_required": "Veuillez saisir votre e-mail et votre mot de passe.",
     "register.company_required": "Veuillez sélectionner une entreprise/agence dans la liste.",
     "register.passwords_mismatch": "Les mots de passe ne correspondent pas.",
-    "register.password_too_short": "Le mot de passe doit contenir au moins 8 caractères.",
+    "register.password_too_short": "Le mot de passe doit contenir au moins 12 caractères.",
 
     // Additional i18n coverage
         "common.logo_alt": "Logo ELETTRA",
@@ -6306,6 +6327,10 @@ export const translations = {
     "common.optional": "(opzionale)",
     "common.loading": "Caricamento…",
     "common.unknown_error": "Errore sconosciuto",
+    "common.delete_partial":
+      "Eliminati {deleted} elementi selezionati su {total}. {failed} non sono stati eliminati.",
+    "common.delete_none":
+      "Non è stato possibile eliminare nessuno dei {total} elementi selezionati.",
 
     // Protected deletion (shared)
     "protected_delete.blocked_intro":
@@ -6320,6 +6345,9 @@ export const translations = {
     "protected_delete.blocker_type.shift": "Turno macchina",
     "protected_delete.blocker_type.custom_stop": "Fermata personalizzata",
     "protected_delete.blocker_type.bus_model": "Modello di autobus",
+    "protected_delete.blocker_type.bus": "Autobus",
+    "protected_delete.blocker_type.prediction_run": "Simulazione di previsione",
+    "protected_delete.blocker_type.depot": "Deposito",
     "protected_delete.blocker_type.unknown": "Elemento correlato",
     "delete_error.blocked":
       "Impossibile eliminare: questa risorsa è ancora in uso.",
@@ -7210,7 +7238,7 @@ export const translations = {
     "password.confirm": "Conferma nuova password",
     "password.update": "Aggiorna password",
     "password.mismatch": "Le nuove password non corrispondono.",
-    "password.too_short": "La password deve contenere almeno 8 caratteri.",
+    "password.too_short": "La password deve contenere almeno 12 caratteri.",
     "password.success": "Password aggiornata con successo!",
     "settings.title": "Impostazioni account",
     "settings.intro": "Aggiorna qui i dati del tuo account e la password.",
@@ -7270,7 +7298,7 @@ export const translations = {
     "register.company": "Azienda (opzionale)",
     "register.agency": "Agenzia",
     "register.password": "Password",
-    "register.password_hint": "Almeno 8 caratteri",
+    "register.password_hint": "Almeno 12 caratteri",
     "register.confirm_password": "Conferma password",
     "register.terms": "Accetto i Termini di servizio e l'Informativa sulla privacy",
     "register.submit": "Crea account",
@@ -7284,7 +7312,7 @@ export const translations = {
     "register.email_password_required": "Inserisci e-mail e password.",
     "register.company_required": "Seleziona un'azienda/agenzia dalla lista.",
     "register.passwords_mismatch": "Le password non corrispondono.",
-    "register.password_too_short": "La password deve contenere almeno 8 caratteri.",
+    "register.password_too_short": "La password deve contenere almeno 12 caratteri.",
 
     // Additional i18n coverage
         "common.logo_alt": "Logo ELETTRA",

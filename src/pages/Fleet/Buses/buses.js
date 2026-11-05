@@ -28,6 +28,10 @@ import {
 import { installPaginationControl } from "../../../dom/pagination";
 import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { triggerPartialLoad } from "../../../events";
+import {
+  formatBatchDeletionFeedback,
+  settleBatchDeletion,
+} from "../../../utils/batch-delete";
 
 const text = (value) => (value === null || value === undefined ? "" : String(value));
 
@@ -95,8 +99,13 @@ const initializeModelControls = (section, cleanupHandlers) => {
           return;
         }
 
-        await Promise.all(selectedIds.map((id) => deleteBusModel(id)));
-        writeFlash(t("buses.deleted_models"));
+        const result = await settleBatchDeletion(selectedIds, deleteBusModel);
+        const message = result.failedCount
+          ? formatBatchDeletionFeedback(result, t, (error) =>
+              resolveBusModelDeleteFailure(error, t)
+            )
+          : t("buses.deleted_models");
+        writeFlash(message);
         triggerPartialLoad("buses");
       } catch (error) {
         const resolved = resolveBusModelDeleteFailure(error, t);

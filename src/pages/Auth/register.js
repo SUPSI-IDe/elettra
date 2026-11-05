@@ -2,6 +2,7 @@ import { registerUser } from "../../api/auth";
 import { fetchAgencies } from "../../api/gtfs";
 import { triggerPartialLoad } from "../../events";
 import { t } from "../../i18n";
+import { meetsPasswordMinimumLength } from "../../utils/password-policy";
 
 // Cache for agencies
 let agenciesCache = null;
@@ -127,7 +128,7 @@ const handleRegister = async (form, feedback) => {
     return;
   }
 
-  if (password.length < 8) {
+  if (!meetsPasswordMinimumLength(password)) {
     showFeedback(feedback, t("register.password_too_short"), "error");
     return;
   }
