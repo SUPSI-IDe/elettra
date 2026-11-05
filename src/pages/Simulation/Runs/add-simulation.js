@@ -375,7 +375,8 @@ const applyChargingStationPrefill = ({
     if (costCard && station.cost_model) {
       costCard.dataset.model = JSON.stringify(station.cost_model);
       costCard.querySelectorAll('[data-cost-field]').forEach(input=> {
-        input.value = station.cost_model[input.dataset.costField] / (input.dataset.costField === 'connection_cost_per_kw_chf' ? 1 : 1000);
+        // Stored models and form fields both use CHF (CHF/kW for connection costs).
+        input.value = station.cost_model[input.dataset.costField];
       });
     }
 

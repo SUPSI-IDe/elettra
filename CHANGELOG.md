@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0-rc.2] - 2026-11-05
+
+### Fixed
+
+- Preserve charging-point and site fixed costs in CHF when duplicating feasibility evaluations. Repeated copies no longer divide the costs by 1,000 or incorrectly mark standard costs as custom.
+- Add browser regressions for repeated Mean and Q95 copies in all three optimization modes, covering standard and custom depot/pantograph costs, zero costs and fractional CHF amounts.
+
+### Staging candidate
+
+- Keep CHF inputs, investments and exports consistent with explicitly scaled kCHF bus-model tables and annual charts. Previously saved evaluations with incorrect inputs must be reviewed and recalculated.
+
 ## [0.9.0-rc.1] - 2026-11-05
 
 ### Added
