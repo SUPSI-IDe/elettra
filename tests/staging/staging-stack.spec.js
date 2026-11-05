@@ -39,7 +39,8 @@ test("the required frontend, backend, and database staging chain is active", asy
   const backendHealth = await request.get(`${targets.backendUrl}/health`);
   expect(backendHealth.status()).toBe(200);
   const backendHealthBody = await backendHealth.json();
-  expect(backendHealthBody.services?.database?.status).toBe("healthy");
+  expect(backendHealthBody.status).toBe("healthy");
+  expect(backendHealthBody.version).toMatch(/^\d+\.\d+\.\d+(?:[-+].+)?$/);
 
   const frontendHealth = await request.get(`${targets.frontendUrl}/health`);
   expect(frontendHealth.status()).toBe(200);
