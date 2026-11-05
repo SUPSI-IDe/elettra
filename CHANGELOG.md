@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.0-rc.1] - 2026-11-05
+
+### Added
+
+- Introduce an authenticated home in four languages explaining the main sections and planning workflow, with direct links to each section.
+- Open the internal home after login and through the ELETTRA logo and Home navigation entry.
+
+### Fixed
+
+- Preserve the authenticated navigation flow when returning from the user guide; signed-in users no longer see the public login landing page.
+- Restore fleet deletion, vehicle-block editing, registration, pagination and annual-analysis creation workflows.
+- Cancel superseded route loads and clean up page handlers to keep repeated navigation reliable.
+
+### Staging candidate
+
+- Integrate the home and stable CRUD fixes on a dedicated branch. Publish as a GitHub Pre-release without changing stable Docker aliases.
+
 ## [0.8.1] - 2026-11-05
 
 ### Fixed
