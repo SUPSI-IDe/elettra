@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.0] - 2026-11-05
+
+### Added
+
+- Add an authenticated home explaining the application sections in four languages. The ELETTRA logo and guide return links open the appropriate home for the current session.
+
+### Fixed
+
+- Preserve the complete feasibility configuration across repeated duplication, including CHF infrastructure costs, fixed battery reference packs, SOC limits, charging constraints, forecast settings and solver options.
+- Display negligible infrastructure costs as zero without modifying untouched saved values. Prevent incomplete copies when source resources cannot be recovered.
+- Restore fleet deletion, vehicle-block editing, registration, pagination and annual-analysis creation workflows.
+
+### Release
+
+- Promote the functionality validated in 0.9.0-rc.3. Existing historical costs and results are preserved; incorrectly configured historical evaluations require review and recalculation.
+
 ## [0.9.0-rc.3] - 2026-11-05
 
 ### Fixed
