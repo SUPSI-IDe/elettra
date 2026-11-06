@@ -42,6 +42,15 @@
   vertical-align: middle;
 }
 
+.simulation-runs-table th.name,
+.simulation-runs-table td.name {
+  text-align: left;
+}
+
+.simulation-runs-table th.name .sort-button {
+  justify-content: flex-start;
+}
+
 .simulation-runs-table .sort-button {
   width: 100%;
   display: inline-flex;

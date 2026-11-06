@@ -75,7 +75,7 @@ export const buildYearlyAnalysisRowsMarkup = (analyses = []) =>
       return `<tr data-id="${textContent(id)}">
         <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("yearly_analysis.select_analysis"))}" /></td>
         <td>${textContent(formatDate(analysis.created_at))}</td>
-        <td>${textContent(analysis.name || "—")}</td>
+        <td class="name">${textContent(analysis.name || "—")}</td>
         <td title="${textContent(shifts)}">${textContent(shifts)}</td>
         <td>${textContent(mode)}</td>
         <td><span class="ya-status-badge ${statusClass}">${textContent(statusLabel(status))}</span></td>

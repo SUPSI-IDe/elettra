@@ -20,6 +20,9 @@ const simulationRunsHtml = readSource(
 const simulationRunsJs = readSource(
   "src/pages/Simulation/Runs/simulation-runs.js"
 );
+const yearlyAnalysisRunsHtml = readSource(
+  "src/pages/Simulation/YearlyAnalysis/yearly-analysis-runs.html"
+);
 
 const openStyledPage = async (page) => {
   await page.goto("./");
@@ -420,4 +423,32 @@ test("created dates do not inherit action-column styling", async ({ page }) => {
 
   expect(styles.createdBackground).toBe(styles.nameBackground);
   expect(styles.createdAlignment).toBe("center");
+});
+
+
+test("feasibility and yearly-analysis names align to the left", async ({ page }) => {
+  await mountSourceElement(page, simulationRunsHtml, ".simulation-runs");
+  await page.locator('[data-role="simulation-runs-body"]').evaluate((tbody) => {
+    tbody.innerHTML = `<tr><td class="checkbox"></td><td class="name">Feasibility name</td></tr>`;
+  });
+  await expect(
+    computedAlignments(page.locator(".simulation-runs-table :is(th.name, td.name)"))
+  ).resolves.toEqual(["left", "left"]);
+  await expect(
+    page.locator(".simulation-runs-table th.name .sort-button").evaluate(
+      (button) => getComputedStyle(button).justifyContent
+    )
+  ).resolves.toBe("flex-start");
+
+  await mountSourceElement(page, yearlyAnalysisRunsHtml, ".yearly-analysis-runs");
+  await page.evaluate(async () => {
+    const { buildYearlyAnalysisRowsMarkup } = await import(
+      "/elettra/src/pages/Simulation/YearlyAnalysis/yearly-analysis-runs.js"
+    );
+    document.querySelector('[data-role="ya-runs-body"]').innerHTML =
+      buildYearlyAnalysisRowsMarkup([{ id: "analysis-1", name: "Annual analysis" }]);
+  });
+  await expect(
+    computedAlignments(page.locator(".ya-runs-table :is(th.name, td.name)"))
+  ).resolves.toEqual(["left", "left"]);
 });

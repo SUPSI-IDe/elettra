@@ -423,8 +423,10 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(generalLevel.locator(".ya-scope-level__eyebrow")).toHaveCount(0);
   await expect(generalLevel.locator(".ya-scope-level__title")).toHaveText("Deployed configuration");
   await expect(generalLevel.locator(".ya-scope-mode")).toHaveText("Optimization mode: Joint");
-  const generalDownload = generalLevel.getByRole("button", { name: "Download all results (JSON)" });
+  const generalDownload = page.getByRole("button", { name: "Download all results (JSON)" });
   await expect(generalDownload).toBeVisible();
+  await expect(generalDownload).toHaveClass(/ya-btn--download/);
+  await expect(generalDownload.locator("svg")).toHaveCount(1);
   const { download, exported } = await downloadAllResults(page);
   expect(download.suggestedFilename()).toMatch(/^yearly-analysis-.*\.json$/);
   expect(exported.schemaVersion).toBe(3);
@@ -548,11 +550,22 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(resultViewTabs).toHaveCount(3);
   await expect(resultViewTabs).toHaveText(["Efficiency", "Costs", "Emissions"]);
   await expect(resultViewTabs.nth(0)).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator('[data-action="download-json"]')).toHaveCount(0);
+  await expect(page.locator('[data-action="download-json"]')).toBeHidden();
   await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   await expect(page.locator('[data-panel="overview"]')).toBeHidden();
+  const efficiencyChartFrames = await page.locator(".ya-eff-chart-section .ya-chart-container").evaluateAll(
+    (elements) => elements.map((element) => ({
+      containerHeight: element.getBoundingClientRect().height,
+      svgHeight: element.querySelector("svg")?.getBoundingClientRect().height ?? 0,
+    })),
+  );
+  expect(efficiencyChartFrames).toHaveLength(2);
+  efficiencyChartFrames.forEach(({ containerHeight, svgHeight }) => {
+    expect(containerHeight).toBeCloseTo(520, 0);
+    expect(svgHeight).toBeCloseTo(520, 0);
+  });
   await expect(shiftSummarySlot).toBeVisible();
   const shiftLevel = page.locator('[data-role="ya-shift-reference"]');
   await expect(shiftLevel).toHaveClass(/ya-scope-level--shift/);
@@ -863,6 +876,49 @@ test("fleet and shift CAPEX expose multiple physical vehicles without reallocati
   await expect(capex).toContainText(/CHF 166['’,]667/);
   await expect(capex).toContainText(/CHF 1['’,]206['’,]667/);
   await expect(capex).toContainText(/CHF 700['’,]000/);
+});
+
+test("current fleet-dashboard analyses retain the General JSON export", async ({ page }) => {
+  const analysis = structuredClone(multishiftAnalysis);
+  analysis.id = "fleet-dashboard-export";
+  analysis.features.config.fixedConfiguration.investment = {
+    rows: [
+      {
+        id: "morning",
+        name: "Morning service",
+        modelName: "Reference bus",
+        packs: 12,
+        capacity: 600,
+        busCost: 400000,
+        packCost: 10000,
+        batteryCost: 120000,
+      },
+      {
+        id: "evening",
+        name: "Evening service",
+        modelName: "Reference bus",
+        packs: 12,
+        capacity: 600,
+        busCost: 400000,
+        packCost: 10000,
+        batteryCost: 120000,
+      },
+    ],
+  };
+
+  await mountResults(page, analysis);
+
+  await expect(page.locator('[data-role="annual-fleet-dashboard"]')).toBeVisible();
+  const downloadButton = page.getByRole("button", { name: "Download all results (JSON)" });
+  await expect(downloadButton).toBeVisible();
+  const { exported } = await downloadAllResults(page);
+  expect(exported.schemaVersion).toBe(3);
+  expect(exported.shifts.map(({ shiftId }) => shiftId)).toEqual(["morning", "evening"]);
+
+  await page.getByRole("tab", { name: "Morning service" }).click();
+  await expect(downloadButton).toBeHidden();
+  await page.getByRole("tab", { name: "General" }).click();
+  await expect(downloadButton).toBeVisible();
 });
 
 test("General, shifts, controls and export share one set of yearly economic assumptions", async ({ page }) => {
@@ -1375,7 +1431,7 @@ test("historical multi-shift tabs remain visible when one shift is incomplete", 
   const shiftReference = page.locator('[data-role="ya-shift-reference"]');
   await expect(shiftReference).not.toContainText("Failed");
   await expect(shiftReference.locator("tbody td strong")).toHaveText(["0 kWh", "0 km", "—"]);
-  await expect(page.locator('[data-action="download-json"]')).toHaveCount(0);
+  await expect(page.locator('[data-action="download-json"]')).toBeHidden();
 
   await page.getByRole("tab", { name: "Morning service" }).click();
   await expect(shiftReference).not.toContainText("Complete");

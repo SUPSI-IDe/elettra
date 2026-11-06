@@ -1458,6 +1458,40 @@ table input[type="checkbox"] {
   background: color-mix(in srgb, currentcolor 8%, transparent);
 }
 
+.ya-overview-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ya-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.ya-btn--download {
+  border-color: var(--brand-teal);
+  background-color: var(--brand-teal);
+  color: var(--color-surface);
+}
+
+.ya-btn--download:hover {
+  border-color: var(--brand-teal-dark);
+  background-color: var(--brand-teal-dark);
+  color: var(--color-surface);
+}
+
 .result-header-action:focus-visible {
   outline: 2px solid transparent;
   box-shadow: var(--shadow-focus-ring);

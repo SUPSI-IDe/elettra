@@ -967,6 +967,7 @@ const renderYearlySummary = (summary) => {
 /* ── Plot 1: Scenario efficiency by temperature ───────────────── */
 
 const EFF_COLORS = { total: "#00639a", auxiliary: "#f5a623", drivetrain: "#6fbeec", range: "rgba(0,99,154,0.15)" };
+const YEARLY_EFFICIENCY_CHART_HEIGHT = CHART_PLOT_HEIGHT * 2;
 
 const renderEfficiencyByTempChart = (el, legendEl, data) => {
   if (!el) return;
@@ -976,7 +977,7 @@ const renderEfficiencyByTempChart = (el, legendEl, data) => {
 
   const margin = { top: 16, right: 24, bottom: 38, left: 56 };
   const W = chartCanvasWidth(el, () => renderEfficiencyByTempChart(el, legendEl, data));
-  const H = CHART_PLOT_HEIGHT;
+  const H = YEARLY_EFFICIENCY_CHART_HEIGHT;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
   const svg = svgBase(W, H, t("yearly_analysis.chart_aria_efficiency_temperature"));
@@ -1150,7 +1151,7 @@ const renderAnnualContributionChart = (el, legendEl, data, mode = "yearly") => {
   const W = chartCanvasWidth(el, () =>
     renderAnnualContributionChart(el, legendEl, data, mode)
   );
-  const H = CHART_PLOT_HEIGHT;
+  const H = YEARLY_EFFICIENCY_CHART_HEIGHT;
   const iW = W - margin.left - margin.right, iH = H - margin.top - margin.bottom;
 
   const svg = svgBase(W, H, t("yearly_analysis.chart_aria_annual_energy_unit", { unit: config.unitLabel }));
@@ -4488,9 +4489,6 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
             { mode: modeName },
           ),
         )}</span>
-        <button type="button" class="ya-general-download result-header-action" data-action="download-json">${textContent(
-          translateOr("yearly_analysis.download_json", "Download all results (JSON)"),
-        )}</button>
       </div>
     </header>
     <div class="ya-deployed-configuration__body result-card__body">
@@ -4699,6 +4697,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const configOverlay = section.querySelector('[data-role="ya-config-overlay"]');
   const configContent = section.querySelector('[data-role="ya-configuration-content"]');
   const resultScopeTabsEl = section.querySelector('[data-role="ya-result-scope-tabs"]');
+  const generalDownloadActionsEl = section.querySelector('[data-role="ya-general-download-actions"]');
   const resultScopeContentEl = section.querySelector("#yearly-result-scope-content");
   const resultViewTabsEl = section.querySelector('[data-role="ya-result-view-tabs"]');
   const resultViewPanelsEl = section.querySelector('[data-role="ya-result-view-panels"]');
@@ -5139,6 +5138,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     if (resultScopeContentEl) {
       resultScopeContentEl.dataset.scopeKind = isShift ? "shift" : "general";
     }
+    if (generalDownloadActionsEl) generalDownloadActionsEl.hidden = isShift;
 
     if (resultViewTabsEl) {
       resultViewTabsEl.hidden = !isShift;

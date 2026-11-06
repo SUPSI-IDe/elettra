@@ -215,8 +215,11 @@
 }
 
 .ya-general-download {
-  color: var(--brand-teal-dark);
   white-space: nowrap;
+}
+
+.ya-general-download-actions {
+  margin-bottom: var(--layout-gap);
 }
 
 .ya-deployed-configuration__grid {
@@ -614,6 +617,10 @@
 
 .ya-eff-chart-section {
   min-width: 0;
+}
+
+.ya-eff-chart-section .ya-chart-container {
+  height: calc(var(--chart-plot-height) * 2);
 }
 
 /* Yearly summary cards row */

@@ -40,6 +40,11 @@
   text-align: center;
 }
 
+.ya-runs-table th.name,
+.ya-runs-table td.name {
+  text-align: left;
+}
+
 .ya-runs-table th.checkbox,
 .ya-runs-table td.checkbox {
   width: 2.5rem;
