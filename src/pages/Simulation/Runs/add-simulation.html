@@ -64,6 +64,15 @@
               ></p>
             </div>
 
+            <div class="form-group">
+              <label for="simulation-gtfs-dataset" data-i18n="gtfs.label">GTFS timetable</label>
+              <select id="simulation-gtfs-dataset" required disabled aria-describedby="simulation-gtfs-summary">
+                <option value="" data-i18n="gtfs.loading">Loading GTFS timetables…</option>
+              </select>
+              <div id="simulation-gtfs-summary" aria-live="polite"></div>
+              <p data-role="gtfs-mixed-warning" class="form-feedback" hidden></p>
+            </div>
+
             <div class="form-group shift-selection">
               <label for="sim-shift-filter">
                 <span data-i18n="simulation.field_shifts">Vehicle block</span>

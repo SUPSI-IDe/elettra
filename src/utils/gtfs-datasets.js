@@ -9,6 +9,23 @@ export const sortDatasets = (datasets = []) => [...datasets].sort((a, b) =>
   Number(b.gtfs_year) - Number(a.gtfs_year) || String(b.gtfs_file_date).localeCompare(String(a.gtfs_file_date)));
 export const datasetLabel = (d, t) => `${d.gtfs_year} · ${t("gtfs.file")} ${dateLabel(d.gtfs_file_date)}`;
 
+export const NO_GTFS_DATASET = "none";
+export const UNKNOWN_GTFS_DATASET = "unknown";
+export const MIXED_GTFS_DATASETS = "mixed";
+
+export const shiftDatasetKey = (shift) => {
+  const datasets = shift?.gtfs_datasets;
+  if (!Array.isArray(datasets)) return UNKNOWN_GTFS_DATASET;
+  if (!datasets.length) return NO_GTFS_DATASET;
+  const keys = new Set(datasets.map(datasetKey));
+  return keys.size === 1 ? [...keys][0] : MIXED_GTFS_DATASETS;
+};
+
+export const analysisDatasetCatalog = (shifts) => sortDatasets([...new Map(
+  shifts.filter(shift => Array.isArray(shift.gtfs_datasets) && shift.gtfs_datasets.length === 1)
+    .map(shift => [datasetKey(shift.gtfs_datasets[0]), shift.gtfs_datasets[0]])
+).values()]);
+
 export const datasetSummaryHtml = (datasets, t, { source = null } = {}) => {
   const rows = Array.isArray(datasets) ? datasets : null;
   const content = rows?.length ? rows.map((d) =>

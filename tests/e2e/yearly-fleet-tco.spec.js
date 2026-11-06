@@ -137,7 +137,7 @@ test('different battery groups retain duties and consumption; sliders restore di
   await expect(page.locator('[data-maintenance-estimate]')).toContainText("CHF 8'800");
   await page.locator('input[type="number"][data-tco-input="km:long"]').fill('100000');
   await expect(page.getByText("120'000 km", { exact: true })).toBeVisible();
-  await expect(page.getByText("196'000 kWh", { exact: true })).toBeVisible();
+  await expect(page.locator('#annual-cost-panel').getByText("196'000 kWh", { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.previews.at(-1)?.annualKmByShift)).toEqual({ long: 100000, short: 20000 });
   await page.getByRole('tab', { name: 'Emissions', exact: true }).click();
   await expect(page.locator('[data-role="ya-lca-phases"]')).toBeVisible();

@@ -1,4 +1,5 @@
-import { datasetSummaryHtml } from "../../../utils/gtfs-datasets.js";
+import { datasetSummaryHtml, datasetKey, datasetLabel, dateLabel, shiftDatasetKey,
+  analysisDatasetCatalog, NO_GTFS_DATASET, UNKNOWN_GTFS_DATASET, MIXED_GTFS_DATASETS } from "../../../utils/gtfs-datasets.js";
 import "../evaluation-dialogs.css";
 import { formatChf } from "../../../utils/number-format";
 import { retainedEvaluationSettings } from '../../../utils/evaluation-duplication';
@@ -404,6 +405,7 @@ export const initializeAddSimulation = async (
   const copiedSettings = retainedEvaluationSettings(options.prefill?.inputParams);
   let copiedSocBounds = null;
   let duplicationError = false;
+  let duplicationErrorMessage = "";
   let disposed = false;
   section.querySelectorAll('.form-info').forEach(button => {
     const tooltip = button.querySelector('.info-tooltip');
@@ -437,6 +439,11 @@ export const initializeAddSimulation = async (
     'tbody[data-role="shift-selection-body"]'
   );
   const shiftFilter = section.querySelector("#sim-shift-filter");
+  const gtfsSelect = section.querySelector("#simulation-gtfs-dataset");
+  const gtfsSummary = section.querySelector("#simulation-gtfs-summary");
+  const gtfsMixedWarning = section.querySelector('[data-role="gtfs-mixed-warning"]');
+  let selectedGtfsKey = "";
+  let gtfsCatalog = [];
   const selectFilteredShifts = section.querySelector('[data-role="select-filtered-shifts"]');
   const modeSelect = section.querySelector("#var-optimization-mode");
   const busModelOverride = section.querySelector("#var-bus-model-override");
@@ -1082,6 +1089,7 @@ export const initializeAddSimulation = async (
 
       allUserModels = userModels;
 
+      renderGtfsOptions();
       renderCurrentView();
       refreshBusModelOverride();
 
@@ -1090,6 +1098,8 @@ export const initializeAddSimulation = async (
       }
     } catch (error) {
       console.error("Failed to load form data", error);
+      if (gtfsSelect) gtfsSelect.disabled = true;
+      if (gtfsSummary) gtfsSummary.textContent = t('gtfs.load_error');
       setFeedback(section, error?.message ?? "Failed to load form data.");
     }
   }
@@ -1131,6 +1141,17 @@ export const initializeAddSimulation = async (
 
     if (normalizedShiftIds.length && shiftTbody) {
       if (normalizedShiftIds.some(id => !allShifts.some(shift => text(shift.id) === id))) duplicationError = true;
+      const keys = new Set(allShifts.filter(shift => normalizedShiftIds.includes(text(shift.id))).map(shiftDatasetKey));
+      if (keys.size > 1 || keys.has(MIXED_GTFS_DATASETS)) {
+        duplicationError = true;
+        duplicationErrorMessage = t('gtfs.analysis_mixed_copy');
+        setFeedback(section, duplicationErrorMessage);
+        return;
+      }
+      if (keys.size === 1) {
+        selectedGtfsKey = [...keys][0];
+        renderGtfsOptions();
+      }
       selectedShiftIds = new Set(normalizedShiftIds);
       renderCurrentView();
 
@@ -1230,16 +1251,53 @@ export const initializeAddSimulation = async (
   }
 
   // ── Shift filter ─────────────────────────────────────────────────
+  function renderGtfsOptions() {
+    if (!gtfsSelect) return;
+    gtfsCatalog = analysisDatasetCatalog(allShifts);
+    const options = gtfsCatalog.map(dataset => [datasetKey(dataset), datasetLabel(dataset, t)]);
+    for (const [key, label] of [[NO_GTFS_DATASET, 'gtfs.none'], [UNKNOWN_GTFS_DATASET, 'gtfs.unavailable']]) {
+      if (allShifts.some(shift => shiftDatasetKey(shift) === key)) options.push([key, t(label)]);
+    }
+    if (!options.some(([key]) => key === selectedGtfsKey)) selectedGtfsKey = options[0]?.[0] ?? '';
+    gtfsSelect.replaceChildren(...(options.length ? options : [['', t('simulation.no_shifts_in_table')]])
+      .map(([key, label]) => new Option(label, key)));
+    gtfsSelect.value = selectedGtfsKey;
+    gtfsSelect.disabled = !options.length;
+    const dataset = gtfsCatalog.find(d => datasetKey(d) === selectedGtfsKey);
+    gtfsSummary.textContent = dataset
+      ? `${t('gtfs.validity')}: ${dateLabel(dataset.valid_from)}–${dateLabel(dataset.valid_to)}. ${t('gtfs.validity_help')}`
+      : selectedGtfsKey === UNKNOWN_GTFS_DATASET ? t('gtfs.unavailable') : '';
+    gtfsMixedWarning.hidden = !allShifts.some(shift => shiftDatasetKey(shift) === MIXED_GTFS_DATASETS);
+    gtfsMixedWarning.textContent = t('gtfs.analysis_mixed_excluded');
+  }
+
   function filteredShifts() {
     const query = (shiftFilter?.value ?? "").toLowerCase().trim();
+    const editionShifts = allShifts.filter(shift => shiftDatasetKey(shift) === selectedGtfsKey);
     return query
-      ? allShifts.filter(
+      ? editionShifts.filter(
           (s) =>
             text(s?.name).toLowerCase().includes(query) ||
             text(s?._resolved_bus_model).toLowerCase().includes(query)
         )
-      : allShifts;
+      : editionShifts;
   }
+
+  const handleGtfsChange = () => {
+    selectedGtfsKey = gtfsSelect.value;
+    selectedShiftIds.clear();
+    stopsTbody.replaceChildren();
+    costCards.replaceChildren();
+    stationEdits.clear();
+    renderGtfsOptions();
+    renderCurrentView();
+    refreshBusModelOverride();
+    void rebuildStopsTable();
+  };
+  gtfsSelect?.addEventListener('change', handleGtfsChange);
+  cleanupHandlers.push(() => gtfsSelect?.removeEventListener('change', handleGtfsChange));
+  document.addEventListener(I18N_CHANGE_EVENT, renderGtfsOptions);
+  cleanupHandlers.push(() => document.removeEventListener(I18N_CHANGE_EVENT, renderGtfsOptions));
 
   function syncFilteredSelection() {
     if (!selectFilteredShifts) return;
@@ -1464,7 +1522,7 @@ export const initializeAddSimulation = async (
     event.preventDefault();
     if (submitting || disposed) return;
     if (duplicationError) {
-      setFeedback(section, t('simulation.duplicate_inputs_missing'));
+      setFeedback(section, duplicationErrorMessage || t('simulation.duplicate_inputs_missing'));
       return;
     }
     setFeedback(section, "");
@@ -1484,6 +1542,9 @@ export const initializeAddSimulation = async (
     const problems = new Map();
     if (!name) problems.set(nameInput, t('simulation.name_required'));
     if (!selectedShiftIds.length) problems.set(shiftFilter, t('simulation.shift_required'));
+    if (allShifts.some(shift => selectedShiftIds.includes(text(shift.id)) && shiftDatasetKey(shift) !== selectedGtfsKey)) {
+      problems.set(gtfsSelect, t('gtfs.analysis_one_dataset'));
+    }
     if (!busModelId) problems.set(busModelOverride, t('simulation.bus_model_required'));
     if (!optimizationMode) problems.set(modeSelect, t('simulation.mode_required'));
     if (!syncFixedBatteryField()) problems.set(fixedPacks, fixedPacks.validationMessage || fixedPacksHelp.textContent);
