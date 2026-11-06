@@ -22,6 +22,11 @@
   width: 2.5rem;
 }
 
+.custom-stop-table th.actions,
+.custom-stop-table td.actions {
+  width: 10rem;
+}
+
 /* Add custom stop form - page-specific overrides.
    Layout comes from the shared .form-card-grid / .form-card system; only the
    map picker and the map-derived readonly fields need page-level rules. */

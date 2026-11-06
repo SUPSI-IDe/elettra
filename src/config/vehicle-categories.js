@@ -4,6 +4,7 @@ export const VEHICLE_CATEGORIES = [
   {
     key: "midi_electric_bus_9m",
     label: "Midi electric bus — 9 m",
+    labelI18nKey: "buses.vehicle_category_midi_9m",
     lengthM: 9,
     size: "9m",
     defaultSpecLength: "9",
@@ -15,6 +16,7 @@ export const VEHICLE_CATEGORIES = [
   {
     key: "standard_electric_bus_12_13m",
     label: "Standard electric bus — 13 m",
+    labelI18nKey: "buses.vehicle_category_standard_12_13m",
     lengthM: 13,
     size: "13m",
     defaultSpecLength: "13",
@@ -36,6 +38,7 @@ export const VEHICLE_CATEGORIES = [
   {
     key: "articulated_electric_bus_18m",
     label: "Articulated electric bus — 18 m",
+    labelI18nKey: "buses.vehicle_category_articulated_18m",
     lengthM: 18,
     size: "18m",
     defaultSpecLength: "18",

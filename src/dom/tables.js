@@ -5,17 +5,7 @@ import {
 } from "../ui-helpers";
 import { t } from "../i18n";
 import { inferVehicleCategoryFromSpecs } from "../config/vehicle-categories";
-
-const formatCostKchf = (value) => {
-  if (value === null || value === undefined || value === "") {
-    return "";
-  }
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return textContent(value);
-  }
-  return textContent((numeric / 1000).toString());
-};
+import { renderEntityRowActions } from "./entity-details";
 
 const parseSpecs = (specs) => {
   if (!specs) {
@@ -43,7 +33,7 @@ export const renderLoadingRow = (tbody) => {
   tbody.innerHTML = `
         <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="model table-state-cell table-empty" colspan="8">${textContent(t("common.loading"))}</td>
+            <td class="model table-state-cell table-empty" colspan="4">${textContent(t("common.loading"))}</td>
         </tr>
     `;
 };
@@ -59,7 +49,7 @@ export const renderErrorRow = (
   tbody.innerHTML = `
         <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="model table-state-cell table-empty" colspan="8">${textContent(message)}</td>
+            <td class="model table-state-cell table-empty" colspan="4">${textContent(message)}</td>
         </tr>
     `;
 };
@@ -73,7 +63,7 @@ export const renderModels = (tbody, models = []) => {
     tbody.innerHTML = `
             <tr class="table-state-row">
                 <td class="checkbox"></td>
-                <td class="model table-state-cell table-empty" colspan="8">${textContent(t("buses.no_models"))}</td>
+                <td class="model table-state-cell table-empty" colspan="4">${textContent(t("buses.no_models"))}</td>
             </tr>
         `;
     return;
@@ -85,16 +75,16 @@ export const renderModels = (tbody, models = []) => {
       const vehicleCategory = inferVehicleCategoryFromSpecs(specs);
       const name = textContent(raw?.name ?? "");
       const categoryLabel = textContent(
-        vehicleCategory?.label ?? specs?.model_type ?? raw?.model ?? ""
+        vehicleCategory?.labelI18nKey
+          ? t(vehicleCategory.labelI18nKey)
+          : specs?.model_type ?? raw?.model ?? ""
       );
       const size = textContent(specs?.bus_length_m ?? "");
-      const cost = formatCostKchf(specs?.cost ?? "");
-      const lifetime = textContent(specs?.bus_lifetime ?? "");
-      const maxPassengers = textContent(
-        specs?.passenger_capacity ?? specs?.max_passengers ?? ""
-      );
-      const batteryPackSize = textContent(specs?.battery_pack_size_kwh ?? "");
-      const maxCharging = textContent(specs?.max_charging_power_kw ?? "");
+      const actions = renderEntityRowActions({
+        details: t("common.details"),
+        edit: t("common.edit"),
+        remove: t("common.delete"),
+      });
 
       return `
                 <tr data-id="${textContent(raw?.id ?? "")}">
@@ -102,11 +92,7 @@ export const renderModels = (tbody, models = []) => {
                     <td class="name">${name}</td>
                     <td class="model">${categoryLabel}</td>
                     <td class="size">${size}</td>
-                    <td class="cost">${cost}</td>
-                    <td class="lifetime">${lifetime}</td>
-                    <td class="max-passengers">${maxPassengers}</td>
-                    <td class="battery-pack-size">${batteryPackSize}</td>
-                    <td class="max-charging">${maxCharging}</td>
+                    <td class="actions">${actions}</td>
                 </tr>
             `;
     })

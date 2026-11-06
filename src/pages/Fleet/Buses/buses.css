@@ -194,11 +194,19 @@
 }
 
 .bus-models :is(th, td).name {
-  width: 13rem;
+  width: 24rem;
 }
 
 .bus-models :is(th, td).model {
-  width: 15rem;
+  width: 27rem;
+}
+
+.bus-models :is(th, td).size {
+  width: 12rem;
+}
+
+.bus-models :is(th, td).actions {
+  width: 10rem;
 }
 
 .bus-models th.checkbox,

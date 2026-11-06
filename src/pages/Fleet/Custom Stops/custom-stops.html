@@ -64,10 +64,22 @@
             <th class="name" data-i18n="custom_stops.col_name">Name</th>
             <th class="type" data-i18n="custom_stops.col_type">Type</th>
             <th class="address" data-i18n="custom_stops.col_address">Address</th>
+            <th class="actions" data-i18n="common.actions">Actions</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
   </main>
+  <dialog class="entity-details" data-role="custom-stop-details-dialog" aria-labelledby="custom-stop-details-title">
+    <div class="entity-details__shell">
+      <header class="entity-details__header">
+        <h2 id="custom-stop-details-title" class="entity-details__title" data-role="entity-details-title"></h2>
+      </header>
+      <div class="entity-details__content" data-role="entity-details-content"></div>
+      <footer class="entity-details__footer">
+        <button type="button" class="btn-secondary" data-action="close-details" data-i18n="common.close">Close</button>
+      </footer>
+    </div>
+  </dialog>
 </section>

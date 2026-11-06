@@ -59,25 +59,7 @@
             <th class="name" data-i18n="buses.model_name">Name</th>
             <th class="model" data-i18n="buses.vehicle_category">Vehicle category</th>
             <th class="size" data-i18n="buses.model_size">Size [m]</th>
-            <th class="cost" data-i18n="buses.model_cost">Cost [kCHF]</th>
-            <th class="lifetime" data-i18n="buses.model_lifetime">
-              Lifetime [y]
-            </th>
-            <th class="max-passengers" data-i18n="buses.model_max_passengers">
-              Max passengers
-            </th>
-            <th
-              class="battery-pack-size"
-              data-i18n="buses.model_battery_pack_size"
-            >
-              Battery pack size [kWh]
-            </th>
-            <th
-              class="max-charging"
-              data-i18n="buses.model_max_charging"
-            >
-              Maximum charging [kW]
-            </th>
+            <th class="actions" data-i18n="common.actions">Actions</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -85,4 +67,15 @@
       <div class="bus-models-pagination" data-role="bus-models-pagination"></div>
     </section>
   </main>
+  <dialog class="entity-details" data-role="bus-model-details-dialog" aria-labelledby="bus-model-details-title">
+    <div class="entity-details__shell">
+      <header class="entity-details__header">
+        <h2 id="bus-model-details-title" class="entity-details__title" data-role="entity-details-title"></h2>
+      </header>
+      <div class="entity-details__content" data-role="entity-details-content"></div>
+      <footer class="entity-details__footer">
+        <button type="button" class="btn-secondary" data-action="close-details" data-i18n="common.close">Close</button>
+      </footer>
+    </div>
+  </dialog>
 </section>

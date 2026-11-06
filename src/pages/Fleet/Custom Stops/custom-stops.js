@@ -1,6 +1,6 @@
 import { t } from "../../../i18n";
 import "./custom-stops.css";
-import { deleteDepot, fetchAllDepots } from "../../../api";
+import { deleteDepot, fetchAllDepots, fetchDepotById } from "../../../api";
 import {
   resolveCustomStopDeleteFailure,
 } from "../../../utils/custom-stop-deletion";
@@ -12,9 +12,66 @@ import { resolveUserId, isAuthenticated } from "../../../api/session";
 import { bindSelectAll } from "../../../dom/tables";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
+import {
+  initializeEntityDetailsDialog,
+  renderEntityRowActions,
+} from "../../../dom/entity-details";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
+
+const detailValue = (value) =>
+  value === null || value === undefined || value === "" ? "—" : String(value);
+
+const typeLabel = (type) => {
+  const key = {
+    depot: "custom_stops.type_depot",
+    charging: "custom_stops.type_charging",
+    hub: "custom_stops.type_hub",
+  }[type];
+  return key ? t(key) : detailValue(type);
+};
+
+export const buildCustomStopDetailGroups = (depot = {}) => [
+  {
+    title: t("custom_stops.information_heading"),
+    rows: [
+      {
+        label: t("custom_stops.field_name"),
+        value: detailValue(depot?.name),
+      },
+      {
+        label: t("custom_stops.field_type"),
+        value: typeLabel(depot?.features?.type),
+      },
+      {
+        label: t("custom_stops.field_address"),
+        value: detailValue(depot?.address),
+      },
+      {
+        label: t("custom_stops.field_city"),
+        value: detailValue(depot?.features?.city),
+      },
+      {
+        label: t("custom_stops.field_notes"),
+        value: detailValue(depot?.features?.notes),
+      },
+    ],
+  },
+  {
+    title: t("custom_stops.location_heading"),
+    rows: [
+      {
+        label: t("custom_stops.field_latitude"),
+        value: detailValue(depot?.latitude),
+      },
+      {
+        label: t("custom_stops.field_longitude"),
+        value: detailValue(depot?.longitude),
+      },
+    ],
+  },
+];
 
 const getSelectedIdsFrom = (container) =>
   Array.from(
@@ -32,7 +89,7 @@ export const renderCustomStopRows = (tbody, depots = []) => {
     tbody.innerHTML = `
             <tr class="table-state-row">
                 <td class="checkbox"></td>
-                <td class="id table-state-cell table-empty" colspan="3">${textContent(t("custom_stops.no_stops_found"))}</td>
+                <td class="id table-state-cell table-empty" colspan="4">${textContent(t("custom_stops.no_stops_found"))}</td>
             </tr>
         `;
     return;
@@ -40,15 +97,23 @@ export const renderCustomStopRows = (tbody, depots = []) => {
 
   const rows = depots
     .map(
-      (depot = {}) => `
+      (depot = {}) => {
+        const actions = renderEntityRowActions({
+          details: t("common.details"),
+          edit: t("common.edit"),
+          remove: t("common.delete"),
+        });
+        return `
                 <tr data-id="${textContent(depot?.id)}">
                     <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("custom_stops.select_stop"))}"></td>
 
                     <td class="name">${textContent(depot?.name)}</td>
-                    <td class="type">${textContent(t("custom_stops.type_depot"))}</td>
+                    <td class="type">${textContent(typeLabel(depot?.features?.type))}</td>
                     <td class="address">${textContent(depot?.address)}</td>
+                    <td class="actions">${actions}</td>
                 </tr>
-            `
+            `;
+      }
     )
     .join("");
 
@@ -63,7 +128,7 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
         <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="id table-state-cell table-empty" colspan="3">${textContent(t("common.loading"))}</td>
+            <td class="id table-state-cell table-empty" colspan="4">${textContent(t("common.loading"))}</td>
         </tr>
     `;
 };
@@ -76,7 +141,7 @@ const renderError = (tbody, message = t("custom_stops.unable_to_load")) => {
   tbody.innerHTML = `
         <tr class="table-state-row">
             <td class="checkbox"></td>
-            <td class="id table-state-cell table-empty" colspan="3">${textContent(message)}</td>
+            <td class="id table-state-cell table-empty" colspan="4">${textContent(message)}</td>
         </tr>
     `;
 };
@@ -122,11 +187,41 @@ export const initializeCustomStops = async (root = document, options = {}) => {
 
   setFlashMessage(section, options.flashMessage ?? "");
 
+  const detailsDialog = initializeEntityDetailsDialog(
+    section.querySelector('[data-role="custom-stop-details-dialog"]')
+  );
+  if (detailsDialog) cleanupHandlers.push(() => detailsDialog.destroy());
+
   if (!table || !tbody) {
     return null;
   }
 
   let allDepots = [];
+  const depotDetailsCache = new Map();
+  const depotDetailRequests = new Map();
+
+  const loadDepotDetail = async (id) => {
+    const normalizedId = text(id);
+    if (!normalizedId) throw new Error("Missing custom stop id");
+    const cached =
+      depotDetailsCache.get(normalizedId) ??
+      allDepots.find((depot) => text(depot?.id) === normalizedId);
+    if (cached?.features && cached?.latitude != null && cached?.longitude != null) {
+      return cached;
+    }
+
+    let request = depotDetailRequests.get(normalizedId);
+    if (!request) {
+      request = fetchDepotById(normalizedId)
+        .then((detail) => {
+          depotDetailsCache.set(normalizedId, detail);
+          return detail;
+        })
+        .finally(() => depotDetailRequests.delete(normalizedId));
+      depotDetailRequests.set(normalizedId, request);
+    }
+    return request;
+  };
 
   const applyFilter = () => {
     const query = (searchInput?.value ?? "").toLowerCase().trim();
@@ -169,6 +264,10 @@ export const initializeCustomStops = async (root = document, options = {}) => {
           depots.filter((depot) => depot?.user_id === userId)
         : (depots ?? []);
 
+      allDepots.forEach((depot) => {
+        if (depot?.id) depotDetailsCache.set(text(depot.id), depot);
+      });
+
       applyFilter();
     } catch (error) {
       console.error("Failed to load custom stops", error);
@@ -183,17 +282,9 @@ export const initializeCustomStops = async (root = document, options = {}) => {
     });
   }
 
-  const handleDeleteClick = async () => {
-    const ids = getSelectedIdsFrom(table);
-    if (!ids.length) {
-      setFlashMessage(section, t("custom_stops.select_min"));
-      return;
-    }
-
-    if (deleteButton) {
-      deleteButton.disabled = true;
-    }
-
+  const deleteStops = async (ids, actionButton) => {
+    if (!ids.length) return;
+    if (actionButton) actionButton.disabled = true;
     try {
       const confirmDelete = confirm(
         t("custom_stops.delete_confirm", { count: ids.length })
@@ -216,10 +307,17 @@ export const initializeCustomStops = async (root = document, options = {}) => {
       const resolved = resolveCustomStopDeleteFailure(error, t);
       setFlashMessage(section, resolved.message);
     } finally {
-      if (deleteButton) {
-        deleteButton.disabled = false;
-      }
+      if (actionButton) actionButton.disabled = false;
     }
+  };
+
+  const handleDeleteClick = async () => {
+    const ids = getSelectedIdsFrom(table);
+    if (!ids.length) {
+      setFlashMessage(section, t("custom_stops.select_min"));
+      return;
+    }
+    await deleteStops(ids, deleteButton);
   };
   if (deleteButton) {
     deleteButton.addEventListener("click", handleDeleteClick);
@@ -236,9 +334,13 @@ export const initializeCustomStops = async (root = document, options = {}) => {
     }
 
     const id = ids[0];
-    const current = allDepots.find((depot) => depot?.id === id) ?? {};
-
-    triggerPartialLoad("add-custom-stop", { depot: current });
+    try {
+      const current = await loadDepotDetail(id);
+      triggerPartialLoad("add-custom-stop", { depot: current });
+    } catch (error) {
+      console.error("Failed to load custom stop detail", error);
+      setFlashMessage(section, t("custom_stops.unable_to_load_details"));
+    }
   };
   if (editButton) {
     editButton.addEventListener("click", handleEditClick);
@@ -256,6 +358,41 @@ export const initializeCustomStops = async (root = document, options = {}) => {
       addButton.removeEventListener("click", handleAddClick);
     });
   }
+
+  const handleRowAction = async (event) => {
+    const button = event.target.closest("button[data-row-action]");
+    if (!button || !table.contains(button)) return;
+    const id = button.closest("tr")?.dataset?.id;
+    if (!id) return;
+
+    const action = button.dataset.rowAction;
+    if (action === "delete") {
+      await deleteStops([id], button);
+      return;
+    }
+
+    button.disabled = true;
+    try {
+      const depot = await loadDepotDetail(id);
+      if (action === "edit") {
+        triggerPartialLoad("add-custom-stop", { depot });
+      } else if (action === "details") {
+        detailsDialog?.open({
+          title: t("custom_stops.details_title", {
+            name: detailValue(depot?.name),
+          }),
+          groups: buildCustomStopDetailGroups(depot),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load custom stop detail", error);
+      setFlashMessage(section, t("custom_stops.unable_to_load_details"));
+    } finally {
+      button.disabled = false;
+    }
+  };
+  table.addEventListener("click", handleRowAction);
+  cleanupHandlers.push(() => table.removeEventListener("click", handleRowAction));
 
   bindSelectAll(headerCheckbox, table);
   await reload();
