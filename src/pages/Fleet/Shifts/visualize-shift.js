@@ -1,3 +1,4 @@
+import { datasetSummaryHtml } from "../../../utils/gtfs-datasets.js";
 import "./shift-visualization.css";
 import "./shifts.css";
 import {
@@ -199,10 +200,12 @@ export const initializeVisualizeShift = async (
   };
 
 
-  if (!state.trips.length && options.shiftId) {
+  if (options.shiftId) {
     ensurePlaceholder(timelineContainer, t("shifts.loading_timeline"));
     try {
       const shift = await fetchShiftById(options.shiftId);
+      const gtfsSummary = section.querySelector('[data-role="shift-gtfs-summary"]');
+      if (gtfsSummary) gtfsSummary.innerHTML = datasetSummaryHtml(shift.gtfs_datasets, t);
       state.name = state.name || text(shift?.name ?? "");
 
       let resolvedBusName =

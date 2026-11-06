@@ -1,3 +1,4 @@
+import { mountAnalysisGtfs } from "../../../utils/analysis-gtfs.js";
 import * as d3 from "d3";
 import {
   buildChargingEnergyBoundary,
@@ -4751,6 +4752,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     generalLabel: translateOr("yearly_analysis.scope_general", "General"),
     shiftFallback: translateOr("yearly_analysis.scope_shift", "Vehicle block"),
   });
+  void mountAnalysisGtfs(section, analysis, resultScopes.map((scope) => scope.shiftId).filter(Boolean));
   let activeScopeKey = YEARLY_GENERAL_SCOPE_KEY;
   let activeScope = resolveYearlyResultScope(resultScopes, activeScopeKey);
   let activeResultViewKey = YEARLY_RESULT_VIEW_KEYS[0];

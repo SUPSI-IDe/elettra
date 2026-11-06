@@ -130,17 +130,27 @@ export const fetchRoutes = async ({
   return payload;
 };
 
+export const fetchGtfsDatasets = async () => {
+  const response = await fetch(`${API_ROOT}/api/v1/gtfs/datasets`, { headers: authHeaders() });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !Array.isArray(payload)) throw new Error("Unable to load GTFS datasets.");
+  return payload;
+};
+
 export const fetchAllRoutes = ({ gtfs_year, gtfs_file_date } = {}) =>
   fetchAllLegacyPages((params) =>
     fetchRoutes({ ...params, gtfs_year, gtfs_file_date })
   );
 
-export const fetchRoutesByAgency = async (agencyId) => {
+export const fetchRoutesByAgency = async (agencyId, { gtfs_year, gtfs_file_date } = {}) => {
   if (!agencyId) {
     throw new Error("Missing agencyId");
   }
   const headers = authHeaders();
-  const url = `${GTFS_ROUTES_BY_AGENCY_PATH}${encodeURIComponent(agencyId)}`;
+  const params = new URLSearchParams();
+  if (gtfs_year != null) params.set("gtfs_year", String(gtfs_year));
+  if (gtfs_file_date) params.set("gtfs_file_date", gtfs_file_date);
+  const url = `${GTFS_ROUTES_BY_AGENCY_PATH}${encodeURIComponent(agencyId)}${params.size ? `?${params}` : ""}`;
 
   const response = await fetch(url, { method: "GET", headers });
   const payload = await response.json().catch(() => null);

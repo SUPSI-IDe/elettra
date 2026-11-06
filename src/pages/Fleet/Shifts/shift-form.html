@@ -50,6 +50,12 @@
                 <option value="" data-i18n="shifts.placeholder_bus_model">Select a bus model</option>
               </select>
             </div>
+            <div class="form-group shift-gtfs-field">
+              <label for="shift-gtfs-dataset" data-i18n="gtfs.label">GTFS timetable</label>
+              <select id="shift-gtfs-dataset" data-filter="gtfs-dataset" aria-describedby="shift-gtfs-summary" disabled></select>
+              <div id="shift-gtfs-summary" data-role="gtfs-dataset-summary" aria-live="polite"></div>
+              <small data-i18n="gtfs.validity_help">Range covered by the loaded calendars; trips may run on different days.</small>
+            </div>
             <div class="form-group">
               <label for="scheduled-trips-line" data-i18n="shifts.filter_line">Line</label>
               <select id="scheduled-trips-line" name="line" data-filter="line">

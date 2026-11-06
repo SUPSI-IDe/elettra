@@ -1,3 +1,4 @@
+import { mountAnalysisGtfs } from "../../../utils/analysis-gtfs.js";
 import { formatNumber, formatChf } from "../../../utils/number-format";
 import { infrastructureCostHtml } from './infrastructure-costs';
 import { fleetInvestmentHtml } from './fleet-investment';
@@ -10172,6 +10173,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     const restoreFocus = control?.contains(document.activeElement);
     ++shiftRefreshSeq;
     loadedOptimizationRun = design.run;
+    void mountAnalysisGtfs(section, design.run);
     loadedPredictionRuns = design.predictionRuns;
     options.runId = runId;
     options.simulationName = resolveSimulationName(design.run, options);
@@ -10204,6 +10206,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
     try {
       const optimizationRun = await fetchOptimizationRun(options.runId);
+      void mountAnalysisGtfs(section, optimizationRun);
       const evaluationFailed = hasFeasibilityEvaluationFailure(optimizationRun);
       const economicDefaultsPayload = evaluationFailed
         ? null

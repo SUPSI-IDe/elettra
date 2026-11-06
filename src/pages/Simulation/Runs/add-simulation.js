@@ -1,3 +1,4 @@
+import { datasetSummaryHtml } from "../../../utils/gtfs-datasets.js";
 import "../evaluation-dialogs.css";
 import { formatChf } from "../../../utils/number-format";
 import { retainedEvaluationSettings } from '../../../utils/evaluation-duplication';
@@ -213,7 +214,7 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } 
               selectedIds.has(shiftId) ? "checked" : ""
             } />
           </td>
-          <td>${textContent(shift?.name ?? "")}</td>
+          <td>${textContent(shift?.name ?? "")}${datasetSummaryHtml(shift?.gtfs_datasets, t)}</td>
           <td>${textContent(busModelName)}</td>
           <td class="distance" data-role="shift-distance">${textContent(dailyDistanceLabel)}</td>
           <td class="distance" data-role="shift-yearly-distance">${textContent(yearlyDistanceLabel)}</td>

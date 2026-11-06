@@ -1,3 +1,4 @@
+import { datasetKey, datasetLabel, datasetSummaryHtml, sortDatasets } from "../../../utils/gtfs-datasets.js";
 import "./shifts.css";
 import "./shift-visualization.css";
 import {
@@ -10,6 +11,7 @@ import {
   fetchAllDepots,
   fetchPvgisTmy,
   fetchAllRoutes,
+  fetchGtfsDatasets,
   fetchRoutesByAgency,
   fetchShiftById,
   fetchShiftInfo,
@@ -388,6 +390,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     delete form.dataset.shiftId;
   }
 
+  const datasetSelect = form.querySelector('[data-filter="gtfs-dataset"]');
+  const datasetSummary = form.querySelector('[data-role="gtfs-dataset-summary"]');
+  let datasets = [];
+  let selectedDataset = null;
+  let datasetGeneration = 0;
+  let tripGeneration = 0;
+  let disposed = false;
+  if (datasetSelect) datasetSelect.hidden = isEditMode;
   let routesById = {};
   let currentTrips = [];
   const selectedTripIds = new Set();
@@ -1158,6 +1168,12 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const loadRoutes = async () => {
+    const generation = datasetGeneration;
+    const requestedDataset = selectedDataset;
+    if (!requestedDataset) {
+      routesById = renderRouteOptions(lineSelect, []);
+      return;
+    }
     try {
       // Get the user's agency ID to filter routes
       const agencyId = await resolveAgencyId().catch(() => "");
@@ -1165,19 +1181,21 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       let payload;
       if (agencyId) {
         // Fetch only routes belonging to the user's agency/company
-        payload = await fetchRoutesByAgency(agencyId);
+        payload = await fetchRoutesByAgency(agencyId, requestedDataset);
       } else {
         // Fallback to all routes if no agency is set (shouldn't happen in production)
         console.warn("No agency ID found - showing all routes. This may include routes from other companies.");
-        payload = await fetchAllRoutes();
+        payload = await fetchAllRoutes(requestedDataset);
       }
       
       const routes =
         Array.isArray(payload) ? payload : (
           (payload?.items ?? payload?.results ?? [])
         );
+      if (disposed || generation !== datasetGeneration) return;
       routesById = renderRouteOptions(lineSelect, routes);
     } catch (error) {
+      if (disposed || generation !== datasetGeneration) return;
       console.error("Failed to load routes", error);
       routesById = renderRouteOptions(lineSelect, []);
       updateFeedback(
@@ -1188,6 +1206,61 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
   };
 
+  const showDataset = () => {
+    if (datasetSummary) datasetSummary.innerHTML = datasetSummaryHtml(
+      selectedDataset ? [selectedDataset] : (isEditMode ? [] : undefined), t
+    );
+  };
+  const loadDatasets = async (shift) => {
+    if (datasetSummary) datasetSummary.textContent = t("gtfs.loading");
+    try {
+      datasets = sortDatasets(await fetchGtfsDatasets());
+      if (disposed) return;
+      if (isEditMode) {
+        const saved = shift?.gtfs_datasets;
+        selectedDataset = saved?.length === 1 ? saved[0] : null;
+        if (datasetSummary) datasetSummary.innerHTML = datasetSummaryHtml(saved, t);
+      } else {
+        selectedDataset = datasets[0] ?? null;
+        if (datasetSelect) {
+          datasetSelect.innerHTML = datasets.map((d) => `<option value="${textContent(datasetKey(d))}">${textContent(datasetLabel(d, t))}</option>`).join("");
+          datasetSelect.disabled = datasets.length === 0;
+        }
+        showDataset();
+        if (!datasets.length && datasetSummary) datasetSummary.textContent = t("gtfs.no_datasets");
+      }
+      await loadRoutes();
+    } catch (error) {
+      if (disposed) return;
+      selectedDataset = null;
+      if (datasetSummary) datasetSummary.textContent = t("gtfs.load_error");
+      updateFeedback(feedback, t("gtfs.load_error"), "error");
+    }
+  };
+  const handleDatasetChange = async () => {
+    if (isEditMode || !datasetSelect) return;
+    const next = datasets.find((d) => datasetKey(d) === datasetSelect.value);
+    if (!next || datasetKey(next) === datasetKey(selectedDataset)) return;
+    if (selectedTrips.length && !window.confirm(t("gtfs.confirm_change"))) {
+      datasetSelect.value = datasetKey(selectedDataset);
+      return;
+    }
+    selectedDataset = next;
+    datasetGeneration++;
+    tripGeneration++;
+    selectedTrips = [];
+    selectedTripIds.clear();
+    currentTrips = [];
+    routesById = renderRouteOptions(lineSelect, []);
+    resetScheduledTrips(t("shifts.select_line_and_day"));
+    updateShiftTrips();
+    updateTimeline();
+    showDataset();
+    await loadRoutes();
+  };
+  datasetSelect?.addEventListener("change", handleDatasetChange);
+  cleanupHandlers.push(() => datasetSelect?.removeEventListener("change", handleDatasetChange));
+
   const loadDays = async () => {
     // The backend has no /gtfs-days endpoint.  Weekday values are the stable
     // contract consumed by /gtfs-trips/by-route, so populate them locally and
@@ -1196,6 +1269,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const loadTrips = async ({ includeNextDay = false } = {}) => {
+    const generation = ++tripGeneration;
+    const editionGeneration = datasetGeneration;
     if (!lineSelect || !daySelect || !scheduledTripsBody) {
       return;
     }
@@ -1203,7 +1278,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     const routeId = lineSelect.value;
     const day = daySelect.value;
 
-    if (!routeId || !day) {
+    if (!selectedDataset || !routeId || !day) {
       resetScheduledTrips(t("shifts.select_line_and_day"));
       return;
     }
@@ -1226,6 +1301,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         )
       );
 
+      if (disposed || generation !== tripGeneration || editionGeneration !== datasetGeneration) return;
       const allTrips = results.flatMap((payload) => {
         const trips =
           Array.isArray(payload) ? payload : (
@@ -1271,6 +1347,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       syncSelectedTripsWithCurrent();
     } catch (error) {
       console.error("Failed to load trips", error);
+      if (disposed || generation !== tripGeneration || editionGeneration !== datasetGeneration) return;
       resetScheduledTrips(error?.message ?? t("shifts.unable_to_load_trips"));
     }
   };
@@ -1347,6 +1424,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     if (isEditMode && editRouteReconstructionBlocked) {
       updateFeedback(feedback, t("shifts.unable_to_load_for_edit"), "error");
+      return;
+    }
+
+    if (!selectedDataset && !isEditMode) {
+      updateFeedback(feedback, t("gtfs.no_datasets"), "error");
       return;
     }
 
@@ -1510,7 +1592,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       );
 
       if (isEditMode) {
-        await updateShift(shiftId, { name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId });
+        await updateShift(shiftId, { name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId, gtfsDataset: selectedDataset });
         invalidateShiftDistanceCache(shiftId);
         updateFeedback(feedback, t("shifts.shift_updated"), "success");
         triggerPartialLoad("shifts", {
@@ -1519,7 +1601,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         return;
       }
 
-      await createShift({ name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId });
+      await createShift({ name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId, gtfsDataset: selectedDataset });
 
       // Ensure PVGIS TMY + weather clustering data exist for the shift's location
       let weatherDataWarning = "";
@@ -1829,11 +1911,13 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
   const [, , , , shift] = await Promise.all([
     loadBuses(),
-    loadRoutes(),
+    Promise.resolve(),
     loadDepots(),
     loadDays(),
     shiftPromise,
   ]);
+
+  await loadDatasets(shift);
 
   if (isEditMode) {
     if (shift) {
@@ -1907,6 +1991,9 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   }
 
   return () => {
+    disposed = true;
+    datasetGeneration++;
+    tripGeneration++;
     cleanupHandlers.forEach((handler) => handler());
   };
 };

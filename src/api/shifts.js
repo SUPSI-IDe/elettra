@@ -144,7 +144,7 @@ export const fetchShiftYearlyDistance = async (
 const toTripIds = (tripIds) =>
   Array.isArray(tripIds) ? tripIds.filter(Boolean).map(String) : [];
 
-export const createShift = async ({ name, busId, tripIds, startTime, endTime, startDepotId, endDepotId } = {}) => {
+export const createShift = async ({ name, busId, tripIds, startTime, endTime, startDepotId, endDepotId, gtfsDataset } = {}) => {
   shiftIndex.invalidate();
   if (!name) {
     throw new Error("Missing name");
@@ -166,6 +166,7 @@ export const createShift = async ({ name, busId, tripIds, startTime, endTime, st
     name,
     bus_id: busId,
     trip_ids: trips,
+    ...(gtfsDataset ? { gtfs_dataset: { gtfs_year: gtfsDataset.gtfs_year, gtfs_file_date: gtfsDataset.gtfs_file_date } } : {}),
   };
 
   // Include optional depot and time fields if provided
@@ -196,7 +197,7 @@ export const createShift = async ({ name, busId, tripIds, startTime, endTime, st
   return payload;
 };
 
-export const updateShift = async (shiftId, { name, busId, tripIds, startTime, endTime, startDepotId, endDepotId } = {}) => {
+export const updateShift = async (shiftId, { name, busId, tripIds, startTime, endTime, startDepotId, endDepotId, gtfsDataset } = {}) => {
   shiftIndex.invalidate();
   if (!shiftId) {
     throw new Error("Missing shiftId");
@@ -221,6 +222,7 @@ export const updateShift = async (shiftId, { name, busId, tripIds, startTime, en
     name,
     bus_id: busId,
     trip_ids: trips,
+    ...(gtfsDataset ? { gtfs_dataset: { gtfs_year: gtfsDataset.gtfs_year, gtfs_file_date: gtfsDataset.gtfs_file_date } } : {}),
   };
 
   // Include optional depot and time fields if provided

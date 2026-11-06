@@ -3262,3 +3262,12 @@ table input[type="checkbox"] {
     width: 100%;
   }
 }
+
+/* Dataset provenance is visible on cards and remains readable on mobile. */
+.gtfs-metadata { display: grid; gap: .15rem; margin-top: .35rem; font-size: .8rem; font-weight: 400; line-height: 1.4; color: #475569; white-space: normal; }
+.gtfs-metadata__source { font-size: .75rem; font-style: italic; }
+.gtfs-analysis-panel { padding: 1rem; margin: 0 0 1rem; border: 1px solid #dbe3eb; border-radius: .75rem; background: #fff; }
+.gtfs-analysis-panel h2 { margin: 0 0 .75rem; font-size: 1rem; }
+.gtfs-analysis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: .8rem; }
+.shift-gtfs-field { grid-column: 1 / -1; }
+.shift-gtfs-field small { display: block; margin-top: .4rem; color: #475569; }
