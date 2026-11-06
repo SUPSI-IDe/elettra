@@ -44,6 +44,7 @@ test('year and file filter selection, search and select-all; changing edition cl
   const select=page.locator('#simulation-gtfs-dataset'),rows=page.locator('.shift-table tbody tr[data-id]');
   await expect(select).toHaveValue('2027|2026-11-04');
   await expect(rows).toHaveCount(1);await expect(rows.first()).toHaveAttribute('data-id','latest');
+  await expect(rows.locator('[data-role="gtfs-metadata"]')).toHaveCount(0);
   await expect(page.locator('[data-role="gtfs-mixed-warning"]')).toBeVisible();
   await expect(page.locator('tr[data-id="mixed"]')).toHaveCount(0);
   await select.selectOption('2026|2025-09-27');

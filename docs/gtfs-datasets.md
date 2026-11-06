@@ -29,3 +29,14 @@ label their fallback information as derived from the current block.
 Regression coverage: `tests/gtfs-datasets.test.mjs` and
 `tests/e2e/gtfs-datasets.spec.js`, and `tests/e2e/gtfs-analysis-scope.spec.js`
 (desktop and mobile).
+
+## Compact presentation
+
+Result headers show the GTFS version in a collapsed, keyboard-accessible
+Details disclosure. A shared version is shown once; mixed historical editions
+retain the per-block breakdown. Current-block fallback data is identified even
+while collapsed, so it cannot be mistaken for execution metadata. Validity and
+full provenance remain available on expansion. Vehicle-block lists keep only
+year and file date; analysis selection omits repeated per-row GTFS metadata
+because the version and validity already appear above the filtered table.
+Creation, editing and block details retain the full timetable information.

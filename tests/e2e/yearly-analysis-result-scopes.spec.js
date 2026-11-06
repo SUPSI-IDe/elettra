@@ -1424,7 +1424,13 @@ for(const recorded of [true,false]) {
     const panel=page.locator('[data-role="analysis-gtfs"]');
     await expect(panel).toBeVisible();
     const rows=panel.locator('[data-role="gtfs-metadata"]');
-    await expect(rows).toHaveCount(2);
+    await expect(rows).toHaveCount(recorded ? 2 : 1);
+    await expect(rows.first()).toBeHidden();
+    await expect(panel.locator('summary')).toContainText(recorded ? 'Multiple GTFS datasets' : 'Current block data');
+    expect((await panel.boundingBox()).height).toBeLessThan(90);
+    await panel.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(rows.first()).toBeVisible();
     for(const row of await rows.all())await expect(row).toContainText(recorded?'Recorded when the analysis was created':'Derived from the current vehicle block');
     if(recorded) {
       await expect(rows.nth(0)).toContainText('2025 ·');
@@ -1432,7 +1438,28 @@ for(const recorded of [true,false]) {
       await expect(rows.nth(1)).toContainText('13/12/2026–11/12/2027');
     } else {
       await expect(rows.nth(0)).toContainText('2026 ·');
-      await expect(rows.nth(1)).toContainText('2026 ·');
+      await expect(rows).toHaveCount(1);
     }
   });
 }
+
+
+test('shared recorded GTFS version uses one compact header disclosure',async({page})=>{
+    const dataset={gtfs_year:2027,gtfs_file_date:'2026-11-04',valid_from:'2026-12-13',valid_to:'2027-12-11'};
+    const snapshot={version:1,source:'recorded',shifts:{morning:[dataset],evening:[dataset]}};
+    const analysis=structuredClone(multishiftAnalysis);analysis.features.gtfs_provenance=snapshot;
+    await mountResults(page, analysis, {currentGtfs:[dataset]});
+    const panel=page.locator('[data-role="analysis-gtfs"]');
+    await expect(page.locator('.page-header [data-role="analysis-gtfs"]')).toBeVisible();
+    await expect(panel.locator('summary')).toContainText('2027 · file 04/11/2026');
+    await expect(panel.locator('summary')).not.toContainText('Current block data');
+    await expect(panel.locator('[data-role="gtfs-metadata"]')).toHaveCount(1);
+    await expect(panel.locator('[data-role="gtfs-metadata"]')).toBeHidden();
+    expect((await panel.boundingBox()).height).toBeLessThan(90);
+    await panel.locator('summary').click();
+    await expect(panel.locator('[data-role="gtfs-metadata"]')).toBeVisible();
+    await expect(panel).toContainText('13/12/2026–11/12/2027');
+    await expect(panel).toContainText('Recorded when the analysis was created');
+    await panel.locator('summary').click();
+    await expect(panel.locator('[data-role="gtfs-metadata"]')).toBeHidden();
+});

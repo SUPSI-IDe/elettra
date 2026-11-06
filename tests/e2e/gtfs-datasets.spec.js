@@ -107,6 +107,7 @@ test('the ordinary duplicate action retains the old edition and all original tri
   });
   await page.goto('./#shifts');
   await expect(page.locator('tr[data-id="new"] [data-role="gtfs-metadata"]')).toContainText('2027');
+  await expect(page.locator('tr[data-id="new"] [data-role="gtfs-metadata"]')).not.toContainText('Validity');
   await page.locator('tr[data-id="old"] input[type="checkbox"]').check();
   await page.locator('[data-action="duplicate-selected-shifts"]').click();
   await expect(page.locator('tr[data-id="copy"] [data-role="gtfs-metadata"]')).toContainText('2025');

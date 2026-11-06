@@ -26,10 +26,10 @@ export const analysisDatasetCatalog = (shifts) => sortDatasets([...new Map(
     .map(shift => [datasetKey(shift.gtfs_datasets[0]), shift.gtfs_datasets[0]])
 ).values()]);
 
-export const datasetSummaryHtml = (datasets, t, { source = null } = {}) => {
+export const datasetSummaryHtml = (datasets, t, { source = null, compact = false } = {}) => {
   const rows = Array.isArray(datasets) ? datasets : null;
   const content = rows?.length ? rows.map((d) =>
-    `<span>${escapeHtml(datasetLabel(d, t))}</span><span>${escapeHtml(t("gtfs.validity"))}: ${escapeHtml(dateLabel(d.valid_from))}–${escapeHtml(dateLabel(d.valid_to))}</span>`
+    `<span>${escapeHtml(datasetLabel(d, t))}</span>${compact ? "" : `<span>${escapeHtml(t("gtfs.validity"))}: ${escapeHtml(dateLabel(d.valid_from))}–${escapeHtml(dateLabel(d.valid_to))}</span>`}`
   ).join("") : `<span>${escapeHtml(t(rows ? "gtfs.none" : "gtfs.unavailable"))}</span>`;
   return `<div class="gtfs-metadata" data-role="gtfs-metadata">${rows?.length > 1 ? `<strong>${escapeHtml(t("gtfs.mixed"))}</strong>` : ""}${content}${source ? `<span class="gtfs-metadata__source">${escapeHtml(t(`gtfs.${source}`))}</span>` : ""}</div>`;
 };

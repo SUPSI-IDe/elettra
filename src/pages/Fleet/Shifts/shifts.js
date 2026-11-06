@@ -336,7 +336,7 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } 
                       isSelected ? "checked" : ""
                     }></td>
 
-                    <td class="name">${textContent(shift?.name ?? "")}${datasetSummaryHtml(shift?.gtfs_datasets, t)}</td>
+                    <td class="name">${textContent(shift?.name ?? "")}${datasetSummaryHtml(shift?.gtfs_datasets, t, { compact: true })}</td>
                     <td class="bus">${textContent(
                       shift?.bus_model_name ?? "—"
                     )}</td>

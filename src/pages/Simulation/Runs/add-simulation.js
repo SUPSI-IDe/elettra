@@ -1,4 +1,4 @@
-import { datasetSummaryHtml, datasetKey, datasetLabel, dateLabel, shiftDatasetKey,
+import { datasetKey, datasetLabel, dateLabel, shiftDatasetKey,
   analysisDatasetCatalog, NO_GTFS_DATASET, UNKNOWN_GTFS_DATASET, MIXED_GTFS_DATASETS } from "../../../utils/gtfs-datasets.js";
 import "../evaluation-dialogs.css";
 import { formatChf } from "../../../utils/number-format";
@@ -215,7 +215,7 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } 
               selectedIds.has(shiftId) ? "checked" : ""
             } />
           </td>
-          <td>${textContent(shift?.name ?? "")}${datasetSummaryHtml(shift?.gtfs_datasets, t)}</td>
+          <td>${textContent(shift?.name ?? "")}</td>
           <td>${textContent(busModelName)}</td>
           <td class="distance" data-role="shift-distance">${textContent(dailyDistanceLabel)}</td>
           <td class="distance" data-role="shift-yearly-distance">${textContent(yearlyDistanceLabel)}</td>
