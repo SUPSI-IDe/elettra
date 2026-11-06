@@ -1,8 +1,14 @@
 .entity-row-actions {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: var(--space-xs);
+  width: 100%;
+}
+
+table td.actions:has(> .entity-row-actions),
+.table-standard td.actions:has(> .entity-row-actions) {
+  text-align: center;
 }
 
 table td button.entity-row-action,
@@ -43,9 +49,13 @@ table td button.entity-row-action--danger,
 }
 
 .entity-details {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
   width: min(50rem, calc(100vw - 2rem));
   max-width: none;
   max-height: min(48rem, calc(100vh - 2rem));
+  margin: 0;
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--border-light);

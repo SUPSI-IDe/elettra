@@ -51,6 +51,35 @@ const installSession = async (page, lang = "en") => {
   await page.route("**/api/v1/**", (route) => fulfillJson(route, []));
 };
 
+const expectHorizontallyCentered = async (container, content) => {
+  const centers = await container.evaluate((element, contentSelector) => {
+    const contentElement = element.querySelector(contentSelector);
+    const outer = element.getBoundingClientRect();
+    const inner = contentElement.getBoundingClientRect();
+    return {
+      outer: outer.left + outer.width / 2,
+      inner: inner.left + inner.width / 2,
+    };
+  }, content);
+  expect(Math.abs(centers.outer - centers.inner)).toBeLessThanOrEqual(1);
+};
+
+const expectDialogCenteredInViewport = async (dialog) => {
+  const position = await dialog.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      horizontalDifference: Math.abs(
+        rect.left + rect.width / 2 - window.innerWidth / 2
+      ),
+      verticalDifference: Math.abs(
+        rect.top + rect.height / 2 - window.innerHeight / 2
+      ),
+    };
+  });
+  expect(position.horizontalDifference).toBeLessThanOrEqual(1);
+  expect(position.verticalDifference).toBeLessThanOrEqual(1);
+};
+
 test("bus model rows stay compact and expose complete details, edit and delete actions", async ({
   page,
 }) => {
@@ -94,10 +123,15 @@ test("bus model rows stay compact and expose complete details, edit and delete a
   );
   await expect(table.locator("tbody td.size")).toHaveText("13");
   await expect(table.locator("tbody [data-row-action]")).toHaveCount(3);
+  await expectHorizontallyCentered(
+    table.locator("tbody td.actions"),
+    ".entity-row-actions"
+  );
 
   await table.locator('[data-row-action="details"]').click();
   const dialog = page.locator('[data-role="bus-model-details-dialog"]');
   await expect(dialog).toBeVisible();
+  await expectDialogCenteredInViewport(dialog);
   await expect(dialog.locator('[data-role="entity-details-title"]')).toHaveText(
     "Dettagli modello autobus — Electric 13"
   );
@@ -141,10 +175,15 @@ test("custom stop rows expose translated type and all popup fields with inline a
   await expect(table.locator("thead th")).toHaveCount(5);
   await expect(table.locator("tbody td.type")).toHaveText("Depot");
   await expect(table.locator("tbody [data-row-action]")).toHaveCount(3);
+  await expectHorizontallyCentered(
+    table.locator("tbody td.actions"),
+    ".entity-row-actions"
+  );
 
   await table.locator('[data-row-action="details"]').click();
   const dialog = page.locator('[data-role="custom-stop-details-dialog"]');
   await expect(dialog).toBeVisible();
+  await expectDialogCenteredInViewport(dialog);
   await expect(dialog.locator('[data-role="entity-details-title"]')).toHaveText(
     "Custom stop details — Central depot"
   );
