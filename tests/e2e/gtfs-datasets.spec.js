@@ -78,3 +78,39 @@ test('a company with no datasets has no selectable routes',async({page})=>{
   await expect(page.locator('#shift-gtfs-summary')).toContainText('No GTFS timetable available');
   expect(requests).toEqual([]);
 });
+
+test('the ordinary duplicate action retains the old edition and all original trips',async({page})=>{
+  const original={id:'old',name:'2025 duty',bus_id:'bus',trip_count:3,gtfs_datasets:[editions[0]],structure:[
+    {trip_id:'transfer',sequence_number:3},
+    {trip_id:'trip-2025',sequence_number:2},
+    {trip_id:'depot',sequence_number:1},
+  ]};
+  const shifts=[original,{id:'new',name:'2027 duty',bus_id:'bus',trip_count:1,gtfs_datasets:[editions[3]],structure:[{trip_id:'trip-2027',sequence_number:1}]}];
+  let submitted;
+  await page.addInitScript(()=>{localStorage.setItem('access_token','test');localStorage.setItem('elettra_lang','en');});
+  await page.route('**/auth/me',route=>route.fulfill({json:{id:'user',company_id:'company',role:'analyst'}}));
+  await page.route('**/api/v1/**',async route=>{
+    const request=route.request(),path=new URL(request.url()).pathname;
+    let data=[];
+    if(path.endsWith('/version'))data={version:'test'};
+    else if(path.endsWith('/datasets'))data=editions;
+    else if(path.endsWith('/buses/'))data=[{id:'bus',user_id:'user',bus_model_id:'model'}];
+    else if(path.endsWith('/bus-models/'))data=[{id:'model',user_id:'user',name:'Model'}];
+    else if(path.endsWith('/yearly-distance'))data={daily_distance_km:1,yearly_distance_km:365};
+    else if(path.endsWith('/shifts/')) {
+      if(request.method()==='POST') {
+        submitted=request.postDataJSON();
+        data={...original,id:'copy',name:submitted.name};shifts.push(data);
+      } else data=shifts;
+    } else if(path.includes('/shifts/'))data=shifts.find(shift=>path.endsWith('/'+shift.id))||{};
+    return route.fulfill({json:data});
+  });
+  await page.goto('./#shifts');
+  await expect(page.locator('tr[data-id="new"] [data-role="gtfs-metadata"]')).toContainText('2027');
+  await page.locator('tr[data-id="old"] input[type="checkbox"]').check();
+  await page.locator('[data-action="duplicate-selected-shifts"]').click();
+  await expect(page.locator('tr[data-id="copy"] [data-role="gtfs-metadata"]')).toContainText('2025');
+  expect(submitted.bus_id).toBe('bus');
+  expect(submitted.trip_ids).toEqual(['depot','trip-2025','transfer']);
+  expect(submitted.name).not.toBe(original.name);
+});
