@@ -76,6 +76,8 @@ const mountResults = async (page, {
   basisRunIds,
   dailyCycle,
   language = "en",
+  gtfsProvenance,
+  currentGtfs = [],
 } = {}) => {
   const requestedApiPaths = [];
   await page.addInitScript((selectedLanguage) => {
@@ -165,6 +167,7 @@ const mountResults = async (page, {
           status: runStatus,
           input_params: {
             shift_ids: shiftIds,
+            gtfs_provenance: gtfsProvenance,
             mode,
             consumption_basis: consumptionBasis,
             basis_run_ids: basisRunIds,
@@ -222,6 +225,10 @@ const mountResults = async (page, {
       return;
     }
 
+    if (currentGtfs.length && path.endsWith('/api/v1/user/shifts/')) {
+      await route.fulfill({json:shiftIds.map(id=>({id,name:shiftNames[id],gtfs_datasets:currentGtfs}))});
+      return;
+    }
     const shiftInfoMatch = path.match(/\/api\/v1\/user\/shifts\/([^/]+)\/info$/);
     if (shiftInfoMatch) {
       const shiftId = decodeURIComponent(shiftInfoMatch[1]);
@@ -1675,3 +1682,26 @@ test("shows a stable diagnostic for historical failed runs without an error payl
   await expect(page.locator('[data-role="feasibility-no-solution"]')).toHaveCount(0);
   expect(failedResultDerivedRequests(requestedApiPaths)).toEqual([]);
 });
+
+for(const recorded of [true,false]) {
+  test(`GTFS provenance distinguishes ${recorded?'recorded mixed editions':'historical current blocks'} in feasibility results`,async({page})=>{
+    const old={gtfs_year:2025,gtfs_file_date:'2025-10-02',valid_from:'2024-12-15',valid_to:'2025-12-13'};
+    const latest={gtfs_year:2027,gtfs_file_date:'2026-11-04',valid_from:'2026-12-13',valid_to:'2027-12-11'};
+    const current={gtfs_year:2026,gtfs_file_date:'2025-09-27',valid_from:'2025-12-14',valid_to:'2026-12-12'};
+    const snapshot={version:1,source:'recorded',shifts:{morning:[old],evening:[latest]}};
+    await mountResults(page, {gtfsProvenance:recorded?snapshot:undefined,currentGtfs:[current]});
+    const panel=page.locator('[data-role="analysis-gtfs"]');
+    await expect(panel).toBeVisible();
+    const rows=panel.locator('[data-role="gtfs-metadata"]');
+    await expect(rows).toHaveCount(2);
+    for(const row of await rows.all())await expect(row).toContainText(recorded?'Recorded when the analysis was created':'Derived from the current vehicle block');
+    if(recorded) {
+      await expect(rows.nth(0)).toContainText('2025 ·');
+      await expect(rows.nth(1)).toContainText('2027 ·');
+      await expect(rows.nth(1)).toContainText('13/12/2026–11/12/2027');
+    } else {
+      await expect(rows.nth(0)).toContainText('2026 ·');
+      await expect(rows.nth(1)).toContainText('2026 ·');
+    }
+  });
+}
