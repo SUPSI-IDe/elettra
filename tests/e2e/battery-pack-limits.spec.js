@@ -125,6 +125,54 @@ test('changing bus model initializes its midpoint; edits survive unrelated mode 
   await expect(error).toContainText('at most 16');
 });
 
+test('optimization mode changes preserve user model names, options and selection', async ({ page }) => {
+  const lightweightModels = [
+    { id: 'model-a', user_id: 'user', name: 'Operator articulated A' },
+    { id: 'model-b', user_id: 'user', name: 'Operator articulated B' },
+  ];
+  const fullModels = Object.fromEntries(lightweightModels.map(model => [model.id, {
+    ...model,
+    specs: {
+      size: '18m',
+      min_battery_packs: model.id === 'model-a' ? 10 : 12,
+      max_battery_packs: model.id === 'model-a' ? 16 : 14,
+      battery_pack_cost_chf: 6000,
+    },
+  }]));
+  const loadedDetails = [];
+
+  await setup(page, {
+    models: lightweightModels,
+    details: async id => {
+      loadedDetails.push(id);
+      return fullModels[id];
+    },
+    mode: null,
+  });
+
+  const modelSelect = page.locator('#var-bus-model-override');
+  const modeSelect = page.locator('#var-optimization-mode');
+  const expectedLabels = ['Operator articulated A', 'Operator articulated B'];
+  await expect(modelSelect).toHaveValue('model-a');
+  await expect(modelSelect.locator('option')).toHaveText(expectedLabels);
+  await expect.poll(() => loadedDetails).toContain('model-a');
+
+  for (const mode of ['battery_only', 'charging_only', 'joint']) {
+    await modeSelect.selectOption(mode);
+    await expect(modelSelect).toHaveValue('model-a');
+    await expect(modelSelect.locator('option')).toHaveText(expectedLabels);
+  }
+
+  const modelBResponse = page.waitForResponse(response =>
+    new URL(response.url()).pathname.endsWith('/bus-models/model-b')
+  );
+  await modelSelect.selectOption('model-b');
+  await modelBResponse;
+  await modeSelect.selectOption('battery_only');
+  await expect(modelSelect).toHaveValue('model-b');
+  await expect(modelSelect.locator('option')).toHaveText(expectedLabels);
+});
+
 test('unavailable or inconsistent specifications disable the field and block submission', async ({ page }) => {
   const missing = { ...modelA, specs: {} };
   const invalid = { ...modelB, specs: { min_battery_packs: 20, max_battery_packs: 10 } };

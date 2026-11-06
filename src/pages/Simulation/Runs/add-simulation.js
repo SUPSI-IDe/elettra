@@ -830,7 +830,10 @@ export const initializeAddSimulation = async (
     for (const model of allUserModels) {
       if (!model?.id) continue;
       const modelId = text(model.id);
-      const label = resolveBusModelDisplayName(model) || modelId;
+      // Full details are loaded asynchronously and include a generic vehicle
+      // category. Keep the operator's model name stable in this selector.
+      const label =
+        text(model.name).trim() || resolveBusModelDisplayName(model) || modelId;
       const opt = document.createElement("option");
       opt.value = modelId;
       opt.textContent = label;
@@ -1404,9 +1407,10 @@ export const initializeAddSimulation = async (
   }
 
   if (modeSelect) {
-    modeSelect.addEventListener("change", handleSelectionChange);
+    const handleModeChange = () => rebuildStopsTable();
+    modeSelect.addEventListener("change", handleModeChange);
     cleanupHandlers.push(() =>
-      modeSelect.removeEventListener("change", handleSelectionChange)
+      modeSelect.removeEventListener("change", handleModeChange)
     );
   }
 
