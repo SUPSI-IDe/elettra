@@ -20,7 +20,12 @@ const parseCoordinate = (value) => {
   return Number.isFinite(numeric) ? numeric : undefined;
 };
 
-const toDepotPayload = (formData) => {
+const objectFeatures = (features) =>
+  features && typeof features === "object" && !Array.isArray(features) ?
+    { ...features }
+  : {};
+
+const toDepotPayload = (formData, existingFeatures) => {
   const name = formData.get("name")?.toString().trim() ?? "";
   const address = formData.get("address")?.toString().trim() ?? "";
   const type = formData.get("type")?.toString().trim() ?? "";
@@ -29,15 +34,21 @@ const toDepotPayload = (formData) => {
   const latitude = parseCoordinate(formData.get("latitude"));
   const longitude = parseCoordinate(formData.get("longitude"));
 
-  const features = {};
+  const features = objectFeatures(existingFeatures);
   if (type) {
     features.type = type;
+  } else {
+    delete features.type;
   }
   if (city) {
     features.city = city;
+  } else {
+    delete features.city;
   }
   if (notes) {
     features.notes = notes;
+  } else {
+    delete features.notes;
   }
 
   return {
@@ -156,6 +167,19 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     }
   };
 
+  const cityFromGeocode = (geo) => {
+    const addr = geo?.address || {};
+    return (
+      addr.city ||
+      addr.town ||
+      addr.village ||
+      addr.municipality ||
+      addr.hamlet ||
+      addr.suburb ||
+      ""
+    );
+  };
+
   // Build a robust single-line address from Nominatim data
   const buildAddressLine = (addr, displayName) => {
     const street = [
@@ -199,7 +223,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
         addressInput.value = addressLine;
       }
 
-      const city = addr.city || addr.town || addr.village || addr.municipality || addr.hamlet || addr.suburb;
+      const city = cityFromGeocode(geo);
       if (city) {
         cityInput.value = city;
       }
@@ -236,6 +260,22 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     updateFromMapCenter();
   }
 
+  // Stops created before type and city became mandatory may not have a
+  // features object. Recover the missing city from the stored coordinates,
+  // while keeping the field editable in case reverse geocoding is unavailable.
+  if (isEditMode && !cityInput.value.trim()) {
+    const latitude = Number.parseFloat(latInput.value);
+    const longitude = Number.parseFloat(lonInput.value);
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      reverseGeocode(latitude, longitude).then((geo) => {
+        const city = cityFromGeocode(geo);
+        if (city && !cityInput.value.trim()) {
+          cityInput.value = city;
+        }
+      });
+    }
+  }
+
   // For new stops: asynchronously calculate centroid from GTFS data and recenter
   // Only if we don't have depot coordinates and user hasn't interacted
   if (!isEditMode && currentDepot.latitude == null && currentDepot.longitude == null) {
@@ -264,20 +304,43 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
 
     const formData = new FormData(form);
     const { name, address, latitude, longitude, features } =
-      toDepotPayload(formData);
+      toDepotPayload(formData, currentDepot.features);
 
-    // Everything but the notes is mandatory. Address, city and the coordinates
-    // are map-derived, so a gap here means the reverse geocode came back empty.
-    const missingRequired =
-      !name ||
-      !address ||
-      !features.type ||
-      !features.city ||
-      latitude === undefined ||
-      longitude === undefined;
+    // Everything but notes is mandatory. Address and coordinates come from the
+    // map; city can also be entered manually when reverse geocoding is unavailable.
+    const requiredFields = [
+      { name: "name", value: name, label: t("custom_stops.field_name") },
+      { name: "type", value: features.type, label: t("custom_stops.field_type") },
+      { name: "address", value: address, label: t("custom_stops.field_address") },
+      { name: "city", value: features.city, label: t("custom_stops.field_city") },
+      {
+        name: "latitude",
+        value: latitude,
+        label: t("custom_stops.field_latitude"),
+      },
+      {
+        name: "longitude",
+        value: longitude,
+        label: t("custom_stops.field_longitude"),
+      },
+    ];
+    const missingField = requiredFields.find(
+      ({ value }) => value === undefined || value === ""
+    );
 
-    if (missingRequired) {
-      updateFeedback(feedback, t("custom_stops.required_fields_missing"), "error");
+    form.querySelectorAll('[aria-invalid="true"]').forEach((field) => {
+      field.removeAttribute("aria-invalid");
+    });
+
+    if (missingField) {
+      const field = form.elements.namedItem(missingField.name);
+      field?.setAttribute("aria-invalid", "true");
+      field?.focus();
+      updateFeedback(
+        feedback,
+        t("custom_stops.required_field_missing", { field: missingField.label }),
+        "error"
+      );
       return;
     }
 
