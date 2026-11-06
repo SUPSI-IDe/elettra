@@ -17,13 +17,15 @@ const SHIFTS_PATH = `${API_ROOT}/api/v1/user/shifts/`;
  * envelope.  When the full structure (trips/stops) is needed, call
  * `fetchShiftById`.  Existing `bus_id`/`user_id` filters are preserved.
  *
- * @param {{ skip?: number, limit?: 20 | 50 | 100, busId?: string, userId?: string }} [params]
+ * @param {{ skip?: number, limit?: 20 | 50 | 100, busId?: string, userId?: string, search?: string, signal?: AbortSignal }} [params]
  */
 export const fetchShifts = async ({
   skip = 0,
   limit = 20,
   busId = "",
   userId = "",
+  search = "",
+  signal,
 } = {}) => {
   const headers = authHeaders();
   const { skip: normalizedSkip, limit: normalizedLimit } = buildPaginationParams(
@@ -39,10 +41,14 @@ export const fetchShifts = async ({
   if (userId) {
     params.set("user_id", userId);
   }
+  const normalizedSearch = String(search ?? "").trim();
+  if (normalizedSearch) {
+    params.set("search", normalizedSearch);
+  }
   const query = params.toString();
   const url = query ? `${SHIFTS_PATH}?${query}` : SHIFTS_PATH;
 
-  const response = await fetch(url, { method: "GET", headers });
+  const response = await fetch(url, { method: "GET", headers, signal });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
@@ -54,11 +60,18 @@ export const fetchShifts = async ({
 
 /**
  * Fetch every shift accessible to the current user by iterating through
- * all pages of `fetchShifts`.  Optional filters (`busId`, `userId`) are
+ * all pages of `fetchShifts`.  Optional filters (`busId`, `userId`, `search`) are
  * forwarded to each page request.
  */
-export const fetchAllShifts = ({ busId = "", userId = "" } = {}) =>
-  fetchAllPages((params) => fetchShifts({ ...params, busId, userId }));
+export const fetchAllShifts = ({
+  busId = "",
+  userId = "",
+  search = "",
+  signal,
+} = {}) =>
+  fetchAllPages((params) =>
+    fetchShifts({ ...params, busId, userId, search, signal })
+  );
 
 const shiftIndex = createShiftIndex({ fetchAll: () => fetchAllShifts() });
 

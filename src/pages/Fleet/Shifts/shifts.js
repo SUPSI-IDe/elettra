@@ -45,6 +45,8 @@ const DEFAULT_SORT = {
   direction: "asc",
 };
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 const setFlashMessage = (section, message) => {
   const flashElement = section.querySelector('[data-role="flash"]');
   if (!flashElement) {
@@ -415,6 +417,9 @@ export const initializeShifts = async (root = document, options = {}) => {
   const busesCache = new Map();
   let modelsByIdCache = null;
   let cachedUserId = "";
+  let searchTimer = null;
+  let activeLoadController = null;
+  let loadRequestId = 0;
 
   // ── Pagination state ──────────────────────────────────────────────
   let skip = 0;
@@ -424,10 +429,18 @@ export const initializeShifts = async (root = document, options = {}) => {
   );
   const pagination = installPaginationControl(paginationContainer, {
     onPageChange: (nextSkip) => {
+      if (searchTimer) {
+        clearTimeout(searchTimer);
+        searchTimer = null;
+      }
       skip = Math.max(0, nextSkip);
       void loadShifts();
     },
     onPageSizeChange: (nextLimit) => {
+      if (searchTimer) {
+        clearTimeout(searchTimer);
+        searchTimer = null;
+      }
       limit = nextLimit;
       skip = 0;
       void loadShifts();
@@ -549,20 +562,9 @@ export const initializeShifts = async (root = document, options = {}) => {
     };
   };
 
-  const getFilteredShifts = () => {
-    const query = (searchInput?.value ?? "").toLowerCase().trim();
-    return query
-      ? allShifts.filter(
-          (shift = {}) =>
-            text(shift?.name).toLowerCase().includes(query) ||
-            text(shift?.bus_model_name).toLowerCase().includes(query)
-        )
-      : allShifts;
-  };
-
   const renderCurrentView = () => {
     const selectedIds = new Set(getSelectedIdsFrom(table));
-    const visibleShifts = sortShifts(getFilteredShifts(), sortState);
+    const visibleShifts = sortShifts(allShifts, sortState);
     renderShiftRows(tbody, visibleShifts, { selectedIds });
     updateSortHeaders(table, sortState);
     bindSelectAll(headerCheckbox, table);
@@ -722,13 +724,21 @@ export const initializeShifts = async (root = document, options = {}) => {
   };
 
   const loadShifts = async () => {
+    const requestId = ++loadRequestId;
+    activeLoadController?.abort();
+    const controller = new AbortController();
+    activeLoadController = controller;
+
     renderLoading(tbody);
     pagination?.setBusy(true);
 
     if (!isAuthenticated()) {
       const authMessage = t("shifts.login_required") || "Please login to view your vehicle blocks.";
       renderError(tbody, authMessage);
-      pagination?.setBusy(false);
+      if (requestId === loadRequestId) {
+        activeLoadController = null;
+        pagination?.setBusy(false);
+      }
       return;
     }
 
@@ -745,7 +755,13 @@ export const initializeShifts = async (root = document, options = {}) => {
         throw new Error("Unable to resolve current user.");
       }
 
-      const envelope = await fetchShifts({ skip, limit });
+      const search = text(searchInput?.value).trim();
+      const envelope = await fetchShifts({
+        skip,
+        limit,
+        search,
+        signal: controller.signal,
+      });
       const items = Array.isArray(envelope?.items) ? envelope.items : [];
 
       const modelsById = await ensureLookupCaches(currentUserId);
@@ -762,6 +778,10 @@ export const initializeShifts = async (root = document, options = {}) => {
         ),
       ];
       await ensureBusInfoForIds(busIds);
+
+      if (requestId !== loadRequestId) {
+        return;
+      }
 
       // The /api/v1/user/shifts/ endpoint is user-scoped server-side, so
       // additional client-side filtering is not required.
@@ -803,17 +823,40 @@ export const initializeShifts = async (root = document, options = {}) => {
       hydrateShiftTimes(allShifts);
       hydrateShiftDistances(allShifts);
     } catch (error) {
+      if (error?.name === "AbortError" || requestId !== loadRequestId) {
+        return;
+      }
       console.error("Failed to load shifts", error);
       renderError(tbody, error?.message ?? t("shifts.unable_to_load"));
     } finally {
-      pagination?.setBusy(false);
+      if (requestId === loadRequestId) {
+        if (activeLoadController === controller) {
+          activeLoadController = null;
+        }
+        pagination?.setBusy(false);
+      }
     }
   };
 
   if (searchInput) {
-    searchInput.addEventListener("input", renderCurrentView);
+    const handleSearchInput = () => {
+      skip = 0;
+      loadRequestId += 1;
+      if (searchTimer) {
+        clearTimeout(searchTimer);
+      }
+      activeLoadController?.abort();
+      renderLoading(tbody);
+      pagination?.setBusy(true);
+      searchTimer = setTimeout(() => {
+        searchTimer = null;
+        void loadShifts();
+      }, SEARCH_DEBOUNCE_MS);
+    };
+
+    searchInput.addEventListener("input", handleSearchInput);
     cleanupHandlers.push(() => {
-      searchInput.removeEventListener("input", renderCurrentView);
+      searchInput.removeEventListener("input", handleSearchInput);
     });
   }
 
@@ -991,6 +1034,13 @@ export const initializeShifts = async (root = document, options = {}) => {
   await loadShifts();
 
   return () => {
+    loadRequestId += 1;
+    activeLoadController?.abort();
+    activeLoadController = null;
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+      searchTimer = null;
+    }
     cleanupHandlers.forEach((handler) => handler());
   };
 };
