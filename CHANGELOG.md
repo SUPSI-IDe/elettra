@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0-rc.1] - 2026-11-08
+
+### Added
+
+- Select one GTFS edition for new feasibility and annual analyses, preserve it when duplicating vehicle blocks and display the recorded provenance in saved results.
+- Add consistent detail dialogs and centered actions for fleet entities, including support for editing legacy custom stops.
+
+### Changed
+
+- Search shifts on the server before pagination so matching entries remain discoverable beyond the current page, while preserving page-size changes, navigation and clearing the filter.
+- Keep feasibility bus-model selection stable and present GTFS context and analysis results with compact, expandable provenance details.
+
+### Staging candidate
+
+- Pair with backend `1.5.0-rc.1`. Existing data remains compatible and no database schema migration is required.
+
 ## [0.9.0] - 2026-11-05
 
 ### Added
