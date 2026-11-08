@@ -389,6 +389,27 @@ test("explains reached and configured SOC limits for the selected shift", async 
 
   await selectShiftScope(page, "morning");
 
+  const configuredWindow = page.locator(".efficiency-param").filter({
+    hasText: "Configured SoC window",
+  });
+  await expect(configuredWindow).toContainText("20% / 90%");
+
+  const shiftSummary = page.locator('[data-role="feasibility-shift-summary"]');
+  await expect(
+    shiftSummary.locator('[data-role="feasibility-shift-min-soc"]'),
+  ).toContainText("Minimum SOC reached");
+  await expect(
+    shiftSummary.locator('[data-role="feasibility-shift-max-soc"]'),
+  ).toContainText("Maximum SOC reached");
+
+  await page.locator("details.ya-more-information > summary").click();
+  await expect(
+    page.getByRole("columnheader", { name: "Minimum SoC limit (kWh)" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("columnheader", { name: "Maximum SoC limit (kWh)" }),
+  ).toBeVisible();
+
   const adequacy = page.locator(".efficiency-adequacy-panel");
   await expect(adequacy).toContainText("Usable SOC window");
   await expect(adequacy.locator('[data-role="battery-adequacy-usable"]')).toHaveText(

@@ -6782,11 +6782,15 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
           </span>
         </article>
         <article class="result-metric" data-role="feasibility-shift-min-soc">
-          <span class="result-metric__label">${textContent(t("simulation.opt_col_min_soc") || "Min SoC")}</span>
+          <span class="result-metric__label">${textContent(
+            translateOr("simulation.battery_adequacy_minimum_soc", "Minimum SOC reached")
+          )}</span>
           <strong class="result-metric__value">${shiftMetricValue(operation.minSocKwh, "kWh", { decimals: 1 })}</strong>
         </article>
         <article class="result-metric" data-role="feasibility-shift-max-soc">
-          <span class="result-metric__label">${textContent(t("simulation.opt_col_max_soc") || "Max SoC")}</span>
+          <span class="result-metric__label">${textContent(
+            translateOr("simulation.battery_adequacy_maximum_soc", "Maximum SOC reached")
+          )}</span>
           <strong class="result-metric__value">${shiftMetricValue(operation.maxSocKwh, "kWh", { decimals: 1 })}</strong>
         </article>
         <article class="result-metric" data-role="feasibility-shift-charged-energy">
@@ -7032,7 +7036,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     },
     {
       label:
-        translateOr("simulation.efficiency_soc_range", "Min / Max SoC"),
+        translateOr("simulation.efficiency_soc_range", "Configured SoC window"),
       value: `${formatPct(ip.min_soc ?? 0.4)} / ${formatPct(ip.max_soc ?? 0.9)}`,
     },
     {
@@ -7161,8 +7165,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     : unifiedRows;
 
   const perBusHeaders = hasPerBus ? `
-              <th>${textContent(t("simulation.opt_col_min_soc") || "Min SoC (kWh)")}</th>
-              <th>${textContent(t("simulation.opt_col_max_soc") || "Max SoC (kWh)")}</th>` : "";
+              <th>${textContent(t("simulation.opt_col_min_soc") || "Minimum SoC limit (kWh)")}</th>
+              <th>${textContent(t("simulation.opt_col_max_soc") || "Maximum SoC limit (kWh)")}</th>` : "";
 
   const chartCards = [];
 
