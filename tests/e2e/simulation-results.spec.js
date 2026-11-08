@@ -137,6 +137,13 @@ test("loaded feasibility results use mean for the decision and show the full dis
       return;
     }
 
+    if (path.endsWith("/api/v1/user/shifts/test-shift/yearly-distance")) {
+      await route.fulfill({
+        json: { daily_distance_km: 200, yearly_distance_km: 73_000 },
+      });
+      return;
+    }
+
     if (path.endsWith("/api/v1/economic/defaults")) {
       await route.fulfill({ json: {} });
       return;

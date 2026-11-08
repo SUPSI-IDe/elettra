@@ -252,6 +252,13 @@ const mountResults = async (page, {
       return;
     }
 
+    if (path.includes("/api/v1/user/shifts/") && path.endsWith("/yearly-distance")) {
+      await route.fulfill({
+        json: { daily_distance_km: 100, yearly_distance_km: 36_500 },
+      });
+      return;
+    }
+
     await route.fulfill({ status: 404, json: { detail: "Unused by this test" } });
   });
 
