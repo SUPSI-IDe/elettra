@@ -435,7 +435,7 @@ test("explains reached and configured SOC limits for the selected shift", async 
   );
 });
 
-test("separates the verified battery forecast from the initial physical-maximum reference", async ({ page }) => {
+test("places the initial physical-maximum reference directly after the selected forecast", async ({ page }) => {
   await mountResults(page, {
     shiftIds: ["morning"],
     mode: "joint",
@@ -491,23 +491,22 @@ test("separates the verified battery forecast from the initial physical-maximum 
   );
   await expect(selectedRow).toContainText("Selected and verified configuration");
   await expect(selectedRow.locator("td").nth(1)).toHaveText("3");
-
-  const comparison = page.locator(
-    '[data-role="feasibility-comparison-predictions"]',
-  );
-  await expect(comparison).not.toHaveAttribute("open", "");
-  await expect(comparison.locator("summary")).toHaveText(
-    "Show reference and verification configurations (1)",
-  );
-
-  await comparison.locator("summary").click();
-  const referenceRow = comparison.locator(
+  const referenceRow = selectedTable.locator(
     'tr[data-prediction-role="initial_max_physical"]',
   );
   await expect(referenceRow).toContainText(
     "Initial reference · physical maximum",
   );
   await expect(referenceRow.locator("td").nth(1)).toHaveText("8");
+  await expect(selectedTable.locator("tbody > tr").nth(0)).toHaveAttribute(
+    "data-prediction-role",
+    "selected",
+  );
+  await expect(selectedTable.locator("tbody > tr").nth(1)).toHaveAttribute(
+    "data-prediction-role",
+    "initial_max_physical",
+  );
+  await expect(page.locator(".efficiency-table-note")).toHaveCount(0);
 });
 
 test("combines selected and initial-reference roles when they use the same forecast", async ({ page }) => {
@@ -532,9 +531,7 @@ test("combines selected and initial-reference roles when they use the same forec
   await expect(
     selectedTable.locator('tr[data-prediction-role="selected_reference"]'),
   ).toContainText("Selected and verified · initial reference");
-  await expect(
-    page.locator('[data-role="feasibility-comparison-predictions"]'),
-  ).toHaveCount(0);
+  await expect(selectedTable.locator("tbody > tr")).toHaveCount(1);
 });
 
 test("separates the common result from one selected shift without an aggregate option", async ({ page }) => {
@@ -670,6 +667,12 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(shiftSummary.locator('[data-role="feasibility-shift-charged-energy"]')).toContainText("80.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("2");
   await expect(
+    shiftSummary.locator('[data-role="feasibility-shift-predicted-consumption"]'),
+  ).toHaveText(/Prediction consumption per vehicle block \(kWh\)\s+350/);
+  await expect(
+    shiftSummary.locator('[data-role="feasibility-shift-predicted-consumption-per-km"]'),
+  ).toHaveText(/Prediction consumption per km \(kWh\/km\)\s+3\.500/);
+  await expect(
     shiftSummary.locator('[data-role="feasibility-shift-required-packs"]'),
   ).toHaveText(/Vehicle block battery requirement\s+8 packs/);
   await expect(shiftSummary.locator(".feasibility-shift-metrics strong small")).toHaveCount(0);
@@ -694,7 +697,7 @@ test("separates the common result from one selected shift without an aggregate o
       }).filter(Boolean);
       return { rows, viewportWidth: window.innerWidth };
     });
-  expect(shiftMetricLayout.rows).toHaveLength(8);
+  expect(shiftMetricLayout.rows).toHaveLength(10);
   shiftMetricLayout.rows.forEach((row) => {
     expect(row.labelFontFamily).toBe(row.valueFontFamily);
     expect(row.labelFontSize).toBe(row.valueFontSize);
@@ -705,7 +708,13 @@ test("separates the common result from one selected shift without an aggregate o
   const chargingPlan = shiftDetail.locator('[data-role="feasibility-charging-plan"]');
   const chargingSessions = chargingPlan.locator('[data-role="feasibility-charging-session"]');
   await expect(chargingPlan).toHaveAttribute("data-status", "complete");
-  await expect(chargingPlan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveText("2");
+  await expect(chargingPlan).not.toHaveAttribute("open", "");
+  await expect(chargingPlan.locator(":scope > summary")).toHaveText("Charging plan");
+  await expect(chargingPlan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveCount(0);
+  await expect(chargingSessions.first()).toBeHidden();
+  await chargingPlan.locator(":scope > summary").click();
+  await expect(chargingPlan).toHaveAttribute("open", "");
+  await expect(chargingSessions.first()).toBeVisible();
   await expect(chargingSessions).toHaveCount(2);
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-location"]')).toHaveText("Depot");
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-start"]')).toContainText("01:00");
@@ -817,10 +826,44 @@ test("separates the common result from one selected shift without an aggregate o
   const inlinePredictions = moreInformation.locator(
     '[data-role="feasibility-shift-predictions"]',
   );
+  await expect(moreInformation).toHaveClass(/result-card/);
+  await expect(moreInformation.locator(":scope > summary")).toHaveClass(
+    /feasibility-disclosure__toggle/,
+  );
+  const disclosurePresentation = await page.evaluate(() => {
+    const charging = document.querySelector('[data-role="feasibility-charging-plan"]');
+    const more = document.querySelector("details.ya-more-information");
+    const read = (element) => {
+      const style = getComputedStyle(element);
+      const summary = element?.querySelector(":scope > summary");
+      const summaryStyle = summary ? getComputedStyle(summary) : null;
+      return {
+        background: style.backgroundColor,
+        borderRadius: style.borderRadius,
+        borderStyle: style.borderStyle,
+        summaryBackground: summaryStyle?.backgroundColor,
+        summaryCursor: summaryStyle?.cursor,
+        toggleSymbol: summaryStyle
+          ? getComputedStyle(summary, "::before").content
+          : null,
+      };
+    };
+    return { charging: read(charging), more: read(more) };
+  });
+  expect(disclosurePresentation.more).toEqual(disclosurePresentation.charging);
+  expect(disclosurePresentation.more).toMatchObject({
+    background: "rgb(255, 255, 255)",
+    borderStyle: "solid",
+    summaryCursor: "pointer",
+    toggleSymbol: '"▸"',
+  });
   await expect(moreInformation).not.toHaveAttribute("open", "");
   await expect(inlinePredictions).toBeHidden();
   await moreInformation.locator(":scope > summary").click();
   await expect(moreInformation).toHaveAttribute("open", "");
+  await expect(
+    moreInformation.locator(".ya-more-information__content > .efficiency-section").first(),
+  ).not.toContainText("Prediction consumption per vehicle block");
   await expect(inlinePredictions).toBeVisible();
   await expect(inlinePredictions.locator("h3").first()).toHaveText("Predictions");
   await expect(inlinePredictions).toContainText("350.0 kWh");
@@ -842,7 +885,8 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(shiftSummary.locator('[data-role="feasibility-shift-min-soc"]')).toContainText("60.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-charged-energy"]')).toContainText("140.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("3");
-  await expect(chargingPlan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveText("3");
+  await expect(chargingPlan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveCount(0);
+  await expect(chargingPlan).toHaveAttribute("open", "");
   await expect(chargingSessions).toHaveCount(3);
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-start"]')).toContainText("23:50");
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-end"]')).toContainText("00:10");
@@ -1040,7 +1084,7 @@ test("distinguishes a shift with no required charging from missing schedule deta
 
   const plan = page.locator('[data-role="feasibility-charging-plan"]');
   await expect(plan).toHaveAttribute("data-status", "empty");
-  await expect(plan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveText("0");
+  await expect(plan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveCount(0);
   await expect(plan.locator('[data-role="feasibility-charging-plan-empty"]')).toContainText("No charging sessions are required");
   await expect(plan.locator('[data-role="feasibility-charging-session-list"]')).toHaveCount(0);
 });
@@ -1060,7 +1104,7 @@ test("explains when sessions are reported without time and location rows", async
 
   const plan = page.locator('[data-role="feasibility-charging-plan"]');
   await expect(plan).toHaveAttribute("data-status", "unavailable");
-  await expect(plan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveText("2");
+  await expect(plan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveCount(0);
   await expect(plan.locator('[data-role="feasibility-charging-plan-unavailable"]')).toContainText("2 charging sessions are reported");
   await expect(plan.locator('[data-role="feasibility-charging-session-list"]')).toHaveCount(0);
 });
@@ -1488,6 +1532,10 @@ for (const mode of ['battery_only','charging_only','joint']) {
     await expect(histogram).toHaveAttribute('data-packs','8');
     await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveCount(1);
     await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveAttribute('data-value','300');
+    const decisionConsumption=page.locator('[data-role="feasibility-shift-predicted-consumption"]');
+    const decisionConsumptionPerKm=page.locator('[data-role="feasibility-shift-predicted-consumption-per-km"]');
+    await expect(decisionConsumption.locator('strong')).toHaveText('300');
+    await expect(decisionConsumptionPerKm.locator('strong')).toHaveText('3.000');
     await expect(card.locator('.aggregate-demand strong')).toHaveCount(0);
     await expect(card).toContainText('Energy charged during the vehicle block');
     const capacityInfo=card.getByRole('button',{name:'Usable capacity required to complete the vehicle block',exact:true});
@@ -1517,6 +1565,8 @@ for (const mode of ['battery_only','charging_only','joint']) {
     await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveCount(1);
     await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveAttribute('data-basis','aggregate_q95');
     await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveAttribute('data-value','380');
+    await expect(decisionConsumption.locator('strong')).toHaveText('380');
+    await expect(decisionConsumptionPerKm.locator('strong')).toHaveText('3.800');
     await expect(page.locator('[data-role="charging-info"]')).toContainText('3');
     expect(writes).toBe(0);
   });
@@ -1825,6 +1875,7 @@ for(const recorded of [true,false]) {
     await mountResults(page, {gtfsProvenance:recorded?snapshot:undefined,currentGtfs:[current]});
     const panel=page.locator('[data-role="analysis-gtfs"]');
     await expect(panel).toBeVisible();
+    await expect(panel).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     const rows=panel.locator('[data-role="gtfs-metadata"]');
     await expect(rows).toHaveCount(recorded ? 2 : 1);
     await expect(rows.first()).toBeHidden();
@@ -1852,6 +1903,7 @@ test('shared recorded GTFS version uses one compact header disclosure',async({pa
     await mountResults(page, {gtfsProvenance:snapshot,currentGtfs:[dataset]});
     const panel=page.locator('[data-role="analysis-gtfs"]');
     await expect(page.locator('.page-header [data-role="analysis-gtfs"]')).toBeVisible();
+    await expect(panel).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     await expect(panel.locator('summary')).toContainText('2027 · file 04/11/2026');
     await expect(panel.locator('summary')).not.toContainText('Current block data');
     await expect(panel.locator('[data-role="gtfs-metadata"]')).toHaveCount(1);

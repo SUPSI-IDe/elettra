@@ -1976,47 +1976,6 @@ const renderOpexInputsTable = (el, state, options = {}) => {
     </div>`;
 };
 
-const renderEfficiencyPredictionSummary = (costInputs) => {
-  const predictedShiftConsumption = toFiniteNumber(
-    costInputs?.predictedShiftConsumptionKwh
-  );
-  const predictedShiftConsumptionPerKm = toFiniteNumber(
-    costInputs?.predictedShiftConsumptionPerKmKwh
-  );
-
-  const items = [
-    [
-      t("simulation.costs_input_prediction_consumption") ||
-        "Prediction consumption per vehicle block (kWh)",
-      predictedShiftConsumption == null ? "—" : formatFixed(predictedShiftConsumption, 0),
-    ],
-    [
-      translateOr(
-        "simulation.costs_input_prediction_consumption_per_km",
-        "Prediction consumption per km (kWh/km)"
-      ),
-      predictedShiftConsumptionPerKm == null
-        ? "—"
-        : formatFixed(predictedShiftConsumptionPerKm, 3),
-    ],
-  ];
-
-  return `
-    <div class="efficiency-summary-table-wrap">
-      <div class="efficiency-summary-grid">
-        ${items
-          .map(
-            ([label, value]) => `
-              <div class="efficiency-summary-item">
-                <span class="efficiency-summary-item__label">${textContent(label)}</span>
-                <span class="efficiency-summary-item__value">${textContent(value)}</span>
-              </div>`
-          )
-          .join("")}
-      </div>
-    </div>`;
-};
-
 const renderElectricOpexSection = (el, state) => {
   if (!el) return;
   if (state.status !== "done" || !state.costInputs) {
@@ -6792,7 +6751,67 @@ const shiftMetricValue = (value, unit = "", { signed = false, decimals = 0 } = {
   return textContent(`${prefix}${formatFixed(numeric, decimals)}${unit ? ` ${unit}` : ""}`);
 };
 
-const buildShiftOperationalSummaryHtml = (viewState) => {
+const resolveShiftDecisionConsumption = (
+  predictionData,
+  results,
+  inputParams,
+  selectedShiftId,
+) => {
+  const basis = resolveFeasibilityDemandBasis(inputParams);
+  const selectedPrediction = predictionData.find((row) => row.isOptimized) ??
+    predictionData[0] ?? null;
+  const perShiftAnalysis = results?.consumption_analysis?.per_shift ?? {};
+  const normalizedShiftId = String(selectedShiftId ?? "").trim();
+  const shiftAnalysis = perShiftAnalysis?.[normalizedShiftId] ??
+    Object.entries(perShiftAnalysis).find(([shiftKey, detail]) =>
+      [shiftKey, detail?.shift_id, detail?.id]
+        .map((value) => String(value ?? "").trim())
+        .includes(normalizedShiftId)
+    )?.[1] ?? null;
+  const analysisStatistics = shiftAnalysis?.statistics ?? {};
+  const analysisCases = shiftAnalysis?.cases ?? {};
+  const finite = (...values) =>
+    values
+      .map((value) => toOptionalFiniteNumber(value))
+      .find((value) => value !== null) ?? null;
+
+  let analysisTotalKwh = null;
+  let predictionTotalKwh = null;
+  let predictionPerKmKwh = null;
+  if (basis === FEASIBILITY_DEMAND_BASIS.AGGREGATE_Q95) {
+    analysisTotalKwh = finite(
+      analysisStatistics.q95_total_kwh,
+      analysisCases.aggregate_q95?.total_consumption_kwh,
+    );
+    predictionTotalKwh = selectedPrediction?.totalConsumptionQ95Kwh ?? null;
+    predictionPerKmKwh = selectedPrediction?.consumptionPerKmQ95Kwh ?? null;
+  } else if (basis === FEASIBILITY_DEMAND_BASIS.Q50) {
+    predictionTotalKwh = selectedPrediction?.totalConsumptionMedianKwh ?? null;
+    predictionPerKmKwh = selectedPrediction?.consumptionPerKmMedianKwh ?? null;
+  } else {
+    analysisTotalKwh = finite(
+      analysisStatistics.mean_total_kwh,
+      analysisCases.mean?.total_consumption_kwh,
+    );
+    predictionTotalKwh = selectedPrediction?.totalConsumptionMeanKwh ?? null;
+    predictionPerKmKwh = selectedPrediction?.consumptionPerKmMeanKwh ?? null;
+  }
+
+  const totalKwh = finite(analysisTotalKwh, predictionTotalKwh);
+  const distanceKm = toOptionalFiniteNumber(selectedPrediction?.totalDistanceKm);
+  const perKmKwh = analysisTotalKwh !== null && distanceKm !== null && distanceKm > 0
+    ? analysisTotalKwh / distanceKm
+    : finite(
+        predictionPerKmKwh,
+        totalKwh !== null && distanceKm !== null && distanceKm > 0
+          ? totalKwh / distanceKm
+          : null,
+      );
+
+  return { totalKwh, perKmKwh };
+};
+
+const buildShiftOperationalSummaryHtml = (viewState, decisionConsumption = {}) => {
   const detail = viewState?.selectedShiftSummary;
   if (!detail) {
     return `
@@ -6929,6 +6948,30 @@ const buildShiftOperationalSummaryHtml = (viewState) => {
           )}</span>
           <strong class="result-metric__value">${shiftMetricValue(operation.numChargingSessions)}</strong>
         </article>
+        <article class="result-metric" data-role="feasibility-shift-predicted-consumption">
+          <span class="result-metric__label">${textContent(
+            t("simulation.costs_input_prediction_consumption") ||
+              "Prediction consumption per vehicle block (kWh)"
+          )}</span>
+          <strong class="result-metric__value">${shiftMetricValue(
+            decisionConsumption.totalKwh,
+            "",
+            { decimals: 0 }
+          )}</strong>
+        </article>
+        <article class="result-metric" data-role="feasibility-shift-predicted-consumption-per-km">
+          <span class="result-metric__label">${textContent(
+            translateOr(
+              "simulation.costs_input_prediction_consumption_per_km",
+              "Prediction consumption per km (kWh/km)"
+            )
+          )}</span>
+          <strong class="result-metric__value">${shiftMetricValue(
+            decisionConsumption.perKmKwh,
+            "",
+            { decimals: 3 }
+          )}</strong>
+        </article>
       </div>
       </div>
     </section>`;
@@ -7005,17 +7048,10 @@ const buildChargingPlanStateHtml = (plan) => {
   )}</p>`;
 };
 
-const buildShiftChargingPlanHtml = (viewState) => {
+const buildShiftChargingPlanHtml = (viewState, { open = false } = {}) => {
   const plan = viewState?.selectedShiftSummary?.operation?.chargingPlan;
   if (!plan) return "";
   const sessions = Array.isArray(plan.sessions) ? plan.sessions : [];
-  const count = toOptionalFiniteNumber(plan.reportedSessionCount) ??
-    (sessions.length > 0 || plan.status === "empty" ? sessions.length : null);
-  const countBadge = count === null
-    ? ""
-    : `<span class="feasibility-charging-plan__count" data-role="feasibility-charging-plan-count">${textContent(
-        formatFixed(count, 0)
-      )}</span>`;
   const sessionsHtml = sessions.map((session, index) => {
     const sequence = index + 1;
     const location = session.stationName || session.stationStopId ||
@@ -7066,20 +7102,19 @@ const buildShiftChargingPlanHtml = (viewState) => {
   }).join("");
 
   return `
-    <section class="feasibility-charging-plan result-card" data-role="feasibility-charging-plan" data-status="${textContent(plan.status)}">
-      <div class="feasibility-charging-plan__header result-card__header">
+    <details class="feasibility-charging-plan result-card" data-role="feasibility-charging-plan" data-status="${textContent(plan.status)}"${open ? " open" : ""}>
+      <summary class="feasibility-charging-plan__toggle feasibility-disclosure__toggle result-card__header">
         <div class="result-card__heading">
           <h4>${textContent(
             translateOr("simulation.feasibility_charging_plan_title", "Charging plan")
           )}</h4>
         </div>
-        ${countBadge}
-      </div>
+      </summary>
       <div class="result-card__body">
         ${buildChargingPlanStateHtml(plan)}
         ${sessionsHtml ? `<ol class="feasibility-charging-plan__sessions" data-role="feasibility-charging-session-list">${sessionsHtml}</ol>` : ""}
       </div>
-    </section>`;
+    </details>`;
 };
 
 const renderEfficiencyTable = (el, state, viewOptions = {}) => {
@@ -7087,6 +7122,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
 
   const keepMoreInformationOpen =
     el.querySelector(".ya-more-information")?.open === true;
+  const keepChargingPlanOpen =
+    el.querySelector('[data-role="feasibility-charging-plan"]')?.open === true;
 
   if (state.status === "idle" || state.status === "loading") {
     el.innerHTML = `<p class="efficiency-state-msg">${textContent(t("simulation.efficiency_loading") || "Loading efficiency data…")}</p>`;
@@ -7190,9 +7227,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       <span class="efficiency-param-label">${textContent(label)}</span>
       <span class="efficiency-param-value">${textContent(value)}</span>
     </div>`).join("");
-  const predictionSummaryHtml = renderEfficiencyPredictionSummary(
-    viewOptions?.costInputs ?? null
-  );
 
   const optimizationHtml = buildOptimizationResultsHtml(results, ip, {
     ...viewOptions,
@@ -7324,9 +7358,15 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   const comparisonPredictionRows = selectedPredictionRows.length
     ? predictionData.filter((row) => !row.isOptimized)
     : [];
-  const primaryPredictionRows = selectedPredictionRows.length
-    ? selectedPredictionRows
+  const orderedPredictionRows = selectedPredictionRows.length
+    ? [...selectedPredictionRows, ...comparisonPredictionRows]
     : predictionData;
+  const shiftDecisionConsumption = resolveShiftDecisionConsumption(
+    predictionData,
+    results,
+    ip,
+    viewOptions?.selectedShiftId,
+  );
 
   const chartCards = [];
 
@@ -7386,25 +7426,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     ? `
     <section class="efficiency-section">
       <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy forecasts used for battery sizing")}</h3>
-      <p class="efficiency-table-note">${textContent(
-        translateOr(
-          "simulation.efficiency_prediction_table_note",
-          "The selected row is the design shown in this result. Reference rows show forecasts used to size and verify it; they are not alternative final designs."
-        )
-      )}</p>
       <p>${textContent(t("simulation.aggregate_trip_quantiles_note"))}</p>
-      ${predictionTableForRows(primaryPredictionRows, "feasibility-selected-predictions")}
-      ${comparisonPredictionRows.length ? `
-        <details class="efficiency-collapsible efficiency-prediction-comparison" data-role="feasibility-comparison-predictions">
-          <summary class="efficiency-collapsible__toggle">${textContent(
-            translateOr(
-              "simulation.efficiency_prediction_comparison_toggle",
-              `Show reference and verification configurations (${comparisonPredictionRows.length})`,
-              { count: comparisonPredictionRows.length }
-            )
-          )}</summary>
-          ${predictionTableForRows(comparisonPredictionRows, "feasibility-comparison-predictions-table")}
-        </details>` : ""}
+      ${predictionTableForRows(orderedPredictionRows, "feasibility-selected-predictions")}
     </section>`
     : "";
 
@@ -7433,19 +7456,27 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         viewOptions?.selectedShiftName
       )}
       <div class="feasibility-level__content">
-        ${buildShiftOperationalSummaryHtml(feasibilityViewState)}
+        ${buildShiftOperationalSummaryHtml(
+          feasibilityViewState,
+          shiftDecisionConsumption,
+        )}
         ${renderAggregateEnergy(optimizationRun, viewOptions?.selectedShiftId)}
         ${renderDepotCycle(optimizationRun, viewOptions?.selectedShiftId)}
         ${results.consumption_analysis ? "" : chartsHtml}
         ${results.consumption_analysis ? "" : shiftEnergyAdequacyHtml}
-        ${buildShiftChargingPlanHtml(feasibilityViewState)}
-        <details class="ya-more-information"${keepMoreInformationOpen ? " open" : ""}>
-          <summary class="ya-more-information__toggle">${textContent(t("simulation.efficiency_more_information") || "More information")}</summary>
-          <div class="ya-more-information__content">
+        ${buildShiftChargingPlanHtml(feasibilityViewState, {
+          open: keepChargingPlanOpen,
+        })}
+        <details class="ya-more-information feasibility-more-information result-card"${keepMoreInformationOpen ? " open" : ""}>
+          <summary class="ya-more-information__toggle feasibility-more-information__toggle feasibility-disclosure__toggle result-card__header">
+            <div class="result-card__heading">
+              <h4>${textContent(t("simulation.efficiency_more_information") || "More information")}</h4>
+            </div>
+          </summary>
+          <div class="ya-more-information__content feasibility-more-information__content result-card__body">
             <div class="efficiency-section">
               <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
               <div class="kpi-grid efficiency-params-grid">${conditionsHtml}</div>
-              ${predictionSummaryHtml}
             </div>
             ${optimizationHtml}
             ${predictionTableHtml}

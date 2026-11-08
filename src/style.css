@@ -3303,7 +3303,17 @@ table input[type="checkbox"] {
 .gtfs-analysis-panel { padding: 1rem; margin: 0 0 1rem; border: 1px solid #dbe3eb; border-radius: .75rem; background: #fff; }
 .gtfs-analysis-panel h2 { margin: 0 0 .75rem; font-size: 1rem; }
 .gtfs-analysis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: .8rem; }
-.gtfs-analysis-context { margin-top: .65rem; color: #475569; font-size: .8rem; line-height: 1.5; }
+.gtfs-analysis-context {
+  margin-top: .65rem;
+  padding: .65rem .85rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: #475569;
+  font-size: .8rem;
+  line-height: 1.5;
+}
 .gtfs-disclosure > summary { cursor: pointer; width: fit-content; max-width: 100%; border-radius: .25rem; overflow-wrap: anywhere; }
 .gtfs-disclosure > summary > span { margin-inline-end: .65rem; }
 .gtfs-disclosure > summary:focus-visible { outline: 2px solid #174fa3; outline-offset: 4px; }
