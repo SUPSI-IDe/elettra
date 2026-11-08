@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0-rc.2] - 2026-11-08
+
+### Changed
+
+- Clarify feasibility results by distinguishing configured SoC limits from reached values and by placing the selected battery forecast directly before its initial physical-maximum reference.
+- Show the active Mean/Q95 consumption figures in the vehicle-block summary and present the charging plan, additional information and GTFS provenance as consistent white disclosure cards.
+
+### Fixed
+
+- Translate the Mean demand profile consistently as “Media” throughout the Italian interface, including paired feasibility outcomes and help text.
+- Mock yearly-distance requests in feasibility browser tests so missing API fixtures no longer produce misleading fallback warnings.
+
+### Staging candidate
+
+- Frontend-only update compatible with backend `1.5.0-rc.1`; no backend release or database migration is required.
+
 ## [0.10.0-rc.1] - 2026-11-08
 
 ### Added
