@@ -74,6 +74,8 @@ const mountResults = async (page, {
   consumptionBasis,
   forecastVerification,
   basisRunIds,
+  initialReferencePredictionRunIds,
+  selectedPredictionRunIds,
   dailyCycle,
   language = "en",
   gtfsProvenance,
@@ -184,6 +186,9 @@ const mountResults = async (page, {
             consumption_analysis: consumptionAnalysis,
             daily_cycle: dailyCycle,
             forecast_verification: forecastVerification,
+            initial_reference_prediction_run_ids:
+              initialReferencePredictionRunIds,
+            selected_prediction_run_ids: selectedPredictionRunIds,
             ...(includeElectrificationFeasible
               ? { electrification_feasible: electrificationFeasible }
               : {}),
@@ -409,6 +414,11 @@ test("explains reached and configured SOC limits for the selected shift", async 
   await expect(
     page.getByRole("columnheader", { name: "Maximum SoC limit (kWh)" }),
   ).toBeVisible();
+  await expect(
+    page
+      .locator('[data-role="feasibility-selected-predictions"]')
+      .locator('tr[data-prediction-role="selected_reference"]'),
+  ).toContainText("Selected configuration · initial reference");
 
   const adequacy = page.locator(".efficiency-adequacy-panel");
   await expect(adequacy).toContainText("Usable SOC window");
@@ -423,6 +433,108 @@ test("explains reached and configured SOC limits for the selected shift", async 
   await expect(adequacy.locator('[data-role="battery-adequacy-maximum-soc"]')).toHaveText(
     "450.0 kWh — limit ≤ 450.0 kWh (90%)",
   );
+});
+
+test("separates the verified battery forecast from the initial physical-maximum reference", async ({ page }) => {
+  await mountResults(page, {
+    shiftIds: ["morning"],
+    mode: "joint",
+    predictionRunIds: ["prediction-morning-reference", "prediction-morning-selected"],
+    predictionOverrides: {
+      "prediction-morning-reference": prediction(
+        "prediction-morning-reference",
+        "morning",
+        8,
+        693.3,
+      ),
+      "prediction-morning-selected": prediction(
+        "prediction-morning-selected",
+        "morning",
+        3,
+        626.6,
+      ),
+    },
+    initialReferencePredictionRunIds: {
+      morning: "prediction-morning-reference",
+    },
+    selectedPredictionRunIds: {
+      morning: "prediction-morning-selected",
+    },
+    forecastVerification: { status: "verified" },
+    batteryResultOverrides: {
+      morning: {
+        reference_packs: 8,
+        base_packs: 3,
+        optimized_packs: 3,
+        required_total_packs: 3,
+        optimized_kwh: 150,
+        max_physical_packs: 8,
+        max_physical_kwh: 400,
+      },
+    },
+  });
+
+  await selectShiftScope(page, "morning");
+  await page.locator("details.ya-more-information > summary").click();
+
+  await expect(
+    page.getByRole("heading", {
+      name: "Energy forecasts used for battery sizing",
+    }),
+  ).toBeVisible();
+
+  const selectedTable = page.locator(
+    '[data-role="feasibility-selected-predictions"]',
+  );
+  const selectedRow = selectedTable.locator(
+    'tr[data-prediction-role="selected"]',
+  );
+  await expect(selectedRow).toContainText("Selected and verified configuration");
+  await expect(selectedRow.locator("td").nth(1)).toHaveText("3");
+
+  const comparison = page.locator(
+    '[data-role="feasibility-comparison-predictions"]',
+  );
+  await expect(comparison).not.toHaveAttribute("open", "");
+  await expect(comparison.locator("summary")).toHaveText(
+    "Show reference and verification configurations (1)",
+  );
+
+  await comparison.locator("summary").click();
+  const referenceRow = comparison.locator(
+    'tr[data-prediction-role="initial_max_physical"]',
+  );
+  await expect(referenceRow).toContainText(
+    "Initial reference · physical maximum",
+  );
+  await expect(referenceRow.locator("td").nth(1)).toHaveText("8");
+});
+
+test("combines selected and initial-reference roles when they use the same forecast", async ({ page }) => {
+  await mountResults(page, {
+    shiftIds: ["morning"],
+    mode: "joint",
+    initialReferencePredictionRunIds: {
+      morning: "prediction-morning",
+    },
+    selectedPredictionRunIds: {
+      morning: "prediction-morning",
+    },
+    forecastVerification: { status: "verified" },
+  });
+
+  await selectShiftScope(page, "morning");
+  await page.locator("details.ya-more-information > summary").click();
+
+  const selectedTable = page.locator(
+    '[data-role="feasibility-selected-predictions"]',
+  );
+  await expect(
+    selectedTable.locator('tr[data-prediction-role="selected_reference"]'),
+  ).toContainText("Selected and verified · initial reference");
+  await expect(
+    page.locator('[data-role="feasibility-comparison-predictions"]'),
+  ).toHaveCount(0);
 });
 
 test("separates the common result from one selected shift without an aggregate option", async ({ page }) => {

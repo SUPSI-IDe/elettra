@@ -1623,6 +1623,14 @@
   background: var(--color-row-dense-hover-bg);
 }
 
+.efficiency-table tbody tr.efficiency-prediction-row--selected {
+  background: var(--color-positive-muted);
+}
+
+.efficiency-table tbody tr.efficiency-prediction-row--selected:hover {
+  background: color-mix(in srgb, var(--color-positive) 18%, transparent);
+}
+
 .efficiency-table td {
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
   border-bottom: 1px solid var(--border-light);
@@ -1634,6 +1642,14 @@
 .efficiency-table td.efficiency-td-num {
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+.efficiency-prediction-role {
+  text-align: left !important;
+}
+
+.efficiency-prediction-comparison {
+  margin-top: var(--space-md);
 }
 
 .efficiency-td-highlight {

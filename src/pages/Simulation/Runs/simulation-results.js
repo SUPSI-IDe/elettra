@@ -3411,6 +3411,16 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
   const allRuns = [...(predictionRuns ?? [])];
   const minSocFraction = toFiniteNumber(viewOptions?.inputParams?.min_soc);
   const maxSocFraction = toFiniteNumber(viewOptions?.inputParams?.max_soc);
+  const selectedPredictionIds = new Set(
+    Object.values(viewOptions?.selectedPredictionRunIds ?? {})
+      .map((value) => String(value ?? "").trim())
+      .filter(Boolean)
+  );
+  const initialReferencePredictionIds = new Set(
+    Object.values(viewOptions?.initialReferencePredictionRunIds ?? {})
+      .map((value) => String(value ?? "").trim())
+      .filter(Boolean)
+  );
 
   const sorted = scopePredictionRunsByShift(allRuns, viewOptions);
 
@@ -3427,6 +3437,22 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
         matchesSelectedShift(result, shiftKey, viewOptions)
       )
       .map(([, result]) => toFiniteNumber(result?.optimized_packs))
+      .filter((value) => value != null)
+  );
+  const referencePackSet = new Set(
+    Object.entries(batteryResults ?? {})
+      .filter(([shiftKey, result]) =>
+        matchesSelectedShift(result, shiftKey, viewOptions)
+      )
+      .map(([, result]) => toFiniteNumber(result?.reference_packs))
+      .filter((value) => value != null)
+  );
+  const maxPhysicalPackSet = new Set(
+    Object.entries(batteryResults ?? {})
+      .filter(([shiftKey, result]) =>
+        matchesSelectedShift(result, shiftKey, viewOptions)
+      )
+      .map(([, result]) => toFiniteNumber(result?.max_physical_packs))
       .filter((value) => value != null)
   );
 
@@ -3457,7 +3483,34 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
       return entryPacks != null && entryPacks === packs;
     }) ?? {};
 
+    const runId = String(run?.id ?? "").trim();
+    const selectedById = Boolean(runId) && selectedPredictionIds.has(runId);
+    const initialReferenceById =
+      Boolean(runId) && initialReferencePredictionIds.has(runId);
+    const isOptimized = selectedById || (
+      selectedPredictionIds.size === 0 &&
+      packs != null &&
+      optimizedPackSet.has(packs)
+    );
+    const isInitialReference = initialReferenceById || (
+      initialReferencePredictionIds.size === 0 &&
+      packs != null &&
+      referencePackSet.has(packs)
+    );
+    const isMaximumPhysical =
+      packs != null && maxPhysicalPackSet.has(packs);
+    const predictionRole = isOptimized
+      ? isInitialReference
+        ? "selected_reference"
+        : "selected"
+      : isInitialReference
+        ? isMaximumPhysical
+          ? "initial_max_physical"
+          : "initial_reference"
+        : "verification";
+
     return {
+      runId,
       numBatteryPacks: packs,
       batteryCapacityKwh,
       totalWeightKg: toFiniteNumber(cp.total_weight_kg),
@@ -3480,6 +3533,10 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
       maxSocKwh:
         deriveSocKwh(batteryCapacityKwh, maxSocFraction) ??
         toFiniteNumber(matchedBus.max_soc_kwh),
+      isOptimized,
+      isVerifiedSelection:
+        isOptimized && viewOptions?.forecastVerificationStatus === "verified",
+      predictionRole,
     };
   });
 
@@ -3496,19 +3553,85 @@ const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResult
     }
   }
 
-  return rows.map((row) => ({
-    ...row,
-    isOptimized:
-      row.numBatteryPacks != null && optimizedPackSet.has(row.numBatteryPacks),
-  }));
+  return rows.map((row) => {
+    if (row.isOptimized || optimizedPackSet.size === 0) return row;
+    if (selectedPredictionIds.size > 0) return row;
+    if (row.numBatteryPacks == null || !optimizedPackSet.has(row.numBatteryPacks)) {
+      return row;
+    }
+    return {
+      ...row,
+      isOptimized: true,
+      isVerifiedSelection:
+        viewOptions?.forecastVerificationStatus === "verified",
+      predictionRole:
+        row.predictionRole === "initial_max_physical" ||
+        row.predictionRole === "initial_reference"
+          ? "selected_reference"
+          : "selected",
+    };
+  });
 };
 
 const formatOptionalFixed = (val, dec = 1) =>
   val === null || val === undefined ? "—" : formatFixed(val, dec);
 
+const predictionRolePresentation = (row = {}) => {
+  const role = row.predictionRole;
+  const presentations = {
+    selected: {
+      label: translateOr(
+        row.isVerifiedSelection
+          ? "simulation.efficiency_prediction_role_selected"
+          : "simulation.efficiency_prediction_role_selected_unverified",
+        row.isVerifiedSelection
+          ? "Selected and verified configuration"
+          : "Selected configuration"
+      ),
+      badgeClass: row.isVerifiedSelection ? "badge--positive" : "badge--neutral",
+    },
+    selected_reference: {
+      label: translateOr(
+        row.isVerifiedSelection
+          ? "simulation.efficiency_prediction_role_selected_reference"
+          : "simulation.efficiency_prediction_role_selected_reference_unverified",
+        row.isVerifiedSelection
+          ? "Selected and verified · initial reference"
+          : "Selected configuration · initial reference"
+      ),
+      badgeClass: row.isVerifiedSelection ? "badge--positive" : "badge--neutral",
+    },
+    initial_max_physical: {
+      label: translateOr(
+        "simulation.efficiency_prediction_role_initial_max",
+        "Initial reference · physical maximum"
+      ),
+      badgeClass: "badge--neutral",
+    },
+    initial_reference: {
+      label: translateOr(
+        "simulation.efficiency_prediction_role_initial",
+        "Initial sizing reference"
+      ),
+      badgeClass: "badge--neutral",
+    },
+    verification: {
+      label: translateOr(
+        "simulation.efficiency_prediction_role_verification",
+        "Sizing verification configuration"
+      ),
+      badgeClass: "badge--neutral",
+    },
+  };
+  return presentations[role] ?? presentations.verification;
+};
+
 const buildUnifiedPredictionRows = (rows, { includePerBus = false } = {}) =>
-  rows.map((row) => `
-      <tr>
+  rows.map((row) => {
+    const rolePresentation = predictionRolePresentation(row);
+    return `
+      <tr class="efficiency-prediction-row${row.isOptimized ? " efficiency-prediction-row--selected" : ""}" data-prediction-role="${escapeAttr(row.predictionRole ?? "verification")}">
+        <td class="efficiency-prediction-role"><span class="badge badge--compact ${rolePresentation.badgeClass}">${textContent(rolePresentation.label)}</span></td>
         <td class="efficiency-td-num">${textContent(String(row.numBatteryPacks ?? "—"))}</td>
         <td class="efficiency-td-num">${formatFixed(row.batteryCapacityKwh, 0)}</td>
         <td class="efficiency-td-num">${formatFixed(row.totalWeightKg, 0)}</td>
@@ -3527,7 +3650,8 @@ const buildUnifiedPredictionRows = (rows, { includePerBus = false } = {}) =>
           ? `<td class="efficiency-td-num">${formatFixed(row.minSocKwh, 0)}</td>
         <td class="efficiency-td-num">${formatFixed(row.maxSocKwh, 0)}</td>`
           : ""}
-      </tr>`)
+      </tr>`;
+  })
     .join("");
 
 const PREDICTION_QUANTILE_KEYS = ["q05", "q50", "q95"];
@@ -7085,6 +7209,10 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     {
       ...viewOptions,
       inputParams: ip,
+      initialReferencePredictionRunIds:
+        results.initial_reference_prediction_run_ids,
+      selectedPredictionRunIds: results.selected_prediction_run_ids,
+      forecastVerificationStatus: results.forecast_verification?.status,
     }
   );
   const consumptionOverviewData = buildPredictionOverviewData(
@@ -7156,17 +7284,49 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       }
     : optimizedCoverageMarker;
   const hasPerBus = perBusSummary.length > 0;
-  const unifiedRows = buildUnifiedPredictionRows(predictionData, {
-    includePerBus: hasPerBus,
-  });
-
-  const tableBody = predictionData.length === 0
-    ? `<tr><td colspan="${hasPerBus ? 16 : 14}" class="efficiency-no-data">${textContent(t("simulation.efficiency_no_predictions") || "No prediction data available.")}</td></tr>`
-    : unifiedRows;
-
   const perBusHeaders = hasPerBus ? `
               <th>${textContent(t("simulation.opt_col_min_soc") || "Minimum SoC limit (kWh)")}</th>
               <th>${textContent(t("simulation.opt_col_max_soc") || "Maximum SoC limit (kWh)")}</th>` : "";
+  const predictionTableHeaderHtml = `
+            <tr>
+              <th>${textContent(translateOr("simulation.efficiency_prediction_role", "Role"))}</th>
+              <th>${textContent(t("simulation.efficiency_col_packs") || "# Packs")}</th>
+              <th>${textContent(t("simulation.efficiency_col_capacity") || "Capacity (kWh)")}</th>
+              <th>${textContent(t("simulation.efficiency_col_weight") || "Weight (kg)")}</th>
+              <th>${textContent(t("simulation.efficiency_col_distance") || "Distance (km)")}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_total_q05", "Total Q05 (kWh)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_total_mean", "Total mean — decision basis (kWh)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_total_q50", "Total Q50 (kWh)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_total_q95", "Total Q95 (kWh)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_specific_q05", "Specific Q05 (kWh/km)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_specific_mean", "Specific mean (kWh/km)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_specific_q50", "Specific Q50 (kWh/km)"))}</th>
+              <th>${textContent(translateOr("simulation.efficiency_col_specific_q95", "Specific Q95 (kWh/km)"))}</th>
+              <th>${textContent(t("simulation.efficiency_col_drivetrain") || "Drivetrain mean (kWh)")}</th>
+              <th>${textContent(t("simulation.efficiency_col_auxiliary") || "Auxiliary mean (kWh)")}</th>
+              ${perBusHeaders}
+            </tr>`;
+  const predictionTableForRows = (rows, role) => {
+    const body = rows.length
+      ? buildUnifiedPredictionRows(rows, { includePerBus: hasPerBus })
+      : `<tr><td colspan="${hasPerBus ? 17 : 15}" class="efficiency-no-data">${textContent(
+          t("simulation.efficiency_no_predictions") || "No prediction data available."
+        )}</td></tr>`;
+    return `
+      <div class="efficiency-table-wrap" data-role="${role}">
+        <table class="efficiency-table">
+          <thead>${predictionTableHeaderHtml}</thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>`;
+  };
+  const selectedPredictionRows = predictionData.filter((row) => row.isOptimized);
+  const comparisonPredictionRows = selectedPredictionRows.length
+    ? predictionData.filter((row) => !row.isOptimized)
+    : [];
+  const primaryPredictionRows = selectedPredictionRows.length
+    ? selectedPredictionRows
+    : predictionData;
 
   const chartCards = [];
 
@@ -7225,32 +7385,26 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   const predictionTableHtml = isFeasible || predictionData.length > 0
     ? `
     <section class="efficiency-section">
-      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy Predictions by Battery Configuration")}</h3>
+      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy forecasts used for battery sizing")}</h3>
+      <p class="efficiency-table-note">${textContent(
+        translateOr(
+          "simulation.efficiency_prediction_table_note",
+          "The selected row is the design shown in this result. Reference rows show forecasts used to size and verify it; they are not alternative final designs."
+        )
+      )}</p>
       <p>${textContent(t("simulation.aggregate_trip_quantiles_note"))}</p>
-      <div class="efficiency-table-wrap">
-        <table class="efficiency-table">
-          <thead>
-            <tr>
-              <th>${textContent(t("simulation.efficiency_col_packs") || "# Packs")}</th>
-              <th>${textContent(t("simulation.efficiency_col_capacity") || "Capacity (kWh)")}</th>
-              <th>${textContent(t("simulation.efficiency_col_weight") || "Weight (kg)")}</th>
-              <th>${textContent(t("simulation.efficiency_col_distance") || "Distance (km)")}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_total_q05", "Total Q05 (kWh)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_total_mean", "Total mean — decision basis (kWh)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_total_q50", "Total Q50 (kWh)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_total_q95", "Total Q95 (kWh)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_specific_q05", "Specific Q05 (kWh/km)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_specific_mean", "Specific mean (kWh/km)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_specific_q50", "Specific Q50 (kWh/km)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_specific_q95", "Specific Q95 (kWh/km)"))}</th>
-              <th>${textContent(t("simulation.efficiency_col_drivetrain") || "Drivetrain mean (kWh)")}</th>
-              <th>${textContent(t("simulation.efficiency_col_auxiliary") || "Auxiliary mean (kWh)")}</th>
-              ${perBusHeaders}
-            </tr>
-          </thead>
-          <tbody>${tableBody}</tbody>
-        </table>
-      </div>
+      ${predictionTableForRows(primaryPredictionRows, "feasibility-selected-predictions")}
+      ${comparisonPredictionRows.length ? `
+        <details class="efficiency-collapsible efficiency-prediction-comparison" data-role="feasibility-comparison-predictions">
+          <summary class="efficiency-collapsible__toggle">${textContent(
+            translateOr(
+              "simulation.efficiency_prediction_comparison_toggle",
+              `Show reference and verification configurations (${comparisonPredictionRows.length})`,
+              { count: comparisonPredictionRows.length }
+            )
+          )}</summary>
+          ${predictionTableForRows(comparisonPredictionRows, "feasibility-comparison-predictions-table")}
+        </details>` : ""}
     </section>`
     : "";
 
