@@ -13,7 +13,7 @@ test('HVAC details and authenticated inputs are requested only when needed', asy
   });
   await page.goto('./#landing');
   await page.evaluate(async () => {
-    document.body.innerHTML='<main><div data-role="hvac-assumptions" hidden></div></main>';
+    document.body.innerHTML='<main><header class="page-header"><div data-role="hvac-assumptions" hidden></div></header></main>';
     const {mountHvacAssumptions}=await import(new URL('src/pages/Simulation/shared/hvac-assumptions.js',document.baseURI).href);
     await mountHvacAssumptions(document.querySelector('main'),'run');
   });
@@ -30,4 +30,10 @@ test('HVAC details and authenticated inputs are requested only when needed', asy
   expect(requests[1].url).toContain('include_inputs=true');
   expect(requests.every(request=>request.auth==='Bearer hvac-test')).toBeTruthy();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+  // The app clips horizontal overflow, so document width alone cannot detect
+  // a flex child whose text and buttons extend beyond the mobile viewport.
+  for (const element of await panel.locator('p, .hvac-assumptions__table, .hvac-assumptions__actions').all()) {
+    const bounds=await element.boundingBox();
+    expect(bounds.x+bounds.width).toBeLessThanOrEqual(page.viewportSize().width);
+  }
 });
