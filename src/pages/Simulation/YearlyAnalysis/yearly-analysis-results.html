@@ -38,19 +38,6 @@
   <main class="ya-results-main">
     <p class="form-feedback" data-role="feedback" hidden></p>
 
-    <div
-      class="ya-overview-actions ya-general-download-actions"
-      data-role="ya-general-download-actions"
-      hidden
-    >
-      <button type="button" class="ya-general-download ya-btn ya-btn--download" data-action="download-json">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M8 1v9m0 0L5 7m3 3 3-3M2 12v1.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span data-i18n="yearly_analysis.download_json">Download all results (JSON)</span>
-      </button>
-    </div>
-
     <div class="ya-result-scope-content" id="yearly-result-scope-content" role="tabpanel" tabindex="0">
       <div
         class="ya-tabs ya-result-view-tabs"
@@ -330,6 +317,18 @@
     </div>
 
     <div class="ya-results-actions">
+      <div
+        class="ya-general-download-actions"
+        data-role="ya-general-download-actions"
+        hidden
+      >
+        <button type="button" class="ya-general-download ya-btn ya-btn--download" data-action="download-json">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 1v9m0 0L5 7m3 3 3-3M2 12v1.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span data-i18n="yearly_analysis.download_json">Download all results (JSON)</span>
+        </button>
+      </div>
       <button type="button" class="ya-btn-close" data-action="back" data-i18n="common.close">Close</button>
     </div>
 

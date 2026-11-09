@@ -219,7 +219,7 @@
 }
 
 .ya-general-download-actions {
-  margin-bottom: var(--layout-gap);
+  margin: 0;
 }
 
 .ya-deployed-configuration__grid {
@@ -441,7 +441,9 @@
 .ya-results-actions {
   margin-top: var(--space-xl);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: var(--space-sm);
 }
 
 .ya-btn-close {
