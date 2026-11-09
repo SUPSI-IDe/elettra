@@ -131,8 +131,63 @@ test("the guide baseline follows the frontend version and exposes a valid update
   assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
   assert.deepEqual(
     SUPPORTED_GUIDE_LANGUAGES.map((language) => guideContent[language].ui.updatedValue),
-    ["8 November 2026", "8. November 2026", "8 novembre 2026", "8 novembre 2026"],
+    ["9 November 2026", "9. November 2026", "9 novembre 2026", "9 novembre 2026"],
   );
+});
+
+test("every guide language covers the user-facing workflows added in 0.9.0 and 0.10.0", () => {
+  const expectedTerms = {
+    en: {
+      start: ["Home", "user guide"],
+      fleet: ["Details", "older custom stops"],
+      shifts: ["GTFS", "complete server-side list", "Duplicate"],
+      feasibility: ["one GTFS edition", "Duplicate", "partial copy"],
+      results: ["recorded", "Configured SOC window", "initial physical-maximum reference", "expandable white cards"],
+      yearly: ["GTFS edition", "recorded provenance"],
+    },
+    de: {
+      start: ["Startseite", "Benutzerhandbuch"],
+      fleet: ["Details", "ältere Haltestellen"],
+      shifts: ["GTFS", "vollständige serverseitige Liste", "Duplizieren"],
+      feasibility: ["GTFS-Ausgabe", "Duplizieren", "unvollständig"],
+      results: ["aufgezeichnete", "Konfiguriertes SOC-Fenster", "physischen Maximum", "aufklappbare weisse Karten"],
+      yearly: ["GTFS-Ausgabe", "aufgezeichnete Herkunft"],
+    },
+    fr: {
+      start: ["Accueil", "guide"],
+      fleet: ["Détails", "anciens arrêts"],
+      shifts: ["GTFS", "liste complète côté serveur", "Dupliquer"],
+      feasibility: ["édition GTFS", "Dupliquer", "partiellement"],
+      results: ["enregistrée", "Fenêtre SOC configurée", "maximum physique", "cartes blanches dépliables"],
+      yearly: ["édition GTFS", "provenance enregistrée"],
+    },
+    it: {
+      start: ["Home", "guida utente"],
+      fleet: ["Dettagli", "fermate storiche"],
+      shifts: ["GTFS", "elenco completo sul server", "Duplica"],
+      feasibility: ["una sola edizione GTFS", "Duplica", "parzialmente"],
+      results: ["registrata", "Intervallo SOC configurato", "massimo fisico", "schede bianche espandibili"],
+      yearly: ["edizione GTFS", "provenienza registrata"],
+    },
+  };
+
+  const sectionItemCounts = guideContent.en.sections.map(({ items }) => items.length);
+  for (const language of SUPPORTED_GUIDE_LANGUAGES) {
+    const sections = Object.fromEntries(
+      guideContent[language].sections.map((section) => [section.id, section]),
+    );
+    assert.deepEqual(
+      guideContent[language].sections.map(({ items }) => items.length),
+      sectionItemCounts,
+      `${language} guide sections have diverging item counts`,
+    );
+    for (const [sectionId, terms] of Object.entries(expectedTerms[language])) {
+      const serialized = JSON.stringify(sections[sectionId]);
+      for (const term of terms) {
+        assert.ok(serialized.includes(term), `${language}.${sectionId} is missing ${term}`);
+      }
+    }
+  }
 });
 
 test("every guide language explains the two-level feasibility and yearly result navigation", () => {

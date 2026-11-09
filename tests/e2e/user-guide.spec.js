@@ -4,6 +4,12 @@ import { guideContent } from "../../guide/content.js";
 // Assert anchor destinations without racing smooth-scroll animations between clicks.
 test.use({ reducedMotion: "reduce" });
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/v1/version", (route) => route.fulfill({
+    json: { version: "user-guide-test" },
+  }));
+});
+
 const GUIDE_SECTIONS = [
   "use-cases",
   "start",
@@ -24,6 +30,13 @@ const LANGUAGES = {
     backLink: "Back to ELETTRA",
     resultTerms: ["Start with General", "Check every vehicle block tab"],
     yearlyTerms: ["Use Efficiency, Costs and Emissions", "annual DC energy"],
+    releaseTerms: {
+      start: ["Home", "user guide"],
+      shifts: ["GTFS", "complete server-side list"],
+      feasibility: ["one GTFS edition", "Duplicate"],
+      results: ["Configured SOC window", "initial physical-maximum reference"],
+      yearly: ["recorded provenance"],
+    },
   },
   de: {
     landingLink: "Benutzerhandbuch",
@@ -31,6 +44,13 @@ const LANGUAGES = {
     backLink: "Zurück zu ELETTRA",
     resultTerms: ["Mit Allgemein beginnen", "Jeden Fahrzeugumlauf prüfen"],
     yearlyTerms: ["Effizienz, Kosten und Emissionen verwenden", "jährlichen DC-Energie"],
+    releaseTerms: {
+      start: ["Startseite", "Benutzerhandbuch"],
+      shifts: ["GTFS", "vollständige serverseitige Liste"],
+      feasibility: ["GTFS-Ausgabe", "Duplizieren"],
+      results: ["Konfiguriertes SOC-Fenster", "physischen Maximum"],
+      yearly: ["aufgezeichnete Herkunft"],
+    },
   },
   fr: {
     landingLink: "Guide d’utilisation",
@@ -38,6 +58,13 @@ const LANGUAGES = {
     backLink: "Retour à ELETTRA",
     resultTerms: ["Commencer par Général", "Vérifier chaque service"],
     yearlyTerms: ["Utiliser Efficacité, Coûts et Émissions", "énergie DC annuelle"],
+    releaseTerms: {
+      start: ["Accueil", "guide"],
+      shifts: ["GTFS", "liste complète côté serveur"],
+      feasibility: ["édition GTFS", "Dupliquer"],
+      results: ["Fenêtre SOC configurée", "maximum physique"],
+      yearly: ["provenance enregistrée"],
+    },
   },
   it: {
     landingLink: "Guida utente",
@@ -45,6 +72,13 @@ const LANGUAGES = {
     backLink: "Torna a ELETTRA",
     resultTerms: ["Iniziare da Generale", "Controllare ogni turno"],
     yearlyTerms: ["Usare Efficienza, Costi ed Emissioni", "energia DC annuale"],
+    releaseTerms: {
+      start: ["Home", "guida utente"],
+      shifts: ["GTFS", "elenco completo sul server"],
+      feasibility: ["una sola edizione GTFS", "Duplica"],
+      results: ["Intervallo SOC configurato", "massimo fisico"],
+      yearly: ["provenienza registrata"],
+    },
   },
 };
 
@@ -255,6 +289,11 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     }
     for (const term of labels.yearlyTerms) {
       await expect(page.locator("section#yearly")).toContainText(term);
+    }
+    for (const [sectionId, terms] of Object.entries(labels.releaseTerms)) {
+      for (const term of terms) {
+        await expect(page.locator(`section#${sectionId}`)).toContainText(term);
+      }
     }
 
     await page.reload();

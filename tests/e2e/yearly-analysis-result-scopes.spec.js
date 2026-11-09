@@ -322,10 +322,15 @@ const mountResults = async (
       vehicle.shift_id = analysis.features.config.shift_ids[0];
     });
   }
+  await page.route("**/auth/me", (route) => route.fulfill({
+    json: { id: "yearly-results-user", email: "yearly-results@example.invalid" },
+  }));
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
-    if (path.endsWith(`/yearly-analysis/${analysis.id}/lca`)) {
+    if (path.endsWith("/version")) {
+      await route.fulfill({ json: { version: "yearly-results-test" } });
+    } else if (path.endsWith(`/yearly-analysis/${analysis.id}/lca`)) {
       const shiftId = url.searchParams.get("shift_id");
       const annualKmRaw = url.searchParams.get("annual_km");
       const annualKm = annualKmRaw == null ? null : Number(annualKmRaw);
@@ -387,7 +392,21 @@ const downloadAllResults = async (page) => {
 };
 
 test("yearly results use General and one primary tab per shift", async ({ page }) => {
-  await mountResults(page, multishiftAnalysis);
+  const analysis = structuredClone(multishiftAnalysis);
+  if (updateGuideScreenshots) {
+    const dataset = {
+      gtfs_year: 2027,
+      gtfs_file_date: "2026-11-04",
+      valid_from: "2026-12-13",
+      valid_to: "2027-12-11",
+    };
+    analysis.features.gtfs_provenance = {
+      version: 1,
+      source: "recorded",
+      shifts: { morning: [dataset], evening: [dataset] },
+    };
+  }
+  await mountResults(page, analysis);
 
   await expect(page.locator('[data-role="page-title"]')).toHaveText(
     "Yearly analysis results - Two-shift annual analysis",

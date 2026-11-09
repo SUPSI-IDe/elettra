@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === "1";
+
 const legacyStop = {
   id: "ec4f5f7f-1772-4312-bbcf-11c355c6e71c",
   user_id: "user-1",
@@ -68,6 +70,11 @@ test("legacy stop recovers its missing city and can be assigned a type", async (
   await expect(page.locator("#custom-stop-city")).toBeEditable();
 
   await page.selectOption("#custom-stop-type", "depot");
+  if (updateGuideScreenshots) {
+    await page.setViewportSize({ width: 1760, height: 1080 });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: "guide/images/custom-stop.png" });
+  }
   await page.locator('button[type="submit"]').click();
 
   await expect.poll(getUpdateBody).not.toBeNull();

@@ -1,5 +1,7 @@
 import {expect,test} from '@playwright/test';
 
+const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === '1';
+
 const old={gtfs_year:2026,gtfs_file_date:'2025-09-27',valid_from:'2025-12-14',valid_to:'2026-12-12'};
 const early={gtfs_year:2027,gtfs_file_date:'2026-08-22',valid_from:'2026-12-13',valid_to:'2027-12-11'};
 const latest={...early,gtfs_file_date:'2026-11-04'};
@@ -47,6 +49,10 @@ test('year and file filter selection, search and select-all; changing edition cl
   await expect(rows.locator('[data-role="gtfs-metadata"]')).toHaveCount(0);
   await expect(page.locator('[data-role="gtfs-mixed-warning"]')).toBeVisible();
   await expect(page.locator('tr[data-id="mixed"]')).toHaveCount(0);
+  if(updateGuideScreenshots){
+    await page.setViewportSize({width:1440,height:1000});
+    await page.screenshot({path:'guide/images/feasibility-form.png'});
+  }
   await select.selectOption('2026|2025-09-27');
   await expect(rows).toHaveCount(2);
   await page.locator('[data-role="select-filtered-shifts"]').check();

@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { translations } from "../../src/i18n/translations.js";
 
+const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === "1";
+
 const seedSession = async (context) => context.addInitScript(() => {
   // Seed once: logout and expiry must still survive a full page reload.
   if (!localStorage.getItem("home-test-initialized")) {
@@ -207,6 +209,12 @@ for (const lang of ["en", "it", "de", "fr"]) {
     const screenshot = testInfo.outputPath(`home-${lang}.png`);
     await page.screenshot({ path: screenshot, fullPage: true });
     await testInfo.attach("Home layout", { path: screenshot, contentType: "image/png" });
+    if (updateGuideScreenshots && lang === "en") {
+      await page.screenshot({
+        path: "guide/images/application-shell.png",
+        fullPage: true,
+      });
+    }
     for (const width of [1440, 820, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);

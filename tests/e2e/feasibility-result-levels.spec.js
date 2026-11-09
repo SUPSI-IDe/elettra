@@ -160,6 +160,11 @@ const mountResults = async (page, {
     const path = new URL(route.request().url()).pathname;
     requestedApiPaths.push(path);
 
+    if (path.endsWith("/api/v1/version")) {
+      await route.fulfill({ json: { version: "feasibility-results-test" } });
+      return;
+    }
+
     if (path.endsWith("/api/v1/simulation/optimization-runs/level-test")) {
       await route.fulfill({
         json: {
@@ -542,7 +547,20 @@ test("combines selected and initial-reference roles when they use the same forec
 });
 
 test("separates the common result from one selected shift without an aggregate option", async ({ page }) => {
-  await mountResults(page);
+  const dataset = {
+    gtfs_year: 2027,
+    gtfs_file_date: "2026-11-04",
+    valid_from: "2026-12-13",
+    valid_to: "2027-12-11",
+  };
+  await mountResults(page, {
+    gtfsProvenance: {
+      version: 1,
+      source: "recorded",
+      shifts: { morning: [dataset], evening: [dataset] },
+    },
+    currentGtfs: [dataset],
+  });
 
   const general = page.locator('[data-role="feasibility-general-level"]');
   const shiftDetail = page.locator('[data-role="feasibility-shift-level"]');
