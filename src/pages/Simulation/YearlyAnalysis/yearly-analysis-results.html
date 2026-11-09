@@ -94,7 +94,6 @@
         role="tabpanel"
         aria-labelledby="yearly-result-view-tab-efficiency"
       >
-        <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_efficiency">Annual efficiency</h2>
         <!-- D3 chart slots (appended to, not via innerHTML) -->
         <div class="ya-eff-charts-grid">
           <div class="ya-res-section ya-eff-chart-section result-card">
@@ -115,7 +114,7 @@
           </div>
         </div>
 
-        <details class="ya-more-information">
+        <details class="ya-more-information ya-surface-disclosure result-card">
           <summary class="ya-more-information__toggle" data-i18n="yearly_analysis.view_detailed_results">
             View detailed yearly results
           </summary>
@@ -298,7 +297,7 @@
           <div data-role="ya-env-kpis"></div>
 
           <!-- Supporting emissions detail -->
-          <details class="ya-more-information">
+          <details class="ya-more-information ya-surface-disclosure result-card">
             <summary class="ya-more-information__toggle" data-i18n="simulation.efficiency_more_information">More information</summary>
             <div class="ya-more-information__content">
               <div data-role="ya-env-header"></div>

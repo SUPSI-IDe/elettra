@@ -4581,16 +4581,15 @@ const buildShiftReferenceHtml = (features, scope) => {
     "yearly_analysis.yearly_aggregated_summary",
     "Yearly aggregated summary",
   );
+  const summaryTitleId = "ya-shift-yearly-summary-title";
 
   return `<section class="ya-shift-reference ya-scope-level ya-scope-level--shift" data-role="ya-shift-reference" data-shift-id="${textContent(scope.shiftId)}">
-    <section class="ya-shift-yearly-summary" data-role="ya-shift-yearly-summary">
-      <h2 class="ya-shift-yearly-summary__title">${textContent(summaryLabel)}</h2>
-      <div class="ya-compact-metrics">
-        <table class="ya-compact-metrics__table" aria-label="${textContent(summaryLabel)}">
-          <tbody><tr>
-            ${annualMetrics.map((metric) => `<td data-metric="${metric.key}"><span>${textContent(metric.label)}:</span> <strong>${textContent(metric.value)}</strong></td>`).join("")}
-          </tr></tbody>
-        </table>
+    <section class="ya-shift-yearly-summary" data-role="ya-shift-yearly-summary" aria-labelledby="${summaryTitleId}">
+      <div class="ya-shift-yearly-summary__row">
+        <h2 id="${summaryTitleId}" class="ya-shift-yearly-summary__title">${textContent(summaryLabel)}</h2>
+        <dl class="ya-shift-yearly-summary__metrics">
+          ${annualMetrics.map((metric) => `<div class="ya-shift-yearly-summary__metric" data-metric="${metric.key}"><dt>${textContent(metric.label)}</dt><dd><strong>${textContent(metric.value)}</strong></dd></div>`).join("")}
+        </dl>
       </div>
     </section>
   </section>`;
@@ -5135,6 +5134,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const applyScopeSectionVisibility = () => {
     const available = getYearlyScopeSectionVisibility(activeScope);
     const isShift = activeScope?.kind === "shift";
+    const usesResultViewTabs = isShift && !fleetDashboard;
     const visibility = {};
 
     if (resultScopeContentEl) {
@@ -5143,14 +5143,14 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     if (generalDownloadActionsEl) generalDownloadActionsEl.hidden = isShift;
 
     if (resultViewTabsEl) {
-      resultViewTabsEl.hidden = !isShift;
+      resultViewTabsEl.hidden = !usesResultViewTabs;
       resultViewTabsEl.setAttribute(
         "aria-label",
         translateOr("yearly_analysis.result_view_selector", "Annual result section"),
       );
       resultViewTabsEl.querySelectorAll("[data-result-view]").forEach((button) => {
-        button.hidden = Boolean(fleetDashboard && button.dataset.resultView !== 'efficiency');
-        const isActive = isShift && button.dataset.resultView === activeResultViewKey;
+        button.hidden = !usesResultViewTabs;
+        const isActive = usesResultViewTabs && button.dataset.resultView === activeResultViewKey;
         button.classList.toggle("active", isActive);
         button.setAttribute("aria-selected", String(isActive));
         button.tabIndex = isActive ? 0 : -1;
@@ -5161,11 +5161,22 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     Object.entries(scopeSectionPanels).forEach(([name, panel]) => {
       const isVisible = name === "overview"
         ? available[name]
-        : isShift && available[name] && name === activeResultViewKey;
+        : isShift && available[name] && (fleetDashboard
+          ? name === "efficiency"
+          : name === activeResultViewKey);
       visibility[name] = Boolean(isVisible);
       if (panel) {
         panel.hidden = !isVisible;
         panel.classList.toggle("active", Boolean(isVisible));
+        if (name === "efficiency") {
+          if (fleetDashboard) {
+            panel.removeAttribute("role");
+            panel.removeAttribute("aria-labelledby");
+          } else {
+            panel.setAttribute("role", "tabpanel");
+            panel.setAttribute("aria-labelledby", "yearly-result-view-tab-efficiency");
+          }
+        }
       }
     });
     return visibility;
