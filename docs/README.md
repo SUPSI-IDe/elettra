@@ -1,6 +1,6 @@
 # ELETTRA Documentation
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-09
 
 **ELETTRA** (Electric Transport Transition Assessment) is a web tool for electric bus fleet planning and simulation, developed within the ELETTRA research project to support public transport companies in transitioning to electric bus fleets.
 
@@ -26,12 +26,12 @@ This repository contains the **frontend only** — a Vite-based single-page appl
 ### User Guide
 
 - [Overview](user-guide/overview.md) — Application layout, navigation, supported languages
-- [Fleet Management](user-guide/fleet-management.md) — Bus models, buses, depots, custom stops
-- [Shifts and Routes](user-guide/shifts-and-routes.md) — Shift creation, GTFS trips, timelines
+- [Fleet Management](user-guide/fleet-management.md) — Bus models and custom operational locations
+- [Vehicle Blocks and Routes](user-guide/shifts-and-routes.md) — GTFS provenance, scheduled trips, auxiliary journeys, and timelines
 - [Feasibility Evaluation](user-guide/feasibility-evaluation.md) — Configuring and launching optimization runs
-- [Simulation Results](user-guide/simulation-results.md) — Interpreting cost, efficiency, SOC, emissions
-- [Yearly Analysis](user-guide/yearly-analysis.md) — Multi-scenario temperature-weighted analysis
-- [Comparison and Export](user-guide/comparison-and-export.md) — Electric vs diesel comparison
+- [Feasibility Results](user-guide/simulation-results.md) — Technical verdicts, Mean/Q95 designs, SOC, and charging
+- [Yearly Analysis](user-guide/yearly-analysis.md) — Per-vehicle-block annual energy, costs, emissions, and JSON export
+- [Comparison and Export](user-guide/comparison-and-export.md) — Side-by-side yearly-analysis comparison with CSV and JSON export
 
 ### Technical Reference
 
@@ -52,7 +52,6 @@ This repository contains the **frontend only** — a Vite-based single-page appl
 
 - [API Reference](api-reference.md) — All backend endpoints consumed by the frontend
 - [Glossary](glossary.md) — Domain-specific terms and abbreviations
-- [Feasible TPL Simulations](FEASIBLE_TPL_SIMULATIONS.md) — Research analysis of battery-only simulation scenarios
 
 ---
 

@@ -1,207 +1,162 @@
-# Simulation Results
+# Feasibility Results
 
-> Last updated: 2026-10-29
+> Last updated: 2026-11-09
+> Interface baseline: Frontend v0.10.0
 
-After a feasibility evaluation completes, ELETTRA displays comprehensive results covering feasibility, costs, efficiency, emissions, and battery adequacy.
-
----
-
-## Results overview
-
-The results page is organized into sections (cards/panels):
-
-1. General information
-2. Bus information
-3. Feasibility verdict
-4. Cost breakdown
-5. Efficiency analysis
-6. SOC profile
-7. Emissions assessment
-8. Charging infrastructure
-9. Battery adequacy
-10. Sensitivity analysis
+The feasibility result page is the technical gate between service preparation
+and yearly assessment. Read the overall verdict first, then inspect every
+vehicle block and the complete Mean/Q95 design before creating a yearly
+analysis.
 
 ---
 
-## General information
+## Result navigation
 
-| Field | Description |
-|-------|-------------|
-| Name | Evaluation name |
-| Optimization ID | Unique run identifier |
-| Creation date | When the evaluation was launched |
-| Simulation type | Optimization mode (battery_only / charging_only / joint) |
-| Shift name | Selected shift(s) |
-| External temperature | Configured temperature |
-| Occupancy | Configured passenger load |
-| Heating type | Heat pump or diesel |
-| Min/Max SOC | Configured SOC bounds |
+The page header provides three independent contexts:
 
----
+1. **Result scope** — **General** or one named vehicle block.
+2. **Consumption basis** — **Mean** or **Q95** for paired evaluations.
+3. **GTFS provenance** — the timetable edition recorded when the evaluation
+   was created.
 
-## Bus information
+Changing Mean/Q95 opens the complete optimized design for that profile,
+including its battery, charger configuration, and charging schedule. It does
+not merely change a demand line on an otherwise fixed result.
 
-| Field | Description |
-|-------|-------------|
-| Bus model | Model name and manufacturer |
-| Cost | Bus body cost (CHF) |
-| Bus length | 9m / 12m / 18m |
-| Max passengers | Capacity |
-| Bus lifetime | Years |
-| Battery pack cost | Cost per pack (CHF) |
-| Battery lifetime | Years |
+Historical single-basis evaluations retain their original semantics. When an
+alternative design was never calculated, the interface may expose an explicit
+compatibility calculation rather than relabelling historical per-trip
+quantiles as Aggregate Q95.
 
 ---
 
-## Feasibility verdict and battery margin
+## Start with General
 
-The verdict identifies the actual optimization basis: **Mean** or **Aggregate
-Q95**. Solver success, physical battery limits and full-forecast verification
-are separate facts. An unverified result does not certify feasibility.
+General summarizes the common evaluation context:
 
-General summarizes all analyzed shifts, shared infrastructure and the largest
-selected battery. Each bus retains its own selected battery; the maximum is not
-a common battery silently imposed on every shift. All selected shifts
-participate in sizing.
+- optimization mode and active decision basis;
+- overall feasibility status;
+- vehicle blocks covered by the result;
+- largest selected battery and the blocks that drive sizing;
+- shared charging infrastructure, power, delivered energy, and installation
+  cost where available.
 
-The battery card in each shift shows nominal capacity, usable capacity between
-SOC limits (including SOH), selected packs and unused installable packs.
-Diagnostic excess packs are separated in red and never counted as installed
-capacity. Charging-only uses a fixed battery.
+Each vehicle block retains the battery selected for it. The largest battery
+shown in General is a fleet summary, not a battery silently imposed on every
+block unless uniform sizing was explicitly selected.
 
-For new paired evaluations, the card shows the capacity requirement and SOC
-for the selected optimized design. Switching Mean/Q95 changes the complete
-battery, infrastructure and charging plan. Required usable energy comes from
-maximum temporal energy drawdown at that mass and schedule; it is not total
-consumption minus charging or another independently optimized battery size.
-Historical single-basis evaluations keep both diagnostic bars on their original
-fixed plan. Those alternative-profile diagnostics are not independent designs.
-
-The sampling details show sample count, seed and Monte Carlo uncertainty.
-When available, completion percentage is measured over independently sampled
-whole trajectories, with charging curtailed at maximum SOC. This conditional
-per-shift simulation does not guarantee fleet reliability.
-
-Choose **Mean / Aggregate Q95** at the page header or beside the battery to open
-the corresponding complete design without starting another calculation.
-Pending or failed alternatives leave the displayed result unchanged. Historical
-single-basis evaluations still offer an explicit compatibility lookup and
-calculation when the alternative was never computed.
-Historical evaluations retain their original semantics; missing aggregate
-analysis requires a new evaluation. Historical per-trip quantiles are not
-relabelled as aggregate Q95.
+All selected vehicle blocks participate in sizing and can compete for shared
+charging resources. A problem in one block can therefore stop or constrain the
+evaluation of the others.
 
 ---
 
-## Cost breakdown (D3 charts)
+## Read the technical verdict
 
-### CAPEX vs OPEX
+Keep these states separate:
 
-Stacked bar chart comparing:
-- **Electric bus**: vehicle CAPEX + battery CAPEX + energy OPEX + maintenance OPEX
-- **Equivalent diesel bus**: vehicle CAPEX + fuel OPEX + maintenance OPEX
+| State | Interpretation |
+|---|---|
+| **Feasible** | Optimization completed, the physical pack limit is respected, and the selected design passed complete-forecast verification |
+| **Infeasible** | Optimization completed but the proposed service/design failed a technical constraint, such as exceeding the physical battery limit |
+| **Not determined** | The calculation stopped before a feasibility verdict could be produced |
+| **Pending/failed execution** | No final technical conclusion is available |
 
-### Key metrics
+A successful solver execution alone does not certify feasibility. Conversely,
+a block marked not evaluated because another block failed is not automatically
+infeasible.
 
-| Metric | Description |
-|--------|-------------|
-| Total annual cost (CHF) | Annualized total cost of ownership |
-| CHF/km | Cost per kilometer driven |
-| Electric vs diesel delta | Percentage cost advantage/disadvantage |
-
-### Economic parameters
-
-The comparison uses configurable defaults for:
-- Diesel fuel price, consumption (L/km), maintenance cost
-- Electric energy price, maintenance cost
-- Bus and battery lifetimes
-- OPEX annualization rate (default: 3%)
+When a calculation is not determined, General lists the outcome of every
+selected block. The block view identifies the reason, any blocking vehicle
+block, and translated **How to resolve** guidance. Correct the indicated source
+data or configuration and run a separately named evaluation.
 
 ---
 
-## Efficiency analysis
+## Inspect every vehicle block
 
-| Metric | Description |
-|--------|-------------|
-| Total consumption (kWh) | Energy used for the entire shift |
-| Specific consumption (kWh/km) | Efficiency per kilometer |
-| Auxiliary consumption (kWh) | Energy used for heating/cooling |
-| Auxiliary share (%) | Proportion of total consumption from auxiliaries |
-| Drivetrain consumption (kWh) | Energy used for traction |
+The vehicle-block summary reports:
 
----
+- active Mean or Q95 total consumption;
+- active specific consumption in kWh/km;
+- required and selected battery packs;
+- nominal and usable battery capacity;
+- physical pack limit and battery margin;
+- minimum and maximum SOC actually reached;
+- charged energy and number of charging sessions.
 
-## SOC profile
+**Configured SOC window** identifies the limits entered in the evaluation.
+**Minimum SOC reached** and **Maximum SOC reached** are trajectory outcomes.
+They must not be presented as the same quantity.
 
-A line chart showing battery State of Charge throughout the shift:
-- X-axis: time or distance along the shift
-- Y-axis: SOC (%)
-- Min/max SOC bounds shown as reference lines
-- Charging events visible as SOC increases
-
----
-
-## Emissions assessment
-
-Comparison of lifecycle emissions between electric and diesel operations:
-
-| Indicator | Description |
-|-----------|-------------|
-| CO₂ equivalent (GWP100a) | Greenhouse gas emissions |
-| NOₓ | Nitrogen oxide emissions |
-| PM10 | Particulate matter |
-
-Results include both operational and manufacturing (LCA) contributions (*to verify*: full extent of LCA coverage in UI).
+The operational-energy view combines usable battery energy, planned charging,
+and temporal energy drawdown. Required usable energy is derived from the
+verified trajectory at the selected mass and schedule; it is not simply total
+consumption minus charged energy.
 
 ---
 
-## Charging infrastructure
+## Visual analysis and forecasts
 
-If charging stations were configured:
-- Total energy charged during shift (kWh)
-- Charging events (stop, duration, power)
-- Number of slots used
-- Infrastructure cost allocation (for `charging_only` / `joint` modes)
+The visual analysis shows the relationship between energy consumption,
+available battery energy, planned charging, and SOC coverage. Read it together
+with the verdict and pack limit rather than as an independent feasibility test.
 
----
+In **More information**, the energy-forecast table identifies the role of every
+forecast used in sizing. The forecast for the selected and verified battery is
+listed directly before the initial physical-maximum reference, so the two
+different pack counts and purposes remain explicit.
 
-## Battery adequacy
-
-| Field | Description |
-|-------|-------------|
-| Optimized battery packs | Number selected by the optimizer |
-| Total capacity (kWh) | Packs × pack size |
-| Usable capacity (kWh) | Total × usable SOC% |
-| Q05 demand (kWh) | Optimistic comparison scenario |
-| Mean demand (kWh) | Official feasibility decision scenario |
-| Q50 demand (kWh) | Median comparison scenario |
-| Q95 demand (kWh) | Conservative stress scenario |
-| Margin (kWh / %) | How much usable capacity exceeds mean demand |
+Forecast rows can include Q05, Mean, Q50, and Q95 consumption, specific
+consumption, drivetrain and auxiliary energy, mass, distance, and pack count.
+The active feasibility basis remains Mean or Aggregate Q95; the other columns
+are supporting distribution information.
 
 ---
 
-## Sensitivity analysis
+## Charging plan
 
-The results page may include sensitivity information showing how the feasibility verdict changes under:
-- Different usable SOC values
-- Temperature variations
-- Occupancy changes
-- Heating type switch
+For Charging and Joint evaluations, inspect each session for:
 
-See [FEASIBLE_TPL_SIMULATIONS.md](../FEASIBLE_TPL_SIMULATIONS.md) for a detailed research example of sensitivity analysis.
+- location and time;
+- day offset when charging continues into the next day;
+- connection duration;
+- delivered energy;
+- average charging power.
+
+Battery-only evaluations may show fixed charging already supplied by the
+configuration, or no charging plan. A partial or unavailable plan is reported
+as such rather than filled with invented sessions.
+
+**Charging plan** and **More information** are expandable white cards. They
+keep detailed sessions, prediction inputs, configured SOC limits, and supporting
+values available without obscuring the primary verdict.
 
 ---
 
-## Actions from results
+## GTFS and raw configuration data
 
-- **Compare** — Add this run to a comparison view
-- **Yearly analysis** — Create a yearly analysis from this run
-- **Duplicate** — Re-run with modified parameters
-- **Back to list** — Return to the evaluation list
+The compact GTFS disclosure shows the edition recorded at evaluation creation.
+For historical results without a complete snapshot, the interface explicitly
+labels provenance derived from current vehicle-block data.
+
+**View raw feasibility data** opens supporting configuration panels for general
+inputs, bus information, charging-station information, scenario/scaling data,
+and investment breakdown. Use these values to audit the displayed result, not
+to replace the result's status and provenance labels.
+
+---
+
+## What belongs in yearly analysis
+
+Feasibility answers whether the design can operate under the selected technical
+scenario. Representative annual energy, cost, and environmental performance
+belong to the yearly analysis. Do not treat a cold or conservative feasibility
+scenario as an annual average.
 
 ---
 
 ## Next steps
 
-- [Yearly Analysis](yearly-analysis.md) — Extend these results across a full year of weather
-- [Comparison and Export](comparison-and-export.md) — Compare multiple runs side-by-side
+- [Yearly Analysis](yearly-analysis.md) — Reuse the verified design across annual weather scenarios
+- [Feasibility Evaluation](feasibility-evaluation.md) — Revise assumptions and run a new evaluation

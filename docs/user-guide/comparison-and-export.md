@@ -1,107 +1,108 @@
 # Comparison and Export
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-09
+> Interface baseline: Frontend v0.10.0
 
-Compare feasibility evaluation results side-by-side to assess the economic and environmental trade-offs between electric and diesel bus operations.
-
----
-
-## Comparison view
-
-The comparison page allows you to compare a completed feasibility evaluation against an equivalent diesel bus scenario.
-
-### Accessing comparison
-
-From the feasibility evaluation list or results page, select a run to compare.
+The Analysis comparison page compares **two saved yearly analyses** side by
+side. It does not compare two feasibility runs directly, and it is not limited
+to an electric-versus-diesel chart.
 
 ---
 
-## Economic comparison
+## Start a comparison
 
-### Parameters
+Open **Simulations → Analysis comparison** and choose **Analysis A** and
+**Analysis B**. The page loads the common configuration and aggregate annual
+results of both analyses.
 
-The comparison uses these configurable economic parameters:
+Differences are reported as:
 
-| Parameter | Description | Typical default |
-|-----------|-------------|-----------------|
-| Diesel bus CAPEX | Equivalent diesel bus cost | 280,000–500,000 CHF (by length) |
-| Diesel consumption | Fuel efficiency (L/km) | 0.34–0.55 (by length) |
-| Diesel maintenance | Maintenance cost (CHF/km) | 0.30–0.45 (by length) |
-| Electric maintenance | Maintenance cost (CHF/km) | 0.30–0.40 (by length) |
-| Bus lifetime | Operational years | 12 (electric), 10 (diesel) |
-| Battery lifetime | Replacement cycle | 8 years |
-| Annualization rate | Discount rate for OPEX | 3% |
+```text
+Analysis B − Analysis A
+```
 
-### Cost stacking
-
-The comparison presents stacked bar charts breaking down:
-
-| Component | Electric | Diesel |
-|-----------|----------|--------|
-| Vehicle CAPEX | Bus body + battery packs | Bus purchase |
-| Energy OPEX | Electricity cost | Diesel fuel cost |
-| Maintenance OPEX | Electric maintenance | Diesel maintenance |
-| Infrastructure | Charging station cost (if applicable) | — |
-
-### Key output metrics
-
-| Metric | Description |
-|--------|-------------|
-| Total annual cost (CHF) | Full cost of ownership per year |
-| CHF/km | Cost per kilometer |
-| Delta (%) | Electric cost relative to diesel |
+A positive difference therefore means that B is larger than A for that metric;
+whether that is beneficial depends on the metric.
 
 ---
 
-## Emissions comparison
+## Compatibility summary
 
-The comparison includes environmental indicators, but the yearly-analysis
-boundary is explicitly partial rather than a complete absolute LCA:
+The compatibility section identifies whether the analyses can be interpreted
+as a direct comparison. Review differences in:
 
-| Indicator | Scope |
-|-----------|-------|
-| CO₂ equivalent | Operational electric-side model plus diesel-heater WTW where applicable |
-| NOₓ | Same boundary, reported as NO₂-equivalent |
-| PM10 | Same boundary; heater uncertainty is an observed two-test range |
+- vehicle-block set and service scope;
+- bus and battery configuration;
+- GTFS provenance;
+- annual distance and temperature scenarios;
+- occupancy, heating, and other operating assumptions;
+- optimization mode and charging infrastructure;
+- environmental data and methodology completeness.
 
-Exports preserve data-completeness, scope-completeness, fuel-profile and
-factor-methodology metadata. If required diesel-heater consumption data are
-missing, environmental comparison deltas are omitted instead of treating the
-missing contribution as zero.
+A comparison can still render when inputs differ, but its deltas should not be
+treated as the effect of one decision unless the other boundaries are held
+consistent.
 
-*To verify*: Whether LCA vehicle selection is exposed in the comparison UI or uses automatic defaults.
+The page compares the **General** scope. Individual vehicle-block results are
+not paired or compared on this page.
 
 ---
 
-## What drives the comparison
+## Comparison sections
 
-Based on analysis of actual ELETTRA simulations:
+| Section | Contents |
+|---|---|
+| **Overview** | Executive indicators and high-level differences |
+| **Efficiency** | Aggregate annual energy, distance, and efficiency context |
+| **Cost** | Annual and lifecycle economic indicators, subject to compatible assumptions |
+| **Emissions** | Aggregate environmental indicators and completeness metadata |
+| **Details / Export** | Input details, provenance, compatibility information, and export controls |
 
-- **Annual utilization** is the strongest cost driver. Higher yearly km dilutes CAPEX over more km, favoring electric.
-- **Battery pack count** directly affects electric CAPEX. More packs = higher upfront cost.
-- **Electricity vs diesel price** determines OPEX advantage.
-- **Bus length** affects all defaults (larger buses have higher costs on both sides).
+Each yearly analysis can contain an internal electric/diesel assessment. The
+Analysis comparison page compares the saved yearly scenarios A and B; keep
+those two comparison levels distinct.
+
+---
+
+## Environmental limitations
+
+Environmental deltas are shown only when the required inputs are sufficiently
+complete. Exports preserve data-completeness, scope-completeness, fuel-profile,
+and factor-methodology metadata.
+
+If required diesel-heater consumption is missing, the affected reduction is
+omitted instead of treating the missing contribution as zero. The current
+yearly boundary is partial and must not be described as a complete absolute LCA.
 
 ---
 
 ## Export options
 
-*To verify*: The current export capabilities. Browser print/PDF may be the primary export method. No dedicated CSV/PDF export button was identified in the codebase.
+The current comparison interface provides dedicated exports:
+
+- **Export CSV** in **Details / Export** for tabular comparison data;
+- **Export JSON** in **Details / Export** for structured comparison data;
+- **Download JSON** below the comparison for the complete structured payload.
+
+The exports include the comparison values and supporting scope/provenance data
+available to the page. Review compatibility warnings before using a delta in a
+decision record.
 
 ---
 
-## Run-to-run comparison
+## Good comparison practice
 
-Beyond the electric-vs-diesel economic comparison, users can compare multiple feasibility evaluations to understand how parameter changes affect results:
-
-- Same shift with different SOC settings
-- Same shift with different temperatures
-- Same route with different bus models
-- With vs without charging stations
+- Name analyses after their principal difference, such as bus model, heating,
+  occupancy, or charging strategy.
+- Change one material assumption at a time when possible.
+- Keep vehicle-block sets, GTFS editions, annual distance, and assessment
+  boundaries consistent.
+- Record external tariff, cost, and factor sources with their dates.
+- Treat missing values as missing, not as zero.
 
 ---
 
 ## Next steps
 
-- [Yearly Analysis](yearly-analysis.md) — Get annualized results for more robust comparison
-- [Feasibility Evaluation](feasibility-evaluation.md) — Create additional runs to compare
+- [Yearly Analysis](yearly-analysis.md) — Review the source analyses and their scopes
+- [Overview](overview.md) — Return to the end-to-end workflow

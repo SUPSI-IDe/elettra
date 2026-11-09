@@ -228,6 +228,23 @@ test("every guide language explains the two-level feasibility and yearly result 
   }
 });
 
+test("every guide language distinguishes owned vehicle CAPEX from allocated shared infrastructure", () => {
+  const expectedTerms = {
+    en: ["belongs in full", "only its cost is allocated"],
+    de: ["vollständig", "nur ihre Kosten"],
+    fr: ["intégralement", "seul son coût"],
+    it: ["integralmente", "solo il suo costo"],
+  };
+
+  for (const language of SUPPORTED_GUIDE_LANGUAGES) {
+    const yearly = guideContent[language].sections.find(({ id }) => id === "yearly");
+    const yearlyText = JSON.stringify(yearly);
+    for (const term of expectedTerms[language]) {
+      assert.ok(yearlyText.includes(term), `${language} yearly guide is missing ${term}`);
+    }
+  }
+});
+
 test("every referenced guide screenshot is packaged locally", async () => {
   const sources = new Set(
     guideContent.en.sections.flatMap(({ figures = [] }) =>

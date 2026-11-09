@@ -1,101 +1,95 @@
 # Fleet Management
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-09
+> Interface baseline: Frontend v0.10.0
 
-Manage bus models, buses, depots, and custom stops — the foundational data for all ELETTRA simulations.
+The Fleet area contains reusable inputs for analyses: **Bus Models**, **Custom
+Stops**, and **Vehicle blocks**. The current interface works with bus models;
+it does not require a separate user-facing record for every physical bus.
 
 ---
 
 ## Bus models
 
-Bus models define the technical specifications of electric buses available for simulation.
+Open **Fleet → Bus Models** and select **Add Bus Model**. A bus model defines
+the technical and economic limits used when ELETTRA sizes a battery or evaluates
+a fixed configuration.
 
-### Creating a bus model
+### Vehicle category and defaults
 
-Navigate to **Fleet > Buses** and click the add button. Key fields:
+Choose one of the supported vehicle categories:
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| Manufacturer | Bus manufacturer name | Hess |
-| Model | Model designation | lighTram 12 OPP |
-| Bus length | 9m, 12m, or 18m (drives defaults) | 12 |
-| Cost (CHF) | Bus body cost excluding batteries | 600,000 |
-| Max passengers | Maximum passenger capacity | 85 |
-| Empty weight (kg) | Weight without passengers or variable batteries | 14,000 |
-| Battery packs (min–max) | Allowed range of battery pack count | 7–11 |
-| Battery pack size (kWh) | Energy capacity per pack | 40 |
-| Battery pack cost (CHF) | Cost per pack | 6,000 |
-| Battery pack weight (kg) | Weight per pack | 275 |
-| Max charging power (kW) | Maximum accepted charging power | 450 |
-| Bus lifetime (years) | Expected operational lifetime | 12 |
-| Battery lifetime (years) | Expected battery replacement cycle | 8 |
+- midi electric bus — 9 m;
+- standard electric bus — 13 m;
+- articulated electric bus — 18 m.
 
-### Length-based defaults
+The category supplies representative starting values and an LCA reference. It
+does not select a commercial model or manufacturer. Review and replace the
+defaults when project-specific data are available.
 
-Selecting a bus length pre-fills recommended values:
+### Required input groups
 
-| Length | Cost | Max passengers | Empty weight | Packs (min–max) | Max charging power |
-|--------|------|----------------|--------------|------------------|--------------------|
-| 9m | 450,000 CHF | 55 | 12,000 kg | 5–8 | 300 kW |
-| 12m | 600,000 CHF | 85 | 14,000 kg | 7–11 | 450 kW |
-| 18m | 800,000 CHF | 120 | 18,000 kg | 12–16 | 450 kW |
+| Group | Inputs and interpretation |
+|---|---|
+| General | Name, vehicle category, optional description |
+| Vehicle | Length, vehicle cost without batteries, passenger capacity, empty mass without battery packs or passengers, bus lifetime |
+| Battery | Minimum and maximum pack count, capacity per pack, cost per pack, mass per pack, battery lifetime |
+| Charging | Maximum charging power accepted by the vehicle |
 
-All defaults can be overridden.
+Minimum and maximum pack counts define the configurations available to the
+optimizer. Pack capacity and the configured usable SOC determine available
+energy; pack mass also changes the vehicle mass used by the prediction model.
 
----
+### List actions
 
-## Buses
-
-Buses are individual vehicle instances linked to a bus model. They are used when assigning vehicles to shifts.
-
-- Each bus references a bus model (for specifications).
-- Buses are user-scoped.
-
----
-
-## Depots
-
-Depots represent bus garages or parking facilities. They are relevant for:
-
-- Shift start/end locations
-- Overnight charging (implicit in simulation)
-- Charging station placement
-
-A depot has a name and geographic coordinates.
+The list supports search, pagination, details, edit, and delete. **Details**
+opens a read-only dialog. Before editing or deleting a model, check vehicle
+blocks and analyses that already depend on it; saved results retain their own
+inputs, while future evaluations use the current record.
 
 ---
 
 ## Custom stops
 
-Custom stops are user-defined geographic points that extend the standard GTFS stop set. They are useful for:
+Custom stops represent operational locations not supplied by the selected GTFS
+timetable, for example:
 
-- Defining depot locations not in the GTFS data
-- Adding intermediate charging points
-- Representing planned infrastructure
+- depots;
+- candidate or existing charging locations;
+- operational hubs.
 
-### Creating a custom stop
+Open **Fleet → Custom Stops**, choose **Add Custom Stop**, and provide a name,
+type, address, city, and map location. Notes are optional. Positioning the map
+updates the location fields used by the saved record.
 
-Navigate to **Fleet > Custom Stops** and click add. The map interface (Leaflet) allows:
+The list supports search, details, edit, and delete. The edit flow also supports
+older custom stops whose stored data predate the current form; recovered fields
+remain editable and a current stop type can be assigned before saving.
 
-- Clicking on the map to set coordinates
-- Automatic reverse geocoding for address lookup
-- Manual coordinate entry
+Use names that distinguish depots, chargers, and hubs clearly. A location can
+become part of vehicle-block boundaries and charging candidates, so review
+dependent work before changing or deleting it.
 
 ---
 
-## Relationship between entities
+## How fleet records connect
 
-```
-Bus Model  ←──  Bus  ←──  Shift  ──→  Depot (start/end)
-                                   ──→  GTFS Trips
-                                   ──→  Custom Stops
+```text
+Bus model ───────────────┐
+                        ├─ Vehicle block ─ Feasibility evaluation
+GTFS timetable + trips ─┤                         │
+                        │                         └─ Yearly analysis
+Custom operational stops┘
 ```
 
-A shift references a bus (and thus a bus model), a start/end depot, and one or more GTFS trips.
+A vehicle block selects one bus model, one GTFS timetable edition, scheduled
+trips, and start/return locations. A feasibility evaluation may include several
+compatible vehicle blocks and may override their bus-model choice with one
+stable evaluation-level selection.
 
 ---
 
 ## Next steps
 
-- [Shifts and Routes](shifts-and-routes.md) — Define daily work assignments
-- [Feasibility Evaluation](feasibility-evaluation.md) — Run a simulation using your fleet data
+- [Vehicle Blocks and Routes](shifts-and-routes.md) — Build complete daily duties
+- [Feasibility Evaluation](feasibility-evaluation.md) — Evaluate the selected service

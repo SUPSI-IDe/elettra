@@ -1,80 +1,127 @@
 # User Guide: Overview
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-09
+> Interface baseline: Frontend v0.10.0
 
-ELETTRA is a web application for planning and evaluating the electrification of public transport bus fleets. This page provides a high-level map of all user-facing features.
+ELETTRA supports preliminary planning for battery-electric bus services. It
+connects fleet and timetable data to a technical feasibility gate, then uses a
+verified design for yearly energy, cost, and environmental assessment.
+
+The result is decision support, not an operational certificate. Procurement,
+depot, charger, civil-work, and grid-connection decisions still require the
+corresponding engineering studies.
 
 ---
 
 ## Application layout
 
-The interface is a single-page application organized with a top navigation bar. After login, the main navigation sections are:
+After sign-in, **Home** links directly to the six working sections. The same
+sections remain available in the sidebar:
 
-| Section | Pages | Purpose |
-|---------|-------|---------|
-| **Fleet** | Buses, Custom Stops, Shifts | Define your fleet data |
-| **Simulation** | Feasibility evaluation, Yearly analysis | Run and analyze electrification scenarios |
-| **Account** | Settings | Manage your profile and password |
-| **About** | About | Project information and partners |
+| Sidebar group | Page | Purpose |
+|---|---|---|
+| **Fleet** | Bus Models | Define vehicle, battery, charging, cost, and lifetime parameters |
+| **Fleet** | Custom Stops | Add depots, charging locations, and hubs not present in the timetable |
+| **Fleet** | Vehicle blocks | Combine scheduled trips and auxiliary journeys into a complete daily duty |
+| **Simulations** | Feasibility evaluation | Test the selected service under battery and charging constraints |
+| **Simulations** | Yearly analyses | Apply a verified design to representative annual weather scenarios |
+| **Simulations** | Analysis comparison | Compare two saved yearly analyses and export their differences |
+
+The public user guide is linked from the landing page, Home, and the bottom of
+the authenticated sidebar. It opens in a separate tab.
 
 ---
 
-## Main workflow
+## Recommended workflow
 
-The typical user workflow follows this sequence:
-
+```text
+Bus model and locations
+        ↓
+Vehicle blocks with recorded GTFS edition
+        ↓
+Feasibility evaluation (Mean and Q95 designs)
+        ↓
+Verified feasible design
+        ↓
+Yearly analysis by vehicle block
+        ↓
+Comparison and export
 ```
-Fleet Setup → Shift Definition → Feasibility Evaluation → Results → Yearly Analysis → Comparison
-```
 
-1. **Fleet setup** — Create bus models with technical specifications (battery, weight, cost). See [Fleet Management](fleet-management.md).
-2. **Shift definition** — Define daily work assignments by binding GTFS trips to buses and depots. See [Shifts and Routes](shifts-and-routes.md).
-3. **Feasibility evaluation** — Configure and launch an optimization run to determine if a shift is electrifiable. See [Feasibility Evaluation](feasibility-evaluation.md).
-4. **Results interpretation** — Analyze cost breakdowns, efficiency, SOC profiles, and emissions. See [Simulation Results](simulation-results.md).
-5. **Yearly analysis** — Extrapolate single-day results across a year of temperature scenarios. See [Yearly Analysis](yearly-analysis.md).
-6. **Comparison** — Compare electric vs diesel costs side-by-side. See [Comparison and Export](comparison-and-export.md).
+1. Create a bus model and replace representative defaults with operator or
+   manufacturer data when available.
+2. Add the custom depots, charging locations, or hubs required by the service.
+3. Build each vehicle block from one selected GTFS timetable edition, including
+   its start, return, and auxiliary movements.
+4. Create a feasibility evaluation from vehicle blocks that belong to the same
+   GTFS edition. Choose the optimization mode and operating assumptions.
+5. Check the technical verdict before interpreting secondary indicators. A
+   completed calculation can still be physically infeasible.
+6. Create a yearly analysis only from an eligible, completed feasibility
+   evaluation. The selected battery and charging design remain fixed.
+7. Compare saved yearly analyses whose service scope and assumptions are
+   sufficiently consistent.
 
----
+See the detailed chapters:
 
-## Supported languages
-
-The interface is available in four languages, switchable at any time:
-
-- English (en)
-- German (de)
-- French (fr)
-- Italian (it)
-
-Language preference is stored locally and persists across sessions.
-
----
-
-## Authentication
-
-- Users must log in to access fleet data and simulations.
-- Registration requires a name, email, password, and company ID.
-- Sessions are JWT-based and stored in the browser.
-- If a session expires, the user is automatically redirected to the login page.
+- [Fleet Management](fleet-management.md)
+- [Vehicle Blocks and Routes](shifts-and-routes.md)
+- [Feasibility Evaluation](feasibility-evaluation.md)
+- [Feasibility Results](simulation-results.md)
+- [Yearly Analysis](yearly-analysis.md)
+- [Comparison and Export](comparison-and-export.md)
 
 ---
 
-## Public pages
+## Planning use cases
 
-The following pages are accessible without login:
-- Landing
-- Login
-- Register
-- About
+The optimization mode should match the planning question:
+
+| Use case | What is already available | Mode | Main decision |
+|---|---|---|---|
+| Fleet expansion | Charging infrastructure | **Battery only** (`battery_only`) | Required battery capacity |
+| Charging-infrastructure expansion | Bus and installed battery | **Charging** (`charging_only`) | Required charging configuration |
+| Initial electrification investment | Neither complete bus nor charging design | **Joint** (`joint`) | Battery and charging configuration together |
+
+The modes optimize only within the bus models, charging candidates, costs, and
+constraints supplied by the user. They do not select a manufacturer, design a
+complete depot, or assess the grid connection.
 
 ---
 
-## Data ownership
+## GTFS provenance
 
-All fleet data (bus models, buses, shifts, depots, custom stops) and simulation runs are scoped to the authenticated user. Agency-level data sharing may be available (*to verify*: whether agency endpoints provide cross-user visibility).
+GTFS is part of the analysis boundary, not just a trip-search input:
+
+- a vehicle block records the timetable edition used to build it;
+- a new feasibility evaluation accepts vehicle blocks from one selected
+  edition;
+- feasibility and yearly result pages show the recorded edition in a compact
+  disclosure;
+- a yearly result preserves the provenance captured by its feasibility
+  evaluation instead of silently following later vehicle-block changes.
+
+Historical records that predate complete provenance may be labelled as derived
+from current vehicle-block data. Vehicle blocks that mix historical editions
+are excluded from new evaluations.
 
 ---
 
-## Next steps
+## Languages and access
 
-- [Fleet Management](fleet-management.md) — Start setting up your bus models and infrastructure
-- [Feasibility Evaluation](feasibility-evaluation.md) — Jump straight to running a simulation
+The interface and online guide are available in English, German, French, and
+Italian. The language choice is retained in the browser.
+
+The landing page, sign-in, registration, About page, and online user guide are
+public. Fleet data and analyses require an authenticated account. Data exposed
+in the workspace is scoped by the authenticated backend context.
+
+---
+
+## Interpretation boundary
+
+A result is conditional on the selected service, timetable edition, vehicle,
+weather, occupancy, heating, battery, state-of-charge, charging, economic, and
+environmental assumptions. Record important sources and dates outside ELETTRA,
+compare like with like, and treat missing or partial data as a limitation rather
+than as zero impact.

@@ -1,141 +1,177 @@
 # Yearly Analysis
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-09
+> Interface baseline: Frontend v0.10.0
 
-A yearly analysis extends a single feasibility evaluation across a full year of representative weather conditions, producing annualized cost and emissions estimates.
+A yearly analysis keeps one verified bus, battery, and charging design fixed and
+applies it to representative temperature scenarios. It reports common fleet
+configuration in **General** and annual operation separately for every available
+vehicle block.
 
----
-
-## Purpose
-
-A single feasibility evaluation represents one day at one temperature. A yearly analysis answers: "What does this shift cost and emit **over an entire year** considering all weather conditions the location experiences?"
-
----
-
-## Creating a yearly analysis
-
-1. Navigate to **Simulation > Yearly analysis**
-2. Click to create a new analysis
-3. Select a completed feasibility evaluation (optimization run) as the basis
-4. Give it a name
-5. The system automatically generates weather-weighted scenarios
+It does not resize the battery, redesign charging infrastructure, or repeat the
+technical feasibility decision.
 
 ---
 
-## How it works
+## Create a yearly analysis
 
-### Temperature clustering (PVGIS TMY)
+Open **Simulations → Yearly analyses** and select **New**.
 
-ELETTRA uses PVGIS Typical Meteorological Year data for the depot/shift location:
+1. Enter a descriptive analysis name.
+2. Select an eligible, completed feasibility evaluation.
+3. Review the inherited vehicle blocks, optimization mode, sizing temperature,
+   selected packs, and capacity.
+4. Set the average passenger occupancy for the annual predictions.
+5. Review the temperature scenarios, annual occurrences, and weather-reference
+   location.
+6. Confirm and start the analysis.
 
-1. Retrieves hourly temperature data for the location
-2. Clusters temperatures into representative groups (default: k=8 clusters)
-3. Each cluster has a representative temperature and a weight (proportion of the year)
-4. Time window: typically 05:00–24:00 (operating hours)
-
-### Scenario generation
-
-For each temperature cluster:
-- A prediction run is executed with the cluster's representative temperature
-- Energy consumption is predicted for that temperature scenario
-- The result is weighted by the cluster's annual occurrence
-
-### Quantile-based uncertainty
-
-Each prediction produces three quantile estimates:
-- **Q05** — Low-demand estimate (5th percentile, optimistic)
-- **Q50** — Median estimate (most likely)
-- **Q95** — High-demand estimate (95th percentile, pessimistic)
-
-The Q05–Q95 range represents the prediction model's uncertainty.
+Each weather scenario is applied to every selected vehicle block. Progress is
+shown while the predictions run, and the result opens when the analysis
+finishes.
 
 ---
 
-## Results
+## Temperature scenarios
 
-### Yearly summary
+Temperature scenarios are loaded from the weather-clustering data associated
+with the selected evaluation's location. The form shows:
 
-| Metric | Description |
-|--------|-------------|
-| Annual consumption (kWh/year) | Weather-weighted total energy demand |
-| Annual cost (CHF/year) | Annualized cost of ownership |
-| CHF/km | Annual cost divided by yearly distance |
-| Annual emissions | Weighted CO₂/NOₓ/PM10 |
+- representative daily average temperature for the operating window;
+- occurrences in days per year;
+- the total occurrence count;
+- the weather-reference depot/location.
 
-### Diesel-heater environmental results
+Each scenario produces consumption predictions for the selected fixed design.
+The annual totals weight scenario energy by its occurrence. Q05–Q95 ranges show
+model uncertainty around the scenario prediction; they do not resize the
+battery or replace the earlier technical verdict.
 
-For VECTO analyses, the saved diesel fuel energy is the authoritative input.
-The application converts it to litres with the versioned Swiss average fuel
-profile used by both the cost and emissions endpoints. Historical legacy
-analyses retain their original litre value and provenance.
-
-The heater contribution is well-to-wheel: exhaust emissions appear in
-`direct`, while fuel production and delivery appear in `energyChain`. NOₓ is
-shown as NO₂-equivalent so direct measurements and the Mobitool upstream
-inventory can be added consistently. The PM10 interval is the observed range
-of two valid tests, not a confidence interval.
-
-The results screen distinguishes:
-
-- **data completeness** — whether the required consumption and factors exist;
-- **scope completeness** — whether the environmental model covers a complete
-  LCA boundary.
-
-The current boundary remains partial: an operational electric-side result,
-allocated using Mobitool phase shares, plus the diesel heater WTW result.
-Comparison reductions are hidden when required heater consumption data are
-missing. With positive consumption the interface shows “Diesel heating
-included · estimated values”; that statement is absent for electric heating
-and explicit zero consumption. Use the keyboard- and touch-accessible
-methodology-and-sources control for the factor version, NOₓ convention, source
-links and PM10 caveat.
-
-### Efficiency by temperature
-
-A chart showing:
-- X-axis: temperature (°C) — one point per cluster
-- Y-axis: specific consumption (kWh/km)
-- Q50 line with Q05–Q95 uncertainty band
-- Shows how efficiency degrades in cold weather
-
-### Annual contribution breakdown
-
-How each temperature cluster contributes to the annual total:
-- Bar chart weighted by occurrence
-- Q05/Q50/Q95 bars for each cluster
-- Highlights which conditions drive annual costs
-
-### Scenario table
-
-Detailed per-cluster data:
-- Representative temperature
-- Weight (% of year)
-- Consumption (kWh/km) with uncertainty
-- Feasibility per scenario
+If occurrences do not cover the intended year, the form reports the mismatch.
+Review that boundary before interpreting annual values.
 
 ---
 
-## Interpreting the results
+## Preserved provenance
 
-- **Cold clusters dominate costs**: Even though cold days are less frequent, their higher energy demand (due to heating) contributes disproportionately to annual costs.
-- **Wide Q05–Q95 bands** indicate high uncertainty — results depend heavily on actual operational conditions.
-- **Narrow bands** indicate reliable predictions regardless of operational variation.
-- Compare electric vs diesel annual costs to determine economic viability.
+The yearly analysis inherits the feasibility evaluation's:
+
+- bus model and physical vehicle count;
+- vehicle blocks;
+- selected battery configuration;
+- charging infrastructure and schedule context;
+- optimization and operating assumptions;
+- recorded GTFS timetable edition.
+
+The result preserves this snapshot instead of silently following later changes
+to a vehicle block. The compact GTFS disclosure and **View configuration data**
+make the saved inputs and provenance available for review.
 
 ---
 
-## Relationship to feasibility evaluation
+## Result scopes
 
-| Single evaluation | Yearly analysis |
-|-------------------|-----------------|
-| One temperature | All representative temperatures |
-| One-day snapshot | Full-year weighted average |
-| Feasible/infeasible | Feasibility per scenario |
-| Daily cost | Annualized cost |
+### General
+
+General shows information shared by the complete analysis:
+
+- inherited bus and operating assumptions;
+- common battery configuration;
+- shared charging locations and power;
+- physical vehicle count;
+- fleet-level bus, battery, and charging-infrastructure investment context;
+- aggregate annual indicators where available.
+
+Bus and battery CAPEX is multiplied by the physical vehicle count inherited
+from feasibility. Shared charging infrastructure is counted once for the fleet.
+
+### Vehicle block
+
+Select a named vehicle block to open **Efficiency**, **Costs**, and
+**Emissions**. A compact summary below the scope selector reports yearly energy,
+simulated distance, and average efficiency for that block.
+
+Historical analyses that contain only aggregate data show General only. ELETTRA
+does not invent per-block values by splitting an aggregate total.
+
+---
+
+## Efficiency
+
+The Efficiency tab includes:
+
+- specific consumption by temperature with its uncertainty band;
+- annual energy contribution by temperature scenario;
+- a toggle between yearly and daily energy units where available;
+- expandable detailed scenario, battery, critical-condition, and annual
+  uncertainty values.
+
+Cold scenarios can have high consumption but contribute according to their
+recorded annual occurrence. Interpret both the scenario intensity and its
+weight.
+
+---
+
+## Costs
+
+Vehicle-block operating costs use that block's own annual energy and distance.
+Capital scope is handled separately:
+
+- bus and battery CAPEX belongs in full to the physical vehicles assigned to
+  that vehicle block;
+- shared charging infrastructure remains a single fleet investment;
+- only the shared infrastructure cost is allocated to a vehicle block, normally
+  by its share of annual DC energy shown in Emissions;
+- annual distance is used as a fallback allocation basis only when complete DC
+  energy is unavailable.
+
+The cost view can include electric and diesel OPEX, vehicle-block CAPEX,
+replacement and annualization assumptions, cumulative discounted cost, and
+break-even indicators. Check the displayed allocation note before comparing
+vehicle blocks.
+
+Changing interactive economic assumptions affects the estimate shown in the
+browser; it does not change the saved technical feasibility design.
+
+---
+
+## Emissions and environmental scope
+
+The Emissions tab uses the vehicle block's annual energy boundary and presents
+CO₂-equivalent, NOₓ as NO₂-equivalent, and PM10 indicators where the required
+data are complete.
+
+The current model is explicitly partial rather than a complete absolute vehicle
+LCA. It covers the operational electric-side result and its energy supply chain,
+with lifecycle phases shown as a transparent allocation, plus diesel-heater
+well-to-wheel impacts when applicable.
+
+For VECTO analyses, saved diesel-heater fuel energy is converted with the
+versioned Swiss average fuel profile. Exhaust contributions appear in the
+direct phase and fuel production/delivery in the energy-chain phase. The PM10
+interval is the observed range of two valid tests, not a confidence interval.
+
+The interface distinguishes:
+
+- **data completeness** — required consumption and factors are available;
+- **scope completeness** — the model covers the desired environmental boundary.
+
+If required diesel-heater consumption is missing, comparison reductions are
+omitted rather than treating the missing contribution as zero. Use the
+methodology-and-sources control to review factor versions, conventions, source
+links, and limitations.
+
+---
+
+## Export
+
+**Download all results (JSON)** is available in General. The export contains the
+General result and a separate entry for every available vehicle block, including
+provenance, assumptions, scope, and allocation metadata where available.
 
 ---
 
 ## Next steps
 
-- [Comparison and Export](comparison-and-export.md) — Compare yearly results across configurations
-- [Simulation Results](simulation-results.md) — Understand the single-day basis
+- [Comparison and Export](comparison-and-export.md) — Compare two saved yearly analyses
+- [Feasibility Results](simulation-results.md) — Return to the fixed technical design

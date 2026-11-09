@@ -1,128 +1,133 @@
 # Feasibility Evaluation
 
-> Last updated: 2026-10-29
+> Last updated: 2026-11-09
+> Interface baseline: Frontend v0.10.0
 
-A feasibility evaluation (optimization run) determines whether a shift can be operated with an electric bus given specific battery, charging, and environmental parameters.
-
----
-
-## Workflow
-
-1. Navigate to **Simulation > Feasibility evaluation**
-2. Click **New** to create a new evaluation
-3. Configure parameters (see below)
-4. Launch and wait for completion
-5. View results
+A feasibility evaluation tests whether the selected vehicle blocks can be
+operated with the configured bus, battery, charging, and environmental inputs.
+New evaluations calculate a **Mean** design and an **Aggregate Q95** design
+together.
 
 ---
 
-## Configuration parameters
+## Create an evaluation
 
-### Name
+Open **Simulations → Feasibility evaluation** and select **New**.
 
-A descriptive name for the evaluation (e.g., "Line 1 Winter 50% SOC").
+### 1. Name and GTFS timetable
 
-### Shift selection
+Enter a descriptive name and select one GTFS timetable edition. The vehicle
+block table then shows only compatible records. Changing the edition clears the
+current selection, and historical blocks that mix editions are excluded.
 
-Select one or more shifts from your fleet. The table shows:
-- Shift name
-- Assigned bus model
-- Daily distance (km)
-- Yearly distance (km)
+### 2. Vehicle blocks and bus model
 
-Shifts can be filtered and sorted.
+Select one or more vehicle blocks. Search and sorting operate on the available
+compatible set. The bus-model choice follows the selected blocks and remains
+stable while other form inputs are changed; review it explicitly whenever the
+selected blocks change.
 
-### Bus model
+### 3. Optimization mode
 
-Select the bus model to use for this evaluation. Defaults to the model assigned to the selected shift but can be overridden to test different bus configurations.
+| Mode | Fixed input | Optimized decision | Typical use |
+|---|---|---|---|
+| **Battery only** (`battery_only`) | Charging configuration | Battery pack count | Fleet expansion with existing chargers |
+| **Charging** (`charging_only`) | Installed battery pack count | Charging locations, power, and plugs within configured candidates | Charging-infrastructure expansion |
+| **Joint** (`joint`) | User constraints and candidates | Battery and charging configuration together | Initial electrification investment |
 
-### Optimization mode
+Charging mode requires a fixed pack count within the selected bus model's
+allowed minimum and maximum. Battery-only and Joint can size each vehicle
+individually or use the same battery size for all selected blocks, depending on
+the battery-sizing option.
 
-| Mode | Description |
-|------|-------------|
-| **battery_only** | Optimize battery pack count. No charging infrastructure cost is considered. Charging stations can still be specified for operational feasibility. |
-| **charging_only** | Fixed battery. Optimize charging station placement and slot count. |
-| **joint** | Simultaneously optimize both battery sizing and charging infrastructure. |
+The optimizer does not discover unconstrained geographic sites or choose a
+commercial vehicle. It works only with the supplied candidates and limits.
 
-### Consumption basis
+### 4. Operating assumptions
 
-Each new evaluation calculates **Mean** and **Aggregate Q95** together. Q95 is calculated from independent samples
-of each trip occurrence and then aggregated across the whole shift. It is not
-the sum of each trip's Q95. The default is 100,000 samples, with bounded
-refinement when precision is insufficient or a no-charging pack threshold is
-ambiguous. Each profile gets its own complete optimized design. There is no
-solver run per sample; distributions at matching battery masses are reused.
+| Parameter | Current initial value | Meaning |
+|---|---:|---|
+| External temperature | -5 °C | Ambient condition for the technical gate |
+| Average passengers | 100% | Occupancy applied to the prediction |
+| Heating type | Heat pump/default | Auxiliary-heating technology; diesel is also available |
+| Usable SOC | 50% of nominal | Configured operating window inside nominal capacity |
 
-Battery-only optimizes packs with fixed infrastructure. Charging-only preserves
-the selected battery. Joint optimizes both. All selected shifts compete for the
-same chargers and power limits. A full forecast at the selected battery mass
-must verify the final design before it is reported as verified.
+Usable SOC is an input limit, not the SOC actually reached by the optimized
+trajectory. A 50% usable window with maximum SOC at 90%, for example, implies a
+minimum limit of 40%. Selecting 90–100% triggers an explicit warning because it
+can represent aggressive battery operation.
 
-### Operational parameters
+### 5. Charging and depot behavior
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| External temperature (°C) | Ambient temperature affecting auxiliary consumption | 15 |
-| Occupancy (%) | Average passenger load as % of max capacity | 50 |
-| Auxiliary heating type | `default` (heat pump) or `diesel` (diesel heater) | default |
-| Usable SOC (%) | Percentage of battery capacity available for use | 50 |
+Candidate locations come from relevant service stops and custom operational
+locations. Depending on the selected mode, configure availability, installed or
+maximum plugs, power per plug, and installation costs.
 
-### Usable SOC explained
+Additional options can:
 
-Usable SOC defines the operational battery window. For example, 50% usable SOC with max SOC of 90% means:
-- Min SOC = 40%
-- Max SOC = 90%
-- Usable energy = 50% of total capacity
+- verify the next day's departure using the depot stay already represented by
+  the vehicle block;
+- simulate controllable smart charging that reduces depot peaks while
+  preserving the selected design and daytime charging;
+- expose advanced infrastructure-cost assumptions.
 
-Available options: 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100%.
-
-A wider usable SOC provides more energy but may reduce battery lifetime.
-
-### Charging stations
-
-When shifts are selected, ELETTRA loads available stops (end-stops from GTFS trips plus depots). For each stop you can:
-- Enable/disable as a charging location
-- Configure number of plugs
-- Set power per plug (kW)
-- Set cost per plug (CHF) — for `charging_only` and `joint` modes
-
-Depot/custom stops are pre-selected by default.
+A connected bus occupies the same plug for its full stop, even after energy
+delivery finishes.
 
 ---
 
-## What happens when you launch
+## Mean and Aggregate Q95
 
-1. One physical reference forecast per shift is prepared (the fixed battery for charging-only, otherwise the model maximum).
-2. Mean and aggregate-Q95 profiles are prepared.
-3. Each profile gets a design optimization choosing the allowed variables for all shifts. The two calculations currently run sequentially.
-4. The complete forecast is recomputed at each chosen mass. The fixed design is verified while optimizing SOC reserve, favouring buses with lower SOC subject to feasibility for all shifts. A connected bus occupies the same pantograph for its entire stop, even after charging finishes. A failed verification may reanchor within bounded iterations.
-5. Diagnostics use each verified charging plan and independent trajectories estimate conditional shift completion. The reserve objective replaces the existing verification objective; it does not add another solver pass.
+Both profiles receive a complete design: battery, charging infrastructure, and
+charging schedule. Switching profiles on the results page does not start a new
+calculation.
 
----
+Aggregate Q95 is derived from independently sampled trip occurrences and
+aggregated over the complete vehicle block; it is not the sum of each trip's
+individual Q95. It is a conservative consumption profile, not a statement that
+SOC feasibility is guaranteed with 95% probability.
 
-## Execution time
-
-Typical execution: 30 seconds to 3 minutes depending on:
-- Number of shifts
-- Forecast preparation, sampling and any required mass reanchoring
-- Solver complexity (joint mode is slower)
-
-A progress overlay shows the current status.
+For each chosen design, ELETTRA recomputes the complete forecast at the selected
+battery mass and verifies the fixed design. A successful solver state and a
+physically valid, forecast-verified design are separate conditions.
 
 ---
 
-## Managing evaluations
+## Starting and monitoring the evaluation
 
-The evaluation list page supports:
-- Sorting and filtering by name, date, status
-- Viewing results for completed runs
-- Duplicating configurations
-- Deleting runs
-- Comparing multiple runs
+The confirmation dialog summarizes the number of vehicle blocks and the
+optimization mode. Progress is reported for consumption estimates, Mean, and
+Q95, and the result opens after both calculations finish.
+
+Run time depends on the number and complexity of vehicle blocks, forecast
+preparation, sampling, battery-mass refinement, and optimization mode. Do not
+interpret a pending or failed execution as a technical verdict.
+
+---
+
+## Duplicate an evaluation safely
+
+From the evaluation list, select exactly one record and choose **Duplicate**.
+The form restores, where available:
+
+- GTFS edition, vehicle blocks, and bus model;
+- optimization and battery-sizing modes;
+- fixed battery reference for Charging mode;
+- temperature, occupancy, heating, and SOC limits;
+- charging candidates, constraints, and infrastructure costs;
+- forecast settings, depot options, and solver-related options.
+
+If original resources or compatible forecasts are unavailable, duplication is
+cancelled instead of submitting a partial copy. Historical copies created by
+older versions may still require manual review and recalculation.
+
+The list also supports search, sorting, viewing results, and deletion. Analysis
+comparison is performed between saved yearly analyses, not between feasibility
+records.
 
 ---
 
 ## Next steps
 
-- [Simulation Results](simulation-results.md) — Interpret the output
-- [Yearly Analysis](yearly-analysis.md) — Extend results to a full year
+- [Feasibility Results](simulation-results.md) — Read the technical verdict and each vehicle block
+- [Yearly Analysis](yearly-analysis.md) — Assess a verified design over a representative year
