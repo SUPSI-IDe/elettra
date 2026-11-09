@@ -1,3 +1,4 @@
+import { mountHvacAssumptions } from "../shared/hvac-assumptions.js";
 import { mountAnalysisGtfs } from "../../../utils/analysis-gtfs.js";
 import * as d3 from "d3";
 import {
@@ -4752,6 +4753,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     shiftFallback: translateOr("yearly_analysis.scope_shift", "Vehicle block"),
   });
   void mountAnalysisGtfs(section, analysis, resultScopes.map((scope) => scope.shiftId).filter(Boolean));
+  void mountHvacAssumptions(section, analysisId, "yearly");
   let activeScopeKey = YEARLY_GENERAL_SCOPE_KEY;
   let activeScope = resolveYearlyResultScope(resultScopes, activeScopeKey);
   let activeResultViewKey = YEARLY_RESULT_VIEW_KEYS[0];

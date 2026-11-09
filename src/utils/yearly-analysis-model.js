@@ -18,6 +18,8 @@ const ENERGY_COMPONENT_KEYS = Object.freeze({
   qrfResidualKwh: "total_qrf_residual_kwh",
   fixedAuxiliaryKwh: "total_fixed_auxiliary_kwh",
   hvacElectricalKwh: "total_hvac_electrical_kwh",
+  hvacInTripElectricalKwh: "total_hvac_in_trip_electrical_kwh",
+  hvacTerminalElectricalKwh: "total_hvac_terminal_electrical_kwh",
   uncoveredThermalKwh: "total_uncovered_thermal_kwh",
 });
 

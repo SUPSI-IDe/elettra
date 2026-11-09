@@ -1,0 +1,12 @@
+.hvac-assumptions { margin: .6rem 0; padding: .7rem 1rem; border: 1px solid #dbe4e7; border-radius: .5rem; font-size: .9rem; }
+.hvac-assumptions summary { cursor: pointer; overflow-wrap: anywhere; }
+.hvac-assumptions summary span { margin-left: .8rem; }
+.hvac-assumptions__body { margin-top: .8rem; }
+.hvac-assumptions__table { overflow-x: auto; }
+.hvac-assumptions table { width: 100%; border-collapse: collapse; }
+.hvac-assumptions th, .hvac-assumptions td { padding: .5rem; text-align: right; border-bottom: 1px solid #e5ecee; }
+.hvac-assumptions th:first-child, .hvac-assumptions td:first-child { text-align: left; }
+.hvac-assumptions pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; max-height: 22rem; overflow-y: auto; }
+.hvac-assumptions__actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
+.hvac-assumptions__actions button { min-height: 2.5rem; padding: .5rem .8rem; cursor: pointer; }
+@media (max-width: 600px) { .hvac-assumptions summary span { display: block; margin: .4rem 0 0; } }

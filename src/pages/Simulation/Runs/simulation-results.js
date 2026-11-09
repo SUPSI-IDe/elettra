@@ -1,3 +1,4 @@
+import { mountHvacAssumptions } from "../shared/hvac-assumptions.js";
 import { mountAnalysisGtfs } from "../../../utils/analysis-gtfs.js";
 import { formatNumber, formatChf } from "../../../utils/number-format";
 import { infrastructureCostHtml } from './infrastructure-costs';
@@ -10363,6 +10364,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     ++shiftRefreshSeq;
     loadedOptimizationRun = design.run;
     void mountAnalysisGtfs(section, design.run);
+    void mountHvacAssumptions(section, design.run?.id);
     loadedPredictionRuns = design.predictionRuns;
     options.runId = runId;
     options.simulationName = resolveSimulationName(design.run, options);
@@ -10396,6 +10398,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     try {
       const optimizationRun = await fetchOptimizationRun(options.runId);
       void mountAnalysisGtfs(section, optimizationRun);
+      void mountHvacAssumptions(section, resolveOptimizationId(optimizationRun, options));
       const evaluationFailed = hasFeasibilityEvaluationFailure(optimizationRun);
       const economicDefaultsPayload = evaluationFailed
         ? null
