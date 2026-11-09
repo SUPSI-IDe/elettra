@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.10.0] - 2026-11-09
+
+### Added
+
+- Select one GTFS edition for new feasibility and annual analyses, preserve it when duplicating vehicle blocks and display the recorded provenance in saved results.
+- Add consistent detail dialogs and centered actions for fleet entities, including support for editing legacy custom stops.
+
+### Changed
+
+- Search shifts on the server before pagination so matching entries remain discoverable beyond the current page, while preserving page-size changes, navigation and clearing the filter.
+- Keep feasibility bus-model selection stable and present GTFS context and analysis results with compact, expandable provenance details.
+- Clarify feasibility results by distinguishing configured SoC limits from reached values and by placing the selected battery forecast directly before its initial physical-maximum reference.
+- Show the active Mean/Q95 consumption figures in the vehicle-block summary and present the charging plan, additional information and GTFS provenance as consistent white disclosure cards.
+
+### Fixed
+
+- Translate the Mean demand profile consistently as “Media” throughout the Italian interface, including paired feasibility outcomes and help text.
+
+### Release
+
+- Promote the functionality validated in 0.10.0-rc.2. Frontend-only update compatible with backend `1.5.0`; existing data remains compatible and no database migration is required.
+
 ## [0.10.0-rc.2] - 2026-11-08
 
 ### Changed
