@@ -27,8 +27,13 @@ export const mountHvacAssumptions = async (section, id, kind = 'optimization') =
     const annual = model.policies.includes('annual-pvgis-local-cap10-v1');
     const format = value => value == null ? '—' : Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
     const title = t(legacyGreybox ? 'hvac.legacy_greybox' : legacy ? 'hvac.legacy' : annual ? 'hvac.annual' : 'hvac.feasibility');
-    panel.innerHTML = `<details class="hvac-assumptions">
-      <summary><strong>${textContent(t('hvac.title'))}</strong><span>${textContent(title)}</span></summary>
+    panel.innerHTML = `<details class="hvac-assumptions result-card">
+      <summary class="hvac-assumptions__toggle">
+        <span class="hvac-assumptions__heading">
+          <strong class="hvac-assumptions__title">${textContent(t('hvac.title'))}</strong>
+          <span class="hvac-assumptions__subtitle">${textContent(title)}</span>
+        </span>
+      </summary>
       <div class="hvac-assumptions__body">
         <p>${textContent(t(legacyGreybox ? 'hvac.legacy_greybox_note' : legacy ? 'hvac.legacy_note' : annual ? 'hvac.annual_note' : 'hvac.feasibility_note'))}</p>
         ${legacy ? '' : `<p>${textContent(t('hvac.coefficients'))}</p><p>${textContent(t('hvac.terminal_note'))}</p>`}
@@ -38,7 +43,7 @@ export const mountHvacAssumptions = async (section, id, kind = 'optimization') =
           <th>${textContent(t('hvac.trip_energy'))}</th><th>${textContent(t('hvac.terminal_energy'))}</th>
         </tr></thead><tbody>${model.rows.map(row => `<tr><td>${format(row.temperature)} °C</td><td>${format(row.ghi)}</td><td>${format(row.tripKwh)}</td><td>${row.hasTerminal ? format(row.terminalKwh) : '—'}</td></tr>`).join('')}</tbody></table></div>
         ${annual ? `<p>${textContent(t('hvac.timezone'))}: ${textContent(model.timezones.join(', '))}. ${textContent(t('hvac.year'))}: ${textContent(model.years.join(', '))}.</p>` : ''}
-        <details><summary>${textContent(t('hvac.traceability'))}</summary><pre>${textContent(JSON.stringify({ policies: model.policies, weather_checksums: model.weatherChecksums, assumptions: model.runs[0].assumptions }, null, 2))}</pre></details>
+        <details class="hvac-assumptions__traceability"><summary>${textContent(t('hvac.traceability'))}</summary><pre>${textContent(JSON.stringify({ policies: model.policies, weather_checksums: model.weatherChecksums, assumptions: model.runs[0].assumptions }, null, 2))}</pre></details>
         <div class="hvac-assumptions__actions"><button type="button" data-hvac-download="summary">${textContent(t('hvac.download'))}</button><button type="button" data-hvac-download="inputs">${textContent(t('hvac.download_inputs'))}</button></div>
         <p role="status" data-hvac-status></p>
       </div></details>`;

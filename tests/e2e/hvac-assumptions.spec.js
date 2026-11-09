@@ -30,9 +30,10 @@ test('HVAC details and authenticated inputs are requested only when needed', asy
   expect(requests[1].url).toContain('include_inputs=true');
   expect(requests.every(request=>request.auth==='Bearer hvac-test')).toBeTruthy();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+  await expect(panel.locator('[data-hvac-status]')).toBeHidden();
   // The app clips horizontal overflow, so document width alone cannot detect
   // a flex child whose text and buttons extend beyond the mobile viewport.
-  for (const element of await panel.locator('p, .hvac-assumptions__table, .hvac-assumptions__actions').all()) {
+  for (const element of await panel.locator('p:not([data-hvac-status]), .hvac-assumptions__table, .hvac-assumptions__actions').all()) {
     const bounds=await element.boundingBox();
     expect(bounds.x+bounds.width).toBeLessThanOrEqual(page.viewportSize().width);
   }
