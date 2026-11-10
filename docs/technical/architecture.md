@@ -1,6 +1,6 @@
 # Architecture
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-10
 
 System architecture overview for developers working on the ELETTRA frontend.
 
@@ -54,7 +54,9 @@ Browser → localhost:9010/auth/* → Vite proxy → VITE_API_PROXY_TARGET/auth/
 Browser → localhost:9010/api/*  → Vite proxy → VITE_API_PROXY_TARGET/api/*
 ```
 
-Configured in `vite.config.js`. Default target: `http://isaac-elettra.dacd.supsi.ch:8002`.
+Configured in `vite.config.js`. The source-server default is the dedicated
+local staging backend at `http://127.0.0.1:9005`; other targets must be
+selected explicitly.
 
 ### Production (nginx)
 

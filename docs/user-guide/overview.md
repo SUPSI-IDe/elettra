@@ -43,7 +43,7 @@ Feasibility evaluation (Mean and Q95 designs)
         ↓
 Verified feasible design
         ↓
-Yearly analysis by vehicle block
+Yearly fleet assessment and vehicle-block efficiency
         ↓
 Comparison and export
 ```

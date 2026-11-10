@@ -1,6 +1,6 @@
 # Environment Variables
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-10
 
 Complete reference of all environment variables used by ELETTRA.
 
@@ -25,7 +25,7 @@ Used by the Vite development server to proxy API requests to the backend.
 
 | Variable | Purpose | Default | Source |
 |----------|---------|---------|--------|
-| `VITE_API_PROXY_TARGET` | Backend URL used by Vite's dev server proxy. Requests to `/auth` and `/api` are forwarded here. | `http://isaac-elettra.dacd.supsi.ch:8002` | `vite.config.js` |
+| `VITE_API_PROXY_TARGET` | Backend URL used by Vite's source dev/preview proxy. Requests to `/auth` and `/api` are forwarded here. | `http://127.0.0.1:9005` | `vite.config.js` |
 | `VITE_ALLOWED_HOSTS` | Comma-separated extra hostnames accepted by the Vite dev server. Useful when accessing the dev server through custom DNS. | `isaac-elettra.dacd.supsi.ch,bismuto.supsi.ch` | `vite.config.js` |
 
 ---
@@ -74,11 +74,11 @@ Passed during `docker build` to configure the build environment inside the conta
 ### Local development (no Docker)
 
 ```bash
-# Option A: Use defaults (proxy to isaac-elettra.dacd.supsi.ch:8002)
+# Option A: Use the fail-local default (proxy to 127.0.0.1:9005)
 npm run dev
 
 # Option B: Point to a local backend
-export VITE_API_PROXY_TARGET=http://localhost:8002
+export VITE_API_PROXY_TARGET=http://127.0.0.1:8002
 npm run dev
 ```
 

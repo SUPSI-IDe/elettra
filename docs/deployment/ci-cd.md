@@ -1,6 +1,6 @@
 # CI/CD
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-10
 
 ELETTRA uses GitHub Actions for continuous deployment.
 
@@ -8,7 +8,10 @@ ELETTRA uses GitHub Actions for continuous deployment.
 
 ## GitHub Pages deployment
 
-The repository includes a workflow at `.github/workflows/deploy.yml` that deploys the built frontend to GitHub Pages on every push to `main`.
+The repository includes a workflow at `.github/workflows/deploy.yml` that
+deploys the built frontend to GitHub Pages from `main` when the application
+version belongs to the stable release channel. Manual dispatch uses the same
+gate.
 
 ### Trigger
 
@@ -20,10 +23,12 @@ The repository includes a workflow at `.github/workflows/deploy.yml` that deploy
 1. Checkout repository
 2. Set up Node.js (LTS version, npm cache enabled)
 3. Install dependencies (`npm ci`)
-4. Build the frontend (`npm run build`)
-5. Configure GitHub Pages
-6. Upload `dist/` as artifact
-7. Deploy to GitHub Pages
+4. Run unit tests (`npm test`)
+5. Build the frontend (`npm run build`)
+6. Install Chromium and run the production-bundle smoke suite (`npm run test:dist`)
+7. Configure GitHub Pages
+8. Upload `dist/` as artifact
+9. Deploy to GitHub Pages
 
 ### Permissions
 
@@ -46,6 +51,9 @@ Deployments are serialized under the `pages` concurrency group. In-progress depl
 | `npm run build` | Create production bundle in `dist/` |
 | `npm run dev` | Start development server (not used in CI) |
 | `npm run preview` | Preview production build locally (not used in CI) |
+| `npm test` | Run network-free unit regressions |
+| `npm run test:e2e` | Run browser tests against source modules |
+| `npm run test:dist` | Verify the built production bundle |
 
 ---
 
@@ -53,4 +61,5 @@ Deployments are serialized under the `pages` concurrency group. In-progress depl
 
 - The CI workflow uses `actions/setup-node@v6` with `node-version: lts/*` — this automatically tracks the current LTS release.
 - The built output (`dist/`) is served under the `/elettra/` base path, matching the `base` setting in `vite.config.js`.
-- There are currently no automated test steps in the CI pipeline (*to verify*: whether tests are planned).
+- Tagged container releases additionally run the complete source browser suite
+  before building and publishing the multi-architecture image.

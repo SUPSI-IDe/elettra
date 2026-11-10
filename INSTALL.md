@@ -30,7 +30,7 @@ Before you begin, ensure you have the following installed:
 | Docker (optional) | 20.x or higher | `docker --version` |
 | Docker Compose (optional) | 2.x or higher | `docker compose version` |
 
-> **Important**: Vite 7.x requires Node.js 20.19+ or 22.12+. Node.js 18.x and earlier versions are **not supported**.
+> **Important**: Vite 8.x requires Node.js 20.19+ or 22.12+. Node.js 18.x and earlier versions are **not supported**.
 
 ---
 
@@ -73,7 +73,7 @@ npm run dev -- --host 0.0.0.0
 
 The development server provides:
 - Hot Module Replacement (HMR)
-- API proxy to backend (`http://isaac-elettra.dacd.supsi.ch:8002`)
+- API proxy to the dedicated local backend (`http://127.0.0.1:9005`)
 - Source maps for debugging
 
 ### 3. Access the Application

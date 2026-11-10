@@ -1,15 +1,19 @@
 # Yearly Analysis
 
-> Last updated: 2026-11-09
+> Last updated: 2026-11-10
 > Interface baseline: Frontend v0.10.0
 
-A yearly analysis keeps one verified bus, battery, and charging design fixed and
-applies it to representative temperature scenarios. It reports common fleet
-configuration in **General** and annual operation separately for every available
-vehicle block.
+A yearly analysis keeps the bus, battery, and charging design selected by a
+completed feasibility evaluation fixed and applies it to representative
+temperature scenarios. It does not resize the battery, redesign charging, or
+repeat the technical feasibility decision.
 
-It does not resize the battery, redesign charging infrastructure, or repeat the
-technical feasibility decision.
+The current result page separates two questions:
+
+- **General** assesses the whole fleet, or a representative bus group, through
+  annual activity, costs, and environmental impacts;
+- each named **vehicle block** shows its own temperature-dependent efficiency
+  and annual energy contribution.
 
 ---
 
@@ -22,152 +26,126 @@ Open **Simulations → Yearly analyses** and select **New**.
 3. Review the inherited vehicle blocks, optimization mode, sizing temperature,
    selected packs, and capacity.
 4. Set the average passenger occupancy for the annual predictions.
-5. Review the temperature scenarios, annual occurrences, and weather-reference
-   location.
+5. Review the representative temperatures, annual occurrences, and weather
+   reference.
 6. Confirm and start the analysis.
 
-Each weather scenario is applied to every selected vehicle block. Progress is
-shown while the predictions run, and the result opens when the analysis
-finishes.
+Each weather scenario is applied to every selected vehicle block. Annual totals
+weight scenario energy by its occurrence. Q05–Q95 values describe prediction
+spread for the scenario-weighted estimate; they do not resize the design or
+replace the feasibility verdict.
+
+If the occurrences do not cover the intended year, the form reports the
+mismatch. Resolve that boundary before interpreting annual values.
 
 ---
 
-## Temperature scenarios
+## Preserved configuration and provenance
 
-Temperature scenarios are loaded from the weather-clustering data associated
-with the selected evaluation's location. The form shows:
-
-- representative daily average temperature for the operating window;
-- occurrences in days per year;
-- the total occurrence count;
-- the weather-reference depot/location.
-
-Each scenario produces consumption predictions for the selected fixed design.
-The annual totals weight scenario energy by its occurrence. Q05–Q95 ranges show
-model uncertainty around the scenario prediction; they do not resize the
-battery or replace the earlier technical verdict.
-
-If occurrences do not cover the intended year, the form reports the mismatch.
-Review that boundary before interpreting annual values.
-
----
-
-## Preserved provenance
-
-The yearly analysis inherits the feasibility evaluation's:
+The analysis inherits the feasibility evaluation's:
 
 - bus model and physical vehicle count;
-- vehicle blocks;
-- selected battery configuration;
+- vehicle blocks and battery group assigned to each block;
+- selected battery configurations;
 - charging infrastructure and schedule context;
 - optimization and operating assumptions;
 - recorded GTFS timetable edition.
 
-The result preserves this snapshot instead of silently following later changes
-to a vehicle block. The compact GTFS disclosure and **View configuration data**
-make the saved inputs and provenance available for review.
+The result preserves this snapshot instead of silently following later edits.
+Use the compact **GTFS timetable** disclosure and **View configuration data**
+to inspect it.
+
+The compact **HVAC assumptions** disclosure identifies the policy used by the
+saved result:
+
+- feasibility uses one engineering GHI value for each temperature;
+- yearly analysis uses hourly PVGIS GHI, interpolated at each service minute in
+  the local GTFS timezone;
+- terminal HVAC covers at most the last 10 minutes at the same non-depot stop,
+  with an empty bus and no thermal-inertia model.
+
+It also reports trip and terminal HVAC energy, traceability data, and JSON
+downloads of the assumptions or complete reproduction inputs. Historical
+results retain their recorded legacy policy.
 
 ---
 
-## Result scopes
+## General: annual fleet assessment
 
-### General
+The **Annual fleet assessment** starts with a compact six-metric summary:
 
-General shows information shared by the complete analysis:
+- annual distance, bus-side DC energy, and purchased grid electricity;
+- minimum/maximum average vehicle-block efficiency, electric TCO, and climate
+  impact.
 
-- inherited bus and operating assumptions;
-- common battery configuration;
-- shared charging locations and power;
-- physical vehicle count;
-- fleet-level bus, battery, and charging-infrastructure investment context;
-- aggregate annual indicators where available.
+Use **Representative bus / Fleet** to switch between the complete fleet and a
+group sharing the same bus model and battery size. Vehicle blocks remain in the
+group assigned by feasibility; changing the display scope does not reassign
+them.
 
-Bus and battery CAPEX is multiplied by the physical vehicle count inherited
-from feasibility. Shared charging infrastructure is counted once for the fleet.
+### Costs
 
-### Vehicle block
+The Costs view shows a compact electric/diesel TCO row, annual operating-cost
+and cumulative discounted-cost charts, break-even, and detailed investment and
+operating tables.
 
-Select a named vehicle block to open **Efficiency**, **Costs**, and
-**Emissions**. A compact summary below the scope selector reports yearly energy,
-simulated distance, and average efficiency for that block.
+**Edit economic assumptions** is an expandable card below the charts. Changes
+are saved automatically in the yearly analysis and reused by Costs and
+Emissions. They update the displayed assessment but do not rerun feasibility or
+alter the selected technical design.
 
-Historical analyses that contain only aggregate data show General only. ELETTRA
-does not invent per-block values by splitting an aggregate total.
+### Emissions
 
----
-
-## Efficiency
-
-The Efficiency tab includes:
-
-- specific consumption by temperature with its uncertainty band;
-- annual energy contribution by temperature scenario;
-- a toggle between yearly and daily energy units where available;
-- expandable detailed scenario, battery, critical-condition, and annual
-  uncertainty values.
-
-Cold scenarios can have high consumption but contribute according to their
-recorded annual occurrence. Interpret both the scenario intensity and its
-weight.
-
----
-
-## Costs
-
-Vehicle-block operating costs use that block's own annual energy and distance.
-Capital scope is handled separately:
-
-- bus and battery CAPEX belongs in full to the physical vehicles assigned to
-  that vehicle block;
-- shared charging infrastructure remains a single fleet investment;
-- only the shared infrastructure cost is allocated to a vehicle block, normally
-  by its share of annual DC energy shown in Emissions;
-- annual distance is used as a fallback allocation basis only when complete DC
-  energy is unavailable.
-
-The cost view can include electric and diesel OPEX, vehicle-block CAPEX,
-replacement and annualization assumptions, cumulative discounted cost, and
-break-even indicators. Check the displayed allocation note before comparing
-vehicle blocks.
-
-Changing interactive economic assumptions affects the estimate shown in the
-browser; it does not change the saved technical feasibility design.
-
----
-
-## Emissions and environmental scope
-
-The Emissions tab uses the vehicle block's annual energy boundary and presents
-CO₂-equivalent, NOₓ as NO₂-equivalent, and PM10 indicators where the required
-data are complete.
-
+The Emissions view presents climate impact by lifecycle phase, energy boundary,
+environmental indicators, assumptions/provenance, and further information.
 The current model is explicitly partial rather than a complete absolute vehicle
-LCA. It covers the operational electric-side result and its energy supply chain,
-with lifecycle phases shown as a transparent allocation, plus diesel-heater
-well-to-wheel impacts when applicable.
+LCA.
+
+**Activity and diesel consumption** is an expandable card below the phase
+charts. There is one mileage control per bus model and battery size, plus the
+diesel-consumption control. A mileage change scales the assigned blocks in that
+group proportionally while preserving their distance-weighted consumption.
+
+When a control changes, the previous environmental bars remain visible with an
+update status until the recalculated response arrives. A failed refresh leaves
+the previous result visible and marks the update failure.
 
 For VECTO analyses, saved diesel-heater fuel energy is converted with the
-versioned Swiss average fuel profile. Exhaust contributions appear in the
-direct phase and fuel production/delivery in the energy-chain phase. The PM10
-interval is the observed range of two valid tests, not a confidence interval.
+versioned Swiss average fuel profile. Missing required heater consumption is
+kept missing: affected reductions are omitted instead of treating it as zero.
 
-The interface distinguishes:
+---
 
-- **data completeness** — required consumption and factors are available;
-- **scope completeness** — the model covers the desired environmental boundary.
+## Vehicle-block efficiency
 
-If required diesel-heater consumption is missing, comparison reductions are
-omitted rather than treating the missing contribution as zero. Use the
-methodology-and-sources control to review factor versions, conventions, source
-links, and limitations.
+Select a named vehicle block. Directly below the scope selector, a compact
+white summary reports annual energy, simulated distance, and average
+efficiency. The efficiency content is shown directly, without another
+single-item tab.
+
+It includes:
+
+- specific consumption by representative temperature with uncertainty;
+- annual energy contribution by temperature scenario;
+- a yearly/daily energy-unit toggle where available;
+- expandable scenario, battery, critical-condition, and annual uncertainty
+  details.
+
+Cold scenarios can have high consumption but contribute according to their
+recorded annual occurrence. Read scenario intensity together with its weight.
+
+Historical analyses that do not contain the current frozen investment/activity
+structure can use the legacy result layout or show General only. ELETTRA does
+not invent unavailable per-block values from an aggregate total.
 
 ---
 
 ## Export
 
-**Download all results (JSON)** is available in General. The export contains the
-General result and a separate entry for every available vehicle block, including
-provenance, assumptions, scope, and allocation metadata where available.
+**Download all results (JSON)** appears in General, next to the close action.
+The export contains General and a separate entry for every available vehicle
+block, including assumptions, provenance, scope, and allocation metadata where
+available.
 
 ---
 

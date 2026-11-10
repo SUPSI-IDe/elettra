@@ -29,7 +29,7 @@ const LANGUAGES = {
     guideTitle: "ELETTRA user guide",
     backLink: "Back to ELETTRA",
     resultTerms: ["Start with General", "Check every vehicle block tab"],
-    yearlyTerms: ["Use Efficiency, Costs and Emissions", "annual DC energy"],
+    yearlyTerms: ["Review Costs and Emissions for the fleet", "annual DC energy"],
     releaseTerms: {
       start: ["Home", "user guide"],
       shifts: ["GTFS", "complete server-side list"],
@@ -43,7 +43,7 @@ const LANGUAGES = {
     guideTitle: "ELETTRA-Benutzerhandbuch",
     backLink: "Zurück zu ELETTRA",
     resultTerms: ["Mit Allgemein beginnen", "Jeden Fahrzeugumlauf prüfen"],
-    yearlyTerms: ["Effizienz, Kosten und Emissionen verwenden", "jährlichen DC-Energie"],
+    yearlyTerms: ["Kosten und Emissionen der Flotte prüfen", "jährlichen DC-Energie"],
     releaseTerms: {
       start: ["Startseite", "Benutzerhandbuch"],
       shifts: ["GTFS", "vollständige serverseitige Liste"],
@@ -57,7 +57,7 @@ const LANGUAGES = {
     guideTitle: "Guide d’utilisation ELETTRA",
     backLink: "Retour à ELETTRA",
     resultTerms: ["Commencer par Général", "Vérifier chaque service"],
-    yearlyTerms: ["Utiliser Efficacité, Coûts et Émissions", "énergie DC annuelle"],
+    yearlyTerms: ["Examiner les Coûts et les Émissions de la flotte", "énergie DC annuelle"],
     releaseTerms: {
       start: ["Accueil", "guide"],
       shifts: ["GTFS", "liste complète côté serveur"],
@@ -71,7 +71,7 @@ const LANGUAGES = {
     guideTitle: "Guida utente ELETTRA",
     backLink: "Torna a ELETTRA",
     resultTerms: ["Iniziare da Generale", "Controllare ogni turno"],
-    yearlyTerms: ["Usare Efficienza, Costi ed Emissioni", "energia DC annuale"],
+    yearlyTerms: ["Esaminare Costi ed Emissioni della flotta", "energia DC annuale"],
     releaseTerms: {
       start: ["Home", "guida utente"],
       shifts: ["GTFS", "elenco completo sul server"],
@@ -221,12 +221,14 @@ test("every guide section is reachable from the guide navigation", async ({ page
 
 
 test("a direct guide-section URL can return to the landing page", async ({ page }) => {
+  const returnLink = page.locator('header a[data-guide-ui="backToApp"]');
   for (const sectionId of GUIDE_SECTIONS) {
     await page.goto(`./guide/#${sectionId}`);
     await expect(page.locator(`section#${sectionId} > h2`)).toBeInViewport();
-    await page.locator('header a[data-guide-ui="backToApp"]').click();
-    await expectLandingGuideLink(page);
+    await expect(returnLink).toHaveAttribute("href", "../");
   }
+  await returnLink.click();
+  await expectLandingGuideLink(page);
 });
 
 

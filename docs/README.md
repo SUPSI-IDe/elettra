@@ -1,6 +1,6 @@
 # ELETTRA Documentation
 
-> Last updated: 2026-11-09
+> Last updated: 2026-11-10
 
 **ELETTRA** (Electric Transport Transition Assessment) is a web tool for electric bus fleet planning and simulation, developed within the ELETTRA research project to support public transport companies in transitioning to electric bus fleets.
 
@@ -30,7 +30,7 @@ This repository contains the **frontend only** — a Vite-based single-page appl
 - [Vehicle Blocks and Routes](user-guide/shifts-and-routes.md) — GTFS provenance, scheduled trips, auxiliary journeys, and timelines
 - [Feasibility Evaluation](user-guide/feasibility-evaluation.md) — Configuring and launching optimization runs
 - [Feasibility Results](user-guide/simulation-results.md) — Technical verdicts, Mean/Q95 designs, SOC, and charging
-- [Yearly Analysis](user-guide/yearly-analysis.md) — Per-vehicle-block annual energy, costs, emissions, and JSON export
+- [Yearly Analysis](user-guide/yearly-analysis.md) — Fleet costs/emissions, per-vehicle-block efficiency, HVAC provenance, and JSON export
 - [Comparison and Export](user-guide/comparison-and-export.md) — Side-by-side yearly-analysis comparison with CSV and JSON export
 
 ### Technical Reference

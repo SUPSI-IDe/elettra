@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === '1';
 const lcaFixture = JSON.parse(readFileSync(new URL('../fixtures/grid94-lca.json', import.meta.url), 'utf8')).base;
 
 const expectCostOutcomes = async (page, { electric, diesel, difference }) => {
@@ -252,6 +253,16 @@ test('different battery groups retain duties and consumption; sliders restore di
     diesel: '2.475 CHF/km',
     difference: '-0.424 CHF/km',
   });
+  if (updateGuideScreenshots) {
+    await page.setViewportSize({ width: 1440, height: 1020 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: 'guide/images/yearly-efficiency.png' });
+    await page.getByRole('tab', { name: 'Emissions', exact: true }).click();
+    await expect(page.locator('[data-role="ya-lca-phases"]')).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: 'guide/images/yearly-emissions.png' });
+    await page.getByRole('tab', { name: 'Costs', exact: true }).click();
+  }
   await page.locator('[data-tco-assumptions] > summary').click();
   await expect(page.locator('[data-tco-assumptions]')).toHaveAttribute('open', '');
   await expect(page.getByRole('slider')).toHaveCount(8);

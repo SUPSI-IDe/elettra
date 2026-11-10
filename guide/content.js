@@ -1,7 +1,7 @@
 import { useCaseSections } from "./use-cases.js";
 
 export const GUIDE_BASELINE_VERSION = "0.10.0";
-export const GUIDE_UPDATED_AT = "9 November 2026";
+export const GUIDE_UPDATED_AT = "10 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -72,19 +72,19 @@ const GUIDE_FIGURES = {
   yearlyEfficiency: {
     src: yearlyEfficiencyImage,
     captions: {
-      en: "General yearly-analysis tab with the inherited common configuration, shared infrastructure and investment context, followed by one tab per vehicle block.",
-      de: "Allgemeine Registerkarte der Jahresanalyse mit übernommener gemeinsamer Konfiguration, geteilter Infrastruktur und Investitionskontext sowie je einer Registerkarte pro Fahrzeugumlauf.",
-      fr: "Onglet Général de l’analyse annuelle avec la configuration commune héritée, l’infrastructure et le contexte d’investissement partagés, puis un onglet par service voiture.",
-      it: "Scheda Generale dell’analisi annuale con configurazione comune ereditata, infrastruttura e contesto degli investimenti condivisi, seguita da una scheda per turno macchina.",
+      en: "General yearly-analysis scope with the compact fleet summary and Costs view for the fleet or a representative bus group.",
+      de: "Allgemeiner Bereich der Jahresanalyse mit kompakter Flottenübersicht und Kostenansicht für die Flotte oder eine repräsentative Busgruppe.",
+      fr: "Périmètre Général de l’analyse annuelle avec le résumé compact et la vue Coûts de la flotte ou d’un groupe de bus représentatif.",
+      it: "Ambito Generale dell’analisi annuale con riepilogo compatto e vista Costi della flotta o di un gruppo di bus rappresentativo.",
     },
   },
   yearlyEmissions: {
     src: yearlyEmissionsImage,
     captions: {
-      en: "A yearly vehicle block tab where Efficiency, Costs and Emissions come first, followed by the compact annual energy, distance and efficiency summary; Emissions is selected here.",
-      de: "Registerkarte eines jährlich ausgewerteten Fahrzeugumlaufs, in der Effizienz, Kosten und Emissionen zuerst erscheinen, gefolgt von der kompakten Übersicht zu Jahresenergie, Distanz und Effizienz; hier ist Emissionen ausgewählt.",
-      fr: "Onglet annuel d’un service voiture où Efficacité, Coûts et Émissions apparaissent en premier, suivis du résumé compact de l’énergie, de la distance et de l’efficacité annuelles; Émissions est sélectionné ici.",
-      it: "Scheda annuale di un turno macchina in cui Efficienza, Costi ed Emissioni compaiono per prime, seguite dal riepilogo compatto di energia, distanza ed efficienza annuali; qui è selezionata Emissioni.",
+      en: "Fleet Emissions view with lifecycle-phase bars and the expandable activity and diesel-consumption controls below the charts.",
+      de: "Emissionsansicht der Flotte mit Balken nach Lebenszyklusphase und den aufklappbaren Reglern für Fahrleistung und Dieselverbrauch unter den Diagrammen.",
+      fr: "Vue Émissions de la flotte avec barres par phase du cycle de vie et réglages dépliables du kilométrage et de la consommation diesel sous les graphiques.",
+      it: "Vista Emissioni della flotta con barre per fase del ciclo di vita e controlli espandibili di chilometraggi e consumo diesel sotto i grafici.",
     },
   },
 };
@@ -316,7 +316,7 @@ export const guideContent = {
         id: "yearly",
         title: "7. Yearly analysis",
         intro:
-          "A yearly analysis keeps one feasible bus and charging design fixed, then reports the common configuration in General and annual operation separately for every available vehicle block.",
+          "A yearly analysis keeps the feasible bus and charging design fixed. General assesses the fleet or a representative bus group; each vehicle block shows its own annual efficiency.",
         ordered: true,
         items: [
           {
@@ -329,23 +329,23 @@ export const guideContent = {
           },
           {
             title: "Start with General",
-            text: "General shows the inherited bus, operating assumptions, common battery, physical vehicle count, shared charging infrastructure and fleet investment context. Bus and battery CAPEX is counted for the inherited vehicles, while charging infrastructure is counted once for the fleet.",
+            text: "The compact Annual fleet assessment shows distance, bus-side and grid energy, minimum/maximum vehicle-block efficiency, electric TCO and climate impact. Use Representative bus / Fleet to inspect the complete fleet or a group sharing the same model and battery size; feasibility assignments do not change.",
+          },
+          {
+            title: "Review Costs and Emissions for the fleet",
+            text: "Costs combines a compact TCO row, annual and cumulative charts, break-even and detailed tables. Bus and battery CAPEX belongs in full to the physical vehicles in scope; shared charging infrastructure is counted once for the fleet and only its cost is allocated to representative bus groups by annual DC energy. Emissions shows lifecycle-phase bars and environmental indicators. Their expandable assumption controls sit below the charts, share automatically saved values and never rerun feasibility.",
           },
           {
             title: "Select a vehicle block",
-            text: "Each vehicle block shows Efficiency, Costs and Emissions immediately below the General / vehicle block selector, followed by one compact row for yearly energy, simulated distance and average efficiency. Shared configuration and feasibility details remain in their dedicated General and feasibility views.",
+            text: "A compact white row immediately below the scope selector reports yearly energy, simulated distance and average efficiency. The Efficiency view then shows temperature-dependent consumption, uncertainty and occurrence-weighted energy directly, without a redundant single-item tab.",
           },
           {
-            title: "Use Efficiency, Costs and Emissions",
-            text: "Within a vehicle block, Efficiency covers temperature-dependent consumption, uncertainty and occurrence-weighted energy; Costs covers its operating costs, assigned vehicle and battery CAPEX and allocated share of shared charging infrastructure; Emissions covers that vehicle block’s annual energy boundary and lifecycle impacts.",
-          },
-          {
-            title: "Interpret vehicle block costs in their stated scope",
-            text: "Bus and battery CAPEX belongs in full to the physical vehicles assigned to the vehicle block. Shared charging infrastructure is counted once for the fleet; only its cost is allocated to the block, normally by its share of annual DC energy shown in Emissions. Operating costs use the block’s own energy and distance.",
+            title: "Check weather and HVAC provenance",
+            text: "The compact GTFS and HVAC disclosures identify the saved timetable and auxiliary-energy policy. Yearly HVAC uses hourly PVGIS GHI in the local GTFS timezone and reports trip and terminal energy; the traceability section and JSON actions expose the assumptions and complete reproduction inputs.",
           },
           {
             title: "Inspect the configuration and export from General",
-            text: "Use the compact GTFS disclosure and View configuration data in the page header to verify the recorded timetable, saved inputs and provenance. Download all results is available only in General and saves General plus a separate entry for every available vehicle block.",
+            text: "Use View configuration data for the frozen design. Download all results is available only in General, next to Close, and saves General plus a separate entry for every available vehicle block.",
           },
           {
             title: "Recognise aggregate-only historical results",
@@ -424,7 +424,7 @@ export const guideContent = {
       baselineLabel: "Stand der Benutzeroberfläche",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Handbuch aktualisiert",
-      updatedValue: "9. November 2026",
+      updatedValue: "10. November 2026",
       footer:
         "ELETTRA unterstützt Vorstudien. Endgültige Fahrzeug-, Lade-, Netz- und Infrastrukturentscheidungen müssen durch eine detaillierte Fachplanung bestätigt werden.",
       skipLink: "Zum Handbuch springen",
@@ -536,16 +536,16 @@ export const guideContent = {
       {
         id: "yearly",
         title: "7. Jahresanalyse",
-        intro: "Die Jahresanalyse hält eine machbare Bus- und Ladeauslegung fest, zeigt die gemeinsame Konfiguration unter Allgemein und den Jahresbetrieb getrennt für jeden verfügbaren Fahrzeugumlauf.",
+        intro: "Die Jahresanalyse hält die machbare Bus- und Ladeauslegung fest. Allgemein bewertet die Flotte oder eine repräsentative Busgruppe; jeder Fahrzeugumlauf zeigt seine eigene Jahreseffizienz.",
         ordered: true,
         items: [
           { title: "Analyse aus einer geeigneten Bewertung erstellen", text: "Öffnen Sie Simulationen → Jahresanalysen, erstellen Sie eine Analyse und wählen Sie die abgeschlossene Machbarkeitsbewertung, die Fahrzeug, Fahrzeugumläufe, Batterie, Laden und GTFS-Ausgabe festlegt. Das Jahresergebnis bewahrt diese aufgezeichnete Herkunft, statt späteren Änderungen eines Umlaufs still zu folgen." },
           { title: "Übernommene Eingaben prüfen", text: "Prüfen Sie Bewertung, Betriebsannahmen, repräsentative Temperaturen und deren Häufigkeiten vor dem Start. Temperaturszenarien verändern Verbrauchsschätzungen; sie dimensionieren die Batterie nicht neu, ändern die Ladeinfrastruktur nicht und wiederholen die Machbarkeitsentscheidung nicht." },
-          { title: "Mit Allgemein beginnen", text: "Allgemein zeigt Bus, Betriebsannahmen, gemeinsame Batterie, physische Fahrzeuganzahl, geteilte Ladeinfrastruktur und den Investitionskontext der Flotte. Bus- und Batterie-CAPEX werden für die übernommenen Fahrzeuge gezählt, die Ladeinfrastruktur einmal für die Flotte." },
-          { title: "Einen Fahrzeugumlauf auswählen", text: "Jeder Fahrzeugumlauf zeigt Effizienz, Kosten und Emissionen direkt unter der Auswahl Allgemein / Fahrzeugumlauf, gefolgt von einer kompakten Zeile mit Jahresenergie, simulierter Distanz und mittlerer Effizienz. Gemeinsame Konfiguration und Machbarkeitsdetails bleiben in den dafür vorgesehenen Ansichten Allgemein und Machbarkeit." },
-          { title: "Effizienz, Kosten und Emissionen verwenden", text: "Innerhalb eines Fahrzeugumlaufs zeigt Effizienz temperaturabhängigen Verbrauch, Unsicherheit und häufigkeitsgewichtete Energie; Kosten zeigt Betriebskosten, die CAPEX der zugewiesenen Fahrzeuge und Batterien sowie den zugeordneten Anteil der gemeinsamen Ladeinfrastruktur; Emissionen zeigt die jährliche Energiegrenze und Lebenszykluswirkungen dieses Fahrzeugumlaufs." },
-          { title: "Kosten des Fahrzeugumlaufs im angegebenen Umfang interpretieren", text: "Bus- und Batterie-CAPEX gehören vollständig zu den physischen Fahrzeugen des Umlaufs. Die gemeinsame Ladeinfrastruktur wird einmal für die Flotte gezählt; nur ihre Kosten werden dem Umlauf normalerweise nach seinem Anteil an der unter Emissionen gezeigten jährlichen DC-Energie zugeordnet. Betriebskosten verwenden Energie und Distanz des Umlaufs." },
-          { title: "Konfiguration prüfen und unter Allgemein exportieren", text: "Mit der kompakten GTFS-Angabe und Konfigurationsdaten anzeigen im Seitenkopf prüfen Sie den aufgezeichneten Fahrplan, die gespeicherten Eingaben und ihre Herkunft. Alle Ergebnisse herunterladen ist nur unter Allgemein verfügbar und speichert Allgemein sowie einen eigenen Eintrag für jeden verfügbaren Fahrzeugumlauf." },
+          { title: "Mit Allgemein beginnen", text: "Die kompakte jährliche Flottenanalyse zeigt Distanz, Bus- und Netzenergie, minimale/maximale Umlaufeffizienz, Elektro-TCO und Klimawirkung. Mit Repräsentativer Bus / Flotte prüfen Sie die gesamte Flotte oder eine Gruppe mit gleichem Modell und gleicher Batteriegrösse; die Zuweisungen aus der Machbarkeit bleiben unverändert." },
+          { title: "Kosten und Emissionen der Flotte prüfen", text: "Kosten kombiniert eine kompakte TCO-Zeile, Jahres- und kumulative Diagramme, Kostengleichheit und Detailtabellen. Bus- und Batterie-CAPEX gehören vollständig zu den physischen Fahrzeugen im gewählten Bereich; die gemeinsame Ladeinfrastruktur wird einmal für die Flotte gezählt und nur ihre Kosten werden repräsentativen Busgruppen auf Basis der jährlichen DC-Energie zugeordnet. Emissionen zeigt Balken nach Lebenszyklusphase und Umweltindikatoren. Die aufklappbaren Annahmen stehen unter den Diagrammen, verwenden automatisch gespeicherte gemeinsame Werte und starten die Machbarkeit nie neu." },
+          { title: "Einen Fahrzeugumlauf auswählen", text: "Direkt unter der Bereichsauswahl zeigt eine kompakte weisse Zeile Jahresenergie, simulierte Distanz und mittlere Effizienz. Danach erscheint Effizienz mit temperaturabhängigem Verbrauch, Unsicherheit und häufigkeitsgewichteter Energie direkt, ohne überflüssige Registerkarte mit nur einem Eintrag." },
+          { title: "Wetter- und HVAC-Herkunft prüfen", text: "Die kompakten GTFS- und HVAC-Angaben nennen Fahrplan und gespeicherte Nebenverbrauchspolitik. Die Jahresanalyse verwendet stündliche PVGIS-GHI in der lokalen GTFS-Zeitzone und weist HVAC-Energie während Fahrt und Endaufenthalt aus; Nachvollziehbarkeit und JSON-Aktionen liefern Annahmen und vollständige Reproduktionseingaben." },
+          { title: "Konfiguration prüfen und unter Allgemein exportieren", text: "Konfigurationsdaten anzeigen öffnet die festgeschriebene Auslegung. Alle Ergebnisse herunterladen steht nur unter Allgemein neben Schliessen zur Verfügung und speichert Allgemein sowie einen eigenen Eintrag für jeden verfügbaren Fahrzeugumlauf." },
           { title: "Nur aggregierte historische Ergebnisse erkennen", text: "Eine ältere Analyse ohne Aufschlüsselung nach Fahrzeugumläufen kann nur Allgemein anzeigen. ELETTRA lässt nicht verfügbare Fahrzeugumlaufdetails weg, statt sie aus Gesamtsummen zu erfinden." },
         ],
         figures: getGuideFigures("de", "yearlyEfficiency", "yearlyEmissions"),
@@ -591,7 +591,7 @@ export const guideContent = {
       baselineLabel: "Version de référence de l’interface",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guide mis à jour",
-      updatedValue: "9 novembre 2026",
+      updatedValue: "10 novembre 2026",
       footer:
         "ELETTRA soutient les études de préfaisabilité. Les décisions finales relatives aux véhicules, à la recharge, au réseau et aux infrastructures doivent être confirmées par des études d’ingénierie détaillées.",
       skipLink: "Accéder au guide",
@@ -689,16 +689,16 @@ export const guideContent = {
       {
         id: "yearly",
         title: "7. Analyse annuelle",
-        intro: "L’analyse annuelle conserve un seul dimensionnement faisable du bus et de la recharge, puis présente la configuration commune dans Général et l’exploitation annuelle séparément pour chaque service voiture disponible.",
+        intro: "L’analyse annuelle conserve le dimensionnement faisable du bus et de la recharge. Général évalue la flotte ou un groupe de bus représentatif; chaque service voiture présente sa propre efficacité annuelle.",
         ordered: true,
         items: [
           { title: "Créer une analyse à partir d’une évaluation admissible", text: "Ouvrez Simulations → Analyses annuelles, créez une analyse et sélectionnez l’évaluation terminée qui définit véhicule, services voiture, batterie, recharge et édition GTFS. Le résultat annuel conserve cette provenance enregistrée au lieu de suivre silencieusement les modifications ultérieures d’un service." },
           { title: "Vérifier les données héritées", text: "Contrôlez l’évaluation, les hypothèses d’exploitation, les températures représentatives et leurs occurrences avant le calcul. Les scénarios de température modifient la consommation; ils ne redimensionnent pas la batterie, ne changent pas l’infrastructure et ne répètent pas la décision de faisabilité." },
-          { title: "Commencer par Général", text: "Général présente le bus, les hypothèses d’exploitation, la batterie commune, le nombre de véhicules physiques, l’infrastructure partagée et le contexte d’investissement de la flotte. Les CAPEX des bus et batteries sont comptés pour les véhicules hérités, l’infrastructure une seule fois pour la flotte." },
-          { title: "Sélectionner un service voiture", text: "Chaque service voiture affiche Efficacité, Coûts et Émissions directement sous le sélecteur Général / service voiture, puis une ligne compacte indiquant l’énergie annuelle, la distance simulée et l’efficacité moyenne. La configuration commune et les détails de faisabilité restent dans les vues Général et Faisabilité prévues à cet effet." },
-          { title: "Utiliser Efficacité, Coûts et Émissions", text: "Dans un service voiture, Efficacité couvre la consommation selon la température, l’incertitude et l’énergie pondérée; Coûts couvre les charges d’exploitation, les CAPEX des véhicules et batteries affectés et la part attribuée de l’infrastructure partagée; Émissions couvre le bilan énergétique annuel et les impacts du cycle de vie du service voiture." },
-          { title: "Interpréter les coûts du service voiture dans leur périmètre", text: "Les CAPEX des bus et batteries appartiennent intégralement aux véhicules physiques affectés au service. L’infrastructure partagée est comptée une fois pour la flotte; seul son coût est attribué au service, normalement selon sa part de l’énergie DC annuelle affichée dans Émissions. Les charges d’exploitation utilisent l’énergie et la distance propres du service." },
-          { title: "Examiner la configuration et exporter depuis Général", text: "Le volet GTFS compact et Afficher les données de configuration dans l’en-tête permettent de vérifier l’horaire enregistré, les entrées sauvegardées et leur provenance. Télécharger tous les résultats est disponible uniquement dans Général et enregistre Général ainsi qu’une entrée distincte pour chaque service voiture disponible." },
+          { title: "Commencer par Général", text: "L’analyse annuelle compacte de la flotte présente distance, énergie au bus et au réseau, efficacité minimale/maximale des services, TCO électrique et impact climatique. Bus représentatif / Flotte permet d’examiner la flotte entière ou un groupe partageant modèle et taille de batterie; les affectations de faisabilité ne changent pas." },
+          { title: "Examiner les Coûts et les Émissions de la flotte", text: "Coûts combine une ligne TCO compacte, des graphiques annuels et cumulés, le seuil de rentabilité et des tableaux détaillés. Les CAPEX des bus et batteries appartiennent intégralement aux véhicules physiques du périmètre; l’infrastructure partagée est comptée une fois pour la flotte et seul son coût est attribué aux groupes représentatifs selon l’énergie DC annuelle. Émissions montre les barres par phase du cycle de vie et les indicateurs environnementaux. Les hypothèses dépliables sont sous les graphiques, partagent des valeurs enregistrées automatiquement et ne relancent jamais la faisabilité." },
+          { title: "Sélectionner un service voiture", text: "Une ligne blanche compacte, directement sous le sélecteur, indique énergie annuelle, distance simulée et efficacité moyenne. Efficacité présente ensuite directement consommation selon la température, incertitude et énergie pondérée, sans onglet redondant à élément unique." },
+          { title: "Vérifier la provenance météo et HVAC", text: "Les volets GTFS et HVAC compacts identifient l’horaire et la politique d’auxiliaires enregistrés. L’analyse annuelle utilise le GHI PVGIS horaire dans le fuseau GTFS local et indique l’énergie HVAC en course et au terminus; la traçabilité et les actions JSON donnent les hypothèses et les entrées complètes de reproduction." },
+          { title: "Examiner la configuration et exporter depuis Général", text: "Afficher les données de configuration ouvre le dimensionnement figé. Télécharger tous les résultats apparaît uniquement dans Général, près de Fermer, et enregistre Général ainsi qu’une entrée distincte pour chaque service voiture disponible." },
           { title: "Reconnaître les anciens résultats uniquement agrégés", text: "Une ancienne analyse sans ventilation par service voiture peut n’afficher que Général. ELETTRA laisse absents les détails indisponibles au lieu de les inventer à partir des totaux." },
         ],
         figures: getGuideFigures("fr", "yearlyEfficiency", "yearlyEmissions"),
@@ -744,7 +744,7 @@ export const guideContent = {
       baselineLabel: "Versione di riferimento dell’interfaccia",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guida aggiornata",
-      updatedValue: "9 novembre 2026",
+      updatedValue: "10 novembre 2026",
       footer:
         "ELETTRA supporta studi di prefattibilità. Le decisioni finali su veicoli, ricarica, rete e infrastrutture devono essere confermate mediante una progettazione tecnica dettagliata.",
       skipLink: "Vai alla guida",
@@ -842,16 +842,16 @@ export const guideContent = {
       {
         id: "yearly",
         title: "7. Analisi annuale",
-        intro: "L’analisi annuale mantiene fisso un unico progetto fattibile di autobus e ricarica, quindi mostra la configurazione comune in Generale e l’esercizio annuale separatamente per ogni turno macchina disponibile.",
+        intro: "L’analisi annuale mantiene fisso il progetto fattibile di autobus e ricarica. Generale valuta la flotta o un gruppo di bus rappresentativo; ogni turno macchina mostra la propria efficienza annuale.",
         ordered: true,
         items: [
           { title: "Creare un’analisi da una valutazione idonea", text: "Aprire Simulazioni → Analisi annuali, creare una nuova analisi e selezionare la valutazione completata che definisce veicolo, turni macchina, batteria, ricarica ed edizione GTFS. Il risultato annuale conserva questa provenienza registrata invece di seguire in silenzio modifiche successive ai turni." },
           { title: "Verificare gli input ereditati", text: "Controllare la valutazione, le ipotesi operative, le temperature rappresentative e le loro occorrenze prima dell’avvio. Gli scenari di temperatura cambiano le stime di consumo; non ridimensionano la batteria, non modificano l’infrastruttura e non ripetono la decisione di fattibilità." },
-          { title: "Iniziare da Generale", text: "Generale mostra autobus, condizioni operative, batteria comune, numero di veicoli fisici, infrastruttura condivisa e contesto degli investimenti della flotta. I CAPEX di autobus e batterie sono conteggiati per i veicoli ereditati, l’infrastruttura una sola volta per la flotta." },
-          { title: "Selezionare un turno macchina", text: "Ogni turno macchina mostra Efficienza, Costi ed Emissioni subito sotto il selettore Generale / turno macchina, seguite da una riga compatta con energia annuale, distanza simulata ed efficienza media. Configurazione comune e dettagli di fattibilità restano nelle rispettive viste Generale e Fattibilità." },
-          { title: "Usare Efficienza, Costi ed Emissioni", text: "Nel singolo turno macchina, Efficienza mostra consumo in funzione della temperatura, incertezza ed energia ponderata; Costi mostra OPEX, CAPEX dei veicoli e delle batterie assegnati e quota allocata dell’infrastruttura condivisa; Emissioni mostra il bilancio energetico annuale e gli impatti di ciclo di vita del turno macchina." },
-          { title: "Interpretare i costi del turno macchina nel loro perimetro", text: "I CAPEX di autobus e batterie appartengono integralmente ai veicoli fisici assegnati al turno. L’infrastruttura condivisa è conteggiata una sola volta per la flotta; solo il suo costo è allocato al turno, normalmente in base alla quota di energia DC annuale mostrata in Emissioni. Gli OPEX usano energia e distanza proprie del turno." },
-          { title: "Esaminare la configurazione ed esportare da Generale", text: "Il riquadro GTFS compatto e Visualizza dati di configurazione nell’intestazione permettono di verificare orario registrato, input salvati e provenienza. Scarica tutti i risultati è disponibile solo in Generale e salva Generale più una voce separata per ogni turno macchina disponibile." },
+          { title: "Iniziare da Generale", text: "L’Analisi annuale della flotta mostra in modo compatto distanza, energia ai bus e dalla rete, efficienza minima/massima dei turni, TCO elettrico e impatto climatico. Bus rappresentativo / Flotta consente di esaminare la flotta completa o un gruppo con lo stesso modello e la stessa batteria; le assegnazioni della fattibilità non cambiano." },
+          { title: "Esaminare Costi ed Emissioni della flotta", text: "Costi combina una riga TCO compatta, grafici annui e cumulati, pareggio e tabelle di dettaglio. I CAPEX di autobus e batterie appartengono integralmente ai veicoli fisici nell’ambito selezionato; l’infrastruttura condivisa è conteggiata una sola volta per la flotta e solo il suo costo viene allocato ai gruppi rappresentativi in base all’energia DC annuale. Emissioni mostra barre per fase del ciclo di vita e indicatori ambientali. Le ipotesi espandibili sono sotto i grafici, condividono valori salvati automaticamente e non rilanciano mai la fattibilità." },
+          { title: "Selezionare un turno macchina", text: "Una riga bianca compatta subito sotto il selettore riporta energia annuale, distanza simulata ed efficienza media. Efficienza mostra quindi direttamente consumo in funzione della temperatura, incertezza ed energia ponderata, senza una tab ridondante con un solo elemento." },
+          { title: "Verificare la provenienza meteo e HVAC", text: "I riquadri compatti GTFS e HVAC identificano orario e politica degli ausiliari salvati. L’analisi annuale usa il GHI orario PVGIS nel fuso GTFS locale e riporta energia HVAC in corsa e al capolinea; tracciabilità e azioni JSON espongono ipotesi e input completi di riproduzione." },
+          { title: "Esaminare la configurazione ed esportare da Generale", text: "Visualizza dati di configurazione apre il progetto congelato. Scarica tutti i risultati compare solo in Generale, vicino a Chiudi, e salva Generale più una voce separata per ogni turno macchina disponibile." },
           { title: "Riconoscere i risultati storici solo aggregati", text: "Un’analisi precedente priva del dettaglio per turno macchina può mostrare soltanto Generale. ELETTRA lascia assenti i dettagli non disponibili invece di ricavarli artificialmente dai totali." },
         ],
         figures: getGuideFigures("it", "yearlyEfficiency", "yearlyEmissions"),

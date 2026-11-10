@@ -1,6 +1,6 @@
 # Installation
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-10
 
 Detailed instructions for installing and running ELETTRA directly from source (without Docker).
 
@@ -13,7 +13,7 @@ Detailed instructions for installing and running ELETTRA directly from source (w
 | Node.js | **20.19+** or **22.12+** | `node --version` |
 | npm | 10.x or higher | `npm --version` |
 
-> Vite 7.x requires Node.js 20.19+ or 22.12+. If you see `crypto.hash is not a function`, upgrade Node.js.
+> Vite 8.x requires Node.js 20.19+ or 22.12+. If you see `crypto.hash is not a function`, upgrade Node.js.
 
 ---
 
@@ -40,7 +40,7 @@ npm run dev -- --host 0.0.0.0 --port 9010
 
 The development server provides:
 - Hot Module Replacement (HMR)
-- API proxy to the backend (default: `http://isaac-elettra.dacd.supsi.ch:8002`)
+- API proxy to the dedicated local backend (default: `http://127.0.0.1:9005`)
 - Source maps for debugging
 
 Open: <http://localhost:9010/elettra/>
@@ -52,7 +52,7 @@ Open: <http://localhost:9010/elettra/>
 The frontend can run with no extra configuration if the default proxy target is reachable. To override:
 
 ```bash
-export VITE_API_PROXY_TARGET=http://localhost:8002
+export VITE_API_PROXY_TARGET=http://127.0.0.1:8002
 ```
 
 See [Environment Variables](environment-variables.md) for all available options.
@@ -118,7 +118,8 @@ server {
 
 This repository is frontend-only. Login, fleet data, GTFS data, shift persistence, and simulation execution all require a reachable backend implementing the `/auth` and `/api` endpoints.
 
-Backend Swagger documentation: <http://isaac-elettra.dacd.supsi.ch:8002/docs>
+For the default local staging target, backend Swagger documentation is at
+<http://127.0.0.1:9005/docs>.
 
 ---
 
@@ -154,7 +155,7 @@ npm install
 
 ### API connection issues
 
-1. Verify the backend is accessible: `curl http://isaac-elettra.dacd.supsi.ch:8002/health`
+1. Verify the configured backend is accessible: `curl http://127.0.0.1:9005/health`
 2. Check proxy configuration in `vite.config.js`
 3. Ensure `VITE_API_ROOT` is correctly set for production builds
 

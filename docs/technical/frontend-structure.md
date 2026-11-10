@@ -1,6 +1,6 @@
 # Frontend Structure
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-10
 
 Code organization, routing model, and page lifecycle patterns for the ELETTRA frontend.
 
@@ -156,7 +156,14 @@ export const initializeBuses = async (root, options = {}) => {
 
 ## Testing
 
-*To verify*: No test framework or test scripts are present in `package.json`. Testing strategy is currently undocumented.
+- `npm test` runs Node's built-in test runner for unit regressions.
+- `npm run test:e2e` runs Playwright against source modules served by Vite.
+- `npm run test:dist` verifies the built production bundle.
+- `npm run test:staging` checks the deployed frontend/backend/database chain.
+
+Browser tests that do not start a backend mock `/api/v1/version` and every
+other expected API call. Unexpected proxy failures are treated as missing mocks
+or integration regressions, not harmless log noise.
 
 ---
 

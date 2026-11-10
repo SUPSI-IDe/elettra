@@ -1,6 +1,6 @@
 # Getting Started
 
-> Last updated: 2026-06-01
+> Last updated: 2026-11-10
 
 Get ELETTRA running on your machine in under 5 minutes.
 
@@ -15,7 +15,7 @@ Get ELETTRA running on your machine in under 5 minutes.
 | Docker (optional) | 20.x or higher | `docker --version` |
 | Docker Compose (optional) | 2.x or higher | `docker compose version` |
 
-> **Important**: Vite 7.x requires Node.js 20.19+ or 22.12+. Earlier versions are not supported.
+> **Important**: Vite 8.x requires Node.js 20.19+ or 22.12+. Earlier versions are not supported.
 
 ---
 
@@ -39,12 +39,14 @@ Open: <http://localhost:9010/elettra/>
 
 ## Configuration (optional)
 
-The frontend runs with zero configuration if the default backend proxy target (`http://isaac-elettra.dacd.supsi.ch:8002`) is reachable.
+The source development server proxies to the dedicated local backend at
+`http://127.0.0.1:9005` by default. This fail-local default prevents an
+unconfigured development session from writing to a remote deployment.
 
 To override the backend target:
 
 ```bash
-export VITE_API_PROXY_TARGET=http://localhost:8002
+export VITE_API_PROXY_TARGET=http://127.0.0.1:8002
 ```
 
 For test credentials, copy the example env file:
@@ -63,7 +65,8 @@ See [Environment Variables](deployment/environment-variables.md) for the full re
 2. **Set up fleet data** — Navigate to **Fleet > Buses** to create bus models with battery and cost specifications.
 3. **Define shifts** — Go to **Fleet > Shifts** to create shifts bound to GTFS routes and trips.
 4. **Run a feasibility evaluation** — Navigate to **Simulation > Feasibility evaluation**, select shifts, configure parameters, and launch.
-5. **View results** — Once complete, inspect cost breakdowns, efficiency charts, and battery adequacy.
+5. **View results** — Inspect the technical verdict, battery adequacy, SOC, and charging plan.
+6. **Run yearly analysis** — Reuse the verified design for representative weather, fleet costs/emissions, and per-vehicle-block efficiency.
 
 See the [User Guide](user-guide/overview.md) for detailed instructions on each step.
 
