@@ -1,7 +1,7 @@
 # Feasibility Results
 
 > Last updated: 2026-11-09
-> Interface baseline: Frontend v0.10.0
+> Interface baseline: Frontend v0.11.0-rc.1
 
 The feasibility result page is the technical gate between service preparation
 and yearly assessment. Read the overall verdict first, then inspect every
