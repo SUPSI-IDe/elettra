@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.11.0] - 2026-11-10
+
+### Added
+
+- Show the saved HVAC policy and authenticated reproduction inputs in feasibility and yearly-analysis results, including hourly PVGIS GHI provenance and terminal auxiliary energy.
+
+### Changed
+
+- Refine the yearly fleet overview into a compact dashboard with annual distance, bus-side and grid energy, minimum/maximum vehicle-block efficiency, electric TCO and climate impact.
+- Present fleet costs and emissions more compactly, place editable assumptions below their charts and keep the previous environmental chart visible while a recalculation is pending.
+- Simplify vehicle-block efficiency and annual comparison layouts while preserving the existing numerical and scope boundaries.
+- Align the multilingual online guide, screenshots and Markdown documentation with the current annual-analysis, HVAC and release workflows.
+
+### Release
+
+- Promote the functionality validated in `0.11.0-rc.1`, with no functional changes. Pair with backend `1.6.0`. Apply missing backend migration `010_hvac_weather_snapshots.sql`; existing feasibility and yearly-analysis records are not rewritten.
+
 ## [0.11.0-rc.1] - 2026-11-10
 
 ### Added
