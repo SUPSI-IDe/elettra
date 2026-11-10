@@ -39,8 +39,16 @@ const vocabulary = {
   comparisonBoundary: ['Same mileage, horizon and discount rate for both designs. Diesel purchase price, consumption, maintenance and lifetime are editable assumptions. Driver costs and fuel-station infrastructure are excluded from this comparison.', 'Stessi km, orizzonte e tasso per entrambe le tecnologie. Prezzo di acquisto, consumo, manutenzione e vita del diesel sono ipotesi modificabili. Costi degli autisti e infrastruttura di rifornimento diesel sono esclusi da questo confronto.', 'Gleiche Kilometer, gleicher Horizont und Diskontsatz. Dieselkaufpreis, Verbrauch, Wartung und Lebensdauer sind veränderbare Annahmen. Fahrer- und Dieseltankstellenkosten sind ausgeschlossen.', 'Même kilométrage, horizon et taux pour les deux technologies. Le prix, la consommation, l’entretien et la durée de vie du diesel sont modifiables. Les coûts de conduite et d’infrastructure de ravitaillement diesel sont exclus.'],
   saving: ['Electric saving / premium', 'Risparmio / sovraccosto elettrico', 'Einsparung / Mehrkosten Elektro', 'Économie / surcoût électrique'],
   annualMaintenanceEstimate: ['Annual infrastructure maintenance, whole fleet', 'Manutenzione annua infrastruttura, intera flotta', 'Jährliche Infrastrukturwartung, gesamte Flotte', 'Entretien annuel de l’infrastructure, flotte entière'],
+  editAssumptions: ['Edit economic assumptions', 'Modifica ipotesi economiche', 'Wirtschaftliche Annahmen bearbeiten', 'Modifier les hypothèses économiques'],
+  assumptionsInfo: ['Information about these assumptions', 'Informazioni su queste ipotesi', 'Informationen zu diesen Annahmen', 'Informations sur ces hypothèses'],
+  initialAssumptions: ['Initial values', 'Valori iniziali', 'Ausgangswerte', 'Valeurs initiales'],
+  modifiedAssumptions: ['Modified values', 'Valori modificati', 'Geänderte Werte', 'Valeurs modifiées'],
+  costComparison: ['Cost comparison', 'Confronto dei costi', 'Kostenvergleich', 'Comparaison des coûts'],
   years: ['years', 'anni', 'Jahre', 'années'],
   annualImpact: ['Annual impact', 'Impatto annuale', 'Jährliche Wirkung', 'Impact annuel'],
+  keyOutcomes: ['Key annual outcomes', 'Risultati annuali principali', 'Wichtigste Jahresergebnisse', 'Principaux résultats annuels'],
+  climateImpact: ['Climate impact', 'Impatto climatico', 'Klimawirkung', 'Impact climatique'],
+  averageEfficiency: ['Average efficiency', 'Efficienza media', 'Durchschnittliche Effizienz', 'Efficacité moyenne'],
   primaryEnergy: ['Primary energy', 'Energia primaria', 'Primärenergie', 'Énergie primaire'],
   title: ['Annual fleet assessment', 'Analisi annuale della flotta', 'Jährliche Flottenanalyse', 'Analyse annuelle de la flotte'],
   representative: ['Representative bus', 'Bus rappresentativo', 'Repräsentativer Bus', 'Bus représentatif'],
@@ -101,6 +109,8 @@ const vocabulary = {
   emissions: ['Annual environmental impact', 'Impatto ambientale annuale', 'Jährliche Umweltwirkung', 'Impact environnemental annuel'],
   emissionsNote: ['One lifecycle assessment per homogeneous group, using its representative annual mileage and consumption; fleet impacts multiply by the number of buses. Charging infrastructure uses the generic LCA inventory, not the site-specific investment breakdown.', 'Una valutazione del ciclo di vita per gruppo omogeneo, con km e consumi annuali rappresentativi; gli impatti di flotta sono moltiplicati per il numero di bus. L’infrastruttura usa l’inventario LCA generico, non il dettaglio degli investimenti per sito.', 'Eine Lebenszyklusanalyse je homogener Gruppe mit repräsentativer Fahrleistung und Verbrauch; Flottenwirkungen werden mit der Busanzahl multipliziert. Ladeinfrastruktur nutzt das generische Ökobilanzinventar, nicht die standortspezifischen Investitionen.', 'Une analyse du cycle de vie par groupe homogène, avec kilométrage et consommation représentatifs ; les impacts sont multipliés par le nombre de bus. L’infrastructure utilise l’inventaire ACV générique, pas les investissements détaillés par site.'],
   loading: ['Calculating environmental impacts…', 'Calcolo degli impatti ambientali…', 'Umweltwirkungen werden berechnet…', 'Calcul des impacts environnementaux…'],
+  updating: ['Updating…', 'Aggiornamento…', 'Aktualisierung…', 'Mise à jour…'],
+  updateFailed: ['Update failed', 'Aggiornamento non riuscito', 'Aktualisierung fehlgeschlagen', 'Échec de la mise à jour'],
   unavailable: ['Unavailable: incomplete data or invalid assumptions.', 'Non disponibile: dati incompleti o ipotesi non valide.', 'Nicht verfügbar: unvollständige Daten oder ungültige Annahmen.', 'Indisponible : données incomplètes ou hypothèses invalides.'],
   missing_prices: ['Purchase prices are missing from this historical evaluation.', 'Mancano i prezzi di acquisto in questa valutazione storica.', 'Anschaffungspreise fehlen in dieser historischen Bewertung.', 'Les prix d’achat manquent dans cette évaluation historique.'],
   missing_fleet: ['The saved fleet configuration is incomplete.', 'La configurazione salvata della flotta è incompleta.', 'Die gespeicherte Flottenkonfiguration ist unvollständig.', 'La configuration de flotte enregistrée est incomplète.'],
@@ -117,16 +127,28 @@ const ratio = (value, denominator) => value == null || !(denominator > 0) ? null
 const label = key => e(fleetLabel(key));
 const table = (headers, rows, footer = '') => `<div class="annual-fleet-table"><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody>${footer ? `<tfoot>${footer}</tfoot>` : ''}</table></div>`;
 const row = cells => `<tr>${cells.map((c, i) => `<${i ? 'td' : 'th'}>${c}</${i ? 'td' : 'th'}>`).join('')}</tr>`;
-const metric = (key, value, hint = '') => `<div class="annual-fleet-metric"><span>${label(key)}</span><strong>${value}</strong>${hint ? `<small>${hint}</small>` : ''}</div>`;
+const metric = (key, unit, value, hint = '') => `<article class="result-metric annual-summary-metric" data-role="annual-activity-summary" data-summary="${key}">
+  <span class="result-metric__label">${label(key)} [${unit}]</span>
+  <span class="annual-summary-metric__result"><strong class="result-metric__value">${value}</strong>${hint ? `<small>${hint}</small>` : ''}</span>
+</article>`;
+const outcomeMetric = ({ key, label: title, value, hint = '', tone = '' }) => `<article class="result-metric annual-summary-metric annual-outcome${tone ? ` annual-summary-metric--${tone}` : ''}" data-outcome="${key}">
+  <span class="result-metric__label annual-outcome__label">${title}</span>
+  <span class="annual-summary-metric__result"><strong class="result-metric__value annual-outcome__value">${value}</strong>${hint ? `<small class="annual-outcome__hint">${hint}</small>` : ''}</span>
+</article>`;
+const efficiencyMetric = value => `<article class="result-metric annual-summary-metric annual-outcome annual-efficiency" data-outcome="efficiency">
+  <span class="result-metric__label annual-outcome__label">${label('averageEfficiency')} [kWh/km DC]</span>
+  <span class="annual-summary-metric__result annual-efficiency__result"><strong class="result-metric__value annual-outcome__value annual-efficiency__value">${value}</strong></span>
+</article>`;
 
 const percentFields = new Set(['rate', 'infrastructureMaintenanceRate']);
 const maintenanceReport = 'https://www.infras.ch/media/filer_public/79/e5/79e599d9-0dae-491e-ac2b-19f07385834a/4166a_technologiestudie_elektrobusse_vov_schlussbericht.pdf#page=51';
 
 export function createYearlyFleetDashboard({ features, model, predictionRuns, onSave, onPreviewLca }) {
   const baseline = buildAnnualFleet(features, predictionRuns);
+  const defaultAssumptions = yearlyTcoDefaults({ ...features, assessment_assumptions: {} }, model);
   let assumptions = yearlyTcoDefaults(features, model);
   let scope = baseline.groups.length === 1 ? baseline.groups[0].id : 'fleet';
-  let activeTab = 'costs';
+  let activeTab = 'costs', costAssumptionsOpen = false, emissionsAssumptionsOpen = false;
   let root = null, emissions = { status: 'idle' }, preview = null, previewTimer, requestId = 0;
   const paintSaveStatus = () => {
     const status = root?.querySelector('[data-save-status]');
@@ -137,6 +159,10 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
   };
   const autosave = createAssumptionAutosave({ save: onSave, onState: paintSaveStatus });
   const fleet = () => scaleAnnualFleet(baseline, assumptions.annualKmByGroup);
+  const assumptionsKey = values => JSON.stringify({ ...values,
+    annualKmByGroup: Object.fromEntries(Object.entries(values.annualKmByGroup ?? {}).sort(([a], [b]) => a.localeCompare(b))),
+  });
+  const assumptionsModified = () => assumptionsKey(assumptions) !== assumptionsKey(defaultAssumptions);
   const payload = () => ({ ...assumptions, annualKmByGroup: { ...assumptions.annualKmByGroup },
     annualKmByShift: Object.fromEntries(fleet().rows.map(r => [r.id, r.km])) });
   const lcaKey = () => JSON.stringify([assumptions.bodyLife, assumptions.batteryLife, assumptions.dieselLife,
@@ -159,7 +185,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
         preview = { key, status: 'done', rawLca };
       } catch (error) {
         if (id !== requestId || !root) return;
-        preview = { key, status: 'error', error: error.message };
+        preview = { key, status: 'error', error: error.message, rawLca: preview?.rawLca ?? emissions.rawLca };
       }
       paint(true);
     }, 500);
@@ -174,22 +200,23 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       const value = group ? assumptions.annualKmByGroup[group.id] : assumptions[key] * (percentFields.has(key) ? 100 : 1);
       const name = group ? `km:${group.id}` : key;
       const title = group ? `${label('mileagePerBus')} · ${e(group.modelName ?? '')} · ${group.packs} ${label('packs')} (${group.count} ${label(group.count === 1 ? 'bus' : 'buses')})` : label(key);
-      return `<label class="annual-slider"${!group && key !== 'dieselConsumption' ? ' data-cost-only' : ''}>${title}<input type="number" aria-label="${e(group ? fleetLabel('mileagePerBus') + ' · ' + group.packs : fleetLabel(key))}" data-tco-input="${e(name)}" name="${e(name)}" value="${value == null ? '' : Number(value.toFixed(group ? 2 : 4))}" min="${group ? 1 : min}" step="any" required>
+      return `<label class="annual-slider"${!group && key !== 'dieselConsumption' ? ' data-cost-only' : ''}><span class="annual-slider__title">${title}</span><input type="number" aria-label="${e(group ? fleetLabel('mileagePerBus') + ' · ' + group.packs : fleetLabel(key))}" data-tco-input="${e(name)}" name="${e(name)}" value="${value == null ? '' : Number(value.toFixed(group ? 2 : 4))}" min="${group ? 1 : min}" step="any" required>
         <input type="range" aria-label="${e(group ? fleetLabel('mileagePerBus') + ' · ' + group.packs + ' slider' : fleetLabel(key) + ' slider')}" data-tco-input="${e(name)}" min="${Math.min(min, value ?? min)}" max="${Math.max(max, value ?? max)}" step="${step}" value="${value ?? min}"><small>${n(Math.min(min, value ?? min), group ? 0 : 2)} — ${n(Math.max(max, value ?? max), group ? 0 : 2)}</small>${group ? `<small>${label('assignedDuties')}: ${e(group.members.map(m => m.name ?? m.id).join(', '))}</small>` : ''}</label>`;
     };
     const fields = ['horizon', 'rate', 'bodyLife', 'batteryLife', 'dieselCapex', 'dieselLife', 'pointLife', 'siteLife',
       ...(assumptions.infrastructureMaintenanceMode === 'fixed' ? ['infrastructureMaintenance'] : [])];
     const settingsOpen = root.querySelector('[data-tco-settings]')?.open;
-    return `<form data-tco-form><div class="annual-fleet-heading"><h3 data-assumptions-title></h3><button type="button" class="result-header-action" data-tco-reset></button></div>
-      <p class="helper-text" data-emissions-controls-note>${label('emissionsControlsNote')}</p>
-      <div class="annual-fleet-inputs">${sliders.map(args => slider(...args)).join('')}</div>
-      <p class="helper-text" data-cost-only><span data-maintenance-estimate></span> · <a href="${maintenanceReport}" target="_blank" rel="noopener" title="${e(fleetLabel('maintenanceSource'))}">INFRAS 2026 · p. 51 ⓘ</a></p>
-      <div class="annual-fleet-inputs">${baseline.groups.map(g => slider('km', 1000, Math.max(180000, Math.round(g.km / g.count * 2)), 100, g)).join('')}</div>
-      <p class="helper-text">${label('mileageNote')}</p>
-      <details data-tco-settings data-cost-only${settingsOpen ? ' open' : ''}><summary>${label('method')}</summary><div class="annual-fleet-inputs">
-        <label>${label('maintenanceMode')}<select name="infrastructureMaintenanceMode" data-tco-input="infrastructureMaintenanceMode"><option value="rate"${assumptions.infrastructureMaintenanceMode === 'rate' ? ' selected' : ''}>${label('percentMode')}</option><option value="fixed"${assumptions.infrastructureMaintenanceMode === 'fixed' ? ' selected' : ''}>${label('fixedMode')}</option></select></label>
-        ${fields.map(key => `<label>${label(key)}<input type="number" name="${key}" data-tco-input="${key}" min="${['horizon', 'bodyLife', 'batteryLife', 'dieselLife', 'pointLife', 'siteLife'].includes(key) ? 1 : 0}" ${key === 'horizon' ? 'max="60"' : key === 'rate' ? 'max="100"' : ''} step="${key === 'rate' ? '.01' : '1'}" value="${assumptions[key] == null ? '' : assumptions[key] * (percentFields.has(key) ? 100 : 1)}" required></label>`).join('')}</div><p class="helper-text">${label('maintenanceSource')}</p></details>
-      <div class="annual-fleet-autosave"><span role="status" aria-live="polite" data-save-status></span><span class="annual-autosave-info"><button type="button" aria-label="${label('autosave_idle')}" aria-describedby="annual-autosave-help">i</button><span role="tooltip" id="annual-autosave-help">${label('autosave_help')}</span></span><button type="button" data-autosave-retry hidden>${label('retry')}</button></div></form>`;
+    const assumptionsOpen = activeTab === 'emissions' ? emissionsAssumptionsOpen : costAssumptionsOpen;
+    return `<form data-tco-form><details class="annual-assumptions result-card" data-tco-assumptions${assumptionsOpen ? ' open' : ''}>
+      <summary class="annual-assumptions__toggle result-card__header"><span class="annual-assumptions__title"><span data-assumptions-title></span><span class="annual-autosave-info annual-assumptions__info"><button type="button" aria-label="${label('assumptionsInfo')}" aria-describedby="annual-assumptions-help">i</button><span role="tooltip" id="annual-assumptions-help" data-assumptions-help></span></span></span><span class="annual-assumptions__status" data-assumptions-state></span><span class="annual-assumptions__save" role="status" aria-live="polite" data-save-status></span></summary>
+      <div class="annual-assumptions__body result-card__body"><div class="annual-assumptions__actions"><button type="button" class="result-header-action" data-tco-reset></button></div>
+        <div class="annual-fleet-inputs">${sliders.map(args => slider(...args)).join('')}${baseline.groups.map(g => slider('km', 1000, Math.max(180000, Math.round(g.km / g.count * 2)), 100, g)).join('')}</div>
+        <p class="helper-text" data-cost-only><span data-maintenance-estimate></span> · <a href="${maintenanceReport}" target="_blank" rel="noopener" title="${e(fleetLabel('maintenanceSource'))}">INFRAS 2026 · p. 51 ⓘ</a></p>
+        <details data-tco-settings data-cost-only${settingsOpen ? ' open' : ''}><summary>${label('method')}</summary><div class="annual-fleet-inputs">
+          <label>${label('maintenanceMode')}<select name="infrastructureMaintenanceMode" data-tco-input="infrastructureMaintenanceMode"><option value="rate"${assumptions.infrastructureMaintenanceMode === 'rate' ? ' selected' : ''}>${label('percentMode')}</option><option value="fixed"${assumptions.infrastructureMaintenanceMode === 'fixed' ? ' selected' : ''}>${label('fixedMode')}</option></select></label>
+          ${fields.map(key => `<label>${label(key)}<input type="number" name="${key}" data-tco-input="${key}" min="${['horizon', 'bodyLife', 'batteryLife', 'dieselLife', 'pointLife', 'siteLife'].includes(key) ? 1 : 0}" ${key === 'horizon' ? 'max="60"' : key === 'rate' ? 'max="100"' : ''} step="${key === 'rate' ? '.01' : '1'}" value="${assumptions[key] == null ? '' : assumptions[key] * (percentFields.has(key) ? 100 : 1)}" required></label>`).join('')}</div><p class="helper-text">${label('maintenanceSource')}</p></details>
+        <button type="button" data-autosave-retry hidden>${label('retry')}</button>
+      </div></details></form>`;
   };
   const paint = (keepControls = false) => {
     if (!root) return;
@@ -207,15 +234,51 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       ? lcaKm > 0 ? lcaRows.reduce((s, v) => s + v.diesel_heating_liters * (v.vehicle_count ?? 1), 0) * local.totals.km / lcaKm : null : 0;
     const result = computeFleetTco(local, { ...assumptions, infrastructureMaintenance: assumptions.infrastructureMaintenance * share }, { dieselHeatingLiters: heater });
     const diesel = computeDieselTco(local, assumptions), comparison = cumulativeCostComparison(result, diesel, assumptions);
+    const tcoDifference = result && diesel ? diesel.perKm - result.perKm : null;
+    const breakEvenValue = !comparison ? '—' : comparison.breakEven === null
+      ? label('noBreakEven')
+      : comparison.residualOnly
+        ? label('residualBreakEven')
+        : `${label('year')} ${comparison.breakEven}`;
+    const currentScopedLca = matchesLca(raw, current) ? scopeFleetLca(raw, group) : null;
+    const staleScopedLca = !currentScopedLca && raw?.status === 'complete' && ['loading', 'error'].includes(state.status)
+      ? scopeFleetLca(raw, group) : null;
+    const scopedLca = currentScopedLca ?? staleScopedLca;
+    const lcaIsStale = !currentScopedLca && Boolean(staleScopedLca);
+    const climate = scopedLca?.indicators?.gwp100a;
+    const hasClimate = Number.isFinite(climate?.total) && Number.isFinite(climate?.diesel_comparator_total);
+    const efficiencyRows = local.rows
+      .map(row => ({ row, consumption: ratio(row.dc, row.km) }))
+      .filter(item => Number.isFinite(item.consumption))
+      .sort((a, b) => a.consumption - b.consumption);
+    const efficient = efficiencyRows[0], inefficient = efficiencyRows.at(-1);
+    const shiftConsumption = item => item
+      ? `${n(item.consumption, 3)} (${e(item.row.name ?? item.row.id)})`
+      : '—';
+    const outcomes = [
+      efficiencyMetric(efficiencyRows.length > 1
+        ? `Min: ${shiftConsumption(efficient)} · Max: ${shiftConsumption(inefficient)}`
+        : shiftConsumption(efficient)),
+      outcomeMetric({
+        key: 'electric-tco',
+        label: 'TCO [CHF/km]',
+        value: result ? n(result.perKm, 3) : '—',
+      }),
+      outcomeMetric({
+        key: 'climate',
+        label: `${label('climateImpact')} · CO₂-eq [t/${label('year')}]`,
+        value: hasClimate ? n(climate.total / 1e6, 2) : '—',
+        hint: hasClimate ? `${label('diesel')} [t/${label('year')}] ${n(climate.diesel_comparator_total / 1e6, 2)}` : '',
+      }),
+    ].join('');
     if (!root.querySelector('[data-annual-header]')) root.innerHTML = `<section class="result-card annual-fleet-card" data-role="annual-fleet-dashboard" data-annual-header></section>
       <div class="annual-result-tabs" role="tablist" aria-label="${label('title')}"><button type="button" role="tab" id="annual-cost-tab" aria-controls="annual-cost-panel" data-annual-tab="costs">${label('costsTab')}</button><button type="button" role="tab" id="annual-emissions-tab" aria-controls="annual-emissions-panel" data-annual-tab="emissions">${label('emissionsTab')}</button></div>
-      <section id="annual-cost-panel" role="tabpanel" aria-labelledby="annual-cost-tab" class="result-card annual-fleet-card"><h2>${label('costs')}</h2><div data-annual-controls></div><div data-annual-financial></div></section>
-      <section id="annual-emissions-panel" role="tabpanel" aria-labelledby="annual-emissions-tab" class="annual-emissions-panel"><div class="result-card annual-fleet-card" data-emissions-controls></div><p class="helper-text">${label('emissionsNote')}</p><div data-annual-lca></div></section>`;
+      <section id="annual-cost-panel" role="tabpanel" aria-labelledby="annual-cost-tab" class="annual-cost-panel"><div data-annual-financial><section class="result-card annual-fleet-card annual-cost-results-card"><h2>${label('costs')}</h2><div data-annual-financial-summary></div></section><div data-annual-controls></div><section class="result-card annual-fleet-card annual-cost-detail-card"><div data-annual-financial-detail></div></section></div></section>
+      <section id="annual-emissions-panel" role="tabpanel" aria-labelledby="annual-emissions-tab" class="annual-emissions-panel"><div data-emissions-controls-parking hidden><div data-emissions-controls></div></div><p class="helper-text">${label('emissionsNote')}</p><div data-annual-lca></div></section>`;
     const options = [`<option value="fleet"${scope === 'fleet' ? ' selected' : ''}>${label('fleet')} · ${current.count} ${label('buses')}</option>`, ...current.groups.map(g => `<option value="${e(g.id)}"${scope === g.id ? ' selected' : ''}>${label('representative')} · ${e(g.modelName ?? '')} · ${g.packs} ${label('packs')} (${g.count} ${label(g.count === 1 ? 'bus' : 'buses')})</option>`)].join('');
-    root.querySelector('[data-annual-header]').innerHTML = `<div class="annual-fleet-heading"><h2>${label('title')}</h2><label class="annual-fleet-scope">${label('representative')} / ${label('fleet')}<select data-tco-scope>${options}</select></label></div>
-      <p class="helper-text">${label('groupNote')}</p>${group ? `<p class="helper-text"><strong>${e(group.modelName ?? '')} · ${group.packs} ${label('packs')} · ${n(group.capacity)} kWh</strong> · ${group.count} ${label(group.count === 1 ? 'bus' : 'buses')}</p>` : ''}
+    root.querySelector('[data-annual-header]').innerHTML = `<div class="annual-fleet-heading annual-fleet-heading--summary"><h2>${label('title')}</h2><label class="annual-fleet-scope">${label('representative')} / ${label('fleet')}<select data-tco-scope>${options}</select></label></div>
       ${current.issues.map(issue => `<p class="annual-fleet-warning">${label(issue)}</p>`).join('')}
-      <div class="annual-fleet-metrics">${metric('distance', `${n(scaled(local.totals.km, 1 / divisor), 0)} km`)}${metric('dc', `${n(scaled(local.totals.dc, 1 / divisor), 0)} kWh`, `${n(ratio(local.totals.dc, local.totals.km), 3)} kWh/km DC`)}${metric('grid', `${n(scaled(local.totals.grid, 1 / divisor), 0)} kWh`, `${n(ratio(local.totals.grid, local.totals.km), 3)} kWh/km AC`)}</div>
+      <div class="result-metric-grid annual-summary-grid" aria-label="${label('keyOutcomes')}">${metric('distance', 'km', n(scaled(local.totals.km, 1 / divisor), 0))}${metric('dc', 'kWh', n(scaled(local.totals.dc, 1 / divisor), 0), `${n(ratio(local.totals.dc, local.totals.km), 3)} kWh/km DC`)}${metric('grid', 'kWh', n(scaled(local.totals.grid, 1 / divisor), 0), `${n(ratio(local.totals.grid, local.totals.km), 3)} kWh/km AC`)}${outcomes}</div>
       ${!group && current.groups.length > 1 ? table([label('representative'), label('buses'), `${label('distance')} / ${label('perBus')}`, label('consumption')], current.groups.map(g => row([`${e(g.modelName ?? '')} · ${g.packs} ${label('packs')}`, g.count, `${n(g.km / g.count, 0)} km`, `${n(g.dc / g.km, 3)} kWh/km DC`]))) : ''}`;
     root.querySelectorAll('[data-annual-tab]').forEach(button => { const selected = activeTab === button.dataset.annualTab; button.setAttribute('aria-selected', String(selected)); });
     root.querySelector('#annual-cost-panel').hidden = activeTab !== 'costs';
@@ -227,37 +290,64 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       form?.remove(); controlsHost.innerHTML = markup;
       form = controlsHost.querySelector('[data-tco-form]');
     } else if (form.parentElement !== controlsHost) controlsHost.append(form);
+    const assumptionsPanel = form.querySelector('[data-tco-assumptions]');
+    assumptionsPanel.open = activeTab === 'emissions' ? emissionsAssumptionsOpen : costAssumptionsOpen;
     // Share one form and one set of assumptions across the two views, retaining
     // the actual input nodes while a slider is being dragged.
     form.querySelectorAll('[data-cost-only]').forEach(el => { el.hidden = activeTab === 'emissions'; });
-    form.querySelector('[data-emissions-controls-note]').hidden = activeTab !== 'emissions';
-    form.querySelector('[data-assumptions-title]').textContent = fleetLabel(activeTab === 'emissions' ? 'emissionsAssumptions' : 'assumptions');
+    form.querySelector('[data-assumptions-title]').textContent = fleetLabel(activeTab === 'emissions' ? 'emissionsAssumptions' : 'editAssumptions');
+    form.querySelector('[data-assumptions-help]').textContent = activeTab === 'emissions'
+      ? `${fleetLabel('emissionsControlsNote')} ${fleetLabel('mileageNote')}`
+      : `${fleetLabel('autosave_help')} ${fleetLabel('mileageNote')}`;
     form.querySelector('[data-tco-reset]').textContent = fleetLabel(activeTab === 'emissions' ? 'resetEmissions' : 'reset');
+    const modified = assumptionsModified();
+    const assumptionState = form.querySelector('[data-assumptions-state]');
+    assumptionState.textContent = fleetLabel(modified ? 'modifiedAssumptions' : 'initialAssumptions');
+    assumptionState.dataset.modified = String(modified);
     const maintenance = assumptions.infrastructureMaintenanceMode === 'rate' ? current.infrastructure.total * assumptions.infrastructureMaintenanceRate : assumptions.infrastructureMaintenance;
     root.querySelector('[data-maintenance-estimate]').textContent = `${fleetLabel('annualMaintenanceEstimate')}: ${chf(maintenance)}`;
     paintSaveStatus();
     const financial = root.querySelector('[data-annual-financial]');
-    const openDetails = [...financial.querySelectorAll('details[open]')].map(el => el.dataset.detail);
+    const summary = financial.querySelector('[data-annual-financial-summary]');
+    const detail = financial.querySelector('[data-annual-financial-detail]');
+    const openDetails = [...detail.querySelectorAll('details[open]')].map(el => el.dataset.detail);
     const comparisonRows = result && diesel ? table(['', label('electric'), label('diesel')], [
       row([label('initial'), chf(result.initial / divisor), chf(diesel.initial / divisor)]),
       row([label('annual'), chf(result.annualOpex / divisor), chf(diesel.annualOpex / divisor)]),
       row([label('equivalent'), chf(result.annualEquivalent / divisor), chf(diesel.annualEquivalent / divisor)]),
       row([label('npv'), chf(result.presentValue / divisor), chf(diesel.presentValue / divisor)]),
     ]) : '';
-    financial.innerHTML = `${result ? `<div class="annual-fleet-metrics annual-fleet-metrics--tco"><div class="annual-fleet-metric"><span>${label('electric')} · TCO · ${assumptions.horizon} ${label('years')}</span><strong data-role="fleet-tco">${n(result.perKm, 3)} CHF/km</strong></div><div class="annual-fleet-metric"><span>${label('diesel')} · TCO</span><strong data-role="diesel-tco">${diesel ? n(diesel.perKm, 3) + ' CHF/km' : '—'}</strong></div><div class="annual-fleet-metric"><span>${label('saving')}</span><strong data-role="tco-difference">${diesel ? n(diesel.perKm - result.perKm, 3) + ' CHF/km' : '—'}</strong></div></div>${comparisonRows}<p class="helper-text">${label('comparisonBoundary')}</p>` : `<p class="annual-fleet-warning">${label('unavailable')}</p>`}
+    summary.innerHTML = `${result ? `<div class="result-metric-grid annual-cost-summary-grid"><article class="result-metric"><span class="result-metric__label">${label('electric')} · TCO · ${assumptions.horizon} ${label('years')} [CHF/km]</span><strong class="result-metric__value" data-role="fleet-tco">${n(result.perKm, 3)}</strong></article><article class="result-metric"><span class="result-metric__label">${label('diesel')} · TCO [CHF/km]</span><strong class="result-metric__value" data-role="diesel-tco">${diesel ? n(diesel.perKm, 3) : '—'}</strong></article><article class="result-metric"><span class="result-metric__label">${label('saving')} [CHF/km]</span><strong class="result-metric__value" data-role="tco-difference">${tcoDifference == null ? '—' : n(tcoDifference, 3)}</strong></article></div>` : `<p class="annual-fleet-warning">${label('unavailable')}</p>`}
       ${comparison ? `<div class="annual-cost-charts"><figure><figcaption>${label('opexComparison')}</figcaption><div class="annual-chart-scroll" data-cost-opex></div></figure><figure><figcaption>${label('cumulative')}</figcaption><div class="annual-chart-scroll" data-cost-cumulative></div></figure></div>
-      <p data-cost-break-even><strong>${label('breakEven')}:</strong> ${comparison.breakEven === null ? label('noBreakEven') : comparison.residualOnly ? label('residualBreakEven') : `${label('year')} ${comparison.breakEven}`}</p><p class="helper-text">${label('cumulativeNote')}</p>` : ''}
+      <p class="annual-break-even" data-cost-break-even><strong>${label('breakEven')}:</strong> ${breakEvenValue}</p><p class="helper-text">${label('cumulativeNote')}</p>` : ''}
+      `;
+    detail.innerHTML = `${comparisonRows ? `<section class="annual-cost-comparison" aria-labelledby="annual-cost-comparison-title"><h3 id="annual-cost-comparison-title">${label('costComparison')}</h3>${comparisonRows}<p class="helper-text">${label('comparisonBoundary')}</p></section>` : ''}
       ${result ? `<h3>${label('breakdown')} · ${label('electric')}</h3>${table(['', label('initial'), label('equivalent'), 'CHF/km'], result.components.map(c => row([label(c.key), chf(c.initial / divisor), chf(c.presentValue / result.annuityFactor / divisor), `${n(c.presentValue / result.annuityFactor / local.totals.km, 3)} CHF/km`])), row([label('total'), chf(result.initial / divisor), chf(result.components.reduce((s, c) => s + c.presentValue, 0) / result.annuityFactor / divisor), `${n(result.components.reduce((s, c) => s + c.presentValue, 0) / result.annuityFactor / local.totals.km, 3)} CHF/km`]))}
       <h3>${label('annual')} · ${label('electric')}</h3>${table(['', 'CHF', 'CHF/km'], result.operating.filter(c => c.key !== 'heater' || heater > 0).map(c => row([label(c.key), chf(c.annual / divisor), `${n(c.annual / local.totals.km, 3)} CHF/km`])), row([label('total'), chf(result.annualOpex / divisor), `${n(result.annualOpex / local.totals.km, 3)} CHF/km`]))}` : ''}
       ${diesel ? `<h3>${label('annual')} · ${label('diesel')}</h3>${table(['', 'CHF', 'CHF/km'], diesel.operating.map(c => row([label(c.key), chf(c.annual / divisor), `${n(c.annual / local.totals.km, 3)} CHF/km`])), row([label('total'), chf(diesel.annualOpex / divisor), `${n(diesel.annualOpex / local.totals.km, 3)} CHF/km`]))}` : ''}
       <details data-detail="infrastructure"><summary>${label('infrastructure')}</summary><p class="helper-text">${label('allocation')}</p>${table([label('location'), label('points'), label('site'), label('connection'), label('total')], current.stations.map(site => row([e(site.stopName), chf(scaled(site.points, share / divisor)), chf(scaled(site.fixed, share / divisor)), chf(scaled(site.power, share / divisor)), chf(scaled(site.total, share / divisor))])), row([label('total'), ...['points', 'fixed', 'power', 'total'].map(key => chf(scaled(local.infrastructure[key], 1 / divisor)))]))}</details>
       <details data-detail="method"><summary>${label('method')}</summary><p class="helper-text">${label('methodNote')}</p>${result && diesel ? table(['', label('electric'), label('diesel')], [row([label('replacements'), chf(result.discountedReplacements / divisor), chf(diesel.discountedReplacements / divisor)]), row([label('residual'), chf(result.discountedResidual / divisor), chf(diesel.discountedResidual / divisor)])]) : ''}</details>`;
-    financial.querySelectorAll('details').forEach(el => { el.open = openDetails.includes(el.dataset.detail); });
-    if (comparison) renderAnnualCostCharts({ opexHost: financial.querySelector('[data-cost-opex]'), cumulativeHost: financial.querySelector('[data-cost-cumulative]'), electric: result, diesel, comparison, divisor, assumptions, label: fleetLabel });
+    detail.querySelectorAll('details').forEach(el => { el.open = openDetails.includes(el.dataset.detail); });
+    if (comparison) renderAnnualCostCharts({ opexHost: summary.querySelector('[data-cost-opex]'), cumulativeHost: summary.querySelector('[data-cost-cumulative]'), electric: result, diesel, comparison, divisor, assumptions, label: fleetLabel });
     const lcaHost = root.querySelector('[data-annual-lca]');
-    const scopedLca = matchesLca(raw, current) ? scopeFleetLca(raw, group) : null;
+    const emissionsControlsHost = root.querySelector('[data-emissions-controls]');
+    const emissionsControlsParking = root.querySelector('[data-emissions-controls-parking]');
+    if (lcaHost.contains(emissionsControlsHost)) emissionsControlsParking.append(emissionsControlsHost);
     if (scopedLca && !current.issues.some(issue => ['missing_fleet', 'incomplete_activity', 'battery_mismatch'].includes(issue))) renderParameterizedLca(lcaHost, scopedLca, t);
     else lcaHost.innerHTML = `<p role="status">${e(state.status === 'error' ? state.error || fleetLabel('unavailable') : current.issues.length ? fleetLabel(current.issues[0]) : fleetLabel('loading'))}</p>`;
+    const phaseCharts = lcaHost.querySelector('[data-role="ya-lca-phases"]');
+    if (lcaIsStale && phaseCharts) {
+      const refreshStatus = document.createElement('span');
+      refreshStatus.className = `annual-lca-refresh-status${state.status === 'error' ? ' annual-lca-refresh-status--error' : ''}`;
+      refreshStatus.setAttribute('role', 'status');
+      refreshStatus.textContent = fleetLabel(state.status === 'error' ? 'updateFailed' : 'updating');
+      if (state.error) refreshStatus.title = state.error;
+      phaseCharts.append(refreshStatus);
+      const exportButton = lcaHost.querySelector('[data-lca-export]');
+      if (exportButton) exportButton.disabled = true;
+    }
+    if (phaseCharts) phaseCharts.after(emissionsControlsHost);
+    else lcaHost.after(emissionsControlsHost);
   };
   const applyValue = (key, value) => {
     if (key.startsWith('km:')) assumptions.annualKmByGroup[key.slice(3)] = Number(value);
@@ -287,13 +377,17 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     const tab = event.target.closest('[data-annual-tab]');
     if (tab) { activeTab = tab.dataset.annualTab; paint(true); }
     if (event.target.closest('[data-tco-reset]')) {
-      const defaults = yearlyTcoDefaults({ ...features, assessment_assumptions: {} }, model);
       assumptions = activeTab === 'emissions'
-        ? { ...assumptions, dieselConsumption: defaults.dieselConsumption, annualKmByGroup: defaults.annualKmByGroup }
-        : defaults;
+        ? { ...assumptions, dieselConsumption: defaultAssumptions.dieselConsumption, annualKmByGroup: { ...defaultAssumptions.annualKmByGroup } }
+        : { ...defaultAssumptions, annualKmByGroup: { ...defaultAssumptions.annualKmByGroup } };
       queueLca(); paint(); autosave.queue(payload());
     }
     if (event.target.closest('[data-autosave-retry]')) void autosave.flush();
+  };
+  const onToggle = event => {
+    if (!event.target.matches?.('[data-tco-assumptions]')) return;
+    if (activeTab === 'emissions') emissionsAssumptionsOpen = event.target.open;
+    else costAssumptionsOpen = event.target.open;
   };
   const onSubmit = event => {
     if (!event.target.matches('[data-tco-form]')) return;
@@ -309,10 +403,10 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     void autosave.flush();
     event.preventDefault(); event.returnValue = '';
   };
-  const unbind = () => { root?.removeEventListener('input', onInput); root?.removeEventListener('change', onChange); root?.removeEventListener('click', onClick); root?.removeEventListener('submit', onSubmit); };
+  const unbind = () => { root?.removeEventListener('input', onInput); root?.removeEventListener('change', onChange); root?.removeEventListener('click', onClick); root?.removeEventListener('submit', onSubmit); root?.removeEventListener('toggle', onToggle, true); };
   return {
     mount(el, state) {
-      if (root !== el) { unbind(); root = el; root.addEventListener('input', onInput); root.addEventListener('change', onChange); root.addEventListener('click', onClick); root.addEventListener('submit', onSubmit); window.addEventListener('beforeunload', beforeUnload); }
+      if (root !== el) { unbind(); root = el; root.addEventListener('input', onInput); root.addEventListener('change', onChange); root.addEventListener('click', onClick); root.addEventListener('submit', onSubmit); root.addEventListener('toggle', onToggle, true); window.addEventListener('beforeunload', beforeUnload); }
       emissions = state; paint(true);
     },
     update(state) { emissions = state; paint(true); },

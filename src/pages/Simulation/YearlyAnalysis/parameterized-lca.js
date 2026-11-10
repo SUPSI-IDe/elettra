@@ -452,7 +452,7 @@ export function renderParameterizedLca(element, raw, t) {
         <div class="ya-more-information__content ya-lca-details__content"><div class="ya-lca-table-wrap"><table class="ya-table table-standard"><thead><tr><th>${label("indicator")}</th><th>ELETTRA</th><th>Diesel</th></tr></thead><tbody>${perKm}</tbody></table></div></div>
       </details>
     </section>
-    <details class="ya-more-information ya-lca-disclosure"><summary class="ya-more-information__toggle">${label("assumptions")}</summary><div class="ya-more-information__content ya-lca-disclosure__body"><p>${label("inventory_note")}</p>
+    <details class="ya-more-information ya-surface-disclosure ya-lca-disclosure result-card"><summary class="ya-more-information__toggle">${label("assumptions")}</summary><div class="ya-more-information__content ya-lca-disclosure__body"><p>${label("inventory_note")}</p>
     <div class="ya-lca-table-wrap"><table class="ya-table table-standard"><thead><tr><th>${label("vehicle")}</th><th>${label("annual_km")}</th><th>${label("battery")} [kWh]</th><th>${label("passengers")}</th><th>${label("lifetimes")}</th></tr></thead><tbody>${vehicleRows}</tbody></table></div>
     <section class="ya-lca-disclosure__section" data-role="lca-provenance"><h4>${label("provenance")}</h4><dl class="ya-lca-metadata">${metadataRows}</dl></section>
     <section class="ya-lca-disclosure__section" data-role="lca-limitations"><h4>${label("limitations")}</h4>${limitations}</section>

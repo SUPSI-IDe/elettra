@@ -376,6 +376,11 @@ test("result pages own their action classes and align actions consistently", asy
     ".yearly-analysis-results"
   );
   await expect(page.locator(".yearly-analysis-results .ya-results-actions")).toHaveCount(1);
+  await expect(page.locator('.yearly-analysis-results .ya-results-actions > [data-role="ya-general-download-actions"]')).toHaveCount(1);
+  expect(await page.locator('.yearly-analysis-results .ya-results-actions').evaluate(element => [...element.children].map(child => child.dataset.role ?? child.dataset.action))).toEqual([
+    'ya-general-download-actions',
+    'back',
+  ]);
   await expect(
     page.locator(".yearly-analysis-results .ya-results-actions").evaluate(
       (element) => getComputedStyle(element).justifyContent

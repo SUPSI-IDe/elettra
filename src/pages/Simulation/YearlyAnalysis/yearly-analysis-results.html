@@ -38,19 +38,6 @@
   <main class="ya-results-main">
     <p class="form-feedback" data-role="feedback" hidden></p>
 
-    <div
-      class="ya-overview-actions ya-general-download-actions"
-      data-role="ya-general-download-actions"
-      hidden
-    >
-      <button type="button" class="ya-general-download ya-btn ya-btn--download" data-action="download-json">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M8 1v9m0 0L5 7m3 3 3-3M2 12v1.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span data-i18n="yearly_analysis.download_json">Download all results (JSON)</span>
-      </button>
-    </div>
-
     <div class="ya-result-scope-content" id="yearly-result-scope-content" role="tabpanel" tabindex="0">
       <div
         class="ya-tabs ya-result-view-tabs"
@@ -107,7 +94,6 @@
         role="tabpanel"
         aria-labelledby="yearly-result-view-tab-efficiency"
       >
-        <h2 class="ya-scope-section-title" data-i18n="yearly_analysis.annual_efficiency">Annual efficiency</h2>
         <!-- D3 chart slots (appended to, not via innerHTML) -->
         <div class="ya-eff-charts-grid">
           <div class="ya-res-section ya-eff-chart-section result-card">
@@ -128,7 +114,7 @@
           </div>
         </div>
 
-        <details class="ya-more-information">
+        <details class="ya-more-information ya-surface-disclosure result-card">
           <summary class="ya-more-information__toggle" data-i18n="yearly_analysis.view_detailed_results">
             View detailed yearly results
           </summary>
@@ -311,7 +297,7 @@
           <div data-role="ya-env-kpis"></div>
 
           <!-- Supporting emissions detail -->
-          <details class="ya-more-information">
+          <details class="ya-more-information ya-surface-disclosure result-card">
             <summary class="ya-more-information__toggle" data-i18n="simulation.efficiency_more_information">More information</summary>
             <div class="ya-more-information__content">
               <div data-role="ya-env-header"></div>
@@ -330,6 +316,18 @@
     </div>
 
     <div class="ya-results-actions">
+      <div
+        class="ya-general-download-actions"
+        data-role="ya-general-download-actions"
+        hidden
+      >
+        <button type="button" class="ya-general-download ya-btn ya-btn--download" data-action="download-json">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 1v9m0 0L5 7m3 3 3-3M2 12v1.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span data-i18n="yearly_analysis.download_json">Download all results (JSON)</span>
+        </button>
+      </div>
       <button type="button" class="ya-btn-close" data-action="back" data-i18n="common.close">Close</button>
     </div>
 

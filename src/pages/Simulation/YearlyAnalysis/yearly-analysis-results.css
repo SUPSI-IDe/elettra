@@ -219,7 +219,7 @@
 }
 
 .ya-general-download-actions {
-  margin-bottom: var(--layout-gap);
+  margin: 0;
 }
 
 .ya-deployed-configuration__grid {
@@ -354,48 +354,60 @@
 
 .ya-shift-yearly-summary {
   min-width: 0;
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid color-mix(in srgb, var(--brand-teal) 18%, var(--border-light));
-  border-radius: var(--radius-md);
-  background: var(--brand-teal-bg);
+  padding: .65rem .85rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
+  font-size: .8rem;
+  line-height: 1.5;
+}
+
+.ya-shift-yearly-summary__row,
+.ya-shift-yearly-summary__metrics,
+.ya-shift-yearly-summary__metric {
+  display: flex;
+  align-items: baseline;
+}
+
+.ya-shift-yearly-summary__row {
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
 }
 
 .ya-shift-yearly-summary__title {
-  margin: 0 0 var(--space-2xs);
+  flex: 0 0 auto;
+  margin: 0;
   color: var(--text-main);
-  font-size: var(--font-size-xs);
-  font-weight: 650;
+  font: inherit;
+  font-weight: 600;
 }
 
-.ya-shift-yearly-summary .ya-compact-metrics {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.ya-shift-yearly-summary .ya-compact-metrics__table {
+.ya-shift-yearly-summary__metrics {
+  flex: 1 1 36rem;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
   min-width: 0;
-  table-layout: fixed;
+  margin: 0;
 }
 
-.ya-shift-yearly-summary .ya-compact-metrics__table td {
-  width: 33.333%;
-  padding: 0.25rem var(--space-sm);
-  border-bottom: 0;
-  font-size: var(--font-size-xs);
-  line-height: 1.2;
+.ya-shift-yearly-summary__metric {
+  flex: 1 1 13rem;
+  gap: var(--space-2xs);
+  min-width: 0;
 }
 
-.ya-shift-yearly-summary .ya-compact-metrics__table td {
-  color: var(--text-secondary);
-  font-weight: 400;
-  text-align: left;
-  white-space: normal;
+.ya-shift-yearly-summary__metric dt::after { content: ":"; }
+
+.ya-shift-yearly-summary__metric dd {
+  margin: 0;
+  white-space: nowrap;
 }
 
-.ya-shift-yearly-summary .ya-compact-metrics__table td strong {
+.ya-shift-yearly-summary__metric strong {
   color: var(--text-main);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .ya-compact-metrics {
@@ -441,7 +453,9 @@
 .ya-results-actions {
   margin-top: var(--space-xl);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: var(--space-sm);
 }
 
 .ya-btn-close {
@@ -1258,6 +1272,21 @@
   font-size: var(--font-size-xs);
 }
 
+.ya-surface-disclosure > .ya-more-information__toggle {
+  margin: 0 var(--space-lg);
+  padding: var(--space-md) 0;
+}
+
+.ya-surface-disclosure:not([open]) > .ya-more-information__toggle {
+  border-bottom: 0;
+}
+
+.ya-surface-disclosure > .ya-more-information__content {
+  margin-top: 0;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface);
+}
+
 .ya-lca-metadata {
   display: grid;
   grid-template-columns: minmax(11rem, max-content) minmax(0, 1fr);
@@ -1703,8 +1732,13 @@
     max-width: 70vw;
   }
 
-  .ya-shift-yearly-summary .ya-compact-metrics__table {
-    min-width: 34rem;
+  .ya-shift-yearly-summary__metrics {
+    flex-basis: 100%;
+    gap: var(--space-2xs) var(--space-md);
+  }
+
+  .ya-shift-yearly-summary__metric {
+    flex-basis: min(100%, 12rem);
   }
 
   .ya-scope-level__header {

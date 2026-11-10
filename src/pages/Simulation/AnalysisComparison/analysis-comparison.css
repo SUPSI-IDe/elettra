@@ -3,6 +3,8 @@
 .ac-main {
   padding: var(--layout-content-padding);
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
   width: 100%;
 }
 
@@ -39,11 +41,17 @@
 .ac-selector {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2xs);
+  gap: var(--space-sm);
+  min-width: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--color-border-dim);
+  border-radius: var(--panel-radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .ac-selector-label {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -56,16 +64,15 @@
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-md);
   background-color: var(--color-surface);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
 }
 
 .ac-meta {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-2sm);
-  background: var(--bg-subtle);
-  border-radius: var(--radius-sm);
+  gap: 0;
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border-light);
   min-height: 1.5rem;
 }
 
@@ -80,10 +87,11 @@
 
 .ac-meta-row {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--space-sm);
   font-size: var(--font-size-sm);
-  padding: var(--space-2xs) 0;
+  padding: var(--space-xs) 0;
 }
 
 .ac-meta-label {
@@ -95,6 +103,7 @@
   color: var(--text-main);
   font-variant-numeric: tabular-nums;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 /* ── Difference note / warning ─────────────────────────────────── */
@@ -137,20 +146,32 @@
   margin: var(--layout-gap) 0;
 }
 
+.ac-panel {
+  min-width: 0;
+  padding: var(--space-md);
+  background: var(--color-surface);
+}
+
 .ac-kpi-grid {
-  --kpi-tile-min: 12.5rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
 }
 
 .ac-kpi-card {
-  border: 1px solid var(--color-border-dim);
-  border-radius: var(--panel-radius);
-  padding: var(--space-md);
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-right: 1px solid var(--border-light);
   background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  justify-content: center;
 }
+
+.ac-kpi-card:last-child { border-right: 0; }
 
 .ac-kpi-title {
   font-size: var(--font-size-sm);
@@ -203,6 +224,18 @@
   text-align: right;
 }
 
+.ac-table td:first-child,
+.ac-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.ac-table th:first-child { background: var(--bg-subtle); }
+.ac-table tbody tr:nth-child(odd) td:first-child { background: var(--color-surface); }
+.ac-table tbody tr:nth-child(even) td:first-child { background: var(--bg-subtle); }
+.ac-table tbody tr:hover td:first-child { background: var(--color-row-dense-hover-bg); }
+
 /* ── Export ────────────────────────────────────────────────────── */
 
 .ac-export-actions {
@@ -229,6 +262,25 @@
   margin-top: var(--layout-gap);
 }
 
+.ac-loading,
+.ac-empty {
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--color-border-dim);
+  border-radius: var(--panel-radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (width <= 1080px) {
+  .ac-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ac-kpi-card:nth-child(2) { border-right: 0; }
+  .ac-kpi-card:nth-child(-n + 2) { border-bottom: 1px solid var(--border-light); }
+}
+
 @media (width <= 700px) {
   .ac-selectors {
     grid-template-columns: 1fr;
@@ -238,4 +290,27 @@
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .ac-panel,
+  .ac-selector {
+    padding: var(--space-sm);
+  }
+
+  .ac-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ac-kpi-card,
+  .ac-kpi-card:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .ac-kpi-card:last-child { border-bottom: 0; }
+
+  .ac-export-actions {
+    flex-direction: column;
+  }
+
+  .ac-export-btn { width: 100%; }
 }

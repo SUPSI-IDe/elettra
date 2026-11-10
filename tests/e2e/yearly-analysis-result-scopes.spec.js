@@ -571,6 +571,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(resultViewTabs.nth(0)).toHaveAttribute("aria-selected", "true");
   await expect(page.locator('[data-action="download-json"]')).toBeHidden();
   await expect(page.locator('[data-panel="efficiency"]')).toBeVisible();
+  await expect(page.locator('[data-panel="efficiency"] > .ya-scope-section-title')).toHaveCount(0);
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   await expect(page.locator('[data-panel="overview"]')).toBeHidden();
@@ -601,16 +602,15 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   await expect(yearlySummary.locator(".ya-shift-yearly-summary__title")).toHaveText(
     "Yearly aggregated summary",
   );
-  await expect(yearlySummary.locator("thead")).toHaveCount(0);
-  await expect(yearlySummary.locator("tbody tr")).toHaveCount(1);
-  await expect(yearlySummary.locator("tbody th")).toHaveCount(0);
-  await expect(yearlySummary.locator("tbody td")).toHaveCount(3);
-  await expect(yearlySummary.locator("tbody td span")).toHaveText([
-    "Yearly energy:",
-    "Yearly simulated distance:",
-    "Average yearly efficiency:",
+  await expect(yearlySummary.locator("table")).toHaveCount(0);
+  await expect(yearlySummary.locator("dl")).toHaveCount(1);
+  await expect(yearlySummary.locator(".ya-shift-yearly-summary__metric")).toHaveCount(3);
+  await expect(yearlySummary.locator("dt")).toHaveText([
+    "Yearly energy",
+    "Yearly simulated distance",
+    "Average yearly efficiency",
   ]);
-  await expect(yearlySummary.locator("tbody td strong")).toHaveText([
+  await expect(yearlySummary.locator("dd strong")).toHaveText([
     /36['’,]500 kWh/,
     /21['’,]900 km/,
     "1.667 kWh/km",
@@ -624,12 +624,12 @@ test("yearly results use General and one primary tab per shift", async ({ page }
       element.querySelector('[data-role="ya-shift-yearly-summary"]'),
     ).backgroundColor,
     summaryFontSize: Number.parseFloat(getComputedStyle(
-      element.querySelector('[data-role="ya-shift-yearly-summary"] td'),
+      element.querySelector('[data-role="ya-shift-yearly-summary"] .ya-shift-yearly-summary__metric'),
     ).fontSize),
   }));
   expect(compactShiftContext.followsScopeTabs).toBe(true);
   expect(compactShiftContext.width).toBeGreaterThanOrEqual(compactShiftContext.parentWidth - 1);
-  expect(compactShiftContext.background).toBe("rgb(228, 246, 246)");
+  expect(compactShiftContext.background).toBe("rgb(255, 255, 255)");
   expect(compactShiftContext.summaryFontSize).toBeLessThanOrEqual(14);
   const shiftContentOrder = await content.evaluate((element) =>
     Array.from(element.children).map((child) =>
@@ -659,6 +659,19 @@ test("yearly results use General and one primary tab per shift", async ({ page }
     expect(card.borderStyle).toBe("solid");
     expect(card.titleSize).toBeLessThanOrEqual(16);
   });
+  const shiftMoreInformationPresentation = await page
+    .locator('[data-panel="efficiency"] > .ya-surface-disclosure')
+    .evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        background: style.backgroundColor,
+        borderStyle: style.borderStyle,
+        shadow: style.boxShadow,
+      };
+    });
+  expect(shiftMoreInformationPresentation.background).toBe("rgb(255, 255, 255)");
+  expect(shiftMoreInformationPresentation.borderStyle).toBe("solid");
+  expect(shiftMoreInformationPresentation.shadow).not.toBe("none");
   await expect(content).not.toContainText("Cold evening");
   await expect(page.locator('[data-role="ya-cost-scope-note"]')).toBeHidden();
   await expect(page.locator('[data-role="ya-emissions-scope-note"]')).toHaveCount(0);
@@ -765,6 +778,8 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   expect(emissionsPresentation.metricBackgrounds).toEqual(["rgba(0, 0, 0, 0)"]);
   expect(emissionsPresentation.hasHorizontalOverflow).toBe(false);
   const disclosureToggle = page.locator(".ya-lca-disclosure > summary");
+  await expect(page.locator(".ya-lca-disclosure")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.locator(".ya-lca-disclosure")).toHaveCSS("border-style", "solid");
   const disclosureTypography = await disclosureToggle.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
@@ -792,7 +807,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
 
   await page.getByRole("tab", { name: "Evening service" }).click();
   await expect(page.getByRole("tab", { name: "Evening service" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator('[data-role="ya-shift-yearly-summary"] tbody td strong')).toHaveText([
+  await expect(page.locator('[data-role="ya-shift-yearly-summary"] dd strong')).toHaveText([
     /18['’,]250 kWh/,
     /14['’,]600 km/,
     "1.250 kWh/km",
@@ -823,8 +838,8 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   expect(overflow.bodyScrollWidth).toBe(overflow.bodyClientWidth);
   await expect(resultViewTablist).toHaveCSS("overflow-x", "auto");
   const mobileShiftContext = await shiftLevel.boundingBox();
-  expect(mobileShiftContext.height).toBeLessThan(80);
-  await expect(yearlySummary.locator(".ya-compact-metrics")).toHaveCSS("overflow-x", "auto");
+  expect(mobileShiftContext.height).toBeLessThan(170);
+  expect(mobileShiftContext.width).toBeLessThanOrEqual(320);
   await resultViewTabs.getByText("Emissions", { exact: true }).click();
   const mobileActivityMetric = page
     .locator('[data-role="ya-lca-energy-summary"] .result-metric')
@@ -936,6 +951,47 @@ test("current fleet-dashboard analyses retain the General JSON export", async ({
 
   await page.getByRole("tab", { name: "Morning service" }).click();
   await expect(downloadButton).toBeHidden();
+  const resultViewTablist = page.locator('[data-role="ya-result-view-tabs"]');
+  const efficiencySection = page.locator('[data-panel="efficiency"]');
+  const yearlySummary = page.locator('[data-role="ya-shift-yearly-summary"]');
+  await expect(resultViewTablist).toBeHidden();
+  await expect(efficiencySection).toBeVisible();
+  await expect(efficiencySection.locator(":scope > .ya-scope-section-title")).toHaveCount(0);
+  await expect(efficiencySection.locator(":scope > .ya-surface-disclosure")).toHaveCSS(
+    "background-color",
+    "rgb(255, 255, 255)",
+  );
+  expect(await efficiencySection.getAttribute("role")).toBeNull();
+  expect(await efficiencySection.getAttribute("aria-labelledby")).toBeNull();
+  await expect(yearlySummary.locator("table")).toHaveCount(0);
+  await expect(yearlySummary.locator(".ya-shift-yearly-summary__metric")).toHaveCount(3);
+  await expect(yearlySummary.locator("dd strong")).toHaveText([
+    /36['’,]500 kWh/,
+    /21['’,]900 km/,
+    "1.667 kWh/km",
+  ]);
+  const currentShiftPresentation = await page.evaluate(() => {
+    const summary = document.querySelector('[data-role="ya-shift-yearly-summary"]');
+    const gtfs = document.querySelector('[data-role="analysis-gtfs"]');
+    const summaryStyle = getComputedStyle(summary);
+    const gtfsStyle = getComputedStyle(gtfs);
+    return {
+      summaryBackground: summaryStyle.backgroundColor,
+      gtfsBackground: gtfsStyle.backgroundColor,
+      summaryBorder: summaryStyle.borderColor,
+      gtfsBorder: gtfsStyle.borderColor,
+      summaryRadius: summaryStyle.borderRadius,
+      gtfsRadius: gtfsStyle.borderRadius,
+      summaryShadow: summaryStyle.boxShadow,
+      gtfsShadow: gtfsStyle.boxShadow,
+    };
+  });
+  expect(currentShiftPresentation.summaryBackground).toBe("rgb(255, 255, 255)");
+  expect(currentShiftPresentation.summaryBackground).toBe(currentShiftPresentation.gtfsBackground);
+  expect(currentShiftPresentation.summaryBorder).toBe(currentShiftPresentation.gtfsBorder);
+  expect(currentShiftPresentation.summaryRadius).toBe(currentShiftPresentation.gtfsRadius);
+  expect(currentShiftPresentation.summaryShadow).toBe(currentShiftPresentation.gtfsShadow);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole("tab", { name: "General" }).click();
   await expect(downloadButton).toBeVisible();
 });
@@ -1449,12 +1505,12 @@ test("historical multi-shift tabs remain visible when one shift is incomplete", 
   await eveningTab.click();
   const shiftReference = page.locator('[data-role="ya-shift-reference"]');
   await expect(shiftReference).not.toContainText("Failed");
-  await expect(shiftReference.locator("tbody td strong")).toHaveText(["0 kWh", "0 km", "—"]);
+  await expect(shiftReference.locator("dd strong")).toHaveText(["0 kWh", "0 km", "—"]);
   await expect(page.locator('[data-action="download-json"]')).toBeHidden();
 
   await page.getByRole("tab", { name: "Morning service" }).click();
   await expect(shiftReference).not.toContainText("Complete");
-  await expect(shiftReference.locator("tbody td strong")).toHaveText([
+  await expect(shiftReference.locator("dd strong")).toHaveText([
     /36['’,]500 kWh/,
     /21['’,]900 km/,
     "1.667 kWh/km",

@@ -358,6 +358,22 @@ test("the annual comparison UI stays on General and exports that scope", async (
   await expect(page.locator('[data-role="panel-overview"]')).toContainText("700.0 kWh");
   await expect(page.locator('[data-role="compatibility"]')).toContainText("Compatible");
 
+  const layout = await page.evaluate(() => {
+    const selectors = [...document.querySelectorAll(".ac-selector")];
+    const compatibility = document.querySelector(".ac-compat");
+    const executive = document.querySelector(".ac-executive");
+    const surface = (element) => element && getComputedStyle(element).backgroundColor;
+    return {
+      pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      selectorSurfaces: selectors.map(surface),
+      compatibilitySurface: surface(compatibility),
+      executiveSurface: surface(executive),
+    };
+  });
+  expect(layout.pageOverflows).toBe(false);
+  expect(new Set(layout.selectorSurfaces)).toEqual(new Set([layout.compatibilitySurface]));
+  expect(layout.executiveSurface).toBe(layout.compatibilitySurface);
+
   await page.getByRole("tab", { name: "Efficiency" }).click();
   const efficiencyPanel = page.locator('[data-role="panel-efficiency"]');
   await expect(efficiencyPanel).toContainText(/54['’]750 kWh/);
