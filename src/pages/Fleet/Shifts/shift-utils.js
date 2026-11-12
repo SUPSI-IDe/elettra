@@ -11,6 +11,36 @@ export const firstAvailable = (...values) => {
   return "";
 };
 
+export const mergeStopSequence = (currentOrder = [], sequence = []) => {
+  const order = [...currentOrder];
+  if (!order.length) return [...new Set(sequence.filter(Boolean))];
+
+  sequence.forEach((candidate, sequenceIndex) => {
+    if (!candidate || order.includes(candidate)) return;
+
+    const previous = [...sequence.slice(0, sequenceIndex)]
+      .reverse()
+      .find((name) => order.includes(name));
+    const next = sequence
+      .slice(sequenceIndex + 1)
+      .find((name) => order.includes(name));
+
+    if (previous && next) {
+      const previousIndex = order.indexOf(previous);
+      const nextIndex = order.indexOf(next);
+      order.splice(previousIndex < nextIndex ? nextIndex : previousIndex, 0, candidate);
+    } else if (previous) {
+      order.splice(order.indexOf(previous) + 1, 0, candidate);
+    } else if (next) {
+      order.splice(order.indexOf(next), 0, candidate);
+    } else {
+      order.push(candidate);
+    }
+  });
+
+  return order;
+};
+
 export const normalizeTime = (value) => {
   const raw = firstAvailable(value);
   if (!raw) {

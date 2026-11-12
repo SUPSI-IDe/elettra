@@ -2,7 +2,12 @@ import * as d3 from "d3";
 
 import { toText } from "../../../ui-helpers";
 import { t } from "../../../i18n";
-import { text, parseTimeToMinutes, formatMinutes } from "./shift-utils";
+import {
+  text,
+  parseTimeToMinutes,
+  formatMinutes,
+  mergeStopSequence,
+} from "./shift-utils";
 
 const ensurePlaceholder = (container, message) => {
   if (!container) {
@@ -48,6 +53,30 @@ const buildTickMinutes = (d3, start, end, interval) => {
   return [...new Set(ticks)];
 };
 
+const tripTimelinePoints = (trip = {}) => {
+  const stopTimes = Array.isArray(trip?.stop_times) ? trip.stop_times : [];
+  if (stopTimes.length) {
+    return stopTimes
+      .map((stopTime) => ({
+        time: parseTimeToMinutes(
+          stopTime?.departure_time || stopTime?.arrival_time
+        ),
+        stop: text(stopTime?.stop_name || stopTime?.stop?.name).trim(),
+      }))
+      .filter((point) => point.stop && Number.isFinite(point.time));
+  }
+  return [
+    {
+      time: parseTimeToMinutes(trip?.departure_time),
+      stop: text(trip?.start_stop_name).trim(),
+    },
+    {
+      time: parseTimeToMinutes(trip?.arrival_time),
+      stop: text(trip?.end_stop_name).trim(),
+    },
+  ].filter((point) => point.stop && Number.isFinite(point.time));
+};
+
 export const renderTimeline = async (container, trips = [], options = {}) => {
   if (!container) {
     return;
@@ -59,47 +88,64 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
   }
 
   const showAllStops = options.showAllStops === true;
+  const depotTrips = Array.isArray(options.depotTrips)
+    ? options.depotTrips
+    : [];
 
-  // Collect stops for the timeline
-  const stopsSet = new Map();
-  const addStop = (label) => {
-    const normalized = text(label).trim();
-    if (!normalized || stopsSet.has(normalized)) {
-      return;
-    }
-    stopsSet.set(normalized, stopsSet.size);
-  };
-
-  // Add start depot
-  addStop(options.startDepotName);
-  
-  // Add stops for each trip
+  let serviceStops = [];
   trips.forEach((trip = {}) => {
     const stopTimes = trip.stop_times || [];
+    let sequence = [];
     if (stopTimes.length > 0) {
       if (showAllStops) {
-        // Add ALL stops for each trip
-        stopTimes.forEach((stopTime) => {
-          addStop(stopTime?.stop_name || stopTime?.stop?.name);
-        });
+        sequence = stopTimes.map(
+          (stopTime) => stopTime?.stop_name || stopTime?.stop?.name
+        );
       } else {
-        // Only add start and end stops (simplified view)
         const firstStop = stopTimes[0];
-        addStop(firstStop?.stop_name || firstStop?.stop?.name);
         const lastStop = stopTimes[stopTimes.length - 1];
-        addStop(lastStop?.stop_name || lastStop?.stop?.name);
+        sequence = [
+          firstStop?.stop_name || firstStop?.stop?.name,
+          lastStop?.stop_name || lastStop?.stop?.name,
+        ];
       }
     } else {
-      // Fallback for trips without stop_times
-      addStop(trip?.start_stop_name);
-      addStop(trip?.end_stop_name);
+      sequence = [trip?.start_stop_name, trip?.end_stop_name];
     }
+    serviceStops = mergeStopSequence(
+      serviceStops,
+      sequence.map((stop) => text(stop).trim()).filter(Boolean)
+    );
   });
-  
-  // Add end depot
-  addStop(options.endDepotName);
 
-  const stops = Array.from(stopsSet.keys());
+  const startDepot = text(options.startDepotName).trim();
+  const endDepot = text(options.endDepotName).trim();
+  const depotStops = [];
+  depotTrips.forEach((trip) => {
+    tripTimelinePoints(trip).forEach((point) => {
+      if (
+        !serviceStops.includes(point.stop) &&
+        !depotStops.includes(point.stop)
+      ) {
+        depotStops.push(point.stop);
+      }
+    });
+  });
+  const leadingDepot = startDepot && depotStops.includes(startDepot)
+    ? startDepot
+    : "";
+  const trailingDepots = depotStops.filter((stop) => stop !== leadingDepot);
+  if (endDepot && trailingDepots.includes(endDepot)) {
+    trailingDepots.splice(trailingDepots.indexOf(endDepot), 1);
+    trailingDepots.push(endDepot);
+  }
+  const stops = [
+    ...(leadingDepot ? [leadingDepot] : []),
+    ...serviceStops,
+    ...trailingDepots,
+  ];
+  if (startDepot && !stops.includes(startDepot)) stops.unshift(startDepot);
+  if (endDepot && !stops.includes(endDepot)) stops.push(endDepot);
 
   if (!stops.length) {
     ensurePlaceholder(
@@ -344,62 +390,78 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
 
   // Draw depot connection lines (in orange)
   const depotGroup = root.append("g").attr("class", "timeline__depot-connections");
-  
+
   const startDepotName = text(options.startDepotName).trim();
   const endDepotName = text(options.endDepotName).trim();
   const shiftStartTime = parseTimeToMinutes(options.startTime);
   const shiftEndTime = parseTimeToMinutes(options.endTime);
-  
-  // Get first trip's first stop info
-  const firstTrip = trips[0];
-  const firstTripStopTimes = firstTrip?.stop_times || [];
-  let firstTripFirstStop = "";
-  let firstTripDeparture = null;
-  
-  if (firstTripStopTimes.length > 0) {
-    const firstStop = firstTripStopTimes[0];
-    firstTripFirstStop = firstStop?.stop_name || firstStop?.stop?.name || "";
-    firstTripDeparture = parseTimeToMinutes(firstStop?.departure_time || firstStop?.arrival_time);
-  } else {
-    firstTripFirstStop = firstTrip?.start_stop_name || "";
-    firstTripDeparture = parseTimeToMinutes(firstTrip?.departure_time);
-  }
-  
-  // Get last trip's last stop info
-  const lastTrip = trips[trips.length - 1];
-  const lastTripStopTimes = lastTrip?.stop_times || [];
-  let lastTripLastStop = "";
-  let lastTripArrival = null;
-  
-  if (lastTripStopTimes.length > 0) {
-    const lastStop = lastTripStopTimes[lastTripStopTimes.length - 1];
-    lastTripLastStop = lastStop?.stop_name || lastStop?.stop?.name || "";
-    lastTripArrival = parseTimeToMinutes(lastStop?.arrival_time || lastStop?.departure_time);
-  } else {
-    lastTripLastStop = lastTrip?.end_stop_name || "";
-    lastTripArrival = parseTimeToMinutes(lastTrip?.arrival_time);
-  }
-  
-  // Draw line from start depot to first trip's first stop
-  if (startDepotName && firstTripFirstStop && shiftStartTime !== null && firstTripDeparture !== null) {
+
+  const depotSeries = depotTrips
+    .map((trip) => ({ trip, points: tripTimelinePoints(trip) }))
+    .filter((entry) => entry.points.length >= 2)
+    .sort((left, right) => left.points[0].time - right.points[0].time);
+
+  if (depotSeries.length) {
     depotGroup
-      .append("path")
+      .selectAll("path.timeline__depot-line")
+      .data(depotSeries)
+      .join("path")
       .attr("class", "timeline__depot-line")
-      .attr("d", line([
-        { time: shiftStartTime, stop: startDepotName },
-        { time: firstTripDeparture, stop: firstTripFirstStop },
-      ]));
-  }
-  
-  // Draw line from last trip's last stop to end depot
-  if (endDepotName && lastTripLastStop && lastTripArrival !== null && shiftEndTime !== null) {
+      .attr("d", (entry) => line(entry.points));
+
+    const depotStopSet = new Set(depotStops);
+    const dwellSegments = depotSeries.flatMap((entry, index) => {
+      const arrival = entry.points[entry.points.length - 1];
+      if (!depotStopSet.has(arrival.stop)) return [];
+      const nextDeparture = depotSeries
+        .slice(index + 1)
+        .map((candidate) => candidate.points[0])
+        .find(
+          (departure) =>
+            departure.stop === arrival.stop && departure.time >= arrival.time
+        );
+      return nextDeparture
+        ? [[arrival, nextDeparture]]
+        : [];
+    });
     depotGroup
-      .append("path")
-      .attr("class", "timeline__depot-line")
-      .attr("d", line([
-        { time: lastTripArrival, stop: lastTripLastStop },
-        { time: shiftEndTime, stop: endDepotName },
-      ]));
+      .selectAll("path.timeline__depot-dwell")
+      .data(dwellSegments)
+      .join("path")
+      .attr("class", "timeline__depot-dwell")
+      .attr("d", (segment) => line(segment));
+  } else {
+    const firstTripPoints = tripTimelinePoints(trips[0]);
+    const lastTripPoints = tripTimelinePoints(trips[trips.length - 1]);
+    const firstTripPoint = firstTripPoints[0];
+    const lastTripPoint = lastTripPoints[lastTripPoints.length - 1];
+
+    if (
+      startDepotName &&
+      firstTripPoint &&
+      Number.isFinite(shiftStartTime)
+    ) {
+      depotGroup
+        .append("path")
+        .attr("class", "timeline__depot-line")
+        .attr("d", line([
+          { time: shiftStartTime, stop: startDepotName },
+          firstTripPoint,
+        ]));
+    }
+    if (
+      endDepotName &&
+      lastTripPoint &&
+      Number.isFinite(shiftEndTime)
+    ) {
+      depotGroup
+        .append("path")
+        .attr("class", "timeline__depot-line")
+        .attr("d", line([
+          lastTripPoint,
+          { time: shiftEndTime, stop: endDepotName },
+        ]));
+    }
   }
 
   // Draw points for stops
@@ -499,34 +561,27 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
 
   // Draw depot points
   const depotPoints = root.append("g").attr("class", "timeline__depot-points");
-  
-  // Start depot point
-  if (startDepotName && shiftStartTime !== null) {
-    depotPoints
-      .append("circle")
-      .attr("class", "timeline__point timeline__point--depot")
-      .attr("cx", xScale(shiftStartTime))
-      .attr("cy", yScale(startDepotName))
-      .attr("r", 6)
-      .datum({ time: shiftStartTime, stop: startDepotName })
-      .on("mouseover", showTooltip)
-      .on("mousemove", showTooltip)
-      .on("mouseout", hideTooltip);
-  }
-  
-  // End depot point
-  if (endDepotName && shiftEndTime !== null) {
-    depotPoints
-      .append("circle")
-      .attr("class", "timeline__point timeline__point--depot")
-      .attr("cx", xScale(shiftEndTime))
-      .attr("cy", yScale(endDepotName))
-      .attr("r", 6)
-      .datum({ time: shiftEndTime, stop: endDepotName })
-      .on("mouseover", showTooltip)
-      .on("mousemove", showTooltip)
-      .on("mouseout", hideTooltip);
-  }
+
+  const depotPointData = depotSeries.length
+    ? depotSeries.flatMap((entry) => [
+        entry.points[0],
+        entry.points[entry.points.length - 1],
+      ])
+    : [
+        { time: shiftStartTime, stop: startDepotName },
+        { time: shiftEndTime, stop: endDepotName },
+      ].filter((point) => point.stop && Number.isFinite(point.time));
+  depotPoints
+    .selectAll("circle")
+    .data(depotPointData)
+    .join("circle")
+    .attr("class", "timeline__point timeline__point--depot")
+    .attr("cx", (point) => xScale(point.time))
+    .attr("cy", (point) => yScale(point.stop))
+    .attr("r", 6)
+    .on("mouseover", showTooltip)
+    .on("mousemove", showTooltip)
+    .on("mouseout", hideTooltip);
 
   container.append(svg.node());
 };

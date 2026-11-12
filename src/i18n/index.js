@@ -1,4 +1,4 @@
-import { translations } from "./translations";
+import { translations } from "./translations.js";
 
 const STORAGE_KEY = "elettra_lang";
 const DEFAULT_LANG = "en";

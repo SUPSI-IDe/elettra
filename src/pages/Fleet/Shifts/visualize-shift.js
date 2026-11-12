@@ -3,6 +3,7 @@ import "./shift-visualization.css";
 import "./shifts.css";
 import {
   fetchShiftById,
+  fetchShiftInfo,
   fetchStopsByTripId,
   fetchDepotById,
   fetchBusById,
@@ -26,10 +27,18 @@ import {
 } from "./shift-utils";
 import { renderTimeline } from "./shift-timeline";
 import { createShiftTripMap } from "./shift-trip-map";
+import { renderSpaceTimeDiagram } from "./shift-space-time";
 import { t } from "../../../i18n";
 
 const isDepotTrip = (trip = {}) => {
+  const tripIdentifier = firstAvailable(
+    trip?.trip_id,
+    trip?.tripId,
+    trip?.trip?.trip_id,
+    trip?.trip?.tripId
+  ).toLowerCase();
   if (
+    tripIdentifier.startsWith("depot-") ||
     trip?.status === "depot" ||
     trip?.trip?.status === "depot" ||
     trip?.trip_type === "auxiliary" ||
@@ -78,6 +87,9 @@ export const initializeVisualizeShift = async (
     });
   }
 
+  const optionTrips = Array.isArray(options.trips)
+    ? options.trips.map((trip) => normalizeTrip(trip)).filter(Boolean)
+    : [];
   const state = {
     name: text(options.name).trim(),
     busModelName: text(
@@ -92,10 +104,8 @@ export const initializeVisualizeShift = async (
       Array.isArray(options.gtfsDatasets) ? options.gtfsDatasets
       : Array.isArray(options.gtfs_datasets) ? options.gtfs_datasets
       : null,
-    trips:
-      Array.isArray(options.trips) ?
-        options.trips.map((trip) => normalizeTrip(trip)).filter(Boolean).filter((trip) => !isDepotTrip(trip))
-      : [],
+    trips: optionTrips.filter((trip) => !isDepotTrip(trip)),
+    depotTrips: optionTrips.filter((trip) => isDepotTrip(trip)),
   };
 
   const setFieldText = (field, value, fallback = "—") => {
@@ -111,8 +121,9 @@ export const initializeVisualizeShift = async (
   const timelineContainer = section.querySelector('[data-role="timeline"]');
   const timelineLegend = section.querySelector('[data-role="timeline-legend"]');
   const tripMapContainer = section.querySelector('[data-role="trip-map"]');
+  const spaceTimeContainer = section.querySelector('[data-role="space-time"]');
   const viewButtons = Array.from(section.querySelectorAll('[data-view]'));
-  let viewMode = "timeline";
+  let viewMode = "space-time";
   const tripMap = createShiftTripMap({
     container: tripMapContainer,
     trips: state.trips,
@@ -157,6 +168,7 @@ export const initializeVisualizeShift = async (
       state.endTime || (latest !== null ? formatMinutes(latest) : "");
 
     await renderTimeline(timelineContainer, state.trips, {
+      depotTrips: state.depotTrips,
       startDepotName: state.startDepotName,
       endDepotName: state.endDepotName,
       startTime: effectiveStartTime,
@@ -172,16 +184,29 @@ export const initializeVisualizeShift = async (
       tripMap?.show();
       return;
     }
+    if (viewMode === "space-time") {
+      renderSpaceTimeDiagram(spaceTimeContainer, state.trips, {
+        depotTrips: state.depotTrips,
+        startDepotName: state.startDepotName,
+        endDepotName: state.endDepotName,
+      });
+      return;
+    }
     await renderTimelineView();
   };
 
   const setViewMode = (nextMode) => {
-    viewMode = nextMode === "map" ? "map" : "timeline";
+    viewMode = ["timeline", "map", "space-time"].includes(nextMode)
+      ? nextMode
+      : "space-time";
+    const showTimeline = viewMode === "timeline";
     const showMap = viewMode === "map";
+    const showSpaceTime = viewMode === "space-time";
 
-    if (timelineContainer) timelineContainer.hidden = showMap;
-    if (timelineLegend) timelineLegend.hidden = showMap;
+    if (timelineContainer) timelineContainer.hidden = !showTimeline;
+    if (timelineLegend) timelineLegend.hidden = !showTimeline;
     if (tripMapContainer) tripMapContainer.hidden = !showMap;
+    if (spaceTimeContainer) spaceTimeContainer.hidden = !showSpaceTime;
     viewButtons.forEach((button) => {
       const isActive = button.dataset.view === viewMode;
       button.classList.toggle("is-active", isActive);
@@ -190,6 +215,12 @@ export const initializeVisualizeShift = async (
 
     if (showMap) {
       tripMap?.show();
+    } else if (showSpaceTime) {
+      renderSpaceTimeDiagram(spaceTimeContainer, state.trips, {
+        depotTrips: state.depotTrips,
+        startDepotName: state.startDepotName,
+        endDepotName: state.endDepotName,
+      });
     } else {
       renderTimelineView();
     }
@@ -207,7 +238,13 @@ export const initializeVisualizeShift = async (
   if (options.shiftId) {
     ensurePlaceholder(timelineContainer, t("shifts.loading_timeline"));
     try {
-      const shift = await fetchShiftById(options.shiftId);
+      const [shift, shiftInfo] = await Promise.all([
+        fetchShiftById(options.shiftId),
+        fetchShiftInfo(options.shiftId).catch((error) => {
+          console.warn("Unable to load detailed shift trip metadata", error);
+          return null;
+        }),
+      ]);
       if (Array.isArray(shift?.gtfs_datasets)) {
         state.gtfsDatasets = shift.gtfs_datasets;
       }
@@ -319,15 +356,41 @@ export const initializeVisualizeShift = async (
 
       // Check if trips are missing details (e.g. stop_times)
       const structure = Array.isArray(shift?.structure) ? shift.structure : [];
+      const tripInfoById = new Map(
+        (Array.isArray(shiftInfo?.trips) ? shiftInfo.trips : []).map((trip) => [
+          text(trip?.id).trim(),
+          trip,
+        ])
+      );
       const enrichedStructure = await Promise.all(
         structure.map(async (item) => {
-          const trip = item?.trip ?? {};
+          const tripDatabaseId = firstAvailable(
+            item?.trip_id,
+            item?.tripId,
+            item?.trip?.id
+          );
+          const tripInfo = tripInfoById.get(tripDatabaseId) ?? {};
+          const trip = {
+            ...tripInfo,
+            ...(item?.trip ?? {}),
+            route_id:
+              item?.trip?.route_id ??
+              tripInfo?.route_id ??
+              shiftInfo?.route?.id,
+            route_label:
+              item?.trip?.route_label ??
+              tripInfo?.route_label ??
+              shiftInfo?.route?.name,
+          };
+          if (firstAvailable(trip?.trip_id).toLowerCase().startsWith("depot-")) {
+            trip.status = "depot";
+          }
           // If trip has no stop_times or stops, try to fetch it
           if (
             (!trip.stop_times || trip.stop_times.length === 0) &&
             (!trip.stops || trip.stops.length === 0)
           ) {
-            const tripId = item.trip_id || item.tripId || trip.id;
+            const tripId = tripDatabaseId || trip.id;
             if (tripId) {
               try {
                 const stops = await fetchStopsByTripId(tripId);
@@ -335,18 +398,33 @@ export const initializeVisualizeShift = async (
                 return { ...item, trip: { ...trip, stop_times: stops } };
               } catch (e) {
                 console.warn(`Failed to fetch stops for trip ${tripId}`, e);
-                return item;
+                return { ...item, trip };
               }
             }
           }
-          return item;
+          return { ...item, trip };
         })
       );
 
-      state.trips = readShiftTripsFromStructure({
+      const loadedTrips = readShiftTripsFromStructure({
         ...shift,
         structure: enrichedStructure,
-      }).filter((trip) => !isDepotTrip(trip));
+      });
+      const firstMovement = loadedTrips[0];
+      const lastMovement = loadedTrips[loadedTrips.length - 1];
+      if (isDepotTrip(firstMovement)) {
+        state.startDepotName =
+          state.startDepotName || firstMovement.start_stop_name || "";
+        state.startTime =
+          state.startTime || normalizeTime(firstMovement.departure_time);
+      }
+      if (isDepotTrip(lastMovement)) {
+        state.endDepotName =
+          state.endDepotName || lastMovement.end_stop_name || "";
+        state.endTime = state.endTime || normalizeTime(lastMovement.arrival_time);
+      }
+      state.trips = loadedTrips.filter((trip) => !isDepotTrip(trip));
+      state.depotTrips = loadedTrips.filter((trip) => isDepotTrip(trip));
       state.dailyDistanceKm =
         extractShiftDistanceKm({
           ...shift,
@@ -388,6 +466,12 @@ export const initializeVisualizeShift = async (
     resizeTimeout = setTimeout(() => {
       if (viewMode === "timeline") {
         renderTimelineView();
+      } else if (viewMode === "space-time") {
+        renderSpaceTimeDiagram(spaceTimeContainer, state.trips, {
+          depotTrips: state.depotTrips,
+          startDepotName: state.startDepotName,
+          endDepotName: state.endDepotName,
+        });
       }
     }, 100);
   });
