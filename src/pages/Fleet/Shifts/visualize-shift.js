@@ -5,6 +5,8 @@ import {
   fetchShiftById,
   fetchShiftInfo,
   fetchStopsByTripId,
+  fetchTripsByStop,
+  fetchRouteById,
   fetchDepotById,
   fetchBusById,
   fetchBusModelById,
@@ -28,6 +30,7 @@ import {
 import { renderTimeline } from "./shift-timeline";
 import { createShiftTripMap } from "./shift-trip-map";
 import { renderSpaceTimeDiagram } from "./shift-space-time";
+import { createShiftRouteResolver } from "./shift-route-resolver";
 import { t } from "../../../i18n";
 
 const isDepotTrip = (trip = {}) => {
@@ -362,6 +365,16 @@ export const initializeVisualizeShift = async (
           trip,
         ])
       );
+      const resolveTripRoute = createShiftRouteResolver({
+        fetchTripsByStop,
+        fetchRouteById,
+        onError: (error, context) => {
+          console.warn(
+            `Unable to resolve shift route metadata (${context.type}: ${context.id})`,
+            error
+          );
+        },
+      });
       const enrichedStructure = await Promise.all(
         structure.map(async (item) => {
           const tripDatabaseId = firstAvailable(
@@ -370,17 +383,9 @@ export const initializeVisualizeShift = async (
             item?.trip?.id
           );
           const tripInfo = tripInfoById.get(tripDatabaseId) ?? {};
-          const trip = {
+          let trip = {
             ...tripInfo,
             ...(item?.trip ?? {}),
-            route_id:
-              item?.trip?.route_id ??
-              tripInfo?.route_id ??
-              shiftInfo?.route?.id,
-            route_label:
-              item?.trip?.route_label ??
-              tripInfo?.route_label ??
-              shiftInfo?.route?.name,
           };
           if (firstAvailable(trip?.trip_id).toLowerCase().startsWith("depot-")) {
             trip.status = "depot";
@@ -395,12 +400,16 @@ export const initializeVisualizeShift = async (
               try {
                 const stops = await fetchStopsByTripId(tripId);
                 // The API returns stops with arrival_time/departure_time, which matches stop_times structure
-                return { ...item, trip: { ...trip, stop_times: stops } };
+                trip = { ...trip, stop_times: stops };
               } catch (e) {
                 console.warn(`Failed to fetch stops for trip ${tripId}`, e);
-                return { ...item, trip };
               }
             }
+          }
+          if (!isDepotTrip(trip)) {
+            trip = await resolveTripRoute(trip, {
+              fallbackRoute: shiftInfo?.route,
+            });
           }
           return { ...item, trip };
         })

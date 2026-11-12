@@ -11,6 +11,7 @@ const AGENCIES_PATH = `${API_ROOT}/api/v1/agency/agencies/`;
 const GTFS_ROUTES_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-routes/`;
 const GTFS_ROUTES_BY_AGENCY_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-routes/by-agency/`;
 const GTFS_TRIPS_BY_ROUTE_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-trips/by-route/`;
+const GTFS_TRIPS_BY_STOP_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-trips/by-stop/`;
 const GTFS_STOPS_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-stops/`;
 const GTFS_STOPS_BY_TRIP_PATH = `${API_ROOT}/api/v1/gtfs/gtfs-stops/by-trip/`;
 
@@ -206,6 +207,51 @@ export const fetchTripsByRoute = async ({
   if (!response.ok) {
     const message =
       payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load trips.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
+export const fetchTripsByStop = async (stopId, { status = "gtfs" } = {}) => {
+  if (!stopId) {
+    throw new Error("Missing stopId");
+  }
+  const headers = authHeaders();
+  const params = new URLSearchParams();
+  if (status) {
+    params.set("status", status);
+  }
+  const query = params.toString();
+  const response = await fetch(
+    `${GTFS_TRIPS_BY_STOP_PATH}${encodeURIComponent(stopId)}${
+      query ? `?${query}` : ""
+    }`,
+    { method: "GET", headers }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load trips for stop.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
+export const fetchRouteById = async (routeId) => {
+  if (!routeId) {
+    throw new Error("Missing routeId");
+  }
+  const headers = authHeaders();
+  const response = await fetch(
+    `${GTFS_ROUTES_PATH}${encodeURIComponent(routeId)}`,
+    { method: "GET", headers }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ?? payload?.detail ?? "Unable to load route.";
     throw new Error(message);
   }
   return payload;

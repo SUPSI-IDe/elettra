@@ -1098,6 +1098,11 @@
   content: "";
 }
 
+.shift-space-time__gap-key {
+  color: var(--color-warning-text);
+  cursor: help;
+}
+
 .shift-space-time__scroll {
   overflow-x: auto;
   border: 1px solid var(--border-light);

@@ -73,11 +73,19 @@ const normalizeDiagramTrip = (trip = {}, index = 0) => {
     trip?.route?.name,
     routeId
   );
+  const rawSequence = firstAvailable(
+    trip?.sequence_number,
+    trip?.sequenceNumber,
+    trip?.trip?.sequence_number,
+    trip?.trip?.sequenceNumber
+  );
+  const sequence = rawSequence === "" ? null : Number(rawSequence);
 
   return {
     id: firstAvailable(trip?.trip_id, trip?.id, `trip-${index + 1}`),
     routeId,
     routeLabel,
+    sequence: Number.isFinite(sequence) ? sequence : null,
     points,
   };
 };
@@ -110,13 +118,97 @@ export const buildSpaceTimeGroups = (trips = []) => {
   return Array.from(groups.values());
 };
 
+const serviceTripsBySequence = (groups = []) =>
+  groups
+    .flatMap((group) =>
+      group.trips.map((trip) => ({
+        groupKey: group.key,
+        sequence: trip.sequence,
+        startMinute: trip.points[0]?.minute,
+        endMinute: trip.points[trip.points.length - 1]?.minute,
+      }))
+    )
+    .sort((left, right) => {
+      if (Number.isFinite(left.sequence) && Number.isFinite(right.sequence)) {
+        return left.sequence - right.sequence;
+      }
+      return left.startMinute - right.startMinute;
+    });
+
+export const assignDepotTripsToSpaceTimeGroups = (
+  groups = [],
+  depotTrips = [],
+  { startDepotName = "", endDepotName = "" } = {}
+) => {
+  const assignments = new Map(groups.map((group) => [group.key, []]));
+  if (!groups.length) return assignments;
+
+  const serviceTrips = serviceTripsBySequence(groups);
+  const depotNames = new Set(
+    [startDepotName, endDepotName].map((name) => text(name).trim()).filter(Boolean)
+  );
+
+  (Array.isArray(depotTrips) ? depotTrips : []).forEach((sourceTrip) => {
+    const trip = normalizeDiagramTrip(sourceTrip);
+    if (trip.points.length < 2) return;
+
+    const firstPoint = trip.points[0];
+    const lastPoint = trip.points[trip.points.length - 1];
+    const hasSequence = Number.isFinite(trip.sequence);
+    const previous = [...serviceTrips].reverse().find((serviceTrip) =>
+      hasSequence && Number.isFinite(serviceTrip.sequence)
+        ? serviceTrip.sequence < trip.sequence
+        : serviceTrip.endMinute <= firstPoint.minute
+    );
+    const next = serviceTrips.find((serviceTrip) =>
+      hasSequence && Number.isFinite(serviceTrip.sequence)
+        ? serviceTrip.sequence > trip.sequence
+        : serviceTrip.startMinute >= lastPoint.minute
+    );
+    const startsAtDepot = depotNames.has(firstPoint.stop);
+    const endsAtDepot = depotNames.has(lastPoint.stop);
+
+    let groupKey = "";
+    if (startsAtDepot && next) {
+      groupKey = next.groupKey;
+    } else if (endsAtDepot && previous) {
+      groupKey = previous.groupKey;
+    } else if (previous?.groupKey === next?.groupKey) {
+      groupKey = previous.groupKey;
+    } else {
+      groupKey = next?.groupKey ?? previous?.groupKey ?? groups[0].key;
+    }
+
+    assignments.get(groupKey)?.push(sourceTrip);
+  });
+
+  return assignments;
+};
+
+export const partitionDepotTripsForSpaceTimeGroup = (
+  group = { stops: [] },
+  depotTrips = []
+) => {
+  const normalized = (Array.isArray(depotTrips) ? depotTrips : [])
+    .map(normalizeDiagramTrip)
+    .filter((trip) => trip.points.length >= 2)
+    .sort((left, right) => left.points[0].minute - right.points[0].minute);
+  const connected = [];
+  const disconnected = [];
+  normalized.forEach((trip) => {
+    const target = trip.points.some((point) => group.stops.includes(point.stop))
+      ? connected
+      : disconnected;
+    target.push(trip);
+  });
+  return { connected, disconnected };
+};
+
 const appendDiagram = (container, group, groupIndex, options = {}) => {
-  const depotSeries = Array.isArray(options.depotTrips)
-    ? options.depotTrips
-        .map(normalizeDiagramTrip)
-        .filter((trip) => trip.points.length >= 2)
-        .sort((left, right) => left.points[0].minute - right.points[0].minute)
-    : [];
+  const {
+    connected: depotSeries,
+    disconnected: disconnectedDepotSeries,
+  } = partitionDepotTripsForSpaceTimeGroup(group, options.depotTrips);
   const depotStops = [];
   depotSeries.forEach((trip) => {
     trip.points.forEach((point) => {
@@ -147,8 +239,11 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
   const header = document.createElement("header");
   header.className = "shift-space-time__group-header";
   const heading = document.createElement("h3");
-  heading.className = "sr-only";
-  heading.textContent = group.label || t("shifts.space_time_all_routes");
+  const routeName = group.label || t("shifts.space_time_all_routes");
+  heading.className = options.showRouteHeading ? "" : "sr-only";
+  heading.textContent = options.showRouteHeading
+    ? t("shifts.space_time_route", { route: routeName })
+    : routeName;
   const summary = document.createElement("span");
   summary.textContent = t("shifts.space_time_summary", {
     trips: group.trips.length,
@@ -162,6 +257,21 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
     depotKey.className = "shift-space-time__depot-key";
     depotKey.textContent = t("shifts.timeline_legend_depot");
     metadata.append(depotKey);
+  }
+  if (disconnectedDepotSeries.length) {
+    const gapKey = document.createElement("span");
+    gapKey.className = "shift-space-time__gap-key";
+    gapKey.textContent = t("shifts.space_time_unconnected_transfers", {
+      count: disconnectedDepotSeries.length,
+    });
+    gapKey.title = disconnectedDepotSeries
+      .map((trip) => {
+        const firstPoint = trip.points[0];
+        const lastPoint = trip.points[trip.points.length - 1];
+        return `${firstPoint.stop} ${clockLabel(firstPoint.minute)} - ${lastPoint.stop} ${clockLabel(lastPoint.minute)}`;
+      })
+      .join("\n");
+    metadata.append(gapKey);
   }
   header.append(heading, metadata);
 
@@ -364,18 +474,16 @@ export const renderSpaceTimeDiagram = (container, trips = [], options = {}) => {
     container.append(placeholder);
     return;
   }
-  const depotAssignments = new Map(groups.map((group) => [group.key, []]));
-  (Array.isArray(options.depotTrips) ? options.depotTrips : []).forEach((trip) => {
-    const normalized = normalizeDiagramTrip(trip);
-    const matchingGroup = groups.find((group) =>
-      normalized.points.some((point) => group.stops.includes(point.stop))
-    );
-    depotAssignments.get(matchingGroup?.key ?? groups[0].key).push(trip);
-  });
+  const depotAssignments = assignDepotTripsToSpaceTimeGroups(
+    groups,
+    options.depotTrips,
+    options
+  );
   groups.forEach((group, index) =>
     appendDiagram(container, group, index, {
       ...options,
       depotTrips: depotAssignments.get(group.key),
+      showRouteHeading: groups.length > 1,
     })
   );
 };

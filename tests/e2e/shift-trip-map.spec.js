@@ -431,3 +431,107 @@ test("keeps 40104 depot transfers separate from the service stop order", async (
   expect(stopPositions["TPL Rimessa 2"]).toBeLessThan(stopPositions.Pazzallo);
   expect(stopPositions["TPL Rimessa 1"]).toBeGreaterThan(stopPositions["Lugano Centro"]);
 });
+
+test("separates a multi-line shift using each trip route", async ({ page }) => {
+  const shiftTrips = [
+    {
+      id: "trip-route-10",
+      trip_id: "gtfs-route-10",
+      start_stop_name: "Shared terminal",
+      end_stop_name: "Line 10 terminal",
+      departure_time: "06:00:00",
+      arrival_time: "06:30:00",
+      sequence_number: 1,
+    },
+    {
+      id: "trip-route-20",
+      trip_id: "gtfs-route-20",
+      start_stop_name: "Shared terminal",
+      end_stop_name: "Line 20 terminal",
+      departure_time: "06:40:00",
+      arrival_time: "07:10:00",
+      sequence_number: 2,
+    },
+  ];
+  const stopsByTrip = {
+    "trip-route-10": [
+      { id: "shared-stop", stop_name: "Shared terminal", departure_time: "06:00:00" },
+      { id: "line-10-stop", stop_name: "Line 10 terminal", arrival_time: "06:30:00" },
+    ],
+    "trip-route-20": [
+      { id: "shared-stop", stop_name: "Shared terminal", departure_time: "06:40:00" },
+      { id: "line-20-stop", stop_name: "Line 20 terminal", arrival_time: "07:10:00" },
+    ],
+  };
+  let tripsByStopCalls = 0;
+
+  await page.route("**/api/v1/user/shifts/40803**", (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname.endsWith("/40803/info")) {
+      return route.fulfill({
+        json: {
+          id: "40803",
+          name: "40803",
+          route: { id: "route-10", name: "10" },
+          trips: shiftTrips,
+          gtfs_datasets: [],
+        },
+      });
+    }
+    return route.fulfill({
+      json: {
+        id: "40803",
+        name: "40803",
+        gtfs_datasets: [],
+        structure: shiftTrips.map((trip) => ({
+          trip_id: trip.id,
+          sequence_number: trip.sequence_number,
+        })),
+      },
+    });
+  });
+  await page.route("**/api/v1/gtfs/gtfs-stops/by-trip/**", (route) => {
+    const tripId = new URL(route.request().url()).pathname.split("/").pop();
+    return route.fulfill({ json: stopsByTrip[tripId] ?? [] });
+  });
+  await page.route("**/api/v1/gtfs/gtfs-trips/by-stop/**", (route) => {
+    tripsByStopCalls += 1;
+    return route.fulfill({
+      json: [
+        { id: "trip-route-10", trip_id: "gtfs-route-10", route_id: "route-10" },
+        { id: "trip-route-20", trip_id: "gtfs-route-20", route_id: "route-20" },
+      ],
+    });
+  });
+  await page.route("**/api/v1/gtfs/gtfs-routes/**", (route) => {
+    const routeId = new URL(route.request().url()).pathname.split("/").pop();
+    return route.fulfill({
+      json: {
+        id: routeId,
+        route_short_name: routeId === "route-10" ? "10" : "20",
+      },
+    });
+  });
+
+  await page.evaluate(() => window.cleanupShiftMapTest?.());
+  await page.evaluate(async (html) => {
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    const section = parsed.querySelector(".visualize-shift");
+    document.querySelector(".layout-article").replaceChildren(section);
+    const { initializeVisualizeShift } = await import(
+      "/elettra/src/pages/Fleet/Shifts/visualize-shift.js"
+    );
+    window.cleanupShiftMapTest = await initializeVisualizeShift(document, {
+      shiftId: "40803",
+    });
+  }, visualizeShiftHtml);
+
+  const groups = page.locator(".shift-space-time__group");
+  await expect(groups).toHaveCount(2);
+  await expect(groups.locator("h3")).toHaveText(["Line 10", "Line 20"]);
+  await expect(groups.nth(0).locator(".shift-space-time__group-metadata"))
+    .toContainText(/1 trips? · 2 stops/);
+  await expect(groups.nth(1).locator(".shift-space-time__group-metadata"))
+    .toContainText(/1 trips? · 2 stops/);
+  expect(tripsByStopCalls).toBe(1);
+});
