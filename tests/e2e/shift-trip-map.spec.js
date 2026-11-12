@@ -236,6 +236,19 @@ test("returns to the timeline without losing the selected trip", async ({ page }
 
   await expect(page.locator('[data-role="timeline"]')).toBeVisible();
   await expect(page.locator('[data-role="timeline-legend"]')).toBeVisible();
+  const timelineMetrics = await page.locator('[data-role="timeline"]').evaluate(
+    (element) => ({
+      viewportWidth: document.documentElement.clientWidth,
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      chartWidth:
+        element.querySelector(".timeline__chart")?.getBoundingClientRect().width ?? 0,
+    })
+  );
+  if (timelineMetrics.viewportWidth <= 600) {
+    expect(timelineMetrics.scrollWidth).toBeGreaterThan(timelineMetrics.clientWidth);
+    expect(timelineMetrics.chartWidth).toBeGreaterThanOrEqual(700);
+  }
 
   await page.getByRole("button", { name: "Map", exact: true }).click();
   await expect(page.locator('[data-role="trip-map-counter"]')).toHaveText(

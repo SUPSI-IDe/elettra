@@ -346,7 +346,15 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
   const rawEnd = Math.max(...allMinutes);
   const axisStart = Math.floor(rawStart / 30) * 30;
   const axisEnd = Math.max(axisStart + 60, Math.ceil(rawEnd / 30) * 30);
-  const margin = { top: 54, right: 36, bottom: 48, left: 190 };
+  const longestStopLength = diagramStops.reduce(
+    (length, stop) => Math.max(length, text(stop).length),
+    0
+  );
+  const stopLabelMargin = Math.min(
+    320,
+    Math.max(190, Math.ceil(longestStopLength * 7.2 + 28))
+  );
+  const margin = { top: 54, right: 36, bottom: 48, left: stopLabelMargin };
   const innerWidth = Math.max(720, (axisEnd - axisStart) * 2.2);
   const innerHeight = Math.max(280, Math.max(diagramStops.length - 1, 1) * 34);
   const width = innerWidth + margin.left + margin.right;
