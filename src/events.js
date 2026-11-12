@@ -1,4 +1,5 @@
 const WINDOW_ROUTE_STATE_PREFIX = "elettra:route:";
+export const SESSION_AUTHENTICATED_EVENT = "session:authenticated";
 
 export const normalizeRouteOptions = (detail = {}) =>
     Object.fromEntries(
@@ -13,6 +14,9 @@ export const triggerPartialLoad = (slug, detail = {}) =>
             detail: { slug, ...normalizeRouteOptions(detail) },
         }),
     );
+
+export const notifySessionAuthenticated = () =>
+    document.dispatchEvent(new CustomEvent(SESSION_AUTHENTICATED_EVENT));
 
 export const openPartialInNewTab = (slug, detail = {}) => {
     if (!slug || typeof window === "undefined") {

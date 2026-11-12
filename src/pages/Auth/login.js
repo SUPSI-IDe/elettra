@@ -1,5 +1,5 @@
 import { authenticate } from "../../api/auth";
-import { triggerPartialLoad } from "../../events";
+import { notifySessionAuthenticated, triggerPartialLoad } from "../../events";
 import { setCurrentUserId, setCurrentAgencyId, clearDataCache } from "../../store";
 import { fetchCurrentUser, fetchAgencyById } from "../../api/user";
 import { markSessionActive } from "../../api/session";
@@ -158,6 +158,7 @@ const handleLogin = async (form, feedback) => {
       
       // Start from the authenticated workspace overview.
       triggerPartialLoad("home");
+      notifySessionAuthenticated();
     }, 500);
 
   } catch (error) {

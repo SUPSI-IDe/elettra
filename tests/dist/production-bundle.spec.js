@@ -3,7 +3,10 @@ import { expect, test } from "@playwright/test";
 test("the optimized bundle opens authenticated home and returns from the guide", async ({ page, context }) => {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
-  await context.addInitScript(() => localStorage.setItem("access_token", "bundle-home-test"));
+  await context.addInitScript(() => {
+    localStorage.setItem("access_token", "bundle-home-test");
+    localStorage.setItem("elettra.usageNotice.dismissed.v1", "true");
+  });
   await context.route("**/auth/me", route => route.fulfill({ json: { id: "bundle-user", email: "bundle@example.invalid" } }));
   await context.route("**/api/v1/**", route => route.fulfill({ json: { version: "test" } }));
   await page.goto("./#landing");

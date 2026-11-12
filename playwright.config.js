@@ -10,6 +10,22 @@ process.env.ELETTRA_TEST_FRONTEND_URL = stagingTargets.frontendUrl;
 process.env.ELETTRA_TEST_BACKEND_URL = stagingTargets.backendUrl;
 process.env.VITE_API_ROOT = "";
 process.env.VITE_API_PROXY_TARGET = stagingTargets.backendUrl;
+process.env.ELETTRA_E2E_VERSION = "test";
+
+const defaultStorageState = {
+  cookies: [],
+  origins: [
+    {
+      origin: "http://127.0.0.1:9010",
+      localStorage: [
+        {
+          name: "elettra.usageNotice.dismissed.v1",
+          value: "true",
+        },
+      ],
+    },
+  ],
+};
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -18,6 +34,7 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:9010/elettra/",
+    storageState: defaultStorageState,
     trace: "retain-on-failure",
   },
   projects: [

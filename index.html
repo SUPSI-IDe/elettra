@@ -126,7 +126,6 @@
         <span class="impressum">
           <span data-i18n="footer.impressum_prefix">ELETTRA |</span>
           <a class="footer-about-link" data-partial="about" data-i18n="footer.about">About</a>
-          <span class="deployment-versions" data-role="deployment-versions"></span>
         </span>
         <a
           class="privacy-policy"
@@ -138,5 +137,28 @@
         >
       </footer>
     </main>
+
+    <dialog
+      class="usage-notice"
+      data-role="usage-notice"
+      aria-labelledby="usage-notice-title"
+      aria-describedby="usage-notice-body"
+    >
+      <div class="usage-notice__content">
+        <h2 id="usage-notice-title" data-i18n="usage_notice.title">Important notice</h2>
+        <p id="usage-notice-body" data-i18n="usage_notice.body">
+          ELETTRA is a free and freely available tool for preliminary feasibility analyses of fleet electrification. Its results are indicative, must be interpreted with caution, and do not replace a professional assessment. The organizations and people who developed ELETTRA accept no responsibility for decisions or consequences arising from the use of its results.
+        </p>
+        <label class="usage-notice__preference">
+          <input type="checkbox" data-role="usage-notice-dismiss" />
+          <span data-i18n="usage_notice.dismiss">Do not show this notice again in this browser</span>
+        </label>
+        <div class="usage-notice__actions">
+          <button type="button" class="action-positive" data-action="confirm-usage-notice" data-i18n="usage_notice.confirm">
+            I understand
+          </button>
+        </div>
+      </div>
+    </dialog>
   </body>
 </html>

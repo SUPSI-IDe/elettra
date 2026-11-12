@@ -30,9 +30,29 @@ const proxy = {
 };
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const E2E_VERSION = process.env.ELETTRA_E2E_VERSION;
+const deterministicVersionPlugin = E2E_VERSION
+  ? {
+      name: "elettra-e2e-version",
+      configureServer(server) {
+        server.middlewares.use((request, response, next) => {
+          const pathname = new URL(request.url || "/", "http://localhost").pathname;
+          if (request.method !== "GET" || pathname !== "/api/v1/version") {
+            next();
+            return;
+          }
+
+          response.statusCode = 200;
+          response.setHeader("Content-Type", "application/json");
+          response.end(JSON.stringify({ version: E2E_VERSION }));
+        });
+      },
+    }
+  : null;
 
 export default defineConfig({
   base: "/elettra/",
+  plugins: [deterministicVersionPlugin].filter(Boolean),
   define: {
     __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version),
   },
