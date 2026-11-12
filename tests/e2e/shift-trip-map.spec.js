@@ -137,7 +137,6 @@ test.afterEach(async ({ page }) => {
 test("starts with space-time and switches to an ordered trip-by-trip map", async ({
   page,
 }) => {
-  const timeline = page.locator('[data-role="timeline"]');
   const mapPanel = page.locator('[data-role="trip-map"]');
   const diagram = page.locator('[data-role="space-time"]');
 
@@ -157,15 +156,15 @@ test("starts with space-time and switches to an ordered trip-by-trip map", async
     "white-space",
     "nowrap"
   );
-  await expect(timeline).toBeHidden();
   await expect(mapPanel).toBeHidden();
   await expect(diagram).toBeVisible();
-  await expect(page.locator('[data-role="timeline-legend"]')).toBeHidden();
   await expect(page.locator(".shift-view-toggle__button")).toHaveText([
     "Space-time",
     "Map",
-    "Timeline",
   ]);
+  await expect(
+    page.getByRole("button", { name: "Timeline", exact: true })
+  ).toHaveCount(0);
 
   const dataGapsHelp = page.locator("#shift-view-data-gaps-help");
   await expect(dataGapsHelp).toBeHidden();
@@ -184,7 +183,6 @@ test("starts with space-time and switches to an ordered trip-by-trip map", async
 
   await page.getByRole("button", { name: "Map", exact: true }).click();
 
-  await expect(timeline).toBeHidden();
   await expect(mapPanel).toBeVisible();
   const mapCanvasHeight = await page.locator(".shift-trip-map__canvas").evaluate(
     (element) => element.getBoundingClientRect().height
@@ -229,26 +227,11 @@ test("starts with space-time and switches to an ordered trip-by-trip map", async
   );
 });
 
-test("returns to the timeline without losing the selected trip", async ({ page }) => {
+test("returns to space-time without losing the selected trip", async ({ page }) => {
   await page.getByRole("button", { name: "Map", exact: true }).click();
   await page.getByRole("button", { name: "Next trip" }).click();
-  await page.getByRole("button", { name: "Timeline", exact: true }).click();
-
-  await expect(page.locator('[data-role="timeline"]')).toBeVisible();
-  await expect(page.locator('[data-role="timeline-legend"]')).toBeVisible();
-  const timelineMetrics = await page.locator('[data-role="timeline"]').evaluate(
-    (element) => ({
-      viewportWidth: document.documentElement.clientWidth,
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-      chartWidth:
-        element.querySelector(".timeline__chart")?.getBoundingClientRect().width ?? 0,
-    })
-  );
-  if (timelineMetrics.viewportWidth <= 600) {
-    expect(timelineMetrics.scrollWidth).toBeGreaterThan(timelineMetrics.clientWidth);
-    expect(timelineMetrics.chartWidth).toBeGreaterThanOrEqual(700);
-  }
+  await page.getByRole("button", { name: "Space-time", exact: true }).click();
+  await expect(page.locator('[data-role="space-time"]')).toBeVisible();
 
   await page.getByRole("button", { name: "Map", exact: true }).click();
   await expect(page.locator('[data-role="trip-map-counter"]')).toHaveText(
@@ -260,7 +243,6 @@ test("returns to the timeline without losing the selected trip", async ({ page }
 });
 
 test("renders a FART-style space-time diagram for all trips", async ({ page }) => {
-  const timeline = page.locator('[data-role="timeline"]');
   const mapPanel = page.locator('[data-role="trip-map"]');
   const diagram = page.locator('[data-role="space-time"]');
   const toggle = page.locator(".shift-view-toggle");
@@ -268,10 +250,8 @@ test("renders a FART-style space-time diagram for all trips", async ({ page }) =
     (element) => element.getBoundingClientRect().right
   );
 
-  await expect(timeline).toBeHidden();
   await expect(mapPanel).toBeHidden();
   await expect(diagram).toBeVisible();
-  await expect(page.locator('[data-role="timeline-legend"]')).toBeHidden();
   await expect(diagram.getByRole("heading", { name: "All routes" })).toBeAttached();
   await expect(diagram.getByRole("heading", { name: "All routes" })).toHaveClass("sr-only");
   await expect(diagram).toContainText("2 trips · 5 stops");
@@ -423,16 +403,6 @@ test("keeps 40104 depot transfers separate from the service stop order", async (
   await expect(page.locator('[data-field="end-summary"]')).toHaveText(
     "TPL Rimessa 1 (12:20)"
   );
-  await page.getByRole("button", { name: "Timeline", exact: true }).click();
-  await expect(page.locator(".timeline__depot-line")).toHaveCount(4);
-  await expect(page.locator(".timeline__depot-dwell")).toHaveCount(1);
-  await expect(page.locator(".timeline__stop-label")).toHaveText([
-    "TPL Rimessa 2",
-    "Pazzallo",
-    "Lugano Centro",
-    "TPL Rimessa 1",
-  ]);
-  await page.getByRole("button", { name: "Space-time", exact: true }).click();
   const diagram = page.locator('[data-role="space-time"]');
   await expect(diagram).toContainText("3 trips · 2 stops");
   await expect(diagram.locator('[data-role="space-time-depot-trip"]')).toHaveCount(4);
@@ -552,7 +522,7 @@ test("separates a multi-line shift using each trip route", async ({ page }) => {
   expect(tripsByStopCalls).toBe(1);
 });
 
-test("renders a shift containing only connected transfers in every view", async ({ page }) => {
+test("renders a shift containing only connected transfers in both views", async ({ page }) => {
   const transferTrips = [
     {
       id: "transfer-out",
@@ -609,14 +579,6 @@ test("renders a shift containing only connected transfers in every view", async 
   await expect(diagram.locator('[data-role="space-time-depot-trip"]')).toHaveCount(2);
   await expect(diagram.locator('[data-role="space-time-depot-dwell"]')).toHaveCount(1);
   await expect(diagram).not.toContainText("Unconnected transfers");
-
-  await page.getByRole("button", { name: "Timeline", exact: true }).click();
-  await expect(page.locator(".timeline__depot-line")).toHaveCount(2);
-  await expect(page.locator(".timeline__depot-dwell")).toHaveCount(1);
-  await expect(page.locator(".timeline__stop-label")).toHaveText([
-    "TPL Rimessa 2",
-    "Canobbio, Mercato Resega",
-  ]);
 
   await page.getByRole("button", { name: "Map", exact: true }).click();
   await expect(page.locator('[data-role="trip-map-counter"]')).toHaveText("Trip 1 of 2");

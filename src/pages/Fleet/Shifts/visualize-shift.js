@@ -27,7 +27,6 @@ import {
   formatMinutes,
   computeTimeBounds,
 } from "./shift-utils";
-import { renderTimeline } from "./shift-timeline";
 import { createShiftTripMap } from "./shift-trip-map";
 import { renderSpaceTimeDiagram } from "./shift-space-time";
 import { createShiftRouteResolver } from "./shift-route-resolver";
@@ -55,17 +54,6 @@ const isDepotTrip = (trip = {}) => {
     return true;
   }
   return false;
-};
-
-const ensurePlaceholder = (container, message) => {
-  if (!container) {
-    return;
-  }
-  container.innerHTML = "";
-  const paragraph = document.createElement("p");
-  paragraph.className = "timeline__placeholder";
-  paragraph.textContent = message ?? "";
-  container.append(paragraph);
 };
 
 export const initializeVisualizeShift = async (
@@ -122,10 +110,11 @@ export const initializeVisualizeShift = async (
   };
 
   const gtfsSummary = section.querySelector('[data-role="shift-gtfs-summary"]');
-  const timelineContainer = section.querySelector('[data-role="timeline"]');
-  const timelineLegend = section.querySelector('[data-role="timeline-legend"]');
   const tripMapContainer = section.querySelector('[data-role="trip-map"]');
   const spaceTimeContainer = section.querySelector('[data-role="space-time"]');
+  const visualizationHeader = section.querySelector(
+    ".shift-visualization__header"
+  );
   const viewButtons = Array.from(section.querySelectorAll('[data-view]'));
   let viewMode = "space-time";
   const tripMap = createShiftTripMap({
@@ -164,51 +153,27 @@ export const initializeVisualizeShift = async (
     }
   };
 
-  const renderTimelineView = async () => {
-    const { earliest, latest } = computeTimeBounds(state.trips);
-    const effectiveStartTime =
-      state.startTime || (earliest !== null ? formatMinutes(earliest) : "");
-    const effectiveEndTime =
-      state.endTime || (latest !== null ? formatMinutes(latest) : "");
-
-    await renderTimeline(timelineContainer, state.trips, {
-      depotTrips: state.depotTrips,
-      startDepotName: state.startDepotName,
-      endDepotName: state.endDepotName,
-      startTime: effectiveStartTime,
-      endTime: effectiveEndTime,
-      showAllStops: true,
-    });
-  };
-
-  const renderAll = async () => {
+  const renderAll = () => {
     renderSummary();
     tripMap?.setTrips(state.movements);
     if (viewMode === "map") {
       tripMap?.show();
       return;
     }
-    if (viewMode === "space-time") {
-      renderSpaceTimeDiagram(spaceTimeContainer, state.trips, {
-        depotTrips: state.depotTrips,
-        startDepotName: state.startDepotName,
-        endDepotName: state.endDepotName,
-      });
-      return;
-    }
-    await renderTimelineView();
+    renderSpaceTimeDiagram(spaceTimeContainer, state.trips, {
+      depotTrips: state.depotTrips,
+      startDepotName: state.startDepotName,
+      endDepotName: state.endDepotName,
+    });
   };
 
   const setViewMode = (nextMode) => {
-    viewMode = ["timeline", "map", "space-time"].includes(nextMode)
+    viewMode = ["map", "space-time"].includes(nextMode)
       ? nextMode
       : "space-time";
-    const showTimeline = viewMode === "timeline";
     const showMap = viewMode === "map";
     const showSpaceTime = viewMode === "space-time";
 
-    if (timelineContainer) timelineContainer.hidden = !showTimeline;
-    if (timelineLegend) timelineLegend.hidden = !showTimeline;
     if (tripMapContainer) tripMapContainer.hidden = !showMap;
     if (spaceTimeContainer) spaceTimeContainer.hidden = !showSpaceTime;
     viewButtons.forEach((button) => {
@@ -219,14 +184,12 @@ export const initializeVisualizeShift = async (
 
     if (showMap) {
       tripMap?.show();
-    } else if (showSpaceTime) {
+    } else {
       renderSpaceTimeDiagram(spaceTimeContainer, state.trips, {
         depotTrips: state.depotTrips,
         startDepotName: state.startDepotName,
         endDepotName: state.endDepotName,
       });
-    } else {
-      renderTimelineView();
     }
   };
 
@@ -240,7 +203,6 @@ export const initializeVisualizeShift = async (
 
 
   if (options.shiftId) {
-    ensurePlaceholder(timelineContainer, t("shifts.loading_timeline"));
     try {
       const [shift, shiftInfo] = await Promise.all([
         fetchShiftById(options.shiftId),
@@ -462,10 +424,6 @@ export const initializeVisualizeShift = async (
       }
     } catch (error) {
       console.error("Unable to load shift for visualization", error);
-      ensurePlaceholder(
-        timelineContainer,
-        error?.message ?? t("shifts.unable_to_load_timeline")
-      );
     }
   }
 
@@ -475,9 +433,7 @@ export const initializeVisualizeShift = async (
   const resizeObserver = new ResizeObserver(() => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
-      if (viewMode === "timeline") {
-        renderTimelineView();
-      } else if (viewMode === "space-time") {
+      if (viewMode === "space-time") {
         renderSpaceTimeDiagram(spaceTimeContainer, state.trips, {
           depotTrips: state.depotTrips,
           startDepotName: state.startDepotName,
@@ -486,7 +442,7 @@ export const initializeVisualizeShift = async (
       }
     }, 100);
   });
-  resizeObserver.observe(timelineContainer);
+  resizeObserver.observe(visualizationHeader ?? spaceTimeContainer);
 
   cleanupHandlers.push(() => {
     clearTimeout(resizeTimeout);

@@ -63,29 +63,6 @@
       >
         <header class="shift-visualization__header">
           <div class="shift-visualization__title-row">
-            <div
-              class="timeline-legend"
-              data-role="timeline-legend"
-              role="group"
-              aria-label="Timeline legend"
-              data-i18n-aria-label="shifts.timeline_legend_label"
-              hidden
-            >
-              <span class="timeline-legend__item">
-                <span
-                  class="timeline-legend__swatch timeline-legend__swatch--trip"
-                  aria-hidden="true"
-                ></span>
-                <span data-i18n="shifts.timeline_legend_trips">Scheduled trips</span>
-              </span>
-              <span class="timeline-legend__item">
-                <span
-                  class="timeline-legend__swatch timeline-legend__swatch--depot"
-                  aria-hidden="true"
-                ></span>
-                <span data-i18n="shifts.timeline_legend_depot">Depot connections</span>
-              </span>
-            </div>
             <div class="shift-view-controls">
               <div
                 class="shift-view-toggle"
@@ -107,13 +84,6 @@
                   aria-pressed="false"
                   data-i18n="shifts.view_map"
                 >Map</button>
-                <button
-                  type="button"
-                  class="shift-view-toggle__button"
-                  data-view="timeline"
-                  aria-pressed="false"
-                  data-i18n="shifts.view_timeline"
-                >Timeline</button>
               </div>
               <button
                 type="button"
@@ -130,18 +100,6 @@
             </div>
           </div>
         </header>
-        <div
-          class="timeline"
-          data-role="timeline"
-          role="img"
-          aria-label="Vehicle block timeline chart"
-          data-i18n-aria-label="shifts.timeline_chart_label"
-          hidden
-        >
-          <p class="timeline__placeholder" data-i18n="shifts.timeline_render_placeholder">
-            Timeline will render when data is available.
-          </p>
-        </div>
         <div
           class="shift-trip-map"
           data-role="trip-map"
@@ -224,18 +182,4 @@
       </section>
     </div>
   </main>
-  <script type="module">
-    import {
-      renderShiftVisualization,
-      generateMockData,
-    } from "./shift-visualization.js";
-
-    const data = generateMockData();
-    renderShiftVisualization('[data-role="timeline"]', data);
-
-    // Handle resize
-    window.addEventListener("resize", () => {
-      renderShiftVisualization('[data-role="timeline"]', data);
-    });
-  </script>
 </section>
