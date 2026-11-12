@@ -19,13 +19,13 @@ import {
   text,
   firstAvailable,
   normalizeTime,
-  resolveTripId,
   normalizeTrip,
   readShiftTripsFromStructure,
   formatMinutes,
   computeTimeBounds,
 } from "./shift-utils";
 import { renderTimeline } from "./shift-timeline";
+import { createShiftTripMap } from "./shift-trip-map";
 import { t } from "../../../i18n";
 
 const isDepotTrip = (trip = {}) => {
@@ -88,6 +88,10 @@ export const initializeVisualizeShift = async (
     endTime: normalizeTime(options.endTime),
     endDepotName: text(options.endDepotName ?? ""),
     dailyDistanceKm: extractShiftDistanceKm(options),
+    gtfsDatasets:
+      Array.isArray(options.gtfsDatasets) ? options.gtfsDatasets
+      : Array.isArray(options.gtfs_datasets) ? options.gtfs_datasets
+      : null,
     trips:
       Array.isArray(options.trips) ?
         options.trips.map((trip) => normalizeTrip(trip)).filter(Boolean).filter((trip) => !isDepotTrip(trip))
@@ -103,67 +107,16 @@ export const initializeVisualizeShift = async (
     node.textContent = toText(resolved);
   };
 
-  const tripsBody = section.querySelector('tbody[data-role="trips-body"]');
-  const tripsEmpty = section.querySelector('[data-role="trips-empty"]');
+  const gtfsSummary = section.querySelector('[data-role="shift-gtfs-summary"]');
   const timelineContainer = section.querySelector('[data-role="timeline"]');
-
-  const renderTripsTable = () => {
-    if (!tripsBody) {
-      return;
-    }
-
-    tripsBody.innerHTML = "";
-
-    if (!state.trips.length) {
-      const row = document.createElement("tr");
-      const cell = document.createElement("td");
-      cell.colSpan = 3;
-      cell.className = "empty";
-      cell.textContent = t("shifts.no_trips_available");
-      row.append(cell);
-      tripsBody.append(row);
-      if (tripsEmpty) {
-        tripsEmpty.hidden = false;
-      }
-      return;
-    }
-
-    if (tripsEmpty) {
-      tripsEmpty.hidden = true;
-    }
-
-    const fragment = document.createDocumentFragment();
-    state.trips.forEach((trip = {}) => {
-      const row = document.createElement("tr");
-      const tripId = resolveTripId(trip);
-      if (tripId) {
-        row.dataset.tripId = tripId;
-      }
-
-      const timeCell = document.createElement("td");
-      timeCell.className = "time";
-      const range = [trip?.departure_time, trip?.arrival_time]
-        .map((part) => normalizeTime(part))
-        .filter((part) => part && part.length > 0);
-      timeCell.textContent =
-        range.length ?
-          range.join(" – ")
-        : normalizeTime(trip?.departure_time) || "—";
-
-      const routeCell = document.createElement("td");
-      routeCell.className = "route";
-      const startName = text(trip?.start_stop_name ?? "");
-      const endName = text(trip?.end_stop_name ?? "");
-      routeCell.textContent =
-        startName && endName ?
-          `${toText(startName)} – ${toText(endName)}`
-        : startName || endName || "—";
-
-      row.append(timeCell, routeCell);
-      fragment.append(row);
-    });
-    tripsBody.append(fragment);
-  };
+  const timelineLegend = section.querySelector('[data-role="timeline-legend"]');
+  const tripMapContainer = section.querySelector('[data-role="trip-map"]');
+  const viewButtons = Array.from(section.querySelectorAll('[data-view]'));
+  let viewMode = "timeline";
+  const tripMap = createShiftTripMap({
+    container: tripMapContainer,
+    trips: state.trips,
+  });
 
   const renderSummary = () => {
     const { earliest, latest } = computeTimeBounds(state.trips);
@@ -171,25 +124,38 @@ export const initializeVisualizeShift = async (
       state.startTime || (earliest !== null ? formatMinutes(earliest) : "");
     const endTime =
       state.endTime || (latest !== null ? formatMinutes(latest) : "");
+    const formatLocationTime = (location, timeValue) => {
+      const place = text(location).trim();
+      const time = normalizeTime(timeValue);
+      if (place && time) return `${place} (${time})`;
+      return place || time || "—";
+    };
 
-    setFieldText("name", state.name || t("shifts.untitled_shift"));
+    const displayName = state.name || t("shifts.untitled_shift");
+    setFieldText("name", displayName);
+    setFieldText("heading-name", `- ${displayName}`, "");
     setFieldText("bus-name", state.busModelName);
     setFieldText("daily-distance", formatDistanceKm(state.dailyDistanceKm));
-    setFieldText("start-time", startTime);
-    setFieldText("start-depot", state.startDepotName || "—");
-    setFieldText("end-time", endTime);
-    setFieldText("end-depot", state.endDepotName || "—");
+    setFieldText(
+      "start-summary",
+      formatLocationTime(state.startDepotName, startTime)
+    );
+    setFieldText(
+      "end-summary",
+      formatLocationTime(state.endDepotName, endTime)
+    );
+    if (gtfsSummary) {
+      gtfsSummary.innerHTML = datasetSummaryHtml(state.gtfsDatasets, t);
+    }
   };
 
-  const renderAll = async () => {
+  const renderTimelineView = async () => {
     const { earliest, latest } = computeTimeBounds(state.trips);
     const effectiveStartTime =
       state.startTime || (earliest !== null ? formatMinutes(earliest) : "");
     const effectiveEndTime =
       state.endTime || (latest !== null ? formatMinutes(latest) : "");
 
-    renderSummary();
-    renderTripsTable();
     await renderTimeline(timelineContainer, state.trips, {
       startDepotName: state.startDepotName,
       endDepotName: state.endDepotName,
@@ -199,13 +165,52 @@ export const initializeVisualizeShift = async (
     });
   };
 
+  const renderAll = async () => {
+    renderSummary();
+    tripMap?.setTrips(state.trips);
+    if (viewMode === "map") {
+      tripMap?.show();
+      return;
+    }
+    await renderTimelineView();
+  };
+
+  const setViewMode = (nextMode) => {
+    viewMode = nextMode === "map" ? "map" : "timeline";
+    const showMap = viewMode === "map";
+
+    if (timelineContainer) timelineContainer.hidden = showMap;
+    if (timelineLegend) timelineLegend.hidden = showMap;
+    if (tripMapContainer) tripMapContainer.hidden = !showMap;
+    viewButtons.forEach((button) => {
+      const isActive = button.dataset.view === viewMode;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    });
+
+    if (showMap) {
+      tripMap?.show();
+    } else {
+      renderTimelineView();
+    }
+  };
+
+  viewButtons.forEach((button) => {
+    const handleViewChange = () => setViewMode(button.dataset.view);
+    button.addEventListener("click", handleViewChange);
+    cleanupHandlers.push(() => {
+      button.removeEventListener("click", handleViewChange);
+    });
+  });
+
 
   if (options.shiftId) {
     ensurePlaceholder(timelineContainer, t("shifts.loading_timeline"));
     try {
       const shift = await fetchShiftById(options.shiftId);
-      const gtfsSummary = section.querySelector('[data-role="shift-gtfs-summary"]');
-      if (gtfsSummary) gtfsSummary.innerHTML = datasetSummaryHtml(shift.gtfs_datasets, t);
+      if (Array.isArray(shift?.gtfs_datasets)) {
+        state.gtfsDatasets = shift.gtfs_datasets;
+      }
       state.name = state.name || text(shift?.name ?? "");
 
       let resolvedBusName =
@@ -381,7 +386,9 @@ export const initializeVisualizeShift = async (
   const resizeObserver = new ResizeObserver(() => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
-      renderAll();
+      if (viewMode === "timeline") {
+        renderTimelineView();
+      }
     }, 100);
   });
   resizeObserver.observe(timelineContainer);
@@ -389,6 +396,7 @@ export const initializeVisualizeShift = async (
   cleanupHandlers.push(() => {
     clearTimeout(resizeTimeout);
     resizeObserver.disconnect();
+    tripMap?.destroy();
   });
 
   return () => {

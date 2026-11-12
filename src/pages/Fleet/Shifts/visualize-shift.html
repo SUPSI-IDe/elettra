@@ -1,6 +1,9 @@
 <section class="visualize-shift" aria-labelledby="visualize-shift-heading">
   <header class="visualize-shift__header header-with-close page-header">
-    <h1 id="visualize-shift-heading" class="page-title" data-i18n="shifts.visualize_title">Visualize vehicle block</h1>
+    <h1 id="visualize-shift-heading" class="page-title visualize-shift__title">
+      <span data-i18n="shifts.visualize_title">Visualize vehicle block</span>
+      <span class="visualize-shift__title-name" data-field="heading-name"></span>
+    </h1>
     <button
       type="button"
       data-action="close"
@@ -16,99 +19,93 @@
     </button>
   </header>
   <main>
-    <div class="gtfs-analysis-panel" data-role="shift-gtfs-summary"></div>
+    <section class="shift-general-info shift-summary__card" aria-labelledby="shift-general-info-heading">
+      <header class="shift-general-info__header">
+        <h2 id="shift-general-info-heading" data-i18n="shifts.information_heading">Information</h2>
+      </header>
+      <table class="shift-general-info__table">
+        <caption class="sr-only" data-i18n="shifts.general_information_caption">
+          General vehicle block and GTFS information
+        </caption>
+        <colgroup>
+          <col class="shift-general-info__label-column" />
+          <col class="shift-general-info__value-column" />
+          <col class="shift-general-info__label-column" />
+          <col class="shift-general-info__value-column" />
+        </colgroup>
+        <tbody>
+          <tr>
+            <th scope="row" data-i18n="shifts.field_shift_name">Vehicle block name</th>
+            <td data-field="name">—</td>
+            <th scope="row" data-i18n="shifts.bus_model_label">Bus model:</th>
+            <td data-field="bus-name">—</td>
+          </tr>
+          <tr>
+            <th scope="row" data-i18n="shifts.start_heading">Start</th>
+            <td data-field="start-summary">—</td>
+            <th scope="row" data-i18n="shifts.return_heading">Return</th>
+            <td data-field="end-summary">—</td>
+          </tr>
+          <tr>
+            <th scope="row" data-i18n="shifts.daily_distance_label">Daily distance:</th>
+            <td data-field="daily-distance">—</td>
+            <th scope="row" data-i18n="gtfs.label">GTFS timetable</th>
+            <td data-role="shift-gtfs-summary"></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
     <div class="visualize-shift-grid">
-      <section class="shift-summary" aria-labelledby="shift-summary-heading">
-        <header class="shift-summary__header shift-summary__card">
-          <h2 id="shift-summary-heading" data-i18n="shifts.information_heading">Information</h2>
-          <div class="shift-summary__meta">
-            <p class="shift-summary__bus">
-              <span class="shift-summary__bus-label meta-label" data-i18n="shifts.bus_model_label">Bus model:</span>
-              <span class="meta-value" data-field="bus-name">—</span>
-            </p>
-            <p class="shift-summary__distance">
-              <span
-                class="shift-summary__distance-label meta-label"
-                data-i18n="shifts.daily_distance_label"
-                >Daily distance:</span
-              >
-              <span class="meta-value" data-field="daily-distance">—</span>
-            </p>
-          </div>
-        </header>
-        <div class="shift-summary__card shift-summary__schedule">
-          <header class="shift-summary__section-header">
-            <h2 data-i18n="shifts.stops_heading">Stops</h2>
-          </header>
-          <div class="shift-summary__meta shift-summary__stops-meta">
-            <p>
-              <span class="meta-label" data-i18n="shifts.stop_start_location_label">Start location:</span>
-              <span class="meta-value" data-field="start-depot">—</span>
-            </p>
-            <p>
-              <span class="meta-label" data-i18n="shifts.stop_start_time_label">Start time:</span>
-              <span class="meta-value" data-field="start-time">00:00</span>
-            </p>
-          </div>
-          <div class="shift-summary__table">
-            <table>
-              <caption class="sr-only" data-i18n="shifts.trips_caption">
-                Trips included in this vehicle block
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col" class="time" data-i18n="shifts.col_time">Time</th>
-                  <th scope="col" class="route" data-i18n="shifts.col_from_to">From–To</th>
-                </tr>
-              </thead>
-              <tbody data-role="trips-body">
-                <tr>
-                  <td colspan="3" class="empty" data-i18n="shifts.no_trips_available">No trips available.</td>
-                </tr>
-              </tbody>
-            </table>
-            <p class="shift-summary__empty" data-role="trips-empty" data-i18n="shifts.no_trips_yet" hidden>
-              No trips in this vehicle block yet.
-            </p>
-          </div>
-          <div class="shift-summary__meta shift-summary__stops-meta">
-            <p>
-              <span class="meta-label" data-i18n="shifts.stop_return_location_label">Return location:</span>
-              <span class="meta-value" data-field="end-depot">—</span>
-            </p>
-            <p>
-              <span class="meta-label" data-i18n="shifts.stop_return_time_label">Return time:</span>
-              <span class="meta-value" data-field="end-time">00:00</span>
-            </p>
-          </div>
-        </div>
-      </section>
       <section
         class="shift-visualization shift-summary__card"
-        aria-labelledby="shift-visualization-heading"
+        aria-label="Vehicle block view"
+        data-i18n-aria-label="shifts.visualization_heading"
       >
         <header class="shift-visualization__header">
-          <h2 id="shift-visualization-heading" class="section-title" data-i18n="shifts.timeline_heading">Timeline</h2>
-          <div
-            class="timeline-legend"
-            role="group"
-            aria-label="Timeline legend"
-            data-i18n-aria-label="shifts.timeline_legend_label"
-          >
-            <span class="timeline-legend__item">
-              <span
-                class="timeline-legend__swatch timeline-legend__swatch--trip"
-                aria-hidden="true"
-              ></span>
-              <span data-i18n="shifts.timeline_legend_trips">Scheduled trips</span>
-            </span>
-            <span class="timeline-legend__item">
-              <span
-                class="timeline-legend__swatch timeline-legend__swatch--depot"
-                aria-hidden="true"
-              ></span>
-              <span data-i18n="shifts.timeline_legend_depot">Depot connections</span>
-            </span>
+          <div class="shift-visualization__title-row">
+            <div
+              class="timeline-legend"
+              data-role="timeline-legend"
+              role="group"
+              aria-label="Timeline legend"
+              data-i18n-aria-label="shifts.timeline_legend_label"
+            >
+              <span class="timeline-legend__item">
+                <span
+                  class="timeline-legend__swatch timeline-legend__swatch--trip"
+                  aria-hidden="true"
+                ></span>
+                <span data-i18n="shifts.timeline_legend_trips">Scheduled trips</span>
+              </span>
+              <span class="timeline-legend__item">
+                <span
+                  class="timeline-legend__swatch timeline-legend__swatch--depot"
+                  aria-hidden="true"
+                ></span>
+                <span data-i18n="shifts.timeline_legend_depot">Depot connections</span>
+              </span>
+            </div>
+            <div
+              class="shift-view-toggle"
+              role="group"
+              aria-label="Visualization type"
+              data-i18n-aria-label="shifts.view_toggle_label"
+            >
+              <button
+                type="button"
+                class="shift-view-toggle__button is-active"
+                data-view="timeline"
+                aria-pressed="true"
+                data-i18n="shifts.view_timeline"
+              >Timeline</button>
+              <button
+                type="button"
+                class="shift-view-toggle__button"
+                data-view="map"
+                aria-pressed="false"
+                data-i18n="shifts.view_map"
+              >Map</button>
+            </div>
           </div>
         </header>
         <div
@@ -121,6 +118,74 @@
           <p class="timeline__placeholder" data-i18n="shifts.timeline_render_placeholder">
             Timeline will render when data is available.
           </p>
+        </div>
+        <div
+          class="shift-trip-map"
+          data-role="trip-map"
+          aria-label="Trip map"
+          data-i18n-aria-label="shifts.trip_map_label"
+          hidden
+        >
+          <div class="shift-trip-map__toolbar">
+            <div class="shift-trip-map__trip-copy" aria-live="polite">
+              <span class="shift-trip-map__counter" data-role="trip-map-counter">Trip 0 of 0</span>
+              <h3 data-role="trip-map-route">— → —</h3>
+              <p data-role="trip-map-time">—</p>
+            </div>
+            <div class="shift-trip-map__navigation">
+              <button
+                type="button"
+                data-action="first-trip"
+                aria-label="First trip"
+                data-i18n-aria-label="shifts.map_first_trip"
+              >
+                <span aria-hidden="true">⇤</span>
+                <span data-i18n="shifts.map_first">First</span>
+              </button>
+              <button
+                type="button"
+                data-action="previous-trip"
+                aria-label="Previous trip"
+                data-i18n-aria-label="shifts.map_previous_trip"
+              >
+                <span aria-hidden="true">←</span>
+                <span data-i18n="shifts.map_previous">Previous</span>
+              </button>
+              <button
+                type="button"
+                data-action="next-trip"
+                aria-label="Next trip"
+                data-i18n-aria-label="shifts.map_next_trip"
+              >
+                <span data-i18n="shifts.map_next">Next</span>
+                <span aria-hidden="true">→</span>
+              </button>
+              <button
+                type="button"
+                data-action="last-trip"
+                aria-label="Last trip"
+                data-i18n-aria-label="shifts.map_last_trip"
+              >
+                <span data-i18n="shifts.map_last">Last</span>
+                <span aria-hidden="true">⇥</span>
+              </button>
+            </div>
+          </div>
+          <div class="shift-trip-map__content">
+            <div class="shift-trip-map__canvas-wrap">
+              <div
+                class="shift-trip-map__canvas"
+                data-role="shift-trip-map-canvas"
+                aria-label="Route and stops for the selected trip"
+                data-i18n-aria-label="shifts.trip_map_canvas_label"
+              ></div>
+              <p class="shift-trip-map__status" data-role="trip-map-status" role="status"></p>
+            </div>
+            <aside class="shift-trip-map__stops-panel">
+              <h3 data-i18n="shifts.map_stops_heading">Stops and times</h3>
+              <ol class="shift-trip-map__stops" data-role="trip-map-stops"></ol>
+            </aside>
+          </div>
         </div>
       </section>
     </div>
