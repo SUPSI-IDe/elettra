@@ -1,6 +1,6 @@
 # Vehicle Blocks and Routes
 
-> Last updated: 2026-11-09
+> Last updated: 2026-11-12
 > Interface baseline: Frontend v0.11.0
 
 A vehicle block is the ordered service assigned to one bus over a day. It joins
@@ -73,6 +73,33 @@ current edition when they must be used in new work.
 
 ---
 
+## Visualize a saved vehicle block
+
+Choose **Visualize/Details** from the vehicle-block list to open the complete
+saved duty. The information table identifies the vehicle block, bus model,
+start and return locations and times, daily distance, and recorded GTFS
+timetable.
+
+The visualization offers two views:
+
+- **Space-time** is selected by default. Time runs horizontally and the ordered
+  stops run vertically. Each scheduled trip is plotted with its stop times;
+  dashed segments identify movements to or from a depot. Vehicle blocks that
+  serve more than one line are split into separate route groups, while route
+  variants and terminal loops retain their actual stop sequence.
+- **Map** presents one movement at a time. **First**, **Previous**, **Next**, and
+  **Last** move through the complete duty, including the initial and final depot
+  movements. The side list shows every available stop and time for the selected
+  movement. Opening this view loads the configured CARTO basemap tiles.
+
+Some historical duties contain a discontinuity: one recorded movement ends at
+one stop and the following movement starts elsewhere without an intermediate
+transfer. ELETTRA does not invent the missing path. It shows separate segments
+and reports the affected locations and times next to the view selector. Review
+the source data before using such a duty operationally.
+
+---
+
 ## Find, edit, duplicate, and delete
 
 The list shows the name, bus model, start/end time, distance, and route summary.
@@ -85,8 +112,8 @@ It supports sorting, pagination, and these actions:
 - **Duplicate** accepts one or more selected blocks and copies their trips, bus
   model, and recorded GTFS edition into new editable records.
 - **Delete** removes the selected records after confirmation.
-- **Visualize/Details** shows the ordered movements, depot connections, service
-  information, and timeline.
+- **Visualize/Details** shows general information, the default space-time
+  diagram, and the trip-by-trip map with depot connections.
 
 Review dependent evaluations and analyses before changing or deleting a block
 that has already been used.

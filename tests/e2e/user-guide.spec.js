@@ -32,7 +32,7 @@ const LANGUAGES = {
     yearlyTerms: ["Review Costs and Emissions for the fleet", "annual DC energy"],
     releaseTerms: {
       start: ["Home", "user guide"],
-      shifts: ["GTFS", "complete server-side list"],
+      shifts: ["GTFS", "complete server-side list", "Space-time", "Map"],
       feasibility: ["one GTFS edition", "Duplicate"],
       results: ["Configured SOC window", "initial physical-maximum reference"],
       yearly: ["recorded provenance"],
@@ -46,7 +46,7 @@ const LANGUAGES = {
     yearlyTerms: ["Kosten und Emissionen der Flotte prüfen", "jährlichen DC-Energie"],
     releaseTerms: {
       start: ["Startseite", "Benutzerhandbuch"],
-      shifts: ["GTFS", "vollständige serverseitige Liste"],
+      shifts: ["GTFS", "vollständige serverseitige Liste", "Raum-Zeit", "Karte"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren"],
       results: ["Konfiguriertes SOC-Fenster", "physischen Maximum"],
       yearly: ["aufgezeichnete Herkunft"],
@@ -60,7 +60,7 @@ const LANGUAGES = {
     yearlyTerms: ["Examiner les Coûts et les Émissions de la flotte", "énergie DC annuelle"],
     releaseTerms: {
       start: ["Accueil", "guide"],
-      shifts: ["GTFS", "liste complète côté serveur"],
+      shifts: ["GTFS", "liste complète côté serveur", "Espace-temps", "Carte"],
       feasibility: ["édition GTFS", "Dupliquer"],
       results: ["Fenêtre SOC configurée", "maximum physique"],
       yearly: ["provenance enregistrée"],
@@ -74,7 +74,7 @@ const LANGUAGES = {
     yearlyTerms: ["Esaminare Costi ed Emissioni della flotta", "energia DC annuale"],
     releaseTerms: {
       start: ["Home", "guida utente"],
-      shifts: ["GTFS", "elenco completo sul server"],
+      shifts: ["GTFS", "elenco completo sul server", "Spazio-tempo", "Mappa"],
       feasibility: ["una sola edizione GTFS", "Duplica"],
       results: ["Intervallo SOC configurato", "massimo fisico"],
       yearly: ["provenienza registrata"],

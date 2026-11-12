@@ -1,7 +1,7 @@
 import { useCaseSections } from "./use-cases.js";
 
 export const GUIDE_BASELINE_VERSION = "0.11.0";
-export const GUIDE_UPDATED_AT = "10 November 2026";
+export const GUIDE_UPDATED_AT = "12 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -36,10 +36,10 @@ const GUIDE_FIGURES = {
   shift: {
     src: shiftVisualisationImage,
     captions: {
-      en: "Vehicle block visualisation showing vehicle block information, ordered movements, depot connections and the operating timeline.",
-      de: "Visualisierung eines Fahrzeugumlaufs mit Betriebsinformationen, geordneten Fahrten, Depotverbindungen und Zeitachse.",
-      fr: "Visualisation d’un service voiture avec ses informations, les mouvements ordonnés, les liaisons au dépôt et la chronologie d’exploitation.",
-      it: "Visualizzazione di un turno macchina con informazioni, movimenti ordinati, collegamenti al deposito e linea temporale operativa.",
+      en: "Vehicle block visualisation with general information and the default space-time diagram. The toggle also opens a trip-by-trip map; depot connections are included in both views.",
+      de: "Visualisierung eines Fahrzeugumlaufs mit allgemeinen Informationen und dem standardmässigen Raum-Zeit-Diagramm. Über den Umschalter lässt sich auch eine Karte für jede einzelne Fahrt öffnen; Depotverbindungen sind in beiden Ansichten enthalten.",
+      fr: "Visualisation d’un service voiture avec ses informations générales et le diagramme espace-temps affiché par défaut. Le sélecteur ouvre aussi une carte course par course; les liaisons au dépôt figurent dans les deux vues.",
+      it: "Visualizzazione di un turno macchina con informazioni generali e diagramma spazio-tempo predefinito. Il selettore apre anche la mappa corsa per corsa; i collegamenti al deposito sono inclusi in entrambe le viste.",
     },
   },
   feasibilityForm: {
@@ -235,6 +235,10 @@ export const guideContent = {
             title: "Find or duplicate saved vehicle blocks",
             text: "Search checks the complete server-side list before pagination, so a match remains discoverable beyond the current page. Select one or more blocks and use Duplicate to copy their trips, bus model and recorded GTFS edition before editing the copies.",
           },
+          {
+            title: "Visualise a saved vehicle block",
+            text: "Open Visualise/Details to review the general information and the complete movement chain. Space-time is the default view: time runs horizontally, stops vertically, multi-line work is separated by route, and depot connections are dashed. Switch to Map to inspect one movement at a time, including its stops and times, with First, Previous, Next and Last. A warning identifies discontinuities caused by missing transfer data rather than drawing an invented connection.",
+          },
         ],
         figures: getGuideFigures("en", "shift"),
         note: {
@@ -424,7 +428,7 @@ export const guideContent = {
       baselineLabel: "Stand der Benutzeroberfläche",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Handbuch aktualisiert",
-      updatedValue: "10. November 2026",
+      updatedValue: "12. November 2026",
       footer:
         "ELETTRA unterstützt Vorstudien. Endgültige Fahrzeug-, Lade-, Netz- und Infrastrukturentscheidungen müssen durch eine detaillierte Fachplanung bestätigt werden.",
       skipLink: "Zum Handbuch springen",
@@ -499,6 +503,7 @@ export const guideContent = {
           { title: "Grenzen des Fahrzeugumlaufs festlegen", text: "Wählen Sie Start- und Rückkehrort sowie die Zeiten. ELETTRA berücksichtigt die Verbindungsfahrten, die für den vollständigen Fahrzeugumlauf benötigt werden." },
           { title: "Prüfen und speichern", text: "Prüfen Sie Fahrtenfolge, Zeitachse, Distanz sowie Karten- und Höhenkontext. Korrigieren Sie Lücken oder unplausible Zeiten vor dem Speichern." },
           { title: "Gespeicherte Fahrzeugumläufe finden oder duplizieren", text: "Die Suche prüft die vollständige serverseitige Liste vor der Seitennummerierung, sodass Treffer auch ausserhalb der aktuellen Seite gefunden werden. Wählen Sie einen oder mehrere Fahrzeugumläufe und verwenden Sie Duplizieren, um Fahrten, Busmodell und gespeicherte GTFS-Ausgabe zu übernehmen." },
+          { title: "Gespeicherten Fahrzeugumlauf visualisieren", text: "Öffnen Sie Visualisieren/Details, um die allgemeinen Informationen und die vollständige Bewegungskette zu prüfen. Raum-Zeit ist die Standardansicht: Die Zeit verläuft horizontal, die Haltestellen vertikal, Mehrlinien-Umläufe werden nach Linie getrennt und Depotverbindungen gestrichelt dargestellt. Wechseln Sie zu Karte, um jede Bewegung mit Haltestellen und Zeiten einzeln über Erste, Vorherige, Nächste und Letzte zu prüfen. Ein Hinweis kennzeichnet Unterbrechungen durch fehlende Überführungsdaten, statt eine Verbindung zu erfinden." },
         ],
         figures: getGuideFigures("de", "shift"),
         note: { title: "Warum der vollständige Fahrzeugumlauf wichtig ist", text: "Depot- und Überführungsfahrten benötigen Energie, auch wenn keine Fahrgäste befördert werden. Ihr Weglassen kann die Bewertung zu optimistisch machen." },
@@ -591,7 +596,7 @@ export const guideContent = {
       baselineLabel: "Version de référence de l’interface",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guide mis à jour",
-      updatedValue: "10 novembre 2026",
+      updatedValue: "12 novembre 2026",
       footer:
         "ELETTRA soutient les études de préfaisabilité. Les décisions finales relatives aux véhicules, à la recharge, au réseau et aux infrastructures doivent être confirmées par des études d’ingénierie détaillées.",
       skipLink: "Accéder au guide",
@@ -652,6 +657,7 @@ export const guideContent = {
           { title: "Définir les limites du service voiture", text: "Sélectionnez les lieux et heures de départ et de retour. ELETTRA inclut les déplacements auxiliaires nécessaires pour représenter la mission complète." },
           { title: "Vérifier et enregistrer", text: "Contrôlez la séquence, la chronologie, la distance et le contexte cartographique et altimétrique. Corrigez les lacunes ou horaires invraisemblables avant l’enregistrement." },
           { title: "Rechercher ou dupliquer les services enregistrés", text: "La recherche interroge la liste complète côté serveur avant la pagination, afin de retrouver une correspondance au-delà de la page courante. Sélectionnez un ou plusieurs services et utilisez Dupliquer pour reprendre leurs courses, leur modèle de bus et leur édition GTFS enregistrée." },
+          { title: "Visualiser un service voiture enregistré", text: "Ouvrez Visualiser/Détails pour contrôler les informations générales et la chaîne complète des mouvements. Espace-temps est la vue par défaut: le temps est horizontal, les arrêts verticaux, les services multiligne sont séparés par ligne et les liaisons au dépôt sont en pointillés. Passez à Carte pour examiner chaque mouvement, ses arrêts et ses horaires avec Première, Précédente, Suivante et Dernière. Un avertissement signale les discontinuités dues à des données de transfert manquantes au lieu d’inventer une liaison." },
         ],
         figures: getGuideFigures("fr", "shift"),
         note: { title: "Pourquoi la mission complète est importante", text: "Les déplacements depuis le dépôt et les transferts consomment de l’énergie même sans passagers. Les omettre peut rendre l’évaluation trop optimiste." },
@@ -744,7 +750,7 @@ export const guideContent = {
       baselineLabel: "Versione di riferimento dell’interfaccia",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guida aggiornata",
-      updatedValue: "10 novembre 2026",
+      updatedValue: "12 novembre 2026",
       footer:
         "ELETTRA supporta studi di prefattibilità. Le decisioni finali su veicoli, ricarica, rete e infrastrutture devono essere confermate mediante una progettazione tecnica dettagliata.",
       skipLink: "Vai alla guida",
@@ -805,6 +811,7 @@ export const guideContent = {
           { title: "Definire i limiti del servizio", text: "Selezionare località e orari di partenza e ritorno. ELETTRA include gli spostamenti ausiliari necessari per rappresentare il servizio completo." },
           { title: "Verificare e salvare", text: "Controllare sequenza, linea temporale, distanza e contesto cartografico e altimetrico. Correggere lacune o tempi non plausibili prima di salvare." },
           { title: "Cercare o duplicare i turni salvati", text: "La ricerca interroga l’elenco completo sul server prima della paginazione, quindi trova corrispondenze oltre la pagina corrente. Selezionare uno o più turni e usare Duplica per copiarne corse, modello di autobus ed edizione GTFS registrata prima di modificare le copie." },
+          { title: "Visualizzare un turno salvato", text: "Aprire Visualizza/Dettagli per controllare le informazioni generali e la catena completa dei movimenti. Spazio-tempo è la vista predefinita: il tempo scorre in orizzontale, le fermate in verticale, i turni multilinea sono separati per linea e i collegamenti al deposito sono tratteggiati. Passare a Mappa per esaminare un movimento alla volta con fermate e orari usando Prima, Precedente, Successiva e Ultima. Un avviso segnala le discontinuità dovute a dati di trasferimento mancanti invece di inventare un collegamento." },
         ],
         figures: getGuideFigures("it", "shift"),
         note: { title: "Perché il servizio completo è importante", text: "Gli spostamenti da deposito e di trasferimento consumano energia anche senza passeggeri. Ometterli può rendere la valutazione troppo ottimistica." },

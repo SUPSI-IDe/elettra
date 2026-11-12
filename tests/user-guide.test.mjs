@@ -131,7 +131,7 @@ test("the guide baseline follows the frontend version and exposes a valid update
   assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
   assert.deepEqual(
     SUPPORTED_GUIDE_LANGUAGES.map((language) => guideContent[language].ui.updatedValue),
-    ["10 November 2026", "10. November 2026", "10 novembre 2026", "10 novembre 2026"],
+    ["12 November 2026", "12. November 2026", "12 novembre 2026", "12 novembre 2026"],
   );
 });
 
@@ -140,7 +140,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     en: {
       start: ["Home", "user guide"],
       fleet: ["Details", "older custom stops"],
-      shifts: ["GTFS", "complete server-side list", "Duplicate"],
+      shifts: ["GTFS", "complete server-side list", "Duplicate", "Space-time", "Map", "missing transfer data"],
       feasibility: ["one GTFS edition", "Duplicate", "partial copy"],
       results: ["recorded", "Configured SOC window", "initial physical-maximum reference", "expandable white cards"],
       yearly: ["GTFS edition", "recorded provenance"],
@@ -148,7 +148,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     de: {
       start: ["Startseite", "Benutzerhandbuch"],
       fleet: ["Details", "ältere Haltestellen"],
-      shifts: ["GTFS", "vollständige serverseitige Liste", "Duplizieren"],
+      shifts: ["GTFS", "vollständige serverseitige Liste", "Duplizieren", "Raum-Zeit", "Karte", "fehlende Überführungsdaten"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "unvollständig"],
       results: ["aufgezeichnete", "Konfiguriertes SOC-Fenster", "physischen Maximum", "aufklappbare weisse Karten"],
       yearly: ["GTFS-Ausgabe", "aufgezeichnete Herkunft"],
@@ -156,7 +156,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     fr: {
       start: ["Accueil", "guide"],
       fleet: ["Détails", "anciens arrêts"],
-      shifts: ["GTFS", "liste complète côté serveur", "Dupliquer"],
+      shifts: ["GTFS", "liste complète côté serveur", "Dupliquer", "Espace-temps", "Carte", "données de transfert manquantes"],
       feasibility: ["édition GTFS", "Dupliquer", "partiellement"],
       results: ["enregistrée", "Fenêtre SOC configurée", "maximum physique", "cartes blanches dépliables"],
       yearly: ["édition GTFS", "provenance enregistrée"],
@@ -164,7 +164,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     it: {
       start: ["Home", "guida utente"],
       fleet: ["Dettagli", "fermate storiche"],
-      shifts: ["GTFS", "elenco completo sul server", "Duplica"],
+      shifts: ["GTFS", "elenco completo sul server", "Duplica", "Spazio-tempo", "Mappa", "dati di trasferimento mancanti"],
       feasibility: ["una sola edizione GTFS", "Duplica", "parzialmente"],
       results: ["registrata", "Intervallo SOC configurato", "massimo fisico", "schede bianche espandibili"],
       yearly: ["edizione GTFS", "provenienza registrata"],

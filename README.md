@@ -33,6 +33,16 @@ VITE_API_PROXY_TARGET=http://127.0.0.1:8002 npm run dev
 The application is built for the `/elettra/` base path. The public, localized
 guide is included in the same build at `/elettra/guide/`.
 
+## Vehicle-block visualization
+
+Saved vehicle blocks open with a space-time diagram that plots time against the
+ordered stops, separates multi-line work by route, includes depot connections,
+and flags discontinuities caused by missing transfer data. The Map view steps
+through every recorded movement, including the initial and final depot legs,
+and lists its stops and times. The creation and editing form keeps its compact
+timeline for checking the sequence before saving; the saved-block visualization
+offers only the Space-time and Map toggle options.
+
 ## Production build
 
 ```bash
