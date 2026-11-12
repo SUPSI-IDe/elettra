@@ -3,10 +3,10 @@ import * as d3 from "d3";
 import { toText } from "../../../ui-helpers";
 import { t } from "../../../i18n";
 import {
+  buildStopOrder,
   text,
   parseTimeToMinutes,
   formatMinutes,
-  mergeStopSequence,
 } from "./shift-utils";
 
 const ensurePlaceholder = (container, message) => {
@@ -96,8 +96,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
   const showAllStops = options.showAllStops === true;
   const serviceTrips = Array.isArray(trips) ? trips : [];
 
-  let serviceStops = [];
-  serviceTrips.forEach((trip = {}) => {
+  const serviceStopSequences = serviceTrips.map((trip = {}) => {
     const stopTimes = trip.stop_times || [];
     let sequence = [];
     if (stopTimes.length > 0) {
@@ -116,11 +115,9 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     } else {
       sequence = [trip?.start_stop_name, trip?.end_stop_name];
     }
-    serviceStops = mergeStopSequence(
-      serviceStops,
-      sequence.map((stop) => text(stop).trim()).filter(Boolean)
-    );
+    return sequence.map((stop) => text(stop).trim()).filter(Boolean);
   });
+  const serviceStops = buildStopOrder(serviceStopSequences);
 
   const startDepot = text(options.startDepotName).trim();
   const endDepot = text(options.endDepotName).trim();

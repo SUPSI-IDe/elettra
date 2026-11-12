@@ -41,6 +41,75 @@ export const mergeStopSequence = (currentOrder = [], sequence = []) => {
   return order;
 };
 
+const longestCommonSubsequenceLength = (left = [], right = []) => {
+  const row = new Array(right.length + 1).fill(0);
+  left.forEach((leftStop) => {
+    let previousDiagonal = 0;
+    right.forEach((rightStop, rightIndex) => {
+      const previousRowValue = row[rightIndex + 1];
+      row[rightIndex + 1] =
+        leftStop === rightStop
+          ? previousDiagonal + 1
+          : Math.max(row[rightIndex], row[rightIndex + 1]);
+      previousDiagonal = previousRowValue;
+    });
+  });
+  return row[right.length];
+};
+
+const orientStopSequence = (sequence = [], reference = []) => {
+  const reversed = [...sequence].reverse();
+  const forwardScore = longestCommonSubsequenceLength(sequence, reference);
+  const reverseScore = longestCommonSubsequenceLength(reversed, reference);
+  return reverseScore > forwardScore ? reversed : [...sequence];
+};
+
+const moveLeadingLoopOutsideRoute = (sequence = []) => {
+  if (sequence.length < 3) return sequence;
+  const repeatedStartIndex = sequence.lastIndexOf(sequence[0]);
+  if (repeatedStartIndex <= 0 || repeatedStartIndex >= sequence.length - 1) {
+    return sequence;
+  }
+  return [
+    ...sequence.slice(1, repeatedStartIndex),
+    sequence[0],
+    ...sequence.slice(repeatedStartIndex + 1),
+  ];
+};
+
+export const buildStopOrder = (sequences = []) => {
+  const normalized = (Array.isArray(sequences) ? sequences : [])
+    .map((sequence) =>
+      (Array.isArray(sequence) ? sequence : [])
+        .map((stop) => text(stop).trim())
+        .filter(Boolean)
+    )
+    .filter((sequence) => sequence.length);
+  if (!normalized.length) return [];
+
+  // A short first trip can terminate before the real end of the line. Use the
+  // most complete variant as the axis, then orient it like the first trip so
+  // the diagram stays stable for the whole shift.
+  const reference = normalized[0];
+  const backbone = normalized.reduce((longest, sequence) => {
+    const uniqueStops = new Set(sequence).size;
+    const longestUniqueStops = new Set(longest).size;
+    if (uniqueStops !== longestUniqueStops) {
+      return uniqueStops > longestUniqueStops ? sequence : longest;
+    }
+    return sequence.length > longest.length ? sequence : longest;
+  }, reference);
+  const orientedBackbone = moveLeadingLoopOutsideRoute(
+    orientStopSequence(backbone, reference)
+  );
+  let order = [...new Set(orientedBackbone)];
+
+  normalized.forEach((sequence) => {
+    order = mergeStopSequence(order, orientStopSequence(sequence, reference));
+  });
+  return order;
+};
+
 export const normalizeTime = (value) => {
   const raw = firstAvailable(value);
   if (!raw) {

@@ -5,9 +5,13 @@ import {
   assignDepotTripsToSpaceTimeGroups,
   buildTransferOnlySpaceTimeGroup,
   buildSpaceTimeGroups,
+  findDepotConnectionGaps,
   partitionDepotTripsForSpaceTimeGroup,
 } from "../src/pages/Fleet/Shifts/shift-space-time.js";
-import { mergeStopSequence } from "../src/pages/Fleet/Shifts/shift-utils.js";
+import {
+  buildStopOrder,
+  mergeStopSequence,
+} from "../src/pages/Fleet/Shifts/shift-utils.js";
 
 test("builds one ordered space-time group from outbound and return trips", () => {
   const groups = buildSpaceTimeGroups([
@@ -114,6 +118,42 @@ test("merges TPL 40104 return-only stops into the route instead of appending the
   ]);
 });
 
+test("uses the longest route variant as the stop axis while preserving direction", () => {
+  assert.deepEqual(
+    buildStopOrder([
+      ["Pista Ghiaccio", "Resega", "Gerra", "Centro"],
+      [
+        "Centro",
+        "Autosilo",
+        "Gerra",
+        "Resega",
+        "Pista Ghiaccio",
+        "Davesco",
+        "Piano Stampa",
+      ],
+    ]),
+    [
+      "Piano Stampa",
+      "Davesco",
+      "Pista Ghiaccio",
+      "Resega",
+      "Gerra",
+      "Autosilo",
+      "Centro",
+    ]
+  );
+});
+
+test("keeps a terminal loop outside the shared route", () => {
+  assert.deepEqual(
+    buildStopOrder([
+      ["Comano", "Rotonda", "Centro"],
+      ["Centro", "Rotonda", "Comano", "Cureglia", "Comano"],
+    ]),
+    ["Cureglia", "Comano", "Rotonda", "Centro"]
+  );
+});
+
 test("assigns depot arrivals to the previous line and departures to the next line", () => {
   const groups = buildSpaceTimeGroups([
     {
@@ -207,4 +247,36 @@ test("builds a transfer-only group without treating the depot as a service stop"
   assert.equal(group.transferOnly, true);
   assert.equal(group.transferCount, 2);
   assert.deepEqual(group.stops, ["Canobbio, Mercato Resega"]);
+});
+
+test("flags a missing connection between a depot leg and the next service trip", () => {
+  const gaps = findDepotConnectionGaps(
+    [
+      {
+        id: "service",
+        sequence: 12,
+        points: [
+          { stop: "Lugano, Centro", minute: 16 * 60 + 45 },
+          { stop: "Piano Stampa", minute: 17 * 60 + 3 },
+        ],
+      },
+    ],
+    [
+      {
+        id: "depot",
+        sequence: 11,
+        points: [
+          { stop: "TPL Rimessa 1", minute: 16 * 60 + 30 },
+          { stop: "Lugano, Pista Ghiaccio", minute: 16 * 60 + 36 },
+        ],
+      },
+    ]
+  );
+
+  assert.deepEqual(gaps, [
+    [
+      { stop: "Lugano, Pista Ghiaccio", minute: 16 * 60 + 36 },
+      { stop: "Lugano, Centro", minute: 16 * 60 + 45 },
+    ],
+  ]);
 });

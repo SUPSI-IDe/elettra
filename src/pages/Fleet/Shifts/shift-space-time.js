@@ -2,6 +2,7 @@ import * as d3 from "d3";
 
 import { t } from "../../../i18n/index.js";
 import {
+  buildStopOrder,
   firstAvailable,
   mergeStopSequence,
   parseTimeToMinutes,
@@ -109,13 +110,14 @@ export const buildSpaceTimeGroups = (trips = []) => {
       }
       const group = groups.get(key);
       group.trips.push(trip);
-      group.stops = mergeStopSequence(
-        group.stops,
-        trip.points.map((point) => point.stop)
-      );
     });
 
-  return Array.from(groups.values());
+  return Array.from(groups.values()).map((group) => ({
+    ...group,
+    stops: buildStopOrder(
+      group.trips.map((trip) => trip.points.map((point) => point.stop))
+    ),
+  }));
 };
 
 export const buildTransferOnlySpaceTimeGroup = (
@@ -244,6 +246,46 @@ export const partitionDepotTripsForSpaceTimeGroup = (
   return { connected, disconnected };
 };
 
+export const findDepotConnectionGaps = (serviceTrips = [], depotTrips = []) => {
+  const movements = [
+    ...(Array.isArray(serviceTrips) ? serviceTrips : []).map((trip) => ({
+      ...trip,
+      movementType: "service",
+    })),
+    ...(Array.isArray(depotTrips) ? depotTrips : []).map((trip) => ({
+      ...trip,
+      movementType: "depot",
+    })),
+  ]
+    .filter((trip) => trip.points?.length >= 2)
+    .sort((left, right) => {
+      if (Number.isFinite(left.sequence) && Number.isFinite(right.sequence)) {
+        return left.sequence - right.sequence;
+      }
+      return left.points[0].minute - right.points[0].minute;
+    });
+
+  return movements.slice(1).flatMap((movement, index) => {
+    const previous = movements[index];
+    const sequenceIsAdjacent =
+      !Number.isFinite(previous.sequence) ||
+      !Number.isFinite(movement.sequence) ||
+      movement.sequence === previous.sequence + 1;
+    if (
+      !sequenceIsAdjacent ||
+      (previous.movementType !== "depot" && movement.movementType !== "depot")
+    ) {
+      return [];
+    }
+
+    const previousEnd = previous.points[previous.points.length - 1];
+    const nextStart = movement.points[0];
+    return previousEnd.stop === nextStart.stop
+      ? []
+      : [[previousEnd, nextStart]];
+  });
+};
+
 const appendDiagram = (container, group, groupIndex, options = {}) => {
   const {
     connected: depotSeries,
@@ -315,7 +357,13 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
           : [[previousEnd, nextStart]];
       })
     : [];
-  const gapCount = disconnectedDepotSeries.length + transferGaps.length;
+  const depotConnectionGaps = group.transferOnly
+    ? []
+    : findDepotConnectionGaps(group.trips, depotSeries);
+  const gapCount =
+    disconnectedDepotSeries.length +
+    transferGaps.length +
+    depotConnectionGaps.length;
   if (gapCount) {
     const gapKey = document.createElement("span");
     gapKey.className = "shift-space-time__gap-key";
@@ -331,7 +379,15 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
       ([previousEnd, nextStart]) =>
         `${previousEnd.stop} ${clockLabel(previousEnd.minute)} - ${nextStart.stop} ${clockLabel(nextStart.minute)}`
     );
-    gapKey.title = [...disconnectedDetails, ...gapDetails].join("\n");
+    const depotConnectionDetails = depotConnectionGaps.map(
+      ([previousEnd, nextStart]) =>
+        `${previousEnd.stop} ${clockLabel(previousEnd.minute)} - ${nextStart.stop} ${clockLabel(nextStart.minute)}`
+    );
+    gapKey.title = [
+      ...disconnectedDetails,
+      ...gapDetails,
+      ...depotConnectionDetails,
+    ].join("\n");
     metadata.append(gapKey);
   }
   header.append(heading, metadata);
