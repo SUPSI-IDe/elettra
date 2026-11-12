@@ -118,6 +118,39 @@ export const buildSpaceTimeGroups = (trips = []) => {
   return Array.from(groups.values());
 };
 
+export const buildTransferOnlySpaceTimeGroup = (
+  depotTrips = [],
+  { startDepotName = "", endDepotName = "" } = {}
+) => {
+  const depotNames = new Set(
+    [startDepotName, endDepotName].map((name) => text(name).trim()).filter(Boolean)
+  );
+  const transfers = (Array.isArray(depotTrips) ? depotTrips : [])
+    .map(normalizeDiagramTrip)
+    .filter((trip) => trip.points.length >= 2)
+    .sort((left, right) => left.points[0].minute - right.points[0].minute);
+  if (!transfers.length) return null;
+
+  let stops = [];
+  transfers.forEach((trip) => {
+    stops = mergeStopSequence(
+      stops,
+      trip.points
+        .map((point) => point.stop)
+        .filter((stop) => !depotNames.has(stop))
+    );
+  });
+
+  return {
+    key: "transfer-only",
+    label: "",
+    stops,
+    trips: [],
+    transferOnly: true,
+    transferCount: transfers.length,
+  };
+};
+
 const serviceTripsBySequence = (groups = []) =>
   groups
     .flatMap((group) =>
@@ -151,6 +184,10 @@ export const assignDepotTripsToSpaceTimeGroups = (
   (Array.isArray(depotTrips) ? depotTrips : []).forEach((sourceTrip) => {
     const trip = normalizeDiagramTrip(sourceTrip);
     if (trip.points.length < 2) return;
+    if (groups[0]?.transferOnly) {
+      assignments.get(groups[0].key)?.push(sourceTrip);
+      return;
+    }
 
     const firstPoint = trip.points[0];
     const lastPoint = trip.points[trip.points.length - 1];
@@ -173,7 +210,7 @@ export const assignDepotTripsToSpaceTimeGroups = (
       groupKey = next.groupKey;
     } else if (endsAtDepot && previous) {
       groupKey = previous.groupKey;
-    } else if (previous?.groupKey === next?.groupKey) {
+    } else if ((previous || next) && previous?.groupKey === next?.groupKey) {
       groupKey = previous.groupKey;
     } else {
       groupKey = next?.groupKey ?? previous?.groupKey ?? groups[0].key;
@@ -195,6 +232,9 @@ export const partitionDepotTripsForSpaceTimeGroup = (
     .sort((left, right) => left.points[0].minute - right.points[0].minute);
   const connected = [];
   const disconnected = [];
+  if (group.transferOnly) {
+    return { connected: normalized, disconnected };
+  }
   normalized.forEach((trip) => {
     const target = trip.points.some((point) => group.stops.includes(point.stop))
       ? connected
@@ -239,16 +279,23 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
   const header = document.createElement("header");
   header.className = "shift-space-time__group-header";
   const heading = document.createElement("h3");
-  const routeName = group.label || t("shifts.space_time_all_routes");
+  const routeName = group.transferOnly
+    ? t("shifts.space_time_transfers")
+    : group.label || t("shifts.space_time_all_routes");
   heading.className = options.showRouteHeading ? "" : "sr-only";
   heading.textContent = options.showRouteHeading
     ? t("shifts.space_time_route", { route: routeName })
     : routeName;
   const summary = document.createElement("span");
-  summary.textContent = t("shifts.space_time_summary", {
-    trips: group.trips.length,
-    stops: group.stops.length,
-  });
+  summary.textContent = group.transferOnly
+    ? t("shifts.space_time_transfer_summary", {
+        transfers: group.transferCount,
+        stops: group.stops.length,
+      })
+    : t("shifts.space_time_summary", {
+        trips: group.trips.length,
+        stops: group.stops.length,
+      });
   const metadata = document.createElement("div");
   metadata.className = "shift-space-time__group-metadata";
   metadata.append(summary);
@@ -258,19 +305,33 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
     depotKey.textContent = t("shifts.timeline_legend_depot");
     metadata.append(depotKey);
   }
-  if (disconnectedDepotSeries.length) {
+  const transferGaps = group.transferOnly
+    ? depotSeries.slice(1).flatMap((trip, index) => {
+        const previous = depotSeries[index];
+        const previousEnd = previous.points[previous.points.length - 1];
+        const nextStart = trip.points[0];
+        return previousEnd.stop === nextStart.stop
+          ? []
+          : [[previousEnd, nextStart]];
+      })
+    : [];
+  const gapCount = disconnectedDepotSeries.length + transferGaps.length;
+  if (gapCount) {
     const gapKey = document.createElement("span");
     gapKey.className = "shift-space-time__gap-key";
     gapKey.textContent = t("shifts.space_time_unconnected_transfers", {
-      count: disconnectedDepotSeries.length,
+      count: gapCount,
     });
-    gapKey.title = disconnectedDepotSeries
-      .map((trip) => {
+    const disconnectedDetails = disconnectedDepotSeries.map((trip) => {
         const firstPoint = trip.points[0];
         const lastPoint = trip.points[trip.points.length - 1];
         return `${firstPoint.stop} ${clockLabel(firstPoint.minute)} - ${lastPoint.stop} ${clockLabel(lastPoint.minute)}`;
-      })
-      .join("\n");
+      });
+    const gapDetails = transferGaps.map(
+      ([previousEnd, nextStart]) =>
+        `${previousEnd.stop} ${clockLabel(previousEnd.minute)} - ${nextStart.stop} ${clockLabel(nextStart.minute)}`
+    );
+    gapKey.title = [...disconnectedDetails, ...gapDetails].join("\n");
     metadata.append(gapKey);
   }
   header.append(heading, metadata);
@@ -439,7 +500,7 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
 
     const dwellSegments = depotSeries.flatMap((trip, index) => {
       const arrival = trip.points[trip.points.length - 1];
-      if (!depotStopSet.has(arrival.stop)) return [];
+      if (!group.transferOnly && !depotStopSet.has(arrival.stop)) return [];
       const departure = depotSeries
         .slice(index + 1)
         .map((candidate) => candidate.points[0])
@@ -466,7 +527,14 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
 export const renderSpaceTimeDiagram = (container, trips = [], options = {}) => {
   if (!container) return;
   container.innerHTML = "";
-  const groups = buildSpaceTimeGroups(trips);
+  let groups = buildSpaceTimeGroups(trips);
+  if (!groups.length) {
+    const transferGroup = buildTransferOnlySpaceTimeGroup(
+      options.depotTrips,
+      options
+    );
+    if (transferGroup) groups = [transferGroup];
+  }
   if (!groups.length) {
     const placeholder = document.createElement("p");
     placeholder.className = "shift-space-time__placeholder";

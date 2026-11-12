@@ -182,7 +182,7 @@ export const initializeVisualizeShift = async (
 
   const renderAll = async () => {
     renderSummary();
-    tripMap?.setTrips(state.trips);
+    tripMap?.setTrips(state.trips.length ? state.trips : state.depotTrips);
     if (viewMode === "map") {
       tripMap?.show();
       return;

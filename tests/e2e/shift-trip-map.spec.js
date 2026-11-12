@@ -535,3 +535,128 @@ test("separates a multi-line shift using each trip route", async ({ page }) => {
     .toContainText(/1 trips? · 2 stops/);
   expect(tripsByStopCalls).toBe(1);
 });
+
+test("renders a shift containing only connected transfers in every view", async ({ page }) => {
+  const transferTrips = [
+    {
+      id: "transfer-out",
+      trip_id: "depot-transfer-out",
+      status: "depot",
+      start_stop_name: "TPL Rimessa 2",
+      end_stop_name: "Canobbio, Mercato Resega",
+      departure_time: "17:16:00",
+      arrival_time: "17:21:00",
+      stop_times: [
+        { id: "depot", stop_name: "TPL Rimessa 2", departure_time: "17:16:00", stop_lat: 46.02, stop_lon: 8.94 },
+        { id: "market", stop_name: "Canobbio, Mercato Resega", arrival_time: "17:21:00", stop_lat: 46.04, stop_lon: 8.96 },
+      ],
+    },
+    {
+      id: "transfer-in",
+      trip_id: "depot-transfer-in",
+      status: "depot",
+      start_stop_name: "Canobbio, Mercato Resega",
+      end_stop_name: "TPL Rimessa 2",
+      departure_time: "18:38:00",
+      arrival_time: "18:42:00",
+      stop_times: [
+        { id: "market", stop_name: "Canobbio, Mercato Resega", departure_time: "18:38:00", stop_lat: 46.04, stop_lon: 8.96 },
+        { id: "depot", stop_name: "TPL Rimessa 2", arrival_time: "18:42:00", stop_lat: 46.02, stop_lon: 8.94 },
+      ],
+    },
+  ];
+
+  await page.evaluate(() => window.cleanupShiftMapTest?.());
+  await page.evaluate(
+    async ({ html, tripData }) => {
+      const parsed = new DOMParser().parseFromString(html, "text/html");
+      const section = parsed.querySelector(".visualize-shift");
+      document.querySelector(".layout-article").replaceChildren(section);
+      const { initializeVisualizeShift } = await import(
+        "/elettra/src/pages/Fleet/Shifts/visualize-shift.js"
+      );
+      window.cleanupShiftMapTest = await initializeVisualizeShift(document, {
+        name: "40311",
+        startDepotName: "TPL Rimessa 2",
+        startTime: "17:16:00",
+        endDepotName: "TPL Rimessa 2",
+        endTime: "18:42:00",
+        trips: tripData,
+      });
+    },
+    { html: visualizeShiftHtml, tripData: transferTrips }
+  );
+
+  const diagram = page.locator('[data-role="space-time"]');
+  await expect(diagram.locator(".shift-space-time__group-metadata"))
+    .toContainText("2 transfers · 1 stops");
+  await expect(diagram.locator('[data-role="space-time-depot-trip"]')).toHaveCount(2);
+  await expect(diagram.locator('[data-role="space-time-depot-dwell"]')).toHaveCount(1);
+  await expect(diagram).not.toContainText("Unconnected transfers");
+
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await expect(page.locator(".timeline__depot-line")).toHaveCount(2);
+  await expect(page.locator(".timeline__depot-dwell")).toHaveCount(1);
+  await expect(page.locator(".timeline__stop-label")).toHaveText([
+    "TPL Rimessa 2",
+    "Canobbio, Mercato Resega",
+  ]);
+
+  await page.getByRole("button", { name: "Map", exact: true }).click();
+  await expect(page.locator('[data-role="trip-map-counter"]')).toHaveText("Trip 1 of 2");
+  await expect(page.locator('[data-role="trip-map-route"]')).toHaveText(
+    "TPL Rimessa 2 → Canobbio, Mercato Resega"
+  );
+});
+
+test("flags a gap between transfer-only movements", async ({ page }) => {
+  const transferTrips = [
+    {
+      id: "transfer-out",
+      trip_id: "depot-transfer-out",
+      status: "depot",
+      stop_times: [
+        { stop_name: "TPL Rimessa 2", departure_time: "07:39:00" },
+        { stop_name: "Lugano, Stazione", arrival_time: "07:55:00" },
+      ],
+    },
+    {
+      id: "transfer-in",
+      trip_id: "depot-transfer-in",
+      status: "depot",
+      stop_times: [
+        { stop_name: "Lugano, Cornaredo", departure_time: "08:12:00" },
+        { stop_name: "TPL Rimessa 2", arrival_time: "08:17:00" },
+      ],
+    },
+  ];
+
+  await page.evaluate(() => window.cleanupShiftMapTest?.());
+  await page.evaluate(
+    async ({ html, tripData }) => {
+      const parsed = new DOMParser().parseFromString(html, "text/html");
+      const section = parsed.querySelector(".visualize-shift");
+      document.querySelector(".layout-article").replaceChildren(section);
+      const { initializeVisualizeShift } = await import(
+        "/elettra/src/pages/Fleet/Shifts/visualize-shift.js"
+      );
+      window.cleanupShiftMapTest = await initializeVisualizeShift(document, {
+        name: "40608",
+        startDepotName: "TPL Rimessa 2",
+        startTime: "07:39:00",
+        endDepotName: "TPL Rimessa 2",
+        endTime: "08:17:00",
+        trips: tripData,
+      });
+    },
+    { html: visualizeShiftHtml, tripData: transferTrips }
+  );
+
+  const gap = page.locator(".shift-space-time__gap-key");
+  await expect(gap).toHaveText("Unconnected transfers: 1");
+  await expect(gap).toHaveAttribute(
+    "title",
+    "Lugano, Stazione 07:55 - Lugano, Cornaredo 08:12"
+  );
+  await expect(page.locator('[data-role="space-time-depot-dwell"]')).toHaveCount(0);
+});

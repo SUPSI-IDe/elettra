@@ -82,18 +82,22 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
     return;
   }
 
-  if (!Array.isArray(trips) || trips.length === 0) {
+  const depotTrips = Array.isArray(options.depotTrips)
+    ? options.depotTrips
+    : [];
+  if (
+    (!Array.isArray(trips) || trips.length === 0) &&
+    depotTrips.length === 0
+  ) {
     ensurePlaceholder(container, t("shifts.timeline_placeholder"));
     return;
   }
 
   const showAllStops = options.showAllStops === true;
-  const depotTrips = Array.isArray(options.depotTrips)
-    ? options.depotTrips
-    : [];
+  const serviceTrips = Array.isArray(trips) ? trips : [];
 
   let serviceStops = [];
-  trips.forEach((trip = {}) => {
+  serviceTrips.forEach((trip = {}) => {
     const stopTimes = trip.stop_times || [];
     let sequence = [];
     if (stopTimes.length > 0) {
@@ -346,7 +350,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
   // Draw lines connecting stops for each trip
   serieGroup
     .selectAll("path")
-    .data(trips)
+    .data(serviceTrips)
     .join("path")
     .attr("class", "timeline__trip-line")
     .attr("d", (trip) => {
@@ -431,8 +435,8 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
       .attr("class", "timeline__depot-dwell")
       .attr("d", (segment) => line(segment));
   } else {
-    const firstTripPoints = tripTimelinePoints(trips[0]);
-    const lastTripPoints = tripTimelinePoints(trips[trips.length - 1]);
+    const firstTripPoints = tripTimelinePoints(serviceTrips[0]);
+    const lastTripPoints = tripTimelinePoints(serviceTrips[serviceTrips.length - 1]);
     const firstTripPoint = firstTripPoints[0];
     const lastTripPoint = lastTripPoints[lastTripPoints.length - 1];
 
@@ -468,7 +472,7 @@ export const renderTimeline = async (container, trips = [], options = {}) => {
   const points = root.append("g").attr("class", "timeline__points");
   points
     .selectAll("g")
-    .data(trips)
+    .data(serviceTrips)
     .join("g")
     .each(function drawPoints(trip) {
       const group = d3.select(this);

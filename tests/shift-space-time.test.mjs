@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   assignDepotTripsToSpaceTimeGroups,
+  buildTransferOnlySpaceTimeGroup,
   buildSpaceTimeGroups,
   partitionDepotTripsForSpaceTimeGroup,
 } from "../src/pages/Fleet/Shifts/shift-space-time.js";
@@ -178,4 +179,32 @@ test("assigns depot arrivals to the previous line and departures to the next lin
     partition.disconnected.map((trip) => trip.id),
     ["depot-out"]
   );
+});
+
+test("builds a transfer-only group without treating the depot as a service stop", () => {
+  const group = buildTransferOnlySpaceTimeGroup(
+    [
+      {
+        trip_id: "outbound",
+        sequence_number: 1,
+        stop_times: [
+          { stop_name: "TPL Rimessa 2", departure_time: "17:16" },
+          { stop_name: "Canobbio, Mercato Resega", arrival_time: "17:21" },
+        ],
+      },
+      {
+        trip_id: "inbound",
+        sequence_number: 2,
+        stop_times: [
+          { stop_name: "Canobbio, Mercato Resega", departure_time: "18:38" },
+          { stop_name: "TPL Rimessa 2", arrival_time: "18:42" },
+        ],
+      },
+    ],
+    { startDepotName: "TPL Rimessa 2", endDepotName: "TPL Rimessa 2" }
+  );
+
+  assert.equal(group.transferOnly, true);
+  assert.equal(group.transferCount, 2);
+  assert.deepEqual(group.stops, ["Canobbio, Mercato Resega"]);
 });
