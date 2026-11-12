@@ -133,7 +133,8 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     }
   }
 
-  const isEditMode = !!currentModel?.id;
+  const isDuplicateMode = options.duplicate === true && !!currentModel?.id;
+  const isEditMode = !isDuplicateMode && !!currentModel?.id;
 
   const feedback = form.querySelector('[data-role="feedback"]');
   const cancelButton = form.querySelector('[data-action="cancel"]');
@@ -239,10 +240,12 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     document.removeEventListener(I18N_CHANGE_EVENT, handleI18nChange);
   });
 
-  /* ── Edit mode pre-fill ── */
-  if (isEditMode) {
+  /* ── Edit and duplicate mode pre-fill ── */
+  if (isEditMode || isDuplicateMode) {
     if (header) {
-      header.textContent = t("buses.edit_model");
+      header.textContent = isEditMode
+        ? t("buses.edit_model")
+        : t("buses.add_model");
     }
 
     const specs = parseSpecs(currentModel.specs);
@@ -326,7 +329,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       }
 
       expectedBusLengthM = resolveExpectedBusLengthM({
-        isEditMode,
+        isEditMode: isEditMode || isDuplicateMode,
         categoryLengthM: category.lengthM,
         initialState: initialSpecFormState,
         currentState: currentSpecFormState,

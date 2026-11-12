@@ -1,10 +1,15 @@
 import "./entity-details.css";
 import { textContent } from "../ui-helpers";
 
-export const renderEntityRowActions = ({ details, edit, remove } = {}) => `
+export const renderEntityRowActions = (
+  { details, duplicate, edit, remove } = {}
+) => `
   <div class="entity-row-actions">
     <button type="button" class="entity-row-action" data-row-action="details" aria-label="${textContent(details)}" title="${textContent(details)}">
       <span class="entity-row-action__icon entity-row-action__icon--details" aria-hidden="true"></span>
+    </button>
+    <button type="button" class="entity-row-action" data-row-action="duplicate" aria-label="${textContent(duplicate)}" title="${textContent(duplicate)}">
+      <span class="entity-row-action__icon entity-row-action__icon--duplicate" aria-hidden="true"></span>
     </button>
     <button type="button" class="entity-row-action" data-row-action="edit" aria-label="${textContent(edit)}" title="${textContent(edit)}">
       <span class="entity-row-action__icon entity-row-action__icon--edit" aria-hidden="true"></span>

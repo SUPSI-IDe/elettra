@@ -80,14 +80,24 @@ const expectDialogCenteredInViewport = async (dialog) => {
   expect(position.verticalDifference).toBeLessThanOrEqual(1);
 };
 
-test("bus model rows stay compact and expose complete details, edit and delete actions", async ({
+test("bus model rows stay compact and expose details, duplicate, edit and delete actions", async ({
   page,
 }) => {
   await installSession(page, "it");
+  let createRequests = 0;
+  let updateRequests = 0;
   let deleteRequests = 0;
   await page.route("**/api/v1/user/bus-models/**", (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    if (request.method() === "POST") {
+      createRequests += 1;
+      return fulfillJson(route, { ...busModel, id: "bus-model-copy" });
+    }
+    if (request.method() === "PUT") {
+      updateRequests += 1;
+      return fulfillJson(route, busModel);
+    }
     if (request.method() === "DELETE") {
       deleteRequests += 1;
       return fulfillJson(route, {});
@@ -122,7 +132,16 @@ test("bus model rows stay compact and expose complete details, edit and delete a
     "Autobus elettrico standard — 13 m"
   );
   await expect(table.locator("tbody td.size")).toHaveText("13");
-  await expect(table.locator("tbody [data-row-action]")).toHaveCount(3);
+  const rowActions = table.locator("tbody [data-row-action]");
+  await expect(rowActions).toHaveCount(4);
+  expect(
+    await rowActions.evaluateAll((buttons) =>
+      buttons.map((button) => button.dataset.rowAction)
+    )
+  ).toEqual(["details", "duplicate", "edit", "delete"]);
+  await expect(
+    page.locator('[data-action="edit-selected-model"]')
+  ).toHaveCount(0);
   await expectHorizontallyCentered(
     table.locator("tbody td.actions"),
     ".entity-row-actions"
@@ -143,6 +162,14 @@ test("bus model rows stay compact and expose complete details, edit and delete a
   await dialog.locator('[data-action="close-details"]').click();
   await expect(dialog).not.toBeVisible();
 
+  await table.locator('[data-row-action="duplicate"]').click();
+  await expect(page.locator("section.add-bus-model")).toBeVisible();
+  await expect(page.locator("#name")).toHaveValue("Electric 13 (copia)");
+  await page.locator('section.add-bus-model button[type="submit"]').click();
+  await expect.poll(() => createRequests).toBe(1);
+  expect(updateRequests).toBe(0);
+
+  await expect(page.locator("section.buses")).toBeVisible();
   await table.locator('[data-row-action="edit"]').click();
   await expect(page.locator("section.add-bus-model")).toBeVisible();
   await expect(page.locator("#name")).toHaveValue("Electric 13");
@@ -158,10 +185,20 @@ test("custom stop rows expose translated type and all popup fields with inline a
   page,
 }) => {
   await installSession(page, "en");
+  let createRequests = 0;
+  let updateRequests = 0;
   let deleteRequests = 0;
   await page.route("**/api/v1/user/depots/**", (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    if (request.method() === "POST") {
+      createRequests += 1;
+      return fulfillJson(route, { ...customStop, id: "stop-copy" });
+    }
+    if (request.method() === "PUT") {
+      updateRequests += 1;
+      return fulfillJson(route, customStop);
+    }
     if (request.method() === "DELETE") {
       deleteRequests += 1;
       return fulfillJson(route, {});
@@ -174,7 +211,16 @@ test("custom stop rows expose translated type and all popup fields with inline a
   const table = page.locator(".custom-stop-table table");
   await expect(table.locator("thead th")).toHaveCount(5);
   await expect(table.locator("tbody td.type")).toHaveText("Depot");
-  await expect(table.locator("tbody [data-row-action]")).toHaveCount(3);
+  const rowActions = table.locator("tbody [data-row-action]");
+  await expect(rowActions).toHaveCount(4);
+  expect(
+    await rowActions.evaluateAll((buttons) =>
+      buttons.map((button) => button.dataset.rowAction)
+    )
+  ).toEqual(["details", "duplicate", "edit", "delete"]);
+  await expect(
+    page.locator('[data-action="edit-selected-stops"]')
+  ).toHaveCount(0);
   await expectHorizontallyCentered(
     table.locator("tbody td.actions"),
     ".entity-row-actions"
@@ -200,6 +246,17 @@ test("custom stop rows expose translated type and all popup fields with inline a
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
 
+  await table.locator('[data-row-action="duplicate"]').click();
+  await expect(page.locator("section.add-custom-stop")).toBeVisible();
+  await expect(page.locator("#custom-stop-name")).toHaveValue(
+    "Central depot (copy)"
+  );
+  await expect(page.locator("#custom-stop-address")).toHaveValue("Depot road 4");
+  await page.locator('section.add-custom-stop button[type="submit"]').click();
+  await expect.poll(() => createRequests).toBe(1);
+  expect(updateRequests).toBe(0);
+
+  await expect(page.locator("section.custom-stops")).toBeVisible();
   await table.locator('[data-row-action="edit"]').click();
   await expect(page.locator("section.add-custom-stop")).toBeVisible();
   await expect(page.locator("#custom-stop-name")).toHaveValue("Central depot");

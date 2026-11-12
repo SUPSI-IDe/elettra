@@ -100,6 +100,7 @@ export const renderCustomStopRows = (tbody, depots = []) => {
       (depot = {}) => {
         const actions = renderEntityRowActions({
           details: t("common.details"),
+          duplicate: t("common.duplicate"),
           edit: t("common.edit"),
           remove: t("common.delete"),
         });
@@ -179,9 +180,6 @@ export const initializeCustomStops = async (root = document, options = {}) => {
   );
   const deleteButton = section.querySelector(
     '[data-action="delete-selected-stops"]'
-  );
-  const editButton = section.querySelector(
-    '[data-action="edit-selected-stops"]'
   );
   const addButton = section.querySelector('[data-action="add-custom-stop"]');
 
@@ -326,29 +324,6 @@ export const initializeCustomStops = async (root = document, options = {}) => {
     });
   }
 
-  const handleEditClick = async () => {
-    const ids = getSelectedIdsFrom(table);
-    if (ids.length !== 1) {
-      console.error(t("custom_stops.select_single"));
-      return;
-    }
-
-    const id = ids[0];
-    try {
-      const current = await loadDepotDetail(id);
-      triggerPartialLoad("add-custom-stop", { depot: current });
-    } catch (error) {
-      console.error("Failed to load custom stop detail", error);
-      setFlashMessage(section, t("custom_stops.unable_to_load_details"));
-    }
-  };
-  if (editButton) {
-    editButton.addEventListener("click", handleEditClick);
-    cleanupHandlers.push(() => {
-      editButton.removeEventListener("click", handleEditClick);
-    });
-  }
-
   const handleAddClick = () => {
     triggerPartialLoad("add-custom-stop");
   };
@@ -376,6 +351,14 @@ export const initializeCustomStops = async (root = document, options = {}) => {
       const depot = await loadDepotDetail(id);
       if (action === "edit") {
         triggerPartialLoad("add-custom-stop", { depot });
+      } else if (action === "duplicate") {
+        triggerPartialLoad("add-custom-stop", {
+          depot: {
+            ...depot,
+            name: `${depot?.name ?? ""} ${t("common.copy_suffix")}`.trim(),
+          },
+          duplicate: true,
+        });
       } else if (action === "details") {
         detailsDialog?.open({
           title: t("custom_stops.details_title", {

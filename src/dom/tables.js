@@ -82,6 +82,7 @@ export const renderModels = (tbody, models = []) => {
       const size = textContent(specs?.bus_length_m ?? "");
       const actions = renderEntityRowActions({
         details: t("common.details"),
+        duplicate: t("common.duplicate"),
         edit: t("common.edit"),
         remove: t("common.delete"),
       });

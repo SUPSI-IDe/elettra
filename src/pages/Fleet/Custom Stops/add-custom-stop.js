@@ -73,12 +73,13 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     return null;
   }
 
-  const isEditMode = !!options.depot;
   const currentDepot = options.depot || {};
+  const isDuplicateMode = options.duplicate === true && !!currentDepot?.id;
+  const isEditMode = !isDuplicateMode && !!currentDepot?.id;
 
-  if (isEditMode) {
+  if (isEditMode || isDuplicateMode) {
     const header = section.querySelector("header h1");
-    if (header) {
+    if (header && isEditMode) {
       header.textContent = t("custom_stops.edit_title");
     }
 
@@ -256,14 +257,14 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   });
 
   // Initial update if adding new stop
-  if (!isEditMode) {
+  if (!isEditMode && !isDuplicateMode) {
     updateFromMapCenter();
   }
 
   // Stops created before type and city became mandatory may not have a
   // features object. Recover the missing city from the stored coordinates,
   // while keeping the field editable in case reverse geocoding is unavailable.
-  if (isEditMode && !cityInput.value.trim()) {
+  if ((isEditMode || isDuplicateMode) && !cityInput.value.trim()) {
     const latitude = Number.parseFloat(latInput.value);
     const longitude = Number.parseFloat(lonInput.value);
     if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
@@ -278,7 +279,12 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
 
   // For new stops: asynchronously calculate centroid from GTFS data and recenter
   // Only if we don't have depot coordinates and user hasn't interacted
-  if (!isEditMode && currentDepot.latitude == null && currentDepot.longitude == null) {
+  if (
+    !isEditMode &&
+    !isDuplicateMode &&
+    currentDepot.latitude == null &&
+    currentDepot.longitude == null
+  ) {
     getUserAgencyCentroid()
       .then((centroid) => {
         if (!centroid || userInteracted) return;

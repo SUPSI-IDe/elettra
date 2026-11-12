@@ -162,7 +162,7 @@ const setFlashMessage = (section, message) => {
 const initializeModelControls = (
   section,
   cleanupHandlers,
-  { loadBusModelDetail, deleteModels }
+  { deleteModels }
 ) => {
   const controls = section.querySelector(
     ".table-controls .actions"
@@ -188,25 +188,6 @@ const initializeModelControls = (
     if (action === "delete-selected-models") {
       await deleteModels(selectedIds, actionButton);
       return;
-    }
-
-    if (action === "edit-selected-model") {
-      if (selectedIds.length !== 1) {
-        console.error(t("buses.select_single_model"));
-        return;
-      }
-      const id = selectedIds[0];
-      let busModel = null;
-      try {
-        busModel = await loadBusModelDetail(id);
-      } catch (error) {
-        console.error("Failed to load bus model detail", error);
-        setFlashMessage(section, t("buses.unable_to_load_model_details"));
-      }
-
-      if (busModel) {
-        triggerPartialLoad("add-bus-model", { busModel });
-      }
     }
   };
 
@@ -416,7 +397,6 @@ export const initializeBuses = async (root = document, options = {}) => {
       renderModels(modelsTbody, sortedModels);
       bindSelectAll(modelsHeaderCheckbox, modelsTable);
       initializeModelControls(section, cleanupHandlers, {
-        loadBusModelDetail,
         deleteModels,
       });
 
@@ -453,6 +433,14 @@ export const initializeBuses = async (root = document, options = {}) => {
       const busModel = await loadBusModelDetail(id);
       if (action === "edit") {
         triggerPartialLoad("add-bus-model", { busModel });
+      } else if (action === "duplicate") {
+        triggerPartialLoad("add-bus-model", {
+          busModel: {
+            ...busModel,
+            name: `${busModel?.name ?? ""} ${t("common.copy_suffix")}`.trim(),
+          },
+          duplicate: true,
+        });
       } else if (action === "details") {
         detailsDialog?.open({
           title: t("buses.details_title", {
