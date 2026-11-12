@@ -107,6 +107,7 @@ export const initializeVisualizeShift = async (
       Array.isArray(options.gtfsDatasets) ? options.gtfsDatasets
       : Array.isArray(options.gtfs_datasets) ? options.gtfs_datasets
       : null,
+    movements: optionTrips,
     trips: optionTrips.filter((trip) => !isDepotTrip(trip)),
     depotTrips: optionTrips.filter((trip) => isDepotTrip(trip)),
   };
@@ -129,7 +130,7 @@ export const initializeVisualizeShift = async (
   let viewMode = "space-time";
   const tripMap = createShiftTripMap({
     container: tripMapContainer,
-    trips: state.trips,
+    trips: state.movements,
   });
 
   const renderSummary = () => {
@@ -182,7 +183,7 @@ export const initializeVisualizeShift = async (
 
   const renderAll = async () => {
     renderSummary();
-    tripMap?.setTrips(state.trips.length ? state.trips : state.depotTrips);
+    tripMap?.setTrips(state.movements);
     if (viewMode === "map") {
       tripMap?.show();
       return;
@@ -434,6 +435,7 @@ export const initializeVisualizeShift = async (
       }
       state.trips = loadedTrips.filter((trip) => !isDepotTrip(trip));
       state.depotTrips = loadedTrips.filter((trip) => isDepotTrip(trip));
+      state.movements = loadedTrips;
       state.dailyDistanceKm =
         extractShiftDistanceKm({
           ...shift,

@@ -197,35 +197,35 @@ test("starts with space-time and switches to an ordered trip-by-trip map", async
   );
   expect(Math.abs(initialToggleRight - mapToggleRight)).toBeLessThan(2);
   await expect(page.locator('[data-role="trip-map-counter"]')).toHaveText(
-    "Trip 1 of 2"
+    "Trip 1 of 4"
   );
   await expect(page.locator('[data-role="trip-map-route"]')).toHaveText(
-    "Terminal A → Terminal B"
+    "Depot Yard → Terminal A"
   );
-  await expect(page.locator('[data-role="trip-map-stops"] li')).toHaveCount(3);
-  await expect(page.locator(".shift-trip-map__marker")).toHaveCount(3);
+  await expect(page.locator('[data-role="trip-map-stops"] li')).toHaveCount(2);
+  await expect(page.locator(".shift-trip-map__marker")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "First trip" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Previous trip" })).toBeDisabled();
 
   await page.getByRole("button", { name: "Last trip" }).click();
 
   await expect(page.locator('[data-role="trip-map-counter"]')).toHaveText(
-    "Trip 2 of 2"
+    "Trip 4 of 4"
   );
   await expect(page.locator('[data-role="trip-map-route"]')).toHaveText(
-    "Terminal B → Terminal A"
+    "Terminal A → Depot Yard"
   );
-  await expect(page.locator('[data-role="trip-map-stops"] li')).toHaveCount(4);
-  await expect(page.locator(".shift-trip-map__marker")).toHaveCount(4);
+  await expect(page.locator('[data-role="trip-map-stops"] li')).toHaveCount(2);
+  await expect(page.locator(".shift-trip-map__marker")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Next trip" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Last trip" })).toBeDisabled();
 
   await page.getByRole("button", { name: "First trip" }).click();
   await expect(page.locator('[data-role="trip-map-counter"]')).toHaveText(
-    "Trip 1 of 2"
+    "Trip 1 of 4"
   );
   await expect(page.locator('[data-role="trip-map-route"]')).toHaveText(
-    "Terminal A → Terminal B"
+    "Depot Yard → Terminal A"
   );
 });
 
@@ -252,7 +252,10 @@ test("returns to the timeline without losing the selected trip", async ({ page }
 
   await page.getByRole("button", { name: "Map", exact: true }).click();
   await expect(page.locator('[data-role="trip-map-counter"]')).toHaveText(
-    "Trip 2 of 2"
+    "Trip 2 of 4"
+  );
+  await expect(page.locator('[data-role="trip-map-route"]')).toHaveText(
+    "Terminal A → Terminal B"
   );
 });
 
