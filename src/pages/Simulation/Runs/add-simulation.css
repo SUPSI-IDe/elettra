@@ -399,3 +399,9 @@
 .add-simulation [data-role="bus-pack-cost"] { display:inline-block; padding:.5rem 0; }
 
 .pack-cost-value { display:flex; align-items:center; gap:.5rem; }
+
+.battery-policy-fields { grid-column: 1 / -1; min-width: 0; border: 1px solid #d8e0e5; border-radius: 8px; padding: 1rem; }
+.battery-policy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 1rem; }
+.battery-policy-fields [hidden] { display: none !important; }
+[data-role="battery-preview"] { line-height: 1.6; margin-top: .75rem; }
+[data-role="battery-policy-error"] { color: #a52828; }

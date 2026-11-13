@@ -303,6 +303,11 @@ const normalizeChargingSessions = (sessions) => {
       stationStopId: firstText(session.station_stop_id, session.stop_id),
       stationName: firstText(session.station_name, session.stop_name),
       energyKwh: toNonNegativeNumber(session.energy_kwh),
+      technicalMinutes: toNonNegativeNumber(session.technical_minutes),
+      layoverReductionMinutes: toNonNegativeNumber(session.layover_reduction_minutes),
+      availableChargingMinutes: toNonNegativeNumber(session.available_charging_minutes),
+      activeChargingMinutes: toNonNegativeNumber(session.active_charging_minutes),
+      idleAvailableMinutes: toNonNegativeNumber(session.idle_available_minutes),
       _sourceIndex: index,
     }))
     .sort((left, right) => {

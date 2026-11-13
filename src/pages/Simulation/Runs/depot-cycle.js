@@ -23,6 +23,7 @@ export function renderDepotCycle(run, shiftId = null) {
       <p class="result-card__note">${esc(row.depot_name)} · ${label('plug')} ${row.slot_number ?? '—'} · ${clock(row.depot_arrival_minute)} – ${clock(row.next_departure_minute)}</p>
       <div class="result-kpis">${metric(label('during'),`${num(row.during_shift_kwh)} kWh`)}${metric(label('outside'),`${num(row.outside_shift_kwh)} kWh`)}${metric(label('total'),`${num(row.total_charged_kwh)} kWh`)}</div>
       <p class="result-card__note">${label('occupancy_help')}</p>
+      ${row.technical_minutes == null ? '' : `<p class="result-card__note" data-role="depot-session-timing">${esc(t('simulation.battery_technical'))}: ${num(row.technical_minutes)} min · ${esc(t('simulation.battery_available_minutes'))}: ${num(row.available_charging_minutes)} min · ${esc(t('simulation.battery_active_minutes'))}: ${num(row.active_charging_minutes)} min</p>`}
       <details class="result-disclosure"><summary>${label('schedule')}</summary><div class="efficiency-table-wrap"><table class="table-standard depot-cycle-table"><thead><tr><th>${label('interval')}</th><th>kW DC</th><th>kWh</th></tr></thead><tbody>${periods.map(p=>`<tr><td>${clock(p.start_minute)} – ${clock(p.end_minute)}</td><td>${num(p.power_kw_dc)}</td><td>${num(p.energy_kwh)}</td></tr>`).join('')}</tbody></table></div></details>
     </div></section>`;
   }

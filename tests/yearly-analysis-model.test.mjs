@@ -745,3 +745,21 @@ test("strict yearly totals reject a missing KPI without discarding complete metr
   assert.equal(totals.drivetrainEnergyKwh, 8 * 100 + 6 * 265);
   assert.equal(totals.distanceKm, 5 * 365);
 });
+
+
+test("annual snapshots retain effective battery policy and physical pack capacities", () => {
+  const run = feasibilityRun();
+  Object.assign(run.input_params, { min_soc: .4, max_soc: .9, state_of_health: .7,
+    battery_soc_policy: 'constant_initial_usable', session_connection_minutes: 1, layover_reduction_minutes: 2 });
+  const fixed = buildFixedYearlyConfiguration(run);
+  assert.ok(Math.abs(fixed.soc.minFraction - (.9-.5/.7)) < 1e-12);
+  assert.equal(fixed.soc.maxFraction, .9);
+  assert.equal(fixed.operatingAssumptions.state_of_health, .7);
+  assert.equal(fixed.operatingAssumptions.low_soc_warning, true);
+  assert.equal(fixed.operatingAssumptions.session_connection_minutes, 1);
+  assert.equal(fixed.operatingAssumptions.layover_reduction_minutes, 2);
+  assert.equal(fixed.battery.nominalKwh, 600);
+  assert.equal(fixed.shifts[0].battery.energy.nominal_capacity_kwh, 400);
+  assert.equal(fixed.shifts[0].battery.energy.residual_capacity_kwh, 280);
+  assert.equal(fixed.shifts[0].battery.energy.usable_capacity_kwh, 200);
+});

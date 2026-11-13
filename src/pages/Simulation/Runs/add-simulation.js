@@ -1,3 +1,4 @@
+import { resolveBatteryPolicy, batteryEnergy, historicalBatteryParams, NEW_BATTERY_DEFAULTS } from '../../../utils/battery-policy';
 import { datasetKey, datasetLabel, dateLabel, shiftDatasetKey,
   analysisDatasetCatalog, NO_GTFS_DATASET, UNKNOWN_GTFS_DATASET, MIXED_GTFS_DATASETS } from "../../../utils/gtfs-datasets.js";
 import "../evaluation-dialogs.css";
@@ -87,34 +88,6 @@ const formatShiftDistanceValue = (distanceKm) =>
 const DEFAULT_SHIFT_SORT = {
   key: "name",
   direction: "asc",
-};
-
-const DEFAULT_USABLE_SOC_PERCENT = 50;
-const RISKY_USABLE_SOC_PERCENT = 90;
-const ALLOWED_USABLE_SOC_PERCENTS = new Set([
-  100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
-]);
-
-const isRiskyUsableSocPercent = (value) => {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric >= RISKY_USABLE_SOC_PERCENT;
-};
-
-const resolveSocBounds = (usableSocPercent) => {
-  const parsedPercent = Number(usableSocPercent);
-  const percent = ALLOWED_USABLE_SOC_PERCENTS.has(parsedPercent)
-    ? parsedPercent
-    : DEFAULT_USABLE_SOC_PERCENT;
-
-  if (percent === 100) {
-    return { minSoc: 0.0, maxSoc: 1.0 };
-  }
-
-  const maxSoc = 0.9;
-  return {
-    minSoc: Number((maxSoc - percent / 100).toFixed(1)),
-    maxSoc,
-  };
 };
 
 const setFeedback = (section, message, tone = "error") => {
@@ -403,7 +376,6 @@ export const initializeAddSimulation = async (
 
   const cleanupHandlers = [];
   const copiedSettings = retainedEvaluationSettings(options.prefill?.inputParams);
-  let copiedSocBounds = null;
   let duplicationError = false;
   let duplicationErrorMessage = "";
   let disposed = false;
@@ -447,15 +419,8 @@ export const initializeAddSimulation = async (
   const selectFilteredShifts = section.querySelector('[data-role="select-filtered-shifts"]');
   const modeSelect = section.querySelector("#var-optimization-mode");
   const busModelOverride = section.querySelector("#var-bus-model-override");
-  const usableSocSelect = section.querySelector("#var-usable-soc-percent");
   const nameInput = section.querySelector("#simulation-name");
   const nameFeedback = section.querySelector('[data-role="name-feedback"]');
-  const usableSocWarning = section.querySelector(
-    '[data-role="usable-soc-warning"]'
-  );
-  const usableSocWarningConfirm = section.querySelector(
-    '[data-role="usable-soc-warning-confirm"]'
-  );
 
   const progress = createEvaluationProgress(section);
   const hideProgress = () => progress.close();
@@ -600,6 +565,7 @@ export const initializeAddSimulation = async (
     if (disposed || busModelOverride.value !== id) return;
     loadingBusModelId = null;
     syncFixedBatteryField();
+    updateBatteryPreview();
     const value=model?.specs?.battery_pack_cost_chf;
     section.querySelector('[data-role="bus-pack-cost"]').textContent = value == null ? t('simulation.cost_bus_pack_missing') : formatChf(value);
   };
@@ -607,40 +573,62 @@ export const initializeAddSimulation = async (
   cleanupHandlers.push(()=>busModelOverride.removeEventListener('change',updatePackCost));
   let selectedShiftIds = new Set();
   let sortState = { ...DEFAULT_SHIFT_SORT };
-  let usableSocWasRisky = isRiskyUsableSocPercent(usableSocSelect?.value);
-  let warningReturnFocus = null;
-
-  const closeUsableSocWarning = () => {
-    if (!usableSocWarning) return;
-    usableSocWarning.hidden = true;
-    if (warningReturnFocus && typeof warningReturnFocus.focus === "function") {
-      warningReturnFocus.focus();
+  const batteryKeys = ['state_of_health', 'min_soc', 'max_soc', 'allowed_min_soc', 'allowed_max_soc'];
+  const readBatteryParams = () => ({
+    ...Object.fromEntries(batteryKeys.map(key => [key, form.elements[key].value.trim() === '' ? NaN : Number(form.elements[key].value) / 100])),
+    battery_soc_policy: form.elements.battery_soc_policy.value,
+    session_connection_minutes: Number(form.elements.session_connection_minutes.value),
+    layover_reduction_minutes: Number(form.elements.layover_reduction_minutes.value),
+  });
+  const fillBatteryParams = values => {
+    for (const key of batteryKeys) form.elements[key].value = String(values[key] * 100);
+    for (const key of ['battery_soc_policy', 'session_connection_minutes', 'layover_reduction_minutes']) form.elements[key].value = String(values[key]);
+  };
+  function updateBatteryPreview() {
+    const values = readBatteryParams();
+    const constant = values.battery_soc_policy === 'constant_initial_usable';
+    section.querySelectorAll('[data-role="battery-expansion"]').forEach(el => { el.hidden = !constant; });
+    section.querySelector('[data-role="battery-reference-label"]').hidden = !constant;
+    section.querySelector('[data-role="battery-policy-help"]').hidden = !constant;
+    section.querySelector('label[for="var-min-soc"]').textContent = t(constant ? 'simulation.battery_min_soc' : 'simulation.battery_residual_min');
+    section.querySelector('label[for="var-max-soc"]').textContent = t(constant ? 'simulation.battery_preferred_max' : 'simulation.battery_residual_max');
+    const preview = section.querySelector('[data-role="battery-preview"]');
+    const error = section.querySelector('[data-role="battery-policy-error"]');
+    const warning = section.querySelector('[data-role="battery-low-warning"]');
+    form.elements.min_soc.setCustomValidity('');
+    try {
+      const policy = resolveBatteryPolicy(values);
+      error.hidden = true;
+      warning.hidden = !policy.low_soc_warning;
+      const fmt = n => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(n);
+      let content = `${t('simulation.battery_effective_window')}: ${fmt(policy.min_soc*100)}–${fmt(policy.max_soc*100)}% · ${t('simulation.battery_initial_usable_fraction')}: ${fmt(policy.usable_fraction_initial*100)}%`;
+      const model = allUserModels.find(m => String(m.id) === busModelOverride.value);
+      const limits = batteryPackLimits(model?.specs);
+      const count = modeSelect.value === 'charging_only' ? Number(fixedPacks.value) : limits?.max;
+      const capacity = Number(model?.specs?.battery_pack_size_kwh) * count;
+      if (Number.isFinite(capacity) && capacity > 0) {
+        const energy = batteryEnergy(capacity, policy);
+        content += ` · ${t('simulation.battery_nominal')}: ${fmt(capacity)} kWh · ${t('simulation.battery_residual')}: ${fmt(energy.residual_capacity_kwh)} kWh · ${t('simulation.battery_usable')}: ${fmt(energy.usable_capacity_kwh)} kWh`;
+      }
+      preview.textContent = content + ' — ' + t('simulation.battery_preview') + (policy.preferred_max_soc_exceeded ? ' ' + t('simulation.battery_raised_max') : '');
+      return values;
+    } catch {
+      preview.textContent = '';
+      warning.hidden = true;
+      error.textContent = t('simulation.battery_invalid');
+      error.hidden = false;
+      form.elements.min_soc.setCustomValidity(t('simulation.battery_invalid'));
+      return null;
     }
-    warningReturnFocus = null;
-  };
-
-  const showUsableSocWarning = () => {
-    if (!usableSocWarning) return;
-    warningReturnFocus = document.activeElement;
-    usableSocWarning.hidden = false;
-    usableSocWarningConfirm?.focus();
-  };
-
-  const handleUsableSocWarningKeydown = (event) => {
-    if (usableSocWarning?.hidden) return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeUsableSocWarning();
-    }
-  };
-
-  const handleUsableSocChange = () => {
-    const isRisky = isRiskyUsableSocPercent(usableSocSelect?.value);
-    if (isRisky && !usableSocWasRisky) {
-      showUsableSocWarning();
-    }
-    usableSocWasRisky = isRisky;
-  };
+  }
+  fillBatteryParams(options.prefill ? historicalBatteryParams(options.prefill.inputParams ?? {}) : NEW_BATTERY_DEFAULTS);
+  updateBatteryPreview();
+  for (const event of ['input', 'change']) {
+    form.addEventListener(event, updateBatteryPreview);
+    cleanupHandlers.push(() => form.removeEventListener(event, updateBatteryPreview));
+  }
+  document.addEventListener(I18N_CHANGE_EVENT, updateBatteryPreview);
+  cleanupHandlers.push(() => document.removeEventListener(I18N_CHANGE_EVENT, updateBatteryPreview));
 
   const setNameFeedback = (message) => {
     if (!nameFeedback) return;
@@ -1116,7 +1104,6 @@ export const initializeAddSimulation = async (
       externalTempCelsius,
       occupancyPercent,
       heatingType,
-      usableSocPercent,
       busModelId,
       batterySizingMode,
       fixedBatteryPacks,
@@ -1192,27 +1179,8 @@ export const initializeAddSimulation = async (
       }
     }
 
-    if (usableSocPercent != null) {
-      const usableSocInput = section.querySelector("#var-usable-soc-percent");
-      if (usableSocInput) {
-        usableSocInput.value = String(usableSocPercent);
-        usableSocWasRisky = isRiskyUsableSocPercent(usableSocInput.value);
-      }
-    }
-
-    if (Number.isFinite(inputParams.min_soc) && Number.isFinite(inputParams.max_soc)) {
-      const minSoc = inputParams.min_soc, maxSoc = inputParams.max_soc;
-      const percent = Number(((maxSoc - minSoc) * 100).toFixed(6));
-      const standard = resolveSocBounds(percent);
-      const select = section.querySelector('#var-usable-soc-percent');
-      let value = String(percent);
-      if (!ALLOWED_USABLE_SOC_PERCENTS.has(percent) || Math.abs(standard.minSoc - minSoc) > 1e-10 || Math.abs(standard.maxSoc - maxSoc) > 1e-10) {
-        value = 'saved';
-        select.add(new Option(`${percent}% (SOC ${minSoc * 100}–${maxSoc * 100}%)`, value));
-      }
-      select.value = value;
-      copiedSocBounds = { value, minSoc, maxSoc };
-    }
+    fillBatteryParams(historicalBatteryParams(inputParams));
+    updateBatteryPreview();
 
     refreshBusModelOverride();
 
@@ -1250,6 +1218,7 @@ export const initializeAddSimulation = async (
       fixedPacksDefaultPending = false;
       syncFixedBatteryField();
     }
+    updateBatteryPreview();
     if (duplicationError) setFeedback(section, t('simulation.duplicate_inputs_missing'));
   }
 
@@ -1357,28 +1326,6 @@ export const initializeAddSimulation = async (
       nameInput.removeEventListener("input", handleNameInput)
     );
   }
-
-  if (usableSocSelect) {
-    usableSocSelect.addEventListener("change", handleUsableSocChange);
-    cleanupHandlers.push(() =>
-      usableSocSelect.removeEventListener("change", handleUsableSocChange)
-    );
-  }
-
-  if (usableSocWarningConfirm) {
-    usableSocWarningConfirm.addEventListener("click", closeUsableSocWarning);
-    cleanupHandlers.push(() =>
-      usableSocWarningConfirm.removeEventListener(
-        "click",
-        closeUsableSocWarning
-      )
-    );
-  }
-
-  document.addEventListener("keydown", handleUsableSocWarningKeydown);
-  cleanupHandlers.push(() =>
-    document.removeEventListener("keydown", handleUsableSocWarningKeydown)
-  );
 
   // ── Shift checkbox & mode change → rebuild stops ─────────────────
   const handleSelectionChange = (event) => {
@@ -1572,11 +1519,8 @@ export const initializeAddSimulation = async (
     const heatingType =
       text(formData.get("auxiliary_heating_type") ?? "default").trim() ||
       "default";
-    const usableSocPercent = Number(
-      formData.get("usable_soc_percent") ?? DEFAULT_USABLE_SOC_PERCENT
-    );
-    const { minSoc, maxSoc } = copiedSocBounds?.value === formData.get('usable_soc_percent')
-      ? copiedSocBounds : resolveSocBounds(usableSocPercent);
+    const batteryParams = updateBatteryPreview();
+    if (!batteryParams) { form.elements.min_soc.reportValidity(); return; }
 
     const chargingStations = collectChargingStations(
       stopsTbody,
@@ -1604,11 +1548,10 @@ export const initializeAddSimulation = async (
       prediction_params: predictionParams,
       auxiliary_heating_type: heatingType,
       charging_stations: chargingStations,
-      min_soc: minSoc,
-      max_soc: maxSoc,
       solver_name: "highs",
       max_solver_time_seconds: 300,
       ...copiedSettings,
+      ...batteryParams,
     };
 
     if (optimizationMode === "charging_only") {

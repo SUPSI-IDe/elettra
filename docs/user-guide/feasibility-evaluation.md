@@ -50,12 +50,28 @@ commercial vehicle. It works only with the supplied candidates and limits.
 | External temperature | -5 °C | Ambient condition for the technical gate |
 | Average passengers | 100% | Occupancy applied to the prediction |
 | Heating type | Heat pump/default | Auxiliary-heating technology; diesel is also available |
-| Usable SOC | 50% of nominal | Configured operating window inside nominal capacity |
+| State of health (SOH) | 70% | Residual capacity as a fraction of initial capacity |
+| Battery usage policy | SOC on residual capacity | Applies the SOC window to residual capacity |
+| Minimum / maximum SOC | 40% / 90% | Reference operating limits |
+| Allowed minimum / maximum SOC | 10% / 95% | Expansion limits for constant initial usable energy |
+| Technical time per session | 1 minute | Total connection and disconnection time, including depot charging |
+| Terminal layover reduction | 0 minutes | Additional charging-time deduction at terminals, excluding depots |
 
-Usable SOC is an input limit, not the SOC actually reached by the optimized
-trajectory. A 50% usable window with maximum SOC at 90%, for example, implies a
-minimum limit of 40%. Selecting 90–100% triggers an explicit warning because it
-can represent aggressive battery operation.
+These battery assumptions apply to the whole evaluation. SOC percentages refer
+to residual capacity: 500 kWh initially at SOH 70% leaves 350 kWh, of which the
+default 40–90% window makes 175 kWh usable.
+
+The alternative **Constant initial usable energy** policy preserves the reference
+window at SOH 100%. With a 40–90% reference, it preserves 50% of initial capacity:
+250 kWh for an initial 500 kWh battery. At SOH 70%, the applied window becomes
+18.57–90%. The minimum SOC decreases first, down to the allowed minimum of 10%;
+only then does the preferred maximum of 90% increase towards the allowed 95%.
+Incompatible combinations must be corrected before evaluation.
+
+The applied SOC limits are distinct from SOC actually reached by the optimized
+trajectory. An applied minimum below 20% produces an informational warning;
+it does not block submission or require confirmation. Charging uses configured
+power limits without an SOC-dependent charging curve.
 
 ### 5. Charging and depot behavior
 
@@ -73,6 +89,14 @@ Additional options can:
 
 A connected bus occupies the same plug for its full stop, even after energy
 delivery finishes.
+
+Technical time is deducted once per charging session, including at depots.
+Its default of 1 minute covers connection and disconnection together. At a
+terminal, a configured layover reduction of x minutes leaves the stop duration
+minus (1 + x) minutes available for charging; depots have no terminal reduction.
+Changing this margin requires a new optimization. It is a deterministic time
+margin, not a hardware test or stochastic delay model: it does not shift trips,
+propagate delays or add energy demand.
 
 ---
 
@@ -114,12 +138,16 @@ The form restores, where available:
 - optimization and battery-sizing modes;
 - fixed battery reference for Charging mode;
 - temperature, occupancy, heating, and SOC limits;
+- SOH, battery usage policy, expansion limits and technical charging times;
 - charging candidates, constraints, and infrastructure costs;
 - forecast settings, depot options, and solver-related options.
 
 If original resources or compatible forecasts are unavailable, duplication is
 cancelled instead of submitting a partial copy. Historical copies created by
 older versions may still require manual review and recalculation.
+Historical battery assumptions are preserved, including SOH 100% and zero
+technical time where recorded or historically assumed; new-evaluation defaults
+do not overwrite them.
 
 The list also supports search, sorting, viewing results, and deletion. Analysis
 comparison is performed between saved yearly analyses, not between feasibility

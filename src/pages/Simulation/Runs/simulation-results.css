@@ -2614,7 +2614,8 @@
   background: linear-gradient(to top,
     var(--color-chart-track) 0 var(--reserve),
     var(--color-brand-accent) var(--reserve) var(--soc-max),
-    var(--color-disabled-bg) var(--soc-max) 100%);
+    var(--color-disabled-bg) var(--soc-max) var(--soh, 100%),
+    #929ca6 var(--soh, 100%) 100%);
 }
 .aggregate-pack--unused {
   border-color: var(--color-disabled-border);
@@ -2741,3 +2742,6 @@
 .fleet-investment tbody th { font-weight:500; }
 .fleet-investment__unit { display:block; font-size:.8rem; color:var(--text-secondary); font-weight:400; }
 .fleet-investment tfoot { font-weight:600; }
+
+.battery-assumptions { margin-bottom: 1rem; }
+.battery-assumptions .result-card__body { overflow-wrap: anywhere; }

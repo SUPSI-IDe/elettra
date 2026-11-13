@@ -1,3 +1,4 @@
+import { batteryEnergy, resultBatteryPolicy } from "./battery-policy.js";
 import { buildFeasibilityResultModel } from "./feasibility-result-model.js";
 import { buildFleetInvestment } from "./fleet-investment.js";
 import { resolvePredictionRunShiftIds } from "./feasibility-shift-scope.js";
@@ -247,6 +248,12 @@ export const buildFixedYearlyConfiguration = (
   { shiftNamesById = {}, packSizeKwh: configuredPackSizeKwh = null } = {},
 ) => {
   const feasibility = buildFeasibilityResultModel(optimizationRun);
+  const policy = resultBatteryPolicy(optimizationRun);
+  const operatingAssumptions = Object.fromEntries([
+    "version", "state_of_health", "battery_soc_policy", "reference_min_soc", "reference_max_soc",
+    "allowed_min_soc", "allowed_max_soc", "min_soc", "max_soc", "usable_fraction_initial",
+    "low_soc_warning", "preferred_max_soc_exceeded", "session_connection_minutes", "layover_reduction_minutes",
+  ].filter(key => policy[key] !== undefined).map(key => [key, policy[key]]));
   const inputParams = isRecord(optimizationRun?.input_params)
     ? optimizationRun.input_params
     : {};
@@ -293,6 +300,10 @@ export const buildFixedYearlyConfiguration = (
             source.battery.optimizedPacks === commonPacks,
         }
       : null;
+    if (battery && Number.isFinite(battery.selectedPacks * packSizeKwh) && packSizeKwh > 0) {
+      battery.energy = optimizationRun.results?.battery_results?.[shiftId]?.battery_energy
+        ?? batteryEnergy(battery.selectedPacks * packSizeKwh, policy);
+    }
     return {
       shiftId,
       shiftName: resolvedName || text(source?.shiftName) || shiftId,
@@ -329,9 +340,10 @@ export const buildFixedYearlyConfiguration = (
     shiftIds,
     fleet: buildYearlyFleetSnapshot(optimizationRun, shiftIds),
     investment: buildFleetInvestment(optimizationRun),
+    operatingAssumptions,
     soc: {
-      minFraction: toFiniteNumber(inputParams.min_soc) ?? 0,
-      maxFraction: toFiniteNumber(inputParams.max_soc) ?? 1,
+      minFraction: policy.min_soc,
+      maxFraction: policy.max_soc,
     },
     battery,
     infrastructure: feasibility.infrastructure,

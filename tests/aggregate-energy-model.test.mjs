@@ -30,3 +30,16 @@ for (const [selected, excess, required, unavailable] of [[10,8,18,2],[10,3,13,0]
     assert.equal(aggregateEnergyModel(run,'shift').unavailablePacks,unavailable);
   });
 }
+
+
+for (const [policy, usable, minimum] of [['residual_soc',175,.4],['constant_initial_usable',250,.9-.5/.7]]) {
+  test(`legacy-compatible result fallback applies ${policy} consistently`, () => {
+    const run={input_params:{state_of_health:.7,battery_soc_policy:policy,min_soc:.4,max_soc:.9},
+      results:{battery_results:{shift:{optimized_packs:10,max_physical_packs:10,max_physical_kwh:500}}}};
+    const model=aggregateEnergyModel(run,'shift');
+    assert.equal(model.nominal,500);
+    assert.ok(Math.abs(model.usable-usable)<1e-9);
+    assert.ok(Math.abs(model.minSoc-minimum)<1e-9);
+    assert.equal(model.soh,.7);
+  });
+}

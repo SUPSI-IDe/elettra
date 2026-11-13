@@ -748,9 +748,9 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-energy"]')).toContainText("60.0");
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toContainText("120.0");
   await expect(chargingSessions.first().locator(".feasibility-charging-session__location")).toContainText(/Charging session 1:\s*Depot/);
-  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-duration"]')).toContainText(/Duration:\s*30 min/);
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-duration"]')).toContainText(/Connected time:\s*30 min/);
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-energy"]')).toContainText(/Energy:\s*60\.0 kWh/);
-  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toContainText(/Average power:\s*120\.0 kW/);
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toContainText(/Average power \(Connected time\):\s*120\.0 kW/);
 
   const visualAnalysis = shiftDetail.locator('[data-role="feasibility-shift-visual-analysis"]');
   const energyAdequacy = shiftDetail.locator('[data-role="feasibility-shift-energy-adequacy"]');

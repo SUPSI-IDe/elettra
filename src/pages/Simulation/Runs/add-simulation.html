@@ -277,22 +277,66 @@
                 <option value="diesel" data-i18n="simulation.heating_diesel">Diesel</option>
               </select>
             </div>
+            <fieldset class="battery-policy-fields" data-role="battery-policy-fields">
+              <legend data-i18n="simulation.battery_section">Battery capacity and SOH</legend>
+              <div class="battery-policy-grid">
+                <div class="form-group">
+                  <label for="var-battery-policy" data-i18n="simulation.battery_policy">Battery usage policy</label>
+                  <select id="var-battery-policy" name="battery_soc_policy">
+                    <option value="residual_soc" data-i18n="simulation.battery_residual_soc">SOC on residual capacity</option>
+                    <option value="constant_initial_usable" data-i18n="simulation.battery_constant_initial_usable">Constant initial usable energy</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="var-state-of-health" data-i18n="simulation.battery_soh">
+                  </label>
+                  <input id="var-state-of-health" name="state_of_health" type="number" min="0.01" max="100" step="any" value="70" required>
+                </div>
+                <div class="form-group">
+                  <label for="var-min-soc" data-i18n="simulation.battery_min_soc">
+                  </label>
+                  <input id="var-min-soc" name="min_soc" type="number" min="0" max="100" step="any" value="40" required>
+                </div>
+                <div class="form-group">
+                  <label for="var-max-soc" data-i18n="simulation.battery_max_soc">
+                  </label>
+                  <input id="var-max-soc" name="max_soc" type="number" min="0" max="100" step="any" value="90" required>
+                </div>
+                <p data-role="battery-reference-label" data-i18n="simulation.battery_reference_window" hidden>
+                </p>
+                <div class="form-group" data-role="battery-expansion" hidden>
+                  <label for="var-allowed-min-soc" data-i18n="simulation.battery_allowed_min">
+                  </label>
+                  <input id="var-allowed-min-soc" name="allowed_min_soc" type="number" min="0" max="100" step="any" value="10" required>
+                </div>
+                <div class="form-group" data-role="battery-expansion" hidden>
+                  <label for="var-allowed-max-soc" data-i18n="simulation.battery_allowed_max">
+                  </label>
+                  <input id="var-allowed-max-soc" name="allowed_max_soc" type="number" min="0" max="100" step="any" value="95" required>
+                </div>
+              </div>
+              <p class="helper-text" data-role="battery-policy-help" data-i18n="simulation.battery_limits_help" hidden>
+              </p>
+              <div data-role="battery-preview" aria-live="polite">
+              </div>
+              <p class="aggregate-warning" data-role="battery-low-warning" data-i18n="simulation.battery_low_warning" role="status" hidden>
+              </p>
+              <p data-role="battery-policy-error" role="alert" hidden>
+              </p>
+            </fieldset>
             <div class="form-group">
-              <label for="var-usable-soc-percent" data-i18n="simulation.var_usable_soc_percent">
-                Usable SOC (% of nominal)
+              <label for="var-session-connection-minutes" data-i18n="simulation.battery_connection">
               </label>
-              <select id="var-usable-soc-percent" name="usable_soc_percent">
-                <option value="100">100%</option>
-                <option value="90">90%</option>
-                <option value="80">80%</option>
-                <option value="70">70%</option>
-                <option value="60">60%</option>
-                <option value="50" selected>50%</option>
-                <option value="40">40%</option>
-                <option value="30">30%</option>
-                <option value="20">20%</option>
-                <option value="10">10%</option>
-              </select>
+              <input id="var-session-connection-minutes" name="session_connection_minutes" type="number" min="0" step="1" value="1" required aria-describedby="session-connection-minutes-help">
+              <p id="session-connection-minutes-help" class="helper-text" data-i18n="simulation.battery_connection_help">
+              </p>
+            </div>
+            <div class="form-group">
+              <label for="var-layover-reduction-minutes" data-i18n="simulation.battery_layover">
+              </label>
+              <input id="var-layover-reduction-minutes" name="layover_reduction_minutes" type="number" min="0" step="1" value="0" required aria-describedby="layover-reduction-minutes-help">
+              <p id="layover-reduction-minutes-help" class="helper-text" data-i18n="simulation.battery_layover_help">
+              </p>
             </div>
           </div>
         </div>
@@ -313,40 +357,6 @@
       </div>
       </div>
 
-      <div class="usable-soc-warning" data-role="usable-soc-warning" hidden>
-        <div
-          class="usable-soc-warning__dialog"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="usable-soc-warning-title"
-          aria-describedby="usable-soc-warning-body"
-        >
-          <h2
-            class="usable-soc-warning__title"
-            id="usable-soc-warning-title"
-            data-i18n="simulation.usable_soc_warning_title"
-          >
-            Aggressive usable SoC assumption
-          </h2>
-          <p
-            class="usable-soc-warning__body"
-            id="usable-soc-warning-body"
-            data-i18n="simulation.usable_soc_warning_body"
-          >
-            Warning: this is a very aggressive usable SoC assumption. Selecting 90–100% means that the simulation may use almost the full nominal battery capacity, for example down to very low SoC or up to 100%. This can be risky for real battery operation and may reduce battery lifetime. Please use this value only if you intentionally want to test an extreme scenario.
-          </p>
-          <div class="usable-soc-warning__actions">
-            <button
-              type="button"
-              class="usable-soc-warning__confirm action-positive"
-              data-role="usable-soc-warning-confirm"
-              data-i18n="simulation.usable_soc_warning_confirm"
-            >
-              I understand
-            </button>
-          </div>
-        </div>
-      </div>
     </form>
     <dialog class="simulation-progress" data-role="simulation-progress" aria-labelledby="evaluation-progress-title" aria-describedby="progress-evaluation-name progress-evaluation-context">
       <header class="simulation-progress__header">

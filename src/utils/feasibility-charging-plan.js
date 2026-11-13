@@ -83,6 +83,12 @@ const normalizeSession = (candidate, sourceIndex) => {
     stationName,
     energyKwh,
     averagePowerKw,
+    technicalMinutes: nonNegativeNumber(session.technicalMinutes),
+    layoverReductionMinutes: nonNegativeNumber(session.layoverReductionMinutes),
+    availableChargingMinutes: nonNegativeNumber(session.availableChargingMinutes),
+    activeChargingMinutes: nonNegativeNumber(session.activeChargingMinutes),
+    idleAvailableMinutes: nonNegativeNumber(session.idleAvailableMinutes),
+
     detailsComplete:
       startMinute !== null &&
       endMinute !== null &&

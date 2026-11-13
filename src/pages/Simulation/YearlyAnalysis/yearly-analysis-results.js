@@ -638,6 +638,7 @@ const renderConfig = (features) => {
     { label: t("yearly_analysis.occupancy"), value: cfg.occupancy_percent != null ? `${cfg.occupancy_percent}%` : "—" },
     { label: t("yearly_analysis.heating"), value: heatingLabel(cfg.auxiliary_heating_type) },
     { label: t("yearly_analysis.soc_range"), value: `${((cfg.min_soc ?? 0) * 100).toFixed(0)}–${((cfg.max_soc ?? 1) * 100).toFixed(0)}%` },
+    ...(cfg.operating_assumptions ? [{ label: "SOH", value: `${cfg.operating_assumptions.state_of_health * 100}% · ${t(`simulation.battery_${cfg.operating_assumptions.battery_soc_policy}`)}` }] : []),
   ];
   return `<div class="ya-res-config">
     <h3 class="ya-res-config-title">${textContent(t("yearly_analysis.configuration"))}</h3>
@@ -3594,6 +3595,7 @@ export const buildExportPayload = (features, effState, costState, emissionsState
     mode: meta.modeLabel ?? cfg.mode ?? null,
     occupancyPercent: cfg.occupancy_percent ?? null,
     heating: normalizeAuxiliaryHeatingType(cfg.auxiliary_heating_type),
+    operatingAssumptions: cfg.fixedConfiguration?.operatingAssumptions ?? cfg.operating_assumptions ?? null,
     socRange: cfg.min_soc != null && cfg.max_soc != null
       ? { min: round(cfg.min_soc, 2), max: round(cfg.max_soc, 2) }
       : null,
@@ -3979,6 +3981,7 @@ const buildGeneralExportConfiguration = (features = {}, busModelData = {}) => {
     socRange: minSoc !== null && maxSoc !== null
       ? { minFraction: minSoc, maxFraction: maxSoc }
       : null,
+    operatingAssumptions: fixed.operatingAssumptions ?? config.operating_assumptions ?? null,
     battery: fixed.battery ?? {
       packs: toFiniteNumber(results.optimizedPacks),
     },
@@ -4357,6 +4360,10 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
     },
   ];
   const operatingRows = [
+    ...(fixed.operatingAssumptions || config.operating_assumptions ? [{
+      label: "SOH",
+      value: `${((fixed.operatingAssumptions ?? config.operating_assumptions).state_of_health * 100).toFixed(1)}% · ${t(`simulation.battery_${(fixed.operatingAssumptions ?? config.operating_assumptions).battery_soc_policy}`)}`,
+    }] : []),
     {
       label: t("yearly_analysis.occupancy"),
       value: config.occupancy_percent != null ? `${config.occupancy_percent}%` : "—",

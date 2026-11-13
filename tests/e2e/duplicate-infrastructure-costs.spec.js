@@ -142,8 +142,9 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
           await f.submit();
           await expect.poll(() => f.submissions.length).toBe(copy);
           const { prediction_params, ...expected } = f.original;
-          // Only name and generated references change. Mean and Q95 are always recalculated as a pair.
-          expect(f.submissions.at(-1)).toEqual({ ...expected, name: `Copy ${copy}`, consumption_basis: 'mean',
+          // Historical assumptions remain explicit; new policy fields preserve the historical behavior. Mean/Q95 are recalculated as a pair.
+          expect(f.submissions.at(-1)).toEqual({ battery_soc_policy: 'residual_soc', allowed_min_soc: .1, allowed_max_soc: .95, layover_reduction_minutes: 0,
+            ...expected, name: `Copy ${copy}`, consumption_basis: 'mean',
             prediction_run_ids: [`copy-${copy}-shift`, `copy-${copy}-shift2`],
             reference_prediction_run_ids: { shift: `copy-${copy}-shift`, shift2: `copy-${copy}-shift2` } });
           expect(f.predictions.at(-1)).toEqual({ ...forecast, shift_ids: ['shift', 'shift2'], bus_model_id: 'model',

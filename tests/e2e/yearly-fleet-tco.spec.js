@@ -89,6 +89,14 @@ test('representative and fleet views reconcile investment and TCO, assumptions a
   );
   const assumptionsPanel = page.locator('[data-tco-assumptions]');
   await expect(assumptionsPanel).not.toHaveAttribute('open', '');
+  // Rendering before the queued native toggle event must retain the open panel.
+  await assumptionsPanel.evaluate(panel => {
+    panel.open = true;
+    panel.closest('form').requestSubmit();
+  });
+  await expect(assumptionsPanel).toHaveAttribute('open', '');
+  await assumptionsPanel.locator(':scope > summary').click();
+  await expect(assumptionsPanel).not.toHaveAttribute('open', '');
   await expect(page.locator('[data-assumptions-state]')).toHaveText('Initial values');
   await expect(page.locator('[data-assumptions-state]')).toHaveAttribute('data-modified', 'false');
   const initialComparisonRows = page.locator('[data-annual-financial] .annual-fleet-table').first().getByRole('row');

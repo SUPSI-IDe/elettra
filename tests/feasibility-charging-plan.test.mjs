@@ -149,6 +149,8 @@ test("a row with missing time, location, or energy remains visible and marks the
     stationName: null,
     energyKwh: null,
     averagePowerKw: null,
+    technicalMinutes: null, layoverReductionMinutes: null, availableChargingMinutes: null,
+    activeChargingMinutes: null, idleAvailableMinutes: null,
     detailsComplete: false,
   });
 });
@@ -210,4 +212,19 @@ test("clock formatting preserves day offsets and rejects invalid minute values",
   assert.equal(formatFeasibilityClockMinute(1.5), null);
   assert.equal(formatFeasibilityClockMinute(true), null);
   assert.equal(formatFeasibilityClockMinute(""), null);
+});
+
+
+test('technical and available idle time remain distinct and average power uses occupied time', () => {
+  const plan = buildFeasibilityChargingPlan({numChargingSessions:1, chargingSessions:[session({
+    startMinute:10,endMinute:16,durationMinutes:6,energyKwh:10,technicalMinutes:1,
+    layoverReductionMinutes:2,availableChargingMinutes:3,activeChargingMinutes:2,idleAvailableMinutes:1,
+  })]});
+  const actual=plan.sessions[0];
+  assert.equal(actual.averagePowerKw,100);
+  assert.equal(actual.technicalMinutes,1);
+  assert.equal(actual.layoverReductionMinutes,2);
+  assert.equal(actual.availableChargingMinutes,3);
+  assert.equal(actual.activeChargingMinutes,2);
+  assert.equal(actual.idleAvailableMinutes,1);
 });
