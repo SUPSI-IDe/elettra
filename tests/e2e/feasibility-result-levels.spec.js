@@ -1911,6 +1911,7 @@ for(const recorded of [true,false]) {
     const panel=page.locator('[data-role="analysis-gtfs"]');
     await expect(panel).toBeVisible();
     await expect(panel).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(panel.locator('.gtfs-disclosure__label')).toHaveCSS('color', 'rgb(28, 28, 28)');
     const rows=panel.locator('[data-role="gtfs-metadata"]');
     await expect(rows).toHaveCount(recorded ? 2 : 1);
     await expect(rows.first()).toBeHidden();

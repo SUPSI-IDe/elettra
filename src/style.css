@@ -3425,7 +3425,7 @@ table input[type="checkbox"] {
 .gtfs-disclosure > summary { cursor: pointer; width: fit-content; max-width: 100%; border-radius: .25rem; overflow-wrap: anywhere; }
 .gtfs-disclosure > summary > span { margin-inline-end: .65rem; }
 .gtfs-disclosure > summary:focus-visible { outline: 2px solid #174fa3; outline-offset: 4px; }
-.gtfs-disclosure__label { font-weight: 600; }
+.gtfs-disclosure__label { color: var(--text-main); font-weight: 600; }
 .gtfs-disclosure__hint, .gtfs-disclosure__source { font-size: .75rem; }
 .gtfs-disclosure__hint { text-decoration: underline; text-underline-offset: .15em; }
 .gtfs-disclosure__content { margin-top: .5rem; padding: .65rem .85rem; border-inline-start: 2px solid #cbd5e1; }

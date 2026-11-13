@@ -19,7 +19,10 @@ const model = { id: 'model', user_id: 'user', name: '500 kWh bus', specs: {
   min_battery_packs: 10, max_battery_packs: 10, battery_pack_size_kwh: 50,
   battery_pack_cost_chf: 6000,
 } };
-const shift = { id: 'shift', name: 'Battery policy block', bus_id: 'bus', structure: [] };
+const gtfsDataset = { gtfs_year: 2026, gtfs_file_date: '2026-10-01',
+  valid_from: '2026-01-01', valid_to: '2026-12-31' };
+const shift = { id: 'shift', name: 'Battery policy block', bus_id: 'bus', structure: [],
+  gtfs_datasets: [gtfsDataset] };
 const prediction = { id: 'prediction', shift_id: 'shift', bus_model_id: 'model', status: 'completed',
   model_name: 'saved-model', prediction_stack: 'vecto-g2', external_temp_celsius: -5,
   occupancy_percent: 100, auxiliary_heating_type: 'default',
@@ -31,7 +34,8 @@ async function fixture(page, { input = {}, result = false } = {}) {
   const saved = { id: 'saved', name: 'Battery policy evaluation', status: 'completed', mode: 'battery_only',
     bus_model_id: 'model', created_at: '2026-01-01T12:00:00Z', prediction_run_ids: ['prediction'],
     input_params: { mode: 'battery_only', shift_ids: ['shift'], bus_model_id: 'model',
-      prediction_run_ids: ['prediction'], min_soc: 0.4, max_soc: 0.9, ...input },
+      prediction_run_ids: ['prediction'], min_soc: 0.4, max_soc: 0.9,
+      gtfs_provenance: { version: 1, shifts: { shift: [gtfsDataset] } }, ...input },
     results: { solver_status: 'optimal', electrification_feasible: true,
       electrification_summary: { status: 'feasible', num_buses: 1, num_infeasible_buses: 0, infeasible_buses: [] },
       battery_results: { shift: { shift_id: 'shift', optimized_packs: 10, max_physical_packs: 10,
@@ -62,6 +66,12 @@ async function fixture(page, { input = {}, result = false } = {}) {
       submissions.push(request.postDataJSON());
       data = { optimization_run_id: 'pending', basis_run_ids: { mean: 'pending', aggregate_q95: 'pending-q95' } };
     } else if (path.endsWith('/optimization-runs/')) data = [saved];
+    else if (path.endsWith('/optimization-runs/saved/auxiliary-assumptions')) data = {
+      schema_version: '1', runs: [{ run_id: 'prediction', temperature_c: -5,
+        assumptions: { policy_id: 'feasibility-temperature-ghi-v1', solar_used: true,
+          ghi_reference_wm2: 50 },
+        components: { total_hvac_electrical_kwh: 5 } }],
+    };
     else if (path.endsWith('/optimization-runs/saved')) data = saved;
     else if (path.includes('/optimization-runs/pending')) data = { id: 'pending', status: 'pending' };
     else if (path.endsWith('/economic/defaults')) data = {};
@@ -247,14 +257,80 @@ for (const policy of ['residual_soc', 'constant_initial_usable']) {
     expect(saved.results.consumption_analysis).toBeUndefined();
     const assumptions = page.locator('[data-role="battery-assumptions"]');
     await expect(assumptions).toBeVisible();
+    await expect(assumptions).not.toHaveAttribute('open', '');
     await expect(assumptions.locator('[data-role="result-soh"]')).toHaveText('70%');
     const capacity = assumptions.locator('[data-role="battery-capacity-summary"]');
+    await expect(capacity).toBeHidden();
+    await assumptions.locator(':scope > summary').click();
+    await expect(assumptions).toHaveAttribute('open', '');
+    await expect(capacity).toBeVisible();
     await expect(capacity).toContainText('Initial capacity: 500 kWh');
     await expect(capacity).toContainText('Residual capacity: 350 kWh');
     await expect(capacity).toContainText(`Usable energy: ${policy === 'residual_soc' ? 175 : 250} kWh`);
+    await expect(capacity.locator(':scope > p')).toHaveCount(3);
+    await expect(capacity.locator('strong')).toHaveCount(0);
+    const capacityLines = await capacity.locator(':scope > p').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().y));
+    expect(new Set(capacityLines).size).toBe(3);
     await expect(assumptions.locator('[data-role="effective-soc-window"]')).toHaveText(policy === 'residual_soc' ? '40%–90%' : '18.57%–90%');
+    await expect(assumptions.locator('.battery-assumptions__body > p strong')).toHaveCount(0);
+    await expect(assumptions.locator('details > summary strong')).toHaveText('Operating Conditions');
+    await expect(assumptions.locator('[data-role="battery-limits-help"]')).toContainText('minimum SOC decreases first');
+    await expect(assumptions.locator('[data-role="battery-connection-help"], [data-role="battery-layover-help"]')).toHaveCount(0);
     if (policy === 'constant_initial_usable') await expect(assumptions.locator('[data-role="result-low-soc-warning"]')).toBeVisible();
     else await expect(assumptions.locator('[data-role="result-low-soc-warning"]')).toHaveCount(0);
+    if (policy === 'residual_soc') {
+      const informationBar = page.locator('[data-role="results-information-bar"]');
+      const toggles = informationBar.locator('.results-information-toggle');
+      await expect(toggles).toHaveCount(4);
+      await expect(toggles.nth(0)).toContainText('SOH');
+      await expect(toggles.nth(1)).toContainText('Technical times');
+      await expect(toggles.nth(2)).toHaveText('HVAC assumptions');
+      await expect(toggles.nth(3)).not.toContainText('Details');
+      const titleFontSizes = await informationBar.locator('.battery-assumptions__title, .technical-times-assumptions__title, .hvac-assumptions__title, .gtfs-disclosure__label').evaluateAll(elements => elements.map(element => getComputedStyle(element).fontSize));
+      expect(titleFontSizes).toEqual(Array(4).fill('16px'));
+      const rectangles = await toggles.evaluateAll(elements => elements.map(element => {
+        const { y, height, width } = element.getBoundingClientRect();
+        return { y, height, width };
+      }));
+      expect(Math.max(...rectangles.map(({ y }) => y)) - Math.min(...rectangles.map(({ y }) => y))).toBeLessThan(1);
+      expect(Math.max(...rectangles.map(({ height }) => height)) - Math.min(...rectangles.map(({ height }) => height))).toBeLessThan(1);
+      expect(Math.max(...rectangles.map(({ width }) => width)) - Math.min(...rectangles.map(({ width }) => width))).toBeLessThan(1);
+
+      const contentStyles = [await capacity.evaluate(element => {
+        const style = getComputedStyle(element);
+        return { color: style.color, fontSize: style.fontSize };
+      })];
+      const technicalTimes = informationBar.locator('[data-role="technical-times-assumptions"]');
+      await technicalTimes.locator(':scope > summary').click();
+      await expect(technicalTimes).toHaveAttribute('open', '');
+      await expect(assumptions).not.toHaveAttribute('open', '');
+      await expect(technicalTimes.locator('[data-role="technical-times-operating-conditions"] strong')).toHaveText('Operating Conditions');
+      await expect(technicalTimes.locator('[data-role="battery-connection-help"]')).toContainText('Combined time for connecting and disconnecting');
+      await expect(technicalTimes.locator('[data-role="battery-layover-help"]')).toContainText('Conservative, deterministic delay allowance');
+      await expect(technicalTimes.locator('[data-role="battery-limits-help"]')).toHaveCount(0);
+      contentStyles.push(await technicalTimes.locator('.technical-times-assumptions__body > p').first().evaluate(element => {
+        const style = getComputedStyle(element);
+        return { color: style.color, fontSize: style.fontSize };
+      }));
+      const hvac = informationBar.locator('.hvac-assumptions');
+      await hvac.locator(':scope > summary').click();
+      await expect(hvac).toHaveAttribute('open', '');
+      await expect(technicalTimes).not.toHaveAttribute('open', '');
+      contentStyles.push(await hvac.locator('.hvac-assumptions__body > p').first().evaluate(element => {
+        const style = getComputedStyle(element);
+        return { color: style.color, fontSize: style.fontSize };
+      }));
+      const gtfs = informationBar.locator('.gtfs-disclosure');
+      await expect(gtfs).not.toContainText('Recorded when the analysis was created');
+      await gtfs.locator(':scope > summary').click();
+      await expect(gtfs).toHaveAttribute('open', '');
+      await expect(hvac).not.toHaveAttribute('open', '');
+      contentStyles.push(await gtfs.locator('.gtfs-metadata > span').first().evaluate(element => {
+        const style = getComputedStyle(element);
+        return { color: style.color, fontSize: style.fontSize };
+      }));
+      expect(contentStyles).toEqual(Array(4).fill({ color: 'rgb(28, 28, 28)', fontSize: '14px' }));
+    }
   });
 }
 

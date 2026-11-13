@@ -14,6 +14,7 @@ export const mountAnalysisGtfs = async (section, record, explicitIds = []) => {
   if (!ids.length) return;
   const panel = section.querySelector('[data-role="analysis-gtfs"]');
   if (!panel) return;
+  const compact = panel.closest('[data-role="results-information-bar"]') != null;
   const generation = Symbol();
   panel.gtfsGeneration = generation;
   const render = (shifts = []) => {
@@ -37,12 +38,13 @@ export const mountAnalysisGtfs = async (section, record, explicitIds = []) => {
       : t(editions.size > 1 ? "gtfs.mixed" : "gtfs.per_block");
     const historical = entries.some(entry => entry.source === "current");
     const open = panel.querySelector('details')?.open ?? false;
+    const displayEntry = entry => compact ? { ...entry, source: null } : entry;
     const details = shared
-      ? datasetSummaryHtml(datasets, t, entries[0])
-      : `<div class="gtfs-analysis-grid">${entries.map(entry => `<div><strong>${textContent(entry.name)}</strong>${datasetSummaryHtml(entry.datasets, t, entry)}</div>`).join("")}</div>`;
-    panel.innerHTML = `<details class="gtfs-disclosure"${open ? " open" : ""}>
-      <summary><span class="gtfs-disclosure__label">${textContent(t("gtfs.label"))}</span><span>${textContent(label)}</span>${historical ? `<span class="gtfs-disclosure__source">${textContent(t("gtfs.current_short"))}</span>` : ""}<span class="gtfs-disclosure__hint">${textContent(t("gtfs.details"))}</span></summary>
-      <div class="gtfs-disclosure__content">${details}</div>
+      ? datasetSummaryHtml(datasets, t, displayEntry(entries[0]))
+      : `<div class="gtfs-analysis-grid">${entries.map(entry => `<div><strong>${textContent(entry.name)}</strong>${datasetSummaryHtml(entry.datasets, t, displayEntry(entry))}</div>`).join("")}</div>`;
+    panel.innerHTML = `<details class="gtfs-disclosure results-information-disclosure"${open ? " open" : ""}>
+      <summary class="results-information-toggle"><span class="gtfs-disclosure__label">${textContent(t("gtfs.label"))}</span><span>${textContent(label)}</span>${!compact && historical ? `<span class="gtfs-disclosure__source">${textContent(t("gtfs.current_short"))}</span>` : ""}${compact ? "" : `<span class="gtfs-disclosure__hint">${textContent(t("gtfs.details"))}</span>`}</summary>
+      <div class="gtfs-disclosure__content results-information-content">${details}</div>
     </details>`;
     panel.hidden = false;
   };

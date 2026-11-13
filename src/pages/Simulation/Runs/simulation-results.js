@@ -7166,7 +7166,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     resultScope === "shift" ? viewOptions?.selectedShiftId : null
   );
   if (feasibilityModel.failure) {
-    el.innerHTML = renderBatteryAssumptions(optimizationRun, viewOptions?.selectedShiftId) + buildFeasibilityFailureHtml(
+    el.innerHTML = buildFeasibilityFailureHtml(
       feasibilityModel,
       feasibilityViewState,
       resultScope,
@@ -7182,7 +7182,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (results.solver_status === "infeasible" && !Object.keys(results.battery_results ?? {}).length) {
     const pair = pairedFeasibility(optimizationRun);
     const diagnosticShift = resultScope === "shift" ? viewOptions?.selectedShiftId : null;
-    el.innerHTML = `${renderBatteryAssumptions(optimizationRun, diagnosticShift)}<section class="result-card" data-role="feasibility-no-solution">
+    el.innerHTML = `<section class="result-card" data-role="feasibility-no-solution">
       <header class="result-card__header">
         <h3 class="result-card__title">${textContent(feasibilityScenarioLabel(false, ip))}</h3>
         ${pair ? `<span class="result-status result-status--${pair.tone}" data-role="feasibility-overall-status">${textContent(t(`simulation.paired_${pair.key}`))}</span>` : ""}
@@ -7512,7 +7512,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       </div>
     </section>`;
 
-  el.innerHTML = renderBatteryAssumptions(optimizationRun, resultScope === "shift" ? viewOptions?.selectedShiftId : null) + (resultScope === "shift" ? shiftLevelHtml : generalLevelHtml);
+  el.innerHTML = resultScope === "shift" ? shiftLevelHtml : generalLevelHtml;
   bindAggregateEnergy(el, optimizationRun);
 
   renderEfficiencyEnergySplitChart(
@@ -9442,6 +9442,22 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   if (!section) return null;
 
   const cleanupHandlers = [];
+  const informationBar = section.querySelector('[data-role="results-information-bar"]');
+  const handleInformationToggleClick = (event) => {
+    const toggle = event.target.closest?.(".results-information-toggle");
+    if (!toggle || !informationBar?.contains(toggle)) return;
+    const disclosure = toggle.closest(".results-information-disclosure");
+    if (!disclosure || disclosure.open) return;
+    informationBar
+      .querySelectorAll(".results-information-disclosure[open]")
+      .forEach((other) => {
+        if (other !== disclosure) other.open = false;
+      });
+  };
+  informationBar?.addEventListener("click", handleInformationToggleClick);
+  cleanupHandlers.push(() => {
+    informationBar?.removeEventListener("click", handleInformationToggleClick);
+  });
   cleanupHandlers.push(bindInfoTooltips(section, '.charging-session-info'));
   const renderedTabs = new Set(["efficiency"]);
   const costOverrides = {
@@ -9651,6 +9667,23 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   const refreshEfficiencyTab = () => {
     if (!renderedTabs.has("efficiency")) return;
     const scopeOptions = getActiveResultViewOptions();
+    const batteryContext = section.querySelector(
+      '[data-role="battery-assumptions-context"]'
+    );
+    if (batteryContext) {
+      const openDisclosure = batteryContext.querySelector(
+        '.results-information-disclosure[open]'
+      )?.dataset.role ?? null;
+      const batteryHtml = efficiencyState.status === "done"
+        ? renderBatteryAssumptions(
+          efficiencyState.optimizationRun,
+          scopeOptions.resultScope === "shift" ? scopeOptions.selectedShiftId : null,
+          { open: openDisclosure }
+        )
+        : "";
+      batteryContext.innerHTML = batteryHtml;
+      batteryContext.hidden = !batteryHtml;
+    }
     renderEfficiencyTable(
       section.querySelector('[data-role="efficiency-table"]'),
       efficiencyState,

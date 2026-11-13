@@ -26,15 +26,13 @@ export const mountHvacAssumptions = async (section, id, kind = 'optimization') =
     const legacyGreybox = model.runs.every(run => run.assumptions?.solar_used === false);
     const annual = model.policies.includes('annual-pvgis-local-cap10-v1');
     const format = value => value == null ? '—' : Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
-    const title = t(legacyGreybox ? 'hvac.legacy_greybox' : legacy ? 'hvac.legacy' : annual ? 'hvac.annual' : 'hvac.feasibility');
-    panel.innerHTML = `<details class="hvac-assumptions result-card">
-      <summary class="hvac-assumptions__toggle">
+    panel.innerHTML = `<details class="hvac-assumptions results-information-disclosure">
+      <summary class="hvac-assumptions__toggle results-information-toggle">
         <span class="hvac-assumptions__heading">
           <strong class="hvac-assumptions__title">${textContent(t('hvac.title'))}</strong>
-          <span class="hvac-assumptions__subtitle">${textContent(title)}</span>
         </span>
       </summary>
-      <div class="hvac-assumptions__body">
+      <div class="hvac-assumptions__body results-information-content">
         <p>${textContent(t(legacyGreybox ? 'hvac.legacy_greybox_note' : legacy ? 'hvac.legacy_note' : annual ? 'hvac.annual_note' : 'hvac.feasibility_note'))}</p>
         ${legacy ? '' : `<p>${textContent(t('hvac.coefficients'))}</p><p>${textContent(t('hvac.terminal_note'))}</p>`}
         <p>${textContent(t('hvac.table_scope'))}</p>

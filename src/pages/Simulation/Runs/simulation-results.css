@@ -2751,5 +2751,176 @@
 .fleet-investment__unit { display:block; font-size:.8rem; color:var(--text-secondary); font-weight:400; }
 .fleet-investment tfoot { font-weight:600; }
 
-.battery-assumptions { margin-bottom: 1rem; }
-.battery-assumptions .result-card__body { overflow-wrap: anywhere; }
+.results-information-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: var(--space-sm);
+  width: 100%;
+  min-width: 0;
+  margin-top: var(--space-sm);
+}
+
+.results-information-bar > [data-role],
+.results-information-bar .results-information-disclosure {
+  display: contents;
+}
+
+.results-information-bar > [data-role][hidden],
+.results-information-bar .results-information-disclosure:not([open]) > :not(summary) {
+  display: none;
+}
+
+.results-information-bar
+  .results-information-disclosure
+  > .results-information-toggle {
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: 2.5rem;
+  margin: 0;
+  padding: var(--space-sm) var(--space-2sm);
+  box-sizing: border-box;
+  border: 1px solid var(--color-border-dim);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-main);
+  cursor: pointer;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.results-information-bar
+  .results-information-disclosure
+  > .results-information-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.results-information-bar
+  .results-information-disclosure
+  > .results-information-toggle::before {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  content: "▸";
+  font-size: .8em;
+  line-height: 1;
+  transform: rotate(0deg);
+  transform-origin: 50% 55%;
+  transition: transform var(--transition-fast);
+}
+
+.results-information-bar
+  .results-information-disclosure[open]
+  > .results-information-toggle::before {
+  transform: rotate(90deg);
+}
+
+.results-information-bar
+  .results-information-disclosure
+  > .results-information-toggle:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--shadow-focus-ring);
+}
+
+.results-information-bar .results-information-content {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-md);
+  box-sizing: border-box;
+  border: 1px solid var(--color-border-dim);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-main);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+}
+
+.results-information-bar .battery-assumptions__title,
+.results-information-bar .technical-times-assumptions__title,
+.results-information-bar .hvac-assumptions__title,
+.results-information-bar .gtfs-disclosure__label {
+  color: var(--text-main);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.results-information-bar .hvac-assumptions__subtitle {
+  color: inherit;
+  font: inherit;
+}
+
+.results-information-bar :is(
+  .battery-assumptions__body,
+  .technical-times-assumptions__body
+) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  overflow-wrap: anywhere;
+}
+
+.results-information-bar :is(
+  .battery-assumptions__body,
+  .technical-times-assumptions__body
+) > p {
+  margin: 0;
+}
+
+.results-information-bar .battery-assumptions__values {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.results-information-bar .battery-assumptions__values > p {
+  margin: 0;
+}
+
+.results-information-bar .results-information-content-title {
+  margin: 0;
+  color: var(--text-main);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.results-information-bar .battery-assumptions__body :is(p, summary),
+.results-information-bar .technical-times-assumptions__body p,
+.results-information-bar .hvac-assumptions__body > p,
+.results-information-bar .hvac-assumptions__body table,
+.results-information-bar .hvac-assumptions__body th,
+.results-information-bar .hvac-assumptions__traceability > summary,
+.results-information-bar .gtfs-disclosure__content .gtfs-metadata,
+.results-information-bar .gtfs-disclosure__content .gtfs-metadata__source {
+  color: var(--text-main);
+  font-size: var(--font-size-md);
+}
+
+.results-information-bar .gtfs-disclosure__content {
+  border-inline-start: 1px solid var(--color-border-dim);
+}
+
+@media (width <= 700px) {
+  .results-information-bar {
+    gap: var(--space-xs);
+  }
+
+  .results-information-bar
+    .results-information-disclosure
+    > .results-information-toggle {
+    padding-inline: var(--space-sm);
+  }
+
+  .results-information-bar .gtfs-disclosure__hint,
+  .results-information-bar .gtfs-disclosure__source {
+    display: none;
+  }
+}
