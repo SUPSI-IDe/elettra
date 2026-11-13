@@ -1,4 +1,5 @@
-import { resolveBatteryPolicy, batteryEnergy, historicalBatteryParams, NEW_BATTERY_DEFAULTS } from '../../../utils/battery-policy';
+import { bindInfoTooltips } from '../../../utils/info-tooltips';
+import { resolveBatteryPolicy, batteryEnergy, historicalBatteryParams, NEW_BATTERY_DEFAULTS, batteryUsageControls, batteryParamsFromUsage } from '../../../utils/battery-policy';
 import { datasetKey, datasetLabel, dateLabel, shiftDatasetKey,
   analysisDatasetCatalog, NO_GTFS_DATASET, UNKNOWN_GTFS_DATASET, MIXED_GTFS_DATASETS } from "../../../utils/gtfs-datasets.js";
 import "../evaluation-dialogs.css";
@@ -379,25 +380,7 @@ export const initializeAddSimulation = async (
   let duplicationError = false;
   let duplicationErrorMessage = "";
   let disposed = false;
-  section.querySelectorAll('.form-info').forEach(button => {
-    const tooltip = button.querySelector('.info-tooltip');
-    const show = open => {
-      button.setAttribute('aria-expanded', String(open));
-      tooltip.hidden = !open;
-      if (open) {
-        const left = button.getBoundingClientRect().left;
-        const width = Math.min(320, window.innerWidth - 32);
-        tooltip.style.width = `${width}px`;
-        tooltip.style.maxWidth = `${width}px`;
-        tooltip.style.left = `${Math.max(16, Math.min(left, window.innerWidth - width - 16)) - left}px`;
-      }
-    };
-    const handlers = {mouseenter: () => show(true), focus: () => show(true), click: () => show(true),
-      mouseleave: () => { if (document.activeElement !== button) show(false); },
-      blur: () => show(false), keydown: event => { if (event.key === 'Escape') show(false); }};
-    Object.entries(handlers).forEach(([event, handler]) => button.addEventListener(event, handler));
-    cleanupHandlers.push(() => Object.entries(handlers).forEach(([event, handler]) => button.removeEventListener(event, handler)));
-  });
+  cleanupHandlers.push(bindInfoTooltips(section, '.form-info'));
   let submitting = false;
   const completionController = new AbortController();
   const dailyCycleControl = section.querySelector('#var-daily-cycle');
@@ -573,55 +556,62 @@ export const initializeAddSimulation = async (
   cleanupHandlers.push(()=>busModelOverride.removeEventListener('change',updatePackCost));
   let selectedShiftIds = new Set();
   let sortState = { ...DEFAULT_SHIFT_SORT };
-  const batteryKeys = ['state_of_health', 'min_soc', 'max_soc', 'allowed_min_soc', 'allowed_max_soc'];
-  const readBatteryParams = () => ({
+  const batteryKeys = ['state_of_health', 'usable_capacity_fraction', 'max_residual_usage_fraction'];
+  let copiedBatteryParams = null;
+  const readBatteryControls = () => ({
     ...Object.fromEntries(batteryKeys.map(key => [key, form.elements[key].value.trim() === '' ? NaN : Number(form.elements[key].value) / 100])),
     battery_soc_policy: form.elements.battery_soc_policy.value,
     session_connection_minutes: Number(form.elements.session_connection_minutes.value),
     layover_reduction_minutes: Number(form.elements.layover_reduction_minutes.value),
   });
-  const fillBatteryParams = values => {
-    for (const key of batteryKeys) form.elements[key].value = String(values[key] * 100);
-    for (const key of ['battery_soc_policy', 'session_connection_minutes', 'layover_reduction_minutes']) form.elements[key].value = String(values[key]);
+  const fillBatteryParams = (values, preserve = false) => {
+    copiedBatteryParams = preserve ? values : null;
+    const controls = batteryUsageControls(values);
+    section.querySelector('[data-role="charging-time-options"]').open = preserve &&
+      (controls.session_connection_minutes !== 1 || controls.layover_reduction_minutes !== 0);
+    for (const key of batteryKeys) form.elements[key].value = String(Number((controls[key] * 100).toPrecision(12)));
+    for (const key of ['battery_soc_policy', 'session_connection_minutes', 'layover_reduction_minutes']) form.elements[key].value = String(controls[key]);
   };
   function updateBatteryPreview() {
-    const values = readBatteryParams();
-    const constant = values.battery_soc_policy === 'constant_initial_usable';
-    section.querySelectorAll('[data-role="battery-expansion"]').forEach(el => { el.hidden = !constant; });
-    section.querySelector('[data-role="battery-reference-label"]').hidden = !constant;
-    section.querySelector('[data-role="battery-policy-help"]').hidden = !constant;
-    section.querySelector('label[for="var-min-soc"]').textContent = t(constant ? 'simulation.battery_min_soc' : 'simulation.battery_residual_min');
-    section.querySelector('label[for="var-max-soc"]').textContent = t(constant ? 'simulation.battery_preferred_max' : 'simulation.battery_residual_max');
+    const controls = readBatteryControls();
+    const constant = controls.battery_soc_policy === 'constant_initial_usable';
+    section.querySelector('[data-role="battery-expansion"]').hidden = !constant;
+    form.elements.max_residual_usage_fraction.disabled = !constant;
     const preview = section.querySelector('[data-role="battery-preview"]');
+    const details = section.querySelector('[data-role="battery-effective-info"]');
     const error = section.querySelector('[data-role="battery-policy-error"]');
     const warning = section.querySelector('[data-role="battery-low-warning"]');
-    form.elements.min_soc.setCustomValidity('');
+    form.elements.usable_capacity_fraction.setCustomValidity('');
     try {
+      const values = batteryParamsFromUsage(controls, copiedBatteryParams);
       const policy = resolveBatteryPolicy(values);
       error.hidden = true;
       warning.hidden = !policy.low_soc_warning;
       const fmt = n => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(n);
-      let content = `${t('simulation.battery_effective_window')}: ${fmt(policy.min_soc*100)}–${fmt(policy.max_soc*100)}% · ${t('simulation.battery_initial_usable_fraction')}: ${fmt(policy.usable_fraction_initial*100)}%`;
+      const residualUsage = policy.max_soc - policy.min_soc;
+      let content = `${t('simulation.battery_residual_usage')}: ${fmt(residualUsage * 100)}%`;
+      details.textContent = `${t('simulation.battery_effective_window')}: ${fmt(policy.min_soc * 100)}–${fmt(policy.max_soc * 100)}%. ${policy.preferred_max_soc_exceeded ? t('simulation.battery_raised_max') : ''} ${policy.low_soc_warning ? t('simulation.battery_low_warning') : ''}`;
       const model = allUserModels.find(m => String(m.id) === busModelOverride.value);
       const limits = batteryPackLimits(model?.specs);
       const count = modeSelect.value === 'charging_only' ? Number(fixedPacks.value) : limits?.max;
       const capacity = Number(model?.specs?.battery_pack_size_kwh) * count;
       if (Number.isFinite(capacity) && capacity > 0) {
         const energy = batteryEnergy(capacity, policy);
-        content += ` · ${t('simulation.battery_nominal')}: ${fmt(capacity)} kWh · ${t('simulation.battery_residual')}: ${fmt(energy.residual_capacity_kwh)} kWh · ${t('simulation.battery_usable')}: ${fmt(energy.usable_capacity_kwh)} kWh`;
+        content = `${t('simulation.battery_residual')}: ${fmt(energy.residual_capacity_kwh)} kWh · ${t('simulation.battery_usable')}: ${fmt(energy.usable_capacity_kwh)} kWh`;
       }
-      preview.textContent = content + ' — ' + t('simulation.battery_preview') + (policy.preferred_max_soc_exceeded ? ' ' + t('simulation.battery_raised_max') : '');
+      preview.textContent = content;
       return values;
     } catch {
       preview.textContent = '';
+      details.textContent = '';
       warning.hidden = true;
-      error.textContent = t('simulation.battery_invalid');
+      error.textContent = t('simulation.battery_usage_invalid');
       error.hidden = false;
-      form.elements.min_soc.setCustomValidity(t('simulation.battery_invalid'));
+      form.elements.usable_capacity_fraction.setCustomValidity(t('simulation.battery_usage_invalid'));
       return null;
     }
   }
-  fillBatteryParams(options.prefill ? historicalBatteryParams(options.prefill.inputParams ?? {}) : NEW_BATTERY_DEFAULTS);
+  fillBatteryParams(options.prefill ? historicalBatteryParams(options.prefill.inputParams ?? {}) : NEW_BATTERY_DEFAULTS, Boolean(options.prefill));
   updateBatteryPreview();
   for (const event of ['input', 'change']) {
     form.addEventListener(event, updateBatteryPreview);
@@ -1179,7 +1169,7 @@ export const initializeAddSimulation = async (
       }
     }
 
-    fillBatteryParams(historicalBatteryParams(inputParams));
+    fillBatteryParams(historicalBatteryParams(inputParams), true);
     updateBatteryPreview();
 
     refreshBusModelOverride();
@@ -1520,7 +1510,7 @@ export const initializeAddSimulation = async (
       text(formData.get("auxiliary_heating_type") ?? "default").trim() ||
       "default";
     const batteryParams = updateBatteryPreview();
-    if (!batteryParams) { form.elements.min_soc.reportValidity(); return; }
+    if (!batteryParams) { form.elements.usable_capacity_fraction.reportValidity(); return; }
 
     const chargingStations = collectChargingStations(
       stopsTbody,

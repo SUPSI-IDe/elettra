@@ -748,9 +748,16 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-energy"]')).toContainText("60.0");
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toContainText("120.0");
   await expect(chargingSessions.first().locator(".feasibility-charging-session__location")).toContainText(/Charging session 1:\s*Depot/);
-  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-duration"]')).toContainText(/Connected time:\s*30 min/);
-  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-energy"]')).toContainText(/Energy:\s*60\.0 kWh/);
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-duration"]')).toContainText(/Planned stop\s*30 min/);
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-energy"]')).toContainText(/Energy charged\s*60\.0 kWh/);
   await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toContainText(/Average power \(Connected time\):\s*120\.0 kW/);
+
+  await expect(chargingSessions.first().locator('.feasibility-charging-session__metrics > div')).toHaveCount(3);
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toBeHidden();
+  await chargingSessions.first().getByRole('button', {name:'Charging details',exact:true}).click();
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(chargingSessions.first().locator('[data-role="feasibility-charging-session-average-power"]')).toBeHidden();
 
   const visualAnalysis = shiftDetail.locator('[data-role="feasibility-shift-visual-analysis"]');
   const energyAdequacy = shiftDetail.locator('[data-role="feasibility-shift-energy-adequacy"]');
@@ -821,6 +828,8 @@ test("separates the common result from one selected shift without an aggregate o
       .split(" ")
       .filter(Boolean);
     return {
+      viewportWidth: window.innerWidth,
+      fitsViewport: session.getBoundingClientRect().right <= window.innerWidth,
       listOverflowX: getComputedStyle(list).overflowX,
       sessionDisplay: sessionStyle.display,
       locationDisplay: location ? getComputedStyle(location).display : null,
@@ -844,8 +853,9 @@ test("separates the common result from one selected shift without an aggregate o
     sensitivityBeforePlan: true,
     metricValuesFit: true,
   });
-  expect(chargingLayout?.sessionRows).toHaveLength(1);
-  expect(chargingLayout?.sessionHeight).toBeLessThanOrEqual(48);
+  expect(chargingLayout.fitsViewport).toBe(true);
+  expect(chargingLayout?.sessionRows).toHaveLength(chargingLayout.viewportWidth < 1100 ? 3 : 1);
+  expect(chargingLayout?.sessionHeight).toBeLessThanOrEqual(chargingLayout.viewportWidth < 1100 ? 180 : 90);
 
   const moreInformation = shiftDetail.locator("details.ya-more-information");
   const inlinePredictions = moreInformation.locator(
@@ -1940,4 +1950,36 @@ test('shared recorded GTFS version uses one compact header disclosure',async({pa
     await expect(panel).toContainText('Recorded when the analysis was created');
     await panel.locator('summary').click();
     await expect(panel.locator('[data-role="gtfs-metadata"]')).toBeHidden();
+});
+
+test('charging cards distinguish available time from active time and keep details in accessible help', async ({page}) => {
+  await mountResults(page, {shiftIds:['morning'], perBusSummaryOverrides:{morning:{
+    num_charging_sessions:1, total_charged_kwh:10,
+    charging_sessions:[{station_name:'Terminal',station_stop_id:'terminal',start_minute:600,end_minute:607,
+      duration_minutes:7,technical_minutes:1,layover_reduction_minutes:2,available_charging_minutes:4,
+      active_charging_minutes:2,idle_available_minutes:2,energy_kwh:10}],
+  }}});
+  await selectShiftScope(page,'morning');
+  const plan=page.locator('[data-role="feasibility-charging-plan"]');
+  await plan.locator(':scope > summary').click();
+  const row=plan.locator('[data-role="feasibility-charging-session"]');
+  await expect(row.locator('.feasibility-charging-session__metrics > div')).toHaveCount(3);
+  await expect(row.locator('[data-role="feasibility-charging-session-duration"]')).toContainText('7 min');
+  await expect(row.locator('[data-role="charging-availableChargingMinutes"]')).toContainText('4 min');
+  await expect(row.locator('[data-role="feasibility-charging-session-energy"]')).toContainText('10.0 kWh');
+  const help=row.getByRole('button',{name:'Charging details',exact:true});
+  const tooltip=row.locator('[role="tooltip"]');
+  await expect(tooltip).toBeHidden();
+  expect(await row.innerText()).not.toContain('Average power');
+  await help.focus();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText('Active charging time: 2 min');
+  await expect(tooltip).toContainText('Technical time: 1 min');
+  await expect(tooltip).toContainText('Layover reduction: 2 min');
+  const box=await tooltip.boundingBox();
+  expect(box.y).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(page.viewportSize().height);
+  await page.keyboard.press('Escape');await expect(tooltip).toBeHidden();
+  await help.blur();await help.click();await expect(tooltip).toBeVisible();
+  await page.locator('[data-role="feasibility-charging-session-location"]').click();
+  await expect(tooltip).toBeHidden();
 });

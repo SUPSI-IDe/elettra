@@ -91,68 +91,117 @@ async function submit(page) {
   await page.getByRole('dialog').getByRole('button', { name: 'Start evaluation', exact: true }).click();
 }
 
-test('new evaluation defaults and battery previews cover both policies and infeasibility', async ({ page }) => {
+test('simple capacity form previews both references, limits and warning boundary', async ({ page }) => {
   const { submissions } = await fixture(page);
   await openNew(page);
   for (const [id, value] of Object.entries({ 'state-of-health': '70', 'battery-policy': 'residual_soc',
-    'min-soc': '40', 'max-soc': '90', 'allowed-min-soc': '10', 'allowed-max-soc': '95',
+    'usable-capacity': '50', 'max-residual-usage': '85',
     'session-connection-minutes': '1', 'layover-reduction-minutes': '0' })) {
     await expect(page.locator(`#var-${id}`)).toHaveValue(value);
   }
+  await expect(page.locator('#var-min-soc, #var-max-soc, #var-allowed-min-soc, #var-allowed-max-soc')).toHaveCount(0);
+  await expect(page.locator('#var-max-residual-usage')).toBeHidden();
+  await expect(page.locator('#var-session-connection-minutes')).toBeHidden();
+  await expect(page.locator('#var-layover-reduction-minutes')).toBeHidden();
   const preview = page.locator('[data-role="battery-preview"]');
+  const details = page.locator('[data-role="battery-effective-info"]');
   const warning = page.locator('[data-role="battery-low-warning"]');
   const error = page.locator('[data-role="battery-policy-error"]');
-  await expect(preview).toContainText('40–90%');
   await expect(preview).toContainText('175 kWh');
+  await expect(details).toBeHidden();
   await page.locator('#var-battery-policy').selectOption('constant_initial_usable');
-  await expect(preview).toContainText('18.57–90%');
+  await expect(page.locator('#var-max-residual-usage')).toBeVisible();
   await expect(preview).toContainText('250 kWh');
   await expect(warning).toBeVisible();
+  await page.locator('button[aria-describedby="battery-preview-help"]').click();
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('18.57–90%');
+  await page.keyboard.press('Escape');
+  await expect(details).toBeHidden();
   await page.locator('#var-state-of-health').fill('60');
-  await expect(preview).toContainText('10–93.33%');
-  await expect(preview).toContainText('preferred maximum SOC was increased');
+  await expect(preview).toContainText('250 kWh');
+  await expect(details).toContainText('10–93.33%');
   await page.locator('#var-state-of-health').fill('58');
   await expect(error).toBeVisible();
   await page.getByRole('button', { name: 'Start evaluation', exact: true }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   expect(submissions).toHaveLength(0);
-  await page.locator('#var-battery-policy').selectOption('residual_soc');
-  await page.locator('#var-min-soc').fill('20');
-  await expect(warning).toBeHidden();
+  await page.locator('#var-max-residual-usage').fill('90');
   await expect(error).toBeHidden();
-  await page.locator('#var-min-soc').fill('19.999');
+  await expect(preview).toContainText('250 kWh');
+  await page.locator('#var-battery-policy').selectOption('residual_soc');
+  await page.locator('#var-usable-capacity').fill('70');
+  await expect(warning).toBeHidden();
+  await page.locator('#var-usable-capacity').fill('70.001');
   await expect(warning).toBeVisible();
 });
 
-test('submission sends editable battery policy, SOC, SOH and charging time parameters', async ({ page }) => {
+test('submission derives API SOC bounds from capacity, preserving timing and energy', async ({ page }) => {
   const { submissions } = await fixture(page);
   await openNew(page);
   await page.locator('#var-battery-policy').selectOption('constant_initial_usable');
-  for (const [id, value] of Object.entries({ 'state-of-health': '75', 'min-soc': '35', 'max-soc': '85',
-    'allowed-min-soc': '12', 'allowed-max-soc': '96', 'session-connection-minutes': '3', 'layover-reduction-minutes': '4' })) {
+  await page.locator('[data-role="charging-time-options"] summary').click();
+  for (const [id, value] of Object.entries({ 'state-of-health': '60', 'usable-capacity': '50',
+    'max-residual-usage': '85', 'session-connection-minutes': '3', 'layover-reduction-minutes': '4' })) {
     await page.locator(`#var-${id}`).fill(value);
   }
   await submit(page);
   await expect.poll(() => submissions.length).toBe(1);
-  expect(submissions[0]).toMatchObject({ battery_soc_policy: 'constant_initial_usable', state_of_health: 0.75,
-    min_soc: 0.35, max_soc: 0.85, allowed_min_soc: 0.12, allowed_max_soc: 0.96,
+  expect(submissions[0]).toMatchObject({ battery_soc_policy: 'constant_initial_usable', state_of_health: 0.6,
+    min_soc: 0.4, max_soc: 0.9, allowed_max_soc: 0.95,
     session_connection_minutes: 3, layover_reduction_minutes: 4 });
+  expect(submissions[0].allowed_min_soc).toBeCloseTo(.1, 12);
+  expect(submissions[0].max_soc-submissions[0].min_soc).toBeCloseTo(.5, 12);
 });
 
+for (const language of ['en', 'it', 'de', 'fr']) {
+  test(`battery fields and timing align with accessible help in ${language}`, async ({ page, isMobile }) => {
+    await fixture(page);
+    await page.goto('./');
+    await page.evaluate(language => localStorage.setItem('elettra_lang', language), language);
+    await page.goto('./#add-simulation');
+    await page.locator('#var-battery-policy').selectOption('constant_initial_usable');
+    const panel = page.locator('[data-role="battery-policy-fields"]');
+    await panel.scrollIntoViewIfNeeded();
+    const rectangles = await page.locator('#var-state-of-health, #var-usable-capacity, #var-battery-policy').evaluateAll(xs => xs.map(x => ({y:x.getBoundingClientRect().y,height:x.getBoundingClientRect().height})));
+    expect(new Set(rectangles.map(r => r.height)).size).toBe(1);
+    if (!isMobile) expect(Math.max(...rectangles.map(r=>r.y))-Math.min(...rectangles.map(r=>r.y))).toBeLessThan(1);
+    await page.locator('[data-role="charging-time-options"] summary').click();
+    const times = await page.locator('.charging-time-fields input').evaluateAll(xs=>xs.map(x=>({y:x.getBoundingClientRect().y,height:x.getBoundingClientRect().height})));
+    expect(times[0].height).toBe(times[1].height);
+    if (!isMobile) expect(Math.abs(times[0].y-times[1].y)).toBeLessThan(1);
+    const help = page.locator('button[aria-describedby="var-usable-capacity-help"]');
+    await help.focus();
+    await expect(page.locator('#var-usable-capacity-help')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#var-usable-capacity-help')).toBeHidden();
+    await help.blur();
+    await help.click();
+    await expect(page.locator('#var-usable-capacity-help')).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    const box = await page.locator('#var-usable-capacity-help').boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x+box.width).toBeLessThanOrEqual(page.viewportSize().width);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y+box.height).toBeLessThanOrEqual(page.viewportSize().height);
+  });
+}
+
 test('duplicating a historical evaluation preserves SOH 100% and explicit zero timing', async ({ page }) => {
-  const { submissions } = await fixture(page, { input: { state_of_health: 1, session_connection_minutes: 0,
+  const { submissions } = await fixture(page, { input: { min_soc: .2, max_soc: .85, state_of_health: 1, session_connection_minutes: 0,
     layover_reduction_minutes: 0 } });
   await page.goto('./#simulation-runs');
   await page.getByRole('checkbox', { name: 'Select run', exact: true }).check();
   await page.getByRole('button', { name: 'Duplicate', exact: true }).click();
   await expect(page.locator('#var-state-of-health')).toHaveValue('100');
   await expect(page.locator('#var-battery-policy')).toHaveValue('residual_soc');
+  await expect(page.locator('#var-session-connection-minutes')).toBeVisible();
   await expect(page.locator('#var-session-connection-minutes')).toHaveValue('0');
   await expect(page.locator('#var-layover-reduction-minutes')).toHaveValue('0');
   await submit(page);
   await expect.poll(() => submissions.length).toBe(1);
   expect(submissions[0]).toMatchObject({ state_of_health: 1, battery_soc_policy: 'residual_soc',
-    min_soc: 0.4, max_soc: 0.9, session_connection_minutes: 0, layover_reduction_minutes: 0 });
+    min_soc: .2, max_soc: .85, session_connection_minutes: 0, layover_reduction_minutes: 0 });
 });
 
 for (const policy of ['residual_soc', 'constant_initial_usable']) {
@@ -172,3 +221,23 @@ for (const policy of ['residual_soc', 'constant_initial_usable']) {
     else await expect(assumptions.locator('[data-role="result-low-soc-warning"]')).toHaveCount(0);
   });
 }
+
+
+test('optional timing defaults are submitted while collapsed and invalid edits reopen the section', async ({page}) => {
+  const {submissions} = await fixture(page);
+  await openNew(page);
+  const options = page.locator('[data-role="charging-time-options"]');
+  await expect(options).not.toHaveAttribute('open', '');
+  await options.locator('summary').click();
+  await page.locator('#var-session-connection-minutes').fill('-1');
+  await options.locator('summary').click();
+  await page.getByRole('button', {name:'Start evaluation',exact:true}).click();
+  await expect(page.locator('#var-session-connection-minutes')).toBeVisible();
+  await expect(page.locator('#evaluation-field-problem')).toBeVisible();
+  expect(submissions).toHaveLength(0);
+  await page.locator('#var-session-connection-minutes').fill('1');
+  await options.locator('summary').click();
+  await submit(page);
+  await expect.poll(()=>submissions.length).toBe(1);
+  expect(submissions[0]).toMatchObject({session_connection_minutes:1,layover_reduction_minutes:0});
+});

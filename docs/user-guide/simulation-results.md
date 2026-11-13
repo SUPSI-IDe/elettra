@@ -131,13 +131,16 @@ are supporting distribution information.
 
 ## Charging plan
 
-For Charging and Joint evaluations, inspect each session for:
+For Charging and Joint evaluations, inspect each session’s location and time,
+including the day offset when it continues into the next day. Its card shows
+three metrics: **Planned stop**, **Available for charging** and **Energy charged**.
+The **Charging details** tooltip contains connection/disconnection time, terminal
+delay allowance, active and idle charging time, and average power.
 
-- location and time;
-- day offset when charging continues into the next day;
-- connection duration;
-- delivered energy;
-- average charging power.
+Available time is the stop duration after connection/disconnection and any
+terminal delay allowance; actual charging may use less time. With full-stop
+connection, these times describe the planned stop. Historical freely connected
+sessions may describe only the connected interval.
 
 Battery-only evaluations may show fixed charging already supplied by the
 configuration, or no charging plan. A partial or unavailable plan is reported

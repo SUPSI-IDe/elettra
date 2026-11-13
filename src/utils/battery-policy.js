@@ -17,6 +17,58 @@ export const NEW_BATTERY_DEFAULTS = Object.freeze({
   session_connection_minutes: 1,
 });
 
+// The form edits energy fractions. The API keeps its established SOC contract.
+export function batteryUsageControls(params = NEW_BATTERY_DEFAULTS) {
+  const p = historicalBatteryParams(params);
+  return {
+    state_of_health: p.state_of_health,
+    battery_soc_policy: p.battery_soc_policy,
+    usable_capacity_fraction: p.max_soc - p.min_soc,
+    max_residual_usage_fraction: p.allowed_max_soc - p.allowed_min_soc,
+    session_connection_minutes: p.session_connection_minutes,
+    layover_reduction_minutes: p.layover_reduction_minutes,
+  };
+}
+
+export function batteryParamsFromUsage(controls, savedParams = null) {
+  requireObject(controls, 'controls');
+  const h = finiteNumber(controls.state_of_health, 'state_of_health');
+  const u = finiteNumber(controls.usable_capacity_fraction, 'usable_capacity_fraction');
+  const constant = controls.battery_soc_policy === 'constant_initial_usable';
+  const limit = constant ? finiteNumber(controls.max_residual_usage_fraction, 'max_residual_usage_fraction') : Math.max(.85, u);
+  if (h <= 0 || h > 1 || u <= 0 || u > 1 || limit <= 0 || limit > 1) {
+    throw new RangeError('Capacity fractions and SOH must be within (0, 1]');
+  }
+  if (constant && u / h > limit + TOLERANCE) {
+    throw new RangeError('Requested initial capacity exceeds maximum residual usage');
+  }
+  let bounds;
+  // An unchanged duplicate must preserve its exact historical SOC placement.
+  if (savedParams) {
+    const previous = batteryUsageControls(savedParams);
+    const same = ['state_of_health', 'usable_capacity_fraction', 'max_residual_usage_fraction']
+      .every(key => Math.abs(previous[key] - controls[key]) <= TOLERANCE)
+      && previous.battery_soc_policy === controls.battery_soc_policy;
+    if (same) {
+      const saved = historicalBatteryParams(savedParams);
+      bounds = Object.fromEntries(['min_soc', 'max_soc', 'allowed_min_soc', 'allowed_max_soc'].map(key => [key, saved[key]]));
+    }
+  }
+  if (!bounds) {
+    // Default 85% allowance -> 10–95%. Larger allowances can reach 0–100%.
+    const high = Math.max(.95, limit);
+    const low = high - limit;
+    const maximum = Math.min(high, Math.max(.9, low + u));
+    bounds = { min_soc: Math.max(low, maximum - u), max_soc: maximum,
+      allowed_min_soc: low, allowed_max_soc: high };
+  }
+  const params = { ...bounds, state_of_health: h, battery_soc_policy: controls.battery_soc_policy,
+    session_connection_minutes: controls.session_connection_minutes,
+    layover_reduction_minutes: controls.layover_reduction_minutes };
+  resolveBatteryPolicy(params); // Same validation and expansion used by results.
+  return params;
+}
+
 function finiteNumber(value, name) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new TypeError(`${name} must be a finite number`);

@@ -1,0 +1,14 @@
+.info-tooltip[data-floating-tooltip]:not([hidden]) {
+  display: block !important;
+  position: fixed !important;
+  inset: auto;
+  margin: 0;
+  box-sizing: border-box;
+  opacity: 1;
+  translate: none;
+  transition: none;
+  overflow: auto;
+  pointer-events: auto;
+  z-index: 10000;
+}
+.info-tooltip[data-floating-tooltip][hidden] { display: none !important; }

@@ -1217,10 +1217,11 @@
   grid-template-columns:
     minmax(9rem, 1.25fr)
     minmax(10rem, 0.85fr)
-    minmax(23rem, 1.5fr);
+    minmax(23rem, 1.5fr)
+    auto;
   align-items: center;
   gap: var(--space-sm);
-  min-width: 46rem;
+  min-width: 0;
   padding: var(--space-2xs) var(--space-sm);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
@@ -1290,19 +1291,26 @@
 
 .feasibility-charging-session__metrics {
   display: grid;
-  grid-template-columns: repeat(3, max-content);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   justify-content: end;
   gap: var(--space-xs);
   margin: 0;
 }
 
 .feasibility-charging-session__metrics > div {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2xs);
-  min-width: 0;
-  padding-left: var(--space-xs);
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+  gap: .25rem; min-width: 0; padding-left: var(--space-sm);
   border-left: 1px solid var(--border-light);
+}
+.charging-session-tooltip > span { display: block; margin-bottom: .4rem; }
+.charging-session-tooltip > span:last-child { margin-bottom: 0; }
+@media (width < 1100px) {
+  .feasibility-charging-session { grid-template-columns: minmax(0, 1fr) auto; padding: .75rem; }
+  .feasibility-charging-session__location { grid-column: 1; flex-wrap: wrap; }
+  .feasibility-charging-session__location strong { white-space: normal; overflow-wrap: anywhere; }
+  .feasibility-charging-session__time { grid-column: 1; }
+  .feasibility-charging-session__metrics { grid-column: 1 / -1; grid-row: 3; justify-content: stretch; }
+  .charging-session-info { grid-column: 2; grid-row: 1; }
 }
 
 .feasibility-charging-session__metrics dt,

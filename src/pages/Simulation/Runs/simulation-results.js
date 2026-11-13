@@ -1,3 +1,4 @@
+import { bindInfoTooltips } from '../../../utils/info-tooltips';
 import { resultBatteryPolicy } from '../../../utils/battery-policy';
 import { renderBatteryAssumptions } from './battery-assumptions';
 import { mountHvacAssumptions } from "../shared/hvac-assumptions.js";
@@ -7045,7 +7046,7 @@ const buildChargingPlanStateHtml = (plan) => {
   )}</p>`;
 };
 
-const buildShiftChargingPlanHtml = (viewState, { open = false } = {}) => {
+const buildShiftChargingPlanHtml = (viewState, { open = false, inputParams = {} } = {}) => {
   const plan = viewState?.selectedShiftSummary?.operation?.chargingPlan;
   if (!plan) return "";
   const sessions = Array.isArray(plan.sessions) ? plan.sessions : [];
@@ -7059,6 +7060,14 @@ const buildShiftChargingPlanHtml = (viewState, { open = false } = {}) => {
       { number: sequence }
     );
 
+    const available = session.availableChargingMinutes ?? (
+      session.durationMinutes != null && !(inputParams.layover_reduction_minutes > 0)
+        ? Math.max(0, session.durationMinutes - (inputParams.session_connection_minutes ?? 0)) : null);
+    const tipId = `charging-session-help-${sequence}`;
+    const detailRows = [['technicalMinutes','technical'], ['layoverReductionMinutes','reduction'],
+      ['activeChargingMinutes','active_minutes'], ['idleAvailableMinutes','idle_minutes']]
+      .filter(([key]) => session[key] != null)
+      .map(([key,label]) => `<span>${textContent(t(`simulation.battery_${label}`))}: <strong>${shiftMetricValue(session[key], 'min')}</strong></span>`).join('');
     return `
       <li class="feasibility-charging-session${session.detailsComplete ? "" : " feasibility-charging-session--incomplete"}" data-role="feasibility-charging-session" aria-label="${textContent(sessionLabel)}">
         <div class="feasibility-charging-session__location">
@@ -7073,30 +7082,25 @@ const buildShiftChargingPlanHtml = (viewState, { open = false } = {}) => {
           ${chargingSessionClockHtml(session.endMinute, "feasibility-charging-session-end")}
         </div>
         <dl class="feasibility-charging-session__metrics">
-          ${[['technicalMinutes','technical'],['layoverReductionMinutes','reduction'],['availableChargingMinutes','available_minutes'],['activeChargingMinutes','active_minutes'],['idleAvailableMinutes','idle_minutes']].filter(([key]) => session[key] != null).map(([key,label]) => `<div data-role="charging-${key}"><dt>${textContent(t(`simulation.battery_${label}`))}:</dt><dd>${shiftMetricValue(session[key], 'min')}</dd></div>`).join('')}
-
           <div data-role="feasibility-charging-session-duration">
-            <dt>${textContent(
-              t("simulation.battery_occupied_minutes")
-            )}:</dt>
-            <dd>${shiftMetricValue(
-              session.durationMinutes,
-              translateOr("simulation.feasibility_minutes_short", "min")
-            )}</dd>
+            <dt>${textContent(t(inputParams.lock_entire_dwell === false ? 'simulation.battery_occupied_minutes' : 'simulation.charging_planned_stop'))}</dt>
+            <dd>${shiftMetricValue(session.durationMinutes, 'min')}</dd>
+          </div>
+          <div data-role="charging-availableChargingMinutes">
+            <dt>${textContent(t('simulation.charging_available_time'))}</dt>
+            <dd>${shiftMetricValue(available, 'min')}</dd>
           </div>
           <div data-role="feasibility-charging-session-energy">
-            <dt>${textContent(
-              translateOr("simulation.feasibility_charging_energy", "Energy")
-            )}:</dt>
-            <dd>${shiftMetricValue(session.energyKwh, "kWh", { decimals: 1 })}</dd>
-          </div>
-          <div data-role="feasibility-charging-session-average-power">
-            <dt>${textContent(
-              `${translateOr("simulation.feasibility_charging_average_power", "Average power")} (${t("simulation.battery_occupied_minutes")})`
-            )}:</dt>
-            <dd>${shiftMetricValue(session.averagePowerKw, "kW", { decimals: 1 })}</dd>
+            <dt>${textContent(t('simulation.charging_energy'))}</dt>
+            <dd>${shiftMetricValue(session.energyKwh, 'kWh', { decimals: 1 })}</dd>
           </div>
         </dl>
+        <button type="button" class="info-icon charging-session-info" aria-label="${textContent(t('simulation.charging_details'))}" aria-describedby="${tipId}" aria-expanded="false">i<span id="${tipId}" class="info-tooltip charging-session-tooltip" role="tooltip" hidden>
+          <span>${textContent(t('simulation.charging_available_help'))}</span>
+          <span>${textContent(t('simulation.charging_duration_help'))}</span>
+          ${detailRows}
+          <span data-role="feasibility-charging-session-average-power">${textContent(`${t('simulation.feasibility_charging_average_power')} (${t('simulation.battery_occupied_minutes')})`)}: <strong>${shiftMetricValue(session.averagePowerKw, 'kW', { decimals: 1 })}</strong></span>
+        </span></button>
       </li>`;
   }).join("");
 
@@ -7479,7 +7483,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         ${results.consumption_analysis ? "" : chartsHtml}
         ${results.consumption_analysis ? "" : shiftEnergyAdequacyHtml}
         ${buildShiftChargingPlanHtml(feasibilityViewState, {
-          open: keepChargingPlanOpen,
+          open: keepChargingPlanOpen, inputParams: ip,
         })}
         <details class="ya-more-information feasibility-more-information result-card"${keepMoreInformationOpen ? " open" : ""}>
           <summary class="ya-more-information__toggle feasibility-more-information__toggle feasibility-disclosure__toggle result-card__header">
@@ -9438,6 +9442,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   if (!section) return null;
 
   const cleanupHandlers = [];
+  cleanupHandlers.push(bindInfoTooltips(section, '.charging-session-info'));
   const renderedTabs = new Set(["efficiency"]);
   const costOverrides = {
     fuelCostPerL: normalizeFuelCostPerL(options?.costOverrides?.fuelCostPerL),

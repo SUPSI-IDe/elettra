@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveBatteryPolicy, batteryEnergy, historicalBatteryParams, NEW_BATTERY_DEFAULTS } from '../src/utils/battery-policy.js';
+import { resolveBatteryPolicy, batteryEnergy, historicalBatteryParams, NEW_BATTERY_DEFAULTS, batteryUsageControls, batteryParamsFromUsage } from '../src/utils/battery-policy.js';
 
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} differs from ${expected}`);
 const constant = (state_of_health, extra = {}) => resolveBatteryPolicy({ battery_soc_policy: 'constant_initial_usable', state_of_health, ...extra });
@@ -90,4 +90,66 @@ test('historical defaults fill only missing and nullish values', () => {
   assert.equal(NEW_BATTERY_DEFAULTS.state_of_health, 0.7);
   assert.equal(NEW_BATTERY_DEFAULTS.session_connection_minutes, 1);
   assert.equal(NEW_BATTERY_DEFAULTS.layover_reduction_minutes, 0);
+});
+
+test('simplified capacity controls derive the same default API policy and energy', () => {
+  const controls = batteryUsageControls(NEW_BATTERY_DEFAULTS);
+  close(controls.usable_capacity_fraction, .5);
+  close(controls.max_residual_usage_fraction, .85);
+  for (const [kind, h, minimum, maximum, usable] of [
+    ['residual_soc', 1, .4, .9, 250], ['residual_soc', .7, .4, .9, 175],
+    ['constant_initial_usable', .7, .9-.5/.7, .9, 250],
+    ['constant_initial_usable', .6, .1, .1+.5/.6, 250],
+  ]) {
+    const params = batteryParamsFromUsage({ ...controls, battery_soc_policy: kind, state_of_health: h });
+    const policy = resolveBatteryPolicy(params);
+    close(policy.min_soc, minimum); close(policy.max_soc, maximum);
+    close(batteryEnergy(500, policy).usable_capacity_kwh, usable);
+  }
+});
+
+test('maximum residual usage is an energy limit, not the maximum SOC', () => {
+  const controls = { ...batteryUsageControls(), battery_soc_policy: 'constant_initial_usable', state_of_health: .58 };
+  assert.throws(() => batteryParamsFromUsage(controls), /exceeds maximum residual usage/);
+  const params = batteryParamsFromUsage({ ...controls, max_residual_usage_fraction: .9 });
+  close(params.allowed_max_soc - params.allowed_min_soc, .9);
+  const p = resolveBatteryPolicy(params);
+  close(p.min_soc, .05); close(p.max_soc, .05+.5/.58);
+  close(batteryEnergy(500, p).usable_capacity_kwh, 250);
+});
+
+test('automatic SOC placement supports the whole energy range and threshold boundary', () => {
+  for (const u of [.0001, .5, .7, .700001, .8, .85, .9, .95, 1]) {
+    const p = resolveBatteryPolicy(batteryParamsFromUsage({ ...batteryUsageControls(), usable_capacity_fraction: u }));
+    close(p.max_soc-p.min_soc, u);
+    assert.ok(p.min_soc >= 0 && p.max_soc <= 1);
+    assert.equal(p.low_soc_warning, u > .7);
+  }
+  for (const limit of [.01, .1, .5, .8, .85, .9, .95, 1]) {
+    const p = resolveBatteryPolicy(batteryParamsFromUsage({ ...batteryUsageControls(),
+      battery_soc_policy: 'constant_initial_usable', usable_capacity_fraction: limit*.7,
+      max_residual_usage_fraction: limit }));
+    close(p.max_soc-p.min_soc, limit);
+    assert.ok(p.min_soc >= 0 && p.max_soc <= 1);
+  }
+});
+
+test('simplified duplicates preserve exact saved SOC bounds until battery inputs change', () => {
+  const old = { state_of_health: .75, battery_soc_policy: 'constant_initial_usable', min_soc: .35,
+    max_soc: .85, allowed_min_soc: .12, allowed_max_soc: .96, session_connection_minutes: 0, layover_reduction_minutes: 0 };
+  const controls = batteryUsageControls(old);
+  assert.deepEqual(batteryParamsFromUsage(controls, old), old);
+  assert.deepEqual(batteryParamsFromUsage({ ...controls, session_connection_minutes: 2 }, old), { ...old, session_connection_minutes: 2 });
+  const changed = batteryParamsFromUsage({ ...controls, usable_capacity_fraction: .45 }, old);
+  close(changed.max_soc-changed.min_soc, .45);
+  assert.notEqual(changed.max_soc, old.max_soc);
+  assert.deepEqual(batteryParamsFromUsage(batteryUsageControls({ min_soc: 0, max_soc: 1 }), { min_soc: 0, max_soc: 1 }), historicalBatteryParams({ min_soc: 0, max_soc: 1 }));
+});
+
+test('capacity controls reject nonfinite, zero and out of range input', () => {
+  for (const key of ['state_of_health', 'usable_capacity_fraction', 'max_residual_usage_fraction']) {
+    for (const value of [NaN, Infinity, null, '50', true, 0, -.1, 1.01]) {
+      assert.throws(() => batteryParamsFromUsage({ ...batteryUsageControls(), battery_soc_policy: 'constant_initial_usable', [key]: value }));
+    }
+  }
 });
