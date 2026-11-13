@@ -142,6 +142,10 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   const addressSearchFeedback = form.querySelector(
     '[data-role="address-search-feedback"]'
   );
+  const initialPositioningOverlay = form.querySelector(
+    '[data-role="initial-positioning"]'
+  );
+  const isNewMode = !isEditMode && !isDuplicateMode;
 
   // Initial center: use existing depot coords in edit mode, else use cached centroid or default
   const initialLocation = getUserAgencyCentroidSync();
@@ -161,6 +165,11 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   let reverseGeocodeController = null;
   let addressSearchController = null;
   let skipReverseAt = null;
+  let initialPositioning = isNewMode;
+  let disposed = false;
+  cleanupHandlers.push(() => {
+    disposed = true;
+  });
 
   const geocodingLanguage = () =>
     document.documentElement.lang?.trim() || "it";
@@ -259,6 +268,21 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   const setAddressSearchBusy = (busy) => {
     if (addressSearchButton) addressSearchButton.disabled = busy;
     addressInput?.setAttribute("aria-busy", String(busy));
+  };
+
+  const setInitialPositioning = (busy) => {
+    initialPositioning = busy;
+    if (initialPositioningOverlay) initialPositioningOverlay.hidden = !busy;
+    section.setAttribute("aria-busy", String(busy));
+    if (addressInput) {
+      addressInput.readOnly = busy;
+      addressInput.setAttribute("aria-busy", String(busy));
+    }
+    if (cityInput) {
+      cityInput.readOnly = busy;
+      cityInput.setAttribute("aria-busy", String(busy));
+    }
+    if (addressSearchButton) addressSearchButton.disabled = busy;
   };
 
   const searchAddressOnMap = async () => {
@@ -367,6 +391,7 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   });
 
   const handleMoveEnd = () => {
+    if (initialPositioning) return;
     const center = map.getCenter();
     if (
       skipReverseAt &&
@@ -410,11 +435,6 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     reverseGeocodeController?.abort();
   });
 
-  // Initial update if adding new stop
-  if (!isEditMode && !isDuplicateMode) {
-    updateFromMapCenter();
-  }
-
   // Recover the missing city from stored coordinates for legacy stops.
   if ((isEditMode || isDuplicateMode) && !cityInput.value.trim()) {
     const latitude = Number.parseFloat(latInput.value);
@@ -429,32 +449,31 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     }
   }
 
-  // For new stops: asynchronously calculate centroid from GTFS data and recenter
-  // Only if we don't have depot coordinates and user hasn't interacted
-  if (
-    !isEditMode &&
-    !isDuplicateMode &&
-    currentDepot.latitude == null &&
-    currentDepot.longitude == null
-  ) {
-    getUserAgencyCentroid()
-      .then((centroid) => {
-        if (!centroid || userInteracted) return;
-        
-        // Check if centroid is different from current position (not default)
+  // New stops remain empty while the map resolves and moves to the agency area.
+  if (isNewMode) {
+    addressInput.value = "";
+    cityInput.value = "";
+    setInitialPositioning(true);
+
+    void (async () => {
+      try {
+        const centroid = await getUserAgencyCentroid();
+        if (!centroid || disposed || userInteracted) return;
+
         const current = map.getCenter();
         const isSame =
           Math.abs(current.lat - centroid.lat) < 0.001 &&
           Math.abs(current.lng - centroid.lon) < 0.001;
-        
         if (!isSame) {
           map.setView([centroid.lat, centroid.lon], 13);
-          updateFromMapCenter();
         }
-      })
-      .catch((err) => {
+        await updateFromMapCenter();
+      } catch (err) {
         console.warn("Could not calculate agency centroid:", err);
-      });
+      } finally {
+        if (!disposed) setInitialPositioning(false);
+      }
+    })();
   }
 
   const handleSubmit = async (event) => {

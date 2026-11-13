@@ -56,10 +56,15 @@ test("an address search positions a custom stop while keeping the map picker ava
 }) => {
   await installSession(page);
   let reverseRequests = 0;
+  let releaseInitialReverse;
+  const initialReverseGate = new Promise((resolve) => {
+    releaseInitialReverse = resolve;
+  });
   const searchQueries = [];
 
-  await page.route("**/reverse?**", (route) => {
+  await page.route("**/reverse?**", async (route) => {
     reverseRequests += 1;
+    if (reverseRequests === 1) await initialReverseGate;
     return fulfillJson(route, {
       display_name: "Via iniziale 1, Bellinzona",
       address: {
@@ -95,9 +100,22 @@ test("an address search positions a custom stop while keeping the map picker ava
   const city = page.locator("#custom-stop-city");
   const searchButton = page.locator('[data-action="search-address"]');
   const searchFeedback = page.locator('[data-role="address-search-feedback"]');
+  const positioning = page.locator('[data-role="initial-positioning"]');
 
   await expect(page.locator("section.add-custom-stop")).toBeVisible();
+  await expect(positioning).toBeVisible();
+  await expect(positioning).toContainText("Posizionamento in corso");
+  await expect(address).toHaveValue("");
+  await expect(city).toHaveValue("");
+  await expect(address).toHaveAttribute("readonly", "");
+  await expect(city).toHaveAttribute("readonly", "");
+  await expect.poll(() => reverseRequests).toBe(1);
+  releaseInitialReverse();
+  await expect(positioning).toBeHidden();
+  await expect(address).toHaveValue("Via iniziale 1");
+  await expect(city).toHaveValue("Bellinzona");
   await expect(address).toBeEditable();
+  await expect(city).toBeEditable();
   await expect(searchButton).toHaveText("Cerca sulla mappa");
   await expect(page.locator("#custom-stop-latitude")).not.toHaveValue("");
 

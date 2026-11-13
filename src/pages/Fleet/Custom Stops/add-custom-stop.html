@@ -173,6 +173,23 @@
             <div class="map-wrapper">
               <div id="custom-stop-map" data-role="map"></div>
               <div class="map-crosshair" aria-hidden="true"></div>
+              <div
+                class="custom-stop-positioning-overlay"
+                data-role="initial-positioning"
+                role="status"
+                aria-live="polite"
+                hidden
+              >
+                <div class="custom-stop-positioning-popup">
+                  <header class="custom-stop-positioning-popup__header">
+                    <h3 data-i18n="custom_stops.positioning_title">Positioning in progress</h3>
+                  </header>
+                  <div class="custom-stop-positioning-popup__content">
+                    <span class="custom-stop-positioning-spinner" aria-hidden="true"></span>
+                    <p data-i18n="custom_stops.positioning_body">Locating the agency area on the map…</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
