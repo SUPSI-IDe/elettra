@@ -3,6 +3,7 @@ import { resultBatteryPolicy } from '../../../utils/battery-policy';
 import { renderBatteryAssumptions } from './battery-assumptions';
 import { mountHvacAssumptions } from "../shared/hvac-assumptions.js";
 import { mountAnalysisGtfs } from "../../../utils/analysis-gtfs.js";
+import "../shared/results-information-bar.css";
 import { formatNumber, formatChf } from "../../../utils/number-format";
 import { infrastructureCostHtml } from './infrastructure-costs';
 import { fleetInvestmentHtml } from './fleet-investment';

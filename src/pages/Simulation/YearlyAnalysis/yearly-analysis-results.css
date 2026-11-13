@@ -1,10 +1,77 @@
 .yearly-analysis-results {
+  position: relative;
   flex: 1 1 auto;
   min-width: 0;
   width: 100%;
 }
 
 .yearly-analysis-results [hidden] { display: none !important; }
+
+.yearly-analysis-results .ya-results-information-bar {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+}
+
+.ya-initial-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--space-lg);
+  background: var(--color-overlay);
+}
+
+.ya-initial-loading-popup {
+  width: min(100%, 30rem);
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-main);
+}
+
+.ya-initial-loading-popup__header {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ya-initial-loading-popup__header h3 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ya-initial-loading-popup__content {
+  display: flex;
+  min-height: 5rem;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+}
+
+.ya-initial-loading-popup__content p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.ya-initial-loading-spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 auto;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--color-brand-primary);
+  border-radius: var(--radius-full);
+  animation: ya-initial-loading-spin .8s linear infinite;
+}
+
+@keyframes ya-initial-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .ya-results-main {
   padding: var(--layout-content-padding);
   overflow-y: auto;
@@ -32,7 +99,7 @@
 .ya-shift-summary-slot {
   width: 100%;
   min-width: 0;
-  margin-top: var(--space-xs);
+  margin-top: var(--space-sm);
 }
 
 .ya-shift-summary-slot[hidden] { display: none; }
@@ -360,7 +427,7 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   color: var(--text-secondary);
-  font-size: .8rem;
+  font-size: var(--font-size-xl);
   line-height: 1.5;
 }
 
@@ -380,8 +447,9 @@
   flex: 0 0 auto;
   margin: 0;
   color: var(--text-main);
-  font: inherit;
+  font-size: var(--font-size-xl);
   font-weight: 600;
+  line-height: 1.5;
 }
 
 .ya-shift-yearly-summary__metrics {
@@ -1730,6 +1798,15 @@
 @media (width <= 700px) {
   .ya-result-scope-tab {
     max-width: 70vw;
+  }
+
+  .ya-shift-yearly-summary {
+    padding: var(--space-sm);
+    line-height: 1.35;
+  }
+
+  .ya-shift-yearly-summary__title {
+    line-height: 1.35;
   }
 
   .ya-shift-yearly-summary__metrics {

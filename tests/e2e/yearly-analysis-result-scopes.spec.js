@@ -311,6 +311,8 @@ const mountResults = async (
     yearlyCosts = null,
     busSpecs = {},
     currentGtfs = [],
+    analysisGate = null,
+    hvacPayload = null,
   } = {},
 ) => {
   const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
@@ -339,7 +341,10 @@ const mountResults = async (
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}/costs`)) {
       if (yearlyCosts) await route.fulfill({ json: yearlyCosts });
       else await route.fulfill({ status: 503, json: { detail: "Use deterministic local costs" } });
+    } else if (path.endsWith(`/yearly-analysis/${analysis.id}/auxiliary-assumptions`)) {
+      await route.fulfill({ json: hvacPayload ?? { runs: [] } });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}`)) {
+      if (analysisGate) await analysisGate;
       await route.fulfill({ json: analysis });
     } else if (path.endsWith("/simulation/prediction-runs/")) {
       await route.fulfill({ json: predictionRuns });
@@ -390,6 +395,102 @@ const downloadAllResults = async (page) => {
     exported: JSON.parse(readFileSync(downloadedPath, "utf8")),
   };
 };
+
+test("yearly results show a generic loading popup while initial data is fetched", async ({ page }) => {
+  let releaseAnalysis;
+  const analysisGate = new Promise((resolve) => {
+    releaseAnalysis = resolve;
+  });
+  const mounting = mountResults(page, multishiftAnalysis, { analysisGate });
+  const popup = page.locator('[data-role="ya-initial-loading"]');
+
+  await expect(popup).toBeVisible();
+  await expect(popup.getByRole("heading", { name: "Loading data" })).toBeVisible();
+  await expect(popup).toContainText("Loading in progress…");
+
+  releaseAnalysis();
+  await mounting;
+  await expect(popup).toBeHidden();
+});
+
+test("yearly HVAC and GTFS information use the shared 75/25 disclosure layout", async ({ page }) => {
+  const dataset = {
+    gtfs_year: 2026,
+    gtfs_file_date: "2026-10-01",
+    valid_from: "2026-01-01",
+    valid_to: "2026-12-31",
+  };
+  await mountResults(page, multishiftAnalysis, {
+    currentGtfs: [dataset],
+    hvacPayload: {
+      runs: [{
+        run_id: "annual-hvac",
+        temperature_c: -5,
+        assumptions: {
+          policy_id: "annual-pvgis-local-cap10-v1",
+          solar_used: true,
+          ghi_reference_wm2: 50,
+        },
+        components: { total_hvac_electrical_kwh: 5 },
+      }],
+    },
+  });
+
+  const bar = page.locator('[data-role="results-information-bar"]');
+  const toggles = bar.locator('.results-information-toggle');
+  await expect(toggles).toHaveCount(2);
+  await expect(toggles.nth(0)).toContainText("HVAC assumptions");
+  await expect(toggles.nth(1)).toContainText("GTFS timetable");
+
+  const rectangles = await toggles.evaluateAll((elements) => elements.map((element) => {
+    const { y, width, height } = element.getBoundingClientRect();
+    return { y, width, height };
+  }));
+  expect(rectangles[0].width / rectangles[1].width).toBeCloseTo(3, 1);
+  expect(Math.abs(rectangles[0].y - rectangles[1].y)).toBeLessThan(1);
+  expect(Math.abs(rectangles[0].height - rectangles[1].height)).toBeLessThan(1);
+
+  const hvac = bar.locator('.hvac-assumptions');
+  const gtfs = bar.locator('.gtfs-disclosure');
+  await hvac.locator(':scope > summary').click();
+  await expect(hvac).toHaveAttribute("open", "");
+  const hvacToggleWidth = await hvac.locator(':scope > summary').evaluate(
+    (element) => element.getBoundingClientRect().width,
+  );
+  const contentWidth = await hvac.locator('.results-information-content').evaluate(
+    (element) => element.getBoundingClientRect().width,
+  );
+  expect(Math.abs(hvacToggleWidth - contentWidth)).toBeLessThan(1);
+
+  await gtfs.locator(':scope > summary').click();
+  await expect(gtfs).toHaveAttribute("open", "");
+  await expect(hvac).not.toHaveAttribute("open", "");
+
+  await page.getByRole("tab", { name: "Morning service" }).click();
+  const shiftSummarySlot = page.locator('[data-role="ya-shift-summary-slot"]');
+  await expect(shiftSummarySlot).toBeVisible();
+  const summaryPresentation = await shiftSummarySlot.evaluate((element) => ({
+    followsInformationBar:
+      element.previousElementSibling?.matches('[data-role="results-information-bar"]') ?? false,
+    titleFontSize: Number.parseFloat(getComputedStyle(
+      element.querySelector('.ya-shift-yearly-summary__title'),
+    ).fontSize),
+    metricFontSize: Number.parseFloat(getComputedStyle(
+      element.querySelector('.ya-shift-yearly-summary__metric'),
+    ).fontSize),
+  }));
+  const informationFontSizes = await bar.evaluate((element) => ({
+    title: Number.parseFloat(getComputedStyle(
+      element.querySelector('.hvac-assumptions__title'),
+    ).fontSize),
+    toggle: Number.parseFloat(getComputedStyle(
+      element.querySelector('.results-information-toggle'),
+    ).fontSize),
+  }));
+  expect(summaryPresentation.followsInformationBar).toBe(true);
+  expect(summaryPresentation.titleFontSize).toBe(informationFontSizes.title);
+  expect(summaryPresentation.metricFontSize).toBe(informationFontSizes.toggle);
+});
 
 test("yearly results use General and one primary tab per shift", async ({ page }) => {
   const analysis = structuredClone(multishiftAnalysis);
@@ -616,10 +717,11 @@ test("yearly results use General and one primary tab per shift", async ({ page }
     "1.667 kWh/km",
   ]);
   const compactShiftContext = await shiftSummarySlot.evaluate((element) => ({
-    followsScopeTabs:
-      element.previousElementSibling?.matches('[data-role="ya-result-scope-tabs"]') ?? false,
+    followsInformationBar:
+      element.previousElementSibling?.matches('[data-role="results-information-bar"]') ?? false,
     width: element.getBoundingClientRect().width,
-    parentWidth: element.parentElement?.getBoundingClientRect().width ?? 0,
+    informationBarWidth:
+      element.previousElementSibling?.getBoundingClientRect().width ?? 0,
     background: getComputedStyle(
       element.querySelector('[data-role="ya-shift-yearly-summary"]'),
     ).backgroundColor,
@@ -627,10 +729,10 @@ test("yearly results use General and one primary tab per shift", async ({ page }
       element.querySelector('[data-role="ya-shift-yearly-summary"] .ya-shift-yearly-summary__metric'),
     ).fontSize),
   }));
-  expect(compactShiftContext.followsScopeTabs).toBe(true);
-  expect(compactShiftContext.width).toBeGreaterThanOrEqual(compactShiftContext.parentWidth - 1);
+  expect(compactShiftContext.followsInformationBar).toBe(true);
+  expect(compactShiftContext.width).toBeCloseTo(compactShiftContext.informationBarWidth, 0);
   expect(compactShiftContext.background).toBe("rgb(255, 255, 255)");
-  expect(compactShiftContext.summaryFontSize).toBeLessThanOrEqual(14);
+  expect(compactShiftContext.summaryFontSize).toBeGreaterThanOrEqual(16);
   const shiftContentOrder = await content.evaluate((element) =>
     Array.from(element.children).map((child) =>
       child.getAttribute("data-role") || child.getAttribute("data-panel")),

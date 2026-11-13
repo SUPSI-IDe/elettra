@@ -1,4 +1,20 @@
 <section class="yearly-analysis-results">
+  <div
+    class="ya-initial-loading-overlay"
+    data-role="ya-initial-loading"
+    role="status"
+    aria-live="polite"
+  >
+    <div class="ya-initial-loading-popup">
+      <header class="ya-initial-loading-popup__header">
+        <h3 data-i18n="common.loading_data">Loading data</h3>
+      </header>
+      <div class="ya-initial-loading-popup__content">
+        <span class="ya-initial-loading-spinner" aria-hidden="true"></span>
+        <p data-i18n="common.loading_in_progress">Loading in progress…</p>
+      </div>
+    </div>
+  </div>
   <header class="page-header">
     <div class="header-with-close">
       <div class="title-container">
@@ -19,11 +35,6 @@
           data-i18n-aria-label="yearly_analysis.result_scope_selector"
           hidden
         ></div>
-        <div
-          class="ya-shift-summary-slot"
-          data-role="ya-shift-summary-slot"
-          hidden
-        ></div>
       </div>
       <button type="button" class="close-button" data-action="back" aria-label="Back" data-i18n-aria-label="common.back">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -32,8 +43,18 @@
         </svg>
       </button>
     </div>
-    <div data-role="hvac-assumptions" hidden></div>
-    <div class="gtfs-analysis-context" data-role="analysis-gtfs" aria-label="GTFS" hidden></div>
+    <div
+      class="results-information-bar ya-results-information-bar"
+      data-role="results-information-bar"
+    >
+      <div data-role="hvac-assumptions" hidden></div>
+      <div class="gtfs-analysis-context" data-role="analysis-gtfs" aria-label="GTFS" hidden></div>
+    </div>
+    <div
+      class="ya-shift-summary-slot"
+      data-role="ya-shift-summary-slot"
+      hidden
+    ></div>
   </header>
   <main class="ya-results-main">
     <p class="form-feedback" data-role="feedback" hidden></p>

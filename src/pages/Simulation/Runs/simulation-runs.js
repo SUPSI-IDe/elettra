@@ -767,7 +767,7 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
           }`
         : feasibilityLabel;
 
-      const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${textContent(rowId)}">${textContent(t("simulation.col_results") || "Results")}</a>`;
+      const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${textContent(rowId)}">${textContent(t("common.view") || "View")}</a>`;
 
       return `
         <tr data-id="${textContent(rowId)}">

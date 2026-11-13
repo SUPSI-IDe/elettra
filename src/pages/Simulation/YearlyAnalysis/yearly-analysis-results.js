@@ -1,6 +1,7 @@
 import { mountHvacAssumptions } from "../shared/hvac-assumptions.js";
 import { formatNumber } from "../../../utils/number-format.js";
 import { mountAnalysisGtfs } from "../../../utils/analysis-gtfs.js";
+import "../shared/results-information-bar.css";
 import * as d3 from "d3";
 import {
   buildChargingEnergyBoundary,
@@ -4697,8 +4698,28 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   if (!section) return null;
 
   const cleanups = [];
+  const informationBar = section.querySelector('[data-role="results-information-bar"]');
+  const handleInformationToggleClick = (event) => {
+    const toggle = event.target.closest?.(".results-information-toggle");
+    if (!toggle || !informationBar?.contains(toggle)) return;
+    const disclosure = toggle.closest(".results-information-disclosure");
+    if (!disclosure || disclosure.open) return;
+    informationBar
+      .querySelectorAll(".results-information-disclosure[open]")
+      .forEach((other) => {
+        if (other !== disclosure) other.open = false;
+      });
+  };
+  informationBar?.addEventListener("click", handleInformationToggleClick);
+  cleanups.push(() => {
+    informationBar?.removeEventListener("click", handleInformationToggleClick);
+  });
   const pageTitleEl = section.querySelector('[data-role="page-title"]');
   const feedbackEl = section.querySelector('[data-role="feedback"]');
+  const initialLoadingEl = section.querySelector('[data-role="ya-initial-loading"]');
+  const hideInitialLoading = () => {
+    if (initialLoadingEl) initialLoadingEl.hidden = true;
+  };
   const overviewPanel = section.querySelector('[data-role="overview-panel"]');
   const shiftSummaryPanel = section.querySelector('[data-role="ya-shift-summary-slot"]');
   const emissionsContent = section.querySelector('[data-role="emissions-content"]');
@@ -4718,6 +4739,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   const analysisId = options.analysisId ?? "";
   if (!analysisId) {
+    hideInitialLoading();
     if (feedbackEl) { feedbackEl.textContent = t("yearly_analysis.no_analysis_id"); feedbackEl.hidden = false; }
     return null;
   }
@@ -4726,11 +4748,13 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   try {
     analysis = await fetchYearlyAnalysis(analysisId);
   } catch (err) {
+    hideInitialLoading();
     if (feedbackEl) { feedbackEl.textContent = err?.message ?? t("yearly_analysis.failed_load_analysis"); feedbackEl.hidden = false; }
     return null;
   }
 
   if (!analysis) {
+    hideInitialLoading();
     if (feedbackEl) { feedbackEl.textContent = t("yearly_analysis.analysis_not_found"); feedbackEl.hidden = false; }
     return null;
   }
@@ -5709,6 +5733,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
     cleanups.push(() => resultViewTabsEl.removeEventListener("keydown", resultViewKeyHandler));
   }
   refreshAllSections();
+  hideInitialLoading();
 
   /* Backfill quantiles from prediction runs (best-effort, async) */
   try {
