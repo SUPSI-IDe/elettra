@@ -7121,13 +7121,27 @@ const buildShiftChargingPlanHtml = (viewState, { open = false } = {}) => {
 const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (!el) return;
 
+  el.classList.remove("efficiency-panel--loading");
+  el.setAttribute("aria-busy", "false");
+
   const keepMoreInformationOpen =
     el.querySelector(".ya-more-information")?.open === true;
   const keepChargingPlanOpen =
     el.querySelector('[data-role="feasibility-charging-plan"]')?.open === true;
 
   if (state.status === "idle" || state.status === "loading") {
-    el.innerHTML = `<p class="efficiency-state-msg">${textContent(t("simulation.efficiency_loading") || "Loading efficiency data…")}</p>`;
+    el.classList.add("efficiency-panel--loading");
+    el.setAttribute("aria-busy", "true");
+    el.innerHTML = `
+      <div class="efficiency-loading-popup" role="status" aria-live="polite">
+        <header class="efficiency-loading-popup__header">
+          <h3>${textContent(t("common.loading_data") || "Loading data")}</h3>
+        </header>
+        <div class="efficiency-loading-popup__content">
+          <span class="efficiency-loading-popup__spinner" aria-hidden="true"></span>
+          <p>${textContent(t("common.loading_in_progress") || "Loading in progress…")}</p>
+        </div>
+      </div>`;
     return;
   }
 

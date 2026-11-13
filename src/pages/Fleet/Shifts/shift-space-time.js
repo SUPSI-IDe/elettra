@@ -591,6 +591,8 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
 export const renderSpaceTimeDiagram = (container, trips = [], options = {}) => {
   if (!container) return;
   container.innerHTML = "";
+  container.classList.remove("shift-space-time--empty");
+  container.setAttribute("aria-busy", "false");
   let groups = buildSpaceTimeGroups(trips);
   if (!groups.length) {
     const transferGroup = buildTransferOnlySpaceTimeGroup(
@@ -600,10 +602,38 @@ export const renderSpaceTimeDiagram = (container, trips = [], options = {}) => {
     if (transferGroup) groups = [transferGroup];
   }
   if (!groups.length) {
-    const placeholder = document.createElement("p");
-    placeholder.className = "shift-space-time__placeholder";
-    placeholder.textContent = t("shifts.space_time_no_data");
-    container.append(placeholder);
+    const popup = document.createElement("div");
+    popup.className = "shift-space-time__empty-popup";
+    popup.setAttribute("role", "status");
+    popup.setAttribute("aria-live", "polite");
+
+    const header = document.createElement("header");
+    header.className = "shift-space-time__popup-header";
+    const title = document.createElement("h3");
+    title.textContent = t("common.data_unavailable");
+    header.append(title);
+
+    const content = document.createElement("div");
+    content.className = "shift-space-time__popup-content";
+    const message = document.createElement("p");
+    message.textContent = t("shifts.space_time_no_data");
+    content.append(message);
+
+    const footer = document.createElement("footer");
+    footer.className = "shift-space-time__popup-footer";
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "btn-secondary";
+    closeButton.textContent = t("common.close");
+    closeButton.addEventListener("click", () => {
+      popup.remove();
+      container.classList.remove("shift-space-time--empty");
+    });
+    footer.append(closeButton);
+
+    popup.append(header, content, footer);
+    container.classList.add("shift-space-time--empty");
+    container.append(popup);
     return;
   }
   const depotAssignments = assignDepotTripsToSpaceTimeGroups(

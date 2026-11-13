@@ -1,5 +1,70 @@
 import { expect, test } from "@playwright/test";
 
+test("feasibility efficiency loading uses the shared popup visual language", async ({
+  page,
+}) => {
+  let releaseOptimizationRun;
+  const optimizationRunReady = new Promise((resolve) => {
+    releaseOptimizationRun = resolve;
+  });
+
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/api/v1/simulation/optimization-runs/loading-popup-run")) {
+      await optimizationRunReady;
+      await route.fulfill({
+        json: {
+          id: "loading-popup-run",
+          name: "Loading popup regression",
+          mode: "battery_only",
+          status: "failed",
+          input_params: { shift_ids: [], mode: "battery_only" },
+          prediction_run_ids: [],
+          results: { status: "failed" },
+        },
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 404,
+      json: { detail: "Unexpected test request" },
+    });
+  });
+
+  await page.goto("./");
+  await page.evaluate(async () => {
+    const template = await fetch(
+      "/elettra/src/pages/Simulation/Runs/simulation-results.html",
+    ).then((response) => response.text());
+    document.body.innerHTML = template;
+    const { initializeSimulationResults } = await import(
+      "/elettra/src/pages/Simulation/Runs/simulation-results.js"
+    );
+    window.__cleanupLoadingPopupTest = initializeSimulationResults(document, {
+      runId: "loading-popup-run",
+    });
+  });
+
+  const panel = page.locator('[data-role="efficiency-table"]');
+  const popup = panel.getByRole("status");
+  await expect(panel).toHaveAttribute("aria-busy", "true");
+  await expect(panel).toHaveClass(/efficiency-panel--loading/);
+  await expect(popup.getByRole("heading", { name: "Loading data" })).toBeVisible();
+  await expect(popup.locator("p")).toHaveText("Loading in progress…");
+  await expect(popup.locator(".efficiency-loading-popup__spinner")).toBeVisible();
+  await expect(popup.getByRole("button")).toHaveCount(0);
+  await expect(popup).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(popup).toHaveCSS("border-radius", "10px");
+  await expect(popup).toHaveCSS("box-shadow", /^(?!none$).+/);
+
+  releaseOptimizationRun();
+  await expect(panel).toHaveAttribute("aria-busy", "false");
+  await expect(popup).toHaveCount(0);
+  await expect(panel).not.toHaveClass(/efficiency-panel--loading/);
+
+  await page.evaluate(() => window.__cleanupLoadingPopupTest?.());
+});
+
 test("feasibility results render every supported heating type", async ({ page }) => {
   await page.goto("./");
 

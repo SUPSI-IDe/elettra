@@ -169,15 +169,26 @@
           </div>
         </div>
         <div
-          class="shift-space-time"
+          class="shift-space-time shift-space-time--empty"
           data-role="space-time"
           role="region"
           aria-label="Space-time diagrams"
           data-i18n-aria-label="shifts.space_time_label"
+          aria-busy="true"
         >
-          <p class="shift-space-time__placeholder" data-i18n="shifts.space_time_no_data">
-            No space-time diagram data available.
-          </p>
+          <div
+            class="shift-space-time__empty-popup"
+            role="status"
+            aria-live="polite"
+          >
+            <header class="shift-space-time__popup-header">
+              <h3 data-i18n="common.loading_data">Loading data</h3>
+            </header>
+            <div class="shift-space-time__popup-content">
+              <span class="shift-space-time__loading-spinner" aria-hidden="true"></span>
+              <p data-i18n="common.loading_in_progress">Loading in progress…</p>
+            </div>
+          </div>
         </div>
       </section>
     </div>

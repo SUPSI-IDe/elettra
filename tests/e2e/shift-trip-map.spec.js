@@ -242,6 +242,102 @@ test("returns to space-time without losing the selected trip", async ({ page }) 
   );
 });
 
+test("presents the temporary empty diagram message in a compact popup while loading", async ({
+  page,
+}) => {
+  await page.evaluate((html) => {
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    const section = parsed.querySelector(".visualize-shift");
+    document.querySelector(".layout-article").replaceChildren(section);
+  }, visualizeShiftHtml);
+
+  const diagram = page.locator('[data-role="space-time"]');
+  await expect(diagram).toHaveAttribute("aria-busy", "true");
+  await expect(diagram).toHaveClass(/shift-space-time--empty/);
+
+  const popup = diagram.getByRole("status");
+  await expect(popup.locator("p")).toHaveText(
+    "Loading in progress…",
+  );
+  await expect(popup.getByRole("heading", { name: "Loading data" })).toBeVisible();
+  await expect(popup.locator(".shift-space-time__loading-spinner")).toBeVisible();
+  await expect(popup.getByRole("button", { name: "Close" })).toHaveCount(0);
+  await expect(popup).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(popup).toHaveCSS("border-radius", "10px");
+  await expect(popup).toHaveCSS("box-shadow", /^(?!none$).+/);
+
+  const loadingDimensions = await page.evaluate(() => {
+    const diagramBox = document
+      .querySelector('[data-role="space-time"]')
+      .getBoundingClientRect();
+    const popupBox = document
+      .querySelector(".shift-space-time__empty-popup")
+      .getBoundingClientRect();
+    return {
+      diagramWidth: diagramBox.width,
+      popupWidth: popupBox.width,
+      centered: Math.abs(
+        popupBox.left + popupBox.width / 2 -
+          (diagramBox.left + diagramBox.width / 2),
+      ) < 2,
+    };
+  });
+  expect(loadingDimensions.popupWidth).toBeLessThan(
+    loadingDimensions.diagramWidth,
+  );
+  expect(loadingDimensions.centered).toBe(true);
+
+  await page.evaluate(async (tripData) => {
+    const { renderSpaceTimeDiagram } = await import(
+      "/elettra/src/pages/Fleet/Shifts/shift-space-time.js"
+    );
+    renderSpaceTimeDiagram(
+      document.querySelector('[data-role="space-time"]'),
+      tripData.filter((trip) => !trip.trip_id.startsWith("depot-")),
+    );
+  }, trips);
+
+  await expect(diagram).toHaveAttribute("aria-busy", "false");
+  await expect(diagram).not.toHaveClass(/shift-space-time--empty/);
+  await expect(popup).toHaveCount(0);
+  await expect(diagram.locator('[data-role="space-time-trip"]')).toHaveCount(2);
+});
+
+test("uses the same popup shell for a genuinely empty diagram", async ({ page }) => {
+  await page.evaluate((html) => {
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    const section = parsed.querySelector(".visualize-shift");
+    document.querySelector(".layout-article").replaceChildren(section);
+  }, visualizeShiftHtml);
+
+  const diagram = page.locator('[data-role="space-time"]');
+  await page.evaluate(async () => {
+    const { renderSpaceTimeDiagram } = await import(
+      "/elettra/src/pages/Fleet/Shifts/shift-space-time.js"
+    );
+    renderSpaceTimeDiagram(
+      document.querySelector('[data-role="space-time"]'),
+      [],
+    );
+  });
+
+  const popup = diagram.getByRole("status");
+  await expect(diagram).toHaveAttribute("aria-busy", "false");
+  await expect(popup.locator("p")).toHaveText(
+    "No space-time diagram data available.",
+  );
+  await expect(
+    popup.getByRole("heading", { name: "Data unavailable" }),
+  ).toBeVisible();
+  await expect(popup.locator(".shift-space-time__loading-spinner")).toHaveCount(0);
+  await expect(popup).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(popup).toHaveCSS("border-radius", "10px");
+
+  await popup.getByRole("button", { name: "Close" }).click();
+  await expect(popup).toHaveCount(0);
+  await expect(diagram).not.toHaveClass(/shift-space-time--empty/);
+});
+
 test("renders a FART-style space-time diagram for all trips", async ({ page }) => {
   const mapPanel = page.locator('[data-role="trip-map"]');
   const diagram = page.locator('[data-role="space-time"]');
