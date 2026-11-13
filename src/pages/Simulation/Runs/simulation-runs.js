@@ -2,11 +2,13 @@ import { t } from "../../../i18n";
 import { resolveCopiedBatteryPacks, copiedPredictionParams } from '../../../utils/evaluation-duplication';
 import { basisOutcome, pairedFeasibility, evaluationStatus } from "../../../utils/paired-feasibility";
 import "./simulation-runs.css";
+import "../shared/state-indicator.css";
 import { fetchAllBusModels, fetchBusModelById } from "../../../api";
 import {
   fetchAllOptimizationRuns,
   fetchOptimizationRuns,
   fetchOptimizationRun,
+  updateOptimizationRun,
   deleteOptimizationRun,
   resolvePredictionRuns,
   fetchAllYearlyAnalyses,
@@ -27,6 +29,10 @@ import { installPaginationControl } from "../../../dom/pagination";
 import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { triggerPartialLoad } from "../../../events";
 import { resolveBusModelDisplayName, textContent } from "../../../ui-helpers";
+import {
+  initializeRenameDialog,
+  renderRenameButton,
+} from "../../../dom/rename-dialog";
 import {
   getOptimizationRunDisplayName,
   getOptimizationRunName,
@@ -83,6 +89,7 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
     <tr class="table-state-row">
       <td class="checkbox"></td>
+      <td class="rename"></td>
       <td class="table-state-cell table-empty" colspan="8">${textContent(t("common.loading") || "Loading…")}</td>
     </tr>`;
 };
@@ -95,6 +102,7 @@ const renderError = (
   tbody.innerHTML = `
     <tr class="table-state-row">
       <td class="checkbox"></td>
+      <td class="rename"></td>
       <td class="table-state-cell table-empty" colspan="8">${textContent(message)}</td>
     </tr>`;
 };
@@ -104,6 +112,7 @@ const renderEmpty = (tbody) => {
   tbody.innerHTML = `
     <tr class="table-state-row">
       <td class="checkbox"></td>
+      <td class="rename"></td>
       <td class="table-state-cell table-empty" colspan="8">${textContent(t("simulation.no_runs"))}</td>
     </tr>`;
 };
@@ -766,6 +775,11 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
             feasibilityLabel !== "—" ? feasibilityLabel : statusLabel
           }`
         : feasibilityLabel;
+      const renameLabel = `${t("common.rename")}: ${displayName}`;
+      const renameButton = renderRenameButton({
+        action: "rename-evaluation",
+        label: renameLabel,
+      });
 
       const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${textContent(rowId)}">${textContent(t("common.view") || "View")}</a>`;
 
@@ -774,6 +788,7 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
           <td class="checkbox">
             <input type="checkbox" aria-label="${textContent(t("simulation.select_run") || "Select run")}" />
           </td>
+          <td class="rename">${renameButton}</td>
           <td class="name" title="${textContent(displayName !== "—" ? displayName : shiftTitle)}">${textContent(displayName)}</td>
           <td class="created">${textContent(created)}</td>
           <td class="day" title="${textContent(busModelTooltip)}">${textContent(
@@ -822,6 +837,14 @@ export const initializeSimulationRuns = async (
   if (!section) return null;
 
   const cleanupHandlers = [];
+  const renameDialog = initializeRenameDialog(section, {
+    title: t("common.rename"),
+    nameLabel: t("simulation.field_name"),
+    cancelLabel: t("common.cancel"),
+    saveLabel: t("common.save"),
+    fallbackError: t("common.rename_failed"),
+  });
+  cleanupHandlers.push(() => renameDialog?.destroy());
 
   const table = section.querySelector("table");
   const tbody = table?.querySelector(
@@ -1346,6 +1369,26 @@ export const initializeSimulationRuns = async (
   }
 
   const handleResultsClick = async (event) => {
+    const renameButton = event.target.closest('[data-action="rename-evaluation"]');
+    if (renameButton) {
+      event.preventDefault();
+      const runId = renameButton.closest("tr")?.dataset?.id;
+      const run = allRuns.find((candidate) => text(candidate?.id) === runId);
+      if (!runId || !run) return;
+      renameDialog?.open({
+        value: resolveRunName(run),
+        trigger: renameButton,
+        onSubmit: async (name) => {
+          const updated = await updateOptimizationRun(runId, { name });
+          Object.assign(run, updated && typeof updated === "object" ? updated : { name });
+          const cached = runDetailCache.get(runId);
+          if (cached && typeof cached === "object") Object.assign(cached, { name });
+          applyFilter();
+          setFlashMessage(section, t("common.rename_success"));
+        },
+      });
+      return;
+    }
     const link = event.target.closest('[data-action="view-results"]');
     if (!link) return;
     event.preventDefault();

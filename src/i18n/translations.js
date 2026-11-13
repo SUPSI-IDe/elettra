@@ -482,6 +482,9 @@ export const translations = {
     // Common
     "common.delete": "Delete",
     "common.edit": "Edit",
+    "common.rename": "Rename",
+    "common.rename_success": "Name updated.",
+    "common.rename_failed": "Unable to update the name.",
     "common.save": "Save",
     "common.update": "Update",
     "common.cancel": "Cancel",
@@ -2680,6 +2683,9 @@ export const translations = {
     // Common
     "common.delete": "Löschen",
     "common.edit": "Bearbeiten",
+    "common.rename": "Umbenennen",
+    "common.rename_success": "Name aktualisiert.",
+    "common.rename_failed": "Der Name konnte nicht aktualisiert werden.",
     "common.save": "Speichern",
     "common.update": "Aktualisieren",
     "common.cancel": "Abbrechen",
@@ -4874,6 +4880,9 @@ export const translations = {
     // Common
     "common.delete": "Supprimer",
     "common.edit": "Modifier",
+    "common.rename": "Renommer",
+    "common.rename_success": "Nom mis à jour.",
+    "common.rename_failed": "Impossible de mettre à jour le nom.",
     "common.save": "Enregistrer",
     "common.update": "Mettre à jour",
     "common.cancel": "Annuler",
@@ -7068,6 +7077,9 @@ export const translations = {
     // Common
     "common.delete": "Elimina",
     "common.edit": "Modifica",
+    "common.rename": "Rinomina",
+    "common.rename_success": "Nome aggiornato.",
+    "common.rename_failed": "Impossibile aggiornare il nome.",
     "common.save": "Salva",
     "common.update": "Aggiorna",
     "common.cancel": "Annulla",

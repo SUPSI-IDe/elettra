@@ -810,6 +810,27 @@ export const fetchOptimizationRun = async (runId, { signal } = {}) => {
   return payload;
 };
 
+export const updateOptimizationRun = async (runId, data = {}) => {
+  if (!runId) throw new Error("Missing runId");
+  const headers = {
+    ...authHeaders(),
+    "Content-Type": "application/json",
+  };
+  const response = await fetch(
+    `${SIMULATION_PATH}/optimization-runs/${encodeURIComponent(runId)}`,
+    { method: "PATCH", headers, body: JSON.stringify(data) },
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to update optimization run.";
+    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  return payload;
+};
+
 // ── Optimization Run Polling ─────────────────────────────────────────
 
 const OPTIMIZATION_POLL_INTERVAL_MS = 3000;

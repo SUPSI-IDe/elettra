@@ -317,6 +317,65 @@ test("feasibility list uses accessible traffic-light indicators without clipping
 });
 
 
+test("yearly-analysis list uses the shared accessible traffic-light indicators", async ({
+  page,
+}) => {
+  await mountSourceElement(page, yearlyAnalysisRunsHtml, ".yearly-analysis-runs");
+  await page.evaluate(async () => {
+    const { buildYearlyAnalysisRowsMarkup } = await import(
+      "/elettra/src/pages/Simulation/YearlyAnalysis/yearly-analysis-runs.js"
+    );
+    document.querySelector('[data-role="ya-runs-body"]').innerHTML =
+      buildYearlyAnalysisRowsMarkup([
+        { id: "completed", name: "Completed", features: { status: "completed" } },
+        { id: "partial", name: "Partial", features: { status: "partial" } },
+        { id: "running", name: "Running", features: { status: "running" } },
+        { id: "failed", name: "Failed", features: { status: "failed" } },
+        { id: "unknown", name: "Unknown", features: { status: "unknown" } },
+      ]);
+  });
+
+  const rows = page.locator('[data-role="ya-runs-body"] tr');
+  await expect(rows.locator("td.status")).toHaveText(["", "", "", "", ""]);
+  await expect(rows.locator(".simulation-state-indicator")).toHaveCount(5);
+  const accessibility = await rows.locator(".simulation-state-indicator").evaluateAll(
+    (elements) => elements.map((indicator) => ({
+      role: indicator.getAttribute("role"),
+      tabIndex: indicator.getAttribute("tabindex"),
+      label: indicator.getAttribute("aria-label"),
+      title: indicator.getAttribute("title"),
+    })),
+  );
+  expect(accessibility.map(({ label }) => label)).toEqual([
+    "Completed",
+    "Partial",
+    "Running",
+    "Failed",
+    "unknown",
+  ]);
+  accessibility.forEach(({ role, tabIndex, label, title }) => {
+    expect(role).toBe("img");
+    expect(tabIndex).toBe("0");
+    expect(title).toBe(label);
+  });
+
+  const presentation = await rows.evaluateAll((elements) => elements.map((row) => {
+    const indicator = row.querySelector(".simulation-state-indicator");
+    return {
+      className: indicator.className,
+      color: getComputedStyle(indicator).backgroundColor,
+    };
+  }));
+  expect(presentation).toEqual([
+    { className: "simulation-state-indicator simulation-state-indicator--positive", color: "rgb(46, 125, 50)" },
+    { className: "simulation-state-indicator simulation-state-indicator--warning", color: "rgb(245, 166, 35)" },
+    { className: "simulation-state-indicator simulation-state-indicator--warning", color: "rgb(245, 166, 35)" },
+    { className: "simulation-state-indicator simulation-state-indicator--negative", color: "rgb(211, 47, 47)" },
+    { className: "simulation-state-indicator simulation-state-indicator--neutral", color: "rgb(211, 211, 211)" },
+  ]);
+});
+
+
 test("yearly result tabs contain localized overflow on narrow screens", async ({
   page,
 }) => {
@@ -407,6 +466,7 @@ test("created dates do not inherit action-column styling", async ({ page }) => {
     tbody.innerHTML = `
       <tr>
         <td class="checkbox">x</td>
+        <td class="rename"></td>
         <td class="name">Evaluation</td>
         <td class="created">02.06.2026, 17:13</td>
         <td class="day">Bus</td>
@@ -436,7 +496,7 @@ test("created dates do not inherit action-column styling", async ({ page }) => {
 test("feasibility and yearly-analysis names align to the left", async ({ page }) => {
   await mountSourceElement(page, simulationRunsHtml, ".simulation-runs");
   await page.locator('[data-role="simulation-runs-body"]').evaluate((tbody) => {
-    tbody.innerHTML = `<tr><td class="checkbox"></td><td class="name">Feasibility name</td></tr>`;
+    tbody.innerHTML = `<tr><td class="checkbox"></td><td class="rename"></td><td class="name">Feasibility name</td></tr>`;
   });
   await expect(
     computedAlignments(page.locator(".simulation-runs-table :is(th.name, td.name)"))
@@ -458,4 +518,12 @@ test("feasibility and yearly-analysis names align to the left", async ({ page })
   await expect(
     computedAlignments(page.locator(".ya-runs-table :is(th.name, td.name)"))
   ).resolves.toEqual(["left", "left"]);
+  await expect(
+    page.locator(".ya-runs-table tr").evaluateAll((rows) => rows.map((row) =>
+      Array.from(row.children).slice(1, 4).map((cell) => cell.className),
+    )),
+  ).resolves.toEqual([
+    ["rename", "name", "created"],
+    ["rename", "name", "created"],
+  ]);
 });

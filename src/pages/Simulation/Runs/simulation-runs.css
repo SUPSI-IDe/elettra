@@ -77,7 +77,12 @@
 
 .simulation-runs-table th.name,
 .simulation-runs-table td.name {
-  width: calc(21% - 2.5rem);
+  width: calc(21% - 5rem);
+}
+
+.simulation-runs-table th.rename,
+.simulation-runs-table td.rename {
+  width: 2.5rem;
 }
 
 .simulation-runs-table th.main-parameters,
@@ -141,33 +146,4 @@
   cursor: help;
   text-decoration: underline dotted;
   text-underline-offset: 0.18em;
-}
-
-.simulation-state-indicator {
-  display: inline-block;
-  width: 0.75rem;
-  height: 0.75rem;
-  border: 1px solid color-mix(in srgb, currentcolor 35%, transparent);
-  border-radius: 50%;
-  vertical-align: middle;
-}
-
-.simulation-state-indicator--positive {
-  color: var(--badge-success-text);
-  background: var(--color-success);
-}
-
-.simulation-state-indicator--negative {
-  color: var(--badge-danger-text);
-  background: var(--color-danger);
-}
-
-.simulation-state-indicator--warning {
-  color: var(--badge-warning-text);
-  background: var(--color-warning);
-}
-
-.simulation-state-indicator--neutral {
-  color: var(--text-secondary);
-  background: var(--border-medium);
 }

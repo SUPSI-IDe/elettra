@@ -50,6 +50,11 @@
   width: 2.5rem;
 }
 
+.ya-runs-table th.rename,
+.ya-runs-table td.rename {
+  width: 2.5rem;
+}
+
 .ya-runs-table .ya-results-link {
   font-size: var(--font-size-sm);
 }

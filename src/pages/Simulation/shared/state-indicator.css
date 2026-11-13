@@ -1,0 +1,28 @@
+.simulation-state-indicator {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 1px solid color-mix(in srgb, currentcolor 35%, transparent);
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.simulation-state-indicator--positive {
+  color: var(--badge-success-text);
+  background: var(--color-success);
+}
+
+.simulation-state-indicator--negative {
+  color: var(--badge-danger-text);
+  background: var(--color-danger);
+}
+
+.simulation-state-indicator--warning {
+  color: var(--badge-warning-text);
+  background: var(--color-warning);
+}
+
+.simulation-state-indicator--neutral {
+  color: var(--text-secondary);
+  background: var(--border-medium);
+}

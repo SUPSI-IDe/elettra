@@ -1,4 +1,5 @@
 import "./yearly-analysis-runs.css";
+import "../shared/state-indicator.css";
 import { triggerPartialLoad } from "../../../events";
 import {
   formatBatchDeletionFeedback,
@@ -10,6 +11,7 @@ import { MODE_LABELS, MODE_LABEL_KEYS } from "./yearly-analysis-store";
 import {
   fetchYearlyAnalyses,
   fetchYearlyAnalysis,
+  updateYearlyAnalysis,
   deleteYearlyAnalysis,
   fetchPredictionRuns,
   deletePredictionRun,
@@ -18,6 +20,10 @@ import { isAuthenticated } from "../../../api/session";
 import { installPaginationControl } from "../../../dom/pagination";
 import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { bindSelectAll } from "../../../dom/tables";
+import {
+  initializeRenameDialog,
+  renderRenameButton,
+} from "../../../dom/rename-dialog";
 
 const text = (v) => (v === null || v === undefined ? "" : String(v));
 
@@ -27,10 +33,28 @@ const modeLabel = (mode, fallback = "") => {
 };
 
 const statusLabel = (status) => {
-  const key = `yearly_analysis.status_${text(status).toLowerCase()}`;
+  const normalized = text(status).trim().toLowerCase();
+  const key = `yearly_analysis.status_${normalized}`;
   const translated = t(key);
-  return translated === key ? status || "—" : translated;
+  if (translated !== key) return translated;
+  const sharedKey = ({
+    pending: "simulation.status_pending",
+    running: "simulation.status_running",
+    done: "simulation.status_completed",
+    error: "simulation.status_failed",
+  })[normalized];
+  return sharedKey ? t(sharedKey) : status || "—";
 };
+
+const statusTone = (status) => ({
+  completed: "positive",
+  done: "positive",
+  partial: "warning",
+  pending: "warning",
+  running: "warning",
+  failed: "negative",
+  error: "negative",
+})[text(status).trim().toLowerCase()] ?? "neutral";
 
 const formatDate = (iso) => {
   if (!iso) return "—";
@@ -67,18 +91,22 @@ export const buildYearlyAnalysisRowsMarkup = (analyses = []) =>
       const shifts = (meta.shiftNames ?? []).join(", ") || "—";
       const mode = modeLabel(features.config?.mode, meta.modeLabel);
       const status = features.status ?? "—";
-      const statusClass =
-        { completed: "completed", partial: "partial", failed: "failed" }[
-          status
-        ] ?? "";
+      const renderedStatus = statusLabel(status);
+      const tone = statusTone(status);
+      const displayName = analysis.name || "—";
+      const renameButton = renderRenameButton({
+        action: "rename-yearly-analysis",
+        label: `${t("common.rename")}: ${displayName}`,
+      });
 
       return `<tr data-id="${textContent(id)}">
         <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("yearly_analysis.select_analysis"))}" /></td>
-        <td>${textContent(formatDate(analysis.created_at))}</td>
-        <td class="name">${textContent(analysis.name || "—")}</td>
+        <td class="rename">${renameButton}</td>
+        <td class="name">${textContent(displayName)}</td>
+        <td class="created">${textContent(formatDate(analysis.created_at))}</td>
         <td title="${textContent(shifts)}">${textContent(shifts)}</td>
         <td>${textContent(mode)}</td>
-        <td><span class="ya-status-badge ${statusClass}">${textContent(statusLabel(status))}</span></td>
+        <td class="status"><span class="simulation-state-indicator simulation-state-indicator--${tone}" role="img" tabindex="0" aria-label="${textContent(renderedStatus)}" title="${textContent(renderedStatus)}"></span></td>
         <td class="ya-actions-cell">
           <a class="ya-results-link table-action-link" data-action="view-results" data-id="${textContent(id)}">${textContent(t("common.view"))}</a>
         </td>
@@ -91,6 +119,14 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
   if (!section) return null;
 
   const cleanups = [];
+  const renameDialog = initializeRenameDialog(section, {
+    title: t("common.rename"),
+    nameLabel: t("simulation.field_name"),
+    cancelLabel: t("common.cancel"),
+    saveLabel: t("common.save"),
+    fallbackError: t("common.rename_failed"),
+  });
+  cleanups.push(() => renameDialog?.destroy());
   const tbody = section.querySelector('[data-role="ya-runs-body"]');
   const table = section.querySelector("table");
   const emptyMsg = section.querySelector('[data-role="empty-message"]');
@@ -246,6 +282,29 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
   }
 
   const handleTableClick = (e) => {
+    const renameButton = e.target.closest('[data-action="rename-yearly-analysis"]');
+    if (renameButton) {
+      e.preventDefault();
+      const analysisId = renameButton.closest("tr")?.dataset?.id;
+      const analysis = analyses.find((candidate) => text(candidate?.id) === analysisId);
+      if (!analysisId || !analysis) return;
+      renameDialog?.open({
+        value: analysis.name || "",
+        trigger: renameButton,
+        onSubmit: async (name) => {
+          const updated = await updateYearlyAnalysis(analysisId, { name });
+          Object.assign(
+            analysis,
+            updated && typeof updated === "object" ? updated : { name },
+          );
+          const cached = featuresCache.get(analysisId);
+          if (cached && typeof cached === "object") Object.assign(cached, { name });
+          applyFilter();
+          setFlashMessage(section, t("common.rename_success"));
+        },
+      });
+      return;
+    }
     const link = e.target.closest("[data-action='view-results']");
     if (link) {
       e.preventDefault();

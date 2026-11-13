@@ -1,0 +1,97 @@
+table td button.analysis-name-cell__rename,
+.table-standard td button.analysis-name-cell__rename {
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  padding: 0;
+  color: var(--text-secondary);
+}
+
+table :is(th.rename, td.rename),
+.table-standard :is(th.rename, td.rename) {
+  padding-inline: var(--space-2xs);
+  text-align: center;
+}
+
+.rename-dialog {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  width: min(30rem, calc(100vw - 2rem));
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-modal);
+}
+
+.rename-dialog::backdrop {
+  background: var(--color-overlay);
+  backdrop-filter: blur(3px);
+}
+
+.rename-dialog__form {
+  display: flex;
+  flex-direction: column;
+}
+
+.rename-dialog__header,
+.rename-dialog__body,
+.rename-dialog__footer {
+  padding: var(--space-md) var(--space-lg);
+}
+
+.rename-dialog__header {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.rename-dialog__title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.rename-dialog__body {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.rename-dialog__label {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.rename-dialog__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-sm);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--text-main);
+  font: inherit;
+}
+
+.rename-dialog__input:focus-visible {
+  border-color: var(--brand-teal-light);
+  outline: 2px solid transparent;
+  box-shadow: var(--shadow-focus-ring);
+}
+
+.rename-dialog__feedback {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--font-size-md);
+}
+
+.rename-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  border-top: 1px solid var(--border-light);
+}
