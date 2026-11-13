@@ -1,5 +1,20 @@
 import { test, expect } from '@playwright/test';
 
+test('annual exports preserve the unrounded SOC window and recorded SOH assumptions', async ({ page }) => {
+  await fixture(page);
+  await page.goto('./');
+  const header = await page.evaluate(async () => {
+    const { buildExportPayload } = await import('/elettra/src/pages/Simulation/YearlyAnalysis/yearly-analysis-results.js');
+    const assumptions = { state_of_health: .7, battery_soc_policy: 'constant_initial_usable',
+      min_soc: .9-.5/.7, max_soc: .9, session_connection_minutes: 1, layover_reduction_minutes: 2 };
+    return buildExportPayload({ config: { min_soc: assumptions.min_soc, max_soc: .9,
+      operating_assumptions: assumptions } }, {}, {}, {}, {}, 'soh-export').header;
+  });
+  expect(header.socRange.min).toBe(.9-.5/.7);
+  expect(header.operatingAssumptions).toMatchObject({ state_of_health: .7,
+    battery_soc_policy: 'constant_initial_usable', session_connection_minutes: 1, layover_reduction_minutes: 2 });
+});
+
 const model = { id: 'model', user_id: 'user', name: '500 kWh bus', specs: {
   min_battery_packs: 10, max_battery_packs: 10, battery_pack_size_kwh: 50,
   battery_pack_cost_chf: 6000,

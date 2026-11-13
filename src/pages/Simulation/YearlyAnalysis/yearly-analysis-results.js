@@ -1,4 +1,5 @@
 import { mountHvacAssumptions } from "../shared/hvac-assumptions.js";
+import { formatNumber } from "../../../utils/number-format.js";
 import { mountAnalysisGtfs } from "../../../utils/analysis-gtfs.js";
 import * as d3 from "d3";
 import {
@@ -637,7 +638,7 @@ const renderConfig = (features) => {
     { label: t("yearly_analysis.col_mode"), value: modeLabel(cfg.mode, meta.modeLabel) },
     { label: t("yearly_analysis.occupancy"), value: cfg.occupancy_percent != null ? `${cfg.occupancy_percent}%` : "—" },
     { label: t("yearly_analysis.heating"), value: heatingLabel(cfg.auxiliary_heating_type) },
-    { label: t("yearly_analysis.soc_range"), value: `${((cfg.min_soc ?? 0) * 100).toFixed(0)}–${((cfg.max_soc ?? 1) * 100).toFixed(0)}%` },
+    { label: t("yearly_analysis.soc_range"), value: `${formatNumber((cfg.min_soc ?? 0) * 100, 2)}–${formatNumber((cfg.max_soc ?? 1) * 100, 2)}%` },
     ...(cfg.operating_assumptions ? [{ label: "SOH", value: `${cfg.operating_assumptions.state_of_health * 100}% · ${t(`simulation.battery_${cfg.operating_assumptions.battery_soc_policy}`)}` }] : []),
   ];
   return `<div class="ya-res-config">
@@ -3597,7 +3598,7 @@ export const buildExportPayload = (features, effState, costState, emissionsState
     heating: normalizeAuxiliaryHeatingType(cfg.auxiliary_heating_type),
     operatingAssumptions: cfg.fixedConfiguration?.operatingAssumptions ?? cfg.operating_assumptions ?? null,
     socRange: cfg.min_soc != null && cfg.max_soc != null
-      ? { min: round(cfg.min_soc, 2), max: round(cfg.max_soc, 2) }
+      ? { min: toFiniteNumber(cfg.min_soc), max: toFiniteNumber(cfg.max_soc) }
       : null,
   };
 
@@ -4375,7 +4376,7 @@ const buildGeneralDeploymentHtml = (features, busModelData = {}) => {
     {
       label: t("yearly_analysis.soc_range"),
       value: minSoc != null && maxSoc != null
-        ? `${(minSoc * 100).toFixed(0)}–${(maxSoc * 100).toFixed(0)}%`
+        ? `${formatNumber(minSoc * 100, 2)}–${formatNumber(maxSoc * 100, 2)}%`
         : "—",
     },
     {
