@@ -1,11 +1,174 @@
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
 import { registerUser } from "../../api/auth";
-import { fetchAllAgencies } from "../../api/gtfs";
+import {
+  fetchAgencyNetworkPreview,
+  fetchAllAgencies,
+} from "../../api/gtfs";
 import { triggerPartialLoad } from "../../events";
-import { t } from "../../i18n";
+import {
+  buildCartoVoyagerTileUrl,
+  getCartoApiKey,
+} from "../../config/carto.js";
+import { I18N_CHANGE_EVENT, t } from "../../i18n";
+import { normalizeAgencyNetworkLines } from "../../utils/agency-network-preview";
 import { meetsPasswordMinimumLength } from "../../utils/password-policy";
 
 // Cache for agencies
 let agenciesCache = null;
+const networkPreviewCache = new Map();
+const NETWORK_PREVIEW_COLORS = [
+  "#007f86",
+  "#1d4e89",
+  "#c35a21",
+  "#6c4da8",
+  "#2e7d4f",
+  "#b33a5b",
+];
+
+const routeColor = (value, index) => {
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/^#/, "");
+  if (/^[0-9a-f]{6}$/i.test(normalized) && normalized.toLowerCase() !== "ffffff") {
+    return `#${normalized}`;
+  }
+  return NETWORK_PREVIEW_COLORS[index % NETWORK_PREVIEW_COLORS.length];
+};
+
+const setNetworkPreviewState = (preview, state) => {
+  if (!preview) return;
+  preview.dataset.state = state;
+  preview.setAttribute("aria-busy", state === "loading" ? "true" : "false");
+  preview.querySelectorAll("[data-preview-state]").forEach((element) => {
+    element.hidden = element.dataset.previewState !== state;
+  });
+};
+
+const createNetworkPreviewMap = (preview) => {
+  const canvas = preview?.querySelector(
+    '[data-role="agency-network-preview-map"]'
+  );
+  let map = null;
+  let routesLayer = null;
+
+  const ensureMap = () => {
+    if (map || !canvas) return map;
+    map = L.map(canvas, {
+      attributionControl: false,
+      boxZoom: false,
+      doubleClickZoom: false,
+      dragging: false,
+      keyboard: false,
+      scrollWheelZoom: false,
+      touchZoom: false,
+      zoomControl: false,
+    });
+    routesLayer = L.layerGroup().addTo(map);
+
+    const createdMap = map;
+    getCartoApiKey()
+      .then((apiKey) => {
+        if (apiKey && map === createdMap) {
+          L.tileLayer(buildCartoVoyagerTileUrl(apiKey), {
+            maxZoom: 19,
+          }).addTo(createdMap);
+        }
+      })
+      .catch((error) => {
+        console.warn("Unable to load the agency preview basemap", error);
+      });
+    return map;
+  };
+
+  return {
+    clear() {
+      routesLayer?.clearLayers();
+    },
+    destroy() {
+      map?.remove();
+      map = null;
+      routesLayer = null;
+    },
+    render(lines) {
+      const currentMap = ensureMap();
+      if (!currentMap || !routesLayer) return;
+      routesLayer.clearLayers();
+      const bounds = [];
+      lines.forEach((line, index) => {
+        const coordinates = line.points.map(({ lat, lon }) => [lat, lon]);
+        bounds.push(...coordinates);
+        const polyline = L.polyline(coordinates, {
+          color: routeColor(line.color, index),
+          opacity: 0.88,
+          weight: 4,
+        }).addTo(routesLayer);
+        if (line.label) {
+          polyline.bindTooltip(line.label, { sticky: true });
+        }
+      });
+      currentMap.invalidateSize();
+      currentMap.fitBounds(bounds, { padding: [16, 16], maxZoom: 13 });
+    },
+  };
+};
+
+const clearNetworkPreview = (preview, networkMap) => {
+  networkMap?.clear();
+  setNetworkPreviewState(preview, "idle");
+};
+
+const renderNetworkPreview = (
+  preview,
+  payload,
+  fallbackAgencyName = "",
+  networkMap
+) => {
+  const mapCanvas = preview?.querySelector(
+    '[data-role="agency-network-preview-map"]'
+  );
+  const summary = preview?.querySelector(
+    '[data-role="agency-network-preview-summary"]'
+  );
+  const routeList = preview?.querySelector(
+    '[data-role="agency-network-preview-routes"]'
+  );
+  if (!preview || !mapCanvas || !summary || !routeList) return false;
+
+  const lines = normalizeAgencyNetworkLines(payload?.lines).sort((left, right) =>
+    String(left.label ?? "").localeCompare(String(right.label ?? ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    })
+  );
+  if (!lines.length) {
+    networkMap?.clear();
+    setNetworkPreviewState(preview, "empty");
+    return false;
+  }
+
+  routeList.replaceChildren();
+  lines.forEach((line, index) => {
+    const badge = document.createElement("span");
+    badge.className = "agency-network-preview__route";
+    badge.style.setProperty("--route-color", routeColor(line.color, index));
+    badge.textContent = line.label || "–";
+    routeList.append(badge);
+  });
+
+  const agencyName = payload?.agency_name || fallbackAgencyName;
+  summary.textContent = agencyName;
+  mapCanvas.setAttribute(
+    "aria-label",
+    t("register.network_preview_map_label", { company: agencyName })
+  );
+  preview._networkPreviewPayload = payload;
+  preview._networkPreviewAgencyName = fallbackAgencyName;
+  setNetworkPreviewState(preview, "ready");
+  networkMap?.render(lines);
+  return true;
+};
 
 // Load agencies from API
 const loadAgencies = async () => {
@@ -198,16 +361,24 @@ const setupAgencyAutocomplete = async (container) => {
   const hiddenInput = container.querySelector("#register-agency-id");
   const dropdown = container.querySelector('[data-role="agency-dropdown"]');
   const list = container.querySelector('[data-role="agency-list"]');
+  const preview = container.querySelector(
+    '[data-role="agency-network-preview"]'
+  );
+  const networkMap = createNetworkPreviewMap(preview);
 
   if (!input || !dropdown || !list || !hiddenInput) {
     console.warn("Agency autocomplete elements not found");
     return;
   }
 
-  // Load agencies
+  // Avoid accepting text before the selectable agency list is ready.
+  input.disabled = true;
   const agencies = await loadAgencies();
+  input.disabled = false;
 
   let selectedIndex = -1;
+  let selectedAgencyId = "";
+  let previewController = null;
 
   const showDropdown = () => {
     dropdown.hidden = false;
@@ -218,12 +389,37 @@ const setupAgencyAutocomplete = async (container) => {
     selectedIndex = -1;
   };
 
+  const loadNetworkPreview = async (agency) => {
+    const agencyId = String(agency?.id ?? "");
+    selectedAgencyId = agencyId;
+    previewController?.abort();
+    previewController = new AbortController();
+    setNetworkPreviewState(preview, "loading");
+
+    try {
+      let payload = networkPreviewCache.get(agencyId);
+      if (!payload) {
+        payload = await fetchAgencyNetworkPreview(agencyId, {
+          signal: previewController.signal,
+        });
+        networkPreviewCache.set(agencyId, payload);
+      }
+      if (selectedAgencyId !== agencyId) return;
+      renderNetworkPreview(preview, payload, agency?.agency_name, networkMap);
+    } catch (error) {
+      if (error?.name === "AbortError" || selectedAgencyId !== agencyId) return;
+      console.warn("Failed to load agency network preview", error);
+      setNetworkPreviewState(preview, "error");
+    }
+  };
+
   const selectAgency = (agency) => {
     // Use agency_name for display, and id (UUID) for registration
     input.value = agency.agency_name || "";
     hiddenInput.value = agency.id || ""; // UUID for company_id
     input.dataset.agencyId = agency.id || "";
     hideDropdown();
+    void loadNetworkPreview(agency);
   };
 
   const updateDropdown = (searchTerm) => {
@@ -244,6 +440,9 @@ const setupAgencyAutocomplete = async (container) => {
     // Clear the hidden input when user types (they need to select from list)
     hiddenInput.value = "";
     input.dataset.agencyId = "";
+    selectedAgencyId = "";
+    previewController?.abort();
+    clearNetworkPreview(preview, networkMap);
     updateDropdown(input.value);
   });
 
@@ -289,6 +488,25 @@ const setupAgencyAutocomplete = async (container) => {
       hideDropdown();
     }
   });
+
+  const handleLanguageChange = () => {
+    if (preview?.dataset.state === "ready" && preview._networkPreviewPayload) {
+      renderNetworkPreview(
+        preview,
+        preview._networkPreviewPayload,
+        preview._networkPreviewAgencyName,
+        networkMap
+      );
+    }
+  };
+  document.addEventListener(I18N_CHANGE_EVENT, handleLanguageChange);
+
+  return () => {
+    selectedAgencyId = "";
+    previewController?.abort();
+    networkMap.destroy();
+    document.removeEventListener(I18N_CHANGE_EVENT, handleLanguageChange);
+  };
 };
 
 // Initialize registration page
@@ -307,7 +525,7 @@ export const initializeRegister = (container, options = {}) => {
   setupPasswordToggles(form);
 
   // Setup agency autocomplete
-  setupAgencyAutocomplete(container);
+  const agencyAutocompleteCleanup = setupAgencyAutocomplete(container);
 
   // Handle form submission
   const handleSubmit = async (event) => {
@@ -343,6 +561,7 @@ export const initializeRegister = (container, options = {}) => {
 
   // Cleanup function
   return () => {
+    void agencyAutocompleteCleanup.then((cleanup) => cleanup?.());
     form.removeEventListener("submit", handleSubmit);
     if (backBtn) {
       backBtn.removeEventListener("click", handleBack);

@@ -1468,6 +1468,11 @@ export const translations = {
     "register.company_required": "Please select a company/agency from the list.",
     "register.passwords_mismatch": "Passwords do not match.",
     "register.password_too_short": "Password must be at least 12 characters.",
+    "register.network_preview_disclaimer": "This map is indicative: routes are simplified and may not match every detail.",
+    "register.network_preview_loading": "Loading network…",
+    "register.network_preview_map_label": "Simplified network map for {company}",
+    "register.network_preview_empty": "No line preview is available for this company.",
+    "register.network_preview_error": "The network preview is temporarily unavailable.",
 
     // Additional i18n coverage
         "common.logo_alt": "ELETTRA logo",
@@ -3583,6 +3588,11 @@ export const translations = {
     "register.company_required": "Bitte wählen Sie ein Unternehmen/eine Agentur aus der Liste.",
     "register.passwords_mismatch": "Passwörter stimmen nicht überein.",
     "register.password_too_short": "Passwort muss mindestens 12 Zeichen lang sein.",
+    "register.network_preview_disclaimer": "Diese Karte dient nur zur Orientierung: Die Linien sind vereinfacht und können im Detail abweichen.",
+    "register.network_preview_loading": "Netz wird geladen…",
+    "register.network_preview_map_label": "Vereinfachte Netzkarte für {company}",
+    "register.network_preview_empty": "Für dieses Unternehmen ist keine Linienvorschau verfügbar.",
+    "register.network_preview_error": "Die Netzvorschau ist vorübergehend nicht verfügbar.",
 
     // Additional i18n coverage
         "common.logo_alt": "ELETTRA-Logo",
@@ -5698,6 +5708,11 @@ export const translations = {
     "register.company_required": "Veuillez sélectionner une entreprise/agence dans la liste.",
     "register.passwords_mismatch": "Les mots de passe ne correspondent pas.",
     "register.password_too_short": "Le mot de passe doit contenir au moins 12 caractères.",
+    "register.network_preview_disclaimer": "Cette carte est indicative : les lignes sont simplifiées et peuvent différer dans le détail.",
+    "register.network_preview_loading": "Chargement du réseau…",
+    "register.network_preview_map_label": "Carte simplifiée du réseau de {company}",
+    "register.network_preview_empty": "Aucun aperçu des lignes n’est disponible pour cette entreprise.",
+    "register.network_preview_error": "L’aperçu du réseau est temporairement indisponible.",
 
     // Additional i18n coverage
         "common.logo_alt": "Logo ELETTRA",
@@ -7813,6 +7828,11 @@ export const translations = {
     "register.company_required": "Seleziona un'azienda/agenzia dalla lista.",
     "register.passwords_mismatch": "Le password non corrispondono.",
     "register.password_too_short": "La password deve contenere almeno 12 caratteri.",
+    "register.network_preview_disclaimer": "Questa mappa è indicativa: i percorsi sono semplificati e potrebbero differire nei dettagli.",
+    "register.network_preview_loading": "Caricamento della rete…",
+    "register.network_preview_map_label": "Mappa semplificata della rete di {company}",
+    "register.network_preview_empty": "Nessuna anteprima delle linee disponibile per questa azienda.",
+    "register.network_preview_error": "L’anteprima della rete è temporaneamente non disponibile.",
 
     // Additional i18n coverage
         "common.logo_alt": "Logo ELETTRA",

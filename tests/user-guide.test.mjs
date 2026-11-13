@@ -131,14 +131,14 @@ test("the guide baseline follows the frontend version and exposes a valid update
   assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
   assert.deepEqual(
     SUPPORTED_GUIDE_LANGUAGES.map((language) => guideContent[language].ui.updatedValue),
-    ["12 November 2026", "12. November 2026", "12 novembre 2026", "12 novembre 2026"],
+    ["13 November 2026", "13. November 2026", "13 novembre 2026", "13 novembre 2026"],
   );
 });
 
 test("every guide language covers the user-facing workflows added in 0.9.0 and 0.10.0", () => {
   const expectedTerms = {
     en: {
-      start: ["Home", "user guide"],
+      start: ["Home", "user guide", "CARTO", "latest available GTFS edition", "indicative"],
       fleet: ["Details", "older custom stops"],
       shifts: ["GTFS", "complete server-side list", "Duplicate", "Space-time", "Map", "missing transfer data"],
       feasibility: ["one GTFS edition", "Duplicate", "partial copy"],
@@ -146,7 +146,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
       yearly: ["GTFS edition", "recorded provenance"],
     },
     de: {
-      start: ["Startseite", "Benutzerhandbuch"],
+      start: ["Startseite", "Benutzerhandbuch", "CARTO", "neueste verfügbare GTFS-Ausgabe", "Orientierung"],
       fleet: ["Details", "ältere Haltestellen"],
       shifts: ["GTFS", "vollständige serverseitige Liste", "Duplizieren", "Raum-Zeit", "Karte", "fehlende Überführungsdaten"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "unvollständig"],
@@ -154,7 +154,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
       yearly: ["GTFS-Ausgabe", "aufgezeichnete Herkunft"],
     },
     fr: {
-      start: ["Accueil", "guide"],
+      start: ["Accueil", "guide", "CARTO", "dernière édition GTFS disponible", "indicative"],
       fleet: ["Détails", "anciens arrêts"],
       shifts: ["GTFS", "liste complète côté serveur", "Dupliquer", "Espace-temps", "Carte", "données de transfert manquantes"],
       feasibility: ["édition GTFS", "Dupliquer", "partiellement"],
@@ -162,7 +162,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
       yearly: ["édition GTFS", "provenance enregistrée"],
     },
     it: {
-      start: ["Home", "guida utente"],
+      start: ["Home", "guida utente", "CARTO", "ultima edizione GTFS disponibile", "indicativa"],
       fleet: ["Dettagli", "fermate storiche"],
       shifts: ["GTFS", "elenco completo sul server", "Duplica", "Spazio-tempo", "Mappa", "dati di trasferimento mancanti"],
       feasibility: ["una sola edizione GTFS", "Duplica", "parzialmente"],

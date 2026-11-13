@@ -98,6 +98,25 @@ export const fetchAgencies = async ({ skip = 0, limit = 100 } = {}) => {
 export const fetchAllAgencies = () =>
   fetchAllLegacyPages((params) => fetchAgencies(params));
 
+export const fetchAgencyNetworkPreview = async (agencyId, { signal } = {}) => {
+  if (!agencyId) {
+    throw new Error("Missing agencyId");
+  }
+  const response = await fetch(
+    `${AGENCIES_PATH}${encodeURIComponent(agencyId)}/network-preview`,
+    { method: "GET", signal }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload?.detail?.[0]?.msg ??
+      payload?.detail ??
+      "Unable to load agency network preview.";
+    throw new Error(message);
+  }
+  return payload;
+};
+
 export const fetchRoutes = async ({
   skip = 0,
   limit = 100,

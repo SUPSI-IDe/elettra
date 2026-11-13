@@ -1,7 +1,7 @@
 import { useCaseSections } from "./use-cases.js";
 
 export const GUIDE_BASELINE_VERSION = "0.11.0";
-export const GUIDE_UPDATED_AT = "12 November 2026";
+export const GUIDE_UPDATED_AT = "13 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -133,7 +133,7 @@ export const guideContent = {
           },
           {
             title: "Sign in or create an account",
-            text: "Open ELETTRA from the link above. Sign in with an existing account or create one and select the appropriate transport company when requested.",
+            text: "Open ELETTRA from the link above. Sign in with an existing account or create one and select the appropriate transport company when requested. During registration, the CARTO preview uses the latest available GTFS edition and shows every drawable line with its number to help confirm the company. The map is indicative and its routes are simplified, so it should not be used as a detailed network reference.",
           },
           {
             title: "Use the main navigation",
@@ -428,7 +428,7 @@ export const guideContent = {
       baselineLabel: "Stand der Benutzeroberfläche",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Handbuch aktualisiert",
-      updatedValue: "12. November 2026",
+      updatedValue: "13. November 2026",
       footer:
         "ELETTRA unterstützt Vorstudien. Endgültige Fahrzeug-, Lade-, Netz- und Infrastrukturentscheidungen müssen durch eine detaillierte Fachplanung bestätigt werden.",
       skipLink: "Zum Handbuch springen",
@@ -451,7 +451,7 @@ export const guideContent = {
           },
           {
             title: "Anmelden oder Konto erstellen",
-            text: "Öffnen Sie ELETTRA über den obigen Link. Melden Sie sich mit einem bestehenden Konto an oder erstellen Sie ein Konto und wählen Sie bei Bedarf das zuständige Transportunternehmen.",
+            text: "Öffnen Sie ELETTRA über den obigen Link. Melden Sie sich mit einem bestehenden Konto an oder erstellen Sie ein Konto und wählen Sie bei Bedarf das zuständige Transportunternehmen. Bei der Registrierung verwendet die CARTO-Vorschau die neueste verfügbare GTFS-Ausgabe und zeigt alle darstellbaren Linien mit ihren Nummern, um die Auswahl zu bestätigen. Die Karte dient nur zur Orientierung und stellt die Linien vereinfacht dar; sie ist keine detaillierte Netzreferenz.",
           },
           {
             title: "Hauptnavigation verwenden",
@@ -596,7 +596,7 @@ export const guideContent = {
       baselineLabel: "Version de référence de l’interface",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guide mis à jour",
-      updatedValue: "12 novembre 2026",
+      updatedValue: "13 novembre 2026",
       footer:
         "ELETTRA soutient les études de préfaisabilité. Les décisions finales relatives aux véhicules, à la recharge, au réseau et aux infrastructures doivent être confirmées par des études d’ingénierie détaillées.",
       skipLink: "Accéder au guide",
@@ -613,7 +613,7 @@ export const guideContent = {
         intro: "Le guide est public, mais les données de flotte et les analyses nécessitent un compte ELETTRA.",
         items: [
           { title: "Choisir la langue de l’interface", text: "Utilisez le sélecteur de langue dans l’en-tête de l’application. L’anglais, l’allemand, le français et l’italien sont disponibles; la préférence est conservée dans le navigateur." },
-          { title: "Se connecter ou créer un compte", text: "Ouvrez ELETTRA avec le lien ci-dessus. Connectez-vous avec un compte existant ou créez-en un et sélectionnez l’entreprise de transport appropriée lorsque cela est demandé." },
+          { title: "Se connecter ou créer un compte", text: "Ouvrez ELETTRA avec le lien ci-dessus. Connectez-vous avec un compte existant ou créez-en un et sélectionnez l’entreprise de transport appropriée lorsque cela est demandé. Lors de l’inscription, l’aperçu CARTO utilise la dernière édition GTFS disponible et affiche toutes les lignes représentables avec leur numéro pour aider à confirmer l’entreprise. La carte est indicative et les tracés sont simplifiés; elle ne constitue pas une référence détaillée du réseau." },
           { title: "Utiliser la navigation principale", text: "Accueil explique le flux de planification et donne accès aux six sections de travail. Flotte contient Modèles de bus, Arrêts personnalisés et Services voiture; Simulations contient Évaluation de faisabilité, Analyses annuelles et Comparaison d’analyses. Le guide reste accessible au bas de la barre latérale." },
         ],
         figures: getGuideFigures("fr", "shell"),
@@ -750,7 +750,7 @@ export const guideContent = {
       baselineLabel: "Versione di riferimento dell’interfaccia",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guida aggiornata",
-      updatedValue: "12 novembre 2026",
+      updatedValue: "13 novembre 2026",
       footer:
         "ELETTRA supporta studi di prefattibilità. Le decisioni finali su veicoli, ricarica, rete e infrastrutture devono essere confermate mediante una progettazione tecnica dettagliata.",
       skipLink: "Vai alla guida",
@@ -767,7 +767,7 @@ export const guideContent = {
         intro: "La guida è pubblica, ma i dati della flotta e le analisi richiedono un account ELETTRA.",
         items: [
           { title: "Scegliere la lingua dell’interfaccia", text: "Usare il selettore della lingua nell’intestazione dell’applicazione. Sono disponibili inglese, tedesco, francese e italiano; la preferenza viene memorizzata nel browser." },
-          { title: "Accedere o creare un account", text: "Aprire ELETTRA dal collegamento qui sopra. Accedere con un account esistente oppure crearne uno e selezionare l’azienda di trasporto appropriata quando richiesto." },
+          { title: "Accedere o creare un account", text: "Aprire ELETTRA dal collegamento qui sopra. Accedere con un account esistente oppure crearne uno e selezionare l’azienda di trasporto appropriata quando richiesto. Durante la registrazione, l’anteprima CARTO usa l’ultima edizione GTFS disponibile e mostra tutte le linee disegnabili con il relativo numero per aiutare a confermare l’azienda. La mappa è indicativa e i percorsi sono semplificati: non va utilizzata come riferimento dettagliato della rete." },
           { title: "Usare la navigazione principale", text: "Home spiega il flusso di pianificazione e collega direttamente le sei sezioni operative. Flotta contiene Modelli di autobus, Fermate personalizzate e Turni macchina; Simulazioni contiene Valutazione di fattibilità, Analisi annuali e Confronto analisi. La guida utente resta disponibile in fondo alla barra laterale." },
         ],
         figures: getGuideFigures("it", "shell"),

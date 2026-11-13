@@ -11,158 +11,197 @@
       <p class="register-subtitle page-subtitle" data-i18n="register.subtitle">Join ELETTRA to manage your electric fleet</p>
     </div>
 
-    <form class="register-form" data-form="register">
-      <div class="form-feedback" data-role="register-feedback" role="alert" aria-live="polite" hidden></div>
+    <div class="register-body">
+      <div class="register-form-column">
+        <form class="register-form" data-form="register">
+          <div class="form-feedback" data-role="register-feedback" role="alert" aria-live="polite" hidden></div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label for="register-first-name" data-i18n="register.first_name">First Name</label>
-          <div class="input-wrapper">
-            <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-            <input
-              type="text"
-              id="register-first-name"
-              name="first_name"
-              required
-              autocomplete="given-name"
-            />
+          <div class="form-row">
+            <div class="form-group">
+              <label for="register-first-name" data-i18n="register.first_name">First Name</label>
+              <div class="input-wrapper">
+                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input
+                  type="text"
+                  id="register-first-name"
+                  name="first_name"
+                  required
+                  autocomplete="given-name"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="register-last-name" data-i18n="register.last_name">Last Name</label>
+              <div class="input-wrapper">
+                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input
+                  type="text"
+                  id="register-last-name"
+                  name="last_name"
+                  required
+                  autocomplete="family-name"
+                />
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="register-last-name" data-i18n="register.last_name">Last Name</label>
-          <div class="input-wrapper">
-            <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-            <input
-              type="text"
-              id="register-last-name"
-              name="last_name"
-              required
-              autocomplete="family-name"
-            />
+          <div class="form-group">
+            <label for="register-email" data-i18n="register.email">Email</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <input
+                type="email"
+                id="register-email"
+                name="email"
+                required
+                autocomplete="email"
+              />
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div class="form-group">
-        <label for="register-email" data-i18n="register.email">Email</label>
-        <div class="input-wrapper">
-          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-            <polyline points="22,6 12,13 2,6"/>
-          </svg>
-          <input
-            type="email"
-            id="register-email"
-            name="email"
-            required
-            autocomplete="email"
-          />
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="register-agency" data-i18n="register.agency">Company / Agency</label>
-        <div class="input-wrapper autocomplete-wrapper">
-          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 21h18"/>
-            <path d="M9 21V8l-6 3v10"/>
-            <path d="M9 3h6v18H9z"/>
-            <path d="M15 21V8l6 3v10"/>
-          </svg>
-          <input
-            type="text"
-            id="register-agency"
-            name="agency_name"
-            required
-            autocomplete="off"
-            data-agency-id=""
-          />
-          <input type="hidden" name="agency_id" id="register-agency-id" />
-          <div class="autocomplete-dropdown" data-role="agency-dropdown" hidden>
-            <ul class="autocomplete-list" data-role="agency-list"></ul>
+          <div class="form-group">
+            <label for="register-agency" data-i18n="register.agency">Company / Agency</label>
+            <div class="input-wrapper autocomplete-wrapper">
+              <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 21h18"/>
+                <path d="M9 21V8l-6 3v10"/>
+                <path d="M9 3h6v18H9z"/>
+                <path d="M15 21V8l6 3v10"/>
+              </svg>
+              <input
+                type="text"
+                id="register-agency"
+                name="agency_name"
+                required
+                autocomplete="off"
+                data-agency-id=""
+              />
+              <input type="hidden" name="agency_id" id="register-agency-id" />
+              <div class="autocomplete-dropdown" data-role="agency-dropdown" hidden>
+                <ul class="autocomplete-list" data-role="agency-list"></ul>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div class="form-group">
-        <label for="register-password" data-i18n="register.password">Password</label>
-        <div class="input-wrapper">
-          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-          </svg>
-          <input
-            type="password"
-            id="register-password"
-            name="password"
-            required
-            autocomplete="new-password"
-            minlength="12"
-          />
-          <button type="button" class="toggle-password" data-target="register-password" aria-label="Toggle password visibility" data-i18n-aria-label="common.toggle_password_visibility">
-            <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" hidden>
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
+          <div class="form-group">
+            <label for="register-password" data-i18n="register.password">Password</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input
+                type="password"
+                id="register-password"
+                name="password"
+                required
+                autocomplete="new-password"
+                minlength="12"
+              />
+              <button type="button" class="toggle-password" data-target="register-password" aria-label="Toggle password visibility" data-i18n-aria-label="common.toggle_password_visibility">
+                <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" hidden>
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
+            <p class="input-hint" data-i18n="register.password_hint">Must be at least 12 characters</p>
+          </div>
+
+          <div class="form-group">
+            <label for="register-confirm-password" data-i18n="register.confirm_password">Confirm Password</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input
+                type="password"
+                id="register-confirm-password"
+                name="confirm_password"
+                required
+                autocomplete="new-password"
+                minlength="12"
+              />
+              <button type="button" class="toggle-password" data-target="register-confirm-password" aria-label="Toggle password visibility" data-i18n-aria-label="common.toggle_password_visibility">
+                <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" hidden>
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="register-submit" data-action="submit-register">
+            <span data-i18n="register.submit">Create Account</span>
+            <svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" hidden>
+              <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="32">
+                <animate attributeName="stroke-dashoffset" values="32;0" dur="1s" repeatCount="indefinite"/>
+              </circle>
             </svg>
           </button>
-        </div>
-        <p class="input-hint" data-i18n="register.password_hint">Must be at least 12 characters</p>
-      </div>
+        </form>
 
-      <div class="form-group">
-        <label for="register-confirm-password" data-i18n="register.confirm_password">Confirm Password</label>
-        <div class="input-wrapper">
-          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-          </svg>
-          <input
-            type="password"
-            id="register-confirm-password"
-            name="confirm_password"
-            required
-            autocomplete="new-password"
-            minlength="12"
-          />
-          <button type="button" class="toggle-password" data-target="register-confirm-password" aria-label="Toggle password visibility" data-i18n-aria-label="common.toggle_password_visibility">
-            <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" hidden>
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
-            </svg>
-          </button>
+        <div class="register-footer">
+          <p class="register-login-link">
+            <span data-i18n="register.have_account">Already have an account?</span>
+            <a href="#" data-action="go-to-login" data-i18n="register.sign_in">Sign in</a>
+          </p>
         </div>
       </div>
 
-      <button type="submit" class="register-submit" data-action="submit-register">
-        <span data-i18n="register.submit">Create Account</span>
-        <svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" hidden>
-          <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="32">
-            <animate attributeName="stroke-dashoffset" values="32;0" dur="1s" repeatCount="indefinite"/>
-          </circle>
-        </svg>
-      </button>
-    </form>
-
-    <div class="register-footer">
-      <p class="register-login-link">
-        <span data-i18n="register.have_account">Already have an account?</span>
-        <a href="#" data-action="go-to-login" data-i18n="register.sign_in">Sign in</a>
-      </p>
+      <aside
+        class="agency-network-preview"
+        data-role="agency-network-preview"
+        data-state="idle"
+        aria-live="polite"
+      >
+        <div class="agency-network-preview__state" data-preview-state="idle"></div>
+        <div class="agency-network-preview__state" data-preview-state="loading" hidden>
+          <span class="agency-network-preview__loader" aria-hidden="true"></span>
+          <p data-i18n="register.network_preview_loading">Loading network…</p>
+        </div>
+        <div class="agency-network-preview__map" data-preview-state="ready" hidden>
+          <div
+            class="agency-network-preview__canvas"
+            data-role="agency-network-preview-map"
+          ></div>
+          <p data-role="agency-network-preview-summary"></p>
+          <p
+            class="agency-network-preview__disclaimer"
+            data-i18n="register.network_preview_disclaimer"
+          >This map is indicative: routes are simplified and may not match every detail.</p>
+          <div
+            class="agency-network-preview__routes"
+            data-role="agency-network-preview-routes"
+            aria-hidden="true"
+          ></div>
+        </div>
+        <div class="agency-network-preview__state" data-preview-state="empty" hidden>
+          <p data-i18n="register.network_preview_empty">No line preview is available for this company.</p>
+        </div>
+        <div class="agency-network-preview__state" data-preview-state="error" hidden>
+          <p data-i18n="register.network_preview_error">The network preview is temporarily unavailable.</p>
+        </div>
+      </aside>
     </div>
   </div>
 </section>
