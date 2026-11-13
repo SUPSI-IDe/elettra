@@ -30,7 +30,7 @@
 
 /* Add custom stop form - page-specific overrides.
    Layout comes from the shared .form-card-grid / .form-card system; only the
-   map picker and the map-derived readonly fields need page-level rules. */
+   address search, map picker and map-derived readonly fields need page-level rules. */
 .add-custom-stop main {
   overflow-y: auto;
 }
@@ -84,6 +84,40 @@
   gap: var(--space-md);
 }
 
+.add-custom-stop .address-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--space-sm);
+}
+
+.add-custom-stop .address-search-row textarea {
+  min-width: 0;
+  resize: vertical;
+}
+
+.add-custom-stop .address-search-button {
+  white-space: nowrap;
+}
+
+.add-custom-stop .address-search-feedback {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+.add-custom-stop .address-search-feedback[data-tone="success"] {
+  color: var(--success-color);
+}
+
+.add-custom-stop .address-search-feedback[data-tone="error"] {
+  color: var(--error-color);
+}
+
+.add-custom-stop .address-search-feedback[data-tone="info"] {
+  color: var(--text-secondary);
+}
+
 .add-custom-stop .map-hint {
   margin: 0;
 }
@@ -98,7 +132,7 @@
   border: 1px solid var(--border-light);
 }
 
-/* Address, city and coordinates are filled from the map, never typed. */
+/* Coordinates are always derived from the address search or map position. */
 .add-custom-stop input[readonly],
 .add-custom-stop textarea[readonly] {
   background-color: var(--background-muted);
@@ -138,6 +172,12 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+}
+
+@media (max-width: 640px) {
+  .add-custom-stop .address-search-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .add-custom-stop .map-crosshair::after {

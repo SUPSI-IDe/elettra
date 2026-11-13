@@ -138,6 +138,10 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   const lonInput = form.querySelector("#custom-stop-longitude");
   const addressInput = form.querySelector("#custom-stop-address");
   const cityInput = form.querySelector("#custom-stop-city");
+  const addressSearchButton = form.querySelector('[data-action="search-address"]');
+  const addressSearchFeedback = form.querySelector(
+    '[data-role="address-search-feedback"]'
+  );
 
   // Initial center: use existing depot coords in edit mode, else use cached centroid or default
   const initialLocation = getUserAgencyCentroidSync();
@@ -154,18 +158,59 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     maxZoom: 19,
   }).addTo(map);
 
+  let reverseGeocodeController = null;
+  let addressSearchController = null;
+  let skipReverseAt = null;
+
+  const geocodingLanguage = () =>
+    document.documentElement.lang?.trim() || "it";
+
   // Reverse geocode using Nominatim
   const reverseGeocode = async (lat, lon) => {
+    reverseGeocodeController?.abort();
+    const controller = new AbortController();
+    reverseGeocodeController = controller;
+
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
-        { headers: { "Accept-Language": "it" } }
-      );
+      const url = new URL("https://nominatim.openstreetmap.org/reverse");
+      url.search = new URLSearchParams({
+        lat: String(lat),
+        lon: String(lon),
+        format: "jsonv2",
+        addressdetails: "1",
+      });
+      const response = await fetch(url, {
+        headers: { "Accept-Language": geocodingLanguage() },
+        signal: controller.signal,
+      });
       if (!response.ok) return null;
       return await response.json();
     } catch {
       return null;
+    } finally {
+      if (reverseGeocodeController === controller) {
+        reverseGeocodeController = null;
+      }
     }
+  };
+
+  const forwardGeocode = async (query, signal) => {
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.search = new URLSearchParams({
+      q: query,
+      format: "jsonv2",
+      addressdetails: "1",
+      limit: "1",
+    });
+    const response = await fetch(url, {
+      headers: { "Accept-Language": geocodingLanguage() },
+      signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Address search failed with status ${response.status}`);
+    }
+    const results = await response.json();
+    return Array.isArray(results) ? results : [];
   };
 
   const cityFromGeocode = (geo) => {
@@ -181,7 +226,6 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     );
   };
 
-  // Build a robust single-line address from Nominatim data
   const buildAddressLine = (addr, displayName) => {
     const street = [
       addr.road,
@@ -205,7 +249,90 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     return primary || "";
   };
 
-  // Update form fields from map center (fields are readonly, always update)
+  const setAddressSearchFeedback = (message = "", tone = "info") => {
+    if (!addressSearchFeedback) return;
+    addressSearchFeedback.textContent = message;
+    addressSearchFeedback.dataset.tone = tone;
+    addressSearchFeedback.hidden = !message;
+  };
+
+  const setAddressSearchBusy = (busy) => {
+    if (addressSearchButton) addressSearchButton.disabled = busy;
+    addressInput?.setAttribute("aria-busy", String(busy));
+  };
+
+  const searchAddressOnMap = async () => {
+    const address = addressInput?.value.trim() || "";
+    const city = cityInput?.value.trim() || "";
+    if (!address) {
+      addressInput?.setAttribute("aria-invalid", "true");
+      addressInput?.focus();
+      setAddressSearchFeedback(
+        t("custom_stops.required_field_missing", {
+          field: t("custom_stops.field_address"),
+        }),
+        "error"
+      );
+      return;
+    }
+
+    addressInput.removeAttribute("aria-invalid");
+    addressSearchController?.abort();
+    reverseGeocodeController?.abort();
+    const controller = new AbortController();
+    addressSearchController = controller;
+    setAddressSearchBusy(true);
+    setAddressSearchFeedback(t("custom_stops.address_searching"), "info");
+
+    try {
+      const query = [address, city].filter(Boolean).join(", ");
+      const [result] = await forwardGeocode(query, controller.signal);
+      if (!result) {
+        setAddressSearchFeedback(
+          t("custom_stops.address_search_no_results"),
+          "error"
+        );
+        return;
+      }
+
+      const latitude = Number.parseFloat(result.lat);
+      const longitude = Number.parseFloat(result.lon);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        throw new Error("Address search returned invalid coordinates");
+      }
+
+      const resultAddress = result.address || {};
+      const addressLine = buildAddressLine(resultAddress, result.display_name);
+      const resultCity = cityFromGeocode(result);
+      if (addressLine) addressInput.value = addressLine;
+      if (resultCity) cityInput.value = resultCity;
+      latInput.value = latitude.toFixed(6);
+      lonInput.value = longitude.toFixed(6);
+
+      userInteracted = true;
+      skipReverseAt = { lat: latitude, lon: longitude };
+      map.setView([latitude, longitude], Math.max(map.getZoom(), 16));
+      setAddressSearchFeedback(
+        t("custom_stops.address_search_success"),
+        "success"
+      );
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        console.warn("Could not search custom stop address", error);
+        setAddressSearchFeedback(
+          t("custom_stops.address_search_failed"),
+          "error"
+        );
+      }
+    } finally {
+      if (addressSearchController === controller) {
+        addressSearchController = null;
+        setAddressSearchBusy(false);
+      }
+    }
+  };
+
+  // Update form fields from map center
   const updateFromMapCenter = async () => {
     const center = map.getCenter();
     const lat = center.lat.toFixed(6);
@@ -214,24 +341,16 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     latInput.value = lat;
     lonInput.value = lon;
 
-    // Reverse geocode for address and city
     const geo = await reverseGeocode(center.lat, center.lng);
     if (geo) {
       const addr = geo.address || {};
-
       const addressLine = buildAddressLine(addr, geo.display_name);
-      if (addressLine) {
-        addressInput.value = addressLine;
-      }
-
+      if (addressLine) addressInput.value = addressLine;
       const city = cityFromGeocode(geo);
-      if (city) {
-        cityInput.value = city;
-      }
+      if (city) cityInput.value = city;
     }
   };
 
-  // Debounce helper
   let debounceTimer;
   const debounce = (fn, delay) => {
     clearTimeout(debounceTimer);
@@ -248,6 +367,17 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
   });
 
   const handleMoveEnd = () => {
+    const center = map.getCenter();
+    if (
+      skipReverseAt &&
+      Math.abs(center.lat - skipReverseAt.lat) < 0.000001 &&
+      Math.abs(center.lng - skipReverseAt.lon) < 0.000001
+    ) {
+      skipReverseAt = null;
+      clearTimeout(debounceTimer);
+      return;
+    }
+    skipReverseAt = null;
     debounce(updateFromMapCenter, 500);
   };
   map.on("moveend", handleMoveEnd);
@@ -256,14 +386,36 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     map.off("moveend", handleMoveEnd);
   });
 
+  const handleAddressSearchClick = () => {
+    void searchAddressOnMap();
+  };
+  const handleAddressKeydown = (event) => {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    void searchAddressOnMap();
+  };
+  const handleAddressInput = () => {
+    addressInput.removeAttribute("aria-invalid");
+    addressSearchController?.abort();
+    setAddressSearchFeedback();
+  };
+  addressSearchButton?.addEventListener("click", handleAddressSearchClick);
+  addressInput?.addEventListener("keydown", handleAddressKeydown);
+  addressInput?.addEventListener("input", handleAddressInput);
+  cleanupHandlers.push(() => {
+    addressSearchButton?.removeEventListener("click", handleAddressSearchClick);
+    addressInput?.removeEventListener("keydown", handleAddressKeydown);
+    addressInput?.removeEventListener("input", handleAddressInput);
+    addressSearchController?.abort();
+    reverseGeocodeController?.abort();
+  });
+
   // Initial update if adding new stop
   if (!isEditMode && !isDuplicateMode) {
     updateFromMapCenter();
   }
 
-  // Stops created before type and city became mandatory may not have a
-  // features object. Recover the missing city from the stored coordinates,
-  // while keeping the field editable in case reverse geocoding is unavailable.
+  // Recover the missing city from stored coordinates for legacy stops.
   if ((isEditMode || isDuplicateMode) && !cityInput.value.trim()) {
     const latitude = Number.parseFloat(latInput.value);
     const longitude = Number.parseFloat(lonInput.value);
@@ -312,8 +464,8 @@ export const initializeAddCustomStop = (root = document, options = {}) => {
     const { name, address, latitude, longitude, features } =
       toDepotPayload(formData, currentDepot.features);
 
-    // Everything but notes is mandatory. Address and coordinates come from the
-    // map; city can also be entered manually when reverse geocoding is unavailable.
+    // Everything but notes is mandatory. Coordinates come from the address
+    // search or map; address and city remain editable if geocoding is unavailable.
     const requiredFields = [
       { name: "name", value: name, label: t("custom_stops.field_name") },
       { name: "type", value: features.type, label: t("custom_stops.field_type") },

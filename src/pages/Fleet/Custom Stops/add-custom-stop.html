@@ -72,14 +72,32 @@
                 <span data-i18n="custom_stops.field_address">Address</span>
                 <span class="required-mark" aria-hidden="true">*</span>
               </label>
-              <textarea
-                id="custom-stop-address"
-                name="address"
-                rows="2"
-                required
-                readonly
-                autocomplete="street-address"
-              ></textarea>
+              <div class="address-search-row">
+                <textarea
+                  id="custom-stop-address"
+                  name="address"
+                  rows="2"
+                  required
+                  autocomplete="street-address"
+                  aria-describedby="custom-stop-address-feedback"
+                ></textarea>
+                <button
+                  type="button"
+                  class="secondary-button address-search-button"
+                  data-action="search-address"
+                  data-i18n="custom_stops.address_search_action"
+                >
+                  Search on map
+                </button>
+              </div>
+              <p
+                id="custom-stop-address-feedback"
+                class="address-search-feedback"
+                data-role="address-search-feedback"
+                role="status"
+                aria-live="polite"
+                hidden
+              ></p>
             </div>
             <div class="form-group">
               <label for="custom-stop-city">
@@ -150,7 +168,7 @@
           </header>
           <div class="form-card__body">
             <p class="helper-text map-hint" data-i18n="custom_stops.map_hint">
-              Drag the map to position the crosshair on your stop location
+              Enter an address or drag the map to position the crosshair
             </p>
             <div class="map-wrapper">
               <div id="custom-stop-map" data-role="map"></div>

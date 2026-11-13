@@ -51,6 +51,85 @@ const openEditForm = async (page) => {
   await expect(page.locator("section.add-custom-stop")).toBeVisible();
 };
 
+test("an address search positions a custom stop while keeping the map picker available", async ({
+  page,
+}) => {
+  await installSession(page);
+  let reverseRequests = 0;
+  const searchQueries = [];
+
+  await page.route("**/reverse?**", (route) => {
+    reverseRequests += 1;
+    return fulfillJson(route, {
+      display_name: "Via iniziale 1, Bellinzona",
+      address: {
+        road: "Via iniziale",
+        house_number: "1",
+        city: "Bellinzona",
+      },
+    });
+  });
+  await page.route("**/search?**", (route) => {
+    const query = new URL(route.request().url()).searchParams.get("q");
+    searchQueries.push(query);
+    if (query?.startsWith("Indirizzo inesistente")) {
+      return fulfillJson(route, []);
+    }
+    return fulfillJson(route, [
+      {
+        lat: "46.003677",
+        lon: "8.951052",
+        display_name: "Via Cantonale 10, Lugano",
+        address: {
+          road: "Via Cantonale",
+          house_number: "10",
+          city: "Lugano",
+        },
+      },
+    ]);
+  });
+
+  await page.goto("./#custom-stops");
+  await page.locator('[data-action="add-custom-stop"]').click();
+  const address = page.locator("#custom-stop-address");
+  const city = page.locator("#custom-stop-city");
+  const searchButton = page.locator('[data-action="search-address"]');
+  const searchFeedback = page.locator('[data-role="address-search-feedback"]');
+
+  await expect(page.locator("section.add-custom-stop")).toBeVisible();
+  await expect(address).toBeEditable();
+  await expect(searchButton).toHaveText("Cerca sulla mappa");
+  await expect(page.locator("#custom-stop-latitude")).not.toHaveValue("");
+
+  await address.fill("Via Cantonale 10");
+  await city.fill("Lugano");
+  await page.waitForTimeout(100);
+  expect(searchQueries).toEqual([]);
+
+  await searchButton.click();
+  await expect.poll(() => searchQueries).toEqual([
+    "Via Cantonale 10, Lugano",
+  ]);
+  await expect(address).toHaveValue("Via Cantonale 10");
+  await expect(city).toHaveValue("Lugano");
+  await expect(page.locator("#custom-stop-latitude")).toHaveValue("46.003677");
+  await expect(page.locator("#custom-stop-longitude")).toHaveValue("8.951052");
+  await expect(searchFeedback).toHaveText("Posizione aggiornata sulla mappa.");
+  await expect(searchFeedback).toHaveAttribute("data-tone", "success");
+  await page.waitForTimeout(600);
+  expect(reverseRequests).toBe(1);
+
+  await address.fill("Indirizzo inesistente");
+  await address.press("Enter");
+  await expect.poll(() => searchQueries.length).toBe(2);
+  await expect(searchFeedback).toHaveText(
+    "Nessun indirizzo corrispondente trovato. Aggiungi la città o controlla l'indirizzo."
+  );
+  await expect(searchFeedback).toHaveAttribute("data-tone", "error");
+  await expect(page.locator("#custom-stop-latitude")).toHaveValue("46.003677");
+  await expect(page.locator("#custom-stop-longitude")).toHaveValue("8.951052");
+});
+
 test("legacy stop recovers its missing city and can be assigned a type", async ({
   page,
 }) => {
