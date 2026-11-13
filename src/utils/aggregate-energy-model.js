@@ -1,3 +1,4 @@
+import { resultBatteryPolicy } from './battery-policy.js';
 export function aggregateEnergyModel(run, shiftId) {
   const results = run?.results ?? {};
   const input = run?.input_params ?? {};
@@ -9,10 +10,11 @@ export function aggregateEnergyModel(run, shiftId) {
   const maximum = detail?.max_packs ?? battery.max_physical_packs;
   const packKwh = detail?.pack_size_kwh ?? (battery.max_physical_kwh / maximum);
   const nominal = Number.isFinite(packKwh * selected) ? packKwh * selected : null;
-  const minSoc = detail?.min_soc ?? input.min_soc ?? .4;
-  const maxSoc = detail?.max_soc ?? input.max_soc ?? .9;
-  const soh = detail?.state_of_health ?? input.state_of_health ?? 1;
-  const usable = nominal === null ? null : nominal * soh * (maxSoc-minSoc);
+  const policy = resultBatteryPolicy(run);
+  const minSoc = detail?.min_soc ?? policy.min_soc;
+  const maxSoc = detail?.max_soc ?? policy.max_soc;
+  const soh = detail?.state_of_health ?? policy.state_of_health;
+  const usable = battery.battery_energy?.usable_capacity_kwh ?? (nominal === null ? null : nominal * soh * (maxSoc-minSoc));
   const basis = input.consumption_basis ?? ((input.quantile_consumption ?? "mean") === "mean" ? "mean" : "legacy");
   const excess = battery.excess_packs ?? 0;
   const diagnosticTotal = battery.required_total_packs ?? selected + excess;

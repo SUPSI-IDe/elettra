@@ -219,6 +219,11 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       </div></details></form>`;
   };
   const paint = (keepControls = false) => {
+    // A details toggle event is queued asynchronously. Read the outgoing DOM
+    // before rendering or moving the shared form, even if that event is pending.
+    const previousPanel = root?.querySelector('[data-tco-assumptions]');
+    if (previousPanel?.dataset.assumptionsTab === 'emissions') emissionsAssumptionsOpen = previousPanel.open;
+    else if (previousPanel) costAssumptionsOpen = previousPanel.open;
     if (!root) return;
     const current = fleet(), group = current.groups.find(g => g.id === scope);
     const divisor = group ? group.count : 1, share = group ? group.count / current.count : 1;
@@ -291,6 +296,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       form = controlsHost.querySelector('[data-tco-form]');
     } else if (form.parentElement !== controlsHost) controlsHost.append(form);
     const assumptionsPanel = form.querySelector('[data-tco-assumptions]');
+    assumptionsPanel.dataset.assumptionsTab = activeTab;
     assumptionsPanel.open = activeTab === 'emissions' ? emissionsAssumptionsOpen : costAssumptionsOpen;
     // Share one form and one set of assumptions across the two views, retaining
     // the actual input nodes while a slider is being dragged.

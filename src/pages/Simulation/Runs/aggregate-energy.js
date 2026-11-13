@@ -36,9 +36,9 @@ function socChart(model, info) {
     validation ? label("coverage", {percent:number(validation.completion_probability*100),samples:number(validation.samples)}) : ""].filter(Boolean).join(" ");
   return `<figure class="aggregate-soc"><figcaption>${esc(label(model.paired ? "selected_soc" : "soc"))} ${explanation ? info("coverage", label("coverage_title"), explanation) : ""}</figcaption>
     <svg viewBox="0 0 680 205" role="img" aria-label="${esc(label(model.paired ? "selected_soc" : "soc"))}">
-    ${[model.minSoc, model.maxSoc].map(v => `<line x1="52" x2="632" y1="${y(v*high)}" y2="${y(v*high)}" class="aggregate-soc-limit"/><text x="8" y="${y(v*high)+4}">${number(v*100)}%</text>`).join("")}
+    ${[model.minSoc, model.maxSoc].map(v => `<line x1="52" x2="632" y1="${y(v*high)}" y2="${y(v*high)}" class="aggregate-soc-limit"/><text x="8" y="${y(v*high)+4}">${number(v*100, 2)}%</text>`).join("")}
     ${lines}${verifiedLine}<text x="52" y="192">${clock(sample.first_minute)}</text><text x="632" text-anchor="end" y="192">${clock(sample.first_minute+sample.soc_kwh.length-1)}</text></svg>
-    <div class="aggregate-legend">${profiles.map(([key]) => `<span class="aggregate-${key === 'mean' ? 'mean' : 'q95'}-dot">● ${esc(basisLabel(key))}</span>`).join('')}${verifiedLine ? `<span>⋯ ${esc(label("verified_soc"))}</span>` : ""}</div></figure>`;
+    <p class="helper-text">${esc(t("simulation.battery_soh_basis"))} 100% = ${number(high)} kWh · ${number(model.minSoc*100, 2)}% = ${number(high*model.minSoc)} kWh · ${number(model.maxSoc*100, 2)}% = ${number(high*model.maxSoc)} kWh</p><div class="aggregate-legend">${profiles.map(([key]) => `<span class="aggregate-${key === 'mean' ? 'mean' : 'q95'}-dot">● ${esc(basisLabel(key))}</span>`).join('')}${verifiedLine ? `<span>⋯ ${esc(label("verified_soc"))}</span>` : ""}</div></figure>`;
 }
 
 export function renderAggregateEnergy(run, shiftId, {diagnostic = false} = {}) {
@@ -54,7 +54,7 @@ export function renderAggregateEnergy(run, shiftId, {diagnostic = false} = {}) {
   const packLabel = hasDiagnosticRequirement ? "required_packs"
     : fixedBattery ? "fixed_packs" : diagnostic ? "required_packs" : "packs";
   const safeCount = Math.min(64, Math.max(0, model.maximum || 0));
-  const packs = Array.from({length: safeCount}, (_, i) => `<span class="aggregate-pack ${i<model.selected ? "aggregate-pack--chosen" : "aggregate-pack--unused"}" style="--reserve:${model.minSoc*100}%;--soc-max:${model.maxSoc*100}%" aria-label="${esc(label(i<model.selected ? "chosen" : "unused"))} ${i+1}"><b>${i+1}</b></span>`).join("");
+  const packs = Array.from({length: safeCount}, (_, i) => `<span class="aggregate-pack ${i<model.selected ? "aggregate-pack--chosen" : "aggregate-pack--unused"}" style="--reserve:${model.minSoc*model.soh*100}%;--soc-max:${model.maxSoc*model.soh*100}%;--soh:${model.soh*100}%" aria-label="${esc(label(i<model.selected ? "chosen" : "unused"))} ${i+1}"><b>${i+1}</b></span>`).join("");
   const overflow = Array.from({length: Math.min(32, model.unavailablePacks)}, (_, i) => `<span class="aggregate-pack aggregate-pack--excess"><b>+${i+1}</b></span>`).join("");
   const scale = model.cases ? Math.max(model.usable, ...Object.values(model.cases).map(v => v.required_usable_kwh))*1.12 : 1;
   const rows = model.cases ? Object.entries(model.cases).map(([key, value]) => `<div class="aggregate-demand" data-basis="${key}">

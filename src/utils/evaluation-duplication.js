@@ -1,6 +1,7 @@
 // These solver/demand settings have no editable field in the evaluation form.
 // Copy only request settings, never saved results, job IDs or paired-run links.
 const RETAINED_SETTINGS = [
+  'battery_soc_policy', 'allowed_min_soc', 'allowed_max_soc', 'layover_reduction_minutes',
   'battery_sizing_mode', 'state_of_health', 'aggregate_sample_count', 'aggregate_max_samples',
   'aggregate_seed', 'aggregate_precision_kwh', 'battery_cost_per_kwh',
   'max_battery_penalty_per_kwh', 'depot_dwell_minutes_after',

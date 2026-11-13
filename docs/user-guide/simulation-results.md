@@ -89,6 +89,21 @@ The vehicle-block summary reports:
 **Minimum SOC reached** and **Maximum SOC reached** are trajectory outcomes.
 They must not be presented as the same quantity.
 
+SOC percentages refer to **residual capacity**. The battery assumptions show
+initial, residual and usable capacity, SOH, usage policy, applied SOC window,
+technical time and terminal layover reduction. Usable energy is initial kWh ×
+SOH × (applied maximum SOC − applied minimum SOC); physical pack counts remain
+unchanged by this conversion. The forecast and energy tables use the same SOH
+and applied window.
+
+For an initial 500 kWh battery at SOH 70%, residual capacity is 350 kWh. The
+default residual-capacity policy with SOC 40–90% gives 175 kWh usable. Constant
+initial usable energy with a 40–90% reference preserves 250 kWh and applies
+18.57–90% at SOH 70%. It lowers the minimum towards the allowed 10% before
+raising the preferred maximum of 90% towards the allowed 95%. The informational
+warning concerns an **applied minimum below 20%**, not the minimum reached by
+the trajectory; it does not require confirmation.
+
 The operational-energy view combines usable battery energy, planned charging,
 and temporal energy drawdown. Required usable energy is derived from the
 verified trajectory at the selected mass and schedule; it is not simply total
@@ -116,17 +131,28 @@ are supporting distribution information.
 
 ## Charging plan
 
-For Charging and Joint evaluations, inspect each session for:
+For Charging and Joint evaluations, inspect each session’s location and time,
+including the day offset when it continues into the next day. Its card shows
+three metrics: **Planned stop**, **Available for charging** and **Energy charged**.
+The **Charging details** tooltip contains connection/disconnection time, terminal
+delay allowance, active and idle charging time, and average power.
 
-- location and time;
-- day offset when charging continues into the next day;
-- connection duration;
-- delivered energy;
-- average charging power.
+Available time is the stop duration after connection/disconnection and any
+terminal delay allowance; actual charging may use less time. With full-stop
+connection, these times describe the planned stop. Historical freely connected
+sessions may describe only the connected interval.
 
 Battery-only evaluations may show fixed charging already supplied by the
 configuration, or no charging plan. A partial or unavailable plan is reported
 as such rather than filled with invented sessions.
+
+Distinguish available charging time, active charging time, connected time and
+available time without charging. The default technical time is 1 minute total
+for connection and disconnection, once per session, including at depots. A
+terminal layover reduction of x minutes additionally reduces terminal charging
+time: stop duration minus (1 + x) minutes; depots only lose the technical minute.
+The recorded margin is deterministic and changing it requires a new optimization;
+it does not test hardware, shift trips, propagate delays or add energy demand.
 
 **Charging plan** and **More information** are expandable white cards. They
 keep detailed sessions, prediction inputs, configured SOC limits, and supporting

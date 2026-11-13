@@ -1,3 +1,6 @@
+import { bindInfoTooltips } from '../../../utils/info-tooltips';
+import { resultBatteryPolicy } from '../../../utils/battery-policy';
+import { renderBatteryAssumptions } from './battery-assumptions';
 import { mountHvacAssumptions } from "../shared/hvac-assumptions.js";
 import { mountAnalysisGtfs } from "../../../utils/analysis-gtfs.js";
 import { formatNumber, formatChf } from "../../../utils/number-format";
@@ -3007,16 +3010,8 @@ const normalizeSocFraction = (value) => {
 };
 
 const resolveUsableSocFraction = (inputParams = {}) => {
-  const minSoc = normalizeSocFraction(inputParams?.min_soc);
-  const maxSoc = normalizeSocFraction(inputParams?.max_soc);
-
-  if (minSoc != null && maxSoc != null && maxSoc >= minSoc) {
-    return maxSoc - minSoc;
-  }
-
-  return normalizeSocFraction(
-    inputParams?.usable_soc_percent ?? inputParams?.usableSocPercent
-  );
+  try { return resultBatteryPolicy({ input_params: inputParams }).usable_fraction_initial; }
+  catch { return null; }
 };
 
 const applyUsableSocWindow = (nominalKwh, usableSocFraction) => {
@@ -3037,8 +3032,9 @@ const buildUsableSocTooltip = ({
   const base =
     t("simulation.opt_usable_soc_tooltip") ||
     "This kWh value applies the min/max SoC window: usable kWh = nominal kWh * (max SoC - min SoC).";
-  const minSoc = normalizeSocFraction(inputParams?.min_soc);
-  const maxSoc = normalizeSocFraction(inputParams?.max_soc);
+  const policy = resultBatteryPolicy({ input_params: inputParams });
+  const minSoc = policy.min_soc;
+  const maxSoc = policy.max_soc;
   const usableSoc = resolveUsableSocFraction(inputParams);
   const nominal = toOptionalFiniteNumber(nominalKwh);
   const usable = toOptionalFiniteNumber(usableKwh);
@@ -3369,8 +3365,9 @@ const deriveSocKwh = (batteryCapacityKwh, socFraction) => {
 
 const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResults = {}, viewOptions = {}) => {
   const allRuns = [...(predictionRuns ?? [])];
-  const minSocFraction = toFiniteNumber(viewOptions?.inputParams?.min_soc);
-  const maxSocFraction = toFiniteNumber(viewOptions?.inputParams?.max_soc);
+  const policy = resultBatteryPolicy({ input_params: viewOptions?.inputParams });
+  const minSocFraction = policy.min_soc * policy.state_of_health;
+  const maxSocFraction = policy.max_soc * policy.state_of_health;
   const selectedPredictionIds = new Set(
     Object.values(viewOptions?.selectedPredictionRunIds ?? {})
       .map((value) => String(value ?? "").trim())
@@ -6045,7 +6042,7 @@ const buildShiftEnergyAdequacyCardHtml = (data, energyBalance) => {
   }
 
   if (data?.usableSocFraction != null) {
-    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.sensitivity_driver_usable_soc", "Usable SoC"))}: ${textContent(formatPct(data.usableSocFraction))}</span>`);
+    drivers.push(`<span class="efficiency-sensitivity-card__chip">${textContent(translateOr("simulation.battery_initial_usable_fraction", "Usable fraction of initial capacity"))}: ${textContent(formatPct(data.usableSocFraction))}</span>`);
   }
 
   if (data?.externalTempCelsius != null) {
@@ -7049,7 +7046,7 @@ const buildChargingPlanStateHtml = (plan) => {
   )}</p>`;
 };
 
-const buildShiftChargingPlanHtml = (viewState, { open = false } = {}) => {
+const buildShiftChargingPlanHtml = (viewState, { open = false, inputParams = {} } = {}) => {
   const plan = viewState?.selectedShiftSummary?.operation?.chargingPlan;
   if (!plan) return "";
   const sessions = Array.isArray(plan.sessions) ? plan.sessions : [];
@@ -7063,6 +7060,14 @@ const buildShiftChargingPlanHtml = (viewState, { open = false } = {}) => {
       { number: sequence }
     );
 
+    const available = session.availableChargingMinutes ?? (
+      session.durationMinutes != null && !(inputParams.layover_reduction_minutes > 0)
+        ? Math.max(0, session.durationMinutes - (inputParams.session_connection_minutes ?? 0)) : null);
+    const tipId = `charging-session-help-${sequence}`;
+    const detailRows = [['technicalMinutes','technical'], ['layoverReductionMinutes','reduction'],
+      ['activeChargingMinutes','active_minutes'], ['idleAvailableMinutes','idle_minutes']]
+      .filter(([key]) => session[key] != null)
+      .map(([key,label]) => `<span>${textContent(t(`simulation.battery_${label}`))}: <strong>${shiftMetricValue(session[key], 'min')}</strong></span>`).join('');
     return `
       <li class="feasibility-charging-session${session.detailsComplete ? "" : " feasibility-charging-session--incomplete"}" data-role="feasibility-charging-session" aria-label="${textContent(sessionLabel)}">
         <div class="feasibility-charging-session__location">
@@ -7078,27 +7083,24 @@ const buildShiftChargingPlanHtml = (viewState, { open = false } = {}) => {
         </div>
         <dl class="feasibility-charging-session__metrics">
           <div data-role="feasibility-charging-session-duration">
-            <dt>${textContent(
-              translateOr("simulation.feasibility_charging_duration", "Duration")
-            )}:</dt>
-            <dd>${shiftMetricValue(
-              session.durationMinutes,
-              translateOr("simulation.feasibility_minutes_short", "min")
-            )}</dd>
+            <dt>${textContent(t(inputParams.lock_entire_dwell === false ? 'simulation.battery_occupied_minutes' : 'simulation.charging_planned_stop'))}</dt>
+            <dd>${shiftMetricValue(session.durationMinutes, 'min')}</dd>
+          </div>
+          <div data-role="charging-availableChargingMinutes">
+            <dt>${textContent(t('simulation.charging_available_time'))}</dt>
+            <dd>${shiftMetricValue(available, 'min')}</dd>
           </div>
           <div data-role="feasibility-charging-session-energy">
-            <dt>${textContent(
-              translateOr("simulation.feasibility_charging_energy", "Energy")
-            )}:</dt>
-            <dd>${shiftMetricValue(session.energyKwh, "kWh", { decimals: 1 })}</dd>
-          </div>
-          <div data-role="feasibility-charging-session-average-power">
-            <dt>${textContent(
-              translateOr("simulation.feasibility_charging_average_power", "Average power")
-            )}:</dt>
-            <dd>${shiftMetricValue(session.averagePowerKw, "kW", { decimals: 1 })}</dd>
+            <dt>${textContent(t('simulation.charging_energy'))}</dt>
+            <dd>${shiftMetricValue(session.energyKwh, 'kWh', { decimals: 1 })}</dd>
           </div>
         </dl>
+        <button type="button" class="info-icon charging-session-info" aria-label="${textContent(t('simulation.charging_details'))}" aria-describedby="${tipId}" aria-expanded="false">i<span id="${tipId}" class="info-tooltip charging-session-tooltip" role="tooltip" hidden>
+          <span>${textContent(t('simulation.charging_available_help'))}</span>
+          <span>${textContent(t('simulation.charging_duration_help'))}</span>
+          ${detailRows}
+          <span data-role="feasibility-charging-session-average-power">${textContent(`${t('simulation.feasibility_charging_average_power')} (${t('simulation.battery_occupied_minutes')})`)}: <strong>${shiftMetricValue(session.averagePowerKw, 'kW', { decimals: 1 })}</strong></span>
+        </span></button>
       </li>`;
   }).join("");
 
@@ -7164,7 +7166,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     resultScope === "shift" ? viewOptions?.selectedShiftId : null
   );
   if (feasibilityModel.failure) {
-    el.innerHTML = buildFeasibilityFailureHtml(
+    el.innerHTML = renderBatteryAssumptions(optimizationRun, viewOptions?.selectedShiftId) + buildFeasibilityFailureHtml(
       feasibilityModel,
       feasibilityViewState,
       resultScope,
@@ -7180,7 +7182,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   if (results.solver_status === "infeasible" && !Object.keys(results.battery_results ?? {}).length) {
     const pair = pairedFeasibility(optimizationRun);
     const diagnosticShift = resultScope === "shift" ? viewOptions?.selectedShiftId : null;
-    el.innerHTML = `<section class="result-card" data-role="feasibility-no-solution">
+    el.innerHTML = `${renderBatteryAssumptions(optimizationRun, diagnosticShift)}<section class="result-card" data-role="feasibility-no-solution">
       <header class="result-card__header">
         <h3 class="result-card__title">${textContent(feasibilityScenarioLabel(false, ip))}</h3>
         ${pair ? `<span class="result-status result-status--${pair.tone}" data-role="feasibility-overall-status">${textContent(t(`simulation.paired_${pair.key}`))}</span>` : ""}
@@ -7213,7 +7215,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     {
       label:
         translateOr("simulation.efficiency_soc_range", "Configured SoC window"),
-      value: `${formatPct(ip.min_soc ?? 0.4)} / ${formatPct(ip.max_soc ?? 0.9)}`,
+      value: `${formatPct(resultBatteryPolicy(optimizationRun).min_soc)} / ${formatPct(resultBatteryPolicy(optimizationRun).max_soc)}`,
     },
     {
       label: t("simulation.overview_single_pack_capacity") || "Single pack capacity",
@@ -7280,20 +7282,21 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       ) ?? null
     : null;
   const selectedShiftSummary = feasibilityViewState?.selectedShiftSummary ?? null;
-  const minimumSocFraction = normalizeSocFraction(ip?.min_soc);
-  const maximumSocFraction = normalizeSocFraction(ip?.max_soc);
+  const appliedPolicy = resultBatteryPolicy(optimizationRun);
+  const minimumSocFraction = appliedPolicy.min_soc;
+  const maximumSocFraction = appliedPolicy.max_soc;
   const optimizedNominalKwh = toOptionalFiniteNumber(
     optimizedCoverageMarker?.nominalKwh
   );
   const minimumAllowedSocKwh =
     optimizedNominalKwh != null &&
     minimumSocFraction != null
-      ? optimizedNominalKwh * minimumSocFraction
+      ? optimizedNominalKwh * appliedPolicy.state_of_health * minimumSocFraction
       : null;
   const maximumAllowedSocKwh =
     optimizedNominalKwh != null &&
     maximumSocFraction != null
-      ? optimizedNominalKwh * maximumSocFraction
+      ? optimizedNominalKwh * appliedPolicy.state_of_health * maximumSocFraction
       : null;
   const energyBalance = optimizedCoverageMarker
     ? buildShiftEnergyBalance({
@@ -7480,7 +7483,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         ${results.consumption_analysis ? "" : chartsHtml}
         ${results.consumption_analysis ? "" : shiftEnergyAdequacyHtml}
         ${buildShiftChargingPlanHtml(feasibilityViewState, {
-          open: keepChargingPlanOpen,
+          open: keepChargingPlanOpen, inputParams: ip,
         })}
         <details class="ya-more-information feasibility-more-information result-card"${keepMoreInformationOpen ? " open" : ""}>
           <summary class="ya-more-information__toggle feasibility-more-information__toggle feasibility-disclosure__toggle result-card__header">
@@ -7509,7 +7512,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       </div>
     </section>`;
 
-  el.innerHTML = resultScope === "shift" ? shiftLevelHtml : generalLevelHtml;
+  el.innerHTML = renderBatteryAssumptions(optimizationRun, resultScope === "shift" ? viewOptions?.selectedShiftId : null) + (resultScope === "shift" ? shiftLevelHtml : generalLevelHtml);
   bindAggregateEnergy(el, optimizationRun);
 
   renderEfficiencyEnergySplitChart(
@@ -9439,6 +9442,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   if (!section) return null;
 
   const cleanupHandlers = [];
+  cleanupHandlers.push(bindInfoTooltips(section, '.charging-session-info'));
   const renderedTabs = new Set(["efficiency"]);
   const costOverrides = {
     fuelCostPerL: normalizeFuelCostPerL(options?.costOverrides?.fuelCostPerL),
@@ -9878,8 +9882,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       simulation_type: resolveSimulationType(loadedOptimizationRun, options),
       lines: activeShift?.lineLabel || "—",
       day: activeShift?.weekdayLabel || "—",
-      min_soc: formatSocValue(loadedOptimizationRun?.input_params?.min_soc),
-      max_soc: formatSocValue(loadedOptimizationRun?.input_params?.max_soc),
+      min_soc: formatSocValue(resultBatteryPolicy(loadedOptimizationRun ?? {}).min_soc),
+      max_soc: formatSocValue(resultBatteryPolicy(loadedOptimizationRun ?? {}).max_soc),
       external_temp_celsius: formatTemperatureValue(
         firstPredictionRun.external_temp_celsius
       ),
