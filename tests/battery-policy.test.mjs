@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveBatteryPolicy, batteryEnergy, historicalBatteryParams, NEW_BATTERY_DEFAULTS, batteryUsageControls, batteryParamsFromUsage } from '../src/utils/battery-policy.js';
+import { resolveBatteryPolicy, batteryEnergy, historicalBatteryParams, NEW_BATTERY_DEFAULTS, batteryUsageControls, batteryParamsFromUsage, BatteryUsageLimitError } from '../src/utils/battery-policy.js';
 
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} differs from ${expected}`);
 const constant = (state_of_health, extra = {}) => resolveBatteryPolicy({ battery_soc_policy: 'constant_initial_usable', state_of_health, ...extra });
@@ -116,6 +116,30 @@ test('maximum residual usage is an energy limit, not the maximum SOC', () => {
   const p = resolveBatteryPolicy(params);
   close(p.min_soc, .05); close(p.max_soc, .05+.5/.58);
   close(batteryEnergy(500, p).usable_capacity_kwh, 250);
+});
+
+test('incompatible capacity reports the actual requirement and achievable initial usage', () => {
+  for (const [h, u, limit] of [[.58, .5, .85], [.7, .6, .8], [.4, .8, .85]]) {
+    const controls = { ...batteryUsageControls(), battery_soc_policy: 'constant_initial_usable',
+      state_of_health: h, usable_capacity_fraction: u, max_residual_usage_fraction: limit };
+    assert.throws(() => batteryParamsFromUsage(controls), error => {
+      assert.ok(error instanceof BatteryUsageLimitError);
+      assert.ok(error instanceof RangeError);
+      close(error.stateOfHealth, h);
+      close(error.requestedInitialUsage, u);
+      close(error.requiredResidualUsage, u / h);
+      close(error.maximumResidualUsage, limit);
+      close(error.maximumInitialUsage, h * limit);
+      const corrected = batteryParamsFromUsage({ ...controls, usable_capacity_fraction: error.maximumInitialUsage });
+      close(resolveBatteryPolicy(corrected).usable_fraction_initial, h * limit);
+      return true;
+    });
+  }
+  for (const invalid of [NaN, Infinity, 0, -1, 1.01]) {
+    assert.throws(() => batteryParamsFromUsage({ ...batteryUsageControls(),
+      battery_soc_policy: 'constant_initial_usable', state_of_health: invalid }),
+    error => !(error instanceof BatteryUsageLimitError));
+  }
 });
 
 test('automatic SOC placement supports the whole energy range and threshold boundary', () => {

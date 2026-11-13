@@ -30,6 +30,18 @@ export function batteryUsageControls(params = NEW_BATTERY_DEFAULTS) {
   };
 }
 
+export class BatteryUsageLimitError extends RangeError {
+  constructor(stateOfHealth, requestedInitialUsage, maximumResidualUsage) {
+    super('Requested initial capacity exceeds maximum residual usage');
+    this.name = 'BatteryUsageLimitError';
+    this.stateOfHealth = stateOfHealth;
+    this.requestedInitialUsage = requestedInitialUsage;
+    this.requiredResidualUsage = requestedInitialUsage / stateOfHealth;
+    this.maximumResidualUsage = maximumResidualUsage;
+    this.maximumInitialUsage = stateOfHealth * maximumResidualUsage;
+  }
+}
+
 export function batteryParamsFromUsage(controls, savedParams = null) {
   requireObject(controls, 'controls');
   const h = finiteNumber(controls.state_of_health, 'state_of_health');
@@ -40,7 +52,7 @@ export function batteryParamsFromUsage(controls, savedParams = null) {
     throw new RangeError('Capacity fractions and SOH must be within (0, 1]');
   }
   if (constant && u / h > limit + TOLERANCE) {
-    throw new RangeError('Requested initial capacity exceeds maximum residual usage');
+    throw new BatteryUsageLimitError(h, u, limit);
   }
   let bounds;
   // An unchanged duplicate must preserve its exact historical SOC placement.

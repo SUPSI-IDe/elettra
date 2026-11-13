@@ -1,12 +1,12 @@
 import { bindInfoTooltips } from '../../../utils/info-tooltips';
-import { resolveBatteryPolicy, batteryEnergy, historicalBatteryParams, NEW_BATTERY_DEFAULTS, batteryUsageControls, batteryParamsFromUsage } from '../../../utils/battery-policy';
+import { resolveBatteryPolicy, batteryEnergy, historicalBatteryParams, NEW_BATTERY_DEFAULTS, batteryUsageControls, batteryParamsFromUsage, BatteryUsageLimitError } from '../../../utils/battery-policy';
 import { datasetKey, datasetLabel, dateLabel, shiftDatasetKey,
   analysisDatasetCatalog, NO_GTFS_DATASET, UNKNOWN_GTFS_DATASET, MIXED_GTFS_DATASETS } from "../../../utils/gtfs-datasets.js";
 import "../evaluation-dialogs.css";
 import { formatChf } from "../../../utils/number-format";
 import { retainedEvaluationSettings } from '../../../utils/evaluation-duplication';
 import { defaultCostModel, renderCostCards, readCostModel, syncCostCards } from './infrastructure-costs';
-import { t, I18N_CHANGE_EVENT } from "../../../i18n";
+import { t, getCurrentLang, I18N_CHANGE_EVENT } from "../../../i18n";
 import "./add-simulation.css";
 import { createEvaluationProgress } from "./evaluation-progress";
 import {
@@ -601,13 +601,26 @@ export const initializeAddSimulation = async (
       }
       preview.textContent = content;
       return values;
-    } catch {
+    } catch (cause) {
       preview.textContent = '';
       details.textContent = '';
       warning.hidden = true;
-      error.textContent = t('simulation.battery_usage_invalid');
+      let message = t('simulation.battery_usage_invalid');
+      if (cause instanceof BatteryUsageLimitError) {
+        // Keep the usual message short, but expose small differences at the limit.
+        let digits = 2;
+        while (digits < 12 && (cause.requiredResidualUsage * 100).toFixed(digits) === (cause.maximumResidualUsage * 100).toFixed(digits)) digits++;
+        const fmt = new Intl.NumberFormat(getCurrentLang(), { maximumFractionDigits: digits });
+        // Do not round a suggested maximum up to a value that is still invalid.
+        const precise = new Intl.NumberFormat(getCurrentLang(), { maximumFractionDigits: 12 });
+        message = t('simulation.battery_usage_exceeds_limit', Object.fromEntries(
+          ['stateOfHealth', 'requestedInitialUsage', 'requiredResidualUsage', 'maximumResidualUsage', 'maximumInitialUsage']
+            .map(key => [key, (key === 'requiredResidualUsage' ? fmt : precise).format(cause[key] * 100)])
+        ));
+      }
+      error.textContent = message;
       error.hidden = false;
-      form.elements.usable_capacity_fraction.setCustomValidity(t('simulation.battery_usage_invalid'));
+      form.elements.usable_capacity_fraction.setCustomValidity(message);
       return null;
     }
   }

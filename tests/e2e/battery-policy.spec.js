@@ -123,6 +123,8 @@ test('simple capacity form previews both references, limits and warning boundary
   await expect(details).toContainText('10–93.33%');
   await page.locator('#var-state-of-health').fill('58');
   await expect(error).toBeVisible();
+  await expect(error).toHaveText('At 58% SOH, using 50% of initial capacity requires 86.21% of residual capacity, above the 85% limit. With these settings, you can use at most 49.3% of initial capacity.');
+  expect(await page.locator('#var-usable-capacity').evaluate(input => input.validationMessage)).toBe(await error.textContent());
   await page.getByRole('button', { name: 'Start evaluation', exact: true }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   expect(submissions).toHaveLength(0);
@@ -155,6 +157,40 @@ test('submission derives API SOC bounds from capacity, preserving timing and ene
 });
 
 for (const language of ['en', 'it', 'de', 'fr']) {
+  test(`capacity error explains the numeric limit and correction in ${language}`, async ({ page }) => {
+    await fixture(page);
+    await page.goto('./');
+    await page.evaluate(language => localStorage.setItem('elettra_lang', language), language);
+    await page.goto('./#add-simulation');
+    await page.locator('#var-battery-policy').selectOption('constant_initial_usable');
+    await page.locator('#var-state-of-health').fill('58');
+    const error = page.locator('[data-role="battery-policy-error"]');
+    const decimal = language === 'en' ? '.' : ',';
+    const initial = { en: 'initial capacity', it: 'capacità iniziale', de: 'Anfangskapazität', fr: 'capacité initiale' }[language];
+    await expect(error).toContainText(initial);
+    for (const number of ['58%', '50%', `86${decimal}21%`, '85%', `49${decimal}3%`]) await expect(error).toContainText(number);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.locator('#var-max-residual-usage').fill('80');
+    await expect(error).toContainText(`46${decimal}4%`);
+    await page.locator('#var-usable-capacity').fill('46.4');
+    await expect(error).toBeHidden();
+    await page.locator('#var-usable-capacity').fill('46.40001');
+    await expect(error).toContainText(`80${decimal}00002%`);
+    await page.locator('#var-state-of-health').fill('0');
+    await expect(error).toBeVisible();
+    await expect(error).not.toContainText(/NaN|Infinity|46[.,]4/);
+    await page.locator('#var-state-of-health').fill('');
+    await expect(error).not.toContainText(/NaN|Infinity/);
+    await page.locator('#var-state-of-health').fill('70');
+    await expect(error).toBeHidden();
+    await page.locator('#var-max-residual-usage').fill('85');
+    await page.locator('#var-usable-capacity').fill('50');
+    await page.locator('#var-state-of-health').fill('58.7');
+    await expect(error).toContainText(`49${decimal}895%`);
+    await page.locator('#var-usable-capacity').fill('49.895');
+    await expect(error).toBeHidden();
+  });
+
   test(`battery fields and timing align with accessible help in ${language}`, async ({ page, isMobile }) => {
     await fixture(page);
     await page.goto('./');
