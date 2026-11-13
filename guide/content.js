@@ -195,7 +195,7 @@ export const guideContent = {
           },
           {
             title: "Custom stops",
-            text: "Open Fleet → Custom Stops and select the stop type. Enter an address or coordinates, or position the point with the map. The Details action opens a consistent read-only dialog; Edit also supports older custom stops whose saved data predate the current form. Use clear names that distinguish depots, charging locations and hubs.",
+            text: "Open Fleet → Custom Stops and select the stop type. Search for an address on the map, or position the crosshair by moving the map; the coordinates are updated automatically. The Details action opens a consistent read-only dialog; Edit also supports older custom stops whose saved data predate the current form. Use clear names that distinguish depots, charging locations and hubs.",
           },
         ],
         figures: getGuideFigures("en", "customStop"),
@@ -800,7 +800,7 @@ export const guideContent = {
         items: [
           { title: "Modelli di autobus", text: "Aprire Flotta → Modelli di autobus e selezionare Aggiungi modello. Scegliere una categoria per inizializzare valori rappresentativi, quindi verificare tutti i campi tecnici ed economici obbligatori. Sostituire i valori predefiniti quando sono disponibili dati dell’operatore o del costruttore." },
           { title: "Limiti della batteria", text: "Numero minimo e massimo di pacchi, capacità e massa definiscono le configurazioni utilizzabili dal calcolo. La potenza massima di ricarica limita la potenza accettata dal veicolo." },
-          { title: "Fermate personalizzate", text: "Aprire Flotta → Fermate personalizzate e scegliere il tipo. Inserire indirizzo o coordinate oppure posizionare il punto sulla mappa. Dettagli apre una finestra coerente in sola lettura; Modifica supporta anche le fermate storiche salvate prima del modulo attuale. Usare nomi chiari per depositi, punti di ricarica e nodi." },
+          { title: "Fermate personalizzate", text: "Aprire Flotta → Fermate personalizzate e scegliere il tipo. Cercare un indirizzo sulla mappa oppure posizionare il mirino spostando la mappa; le coordinate vengono aggiornate automaticamente. Dettagli apre una finestra coerente in sola lettura; Modifica supporta anche le fermate storiche salvate prima del modulo attuale. Usare nomi chiari per depositi, punti di ricarica e nodi." },
         ],
         figures: getGuideFigures("it", "customStop"),
         note: { title: "Prima di modificare o eliminare", text: "I record riutilizzabili possono essere referenziati da turni macchina o analisi. Verificare i lavori dipendenti prima di modificare un record già utilizzato." },

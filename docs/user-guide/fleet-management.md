@@ -59,8 +59,9 @@ timetable, for example:
 - operational hubs.
 
 Open **Fleet → Custom Stops**, choose **Add Custom Stop**, and provide a name,
-type, address, city, and map location. Notes are optional. Positioning the map
-updates the location fields used by the saved record.
+type, address, city, and map location. Notes are optional. Use **Search on map**
+to locate the address, or position the crosshair by moving the map. Either
+method updates the read-only coordinates used by the saved record.
 
 The list supports search, details, edit, and delete. The edit flow also supports
 older custom stops whose stored data predate the current form; recovered fields
