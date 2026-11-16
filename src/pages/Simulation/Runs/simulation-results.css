@@ -1625,6 +1625,10 @@
   white-space: nowrap;
 }
 
+.feasibility-sizing-effect .efficiency-table thead th {
+  color: var(--text-main);
+}
+
 .efficiency-table tbody tr:nth-child(even) {
   background: var(--background-alt);
 }

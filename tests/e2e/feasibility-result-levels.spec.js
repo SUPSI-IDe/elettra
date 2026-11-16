@@ -389,6 +389,7 @@ test("explains reached and configured SOC limits for the selected shift", async 
   await mountResults(page, {
     shiftIds: ["morning"],
     mode: "joint",
+    forecastVerification: { status: "verified" },
     predictionOverrides: {
       "prediction-morning": prediction(
         "prediction-morning",
@@ -437,16 +438,27 @@ test("explains reached and configured SOC limits for the selected shift", async 
 
   await page.locator("details.ya-more-information > summary").click();
   await expect(
-    page.getByRole("columnheader", { name: "Minimum SoC limit (kWh)" }),
-  ).toBeVisible();
+    page.locator('.efficiency-subsection-title'),
+  ).toContainText('Battery Sizing');
   await expect(
-    page.getByRole("columnheader", { name: "Maximum SoC limit (kWh)" }),
-  ).toBeVisible();
+    page.locator('[data-role="forecast-verification"]'),
+  ).toHaveText('Configuration verified');
+  const batterySizingTable = page.locator('[data-role="battery-sizing-table"]');
+  await expect(batterySizingTable.locator('thead th')).toContainText([
+    'Selected packs',
+    'Usable capacity (kWh)',
+    'Maximum limit',
+    'Feasibility',
+  ]);
+  await expect(batterySizingTable.locator('tbody tr').first().locator('td')).toHaveCount(4);
+  const sizingEffect = page.locator('[data-role="feasibility-sizing-effect"]');
+  await expect(sizingEffect).toContainText('Sizing effect on energy consumption');
+  await expect(sizingEffect.locator('tr[data-sizing-configuration]')).toHaveCount(1);
+  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-basis"]')).toContainText('Mean');
+  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-consumption"]')).toHaveText('350.0');
   await expect(
-    page
-      .locator('[data-role="feasibility-selected-predictions"]')
-      .locator('tr[data-prediction-role="selected_reference"]'),
-  ).toContainText("Selected configuration · initial reference");
+    page.locator('details[data-trip-predictions-run-id]'),
+  ).toHaveCount(0);
 
   const adequacy = page.locator(".efficiency-adequacy-panel");
   await expect(adequacy).toContainText("Usable SOC window");
@@ -463,7 +475,7 @@ test("explains reached and configured SOC limits for the selected shift", async 
   );
 });
 
-test("places the initial physical-maximum reference directly after the selected forecast", async ({ page }) => {
+test("compares the initial physical maximum with the selected forecast", async ({ page }) => {
   await mountResults(page, {
     shiftIds: ["morning"],
     mode: "joint",
@@ -505,39 +517,28 @@ test("places the initial physical-maximum reference directly after the selected 
   await selectShiftScope(page, "morning");
   await page.locator("details.ya-more-information > summary").click();
 
-  await expect(
-    page.getByRole("heading", {
-      name: "Energy forecasts used for battery sizing",
-    }),
-  ).toBeVisible();
-
-  const selectedTable = page.locator(
-    '[data-role="feasibility-selected-predictions"]',
+  const sizingEffect = page.locator('[data-role="feasibility-sizing-effect"]');
+  await expect(sizingEffect.locator(':scope > .helper-text')).toHaveCount(0);
+  const initialRow = sizingEffect.locator('tr[data-sizing-configuration="initial"]');
+  const selectedRow = sizingEffect.locator('tr[data-sizing-configuration="selected"]');
+  await expect(initialRow.locator('th')).toHaveText('Maximum limit');
+  await expect(initialRow.locator('td').first()).toHaveText('8');
+  await expect(initialRow).toContainText('693.3');
+  await expect(selectedRow.locator('th')).toHaveText('Selected');
+  await expect(selectedRow.locator('td').first()).toHaveText('3');
+  await expect(selectedRow).toContainText('626.6');
+  await expect(sizingEffect.locator('tbody > tr').nth(0)).toHaveAttribute(
+    'data-sizing-configuration',
+    'initial',
   );
-  const selectedRow = selectedTable.locator(
-    'tr[data-prediction-role="selected"]',
+  await expect(sizingEffect.locator('tbody > tr').nth(1)).toHaveAttribute(
+    'data-sizing-configuration',
+    'selected',
   );
-  await expect(selectedRow).toContainText("Selected and verified configuration");
-  await expect(selectedRow.locator("td").nth(1)).toHaveText("3");
-  const referenceRow = selectedTable.locator(
-    'tr[data-prediction-role="initial_max_physical"]',
-  );
-  await expect(referenceRow).toContainText(
-    "Initial reference · physical maximum",
-  );
-  await expect(referenceRow.locator("td").nth(1)).toHaveText("8");
-  await expect(selectedTable.locator("tbody > tr").nth(0)).toHaveAttribute(
-    "data-prediction-role",
-    "selected",
-  );
-  await expect(selectedTable.locator("tbody > tr").nth(1)).toHaveAttribute(
-    "data-prediction-role",
-    "initial_max_physical",
-  );
-  await expect(page.locator(".efficiency-table-note")).toHaveCount(0);
+  await expect(sizingEffect.locator('[data-role="sizing-effect-mean-change"]')).toHaveCount(0);
 });
 
-test("combines selected and initial-reference roles when they use the same forecast", async ({ page }) => {
+test("shows one selected row when initial and selected use the same forecast", async ({ page }) => {
   await mountResults(page, {
     shiftIds: ["morning"],
     mode: "joint",
@@ -553,13 +554,11 @@ test("combines selected and initial-reference roles when they use the same forec
   await selectShiftScope(page, "morning");
   await page.locator("details.ya-more-information > summary").click();
 
-  const selectedTable = page.locator(
-    '[data-role="feasibility-selected-predictions"]',
-  );
+  const sizingEffect = page.locator('[data-role="feasibility-sizing-effect"]');
+  await expect(sizingEffect.locator('tr[data-sizing-configuration]')).toHaveCount(1);
   await expect(
-    selectedTable.locator('tr[data-prediction-role="selected_reference"]'),
-  ).toContainText("Selected and verified · initial reference");
-  await expect(selectedTable.locator("tbody > tr")).toHaveCount(1);
+    sizingEffect.locator('tr[data-sizing-configuration="selected"]'),
+  ).toContainText('Selected');
 });
 
 test("separates the common result from one selected shift without an aggregate option", async ({ page }) => {
@@ -874,8 +873,8 @@ test("separates the common result from one selected shift without an aggregate o
   expect(chargingLayout?.sessionHeight).toBeLessThanOrEqual(chargingLayout.viewportWidth < 1100 ? 180 : 90);
 
   const moreInformation = shiftDetail.locator("details.ya-more-information");
-  const inlinePredictions = moreInformation.locator(
-    '[data-role="feasibility-shift-predictions"]',
+  const sizingEffect = moreInformation.locator(
+    '[data-role="feasibility-sizing-effect"]',
   );
   await expect(moreInformation).toHaveClass(/result-card/);
   await expect(moreInformation.locator(":scope > summary")).toHaveClass(
@@ -909,22 +908,24 @@ test("separates the common result from one selected shift without an aggregate o
     toggleSymbol: '"▸"',
   });
   await expect(moreInformation).not.toHaveAttribute("open", "");
-  await expect(inlinePredictions).toBeHidden();
+  await expect(sizingEffect).toBeHidden();
   await moreInformation.locator(":scope > summary").click();
   await expect(moreInformation).toHaveAttribute("open", "");
   await expect(
     moreInformation.locator(".ya-more-information__content > .efficiency-section").first(),
   ).not.toContainText("Prediction consumption per vehicle block");
-  await expect(inlinePredictions).toBeVisible();
-  await expect(inlinePredictions.locator("h3").first()).toHaveText("Predictions");
-  await expect(inlinePredictions).toContainText("350.0 kWh");
-  await expect(inlinePredictions).not.toContainText("550.0 kWh");
-  await expect(inlinePredictions.locator("svg")).not.toHaveCount(0);
+  await expect(sizingEffect).toBeVisible();
+  await expect(sizingEffect.locator("h3").first()).toHaveText(
+    "Sizing effect on energy consumption",
+  );
+  await expect(sizingEffect).toContainText("350.0 kWh");
+  await expect(sizingEffect).not.toContainText("550.0 kWh");
+  await expect(sizingEffect.locator("svg")).toHaveCount(0);
   const lastMoreInformationSection = await moreInformation
     .locator(".ya-more-information__content > *")
     .last()
     .getAttribute("data-role");
-  expect(lastMoreInformationSection).toBe("feasibility-shift-predictions");
+  expect(lastMoreInformationSection).toBe("feasibility-sizing-effect");
 
   await expect(shiftDetail.locator('[data-role="feasibility-selected-shift"]')).toHaveText("Morning service");
 
@@ -949,9 +950,9 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(energyAdequacy).toContainText("550.0 kWh");
   await expect(energyAdequacy).not.toContainText("350.0 kWh");
   await expect(moreInformation).toHaveAttribute("open", "");
-  await expect(inlinePredictions).toBeVisible();
-  await expect(inlinePredictions).toContainText("550.0 kWh");
-  await expect(inlinePredictions).not.toContainText("350.0 kWh");
+  await expect(sizingEffect).toBeVisible();
+  await expect(sizingEffect).toContainText("550.0 kWh");
+  await expect(sizingEffect).not.toContainText("350.0 kWh");
   await generalTab.click();
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-limiting-shifts"]')).toContainText("Evening service");
@@ -1021,9 +1022,9 @@ test("never reuses another shift prediction when the selected shift has none", a
   await expect(visualAnalysis.locator("svg")).toHaveCount(0);
 
   await page.locator("details.ya-more-information > summary").click();
-  const predictionsPanel = page.locator('[data-role="feasibility-shift-predictions"]');
-  await expect(predictionsPanel).toContainText("No prediction summaries available");
-  await expect(predictionsPanel).not.toContainText("350.0");
+  await expect(
+    page.locator('[data-role="feasibility-sizing-effect"]'),
+  ).toHaveCount(0);
 });
 
 test("does not match predictions from an equally named but differently identified shift", async ({ page }) => {
@@ -1044,9 +1045,9 @@ test("does not match predictions from an equally named but differently identifie
   await selectShiftScope(page, "evening");
   await page.locator("details.ya-more-information > summary").click();
 
-  await expect(page.locator('[data-role="feasibility-shift-predictions"]')).toContainText(
-    "No prediction summaries available",
-  );
+  await expect(
+    page.locator('[data-role="feasibility-sizing-effect"]'),
+  ).toHaveCount(0);
 });
 
 test("does not present an aggregate multi-shift prediction as one physical shift", async ({ page }) => {
@@ -1062,9 +1063,9 @@ test("does not present an aggregate multi-shift prediction as one physical shift
 
   await selectShiftScope(page, "morning");
   await page.locator("details.ya-more-information > summary").click();
-  const predictionsPanel = page.locator('[data-role="feasibility-shift-predictions"]');
-  await expect(predictionsPanel).toContainText("No prediction summaries available");
-  await expect(predictionsPanel).not.toContainText("900.0");
+  await expect(
+    page.locator('[data-role="feasibility-sizing-effect"]'),
+  ).toHaveCount(0);
 });
 
 test("keeps general and the physical shift available for a single-shift result", async ({ page }) => {
@@ -1441,6 +1442,47 @@ for (const mode of ['battery_only','charging_only','joint']) {
   });
 }
 
+test('compact sizing effect shows the verified aggregate Q95 decision value', async ({page}) => {
+  const analysis = aggregateAnalysis();
+  analysis.optimization_basis = 'aggregate_q95';
+  const q95Prediction = prediction(
+    'prediction-morning',
+    'morning',
+    8,
+    300,
+  );
+  q95Prediction.summary.quantiles.q95 = 470;
+
+  await mountResults(page, {
+    shiftIds: ['morning'],
+    mode: 'joint',
+    consumptionBasis: 'aggregate_q95',
+    consumptionAnalysis: analysis,
+    forecastVerification: {status: 'verified'},
+    predictionOverrides: {'prediction-morning': q95Prediction},
+  });
+  await selectShiftScope(page, 'morning');
+  await page.locator('details.ya-more-information > summary').click();
+
+  const sizingEffect = page.locator('[data-role="feasibility-sizing-effect"]');
+  await expect(
+    sizingEffect.locator('[data-role="sizing-effect-decision-basis"]'),
+  ).toContainText('Q95');
+  await expect(
+    sizingEffect.locator('[data-role="sizing-effect-decision-consumption"]'),
+  ).toHaveText('360.0');
+  await expect(
+    sizingEffect.locator('[data-role="sizing-effect-decision-specific"]'),
+  ).toHaveText('3.600');
+  await expect(
+    sizingEffect.locator('[data-role="sizing-effect-decision-drivetrain"]'),
+  ).toHaveText('310.0');
+  await expect(
+    sizingEffect.locator('[data-role="sizing-effect-decision-auxiliary"]'),
+  ).toHaveText('50.0');
+  await expect(sizingEffect).not.toContainText('470.0 kWh');
+});
+
 test('choosing Q95 preserves current design until an explicit optimization is started', async ({page}) => {
   let writes=0;
   await mountResults(page,{shiftIds:['morning'],consumptionBasis:'mean',consumptionAnalysis:aggregateAnalysis(),forecastVerification:{status:'verified'}});
@@ -1572,6 +1614,82 @@ test('highlights the energy deficit when usable capacity is below predicted cons
   await expect(usableCapacity.locator('..')).toHaveClass(
     /aggregate-energy-kpi--deficit/,
   );
+
+  await page.locator('details.ya-more-information > summary').click();
+  const moreInformation = page.locator(
+    '.feasibility-more-information__content',
+  );
+  await expect(
+    moreInformation.getByRole('heading', {
+      name: 'Optimization Results',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    moreInformation.locator('.efficiency-subsection-title'),
+  ).toHaveCount(0);
+  await expect(
+    moreInformation.locator('[data-role="forecast-verification"]'),
+  ).toHaveCount(0);
+  await expect(
+    moreInformation.locator('[data-role="feasibility-selected-predictions"]'),
+  ).toHaveCount(0);
+  await expect(
+    moreInformation.locator('[data-role="feasibility-shift-predictions"]'),
+  ).toHaveCount(0);
+});
+
+test('keeps only complete optimization results for a feasible shift in an infeasible evaluation', async ({page})=>{
+  await mountResults(page, {
+    shiftIds: ['morning', 'evening'],
+    mode: 'joint',
+    electrificationFeasible: false,
+    batteryResultOverrides: {
+      morning: {
+        optimized_packs: 8,
+        required_total_packs: 8,
+        max_physical_packs: 8,
+        max_physical_kwh: 400,
+        physical_feasible: true,
+        feasibility_status: 'feasible',
+      },
+      evening: {
+        optimized_packs: 12,
+        required_total_packs: 14,
+        excess_packs: 2,
+        max_physical_packs: 12,
+        max_physical_kwh: 600,
+        physical_feasible: false,
+        feasibility_status: 'infeasible_requires_excess_packs',
+      },
+    },
+  });
+
+  await selectShiftScope(page, 'morning');
+  await page.locator('details.ya-more-information > summary').click();
+  const moreInformation = page.locator(
+    '.feasibility-more-information__content',
+  );
+  await expect(
+    moreInformation.locator('.efficiency-subsection-title'),
+  ).toContainText('Battery Sizing');
+  await expect(
+    moreInformation.locator('[data-role="feasibility-selected-predictions"]'),
+  ).toHaveCount(0);
+  await expect(
+    moreInformation.locator('[data-role="feasibility-shift-predictions"]'),
+  ).toHaveCount(0);
+
+  await selectShiftScope(page, 'evening');
+  await expect(
+    moreInformation.locator('.efficiency-subsection-title'),
+  ).toHaveCount(0);
+  await expect(
+    moreInformation.locator('[data-role="feasibility-selected-predictions"]'),
+  ).toHaveCount(0);
+  await expect(
+    moreInformation.locator('[data-role="feasibility-shift-predictions"]'),
+  ).toHaveCount(0);
 });
 
 test('uses the optimized SOC profile instead of summed per-trip Q95 values', async ({page})=>{

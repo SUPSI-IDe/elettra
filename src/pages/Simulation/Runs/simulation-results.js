@@ -3148,10 +3148,15 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
   const electSummary = results.electrification_summary ?? {};
   const verificationStatus = results.integrity_audit?.status ??
     (results.forecast_verification?.status === "verified" ? "verified" : "unverified");
-  const verificationNotice = `<p class="${verificationStatus === "verified" ? "" : "efficiency-infeasibility-notice"}" data-role="forecast-verification">${textContent(
-    t(verificationStatus === "verified" ? "simulation.forecast_verified" :
-      verificationStatus === "duplicate_physical_shifts" ? "simulation.forecast_duplicate" : "simulation.forecast_unverified")
-  )}</p>`;
+  const verificationNotice = verificationStatus === "verified"
+    ? `<p data-role="forecast-verification">${textContent(
+        t("simulation.forecast_verified")
+      )}</p>`
+    : verificationStatus === "duplicate_physical_shifts"
+      ? `<p class="efficiency-infeasibility-notice" data-role="forecast-verification">${textContent(
+          t("simulation.forecast_duplicate")
+        )}</p>`
+      : "";
   let electrificationSummaryHtml = "";
   if (electSummary.status === "infeasible") {
     const infeasibleBuses = Array.isArray(electSummary.infeasible_buses) ? electSummary.infeasible_buses : [];
@@ -3252,9 +3257,25 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
   const batteryEntries = Object.entries(batteryResults).filter(([shiftKey, result]) =>
     matchesSelectedShift(result, shiftKey, viewOptions)
   );
+  const hasInfeasibleBattery = batteryEntries.some(([, batteryEntry]) => {
+    const requiredPacks = toFiniteNumber(
+      batteryEntry?.required_total_packs ?? batteryEntry?.optimized_packs
+    );
+    const maximumPacks = toFiniteNumber(batteryEntry?.max_physical_packs);
+    return batteryEntry?.physical_feasible === false || (
+      requiredPacks != null &&
+      maximumPacks != null &&
+      requiredPacks > maximumPacks
+    );
+  });
+  const isInfeasibleResult = hasShiftSelection(viewOptions)
+    ? hasInfeasibleBattery
+    : results.electrification_feasible === false ||
+      electSummary.status === "infeasible" ||
+      hasInfeasibleBattery;
 
   let batteryTableHtml = "";
-  if (batteryEntries.length) {
+  if (batteryEntries.length && !isInfeasibleResult) {
     let batteryOptimizedTooltipOptions = {};
     const rows = batteryEntries.map(([, b]) => {
       const reqPacks = toFiniteNumber(b.required_total_packs ?? b.optimized_packs);
@@ -3267,9 +3288,6 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
         : physFeasible === false
           ? "badge--negative"
           : "badge--neutral";
-      const overLimit = reqPacks != null && maxPacks != null && reqPacks > maxPacks;
-      const bOpen = overLimit ? "<strong>" : "";
-      const bClose = overLimit ? "</strong>" : "";
       const optimizedKwh = resolveOptimizedInstalledNominalKwh({
         batteryEntry: b,
         batteryResults,
@@ -3288,12 +3306,9 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
       }
       return `
       <tr>
-        <td class="efficiency-td-num">${textContent(String(b.reference_packs ?? "—"))}</td>
         <td class="efficiency-td-num efficiency-td-highlight">${textContent(String(b.optimized_packs ?? "—"))}</td>
         <td class="efficiency-td-num efficiency-td-highlight">${optimizedUsableKwh == null ? "—" : formatFixed(optimizedUsableKwh, 0)}</td>
         <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
-        <td class="efficiency-td-num">${bOpen}${textContent(String(b.required_total_packs ?? "—"))}${bClose}</td>
-        <td class="efficiency-td-num">${textContent(String(b.excess_packs ?? 0))}</td>
         <td><span class="badge badge--compact ${feasBadge}">${textContent(
           b.feasibility_status === "unverified" ? t("simulation.verification_pending") : physFeasible === true
             ? translateOr(
@@ -3313,18 +3328,15 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
     batteryTableHtml = `
       <h4 class="efficiency-subsection-title">${textContent(t("simulation.opt_battery_results") || "Battery Sizing Results")}</h4>
       <div class="efficiency-table-wrap">
-        <table class="efficiency-table">
+        <table class="efficiency-table" data-role="battery-sizing-table">
           <thead>
             <tr>
-              <th>${textContent(t("simulation.reference_packs"))}</th>
-              <th>${textContent(t("simulation.opt_col_opt_packs") || "Optimized Packs")}</th>
+              <th>${textContent(t("simulation.opt_col_selected_packs") || "Selected packs")}</th>
               <th>${usableSocInfoLabelHtml(
-                t("simulation.opt_col_opt_usable_kwh") || "Optimized usable (kWh)",
+                t("simulation.opt_col_selected_usable_kwh") || "Usable capacity (kWh)",
                 batteryOptimizedTooltipOptions
               )}</th>
-              <th>${textContent(t("simulation.opt_col_max_packs") || "Max Physical")}</th>
-              <th>${textContent(t("simulation.opt_col_required_packs") || "Required")}</th>
-              <th>${textContent(t("simulation.opt_col_excess") || "Excess")}</th>
+              <th>${textContent(t("simulation.opt_col_pack_limit") || "Maximum limit")}</th>
               <th class="efficiency-th-text">${textContent(t("simulation.opt_col_feasibility") || "Feasibility")}</th>
             </tr>
           </thead>
@@ -4959,15 +4971,12 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
     .map((run, index) => {
       const summary = run?.summary ?? {};
       const contextualParameters = run?.contextual_parameters ?? {};
-      const runPacks = toFiniteNumber(contextualParameters?.num_battery_packs);
       const meanTotalConsumptionKwh = toOptionalFiniteNumber(
         summary?.total_consumption_kwh
       );
       const meanSpecificConsumptionKwh = toOptionalFiniteNumber(
         summary?.consumption_per_km_kwh
       );
-      const showTripUncertainty =
-        optimizedPacks != null && runPacks != null && runPacks === optimizedPacks;
       const absoluteRows = buildPredictionQuantileRows(summary, "absolute");
       const perKmRows = buildPredictionQuantileRows(summary, "per_km");
       const usesDerivedAuxiliary = [...absoluteRows, ...perKmRows].some(
@@ -5091,9 +5100,6 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
           <div class="predictions-card-grid">
             ${sections.join("")}
           </div>
-          ${showTripUncertainty ? renderTripUncertaintySection(run, {
-            tripStopLookup: viewOptions?.tripStopLookup,
-          }) : ""}
         </article>`;
     })
     .join("");
@@ -5222,7 +5228,6 @@ const renderPredictionsPanel = (el, state, viewOptions = {}) => {
       plan.rows
     );
   });
-  installTripUncertaintyLoaders(el);
 };
 
 const renderEfficiencyCurveChart = (el, rows) => {
@@ -6857,6 +6862,95 @@ const resolveShiftDecisionConsumption = (
   return { totalKwh, perKmKwh };
 };
 
+const buildSizingConsumptionEffectHtml = (
+  predictionData = [],
+  decisionConsumption = {},
+  inputParams = {},
+) => {
+  const selectedPrediction = predictionData.find((row) => row.isOptimized) ??
+    predictionData[0] ?? null;
+  if (!selectedPrediction) return "";
+
+  const initialPrediction = predictionData.find((row) =>
+    ["initial_reference", "initial_max_physical"].includes(row.predictionRole)
+  ) ?? (selectedPrediction.predictionRole === "selected_reference"
+    ? selectedPrediction
+    : null);
+  const comparisonRows = initialPrediction && initialPrediction !== selectedPrediction
+    ? [
+        { key: "initial", row: initialPrediction },
+        { key: "selected", row: selectedPrediction },
+      ]
+    : [{ key: "selected", row: selectedPrediction }];
+  const configurationLabel = (key) => key === "initial"
+    ? translateOr("simulation.sizing_effect_initial", "Maximum limit")
+    : translateOr("simulation.sizing_effect_selected", "Selected");
+  const rowsHtml = comparisonRows.map(({ key, row }) => `
+    <tr data-sizing-configuration="${key}">
+      <th scope="row">${textContent(configurationLabel(key))}</th>
+      <td class="efficiency-td-num">${textContent(String(row.numBatteryPacks ?? "—"))}</td>
+      <td class="efficiency-td-num">${formatOptionalFixed(row.totalWeightKg, 0)}</td>
+      <td class="efficiency-td-num">${formatOptionalFixed(row.totalConsumptionMeanKwh, 1)}</td>
+      <td class="efficiency-td-num">${formatOptionalFixed(row.consumptionPerKmMeanKwh, 3)}</td>
+    </tr>`).join("");
+
+  const decisionTotalKwh = toOptionalFiniteNumber(decisionConsumption.totalKwh);
+  const decisionPerKmKwh = toOptionalFiniteNumber(decisionConsumption.perKmKwh);
+  const decisionBasis = feasibilityDemandBasisLabel(inputParams);
+  const selectedMeanKwh = toOptionalFiniteNumber(selectedPrediction.totalConsumptionMeanKwh);
+  const meanDrivetrainKwh = toOptionalFiniteNumber(selectedPrediction.totalDrivetrainKwh);
+  const meanAuxiliaryKwh = toOptionalFiniteNumber(selectedPrediction.totalAuxiliaryKwh);
+  const componentSumKwh = meanDrivetrainKwh !== null && meanAuxiliaryKwh !== null
+    ? meanDrivetrainKwh + meanAuxiliaryKwh
+    : null;
+  const componentsAreCoherent = componentSumKwh !== null && selectedMeanKwh !== null &&
+    Math.abs(componentSumKwh - selectedMeanKwh) <= Math.max(0.1, Math.abs(selectedMeanKwh) * 0.001);
+  // Auxiliary demand is deterministic for the selected operating conditions. For
+  // Q50/Q95, the aggregate decision total therefore changes the drivetrain share.
+  const decisionAuxiliaryKwh = componentsAreCoherent ? meanAuxiliaryKwh : null;
+  const decisionDrivetrainKwh = decisionTotalKwh !== null && decisionAuxiliaryKwh !== null &&
+    decisionTotalKwh >= decisionAuxiliaryKwh
+    ? decisionTotalKwh - decisionAuxiliaryKwh
+    : null;
+
+  return `
+    <section class="efficiency-section feasibility-sizing-effect" data-role="feasibility-sizing-effect">
+      <h3 class="efficiency-section-title">${textContent(
+        translateOr("simulation.sizing_effect_title", "Sizing effect on energy consumption")
+      )}</h3>
+      <div class="efficiency-table-wrap">
+        <table class="efficiency-table">
+          <thead><tr>
+            <th>${textContent(translateOr("simulation.sizing_effect_configuration", "Configuration"))}</th>
+            <th>${textContent(t("simulation.efficiency_col_packs") || "# Packs")}</th>
+            <th>${textContent(t("simulation.efficiency_col_weight") || "Weight (kg)")}</th>
+            <th>${textContent(translateOr("simulation.sizing_effect_mean_total", "Mean consumption (kWh)"))}</th>
+            <th>${textContent(translateOr("simulation.sizing_effect_mean_specific", "Mean consumption (kWh/km)"))}</th>
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      <div class="efficiency-table-wrap">
+        <table class="efficiency-table" data-role="sizing-effect-decision-table">
+          <thead><tr>
+            <th>${textContent(translateOr("simulation.feasibility_decision_basis", "Decision basis"))}</th>
+            <th>${textContent(t("simulation.predictions_consumption_drivetrain") || "Drivetrain")} (kWh)</th>
+            <th>${textContent(t("simulation.predictions_consumption_auxiliary") || "Auxiliary")} (kWh)</th>
+            <th>${textContent(t("simulation.predictions_consumption_total") || "Total")} (kWh)</th>
+            <th>${textContent(translateOr("simulation.sizing_effect_decision_specific", "Decision-basis specific consumption"))} (kWh/km)</th>
+          </tr></thead>
+          <tbody><tr>
+            <th scope="row" data-role="sizing-effect-decision-basis">${textContent(decisionBasis)}</th>
+            <td class="efficiency-td-num" data-role="sizing-effect-decision-drivetrain">${formatOptionalFixed(decisionDrivetrainKwh, 1)}</td>
+            <td class="efficiency-td-num" data-role="sizing-effect-decision-auxiliary">${formatOptionalFixed(decisionAuxiliaryKwh, 1)}</td>
+            <td class="efficiency-td-num" data-role="sizing-effect-decision-consumption">${formatOptionalFixed(decisionTotalKwh, 1)}</td>
+            <td class="efficiency-td-num" data-role="sizing-effect-decision-specific">${formatOptionalFixed(decisionPerKmKwh, 3)}</td>
+          </tr></tbody>
+        </table>
+      </div>
+    </section>`;
+};
+
 const buildShiftOperationalSummaryHtml = (
   viewState,
   decisionConsumption = {},
@@ -7298,7 +7392,11 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       <span class="efficiency-param-value">${textContent(value)}</span>
     </div>`).join("");
 
-  const isFeasible = results.electrification_feasible !== false;
+  const selectedShiftFeasible =
+    feasibilityViewState?.selectedShiftSummary?.battery?.feasible;
+  const showPredictionDiagnostics =
+    results.electrification_feasible !== false &&
+    (resultScope !== "shift" || selectedShiftFeasible !== false);
 
   const predictionData = buildUnifiedPredictionData(
     scopedPredictionRuns,
@@ -7382,50 +7480,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           : optimizedCoverageMarker.tooltipLines,
       }
     : optimizedCoverageMarker;
-  const hasPerBus = perBusSummary.length > 0;
-  const perBusHeaders = hasPerBus ? `
-              <th>${textContent(t("simulation.opt_col_min_soc") || "Minimum SoC limit (kWh)")}</th>
-              <th>${textContent(t("simulation.opt_col_max_soc") || "Maximum SoC limit (kWh)")}</th>` : "";
-  const predictionTableHeaderHtml = `
-            <tr>
-              <th>${textContent(translateOr("simulation.efficiency_prediction_role", "Role"))}</th>
-              <th>${textContent(t("simulation.efficiency_col_packs") || "# Packs")}</th>
-              <th>${textContent(t("simulation.efficiency_col_capacity") || "Capacity (kWh)")}</th>
-              <th>${textContent(t("simulation.efficiency_col_weight") || "Weight (kg)")}</th>
-              <th>${textContent(t("simulation.efficiency_col_distance") || "Distance (km)")}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_total_q05", "Total Q05 (kWh)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_total_mean", "Total mean — decision basis (kWh)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_total_q50", "Total Q50 (kWh)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_total_q95", "Total Q95 (kWh)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_specific_q05", "Specific Q05 (kWh/km)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_specific_mean", "Specific mean (kWh/km)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_specific_q50", "Specific Q50 (kWh/km)"))}</th>
-              <th>${textContent(translateOr("simulation.efficiency_col_specific_q95", "Specific Q95 (kWh/km)"))}</th>
-              <th>${textContent(t("simulation.efficiency_col_drivetrain") || "Drivetrain mean (kWh)")}</th>
-              <th>${textContent(t("simulation.efficiency_col_auxiliary") || "Auxiliary mean (kWh)")}</th>
-              ${perBusHeaders}
-            </tr>`;
-  const predictionTableForRows = (rows, role) => {
-    const body = rows.length
-      ? buildUnifiedPredictionRows(rows, { includePerBus: hasPerBus })
-      : `<tr><td colspan="${hasPerBus ? 17 : 15}" class="efficiency-no-data">${textContent(
-          t("simulation.efficiency_no_predictions") || "No prediction data available."
-        )}</td></tr>`;
-    return `
-      <div class="efficiency-table-wrap" data-role="${role}">
-        <table class="efficiency-table">
-          <thead>${predictionTableHeaderHtml}</thead>
-          <tbody>${body}</tbody>
-        </table>
-      </div>`;
-  };
-  const selectedPredictionRows = predictionData.filter((row) => row.isOptimized);
-  const comparisonPredictionRows = selectedPredictionRows.length
-    ? predictionData.filter((row) => !row.isOptimized)
-    : [];
-  const orderedPredictionRows = selectedPredictionRows.length
-    ? [...selectedPredictionRows, ...comparisonPredictionRows]
-    : predictionData;
   const shiftDecisionConsumption = resolveShiftDecisionConsumption(
     predictionData,
     results,
@@ -7509,13 +7563,12 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           )}</p>`}
     </section>`;
 
-  const predictionTableHtml = isFeasible || predictionData.length > 0
-    ? `
-    <section class="efficiency-section">
-      <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_prediction_table_title") || "Energy forecasts used for battery sizing")}</h3>
-      <p>${textContent(t("simulation.aggregate_trip_quantiles_note"))}</p>
-      ${predictionTableForRows(orderedPredictionRows, "feasibility-selected-predictions")}
-    </section>`
+  const sizingEffectHtml = showPredictionDiagnostics
+    ? buildSizingConsumptionEffectHtml(
+        predictionData,
+        shiftDecisionConsumption,
+        ip,
+      )
     : "";
 
   const shiftEnergyAdequacyHtml = buildShiftEnergyAdequacyCardHtml(
@@ -7569,16 +7622,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
               <div class="kpi-grid efficiency-params-grid">${conditionsHtml}</div>
             </div>
             ${optimizationHtml}
-            ${predictionTableHtml}
-            <section
-              class="feasibility-shift-predictions"
-              data-role="feasibility-shift-predictions"
-            >
-              <h3 class="feasibility-shift-predictions__title">${textContent(
-                t("simulation.tab_predictions") || "Predictions"
-              )}</h3>
-              <div class="predictions-panel" data-role="predictions-panel"></div>
-            </section>
+            ${sizingEffectHtml}
           </div>
         </details>
       </div>
@@ -7622,13 +7666,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         : [],
     }
   );
-  if (resultScope === "shift") {
-    renderPredictionsPanel(
-      el.querySelector('[data-role="predictions-panel"]'),
-      state,
-      viewOptions
-    );
-  }
 };
 
 const firstFiniteValue = (...values) =>
