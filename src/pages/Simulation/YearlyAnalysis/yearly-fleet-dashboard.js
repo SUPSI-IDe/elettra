@@ -5,6 +5,7 @@ import { buildAnnualFleet, computeFleetTco, computeDieselTco, cumulativeCostComp
 import { renderParameterizedLca } from './parameterized-lca';
 import { renderAnnualCostCharts } from './yearly-fleet-charts';
 import { createAssumptionAutosave } from '../../../utils/assumption-autosave.js';
+import { bindInfoTooltips } from '../../../utils/info-tooltips.js';
 import './yearly-fleet-dashboard.css';
 
 // Kept with this first local iteration so the financial vocabulary is identical
@@ -26,6 +27,7 @@ const vocabulary = {
   dieselMaintenance: ['Diesel maintenance (CHF/km)', 'Manutenzione diesel (CHF/km)', 'Dieselwartung (CHF/km)', 'Entretien diesel (CHF/km)'],
   infrastructureMaintenanceRate: ['Charging infrastructure maintenance (%/year)', 'Manutenzione infrastruttura di ricarica (%/anno)', 'Wartung der Ladeinfrastruktur (%/Jahr)', 'Entretien de la recharge (%/an)'],
   infrastructureMaintenanceTitle: ['Charging maintenance', 'Manutenzione ricarica', 'Wartung Ladetechnik', 'Entretien recharge'],
+  infrastructureMaintenanceRateTitle: ['Annual rate', 'Percentuale annua', 'Jährlicher Prozentsatz', 'Taux annuel'],
   infrastructureMaintenanceUnit: ['% of investment/year', '% dell’investimento/anno', '% der Investition/Jahr', '% de l’investissement/an'],
   fuelPriceTitle: ['Diesel price', 'Prezzo diesel', 'Dieselpreis', 'Prix du diesel'],
   dieselMaintenanceTitle: ['Diesel maintenance', 'Manutenzione diesel', 'Dieselwartung', 'Entretien diesel'],
@@ -35,9 +37,12 @@ const vocabulary = {
   dieselConsumptionTitle: ['Diesel consumption', 'Consumo diesel', 'Dieselverbrauch', 'Consommation diesel'],
   mileagePerBusTitle: ['Annual distance per bus', 'Percorrenza annua per bus', 'Jahreskilometer je Bus', 'Kilométrage annuel par bus'],
   maintenanceMode: ['Infrastructure maintenance estimate', 'Stima manutenzione infrastruttura', 'Schätzung der Infrastrukturwartung', 'Estimation de l’entretien de l’infrastructure'],
-  percentMode: ['Percentage of infrastructure investment', 'Percentuale dell’investimento infrastrutturale', 'Anteil der Infrastrukturinvestition', 'Pourcentage de l’investissement infrastructurel'],
-  fixedMode: ['Custom annual amount', 'Importo annuo personalizzato', 'Eigener Jahresbetrag', 'Montant annuel personnalisé'],
-  maintenanceSource: ['Default: 2%/year. INFRAS 2026, p. 51, gives a 2–5% range. Applying the rate to the full charging infrastructure CAPEX (points, shared works and connection) is our modelling assumption; counted once per fleet, excluding buses and batteries.', 'Default: 2%/anno. INFRAS 2026, p. 51, indica un intervallo del 2–5%. Applicare la percentuale al CAPEX completo della ricarica (punti, opere comuni e allacciamento) è una nostra ipotesi di modello; contato una sola volta per flotta, esclusi bus e batterie.', 'Standard: 2%/Jahr. INFRAS 2026, S. 51, nennt 2–5%. Der Satz auf die gesamten Ladeinfrastrukturkosten (Ladepunkte, gemeinsame Arbeiten und Anschluss) ist unsere Modellannahme; einmal pro Flotte, ohne Busse und Batterien.', 'Valeur initiale : 2%/an. INFRAS 2026, p. 51, indique 2–5%. Appliquer ce taux au CAPEX complet de recharge (bornes, travaux communs et raccordement) est notre hypothèse ; compté une fois par flotte, hors bus et batteries.'],
+  maintenanceModeTitle: ['Estimate method', 'Metodo di stima', 'Schätzmethode', 'Méthode d’estimation'],
+  percentMode: ['% of investment', '% dell’investimento', '% der Investition', '% de l’investissement'],
+  fixedMode: ['Fixed annual amount', 'Importo annuo fisso', 'Fester Jahresbetrag', 'Montant annuel fixe'],
+  maintenanceReference: ['Default: 2%/year. INFRAS 2026, p. 51, gives a 2–5% range.', 'Valore iniziale: 2%/anno. INFRAS 2026, p. 51, indica un intervallo del 2–5%.', 'Standard: 2%/Jahr. INFRAS 2026, S. 51, nennt 2–5%.', 'Valeur initiale : 2%/an. INFRAS 2026, p. 51, indique 2–5%.'],
+  maintenanceFixedReference: ['INFRAS 2026, p. 51: indicative range of 2–5%/year. Here a fixed amount of {amount}/year is set; the percentage method is not applied.', 'INFRAS 2026, p. 51: intervallo indicativo del 2–5%/anno. Qui è impostato un importo fisso di {amount}/anno; il criterio percentuale non viene applicato.', 'INFRAS 2026, S. 51: Richtbereich von 2–5%/Jahr. Hier ist ein Festbetrag von {amount}/Jahr eingestellt; die Prozentmethode wird nicht angewendet.', 'INFRAS 2026, p. 51 : intervalle indicatif de 2–5%/an. Ici, un montant fixe de {amount}/an est défini ; la méthode en pourcentage n’est pas appliquée.'],
+  maintenanceScope: ['Applying the rate to the full charging infrastructure investment (points, shared works and connection) is our modelling assumption. Maintenance is counted once per fleet, excluding buses and batteries.', 'Applicare la percentuale all’investimento completo della ricarica (punti, opere comuni e allacciamento) è una nostra ipotesi di modello. La manutenzione è contata una sola volta per flotta, esclusi bus e batterie.', 'Der Satz auf die gesamte Ladeinvestition (Ladepunkte, gemeinsame Arbeiten und Anschluss) ist unsere Modellannahme. Die Wartung wird einmal pro Flotte gezählt, ohne Busse und Batterien.', 'Appliquer ce taux à l’investissement complet de recharge (bornes, travaux communs et raccordement) est notre hypothèse. L’entretien est compté une fois par flotte, hors bus et batteries.'],
   mileagePerBus: ['Annual distance per bus (km)', 'Km annui per bus', 'Jahreskilometer je Bus', 'Kilométrage annuel par bus'],
   mileageNote: ['One mileage control per bus model and battery size. All duties in that group scale proportionally, preserving their distance-weighted consumption. Fleet kilometres are the sum of group totals. Changing mileage does not rerun feasibility.', 'Un controllo per modello e taglia della batteria. I turni del gruppo sono scalati proporzionalmente, conservando il consumo ponderato per i km. I km della flotta sono la somma dei gruppi. Cambiare i km non ricalcola la fattibilità.', 'Ein Kilometerregler je Busmodell und Batteriegrösse. Umläufe werden proportional skaliert; der kilometergewichtete Verbrauch bleibt erhalten. Flottenkilometer sind die Summe der Gruppen. Die Machbarkeit wird nicht neu berechnet.', 'Un réglage par modèle de bus et taille de batterie. Les roulements du groupe sont ajustés proportionnellement, en conservant la consommation pondérée par les kilomètres. Le total de flotte est la somme des groupes. La faisabilité n’est pas recalculée.'],
   reset: ['Reset all parameters', 'Ripristina tutti i parametri', 'Alle Parameter zurücksetzen', 'Réinitialiser tous les paramètres'],
@@ -51,6 +56,7 @@ const vocabulary = {
   comparisonBoundary: ['Same mileage, horizon and discount rate for both designs. Diesel purchase price, consumption, maintenance and lifetime are editable assumptions. Driver costs and fuel-station infrastructure are excluded from this comparison.', 'Stessi km, orizzonte e tasso per entrambe le tecnologie. Prezzo di acquisto, consumo, manutenzione e vita del diesel sono ipotesi modificabili. Costi degli autisti e infrastruttura di rifornimento diesel sono esclusi da questo confronto.', 'Gleiche Kilometer, gleicher Horizont und Diskontsatz. Dieselkaufpreis, Verbrauch, Wartung und Lebensdauer sind veränderbare Annahmen. Fahrer- und Dieseltankstellenkosten sind ausgeschlossen.', 'Même kilométrage, horizon et taux pour les deux technologies. Le prix, la consommation, l’entretien et la durée de vie du diesel sont modifiables. Les coûts de conduite et d’infrastructure de ravitaillement diesel sont exclus.'],
   saving: ['Electric saving / premium', 'Risparmio / sovraccosto elettrico', 'Einsparung / Mehrkosten Elektro', 'Économie / surcoût électrique'],
   annualMaintenanceEstimate: ['Annual infrastructure maintenance, whole fleet', 'Manutenzione annua infrastruttura, intera flotta', 'Jährliche Infrastrukturwartung, gesamte Flotte', 'Entretien annuel de l’infrastructure, flotte entière'],
+  maintenanceExcluded: ['not included (fixed amount)', 'non inclusa (importo fisso)', 'nicht enthalten (Festbetrag)', 'non inclus (montant fixe)'],
   editAssumptions: ['Edit economic assumptions', 'Modifica ipotesi economiche', 'Wirtschaftliche Annahmen bearbeiten', 'Modifier les hypothèses économiques'],
   assumptionsInfo: ['Information about these assumptions', 'Informazioni su queste ipotesi', 'Informationen zu diesen Annahmen', 'Informations sur ces hypothèses'],
   initialAssumptions: ['Initial values', 'Valori iniziali', 'Ausgangswerte', 'Valeurs initiales'],
@@ -100,6 +106,19 @@ const vocabulary = {
   batteryLife: ['Battery lifetime (years)', 'Vita utile batteria (anni)', 'Batterielebensdauer (Jahre)', 'Durée de vie de la batterie (années)'],
   pointLife: ['Charging point lifetime (years)', 'Vita utile caricatori (anni)', 'Ladepunktlebensdauer (Jahre)', 'Durée de vie des bornes (années)'],
   siteLife: ['Site / connection lifetime (years)', 'Vita utile sito / allacciamento (anni)', 'Standort- / Anschlusslebensdauer (Jahre)', 'Durée de vie du site / raccordement (années)'],
+  additionalParameters: ['Additional economic parameters', 'Parametri economici aggiuntivi', 'Weitere wirtschaftliche Parameter', 'Paramètres économiques supplémentaires'],
+  periodAndCosts: ['Period and costs', 'Periodo e costi', 'Zeitraum und Kosten', 'Période et coûts'],
+  serviceLives: ['Service lives', 'Vite utili', 'Lebensdauern', 'Durées de vie'],
+  horizonTitle: ['Analysis horizon', 'Orizzonte di analisi', 'Analysezeitraum', 'Horizon d’analyse'],
+  rateTitle: ['Discount rate', 'Tasso di attualizzazione', 'Diskontsatz', 'Taux d’actualisation'],
+  bodyLifeTitle: ['Bus', 'Bus', 'Bus', 'Bus'],
+  batteryLifeTitle: ['Battery', 'Batteria', 'Batterie', 'Batterie'],
+  dieselLifeTitle: ['Diesel bus', 'Bus diesel', 'Dieselbus', 'Bus diesel'],
+  pointLifeTitle: ['Charging points', 'Caricatori', 'Ladepunkte', 'Bornes de recharge'],
+  siteLifeTitle: ['Site / connection', 'Sito / allacciamento', 'Standort / Anschluss', 'Site / raccordement'],
+  dieselCapexTitle: ['Diesel purchase price', 'Acquisto bus diesel', 'Dieselbus-Kaufpreis', 'Prix d’achat du bus diesel'],
+  fixedMaintenanceTitle: ['Annual maintenance, whole fleet', 'Manutenzione annua, intera flotta', 'Jährliche Wartung, gesamte Flotte', 'Entretien annuel, flotte entière'],
+  annualChfUnit: ['CHF/year', 'CHF/anno', 'CHF/Jahr', 'CHF/an'],
   energyPrice: ['Electricity price (CHF/kWh grid)', 'Prezzo elettricità (CHF/kWh rete)', 'Strompreis (CHF/kWh Netz)', 'Prix de l’électricité (CHF/kWh réseau)'],
   maintenancePerKm: ['Electric bus maintenance (CHF/km)', 'Manutenzione bus elettrico (CHF/km)', 'Elektrobuswartung (CHF/km)', 'Entretien du bus électrique (CHF/km)'],
   infrastructureMaintenance: ['Infrastructure maintenance, whole fleet (CHF/year)', 'Manutenzione infrastruttura, intera flotta (CHF/anno)', 'Infrastrukturwartung, gesamte Flotte (CHF/Jahr)', 'Entretien de l’infrastructure, flotte entière (CHF/an)'],
@@ -113,8 +132,14 @@ const vocabulary = {
   autosave_help: ['Changes are saved automatically in this annual analysis after you finish editing. Costs and Emissions share the same values, which are restored when you reopen the analysis. Reset values are saved too. This does not rerun feasibility or change the selected design.', 'Le modifiche vengono salvate automaticamente in questa analisi annuale al termine della modifica. Costi ed Emissioni condividono gli stessi valori, che ritrovi alla riapertura. Anche il ripristino dei valori viene salvato. Non viene rilanciata la fattibilità né modificato il dimensionamento scelto.', 'Änderungen werden nach der Eingabe automatisch in dieser Jahresanalyse gespeichert. Kosten und Emissionen verwenden dieselben Werte; beim erneuten Öffnen werden sie wiederhergestellt. Auch zurückgesetzte Werte werden gespeichert. Die Machbarkeit wird nicht neu berechnet und die gewählte Auslegung bleibt erhalten.', 'Les modifications sont enregistrées automatiquement dans cette analyse annuelle à la fin de la saisie. Coûts et Émissions partagent les mêmes valeurs, retrouvées à la réouverture. Les valeurs réinitialisées sont aussi enregistrées. La faisabilité et le dimensionnement choisi ne sont pas recalculés.'],
   retry: ['Retry', 'Riprova', 'Erneut versuchen', 'Réessayer'],
   noInfraMaintenance: ['Infrastructure maintenance is currently excluded (CHF 0/year); enter an annual fleet estimate above.', 'La manutenzione dell’infrastruttura è al momento esclusa (CHF 0/anno); inserisci sopra una stima annuale per la flotta.', 'Infrastrukturwartung ist derzeit ausgeschlossen (CHF 0/Jahr); oben einen Jahreswert für die Flotte eingeben.', 'L’entretien de l’infrastructure est actuellement exclu (CHF 0/an) ; indiquez ci-dessus une estimation annuelle pour la flotte.'],
-  method: ['Calculation and boundaries', 'Calcolo e perimetro', 'Berechnung und Abgrenzung', 'Calcul et périmètre'],
-  methodNote: ['TCO = discounted purchase, replacement and operating costs minus terminal residual value, divided by discounted fleet kilometres. Operating costs occur at year-end; residual values use straight-line remaining life. Battery replacements are counted once. Charging losses use 94% grid-to-bus efficiency. Drivers, taxes, financing fees and depot buildings are excluded. Constant real prices; the discount rate is real.', 'TCO = acquisti, sostituzioni e costi operativi attualizzati meno valore residuo finale, divisi per i km attualizzati della flotta. I costi operativi cadono a fine anno; il residuo è proporzionale alla vita utile rimanente. Le sostituzioni batteria sono contate una sola volta. Rendimento rete-bus 94%. Sono esclusi autisti, imposte, spese di finanziamento ed edifici del deposito. Prezzi reali costanti e tasso reale.', 'TCO = diskontierte Anschaffungs-, Ersatz- und Betriebskosten abzüglich Endrestwert, geteilt durch diskontierte Flottenkilometer. Betriebskosten fallen am Jahresende an; Restwerte entsprechen der verbleibenden Nutzungsdauer. Batterieersatz wird einmal gezählt. Wirkungsgrad Netz–Bus 94%. Fahrer, Steuern, Finanzierungsgebühren und Depotgebäude sind ausgeschlossen. Konstante reale Preise und realer Diskontsatz.', 'TCO = achats, remplacements et coûts d’exploitation actualisés moins valeur résiduelle finale, divisés par les kilomètres actualisés. Les coûts d’exploitation sont en fin d’année ; la valeur résiduelle est proportionnelle à la durée de vie restante. Les remplacements de batteries sont comptés une seule fois. Rendement réseau–bus 94 %. Conducteurs, impôts, frais de financement et bâtiments du dépôt exclus. Prix et taux réels constants.'],
+  method: ['Calculation method and boundaries', 'Metodo di calcolo e perimetro', 'Berechnungsmethode und Abgrenzung', 'Méthode de calcul et périmètre'],
+  methodFormula: ['Discounted purchase, replacement and operating costs minus terminal residual value, divided by discounted fleet kilometres.', 'Acquisti, sostituzioni e costi operativi attualizzati meno valore residuo finale, divisi per i km attualizzati della flotta.', 'Diskontierte Anschaffungs-, Ersatz- und Betriebskosten abzüglich Endrestwert, geteilt durch diskontierte Flottenkilometer.', 'Achats, remplacements et coûts d’exploitation actualisés moins valeur résiduelle finale, divisés par les kilomètres actualisés de la flotte.'],
+  methodTimingTitle: ['Timing and residual values', 'Tempi e valori residui', 'Zeitpunkte und Restwerte', 'Échéances et valeurs résiduelles'],
+  methodTiming: ['Operating costs occur at year-end; residual values use straight-line remaining life. Battery replacements are counted once.', 'I costi operativi cadono a fine anno; il residuo è proporzionale alla vita utile rimanente. Le sostituzioni batteria sono contate una sola volta.', 'Betriebskosten fallen am Jahresende an; Restwerte entsprechen der verbleibenden Nutzungsdauer. Batterieersatz wird einmal gezählt.', 'Les coûts d’exploitation sont en fin d’année ; la valeur résiduelle est proportionnelle à la durée de vie restante. Les remplacements de batteries sont comptés une seule fois.'],
+  methodEnergyTitle: ['Energy', 'Energia', 'Energie', 'Énergie'],
+  methodEnergy: ['Charging losses use 94% grid-to-bus efficiency.', 'Le perdite di ricarica sono calcolate con un rendimento rete-bus del 94%.', 'Ladeverluste werden mit einem Wirkungsgrad Netz–Bus von 94% berechnet.', 'Les pertes de recharge sont calculées avec un rendement réseau–bus de 94 %.'],
+  methodBoundaryTitle: ['Exclusions and prices', 'Esclusioni e prezzi', 'Ausschlüsse und Preise', 'Exclusions et prix'],
+  methodBoundary: ['Drivers, taxes, financing fees and depot buildings are excluded. Constant real prices; the discount rate is real.', 'Sono esclusi autisti, imposte, spese di finanziamento ed edifici del deposito. Prezzi reali costanti e tasso di attualizzazione reale.', 'Fahrer, Steuern, Finanzierungsgebühren und Depotgebäude sind ausgeschlossen. Konstante reale Preise und realer Diskontsatz.', 'Conducteurs, impôts, frais de financement et bâtiments du dépôt exclus. Prix réels constants et taux d’actualisation réel.'],
   replacements: ['Discounted replacements', 'Sostituzioni attualizzate', 'Diskontierte Ersatzinvestitionen', 'Remplacements actualisés'],
   residual: ['Discounted terminal residual', 'Valore residuo finale attualizzato', 'Diskontierter Endrestwert', 'Valeur résiduelle finale actualisée'],
   npv: ['Net discounted lifetime cost', 'Costo netto attualizzato sul periodo', 'Diskontierte Nettokosten im Zeitraum', 'Coût net actualisé sur la période'],
@@ -162,6 +187,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
   let scope = baseline.groups.length === 1 ? baseline.groups[0].id : 'fleet';
   let activeTab = 'costs', costAssumptionsOpen = false, emissionsAssumptionsOpen = false;
   let root = null, emissions = { status: 'idle' }, preview = null, previewTimer, requestId = 0;
+  let unbindMaintenanceTooltip = () => {};
   const paintSaveStatus = () => {
     const status = root?.querySelector('[data-save-status]');
     if (!status) return;
@@ -209,13 +235,11 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       energyPrice: ['energyPriceTitle', fleetLabel('gridEnergyUnit')],
       maintenancePerKm: ['maintenancePerKmTitle', 'CHF/km'],
       dieselConsumption: ['dieselConsumptionTitle', 'l/km'],
-      infrastructureMaintenanceRate: ['infrastructureMaintenanceTitle', fleetLabel('infrastructureMaintenanceUnit')],
       km: ['mileagePerBusTitle', 'km'],
     };
     const sliders = [
       ['fuelPrice', 1, 3, .01], ['dieselMaintenance', .1, .8, .005], ['energyPrice', .05, .6, .01],
       ['maintenancePerKm', .1, .8, .005], ['dieselConsumption', .15, .8, .001],
-      ...(assumptions.infrastructureMaintenanceMode === 'rate' ? [['infrastructureMaintenanceRate', 0, 5, .1]] : []),
     ];
     const slider = (key, min, max, step, group = null) => {
       const value = group ? assumptions.annualKmByGroup[group.id] : assumptions[key] * (percentFields.has(key) ? 100 : 1);
@@ -226,18 +250,28 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       return `<label class="annual-slider"${!group && key !== 'dieselConsumption' ? ' data-cost-only' : ''}><span class="annual-slider__heading"><span class="annual-slider__title">${label(titleKey)}</span><small>${e(unit)}</small>${group ? `<small class="annual-slider__context">${e(context)}</small>` : ''}</span><input type="number" aria-label="${e(accessibleName)}" data-tco-input="${e(name)}" name="${e(name)}" value="${value == null ? '' : Number(value.toFixed(group ? 2 : 4))}" min="${group ? 1 : min}" step="any" required>
         <input type="range" aria-label="${e(accessibleName + ' slider')}" data-tco-input="${e(name)}" min="${Math.min(min, value ?? min)}" max="${Math.max(max, value ?? max)}" step="${step}" value="${value ?? min}"><span class="annual-slider__footnote"><small>${n(Math.min(min, value ?? min), group ? 0 : 2)} — ${n(Math.max(max, value ?? max), group ? 0 : 2)}</small>${group ? `<small>${label('assignedDuties')}: ${e(group.members.map(m => m.name ?? m.id).join(', '))}</small>` : ''}</span></label>`;
     };
-    const fields = ['horizon', 'rate', 'bodyLife', 'batteryLife', 'dieselCapex', 'dieselLife', 'pointLife', 'siteLife',
-      ...(assumptions.infrastructureMaintenanceMode === 'fixed' ? ['infrastructureMaintenance'] : [])];
+    const setting = (key, titleKey, unit) => {
+      const value = assumptions[key] == null ? '' : percentFields.has(key) ? Number((assumptions[key] * 100).toFixed(4)) : assumptions[key];
+      return `<label class="annual-setting"><span class="annual-slider__heading"><span>${label(titleKey)}</span><small>${e(unit)}</small></span><input type="number" aria-label="${label(key)}" name="${key}" data-tco-input="${key}" min="${['horizon', 'bodyLife', 'batteryLife', 'dieselLife', 'pointLife', 'siteLife'].includes(key) ? 1 : 0}" ${key === 'horizon' ? 'max="60"' : key === 'rate' ? 'max="100"' : ''} step="${key === 'infrastructureMaintenanceRate' ? 'any' : key === 'rate' ? '.01' : '1'}" value="${value}" required></label>`;
+    };
     const settingsOpen = root.querySelector('[data-tco-settings]')?.open;
     const assumptionsOpen = activeTab === 'emissions' ? emissionsAssumptionsOpen : costAssumptionsOpen;
+    const maintenanceReference = label(assumptions.infrastructureMaintenanceMode === 'rate' ? 'maintenanceReference' : 'maintenanceFixedReference')
+      .replace('INFRAS 2026', `<a href="${maintenanceReport}" target="_blank" rel="noopener">INFRAS 2026</a>`)
+      .replace('{amount}', `<span data-maintenance-fixed-amount>${chf(assumptions.infrastructureMaintenance)}</span>`);
     return `<form data-tco-form><details class="annual-assumptions result-card" data-tco-assumptions${assumptionsOpen ? ' open' : ''}>
       <summary class="annual-assumptions__toggle result-card__header"><span class="annual-assumptions__title"><span data-assumptions-title></span><span class="annual-autosave-info annual-assumptions__info"><button type="button" aria-label="${label('assumptionsInfo')}" aria-describedby="annual-assumptions-help">i</button><span role="tooltip" id="annual-assumptions-help" data-assumptions-help></span></span></span><span class="annual-assumptions__status" data-assumptions-state></span><span class="annual-assumptions__save" role="status" aria-live="polite" data-save-status></span></summary>
       <div class="annual-assumptions__body result-card__body"><div class="annual-assumptions__actions"><button type="button" class="result-header-action" data-tco-reset></button></div>
         <div class="annual-fleet-inputs annual-fleet-inputs--sliders">${sliders.map(args => slider(...args)).join('')}${baseline.groups.map(g => slider('km', 1000, Math.max(180000, Math.round(g.km / g.count * 2)), 100, g)).join('')}</div>
-        <p class="helper-text" data-cost-only><span data-maintenance-estimate></span> · <a href="${maintenanceReport}" target="_blank" rel="noopener" title="${e(fleetLabel('maintenanceSource'))}">INFRAS 2026 · p. 51 ⓘ</a></p>
-        <details data-tco-settings data-cost-only${settingsOpen ? ' open' : ''}><summary>${label('method')}</summary><div class="annual-fleet-inputs">
-          <label>${label('maintenanceMode')}<select name="infrastructureMaintenanceMode" data-tco-input="infrastructureMaintenanceMode"><option value="rate"${assumptions.infrastructureMaintenanceMode === 'rate' ? ' selected' : ''}>${label('percentMode')}</option><option value="fixed"${assumptions.infrastructureMaintenanceMode === 'fixed' ? ' selected' : ''}>${label('fixedMode')}</option></select></label>
-          ${fields.map(key => `<label>${label(key)}<input type="number" name="${key}" data-tco-input="${key}" min="${['horizon', 'bodyLife', 'batteryLife', 'dieselLife', 'pointLife', 'siteLife'].includes(key) ? 1 : 0}" ${key === 'horizon' ? 'max="60"' : key === 'rate' ? 'max="100"' : ''} step="${key === 'rate' ? '.01' : '1'}" value="${assumptions[key] == null ? '' : assumptions[key] * (percentFields.has(key) ? 100 : 1)}" required></label>`).join('')}</div><p class="helper-text">${label('maintenanceSource')}</p></details>
+        <p class="helper-text" data-cost-only><span data-maintenance-estimate></span></p>
+        <details class="annual-economic-disclosure" data-tco-settings data-cost-only${settingsOpen ? ' open' : ''}><summary>${label('additionalParameters')}</summary><div class="annual-economic-settings annual-economic-disclosure__body">
+          <fieldset><legend>${label('infrastructureMaintenanceTitle')}</legend><div class="annual-fleet-inputs annual-fleet-inputs--settings">
+            <label class="annual-setting"><span class="annual-slider__heading">${label('maintenanceModeTitle')}</span><select aria-label="${label('maintenanceMode')}" name="infrastructureMaintenanceMode" data-tco-input="infrastructureMaintenanceMode"><option value="rate"${assumptions.infrastructureMaintenanceMode === 'rate' ? ' selected' : ''}>${label('percentMode')}</option><option value="fixed"${assumptions.infrastructureMaintenanceMode === 'fixed' ? ' selected' : ''}>${label('fixedMode')}</option></select></label>
+            ${assumptions.infrastructureMaintenanceMode === 'fixed' ? setting('infrastructureMaintenance', 'fixedMaintenanceTitle', fleetLabel('annualChfUnit')) : setting('infrastructureMaintenanceRate', 'infrastructureMaintenanceRateTitle', fleetLabel('infrastructureMaintenanceUnit'))}
+          </div><div class="annual-economic-notes"><p>${maintenanceReference}${assumptions.infrastructureMaintenanceMode === 'rate' ? ` <button type="button" class="info-icon annual-maintenance-info" aria-label="${label('infraMaintenance')}" aria-describedby="annual-maintenance-help" aria-expanded="false">i<span class="info-tooltip" role="tooltip" id="annual-maintenance-help" hidden>${label('maintenanceScope')}</span></button>` : ''}</p></div></fieldset>
+          <fieldset><legend>${label('periodAndCosts')}</legend><div class="annual-fleet-inputs annual-fleet-inputs--settings">${setting('horizon', 'horizonTitle', fleetLabel('years'))}${setting('rate', 'rateTitle', '%')}${setting('dieselCapex', 'dieselCapexTitle', 'CHF/bus')}</div></fieldset>
+          <fieldset><legend>${label('serviceLives')}</legend><div class="annual-fleet-inputs annual-fleet-inputs--settings">${['bodyLife', 'batteryLife', 'dieselLife', 'pointLife', 'siteLife'].map(key => setting(key, `${key}Title`, fleetLabel('years'))).join('')}</div></fieldset>
+        </div></details>
         <button type="button" data-autosave-retry hidden>${label('retry')}</button>
       </div></details></form>`;
   };
@@ -334,7 +368,11 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     assumptionState.textContent = fleetLabel(modified ? 'modifiedAssumptions' : 'initialAssumptions');
     assumptionState.dataset.modified = String(modified);
     const maintenance = assumptions.infrastructureMaintenanceMode === 'rate' ? current.infrastructure.total * assumptions.infrastructureMaintenanceRate : assumptions.infrastructureMaintenance;
-    root.querySelector('[data-maintenance-estimate]').textContent = `${fleetLabel('annualMaintenanceEstimate')}: ${chf(maintenance)}`;
+    const maintenanceExcluded = assumptions.infrastructureMaintenanceMode === 'fixed' && maintenance === 0;
+    const maintenanceBasis = assumptions.infrastructureMaintenanceMode === 'rate' ? `${n(assumptions.infrastructureMaintenanceRate * 100, 2)}%` : fleetLabel(maintenanceExcluded ? 'maintenanceExcluded' : 'fixedMode');
+    root.querySelector('[data-maintenance-estimate]').textContent = `${fleetLabel('annualMaintenanceEstimate')}: ${chf(maintenance)} — ${maintenanceBasis}`;
+    const fixedMaintenanceAmount = root.querySelector('[data-maintenance-fixed-amount]');
+    if (fixedMaintenanceAmount) fixedMaintenanceAmount.textContent = chf(maintenance);
     paintSaveStatus();
     const financial = root.querySelector('[data-annual-financial]');
     const summary = financial.querySelector('[data-annual-financial-summary]');
@@ -355,7 +393,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       <h3>${label('annual')} · ${label('electric')}</h3>${table(['', 'CHF', 'CHF/km'], result.operating.filter(c => c.key !== 'heater' || heater > 0).map(c => row([label(c.key), chf(c.annual / divisor), `${n(c.annual / local.totals.km, 3)} CHF/km`])), row([label('total'), chf(result.annualOpex / divisor), `${n(result.annualOpex / local.totals.km, 3)} CHF/km`]))}` : ''}
       ${diesel ? `<h3>${label('annual')} · ${label('diesel')}</h3>${table(['', 'CHF', 'CHF/km'], diesel.operating.map(c => row([label(c.key), chf(c.annual / divisor), `${n(c.annual / local.totals.km, 3)} CHF/km`])), row([label('total'), chf(diesel.annualOpex / divisor), `${n(diesel.annualOpex / local.totals.km, 3)} CHF/km`]))}` : ''}
       <details data-detail="infrastructure"><summary>${label('infrastructure')}</summary><p class="helper-text">${label('allocation')}</p>${table([label('location'), label('points'), label('site'), label('connection'), label('total')], current.stations.map(site => row([e(site.stopName), chf(scaled(site.points, share / divisor)), chf(scaled(site.fixed, share / divisor)), chf(scaled(site.power, share / divisor)), chf(scaled(site.total, share / divisor))])), row([label('total'), ...['points', 'fixed', 'power', 'total'].map(key => chf(scaled(local.infrastructure[key], 1 / divisor)))]))}</details>
-      <details data-detail="method"><summary>${label('method')}</summary><p class="helper-text">${label('methodNote')}</p>${result && diesel ? table(['', label('electric'), label('diesel')], [row([label('replacements'), chf(result.discountedReplacements / divisor), chf(diesel.discountedReplacements / divisor)]), row([label('residual'), chf(result.discountedResidual / divisor), chf(diesel.discountedResidual / divisor)])]) : ''}</details>`;
+      <details class="annual-economic-disclosure" data-detail="method"><summary>${label('method')}</summary><div class="annual-economic-disclosure__body"><dl class="annual-method-notes"><div><dt>TCO</dt><dd>${label('methodFormula')}</dd></div>${['Timing', 'Energy', 'Boundary'].map(part => `<div><dt>${label(`method${part}Title`)}</dt><dd>${label(`method${part}`)}</dd></div>`).join('')}</dl>${result && diesel ? table(['', label('electric'), label('diesel')], [row([label('replacements'), chf(result.discountedReplacements / divisor), chf(diesel.discountedReplacements / divisor)]), row([label('residual'), chf(result.discountedResidual / divisor), chf(diesel.discountedResidual / divisor)])]) : ''}</div></details>`;
     detail.querySelectorAll('details').forEach(el => { el.open = openDetails.includes(el.dataset.detail); });
     if (comparison) renderAnnualCostCharts({ opexHost: summary.querySelector('[data-cost-opex]'), cumulativeHost: summary.querySelector('[data-cost-cumulative]'), electric: result, diesel, comparison, divisor, assumptions, label: fleetLabel });
     const lcaHost = root.querySelector('[data-annual-lca]');
@@ -432,10 +470,10 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     void autosave.flush();
     event.preventDefault(); event.returnValue = '';
   };
-  const unbind = () => { root?.removeEventListener('input', onInput); root?.removeEventListener('change', onChange); root?.removeEventListener('click', onClick); root?.removeEventListener('submit', onSubmit); root?.removeEventListener('toggle', onToggle, true); };
+  const unbind = () => { unbindMaintenanceTooltip(); unbindMaintenanceTooltip = () => {}; root?.removeEventListener('input', onInput); root?.removeEventListener('change', onChange); root?.removeEventListener('click', onClick); root?.removeEventListener('submit', onSubmit); root?.removeEventListener('toggle', onToggle, true); };
   return {
     mount(el, state) {
-      if (root !== el) { unbind(); root = el; root.addEventListener('input', onInput); root.addEventListener('change', onChange); root.addEventListener('click', onClick); root.addEventListener('submit', onSubmit); root.addEventListener('toggle', onToggle, true); window.addEventListener('beforeunload', beforeUnload); }
+      if (root !== el) { unbind(); root = el; root.addEventListener('input', onInput); root.addEventListener('change', onChange); root.addEventListener('click', onClick); root.addEventListener('submit', onSubmit); root.addEventListener('toggle', onToggle, true); unbindMaintenanceTooltip = bindInfoTooltips(root, '.annual-maintenance-info'); window.addEventListener('beforeunload', beforeUnload); }
       emissions = state; paint(true);
     },
     update(state) { emissions = state; paint(true); },

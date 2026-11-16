@@ -14,6 +14,7 @@ test('representative and fleet views reconcile investment and TCO, assumptions a
   await page.route('**/api/v1/**', route => route.fulfill({ json: {} }));
   await page.goto('./');
   await page.evaluate(async () => {
+    await import('/elettra/src/style.css');
     localStorage.setItem('elettra_lang', 'en');
     document.body.innerHTML = '<main id="test-annual"></main>';
     const { createYearlyFleetDashboard } = await import('/elettra/src/pages/Simulation/YearlyAnalysis/yearly-fleet-dashboard.js');
@@ -180,6 +181,7 @@ test('different battery groups retain duties and consumption; sliders restore di
   await page.route('**/api/v1/**', route => route.fulfill({ json: {} }));
   await page.goto('./');
   await page.evaluate(async template => {
+    await import('/elettra/src/style.css');
     localStorage.setItem('elettra_lang', 'en');
     document.body.innerHTML = '<main id="test-annual"></main>';
     const { createYearlyFleetDashboard } = await import('/elettra/src/pages/Simulation/YearlyAnalysis/yearly-fleet-dashboard.js');
@@ -273,14 +275,15 @@ test('different battery groups retain duties and consumption; sliders restore di
   }
   await page.locator('[data-tco-assumptions] > summary').click();
   await expect(page.locator('[data-tco-assumptions]')).toHaveAttribute('open', '');
-  await expect(page.getByRole('slider')).toHaveCount(8);
-  const maintenance = page.locator('input[type="range"][data-tco-input="infrastructureMaintenanceRate"]');
+  await expect(page.getByRole('slider')).toHaveCount(7);
+  await page.locator('[data-tco-settings] > summary').click();
+  const maintenance = page.locator('[data-tco-settings] input[type="number"][data-tco-input="infrastructureMaintenanceRate"]');
   await expect(maintenance).toHaveValue('2');
   await expect(page.locator('[data-maintenance-estimate]')).toContainText("CHF 8'000");
-  await maintenance.evaluate(el => { window.originalSlider = el; });
-  await maintenance.focus(); await maintenance.press('ArrowRight'); await maintenance.press('ArrowRight');
+  await maintenance.evaluate(el => { window.originalMaintenanceInput = el; });
+  await maintenance.fill('2.2');
   await expect(maintenance).toHaveValue('2.2');
-  expect(await maintenance.evaluate(el => window.originalSlider === el)).toBe(true);
+  expect(await maintenance.evaluate(el => window.originalMaintenanceInput === el)).toBe(true);
   await expect(page.locator('[data-maintenance-estimate]')).toContainText("CHF 8'800");
   await page.locator('input[type="number"][data-tco-input="km:long"]').fill('100000');
   await expect(page.locator('[data-summary="distance"] strong')).toHaveText("120'000");
@@ -302,12 +305,11 @@ test('different battery groups retain duties and consumption; sliders restore di
   await expect(page.getByRole('spinbutton', { name: 'Diesel consumption (l/km)', exact: true })).toBeHidden();
   await emissionsAssumptions.locator(':scope > summary').click();
   await expect(emissionsAssumptions).toHaveAttribute('open', '');
+  await expect(emissionsAssumptions.locator('.annual-assumptions__body')).toHaveCSS('display', 'flex');
   const emissionsSliderLayout = await emissionsAssumptions.evaluate(element => ({
-    bodyDisplay: getComputedStyle(element.querySelector('.annual-assumptions__body')).display,
     rangeTops: [...element.querySelectorAll('input[type="range"]')].filter(input => input.offsetParent).map(input => input.getBoundingClientRect().top),
     viewportWidth: innerWidth,
   }));
-  expect(emissionsSliderLayout.bodyDisplay).toBe('flex');
   if (emissionsSliderLayout.viewportWidth > 700) expect(emissionsSliderLayout.rangeTops).toEqual(emissionsSliderLayout.rangeTops.map(() => emissionsSliderLayout.rangeTops[0]));
   await expect(page.locator('[data-role="ya-lca-indicators"]')).toContainText('PE non-renewable');
   await page.locator('.ya-lca-details summary').click();

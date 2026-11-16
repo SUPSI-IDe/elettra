@@ -67,6 +67,22 @@
 .annual-slider input[type="number"] { font-variant-numeric: tabular-nums; }
 .annual-slider small { color: #647480; font-variant-numeric: tabular-nums; }
 .annual-fleet-inputs select { width: 100%; padding: .55rem; border: 1px solid #c8d2d8; border-radius: .4rem; font: inherit; }
+.annual-economic-disclosure > summary { color: var(--text-main, #263238); font-size: .95rem; font-weight: 600; cursor: pointer; }
+[data-tco-settings] > summary { font-weight: 700; }
+.annual-economic-disclosure__body { padding-top: 1rem; }
+.annual-economic-settings { display: grid; gap: 1.5rem; min-width: 0; }
+.annual-economic-settings fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.annual-economic-settings legend { padding: 0; color: var(--text-main, #263238); font-size: .9rem; font-weight: 600; }
+.annual-fleet-inputs--settings { row-gap: .5rem; margin: .75rem 0 0; }
+.annual-fleet-inputs .annual-setting { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: subgrid; grid-row: span 2; gap: .5rem; min-width: 0; padding-bottom: .5rem; }
+.annual-setting small { color: #647480; }
+.annual-setting select { box-sizing: border-box; min-width: 0; }
+.annual-economic-notes, .annual-method-notes { display: grid; gap: .65rem; margin: .5rem 0 0; color: var(--text-main, #263238); font-size: .9rem; line-height: 1.5; overflow-wrap: anywhere; }
+.annual-economic-notes p, .annual-method-notes dd { margin: 0; }
+.annual-method-notes { margin: 0; }
+.annual-method-notes dt, .annual-method-notes dd { display: inline; }
+.annual-method-notes dt { font-weight: 600; }
+.annual-method-notes dt::after { content: ": "; }
 .annual-cost-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; margin: 1.5rem 0; }
 .annual-cost-charts figure { margin: 0; min-width: 0; }
 .annual-cost-charts figcaption { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; }
