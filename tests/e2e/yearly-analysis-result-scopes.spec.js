@@ -413,7 +413,7 @@ test("yearly results show a generic loading popup while initial data is fetched"
   await expect(popup).toBeHidden();
 });
 
-test("yearly HVAC and GTFS information use the shared 75/25 disclosure layout", async ({ page }) => {
+test("yearly HVAC and GTFS information use 75/25 on desktop and equal cards on narrow screens", async ({ page }) => {
   const dataset = {
     gtfs_year: 2026,
     gtfs_file_date: "2026-10-01",
@@ -446,7 +446,8 @@ test("yearly HVAC and GTFS information use the shared 75/25 disclosure layout", 
     const { y, width, height } = element.getBoundingClientRect();
     return { y, width, height };
   }));
-  expect(rectangles[0].width / rectangles[1].width).toBeCloseTo(3, 1);
+  const narrow = page.viewportSize().width <= 480;
+  expect(rectangles[0].width / rectangles[1].width).toBeCloseTo(narrow ? 1 : 3, 1);
   expect(Math.abs(rectangles[0].y - rectangles[1].y)).toBeLessThan(1);
   expect(Math.abs(rectangles[0].height - rectangles[1].height)).toBeLessThan(1);
 
@@ -460,11 +461,17 @@ test("yearly HVAC and GTFS information use the shared 75/25 disclosure layout", 
   const contentWidth = await hvac.locator('.results-information-content').evaluate(
     (element) => element.getBoundingClientRect().width,
   );
-  expect(Math.abs(hvacToggleWidth - contentWidth)).toBeLessThan(1);
+  const expectedContentWidth = narrow ? (await bar.boundingBox()).width : hvacToggleWidth;
+  expect(Math.abs(expectedContentWidth - contentWidth)).toBeLessThan(1);
 
   await gtfs.locator(':scope > summary').click();
   await expect(gtfs).toHaveAttribute("open", "");
   await expect(hvac).not.toHaveAttribute("open", "");
+  if (narrow) {
+    const gtfsContentWidth = await gtfs.locator('.results-information-content').evaluate(element => element.getBoundingClientRect().width);
+    expect(Math.abs(gtfsContentWidth - (await bar.boundingBox()).width)).toBeLessThan(1);
+    expect(await bar.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+  }
 
   await page.getByRole("tab", { name: "Morning service" }).click();
   const shiftSummarySlot = page.locator('[data-role="ya-shift-summary-slot"]');
