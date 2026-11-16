@@ -25,6 +25,15 @@ const vocabulary = {
   dieselConsumption: ['Diesel consumption (l/km)', 'Consumo diesel (l/km)', 'Dieselverbrauch (l/km)', 'Consommation diesel (l/km)'],
   dieselMaintenance: ['Diesel maintenance (CHF/km)', 'Manutenzione diesel (CHF/km)', 'Dieselwartung (CHF/km)', 'Entretien diesel (CHF/km)'],
   infrastructureMaintenanceRate: ['Charging infrastructure maintenance (%/year)', 'Manutenzione infrastruttura di ricarica (%/anno)', 'Wartung der Ladeinfrastruktur (%/Jahr)', 'Entretien de la recharge (%/an)'],
+  infrastructureMaintenanceTitle: ['Charging maintenance', 'Manutenzione ricarica', 'Wartung Ladetechnik', 'Entretien recharge'],
+  infrastructureMaintenanceUnit: ['% of investment/year', '% dell’investimento/anno', '% der Investition/Jahr', '% de l’investissement/an'],
+  fuelPriceTitle: ['Diesel price', 'Prezzo diesel', 'Dieselpreis', 'Prix du diesel'],
+  dieselMaintenanceTitle: ['Diesel maintenance', 'Manutenzione diesel', 'Dieselwartung', 'Entretien diesel'],
+  energyPriceTitle: ['Electricity price', 'Prezzo elettricità', 'Strompreis', 'Prix de l’électricité'],
+  gridEnergyUnit: ['CHF/kWh grid', 'CHF/kWh rete', 'CHF/kWh Netz', 'CHF/kWh réseau'],
+  maintenancePerKmTitle: ['Electric bus maintenance', 'Manutenzione bus elettrico', 'Elektrobuswartung', 'Entretien du bus électrique'],
+  dieselConsumptionTitle: ['Diesel consumption', 'Consumo diesel', 'Dieselverbrauch', 'Consommation diesel'],
+  mileagePerBusTitle: ['Annual distance per bus', 'Percorrenza annua per bus', 'Jahreskilometer je Bus', 'Kilométrage annuel par bus'],
   maintenanceMode: ['Infrastructure maintenance estimate', 'Stima manutenzione infrastruttura', 'Schätzung der Infrastrukturwartung', 'Estimation de l’entretien de l’infrastructure'],
   percentMode: ['Percentage of infrastructure investment', 'Percentuale dell’investimento infrastrutturale', 'Anteil der Infrastrukturinvestition', 'Pourcentage de l’investissement infrastructurel'],
   fixedMode: ['Custom annual amount', 'Importo annuo personalizzato', 'Eigener Jahresbetrag', 'Montant annuel personnalisé'],
@@ -194,6 +203,15 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     }, 500);
   };
   const controls = current => {
+    const sliderLabels = {
+      fuelPrice: ['fuelPriceTitle', 'CHF/l'],
+      dieselMaintenance: ['dieselMaintenanceTitle', 'CHF/km'],
+      energyPrice: ['energyPriceTitle', fleetLabel('gridEnergyUnit')],
+      maintenancePerKm: ['maintenancePerKmTitle', 'CHF/km'],
+      dieselConsumption: ['dieselConsumptionTitle', 'l/km'],
+      infrastructureMaintenanceRate: ['infrastructureMaintenanceTitle', fleetLabel('infrastructureMaintenanceUnit')],
+      km: ['mileagePerBusTitle', 'km'],
+    };
     const sliders = [
       ['fuelPrice', 1, 3, .01], ['dieselMaintenance', .1, .8, .005], ['energyPrice', .05, .6, .01],
       ['maintenancePerKm', .1, .8, .005], ['dieselConsumption', .15, .8, .001],
@@ -202,9 +220,11 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     const slider = (key, min, max, step, group = null) => {
       const value = group ? assumptions.annualKmByGroup[group.id] : assumptions[key] * (percentFields.has(key) ? 100 : 1);
       const name = group ? `km:${group.id}` : key;
-      const title = group ? `${label('mileagePerBus')} · ${e(group.modelName ?? '')} · ${group.packs} ${label('packs')} (${group.count} ${label(group.count === 1 ? 'bus' : 'buses')})` : label(key);
-      return `<label class="annual-slider"${!group && key !== 'dieselConsumption' ? ' data-cost-only' : ''}><span class="annual-slider__title">${title}</span><input type="number" aria-label="${e(group ? fleetLabel('mileagePerBus') + ' · ' + group.packs : fleetLabel(key))}" data-tco-input="${e(name)}" name="${e(name)}" value="${value == null ? '' : Number(value.toFixed(group ? 2 : 4))}" min="${group ? 1 : min}" step="any" required>
-        <input type="range" aria-label="${e(group ? fleetLabel('mileagePerBus') + ' · ' + group.packs + ' slider' : fleetLabel(key) + ' slider')}" data-tco-input="${e(name)}" min="${Math.min(min, value ?? min)}" max="${Math.max(max, value ?? max)}" step="${step}" value="${value ?? min}"><small>${n(Math.min(min, value ?? min), group ? 0 : 2)} — ${n(Math.max(max, value ?? max), group ? 0 : 2)}</small>${group ? `<small>${label('assignedDuties')}: ${e(group.members.map(m => m.name ?? m.id).join(', '))}</small>` : ''}</label>`;
+      const [titleKey, unit] = sliderLabels[key];
+      const context = group ? [group.modelName, `${group.packs} ${fleetLabel('packs')}`, `${group.count} ${fleetLabel(group.count === 1 ? 'bus' : 'buses')}`].filter(Boolean).join(' · ') : '';
+      const accessibleName = group ? `${fleetLabel('mileagePerBus')} · ${context}` : fleetLabel(key);
+      return `<label class="annual-slider"${!group && key !== 'dieselConsumption' ? ' data-cost-only' : ''}><span class="annual-slider__heading"><span class="annual-slider__title">${label(titleKey)}</span><small>${e(unit)}</small>${group ? `<small class="annual-slider__context">${e(context)}</small>` : ''}</span><input type="number" aria-label="${e(accessibleName)}" data-tco-input="${e(name)}" name="${e(name)}" value="${value == null ? '' : Number(value.toFixed(group ? 2 : 4))}" min="${group ? 1 : min}" step="any" required>
+        <input type="range" aria-label="${e(accessibleName + ' slider')}" data-tco-input="${e(name)}" min="${Math.min(min, value ?? min)}" max="${Math.max(max, value ?? max)}" step="${step}" value="${value ?? min}"><span class="annual-slider__footnote"><small>${n(Math.min(min, value ?? min), group ? 0 : 2)} — ${n(Math.max(max, value ?? max), group ? 0 : 2)}</small>${group ? `<small>${label('assignedDuties')}: ${e(group.members.map(m => m.name ?? m.id).join(', '))}</small>` : ''}</span></label>`;
     };
     const fields = ['horizon', 'rate', 'bodyLife', 'batteryLife', 'dieselCapex', 'dieselLife', 'pointLife', 'siteLife',
       ...(assumptions.infrastructureMaintenanceMode === 'fixed' ? ['infrastructureMaintenance'] : [])];
@@ -213,7 +233,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     return `<form data-tco-form><details class="annual-assumptions result-card" data-tco-assumptions${assumptionsOpen ? ' open' : ''}>
       <summary class="annual-assumptions__toggle result-card__header"><span class="annual-assumptions__title"><span data-assumptions-title></span><span class="annual-autosave-info annual-assumptions__info"><button type="button" aria-label="${label('assumptionsInfo')}" aria-describedby="annual-assumptions-help">i</button><span role="tooltip" id="annual-assumptions-help" data-assumptions-help></span></span></span><span class="annual-assumptions__status" data-assumptions-state></span><span class="annual-assumptions__save" role="status" aria-live="polite" data-save-status></span></summary>
       <div class="annual-assumptions__body result-card__body"><div class="annual-assumptions__actions"><button type="button" class="result-header-action" data-tco-reset></button></div>
-        <div class="annual-fleet-inputs">${sliders.map(args => slider(...args)).join('')}${baseline.groups.map(g => slider('km', 1000, Math.max(180000, Math.round(g.km / g.count * 2)), 100, g)).join('')}</div>
+        <div class="annual-fleet-inputs annual-fleet-inputs--sliders">${sliders.map(args => slider(...args)).join('')}${baseline.groups.map(g => slider('km', 1000, Math.max(180000, Math.round(g.km / g.count * 2)), 100, g)).join('')}</div>
         <p class="helper-text" data-cost-only><span data-maintenance-estimate></span> · <a href="${maintenanceReport}" target="_blank" rel="noopener" title="${e(fleetLabel('maintenanceSource'))}">INFRAS 2026 · p. 51 ⓘ</a></p>
         <details data-tco-settings data-cost-only${settingsOpen ? ' open' : ''}><summary>${label('method')}</summary><div class="annual-fleet-inputs">
           <label>${label('maintenanceMode')}<select name="infrastructureMaintenanceMode" data-tco-input="infrastructureMaintenanceMode"><option value="rate"${assumptions.infrastructureMaintenanceMode === 'rate' ? ' selected' : ''}>${label('percentMode')}</option><option value="fixed"${assumptions.infrastructureMaintenanceMode === 'fixed' ? ' selected' : ''}>${label('fixedMode')}</option></select></label>
