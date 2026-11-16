@@ -67,13 +67,14 @@
 .annual-cost-charts figure { margin: 0; min-width: 0; }
 .annual-cost-charts figcaption { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; }
 .annual-chart-scroll { overflow-x: auto; }
-.annual-chart-scroll svg { display: block; width: 100%; min-width: 550px; font-size: 12px; }
-.annual-chart-scroll svg text { font-family: inherit; fill: #40505b; font-size: 12px; }
+.annual-chart-scroll svg { display: block; width: 100%; min-width: 550px; max-width: 850px; margin-inline: auto; font-size: 11px; }
+.annual-chart-scroll svg text { font-family: inherit; fill: #40505b; font-size: 11px; }
+.annual-chart-scroll svg .annual-chart-total { fill: var(--text-main, #263238); font-size: 12px; font-weight: 600; }
 .annual-chart-scroll .domain, .annual-chart-scroll .tick line { stroke: #aab9c1; }
 .annual-chart-scroll .annual-chart-grid line { stroke: #e6edf0; }
-.annual-chart-legend { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .85rem; margin-top: .5rem; }
-.annual-chart-legend > span { display: flex; align-items: center; gap: .4rem; }
-.annual-chart-legend i { width: .75rem; height: .75rem; border-radius: .15rem; }
+.annual-chart-legend { display: flex; flex-wrap: wrap; gap: .35rem 1rem; font-size: .8125rem; line-height: 1.4; margin-top: .5rem; }
+.annual-chart-legend > span { display: flex; align-items: center; gap: .35rem; min-width: 0; }
+.annual-chart-legend i { flex-shrink: 0; width: .65rem; height: .65rem; border-radius: .15rem; }
 .annual-emissions-panel { min-width: 0; }
 .annual-emissions-panel .helper-text { font-size: .9rem; line-height: 1.5; }
 .annual-emissions-panel [data-role="ya-lca-phases"] { position: relative; }

@@ -16,11 +16,12 @@ const frame = (host, title, max, years = null) => {
 };
 const legend = (host, entries) => {
   const list = d3.select(host).append('div').attr('class', 'annual-chart-legend');
-  for (const [key, name] of entries) { const item = list.append('span'); item.append('i').style('background', colors[key]); item.append('span').text(name); }
+  for (const [key, name, description = name] of entries) { const item = list.append('span').attr('title', description); item.append('i').style('background', colors[key]); item.append('span').text(name); }
 };
 
 export function renderAnnualCostCharts({ opexHost, cumulativeHost, electric, diesel, comparison, divisor, assumptions, label }) {
   const designs = { electric, diesel };
+  const categoryLabel = key => label(key === 'electric' ? 'chartElectric' : 'chartDiesel');
   if (!electric || !diesel) return;
   const { svg, x, y, height, margin } = frame(opexHost, label('opexComparison'), Math.max(electric.annualOpex, diesel.annualOpex) / divisor * 1.18);
   for (const [key, design] of Object.entries(designs)) {
@@ -36,10 +37,10 @@ export function renderAnnualCostCharts({ opexHost, cumulativeHost, electric, die
         .append('title').text(`${label(key)} · ${label(part)}: ${formatChf(value)} / ${label('year')}`);
       offset += value;
     }
-    svg.append('text').attr('x', x(key) + x.bandwidth() / 2).attr('y', y(offset) - 12).attr('text-anchor', 'middle').text(formatChf(offset));
+    svg.append('text').attr('class', 'annual-chart-total').attr('x', x(key) + x.bandwidth() / 2).attr('y', y(offset) - 12).attr('text-anchor', 'middle').text(formatChf(offset));
   }
-  svg.append('g').attr('transform', `translate(0,${height - margin.bottom})`).call(d3.axisBottom(x).tickFormat(label));
-  legend(opexHost, ['energy', 'maintenance', 'infraMaintenance'].map(k => [k, label(k)]));
+  svg.append('g').attr('transform', `translate(0,${height - margin.bottom})`).call(d3.axisBottom(x).tickFormat(categoryLabel));
+  legend(opexHost, ['energy', 'maintenance', 'infraMaintenance'].map(k => [k, label(k === 'infraMaintenance' ? 'chartInfraMaintenance' : k), label(k)]));
   const max = d3.max(comparison.points, p => Math.max(p.electric, p.diesel)) / divisor;
   const line = frame(cumulativeHost, label('cumulative'), max * 1.08, assumptions.horizon);
   line.svg.append('g').attr('transform', `translate(0,${line.height - line.margin.bottom})`).call(d3.axisBottom(line.x).ticks(Math.min(assumptions.horizon, 12)).tickFormat(v => formatNumber(v, 0)));
@@ -53,5 +54,5 @@ export function renderAnnualCostCharts({ opexHost, cumulativeHost, electric, die
   if (comparison.breakEven !== null && !comparison.residualOnly) {
     line.svg.append('line').attr('x1', line.x(comparison.breakEven)).attr('x2', line.x(comparison.breakEven)).attr('y1', line.margin.top).attr('y2', line.height - line.margin.bottom).attr('stroke', '#647480').attr('stroke-dasharray', '4 4');
   }
-  legend(cumulativeHost, ['electric', 'diesel'].map(k => [k, label(k)]));
+  legend(cumulativeHost, ['electric', 'diesel'].map(k => [k, categoryLabel(k), label(k)]));
 }
