@@ -12,6 +12,18 @@ export const mountHvacAssumptions = async (section, id, kind = 'optimization') =
   const url = `${API_ROOT}/api/v1/${path}/auxiliary-assumptions`;
   const generation = Symbol();
   panel.hvacGeneration = generation;
+  const renderUnavailable = () => {
+    panel.innerHTML = `<details class="hvac-assumptions results-information-disclosure">
+      <summary class="hvac-assumptions__toggle results-information-toggle">
+        <span class="results-information-toggle__heading">
+          <strong class="hvac-assumptions__title">${textContent(t('hvac.title'))}</strong>
+          <span class="results-information-toggle__status">${textContent(t('hvac.unavailable'))}</span>
+        </span>
+      </summary>
+      <div class="hvac-assumptions__body results-information-content"><p>${textContent(t('hvac.unavailable'))}</p></div>
+    </details>`;
+    panel.hidden = false;
+  };
   const read = async (full = false) => {
     const response = await fetch(`${url}${full ? '?include_inputs=true' : ''}`, { headers: authHeaders() });
     if (!response.ok) throw new Error(t('hvac.unavailable'));
@@ -21,7 +33,7 @@ export const mountHvacAssumptions = async (section, id, kind = 'optimization') =
     const payload = await read();
     if (panel.hvacGeneration !== generation) return;
     const model = summarizeHvacAssumptions(payload);
-    if (!model.runs.length) { panel.hidden = true; return; }
+    if (!model.runs.length) { renderUnavailable(); return; }
     const legacy = model.policies.every(policy => policy === 'legacy-fixed-100-v1');
     const legacyGreybox = model.runs.every(run => run.assumptions?.solar_used === false);
     const annual = model.policies.includes('annual-pvgis-local-cap10-v1');
@@ -63,6 +75,6 @@ export const mountHvacAssumptions = async (section, id, kind = 'optimization') =
     }));
   } catch {
     if (panel.hvacGeneration !== generation) return;
-    panel.textContent = t('hvac.unavailable'); panel.hidden = false;
+    renderUnavailable();
   }
 };

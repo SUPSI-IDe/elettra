@@ -43,7 +43,7 @@ export const mountAnalysisGtfs = async (section, record, explicitIds = []) => {
       ? datasetSummaryHtml(datasets, t, displayEntry(entries[0]))
       : `<div class="gtfs-analysis-grid">${entries.map(entry => `<div><strong>${textContent(entry.name)}</strong>${datasetSummaryHtml(entry.datasets, t, displayEntry(entry))}</div>`).join("")}</div>`;
     panel.innerHTML = `<details class="gtfs-disclosure results-information-disclosure"${open ? " open" : ""}>
-      <summary class="results-information-toggle"><span class="gtfs-disclosure__label">${textContent(t("gtfs.label"))}</span><span>${textContent(label)}</span>${!compact && historical ? `<span class="gtfs-disclosure__source">${textContent(t("gtfs.current_short"))}</span>` : ""}${compact ? "" : `<span class="gtfs-disclosure__hint">${textContent(t("gtfs.details"))}</span>`}</summary>
+      <summary class="results-information-toggle">${compact ? `<span class="results-information-toggle__heading"><span class="gtfs-disclosure__label">${textContent(t("gtfs.label"))}</span><span class="results-information-toggle__status">${textContent(label)}</span></span>` : `<span class="gtfs-disclosure__label">${textContent(t("gtfs.label"))}</span><span>${textContent(label)}</span>${historical ? `<span class="gtfs-disclosure__source">${textContent(t("gtfs.current_short"))}</span>` : ""}<span class="gtfs-disclosure__hint">${textContent(t("gtfs.details"))}</span>`}</summary>
       <div class="gtfs-disclosure__content results-information-content">${details}</div>
     </details>`;
     panel.hidden = false;

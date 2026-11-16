@@ -18,7 +18,7 @@ test('HVAC details and authenticated inputs are requested only when needed', asy
     await mountHvacAssumptions(document.querySelector('main'),'run');
   });
   const panel=page.locator('[data-role="hvac-assumptions"]');
-  await expect(panel).toContainText('one GHI per temperature');
+  await expect(panel.locator('.hvac-assumptions__title')).toHaveText('HVAC assumptions');
   expect(requests).toHaveLength(1);
   await panel.locator('summary').first().click();
   await expect(panel.locator('tbody')).toContainText('800');

@@ -1100,7 +1100,7 @@ test("renders unavailable values safely when a historical result has no shift de
   await expect(page.locator('[data-role="feasibility-charging-plan"]')).toHaveCount(0);
 });
 
-test("shows an explicit overall infeasible status without replacing the general configuration", async ({ page }) => {
+test("shows an overall infeasible status with no invented critical shifts", async ({ page }) => {
   await mountResults(page, { electrificationFeasible: false });
 
   const general = page.locator('[data-role="feasibility-general-level"]');
@@ -1108,9 +1108,41 @@ test("shows an explicit overall infeasible status without replacing the general 
   await expect(status).toHaveText("Not all vehicle blocks are feasible");
   await expect(status).toHaveClass(/feasibility-overall-status--infeasible/);
   await expect(page.locator('[data-role="feasibility-failure-general"]')).toHaveCount(0);
-  await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
-  await expect(general.locator('[data-role="feasibility-infrastructure"]')).toBeVisible();
+  await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toHaveCount(0);
+  await expect(general.locator('[data-role="feasibility-infrastructure"]')).toHaveCount(0);
+  await expect(general.locator('[data-role="feasibility-critical-shifts"]')).toContainText('does not identify');
+  await expect(general.locator('[data-role="feasibility-critical-shifts"] tbody tr')).toHaveCount(0);
 });
+
+for (const consumptionBasis of ['mean', 'aggregate_q95']) {
+  test(`infeasible General shows only critical shifts and pack limits for ${consumptionBasis}`, async ({ page }) => {
+    await mountResults(page, {
+      mode: 'joint', consumptionBasis, electrificationFeasible: false,
+      shiftNames: { evening: 'Current critical block' },
+      batteryResultOverrides: { evening: {
+        optimized_packs: 16, required_total_packs: 18, excess_packs: 2,
+        physical_feasible: false, feasibility_status: 'infeasible',
+        max_physical_packs: 16,
+        bus_cost_chf: 300000, battery_pack_cost_chf: 6000,
+      } },
+      dailyCycle: { status: 'verified', per_shift: {}, stations: {} },
+    });
+    const general = page.locator('[data-role="feasibility-general-level"]');
+    await expect(general).toContainText('The displayed demand profile is not feasible');
+    const critical = general.locator('[data-role="feasibility-critical-shifts"]');
+    await expect(critical.locator('tbody tr')).toHaveCount(1);
+    await expect(critical.locator('tbody th')).toHaveText('Current critical block');
+    await expect(critical.locator('tbody td')).toHaveText(['16', '18', '16']);
+    await expect(critical).not.toContainText('Morning service');
+    await expect(general.locator('[data-role="feasibility-fleet-battery"], [data-role="feasibility-infrastructure"]')).toHaveCount(0);
+    await expect(page.locator('[data-role="depot-cycle"]')).toHaveCount(0);
+    await expect(general).not.toContainText('CHF');
+    await selectShiftScope(page, 'morning');
+    await expect(page.locator('[data-role="feasibility-shift-min-soc"]')).toBeVisible();
+    await scopeSelector(page).getByRole('tab', { name: 'General', exact: true }).click();
+    await expect(critical.locator('tbody tr')).toHaveCount(1);
+  });
+}
 
 test("keeps a missing historical overall status visibly unknown", async ({ page }) => {
   await mountResults(page, { includeElectrificationFeasible: false });
@@ -1261,15 +1293,44 @@ test("shows an infeasible shift as a shortfall against the common physical batte
   await expect(summary.locator('[data-role="feasibility-shift-common-packs"]')).toContainText("16");
   await expect(summary.locator('[data-role="feasibility-shift-pack-margin"]')).toContainText("-2");
   await expect(summary.locator('[data-role="feasibility-shift-physical-limit"]')).toContainText("Exceeds physical pack limit");
-  await expect(page.locator('[data-role="feasibility-shift-visual-analysis"]')).toHaveAttribute(
-    "data-status",
-    "available",
-  );
-  await expect(page.locator('[data-role="feasibility-shift-energy-adequacy"]')).toHaveAttribute(
-    "data-feasibility",
-    "infeasible",
-  );
+  await expect(page.locator('[data-role="feasibility-shift-visual-analysis"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-shift-energy-adequacy"]')).toHaveCount(0);
+  await expect(summary.locator('[data-role="feasibility-shift-required-packs"]')).toContainText('Vehicle block battery requirement');
+  for (const role of ['min-soc', 'max-soc', 'charged-energy', 'session-count']) {
+    await expect(summary.locator(`[data-role="feasibility-shift-${role}"]`)).toHaveCount(0);
+  }
+  await expect(page.locator('[data-role="feasibility-charging-plan"]')).toHaveCount(0);
 });
+
+for (const consumptionBasis of ['mean', 'aggregate_q95']) {
+  test(`hides diagnostic SOC and charging for a fixed battery shortfall with ${consumptionBasis}`, async ({ page }) => {
+    await mountResults(page, {
+      shiftIds: ['morning'], mode: 'charging_only', consumptionBasis,
+      electrificationFeasible: false,
+      batteryResultOverrides: { morning: {
+        optimized_packs: 10, required_total_packs: 13, excess_packs: 3,
+        max_physical_packs: 16, physical_feasible: undefined,
+        feasibility_status: undefined,
+      } },
+      perBusSummaryOverrides: { morning: {
+        min_soc_kwh: 18800.5, max_soc_kwh: 19184,
+        total_charged_kwh: 900, num_charging_sessions: 1,
+        charging_sessions: [{ start_minute: 720, end_minute: 730,
+          duration_minutes: 10, station_stop_id: 'depot', energy_kwh: 900 }],
+      } },
+    });
+    await selectShiftScope(page, 'morning');
+    const summary = page.locator('[data-role="feasibility-shift-summary"]');
+    await expect(summary).toContainText('Battery shortfall');
+    await expect(summary.locator('[data-role="feasibility-shift-required-packs"]')).toContainText('13');
+    await expect(summary.locator('[data-role="feasibility-shift-physical-limit"]')).toContainText('Within physical pack limit');
+    await expect(summary.locator('[data-role="feasibility-shift-predicted-consumption"]')).toBeVisible();
+    for (const role of ['min-soc', 'max-soc', 'charged-energy', 'session-count']) {
+      await expect(summary.locator(`[data-role="feasibility-shift-${role}"]`)).toHaveCount(0);
+    }
+    await expect(page.locator('[data-role="feasibility-charging-plan"]')).toHaveCount(0);
+  });
+}
 
 test("keeps each shift feasibility independent from an infeasible overall result", async ({ page }) => {
   await mountResults(page, {
@@ -1288,8 +1349,13 @@ test("keeps each shift feasibility independent from an infeasible overall result
   await expect(page.locator('[data-role="feasibility-shift-visual-analysis"] svg')).toHaveCount(2);
 
   await selectShiftScope(page, "evening");
-  await expect(energyAdequacy).toHaveAttribute("data-feasibility", "infeasible");
-  await expect(page.locator('[data-role="feasibility-shift-visual-analysis"] svg')).toHaveCount(2);
+  await expect(energyAdequacy).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-shift-visual-analysis"] svg')).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-shift-min-soc"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-charging-plan"]')).toHaveCount(0);
+  await selectShiftScope(page, "morning");
+  await expect(page.locator('[data-role="feasibility-shift-min-soc"]')).toBeVisible();
+  await expect(page.locator('[data-role="feasibility-charging-plan"]')).toBeVisible();
 });
 
 test("shows an unknown shift status without hiding available visual analysis", async ({ page }) => {
@@ -1923,6 +1989,9 @@ for (const [required, excess, unavailable] of [[18,8,2],[13,3,0]]) {
     await mountResults(page,{mode:'charging_only',shiftIds:['morning'],electrificationFeasible:false,
       batteryResultOverrides:{morning:{optimized_packs:10,required_total_packs:required,excess_packs:excess,
         optimized_kwh:required*50,physical_feasible:false}}});
+    const critical = page.locator('[data-role="feasibility-critical-shifts"]');
+    await expect(critical.locator('tbody td')).toHaveText(['10', String(required), '16']);
+    await expect(page.locator('[data-role="feasibility-infrastructure"]')).toHaveCount(0);
     await selectShiftScope(page,'morning');
     const card=page.locator('[data-role="aggregate-energy"]');
     await expect(card.locator('.aggregate-pack--chosen')).toHaveCount(10);

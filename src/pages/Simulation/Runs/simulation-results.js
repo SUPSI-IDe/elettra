@@ -6683,6 +6683,31 @@ const buildFeasibilityGeneralLevelHtml = (
   );
   const optimizationMode = modeLabel(general.mode) ||
     translateOr("simulation.feasibility_decision_unknown", "Not available");
+  const isInfeasible = general.electrificationFeasible === false;
+  const criticalShifts = (viewState?.shiftOptions ?? []).filter(({ shift }) =>
+    hasDiagnosticShiftBattery(shift?.battery)
+  );
+  const diagnosticRows = criticalShifts.map(({ shiftId, shiftName, shift }) => {
+    const battery = shift.battery;
+    return `<tr data-shift-id="${textContent(shiftId)}">
+      <th scope="row">${textContent(shiftName)}</th>
+      <td class="efficiency-td-num">${formatOptionalFixed(battery.commonPacks, 0)}</td>
+      <td class="efficiency-td-num">${formatOptionalFixed(battery.requiredPacks, 0)}</td>
+      <td class="efficiency-td-num">${formatOptionalFixed(battery.maxPhysicalPacks, 0)}</td>
+    </tr>`;
+  }).join("");
+  const diagnosticHtml = `<section data-role="feasibility-critical-shifts">
+    <h4 class="efficiency-section-title">${textContent(t("simulation.feasibility_critical_shifts"))}</h4>
+    <p>${textContent(t(diagnosticRows ? "simulation.feasibility_critical_shifts_intro" : "simulation.feasibility_critical_shifts_unavailable"))}</p>
+    ${diagnosticRows ? `<div class="efficiency-table-wrap"><table class="efficiency-table">
+      <thead><tr>
+        <th>${textContent(t("simulation.opt_col_shift"))}</th>
+        <th>${textContent(t("simulation.opt_col_selected_packs"))}</th>
+        <th>${textContent(t("simulation.feasibility_estimated_required_packs"))}</th>
+        <th>${textContent(t("simulation.opt_col_max_packs"))}</th>
+      </tr></thead><tbody>${diagnosticRows}</tbody>
+    </table></div>` : ""}
+  </section>`;
 
   return `
     <section class="feasibility-level feasibility-level--general result-card" data-role="feasibility-general-level">
@@ -6692,7 +6717,7 @@ const buildFeasibilityGeneralLevelHtml = (
             translateOr("simulation.feasibility_general_title", "Common fleet configuration")
           )}</h3>
           <p class="feasibility-level__subtitle result-card__subtitle">${textContent(
-            translateOr(
+            isInfeasible ? t("simulation.feasibility_infeasible_general_subtitle") : translateOr(
               "simulation.feasibility_general_subtitle",
               "Battery sizes and bus investment for all selected vehicle blocks, with shared charging infrastructure."
             )
@@ -6717,6 +6742,7 @@ const buildFeasibilityGeneralLevelHtml = (
         </div>
       </header>
       <div class="feasibility-level__content result-card__body">
+      ${isInfeasible ? diagnosticHtml : `
       ${fleetInvestmentHtml(run, currentModel, shiftNamesById)}
       ${buildSharedInfrastructureDetailsHtml(viewState, inputParams)}
       <div class="feasibility-general-grid feasibility-general-grid--coverage result-metric-grid">
@@ -6739,6 +6765,7 @@ const buildFeasibilityGeneralLevelHtml = (
           </div>
         </article>
       </div>
+      `}
       </div>
     </section>`;
 };
@@ -6951,6 +6978,14 @@ const buildSizingConsumptionEffectHtml = (
     </section>`;
 };
 
+const hasDiagnosticShiftBattery = (battery = {}) =>
+  battery.physicalFeasible === false ||
+  String(battery.feasibilityStatus ?? "").startsWith("infeasible") ||
+  (toOptionalFiniteNumber(battery.excessPacks) ?? 0) > 0 ||
+  (toOptionalFiniteNumber(battery.commonPackMargin) ?? 0) < 0 ||
+  (battery.requiredPacks != null && battery.maxPhysicalPacks != null &&
+    battery.requiredPacks > battery.maxPhysicalPacks);
+
 const buildShiftOperationalSummaryHtml = (
   viewState,
   decisionConsumption = {},
@@ -6973,13 +7008,14 @@ const buildShiftOperationalSummaryHtml = (
 
   const battery = detail.battery ?? {};
   const operation = detail.operation ?? {};
+  const diagnosticBattery = hasDiagnosticShiftBattery(battery);
   const margin = toOptionalFiniteNumber(battery.commonPackMargin);
   let coverageLabel = translateOr(
     "simulation.feasibility_shift_status_unknown",
     "Status not available"
   );
   let coverageTone = "unknown";
-  if (battery.physicalFeasible === false || (margin !== null && margin < 0)) {
+  if (diagnosticBattery) {
     coverageLabel = translateOr(
       "simulation.feasibility_shift_shortfall",
       "Battery shortfall"
@@ -7069,7 +7105,7 @@ const buildShiftOperationalSummaryHtml = (
             )}</small>
           </span>
         </article>
-        <article class="result-metric" data-role="feasibility-shift-min-soc">
+        ${diagnosticBattery ? "" : `<article class="result-metric" data-role="feasibility-shift-min-soc">
           <span class="result-metric__label">${textContent(
             translateOr("simulation.battery_adequacy_minimum_soc", "Minimum SOC reached")
           )}</span>
@@ -7092,7 +7128,7 @@ const buildShiftOperationalSummaryHtml = (
             translateOr("simulation.feasibility_shift_charging_sessions", "Charging sessions")
           )}</span>
           <strong class="result-metric__value">${shiftMetricValue(operation.numChargingSessions)}</strong>
-        </article>
+        </article>`}
         <article class="result-metric${consumptionShowsDeficit ? " result-metric--negative" : ""}" data-role="feasibility-shift-predicted-consumption">
           <span class="result-metric__label">${textContent(
             t("simulation.costs_input_prediction_consumption") ||
@@ -7427,6 +7463,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       ) ?? null
     : null;
   const selectedShiftSummary = feasibilityViewState?.selectedShiftSummary ?? null;
+  const diagnosticShiftBattery = hasDiagnosticShiftBattery(selectedShiftSummary?.battery);
   const appliedPolicy = resultBatteryPolicy(optimizationRun);
   const minimumSocFraction = appliedPolicy.min_soc;
   const maximumSocFraction = appliedPolicy.max_soc;
@@ -7588,7 +7625,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     optimizationRun,
     viewOptions.currentBusModel,
     resolvedShiftNamesById,
-  ) + renderDepotCycle(optimizationRun);
+  ) + (feasibilityViewState?.general?.electrificationFeasible === false
+    ? "" : renderDepotCycle(optimizationRun));
   const shiftLevelHtml = `
     <section class="feasibility-level feasibility-level--shift" data-role="feasibility-shift-level">
       ${buildFeasibilityShiftLevelHeaderHtml(
@@ -7604,10 +7642,10 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         ${renderAggregateEnergy(optimizationRun, viewOptions?.selectedShiftId, {
           energyComparison: shiftEnergyComparison,
         })}
-        ${renderDepotCycle(optimizationRun, viewOptions?.selectedShiftId)}
-        ${results.consumption_analysis ? "" : chartsHtml}
-        ${results.consumption_analysis ? "" : shiftEnergyAdequacyHtml}
-        ${buildShiftChargingPlanHtml(feasibilityViewState, {
+        ${diagnosticShiftBattery ? "" : renderDepotCycle(optimizationRun, viewOptions?.selectedShiftId)}
+        ${diagnosticShiftBattery || results.consumption_analysis ? "" : chartsHtml}
+        ${diagnosticShiftBattery || results.consumption_analysis ? "" : shiftEnergyAdequacyHtml}
+        ${diagnosticShiftBattery ? "" : buildShiftChargingPlanHtml(feasibilityViewState, {
           open: keepChargingPlanOpen, inputParams: ip,
         })}
         <details class="ya-more-information feasibility-more-information result-card"${keepMoreInformationOpen ? " open" : ""}>

@@ -29,7 +29,7 @@ const prediction = { id: 'prediction', shift_id: 'shift', bus_model_id: 'model',
   contextual_parameters: { num_battery_packs: 10, quantiles: [0.05, 0.25, 0.5, 0.95] },
 };
 
-async function fixture(page, { input = {}, result = false } = {}) {
+async function fixture(page, { input = {}, result = false, hvacUnavailable = false, gtfsUnavailable = false } = {}) {
   const submissions = [];
   const saved = { id: 'saved', name: 'Battery policy evaluation', status: 'completed', mode: 'battery_only',
     bus_model_id: 'model', created_at: '2026-01-01T12:00:00Z', prediction_run_ids: ['prediction'],
@@ -57,8 +57,8 @@ async function fixture(page, { input = {}, result = false } = {}) {
     else if (path.endsWith('/bus-models/')) data = [model];
     else if (path.endsWith('/bus-models/model')) data = model;
     else if (path.endsWith('/buses/')) data = [{ id: 'bus', user_id: 'user', bus_model_id: 'model' }];
-    else if (path.endsWith('/shifts/')) data = [shift];
-    else if (path.includes('/shifts/')) data = shift;
+    else if (path.endsWith('/shifts/')) data = [{ ...shift, ...(gtfsUnavailable ? { gtfs_datasets: undefined } : {}) }];
+    else if (path.includes('/shifts/')) data = { ...shift, ...(gtfsUnavailable ? { gtfs_datasets: undefined } : {}) };
     else if (path.endsWith('/prediction-runs/') && request.method() === 'POST') data = { prediction_run_ids: ['prediction'] };
     else if (path.endsWith('/prediction-runs/')) data = [prediction];
     else if (path.includes('/prediction-runs/')) data = prediction;
@@ -66,7 +66,7 @@ async function fixture(page, { input = {}, result = false } = {}) {
       submissions.push(request.postDataJSON());
       data = { optimization_run_id: 'pending', basis_run_ids: { mean: 'pending', aggregate_q95: 'pending-q95' } };
     } else if (path.endsWith('/optimization-runs/')) data = [saved];
-    else if (path.endsWith('/optimization-runs/saved/auxiliary-assumptions')) data = {
+    else if (path.endsWith('/optimization-runs/saved/auxiliary-assumptions')) data = hvacUnavailable ? { runs: [] } : {
       schema_version: '1', runs: [{ run_id: 'prediction', temperature_c: -5,
         assumptions: { policy_id: 'feasibility-temperature-ghi-v1', solar_used: true,
           ghi_reference_wm2: 50 },
@@ -292,8 +292,15 @@ for (const policy of ['residual_soc', 'constant_initial_usable']) {
         const { y, height, width } = element.getBoundingClientRect();
         return { y, height, width };
       }));
-      expect(Math.max(...rectangles.map(({ y }) => y)) - Math.min(...rectangles.map(({ y }) => y))).toBeLessThan(1);
-      expect(Math.max(...rectangles.map(({ height }) => height)) - Math.min(...rectangles.map(({ height }) => height))).toBeLessThan(1);
+      if (page.viewportSize().width <= 700) {
+        expect(Math.abs(rectangles[0].y - rectangles[1].y)).toBeLessThan(1);
+        expect(Math.abs(rectangles[2].y - rectangles[3].y)).toBeLessThan(1);
+        expect(rectangles[2].y).toBeGreaterThan(rectangles[0].y + rectangles[0].height);
+      } else {
+        expect(Math.max(...rectangles.map(({ y }) => y)) - Math.min(...rectangles.map(({ y }) => y))).toBeLessThan(1);
+      }
+      expect(Math.abs(rectangles[0].height - rectangles[1].height)).toBeLessThan(1);
+      expect(Math.abs(rectangles[2].height - rectangles[3].height)).toBeLessThan(1);
       expect(Math.max(...rectangles.map(({ width }) => width)) - Math.min(...rectangles.map(({ width }) => width))).toBeLessThan(1);
 
       const contentStyles = [await capacity.evaluate(element => {
@@ -303,6 +310,10 @@ for (const policy of ['residual_soc', 'constant_initial_usable']) {
       const technicalTimes = informationBar.locator('[data-role="technical-times-assumptions"]');
       await technicalTimes.locator(':scope > summary').click();
       await expect(technicalTimes).toHaveAttribute('open', '');
+      const panelBounds = await technicalTimes.locator('.results-information-content').boundingBox();
+      const barBounds = await informationBar.boundingBox();
+      expect(Math.abs(panelBounds.width - barBounds.width)).toBeLessThan(1);
+      expect(panelBounds.y).toBeGreaterThanOrEqual(Math.max(...rectangles.map(rect => rect.y + rect.height)));
       await expect(assumptions).not.toHaveAttribute('open', '');
       await expect(technicalTimes.locator('[data-role="technical-times-operating-conditions"] strong')).toHaveText('Operating Conditions');
       await expect(technicalTimes.locator('[data-role="battery-connection-help"]')).toContainText('Combined time for connecting and disconnecting');
@@ -333,6 +344,25 @@ for (const policy of ['residual_soc', 'constant_initial_usable']) {
     }
   });
 }
+
+test('missing HVAC and GTFS remain inside readable information cards', async ({ page }) => {
+  await fixture(page, { result: true, hvacUnavailable: true,
+    gtfsUnavailable: true,
+    input: { gtfs_provenance: { version: 1, shifts: { shift: null } } } });
+  const bar = page.locator('[data-role="results-information-bar"]');
+  const hvac = bar.locator('.hvac-assumptions');
+  await expect(hvac.locator('summary')).toContainText('HVAC assumptions are unavailable.');
+  await expect(bar.locator('.gtfs-disclosure > summary')).toContainText('GTFS information unavailable');
+  await expect(bar.locator('.results-information-toggle')).toHaveCount(4);
+  for (const card of await bar.locator('.results-information-toggle').all()) {
+    const bounds = await card.boundingBox();
+    expect(bounds.width).toBeGreaterThan(140);
+    expect(bounds.height).toBeLessThan(180);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(page.viewportSize().width);
+  }
+  await hvac.locator('summary').click();
+  await expect(hvac.locator('.results-information-content')).toBeVisible();
+});
 
 
 test('optional timing defaults are submitted while collapsed and invalid edits reopen the section', async ({page}) => {
