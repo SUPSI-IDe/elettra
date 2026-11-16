@@ -102,7 +102,7 @@ test("feasibility results render every supported heating type", async ({ page })
   });
 });
 
-test("loaded feasibility results use mean for the decision and show the full distribution", async ({
+test("loaded feasibility results use mean for the decision and keep quantiles in energy adequacy", async ({
   page,
 }) => {
   await page.route("**/api/v1/**", async (route) => {
@@ -277,12 +277,19 @@ test("loaded feasibility results use mean for the decision and show the full dis
   );
 
   const efficiencyTable = page.locator("[data-role='efficiency-table']");
-  await expect(efficiencyTable).toContainText("411.6");
-  await expect(efficiencyTable).toContainText(
-    "Total mean — decision basis (kWh)",
-  );
-  await expect(efficiencyTable).toContainText("424.1");
-  await expect(efficiencyTable).toContainText("538.7");
+  const consumption = page.locator('[data-role="feasibility-shift-predicted-consumption"] strong');
+  await expect(consumption).toHaveText('412');
+  await page.locator('details.feasibility-more-information > summary').click();
+  const sizingEffect = page.locator('[data-role="feasibility-sizing-effect"]');
+  await expect(sizingEffect).toBeVisible();
+  await expect(sizingEffect.locator('[data-sizing-configuration="selected"]')).toContainText('12');
+  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-basis"]')).toContainText('Mean');
+  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-consumption"]')).toHaveText('411.6');
+  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-specific"]')).toHaveText('2.058');
+  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-drivetrain"]')).toHaveText('300.0');
+  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-auxiliary"]')).toHaveText('111.6');
+  await expect(adequacyGrid.locator('[data-role="battery-adequacy-q50"]')).toContainText('424.1');
+  await expect(adequacyGrid.locator('[data-role="battery-adequacy-q95"]')).toContainText('538.7');
   await expect(efficiencyTable).not.toContainText(
     "Feasible — Q50-based demand scenario",
   );

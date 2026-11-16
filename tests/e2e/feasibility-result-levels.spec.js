@@ -2433,12 +2433,12 @@ for(const recorded of [true,false]) {
     const rows=panel.locator('[data-role="gtfs-metadata"]');
     await expect(rows).toHaveCount(recorded ? 2 : 1);
     await expect(rows.first()).toBeHidden();
-    await expect(panel.locator('summary')).toContainText(recorded ? 'Multiple GTFS datasets' : 'Current block data');
-    expect((await panel.boundingBox()).height).toBeLessThan(90);
+    await expect(panel.locator('summary')).toContainText(recorded ? 'Multiple GTFS datasets' : '2026 · file 27/09/2025');
+    await expect(panel.locator('details')).not.toHaveAttribute('open', '');
     await panel.locator('summary').focus();
     await page.keyboard.press('Enter');
     await expect(rows.first()).toBeVisible();
-    for(const row of await rows.all())await expect(row).toContainText(recorded?'Recorded when the analysis was created':'Derived from the current vehicle block');
+    await expect(panel.locator('.gtfs-metadata__source')).toHaveCount(0);
     if(recorded) {
       await expect(rows.nth(0)).toContainText('2025 ·');
       await expect(rows.nth(1)).toContainText('2027 ·');
@@ -2462,11 +2462,11 @@ test('shared recorded GTFS version uses one compact header disclosure',async({pa
     await expect(panel.locator('summary')).not.toContainText('Current block data');
     await expect(panel.locator('[data-role="gtfs-metadata"]')).toHaveCount(1);
     await expect(panel.locator('[data-role="gtfs-metadata"]')).toBeHidden();
-    expect((await panel.boundingBox()).height).toBeLessThan(90);
+    await expect(panel.locator('details')).not.toHaveAttribute('open', '');
     await panel.locator('summary').click();
     await expect(panel.locator('[data-role="gtfs-metadata"]')).toBeVisible();
     await expect(panel).toContainText('13/12/2026–11/12/2027');
-    await expect(panel).toContainText('Recorded when the analysis was created');
+    await expect(panel.locator('.gtfs-metadata__source')).toHaveCount(0);
     await panel.locator('summary').click();
     await expect(panel.locator('[data-role="gtfs-metadata"]')).toBeHidden();
 });
