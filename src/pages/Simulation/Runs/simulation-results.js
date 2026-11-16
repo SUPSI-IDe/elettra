@@ -6769,29 +6769,76 @@ const resolveShiftDecisionConsumption = (
     )?.[1] ?? null;
   const analysisStatistics = shiftAnalysis?.statistics ?? {};
   const analysisCases = shiftAnalysis?.cases ?? {};
+  const aggregateAnalysisAvailable =
+    results?.consumption_analysis?.status === "available" &&
+    shiftAnalysis?.status === "available";
   const finite = (...values) =>
     values
       .map((value) => toOptionalFiniteNumber(value))
       .find((value) => value !== null) ?? null;
+  const shiftSummary = (Array.isArray(results?.per_bus_summary)
+    ? results.per_bus_summary
+    : []
+  ).find((summary) =>
+    [summary?.shift_id, summary?.id]
+      .map((value) => String(value ?? "").trim())
+      .includes(normalizedShiftId)
+  );
+  const timelineSoc = Array.isArray(shiftSummary?.energy_timeline?.soc_kwh)
+    ? shiftSummary.energy_timeline.soc_kwh.map((value) =>
+        toOptionalFiniteNumber(value)
+      )
+    : [];
+  const timelineCharge = Array.isArray(shiftSummary?.energy_timeline?.charge_kwh)
+    ? shiftSummary.energy_timeline.charge_kwh.map((value) =>
+        toOptionalFiniteNumber(value)
+      )
+    : [];
+  const timelineChargeTotal =
+    timelineCharge.length && timelineCharge.every((value) => value !== null)
+      ? timelineCharge.reduce((sum, value) => sum + value, 0)
+      : null;
+  const chargedEnergyKwh = finite(
+    timelineChargeTotal,
+    shiftSummary?.total_charged_kwh,
+  );
+  const timelineNetDemandKwh =
+    timelineSoc.length >= 2 &&
+    timelineSoc[0] !== null &&
+    timelineSoc[timelineSoc.length - 1] !== null &&
+    chargedEnergyKwh !== null
+      ? Math.max(
+          0,
+          timelineSoc[0] +
+            chargedEnergyKwh -
+            timelineSoc[timelineSoc.length - 1],
+        )
+      : null;
 
   let analysisTotalKwh = null;
   let predictionTotalKwh = null;
   let predictionPerKmKwh = null;
   if (basis === FEASIBILITY_DEMAND_BASIS.AGGREGATE_Q95) {
-    analysisTotalKwh = finite(
-      analysisStatistics.q95_total_kwh,
-      analysisCases.aggregate_q95?.total_consumption_kwh,
-    );
-    predictionTotalKwh = selectedPrediction?.totalConsumptionQ95Kwh ?? null;
-    predictionPerKmKwh = selectedPrediction?.consumptionPerKmQ95Kwh ?? null;
+    // The prediction summary Q95 is the sum of the per-trip Q95 values. It is
+    // not the aggregate Q95 profile used by the optimizer and therefore must
+    // never be presented as the decision-basis shift demand. The aggregate
+    // value is published only after the fixed design has been verified.
+    analysisTotalKwh = aggregateAnalysisAvailable
+      ? finite(
+          analysisStatistics.q95_total_kwh,
+          analysisCases.aggregate_q95?.total_consumption_kwh,
+        )
+      : timelineNetDemandKwh;
   } else if (basis === FEASIBILITY_DEMAND_BASIS.Q50) {
     predictionTotalKwh = selectedPrediction?.totalConsumptionMedianKwh ?? null;
     predictionPerKmKwh = selectedPrediction?.consumptionPerKmMedianKwh ?? null;
   } else {
-    analysisTotalKwh = finite(
-      analysisStatistics.mean_total_kwh,
-      analysisCases.mean?.total_consumption_kwh,
-    );
+    analysisTotalKwh = aggregateAnalysisAvailable
+      ? finite(
+          analysisStatistics.mean_total_kwh,
+          analysisCases.mean?.total_consumption_kwh,
+        )
+      : timelineNetDemandKwh;
     predictionTotalKwh = selectedPrediction?.totalConsumptionMeanKwh ?? null;
     predictionPerKmKwh = selectedPrediction?.consumptionPerKmMeanKwh ?? null;
   }
@@ -6810,7 +6857,11 @@ const resolveShiftDecisionConsumption = (
   return { totalKwh, perKmKwh };
 };
 
-const buildShiftOperationalSummaryHtml = (viewState, decisionConsumption = {}) => {
+const buildShiftOperationalSummaryHtml = (
+  viewState,
+  decisionConsumption = {},
+  energyComparison = null,
+) => {
   const detail = viewState?.selectedShiftSummary;
   if (!detail) {
     return `
@@ -6875,6 +6926,7 @@ const buildShiftOperationalSummaryHtml = (viewState, decisionConsumption = {}) =
       ? "negative"
       : "unknown";
   const packUnit = t("simulation.unit_packs") || "packs";
+  const consumptionShowsDeficit = Boolean(energyComparison?.isDeficit);
 
   return `
     <section class="feasibility-shift-summary result-card" data-role="feasibility-shift-summary">
@@ -6947,12 +6999,12 @@ const buildShiftOperationalSummaryHtml = (viewState, decisionConsumption = {}) =
           )}</span>
           <strong class="result-metric__value">${shiftMetricValue(operation.numChargingSessions)}</strong>
         </article>
-        <article class="result-metric" data-role="feasibility-shift-predicted-consumption">
+        <article class="result-metric${consumptionShowsDeficit ? " result-metric--negative" : ""}" data-role="feasibility-shift-predicted-consumption">
           <span class="result-metric__label">${textContent(
             t("simulation.costs_input_prediction_consumption") ||
               "Prediction consumption per vehicle block (kWh)"
           )}</span>
-          <strong class="result-metric__value">${shiftMetricValue(
+          <strong class="result-metric__value${consumptionShowsDeficit ? " feasibility-shift-metric--negative" : ""}">${shiftMetricValue(
             decisionConsumption.totalKwh,
             "",
             { decimals: 0 }
@@ -7246,12 +7298,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       <span class="efficiency-param-value">${textContent(value)}</span>
     </div>`).join("");
 
-  const optimizationHtml = buildOptimizationResultsHtml(results, ip, {
-    ...viewOptions,
-    predictedShiftConsumptionKwh:
-      toOptionalFiniteNumber(viewOptions?.costInputs?.predictedShiftConsumptionKwh) ??
-      toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh),
-  });
   const isFeasible = results.electrification_feasible !== false;
 
   const predictionData = buildUnifiedPredictionData(
@@ -7386,6 +7432,28 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     ip,
     viewOptions?.selectedShiftId,
   );
+  const optimizationHtml = buildOptimizationResultsHtml(results, ip, {
+    ...viewOptions,
+    predictedShiftConsumptionKwh:
+      toOptionalFiniteNumber(shiftDecisionConsumption.totalKwh) ??
+      toOptionalFiniteNumber(viewOptions?.costInputs?.predictedShiftConsumptionKwh) ??
+      toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh),
+  });
+  const shiftDecisionDemandKwh = toOptionalFiniteNumber(
+    shiftDecisionConsumption.totalKwh,
+  );
+  const shiftAvailableEnergyKwh = toOptionalFiniteNumber(
+    energyBalance?.comparisonEnergyKwh,
+  );
+  const shiftEnergyComparison = {
+    demandKwh: shiftDecisionDemandKwh,
+    availableKwh: shiftAvailableEnergyKwh,
+    isDeficit:
+      shiftDecisionDemandKwh !== null &&
+      shiftAvailableEnergyKwh !== null &&
+      shiftAvailableEnergyKwh + ENERGY_BALANCE_TOLERANCE_KWH <
+        shiftDecisionDemandKwh,
+  };
 
   const chartCards = [];
 
@@ -7478,8 +7546,11 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
         ${buildShiftOperationalSummaryHtml(
           feasibilityViewState,
           shiftDecisionConsumption,
+          shiftEnergyComparison,
         )}
-        ${renderAggregateEnergy(optimizationRun, viewOptions?.selectedShiftId)}
+        ${renderAggregateEnergy(optimizationRun, viewOptions?.selectedShiftId, {
+          energyComparison: shiftEnergyComparison,
+        })}
         ${renderDepotCycle(optimizationRun, viewOptions?.selectedShiftId)}
         ${results.consumption_analysis ? "" : chartsHtml}
         ${results.consumption_analysis ? "" : shiftEnergyAdequacyHtml}

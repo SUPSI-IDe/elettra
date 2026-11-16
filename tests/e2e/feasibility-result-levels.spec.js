@@ -62,6 +62,7 @@ const mountResults = async (page, {
   includeInfrastructureInput = true,
   includeElectrificationFeasible = true,
   electrificationFeasible = true,
+  electrificationSummary,
   runStatus = "completed",
   failure,
   legacyError,
@@ -197,6 +198,9 @@ const mountResults = async (page, {
             ...(includeElectrificationFeasible
               ? { electrification_feasible: electrificationFeasible }
               : {}),
+            ...(electrificationSummary === undefined
+              ? {}
+              : { electrification_summary: electrificationSummary }),
             ...(failure === undefined ? {} : { failure }),
             ...(legacyError === undefined ? {} : { error: legacyError }),
             ...(includeBatteryResults ? { battery_results: batteryResults } : {}),
@@ -353,6 +357,18 @@ for (const mode of ["battery_only", "charging_only", "joint"]) {
     await expect(adequacy.locator('[data-role="battery-adequacy-maximum-soc"]')).toHaveText("720.0 kWh — limit ≤ 720.0 kWh (90%)");
     await expect(adequacy.locator('[data-role="battery-adequacy-mean"]')).toContainText("feasible in optimized schedule");
     await expect(adequacy.locator('[data-role="battery-adequacy-mean"] .badge')).toHaveClass(/badge--positive/);
+
+    const consumptionMetric = page.locator(
+      '[data-role="feasibility-shift-predicted-consumption"]',
+    );
+    await expect(consumptionMetric).not.toHaveClass(/result-metric--negative/);
+    const aggregateUsableCapacity = page.locator(
+      '[data-role="aggregate-usable-capacity"]',
+    );
+    await expect(aggregateUsableCapacity).toHaveText('560 kWh');
+    await expect(aggregateUsableCapacity.locator('..')).not.toHaveClass(
+      /aggregate-energy-kpi--deficit/,
+    );
 
     const energyAdequacy = page.locator('[data-role="feasibility-shift-energy-adequacy"]');
     await expect(energyAdequacy).toContainText("Available operational energy");
@@ -1496,6 +1512,292 @@ test('historical infeasible results show virtual packs separately without invent
   await expect(kpis).toContainText('Selected battery · nominal capacity');
   await expect(card).toContainText('Physical limit exceeded');
   await expect(card.locator('.aggregate-demand')).toHaveCount(0);
+});
+
+test('highlights the energy deficit when usable capacity is below predicted consumption', async ({page})=>{
+  const infeasiblePrediction = prediction(
+    'prediction-morning',
+    'morning',
+    8,
+    668,
+  );
+  infeasiblePrediction.contextual_parameters.battery_capacity_kwh = 800;
+
+  await mountResults(page, {
+    shiftIds: ['morning'],
+    mode: 'joint',
+    electrificationFeasible: false,
+    predictionOverrides: {
+      'prediction-morning': infeasiblePrediction,
+    },
+    batteryResultOverrides: {
+      morning: {
+        optimized_packs: 8,
+        required_total_packs: 10,
+        excess_packs: 2,
+        optimized_kwh: 800,
+        max_physical_packs: 8,
+        max_physical_kwh: 800,
+        physical_feasible: false,
+        feasibility_status: 'infeasible',
+      },
+    },
+    perBusSummaryOverrides: {
+      morning: {
+        total_charged_kwh: 0,
+        num_charging_sessions: 0,
+        charging_sessions: [],
+      },
+    },
+  });
+
+  await selectShiftScope(page, 'morning');
+
+  const consumption = page.locator(
+    '[data-role="feasibility-shift-predicted-consumption"]',
+  );
+  await expect(consumption).toHaveClass(/result-metric--negative/);
+  await expect(consumption).toContainText(
+    'Prediction consumption per vehicle block (kWh)',
+  );
+  await expect(consumption.locator('strong')).toHaveText('668');
+  await expect(consumption.locator('strong')).toHaveClass(
+    /feasibility-shift-metric--negative/,
+  );
+
+  const usableCapacity = page.locator(
+    '[data-role="aggregate-usable-capacity"]',
+  );
+  await expect(usableCapacity).toHaveText('560 kWh < 668 kWh');
+  await expect(usableCapacity.locator('..')).toHaveClass(
+    /aggregate-energy-kpi--deficit/,
+  );
+});
+
+test('uses the optimized SOC profile instead of summed per-trip Q95 values', async ({page})=>{
+  const q95Prediction = prediction(
+    'prediction-morning',
+    'morning',
+    8,
+    477.5705679386675,
+  );
+  q95Prediction.contextual_parameters.battery_capacity_kwh = 800;
+  q95Prediction.summary.quantiles.q95 = 608.696882907938;
+  q95Prediction.summary.total_distance_km = 186.41020257636706;
+
+  await mountResults(page, {
+    shiftIds: ['morning'],
+    mode: 'joint',
+    consumptionBasis: 'aggregate_q95',
+    consumptionAnalysis: {
+      status: 'unverified',
+      optimization_basis: 'aggregate_q95',
+      per_shift: {},
+    },
+    forecastVerification: { status: 'physical_limits_exceeded' },
+    predictionOverrides: {
+      'prediction-morning': q95Prediction,
+    },
+    batteryResultOverrides: {
+      morning: {
+        optimized_packs: 8,
+        required_total_packs: 8,
+        excess_packs: 0,
+        optimized_kwh: 800,
+        max_physical_packs: 8,
+        max_physical_kwh: 800,
+        physical_feasible: true,
+        feasibility_status: 'feasible',
+      },
+    },
+    perBusSummaryOverrides: {
+      morning: {
+        min_soc_kwh: 212.94093742871453,
+        max_soc_kwh: 720,
+        total_charged_kwh: 0,
+        num_charging_sessions: 0,
+        charging_sessions: [],
+        energy_timeline: {
+          first_minute: 310,
+          step_minutes: 1,
+          soc_kwh: [720, 212.94093742871453],
+          charge_kwh: [0],
+        },
+      },
+    },
+  });
+
+  await selectShiftScope(page, 'morning');
+
+  const consumption = page.locator(
+    '[data-role="feasibility-shift-predicted-consumption"]',
+  );
+  await expect(consumption.locator('strong')).toHaveText('507');
+  await expect(consumption).not.toContainText('609');
+  await expect(consumption).not.toHaveClass(/result-metric--negative/);
+  await expect(
+    page.locator('[data-role="feasibility-shift-predicted-consumption-per-km"] strong'),
+  ).toHaveText('2.720');
+
+  const usableCapacity = page.locator(
+    '[data-role="aggregate-usable-capacity"]',
+  );
+  await expect(usableCapacity).toHaveText('560 kWh');
+  await expect(usableCapacity.locator('..')).not.toHaveClass(
+    /aggregate-energy-kpi--deficit/,
+  );
+  await expect(
+    page.locator('[data-role="feasibility-shift-coverage-status"]'),
+  ).toHaveText('Largest selected battery');
+});
+
+test('uses the Q95 optimizer demand in the physical-limit warning', async ({page})=>{
+  const q95Prediction = prediction(
+    'prediction-morning',
+    'morning',
+    8,
+    663.403137683198,
+  );
+  q95Prediction.contextual_parameters.battery_capacity_kwh = 800;
+  q95Prediction.summary.quantiles.q95 = 846.6104571889231;
+  q95Prediction.summary.total_distance_km = 263.6913714014552;
+
+  await mountResults(page, {
+    shiftIds: ['morning'],
+    mode: 'joint',
+    electrificationFeasible: false,
+    consumptionBasis: 'aggregate_q95',
+    consumptionAnalysis: {
+      status: 'unverified',
+      optimization_basis: 'aggregate_q95',
+      per_shift: {},
+    },
+    forecastVerification: { status: 'physical_limits_exceeded' },
+    predictionOverrides: {
+      'prediction-morning': q95Prediction,
+    },
+    electrificationSummary: {
+      status: 'infeasible',
+      infeasible_buses: [{
+        shift_id: 'morning',
+        shift_name: 'Morning service',
+        required_total_packs: 10,
+        required_total_kwh: 1000,
+        max_physical_packs: 8,
+        max_physical_kwh: 800,
+        excess_packs: 2,
+      }],
+    },
+    batteryResultOverrides: {
+      morning: {
+        optimized_packs: 8,
+        required_total_packs: 10,
+        excess_packs: 2,
+        optimized_kwh: 1000,
+        max_physical_packs: 8,
+        max_physical_kwh: 800,
+        physical_feasible: false,
+        feasibility_status: 'infeasible_requires_excess_packs',
+      },
+    },
+    perBusSummaryOverrides: {
+      morning: {
+        min_soc_kwh: 201.14553265912934,
+        max_soc_kwh: 900,
+        total_charged_kwh: 0,
+        num_charging_sessions: 0,
+        charging_sessions: [],
+        energy_timeline: {
+          first_minute: 310,
+          step_minutes: 1,
+          soc_kwh: [900, 201.14553265912934],
+          charge_kwh: [0],
+        },
+      },
+    },
+  });
+
+  await selectShiftScope(page, 'morning');
+  await page.locator('details.ya-more-information > summary').click();
+
+  const warning = page.locator('.efficiency-limit-cell__warning');
+  await expect(warning).toHaveText(
+    'Limit exceeded: vehicle block needs 699 kWh.',
+  );
+  await expect(warning).not.toContainText('663');
+});
+
+test('uses the optimized SOC profile when selected packs differ from the mean prediction', async ({page})=>{
+  const referencePrediction = prediction(
+    'prediction-morning',
+    'morning',
+    8,
+    435.82845128406973,
+  );
+  referencePrediction.contextual_parameters.battery_capacity_kwh = 800;
+  referencePrediction.summary.total_distance_km = 169.87065962512102;
+
+  await mountResults(page, {
+    shiftIds: ['morning'],
+    mode: 'joint',
+    consumptionBasis: 'mean',
+    consumptionAnalysis: {
+      status: 'unverified',
+      optimization_basis: 'mean',
+      per_shift: {},
+    },
+    forecastVerification: { status: 'physical_limits_exceeded' },
+    predictionOverrides: {
+      'prediction-morning': referencePrediction,
+    },
+    batteryResultOverrides: {
+      morning: {
+        optimized_packs: 6,
+        required_total_packs: 6,
+        excess_packs: 0,
+        optimized_kwh: 600,
+        max_physical_packs: 8,
+        max_physical_kwh: 800,
+        physical_feasible: true,
+        feasibility_status: 'feasible',
+      },
+    },
+    perBusSummaryOverrides: {
+      morning: {
+        min_soc_kwh: 122.75790359399056,
+        max_soc_kwh: 540,
+        total_charged_kwh: 0,
+        num_charging_sessions: 0,
+        charging_sessions: [],
+        energy_timeline: {
+          first_minute: 310,
+          step_minutes: 1,
+          soc_kwh: [540, 122.75790359399056],
+          charge_kwh: [0],
+        },
+      },
+    },
+  });
+
+  await selectShiftScope(page, 'morning');
+
+  const consumption = page.locator(
+    '[data-role="feasibility-shift-predicted-consumption"]',
+  );
+  await expect(consumption.locator('strong')).toHaveText('417');
+  await expect(consumption).not.toContainText('436');
+  await expect(consumption).not.toHaveClass(/result-metric--negative/);
+  await expect(
+    page.locator('[data-role="feasibility-shift-predicted-consumption-per-km"] strong'),
+  ).toHaveText('2.456');
+
+  const usableCapacity = page.locator(
+    '[data-role="aggregate-usable-capacity"]',
+  );
+  await expect(usableCapacity).toHaveText('420 kWh');
+  await expect(usableCapacity.locator('..')).not.toHaveClass(
+    /aggregate-energy-kpi--deficit/,
+  );
 });
 
 for (const [required, excess, unavailable] of [[18,8,2],[13,3,0]]) {

@@ -1134,6 +1134,14 @@
   color: var(--color-danger);
 }
 
+.feasibility-shift-metrics .result-metric--negative {
+  background: color-mix(in srgb, var(--color-danger) 6%, var(--color-surface));
+}
+
+.feasibility-shift-metrics .result-metric--negative .result-metric__label {
+  color: var(--color-danger);
+}
+
 .feasibility-shift-physical-status {
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
@@ -2593,6 +2601,10 @@
 }
 
 .aggregate-energy .aggregate-pack-count--exceeded {
+  color: var(--color-danger);
+}
+
+.aggregate-energy .aggregate-energy-kpi--deficit :is(strong, span) {
   color: var(--color-danger);
 }
 

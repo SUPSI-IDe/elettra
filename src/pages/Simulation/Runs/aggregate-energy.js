@@ -41,7 +41,11 @@ function socChart(model, info) {
     <p class="helper-text">${esc(t("simulation.battery_soh_basis"))} 100% = ${number(high)} kWh · ${number(model.minSoc*100, 2)}% = ${number(high*model.minSoc)} kWh · ${number(model.maxSoc*100, 2)}% = ${number(high*model.maxSoc)} kWh</p><div class="aggregate-legend">${profiles.map(([key]) => `<span class="aggregate-${key === 'mean' ? 'mean' : 'q95'}-dot">● ${esc(basisLabel(key))}</span>`).join('')}${verifiedLine ? `<span>⋯ ${esc(label("verified_soc"))}</span>` : ""}</div></figure>`;
 }
 
-export function renderAggregateEnergy(run, shiftId, {diagnostic = false} = {}) {
+export function renderAggregateEnergy(
+  run,
+  shiftId,
+  { diagnostic = false, energyComparison = null } = {}
+) {
   const model = aggregateEnergyModel(run, shiftId);
   const info = (key, title, content) => {
     const id = `aggregate-info-${key}-${shiftId}`;
@@ -49,6 +53,18 @@ export function renderAggregateEnergy(run, shiftId, {diagnostic = false} = {}) {
   };
   const requestedBasis = model.paired ? model.basis : requestedBasisByRun.get(run.id) ?? model.basis;
   const hasDiagnosticRequirement = model.diagnosticTotal > model.selected;
+  const comparisonDemandKwh = Number(energyComparison?.demandKwh);
+  const comparisonAvailableKwh = Number(energyComparison?.availableKwh);
+  const usableCapacityShowsDeficit = Boolean(
+    energyComparison?.isDeficit &&
+    Number.isFinite(model.usable) &&
+    Number.isFinite(comparisonDemandKwh) &&
+    Number.isFinite(comparisonAvailableKwh) &&
+    Math.abs(model.usable - comparisonAvailableKwh) <= 1e-5
+  );
+  const usableCapacityValue = usableCapacityShowsDeficit
+    ? `${number(model.usable)} kWh < ${number(comparisonDemandKwh, 0)} kWh`
+    : `${number(model.usable)} kWh`;
   const packCount = hasDiagnosticRequirement ? model.diagnosticTotal : model.selected;
   const fixedBattery = run.mode === "charging_only" || run.input_params?.mode === "charging_only";
   const packLabel = hasDiagnosticRequirement ? "required_packs"
@@ -66,7 +82,7 @@ export function renderAggregateEnergy(run, shiftId, {diagnostic = false} = {}) {
       ${model.paired || diagnostic ? "" : `<label class="aggregate-basis-control">${esc(label("basis"))}<select data-role="aggregate-basis"><option value="mean" ${requestedBasis!=="aggregate_q95" ? "selected" : ""}>${esc(label("mean"))}</option><option value="aggregate_q95" ${requestedBasis==="aggregate_q95" ? "selected" : ""}>${esc(label("q95"))}</option></select></label>`}</header>
     <div class="result-card__body">
     ${model.paired || diagnostic ? "" : `<div class="aggregate-basis-action"><p class="helper-text" data-role="aggregate-basis-message" aria-live="polite">${esc(label(model.available ? "switch_help" : "legacy_help"))}</p><button type="button" class="button" data-role="aggregate-basis-action" ${model.available ? "hidden" : ""}>${esc(label("calculate"))}</button></div>`}
-    <div class="result-kpis"><div><strong class="${model.physicalExceeded ? "aggregate-pack-count--exceeded" : ""}">${number(packCount)} / ${number(model.maximum)}</strong><span>${esc(label(packLabel))}</span></div><div><strong>${number(model.nominal)} kWh</strong><span>${esc(label(hasDiagnosticRequirement ? "selected_nominal" : "nominal"))}${model.soh < 1 ? ` · ${esc(label("effective"))}: ${number(model.nominal*model.soh)} kWh` : ""}</span></div><div><strong>${number(model.usable)} kWh</strong><span>${esc(label(hasDiagnosticRequirement ? "selected_usable" : "usable"))} · SOC ${number(model.minSoc*100)}–${number(model.maxSoc*100)}% · SOH ${number(model.soh*100)}%</span></div></div>
+    <div class="result-kpis"><div><strong class="${model.physicalExceeded ? "aggregate-pack-count--exceeded" : ""}">${number(packCount)} / ${number(model.maximum)}</strong><span>${esc(label(packLabel))}</span></div><div><strong>${number(model.nominal)} kWh</strong><span>${esc(label(hasDiagnosticRequirement ? "selected_nominal" : "nominal"))}${model.soh < 1 ? ` · ${esc(label("effective"))}: ${number(model.nominal*model.soh)} kWh` : ""}</span></div><div class="${usableCapacityShowsDeficit ? "aggregate-energy-kpi--deficit" : ""}"><strong data-role="aggregate-usable-capacity">${esc(usableCapacityValue)}</strong><span>${esc(label(hasDiagnosticRequirement ? "selected_usable" : "usable"))} · SOC ${number(model.minSoc*100)}–${number(model.maxSoc*100)}% · SOH ${number(model.soh*100)}%</span></div></div>
     <div class="aggregate-packs" aria-label="${esc(label("packs"))}">${packs}${overflow ? `<span class="aggregate-overflow">${overflow}</span>` : ""}</div>
     <p class="aggregate-pack-key">${number(Math.max(0,model.maximum-model.selected))} ${esc(label("unused"))} · ${number(model.packKwh)} kWh / pack</p><p class="aggregate-pack-key">${esc(label("pack_legend"))}</p>
     ${model.excess>0 ? `<p class="aggregate-warning" role="status">${esc(label(model.physicalExceeded ? "exceeded" : "fixed_deficit", {count:model.physicalExceeded ? model.unavailablePacks : model.excess,required:model.diagnosticTotal,selected:model.selected,extra:model.excess,maximum:model.maximum}))}</p>` : ""}
