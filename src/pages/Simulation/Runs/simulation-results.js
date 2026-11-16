@@ -7009,6 +7009,7 @@ const buildShiftOperationalSummaryHtml = (
   const battery = detail.battery ?? {};
   const operation = detail.operation ?? {};
   const diagnosticBattery = hasDiagnosticShiftBattery(battery);
+  const showPackDetails = diagnosticBattery || battery.physicalFeasible !== true;
   const margin = toOptionalFiniteNumber(battery.commonPackMargin);
   let coverageLabel = translateOr(
     "simulation.feasibility_shift_status_unknown",
@@ -7072,7 +7073,7 @@ const buildShiftOperationalSummaryHtml = (
       </div>
       <div class="result-card__body">
       <div class="feasibility-shift-metrics result-metric-grid">
-        <article class="result-metric" data-role="feasibility-shift-required-packs">
+        ${showPackDetails ? `<article class="result-metric" data-role="feasibility-shift-required-packs">
           <span class="result-metric__label">${textContent(
             translateOr("simulation.feasibility_shift_required_battery", "Vehicle block battery requirement")
           )}</span>
@@ -7104,7 +7105,7 @@ const buildShiftOperationalSummaryHtml = (
               physicalStatus
             )}</small>
           </span>
-        </article>
+        </article>` : ""}
         ${diagnosticBattery ? "" : `<article class="result-metric" data-role="feasibility-shift-min-soc">
           <span class="result-metric__label">${textContent(
             translateOr("simulation.battery_adequacy_minimum_soc", "Minimum SOC reached")

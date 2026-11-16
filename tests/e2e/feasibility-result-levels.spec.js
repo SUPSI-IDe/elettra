@@ -700,9 +700,9 @@ test("separates the common result from one selected shift without an aggregate o
 
   const shiftSummary = shiftDetail.locator('[data-role="feasibility-shift-summary"]');
   await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Covered by selected battery and planned charging");
-  await expect(shiftSummary.locator('[data-role="feasibility-shift-required-packs"]')).toContainText("8");
-  await expect(shiftSummary.locator('[data-role="feasibility-shift-common-packs"]')).toContainText("8");
-  await expect(shiftSummary.locator('[data-role="feasibility-shift-pack-margin"]')).toContainText("0 packs");
+  for (const metric of ['required-packs', 'common-packs', 'pack-margin', 'physical-limit']) {
+    await expect(shiftSummary.locator(`[data-role="feasibility-shift-${metric}"]`)).toHaveCount(0);
+  }
   await expect(shiftSummary.locator('[data-role="feasibility-shift-min-soc"]')).toContainText("120.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-charged-energy"]')).toContainText("80.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("2");
@@ -712,9 +712,7 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(
     shiftSummary.locator('[data-role="feasibility-shift-predicted-consumption-per-km"]'),
   ).toHaveText(/Prediction consumption per km \(kWh\/km\)\s+3\.500/);
-  await expect(
-    shiftSummary.locator('[data-role="feasibility-shift-required-packs"]'),
-  ).toHaveText(/Vehicle block battery requirement\s+8 packs/);
+  await expect(shiftSummary.locator('.result-metric')).toHaveCount(6);
   await expect(shiftSummary.locator(".feasibility-shift-metrics strong small")).toHaveCount(0);
   const shiftMetricLayout = await shiftSummary
     .locator(".feasibility-shift-metrics")
@@ -737,7 +735,7 @@ test("separates the common result from one selected shift without an aggregate o
       }).filter(Boolean);
       return { rows, viewportWidth: window.innerWidth };
     });
-  expect(shiftMetricLayout.rows).toHaveLength(10);
+  expect(shiftMetricLayout.rows).toHaveLength(6);
   shiftMetricLayout.rows.forEach((row) => {
     expect(row.labelFontFamily).toBe(row.valueFontFamily);
     expect(row.labelFontSize).toBe(row.valueFontSize);
@@ -918,8 +916,7 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(sizingEffect.locator("h3").first()).toHaveText(
     "Sizing effect on energy consumption",
   );
-  await expect(sizingEffect).toContainText("350.0 kWh");
-  await expect(sizingEffect).not.toContainText("550.0 kWh");
+  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-consumption"]')).toHaveText("350.0");
   await expect(sizingEffect.locator("svg")).toHaveCount(0);
   const lastMoreInformationSection = await moreInformation
     .locator(".ya-more-information__content > *")
@@ -932,8 +929,8 @@ test("separates the common result from one selected shift without an aggregate o
   await selector.getByRole("tab", { name: "Evening service" }).click();
   await expect(shiftDetail.locator('[data-role="feasibility-selected-shift"]')).toHaveText("Evening service");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Largest selected battery");
-  await expect(shiftSummary.locator('[data-role="feasibility-shift-required-packs"]')).toContainText("12");
-  await expect(shiftSummary.locator('[data-role="feasibility-shift-pack-margin"]')).toContainText("0");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-required-packs"]')).toHaveCount(0);
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-pack-margin"]')).toHaveCount(0);
   await expect(shiftSummary.locator('[data-role="feasibility-shift-min-soc"]')).toContainText("60.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-charged-energy"]')).toContainText("140.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("3");
@@ -951,8 +948,7 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(energyAdequacy).not.toContainText("350.0 kWh");
   await expect(moreInformation).toHaveAttribute("open", "");
   await expect(sizingEffect).toBeVisible();
-  await expect(sizingEffect).toContainText("550.0 kWh");
-  await expect(sizingEffect).not.toContainText("350.0 kWh");
+  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-consumption"]')).toHaveText("550.0");
   await generalTab.click();
   await expect(general.locator('[data-role="feasibility-fleet-battery"]')).toContainText("12");
   await expect(general.locator('[data-role="feasibility-limiting-shifts"]')).toContainText("Evening service");
@@ -2053,6 +2049,17 @@ for (const mode of ['battery_only','charging_only','joint']) {
     await expect(card.locator('.aggregate-demand[data-basis="mean"]')).toHaveCount(1);
     await expect(card.locator('[data-basis="aggregate_q95"]')).toHaveCount(0);
     const histogram=card.locator('[data-role="energy-distribution"]');
+    await expect(histogram).toBeVisible();
+    const chartBounds = await card.locator('.aggregate-charts > figure').evaluateAll(elements =>
+      elements.map(el => { const { x, y, width } = el.getBoundingClientRect(); return { x, y, width }; })
+    );
+    expect(chartBounds).toHaveLength(2);
+    if (page.viewportSize().width > 900) {
+      expect(Math.abs(chartBounds[0].y - chartBounds[1].y)).toBeLessThan(1);
+      expect(chartBounds[1].x).toBeGreaterThanOrEqual(chartBounds[0].x + chartBounds[0].width);
+    } else {
+      expect(chartBounds[1].y).toBeGreaterThan(chartBounds[0].y);
+    }
     await expect(histogram).toHaveAttribute('data-packs','8');
     await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveCount(1);
     await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveAttribute('data-value','300');
@@ -2086,12 +2093,14 @@ for (const mode of ['battery_only','charging_only','joint']) {
     await expect(card.locator('.aggregate-demand[data-basis="aggregate_q95"]')).toHaveCount(1);
     await expect(card.locator('[data-basis="mean"]')).toHaveCount(0);
     await expect(histogram).toHaveAttribute('data-packs','9');
+    await expect(histogram).toBeVisible();
     await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveCount(1);
     await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveAttribute('data-basis','aggregate_q95');
     await expect(histogram.locator('[data-role="energy-distribution-marker"]')).toHaveAttribute('data-value','380');
     await expect(decisionConsumption.locator('strong')).toHaveText('380');
     await expect(decisionConsumptionPerKm.locator('strong')).toHaveText('3.800');
     await expect(page.locator('[data-role="charging-info"]')).toContainText('3');
+    await expect(card.locator('.aggregate-soc svg')).toBeVisible();
     expect(writes).toBe(0);
   });
 }

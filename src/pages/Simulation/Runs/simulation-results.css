@@ -2703,7 +2703,7 @@
   min-width: 0;
 }
 .aggregate-charts > * { min-width: 0; }
-@media (width >= 1600px) {
+@media (width > 900px) {
   .aggregate-charts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
