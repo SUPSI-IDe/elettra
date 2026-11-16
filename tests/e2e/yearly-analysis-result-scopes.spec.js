@@ -889,15 +889,17 @@ test("yearly results use General and one primary tab per shift", async ({ page }
   const disclosureToggle = page.locator(".ya-lca-disclosure > summary");
   await expect(page.locator(".ya-lca-disclosure")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await expect(page.locator(".ya-lca-disclosure")).toHaveCSS("border-style", "solid");
-  const disclosureTypography = await disclosureToggle.evaluate((element) => {
+  const perKmTypography = await page.locator('.ya-lca-details > summary').evaluate((element) => {
     const style = getComputedStyle(element);
     return {
-      fontSize: Number.parseFloat(style.fontSize),
-      fontWeight: Number(style.fontWeight),
+      fontSize: style.fontSize,
+      fontWeight: style.fontWeight,
+      color: style.color,
     };
   });
-  expect(disclosureTypography.fontSize).toBeLessThanOrEqual(14);
-  expect(disclosureTypography.fontWeight).toBeLessThanOrEqual(500);
+  await expect(disclosureToggle).toHaveCSS('font-size', perKmTypography.fontSize);
+  await expect(disclosureToggle).toHaveCSS('font-weight', perKmTypography.fontWeight);
+  await expect(disclosureToggle).toHaveCSS('color', perKmTypography.color);
 
   if (updateGuideScreenshots) {
     await page.setViewportSize({ width: 1440, height: 990 });
