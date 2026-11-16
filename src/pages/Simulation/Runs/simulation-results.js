@@ -3149,9 +3149,9 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
   const verificationStatus = results.integrity_audit?.status ??
     (results.forecast_verification?.status === "verified" ? "verified" : "unverified");
   const verificationNotice = verificationStatus === "verified"
-    ? `<p data-role="forecast-verification">${textContent(
+    ? `<span class="result-status result-status--positive" data-role="forecast-verification">${textContent(
         t("simulation.forecast_verified")
-      )}</p>`
+      )}</span>`
     : verificationStatus === "duplicate_physical_shifts"
       ? `<p class="efficiency-infeasibility-notice" data-role="forecast-verification">${textContent(
           t("simulation.forecast_duplicate")
@@ -3306,10 +3306,10 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
       }
       return `
       <tr>
-        <td class="efficiency-td-num efficiency-td-highlight">${textContent(String(b.optimized_packs ?? "—"))}</td>
-        <td class="efficiency-td-num efficiency-td-highlight">${optimizedUsableKwh == null ? "—" : formatFixed(optimizedUsableKwh, 0)}</td>
-        <td class="efficiency-td-num">${textContent(String(b.max_physical_packs ?? "—"))}</td>
-        <td><span class="badge badge--compact ${feasBadge}">${textContent(
+        <td class="efficiency-td-num efficiency-td-highlight" data-label="${textContent(t('simulation.opt_col_selected_packs'))}">${textContent(String(b.optimized_packs ?? "—"))}</td>
+        <td class="efficiency-td-num efficiency-td-highlight" data-label="${textContent(t('simulation.opt_col_selected_usable_kwh'))}">${optimizedUsableKwh == null ? "—" : formatFixed(optimizedUsableKwh, 0)}</td>
+        <td class="efficiency-td-num" data-label="${textContent(t('simulation.opt_col_pack_limit'))}">${textContent(String(b.max_physical_packs ?? "—"))}</td>
+        <td data-label="${textContent(t('simulation.opt_col_feasibility'))}"><span class="badge badge--compact ${feasBadge}">${textContent(
           b.feasibility_status === "unverified" ? t("simulation.verification_pending") : physFeasible === true
             ? translateOr(
                 "simulation.feasibility_physical_within_limit",
@@ -3347,8 +3347,7 @@ const buildOptimizationResultsHtml = (results, inputParams = {}, viewOptions = {
 
   return `
     <div class="efficiency-section">
-      ${verificationNotice}
-      <h3 class="efficiency-section-title">${textContent(t("simulation.opt_section_title") || "Optimization Results")}</h3>
+      <div class="feasibility-optimization-heading"><h3 class="efficiency-section-title">${textContent(t("simulation.opt_section_title") || "Optimization Results")}</h3>${verificationNotice}</div>
       ${usableSocNoteHtml}
       ${electrificationSummaryHtml}
       ${batteryTableHtml}
@@ -6541,6 +6540,9 @@ const infrastructureMetricValue = (value, suffix = "") =>
 const buildSharedInfrastructureDetailsHtml = (viewState, inputParams = {}) => {
   const summary = viewState?.general?.infrastructureSummary ?? {};
   const stations = Array.isArray(summary.stations) ? summary.stations : [];
+  if (summary.selectionComplete && summary.activeStationCount === 0) {
+    return `<p class="feasibility-infrastructure" data-role="feasibility-infrastructure"><span data-role="feasibility-infrastructure-empty">${textContent(t('simulation.feasibility_infrastructure_empty'))}</span></p>`;
+  }
   const configurationState = summary.selectionComplete
     ? translateOr("simulation.feasibility_infrastructure_complete", "Configuration available")
     : translateOr("simulation.feasibility_infrastructure_incomplete", "Configuration incomplete");
@@ -6663,6 +6665,8 @@ const buildSharedInfrastructureDetailsHtml = (viewState, inputParams = {}) => {
     </section>`;
 };
 
+const rawFeasibilityDataButtonHtml = () => `<button type="button" class="result-header-action" data-action="toggle-sim-data">${textContent(t('simulation.results_view_raw_data'))}</button>`;
+
 const buildFeasibilityGeneralLevelHtml = (
   viewState,
   inputParams = {},
@@ -6766,6 +6770,10 @@ const buildFeasibilityGeneralLevelHtml = (
         </article>
       </div>
       `}
+      <details class="ya-more-information result-card feasibility-raw-data-access">
+        <summary class="ya-more-information__toggle result-card__header">${textContent(t('simulation.efficiency_more_information'))}</summary>
+        <div class="result-card__body">${rawFeasibilityDataButtonHtml()}</div>
+      </details>
       </div>
     </section>`;
 };
@@ -7660,6 +7668,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
               <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
               <div class="kpi-grid efficiency-params-grid">${conditionsHtml}</div>
             </div>
+            ${rawFeasibilityDataButtonHtml()}
             ${optimizationHtml}
             ${sizingEffectHtml}
           </div>
@@ -10200,10 +10209,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   });
 
   const toggleOverlay = () => { if (overlay) overlay.hidden = !overlay.hidden; };
-  section.querySelectorAll('[data-action="toggle-sim-data"]').forEach((btn) => {
-    btn.addEventListener("click", toggleOverlay);
-    cleanupHandlers.push(() => btn.removeEventListener("click", toggleOverlay));
-  });
+  const handleRawDataClick = (event) => {
+    if (event.target.closest('[data-action="toggle-sim-data"]')) toggleOverlay();
+  };
+  section.addEventListener('click', handleRawDataClick);
+  cleanupHandlers.push(() => section.removeEventListener('click', handleRawDataClick));
 
   const closeOverlay = () => { if (overlay) overlay.hidden = true; };
   section.querySelectorAll('[data-action="close-sim-data"]').forEach((btn) => {

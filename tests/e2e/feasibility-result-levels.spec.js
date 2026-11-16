@@ -451,6 +451,11 @@ test("explains reached and configured SOC limits for the selected shift", async 
     'Feasibility',
   ]);
   await expect(batterySizingTable.locator('tbody tr').first().locator('td')).toHaveCount(4);
+  const sizingBounds = await batterySizingTable.boundingBox();
+  expect(sizingBounds.x + sizingBounds.width).toBeLessThanOrEqual(page.viewportSize().width);
+  expect(await batterySizingTable.evaluate(table => table.parentElement.scrollWidth - table.parentElement.clientWidth)).toBeLessThanOrEqual(1);
+  await expect(batterySizingTable.locator('.badge')).toHaveCSS('text-transform', 'none');
+  await expect(page.locator('.feasibility-optimization-heading [data-role="forecast-verification"]')).toBeVisible();
   const sizingEffect = page.locator('[data-role="feasibility-sizing-effect"]');
   await expect(sizingEffect).toContainText('Sizing effect on energy consumption');
   await expect(sizingEffect.locator('tr[data-sizing-configuration]')).toHaveCount(1);
@@ -586,7 +591,7 @@ test("separates the common result from one selected shift without an aggregate o
     "Feasibility evaluation results - Multi-shift feasibility",
   );
   await expect(
-    page.locator(".page-header .result-header-action"),
+    page.locator(".feasibility-raw-data-access .result-header-action"),
   ).toHaveText("View raw feasibility data");
   await expect(general).toBeVisible();
   await expect(shiftDetail).toHaveCount(0);
@@ -1460,10 +1465,25 @@ test("distinguishes a resolved configuration with no charging locations from mis
   });
 
   await expect(page.locator('[data-role="feasibility-infrastructure-empty"]')).toBeVisible();
-  await expect(page.locator('[data-role="feasibility-active-locations"]')).toHaveText("0");
-  await expect(page.locator('[data-role="feasibility-total-plugs"]')).toHaveText("0");
-  await expect(page.locator('[data-role="feasibility-total-power"]')).toContainText("0");
-  await expect(page.locator('[data-role="feasibility-total-installation-cost"]')).toContainText("CHF 0");
+  await expect(page.locator('.feasibility-infrastructure-metrics')).toHaveCount(0);
+});
+
+test('raw feasibility data remain accessible from additional information at both scopes', async ({ page }) => {
+  await mountResults(page);
+  await expect(page.locator('.page-header [data-action="toggle-sim-data"]')).toHaveCount(0);
+  const access = page.locator('.feasibility-raw-data-access');
+  await access.locator('summary').click();
+  await access.getByRole('button', { name: 'View raw feasibility data' }).click();
+  const overlay = page.locator('[data-role="sim-data-overlay"]');
+  await expect(overlay).toBeVisible();
+  await overlay.locator('[data-action="close-sim-data"]').first().click();
+  await selectShiftScope(page, 'morning');
+  const more = page.locator('details.feasibility-more-information');
+  if (await more.getAttribute('open') === null) await more.locator(':scope > summary').click();
+  await more.getByRole('button', { name: 'View raw feasibility data' }).click();
+  await expect(overlay).toBeVisible();
+  await overlay.locator('[data-action="close-sim-data"]').first().click();
+  await expect(overlay).toBeHidden();
 });
 
 const aggregateAnalysis = () => ({

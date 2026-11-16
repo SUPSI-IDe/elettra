@@ -5,6 +5,73 @@
   align-items: center;
   gap: var(--space-xs);
 }
+
+.simulation-results-page .result-page-heading .page-title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.simulation-results-page:has(.feasibility-level) [data-role="raw-data-fallback"] {
+  display: none;
+}
+
+.simulation-results-page .badge {
+  text-transform: none;
+}
+
+.feasibility-optimization-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+@media (width <= 700px) {
+  .simulation-results-page [data-role="battery-sizing-table"] {
+    display: block;
+    box-sizing: border-box;
+    padding: 0;
+    max-width: 100%;
+    min-width: 0;
+  }
+  [data-role="battery-sizing-table"] thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  [data-role="battery-sizing-table"] tbody,
+  [data-role="battery-sizing-table"] tr {
+    display: block;
+  }
+  .simulation-results-page [data-role="battery-sizing-table"] td {
+    box-sizing: border-box;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-sm);
+    white-space: normal;
+    text-align: right;
+  }
+  [data-role="battery-sizing-table"] td::before {
+    content: attr(data-label);
+    text-align: left;
+    font-weight: 400;
+    color: var(--text-main);
+  }
+  [data-role="battery-sizing-table"] .badge {
+    justify-self: end;
+    max-width: 100%;
+    box-sizing: border-box;
+    white-space: normal;
+    text-align: center;
+  }
+}
 .simulation-results-page .breadcrumb-sep {
   color: var(--border-medium);
 }
