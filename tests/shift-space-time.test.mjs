@@ -5,6 +5,7 @@ import {
   assignDepotTripsToSpaceTimeGroups,
   buildTransferOnlySpaceTimeGroup,
   buildSpaceTimeGroups,
+  combineSpaceTimeGroups,
   findDepotConnectionGaps,
   partitionDepotTripsForSpaceTimeGroup,
 } from "../src/pages/Fleet/Shifts/shift-space-time.js";
@@ -56,7 +57,7 @@ test("builds one ordered space-time group from outbound and return trips", () =>
   );
 });
 
-test("separates diagrams by route and ignores trips without usable times", () => {
+test("builds route groups for the combined diagram and ignores trips without usable times", () => {
   const groups = buildSpaceTimeGroups([
     {
       trip_id: "301-1",
@@ -81,6 +82,59 @@ test("separates diagrams by route and ignores trips without usable times", () =>
     groups.map((group) => group.key),
     ["301", "7"]
   );
+});
+
+test("combines intersecting routes without losing branch stops, return trips or overnight times", () => {
+  const trip = (id, route, sequence, stops) => ({
+    trip_id: id, route_id: `route-${route}`, route_label: route, sequence_number: sequence,
+    stop_times: stops.map(([stop_name, departure_time]) => ({ stop_name, departure_time })),
+  });
+  const source = [
+    trip("fifteen", "15", 1, [["Station", "23:00"], ["Branch 15", "23:10"], ["Muzzano", "23:20"]]),
+    trip("sixteen", "16", 2, [["Muzzano", "23:25"], ["Branch 16", "23:35"], ["Station", "23:45"]]),
+    trip("fifteen-again", "15", 3, [["Station", "24:00"], ["Branch 15", "24:10"], ["Muzzano", "24:20"]]),
+  ];
+  const groups = buildSpaceTimeGroups(source);
+  const snapshot = structuredClone(groups);
+  const combined = combineSpaceTimeGroups(groups);
+  assert.deepEqual(combined.routes.map(route => route.label), ["15", "16"]);
+  assert.deepEqual(new Set(combined.stops), new Set(["Station", "Branch 15", "Muzzano", "Branch 16"]));
+  assert.equal(combined.stops.length, 4);
+  assert.deepEqual(combined.trips.map(trip => trip.id), source.map(trip => trip.trip_id));
+  assert.deepEqual(combined.trips.map(trip => trip.routeKey), ["route-15", "route-16", "route-15"]);
+  assert.deepEqual(combined.trips[1].points.map(point => point.stop), ["Muzzano", "Branch 16", "Station"]);
+  assert.equal(combined.trips[2].points.at(-1).minute, 1460);
+  assert.deepEqual(groups, snapshot);
+});
+
+test("orders route legend numerically and includes disconnected routes on the shared axis", () => {
+  const groups = ["10", "2"].map((label, index) => ({
+    key: label, label, stops: [`start-${label}`, `end-${label}`],
+    trips: [{ id: label, points: [{ stop: `start-${label}`, minute: index * 60 }, { stop: `end-${label}`, minute: index * 60 + 10 }] }],
+  }));
+  const combined = combineSpaceTimeGroups(groups);
+  assert.deepEqual(combined.routes.map(route => route.label), ["2", "10"]);
+  assert.equal(combined.stops.length, 4);
+});
+
+test("retains single-line groups and handles an empty duty", () => {
+  const single = { key: "7", label: "7", stops: ["A", "B"], trips: [] };
+  assert.equal(combineSpaceTimeGroups([single]), single);
+  assert.equal(combineSpaceTimeGroups([]), null);
+});
+
+test("assigns an inter-line transfer exactly once in the combined diagram", () => {
+  const groups = buildSpaceTimeGroups([
+    { trip_id: "four", route_id: "4", sequence_number: 1, start_stop_name: "A", end_stop_name: "B", departure_time: "07:00", arrival_time: "07:10" },
+    { trip_id: "six", route_id: "6", sequence_number: 3, start_stop_name: "C", end_stop_name: "D", departure_time: "07:20", arrival_time: "07:30" },
+  ]);
+  const combined = combineSpaceTimeGroups(groups);
+  const transfer = { trip_id: "depot-transfer", sequence_number: 2, start_stop_name: "B", end_stop_name: "C", departure_time: "07:10", arrival_time: "07:20" };
+  const assignments = assignDepotTripsToSpaceTimeGroups([combined], [transfer]);
+  assert.deepEqual(assignments.get(combined.key), [transfer]);
+  const partition = partitionDepotTripsForSpaceTimeGroup(combined, assignments.get(combined.key));
+  assert.equal(partition.connected.length, 1);
+  assert.equal(partition.disconnected.length, 0);
 });
 
 test("merges TPL 40104 return-only stops into the route instead of appending them", () => {

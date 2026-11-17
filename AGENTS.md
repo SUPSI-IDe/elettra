@@ -43,6 +43,15 @@ wording, add permanent regression tests for the requested behavior, including
 relevant states, variants, and edge cases. Run those targeted tests as well as
 the appropriate complete suites.
 
+## Test CPU budget
+
+Run tests on at most eight logical CPU cores, including all child processes
+(browser workers and the Vite test server). On Linux, launch test commands with
+`taskset --cpu-list 0-7` when those CPUs are allowed; otherwise choose up to eight
+CPUs from the process's allowed CPU list. Child processes inherit that affinity.
+Keep the configured worker count at eight or fewer; a worker limit alone does
+not enforce the CPU budget. Preserve lower worker counts when appropriate.
+
 ## Agent skills
 
 ### Issue tracker

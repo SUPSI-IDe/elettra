@@ -134,6 +134,104 @@ test.afterEach(async ({ page }) => {
   await page.evaluate(() => window.cleanupShiftMapTest?.());
 });
 
+const showDuty = async (page, tripData = trips, options = {}) => {
+  await page.evaluate(async ({ html, tripData, options }) => {
+    window.cleanupShiftMapTest?.();
+    const section = new DOMParser().parseFromString(html, "text/html").querySelector(".visualize-shift");
+    document.querySelector(".layout-article").replaceChildren(section);
+    const { initializeVisualizeShift } = await import("/elettra/src/pages/Fleet/Shifts/visualize-shift.js");
+    window.cleanupShiftMapTest = await initializeVisualizeShift(document, {
+      name: "Responsive duty", dailyDistanceKm: 10, startDepotName: "Depot Yard", endDepotName: "Depot Yard",
+      trips: tripData, ...options,
+    });
+  }, { html: visualizeShiftHtml, tripData, options });
+};
+
+test("uses the singular heading and a single blue colour with orange dashed transfers", async ({ page }) => {
+  await showDuty(page, trips.map(trip => ({ ...trip, route_id: "route-7", route_label: "7" })));
+  const diagram = page.locator('[data-role="space-time"]');
+  await expect(diagram.locator(".shift-space-time__group-header h3")).toHaveText("Line 7");
+  await expect(diagram.locator(".shift-space-time__route-key")).toHaveText(["Line 7"]);
+  const colours = await diagram.locator('.shift-space-time__trip path').evaluateAll(paths => paths.map(path => getComputedStyle(path).stroke));
+  expect(new Set(colours).size).toBe(1);
+  expect(colours[0]).toBe("rgb(78, 121, 167)");
+  const transfers = diagram.locator(".shift-space-time__depot-line");
+  await expect(transfers).toHaveCount(2);
+  await expect(transfers.first()).toHaveCSS("stroke", "rgb(245, 166, 35)");
+  await expect(transfers.first()).toHaveCSS("stroke-dasharray", "6px, 4px");
+  const layout = await page.evaluate(() => {
+    const header = document.querySelector(".shift-space-time__group-header");
+    return {
+      heading: header.querySelector("h3").getBoundingClientRect().toJSON(),
+      metadata: header.querySelector(".shift-space-time__group-metadata").getBoundingClientRect().toJSON(),
+    };
+  });
+  if ((page.viewportSize()?.width ?? 0) > 600) expect(layout.metadata.left).toBeGreaterThan(layout.heading.right);
+  else expect(layout.metadata.top).toBeGreaterThanOrEqual(layout.heading.bottom);
+});
+
+test("fills wide containers and reacts to width-only and height-only resizing", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1200 });
+  await showDuty(page);
+  const plot = page.locator(".shift-space-time__scroll");
+  const dimensions = () => page.evaluate(() => {
+    const node = document.querySelector(".shift-space-time__scroll");
+    return {
+      width: node.clientWidth, svgWidth: node.querySelector("svg").getBoundingClientRect().width,
+      height: node.querySelector("svg").getBoundingClientRect().height,
+      gap: node.parentElement.parentElement.getBoundingClientRect().bottom - node.getBoundingClientRect().bottom,
+      padding: parseFloat(getComputedStyle(node.parentElement.parentElement).paddingBottom),
+    };
+  });
+  await expect.poll(async () => { const d = await dimensions(); return Math.abs(d.svgWidth - d.width); }).toBeLessThanOrEqual(1);
+  const initial = await dimensions();
+  expect(Math.abs(initial.gap - initial.padding)).toBeLessThanOrEqual(2);
+  await page.setViewportSize({ width: 1900, height: 1200 });
+  await expect.poll(async () => (await dimensions()).svgWidth).toBeGreaterThan(initial.svgWidth + 200);
+  const wide = await dimensions();
+  await page.setViewportSize({ width: 1900, height: 1600 });
+  await expect.poll(async () => (await dimensions()).height).toBeGreaterThan(wide.height + 200);
+  await expect.poll(async () => { const d = await dimensions(); return Math.abs(d.svgWidth - d.width); }).toBeLessThanOrEqual(1);
+});
+
+test("retains internal scrolling and scroll position on mobile without overflowing the page", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await showDuty(page);
+  const plot = page.locator(".shift-space-time__scroll");
+  await expect.poll(() => plot.evaluate(node => node.scrollWidth - node.clientWidth)).toBeGreaterThan(100);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // Resolve and update the live node together: the initial resize callback can
+  // replace it between a locator lookup and a separate evaluate call.
+  await expect.poll(() => page.evaluate(() => {
+    const node = document.querySelector(".shift-space-time__scroll");
+    node.scrollLeft = 120;
+    node.querySelector("svg").setAttribute("data-before-resize", "true");
+    return node.scrollLeft;
+  })).toBe(120);
+  await page.setViewportSize({ width: 430, height: 844 });
+  await expect.poll(() => plot.evaluate(node => node.clientWidth)).toBeGreaterThan(300);
+  // Wait for the debounced re-render, rather than accepting the old SVG.
+  await expect.poll(() => page.locator('.shift-space-time__chart').getAttribute('data-before-resize')).toBeNull();
+  await expect.poll(() => page.evaluate(() => document.querySelector(".shift-space-time__scroll").scrollLeft)).toBe(120);
+  await expect(plot.locator('[data-role="space-time-trip"]')).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("keeps long duties scrollable without shrinking the labels", async ({ page }) => {
+  const long = trips.map(trip => ({ ...trip, stop_times: trip.stop_times.map((stop, index) => ({
+    ...stop, departure_time: index ? "24:00" : "05:00", arrival_time: index ? "24:00" : "05:00",
+  })) }));
+  await showDuty(page, long);
+  const plot = page.locator(".shift-space-time__scroll");
+  await expect.poll(() => plot.evaluate(node => node.scrollWidth > node.clientWidth)).toBe(true);
+  await expect(plot.locator('.shift-space-time__chart')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => {
+    const label = document.querySelector('.shift-space-time__point text');
+    return parseFloat(getComputedStyle(label).fontSize);
+  })).toBeGreaterThanOrEqual(9);
+  expect(await plot.locator('path').evaluateAll(paths => paths.some(path => /NaN|undefined/.test(path.getAttribute('d') ?? '')))).toBe(false);
+});
+
 test("starts with space-time and switches to an ordered trip-by-trip map", async ({
   page,
 }) => {
@@ -349,7 +447,7 @@ test("renders a FART-style space-time diagram for all trips", async ({ page }) =
   await expect(mapPanel).toBeHidden();
   await expect(diagram).toBeVisible();
   await expect(diagram.getByRole("heading", { name: "All routes" })).toBeAttached();
-  await expect(diagram.getByRole("heading", { name: "All routes" })).toHaveClass("sr-only");
+  await expect(diagram.getByRole("heading", { name: "All routes" })).toBeVisible();
   await expect(diagram).toContainText("2 trips · 5 stops");
   await expect(diagram.locator('[data-role="space-time-trip"]')).toHaveCount(2);
   await expect(diagram.locator('[data-role="space-time-stop-line"]')).toHaveCount(6);
@@ -514,11 +612,12 @@ test("keeps 40104 depot transfers separate from the service stop order", async (
   expect(stopPositions["TPL Rimessa 1"]).toBeGreaterThan(stopPositions["Lugano Centro"]);
 });
 
-test("combines a multi-line shift using each trip route", async ({ page }) => {
+for (const status of ["gtfs", "service"]) {
+test(`combines a multi-line shift using each ${status} trip route`, async ({ page }) => {
   const shiftTrips = [
     {
       id: "trip-route-10",
-      trip_id: "gtfs-route-10",
+      trip_id: `${status}-route-10`,
       start_stop_name: "Shared terminal",
       end_stop_name: "Line 10 terminal",
       departure_time: "06:00:00",
@@ -527,7 +626,7 @@ test("combines a multi-line shift using each trip route", async ({ page }) => {
     },
     {
       id: "trip-route-20",
-      trip_id: "gtfs-route-20",
+      trip_id: `${status}-route-20`,
       start_stop_name: "Shared terminal",
       end_stop_name: "Line 20 terminal",
       departure_time: "06:40:00",
@@ -535,7 +634,12 @@ test("combines a multi-line shift using each trip route", async ({ page }) => {
       sequence_number: 2,
     },
   ];
+  shiftTrips.push({ ...shiftTrips[0], id: "trip-route-10-return", trip_id: `${status}-route-10-return`, sequence_number: 3, departure_time: "07:20:00", arrival_time: "07:50:00" });
   const stopsByTrip = {
+    "trip-route-10-return": [
+      { id: "shared-stop", stop_name: "Shared terminal", departure_time: "07:20:00" },
+      { id: "line-10-stop", stop_name: "Line 10 terminal", arrival_time: "07:50:00" },
+    ],
     "trip-route-10": [
       { id: "shared-stop", stop_name: "Shared terminal", departure_time: "06:00:00" },
       { id: "line-10-stop", stop_name: "Line 10 terminal", arrival_time: "06:30:00" },
@@ -579,10 +683,9 @@ test("combines a multi-line shift using each trip route", async ({ page }) => {
   await page.route("**/api/v1/gtfs/gtfs-trips/by-stop/**", (route) => {
     tripsByStopCalls += 1;
     return route.fulfill({
-      json: [
-        { id: "trip-route-10", trip_id: "gtfs-route-10", route_id: "route-10" },
-        { id: "trip-route-20", trip_id: "gtfs-route-20", route_id: "route-20" },
-      ],
+      json: new URL(route.request().url()).searchParams.get("status") === status
+        ? shiftTrips.map(trip => ({ ...trip, route_id: trip.id === "trip-route-20" ? "route-20" : "route-10" }))
+        : [],
     });
   });
   await page.route("**/api/v1/gtfs/gtfs-routes/**", (route) => {
@@ -614,9 +717,16 @@ test("combines a multi-line shift using each trip route", async ({ page }) => {
   await expect(groups.locator(".shift-space-time__route-key"))
     .toHaveText(["Line 10", "Line 20"]);
   await expect(groups.locator(".shift-space-time__group-metadata"))
-    .toContainText(/2 trips? · 3 stops/);
+    .toContainText(/3 trips? · 3 stops/);
+  const colors = await groups.locator('[data-role="space-time-trip"]').evaluateAll(nodes => nodes.map(node => ({
+    route: node.getAttribute("data-route-id"), color: node.querySelector("path").getAttribute("stroke"),
+  })));
+  expect(colors.map(trip => trip.route)).toEqual(["route-10", "route-20", "route-10"]);
+  expect(colors[0].color).toBe(colors[2].color);
+  expect(colors[0].color).not.toBe(colors[1].color);
   expect(tripsByStopCalls).toBe(1);
 });
+}
 
 test("renders a shift containing only connected transfers in both views", async ({ page }) => {
   const transferTrips = [

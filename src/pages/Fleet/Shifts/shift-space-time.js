@@ -449,6 +449,9 @@ const appendDiagram = (container, group, options = {}) => {
 
   const scroll = document.createElement("div");
   scroll.className = "shift-space-time__scroll";
+  // Measure the actual plot area after the responsive legend has wrapped.
+  section.append(header, scroll);
+  container.append(section);
 
   const allMinutes = [...group.trips, ...depotSeries].flatMap((trip) =>
     trip.points.map((point) => point.minute)
@@ -466,19 +469,48 @@ const appendDiagram = (container, group, options = {}) => {
     Math.max(190, Math.ceil(longestStopLength * 7.2 + 28))
   );
   const margin = { top: 54, right: 36, bottom: 48, left: stopLabelMargin };
-  const innerWidth = Math.max(720, (axisEnd - axisStart) * 2.2);
-  const innerHeight = Math.max(280, Math.max(diagramStops.length - 1, 1) * 34);
+  const containerStyle = window.getComputedStyle(container);
+  const headerStyle = window.getComputedStyle(header);
+  const scrollStyle = window.getComputedStyle(scroll);
+  const pixels = (value) => Number.parseFloat(value) || 0;
+  const paddingBottom = pixels(containerStyle.paddingBottom);
+  const scrollBorders = pixels(scrollStyle.borderTopWidth) + pixels(scrollStyle.borderBottomWidth);
+  const headerHeight = header.getBoundingClientRect().height + pixels(headerStyle.marginBottom);
+  const contentHeight = container.clientHeight - pixels(containerStyle.paddingTop) - paddingBottom;
+  const article = container.closest(".layout-article");
+  const viewportBottom = Math.min(
+    window.innerHeight,
+    article?.getBoundingClientRect().bottom ?? window.innerHeight
+  );
+  const availableHeight = Math.max(
+    contentHeight - headerHeight - scrollBorders,
+    viewportBottom - Math.max(0, scroll.getBoundingClientRect().top) - paddingBottom - 16 - scrollBorders
+  );
+  const innerWidth = Math.max(
+    720,
+    (axisEnd - axisStart) * 2.2,
+    scroll.clientWidth - margin.left - margin.right
+  );
   const width = innerWidth + margin.left + margin.right;
-  const height = innerHeight + margin.top + margin.bottom;
 
   const svg = d3
     .create("svg")
     .attr("class", "shift-space-time__chart")
     .attr("width", width)
-    .attr("height", height)
-    .attr("viewBox", `0 0 ${width} ${height}`)
+    .attr("height", 1)
     .attr("role", "img")
     .attr("aria-label", heading.textContent);
+  scroll.append(svg.node());
+  // Account for classic scrollbars as well as overlay scrollbars. Fill the
+  // remaining height without creating a blank strip below a short diagram.
+  const scrollbarHeight = scroll.offsetHeight - scroll.clientHeight - scrollBorders;
+  const innerHeight = Math.max(
+    280,
+    Math.max(diagramStops.length - 1, 1) * 34,
+    availableHeight - scrollbarHeight - margin.top - margin.bottom
+  );
+  const height = innerHeight + margin.top + margin.bottom;
+  svg.attr("height", height).attr("viewBox", `0 0 ${width} ${height}`);
   const root = svg
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -644,13 +676,13 @@ const appendDiagram = (container, group, options = {}) => {
       .attr("d", (segment) => line(segment));
   }
 
-  scroll.append(svg.node());
-  section.append(header, scroll);
-  container.append(section);
 };
 
 export const renderSpaceTimeDiagram = (container, trips = [], options = {}) => {
   if (!container) return;
+  const previousScroll = container.querySelector(".shift-space-time__scroll");
+  const scrollLeft = previousScroll?.scrollLeft ?? 0;
+  const scrollTop = previousScroll?.scrollTop ?? 0;
   container.innerHTML = "";
   container.classList.remove("shift-space-time--empty");
   container.setAttribute("aria-busy", "false");
@@ -709,4 +741,9 @@ export const renderSpaceTimeDiagram = (container, trips = [], options = {}) => {
       depotTrips: depotAssignments.get(group.key),
     })
   );
+  const scroll = container.querySelector(".shift-space-time__scroll");
+  if (scroll) {
+    scroll.scrollLeft = scrollLeft;
+    scroll.scrollTop = scrollTop;
+  }
 };

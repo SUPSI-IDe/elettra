@@ -432,7 +432,7 @@ export const initializeVisualizeShift = async (
   await renderAll();
 
   let resizeTimeout;
-  const resizeObserver = new ResizeObserver(() => {
+  const scheduleDiagramResize = () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
       if (viewMode === "space-time") {
@@ -443,12 +443,15 @@ export const initializeVisualizeShift = async (
         });
       }
     }, 100);
-  });
+  };
+  const resizeObserver = new ResizeObserver(scheduleDiagramResize);
   resizeObserver.observe(visualizationHeader ?? spaceTimeContainer);
+  window.addEventListener("resize", scheduleDiagramResize);
 
   cleanupHandlers.push(() => {
     clearTimeout(resizeTimeout);
     resizeObserver.disconnect();
+    window.removeEventListener("resize", scheduleDiagramResize);
     tripMap?.destroy();
   });
 

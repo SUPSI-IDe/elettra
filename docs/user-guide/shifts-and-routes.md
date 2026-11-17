@@ -91,6 +91,8 @@ The visualization offers two views:
   stops occupy one row and each branch retains its exclusive stops. Hover a
   trip or stop time to see its line. Route variants and terminal loops retain
   their actual stop sequence. Stop rows are schematic, not a distance scale.
+  Short diagrams expand to fill the available area. Longer duties keep their
+  readable time and stop spacing and can be scrolled on desktop and mobile.
 - **Map** presents one movement at a time. **First**, **Previous**, **Next**, and
   **Last** move through the complete duty, including the initial and final depot
   movements. The side list shows every available stop and time for the selected
