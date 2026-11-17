@@ -13,8 +13,9 @@
   overflow-wrap: anywhere;
 }
 
-.simulation-results-page:has(.feasibility-level) [data-role="raw-data-fallback"] {
-  display: none;
+.simulation-results-page .header-with-close > .result-header-action {
+  flex: 0 1 auto;
+  max-width: 45%;
 }
 
 .simulation-results-page .badge {

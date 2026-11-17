@@ -6665,8 +6665,6 @@ const buildSharedInfrastructureDetailsHtml = (viewState, inputParams = {}) => {
     </section>`;
 };
 
-const rawFeasibilityDataButtonHtml = () => `<button type="button" class="result-header-action" data-action="toggle-sim-data">${textContent(t('simulation.results_view_raw_data'))}</button>`;
-
 const buildFeasibilityGeneralLevelHtml = (
   viewState,
   inputParams = {},
@@ -6770,10 +6768,6 @@ const buildFeasibilityGeneralLevelHtml = (
         </article>
       </div>
       `}
-      <details class="ya-more-information result-card feasibility-raw-data-access">
-        <summary class="ya-more-information__toggle result-card__header">${textContent(t('simulation.efficiency_more_information'))}</summary>
-        <div class="result-card__body">${rawFeasibilityDataButtonHtml()}</div>
-      </details>
       </div>
     </section>`;
 };
@@ -7668,7 +7662,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
               <h3 class="efficiency-section-title">${textContent(t("simulation.efficiency_operating_conditions") || "Operating Conditions")}</h3>
               <div class="kpi-grid efficiency-params-grid">${conditionsHtml}</div>
             </div>
-            ${rawFeasibilityDataButtonHtml()}
             ${optimizationHtml}
             ${sizingEffectHtml}
           </div>

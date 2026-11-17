@@ -591,7 +591,7 @@ test("separates the common result from one selected shift without an aggregate o
     "Feasibility evaluation results - Multi-shift feasibility",
   );
   await expect(
-    page.locator(".feasibility-raw-data-access .result-header-action"),
+    page.locator('.page-header [data-action="toggle-sim-data"]'),
   ).toHaveText("View raw feasibility data");
   await expect(general).toBeVisible();
   await expect(shiftDetail).toHaveCount(0);
@@ -1468,19 +1468,17 @@ test("distinguishes a resolved configuration with no charging locations from mis
   await expect(page.locator('.feasibility-infrastructure-metrics')).toHaveCount(0);
 });
 
-test('raw feasibility data remain accessible from additional information at both scopes', async ({ page }) => {
+test('raw feasibility data are accessible from the header in both scopes', async ({ page }) => {
   await mountResults(page);
-  await expect(page.locator('.page-header [data-action="toggle-sim-data"]')).toHaveCount(0);
-  const access = page.locator('.feasibility-raw-data-access');
-  await access.locator('summary').click();
+  await expect(page.locator('.page-header [data-action="back"]')).toHaveCount(0);
+  const access = page.locator('.page-header');
+  await expect(access.getByRole('button', { name: 'View raw feasibility data' })).toBeVisible();
   await access.getByRole('button', { name: 'View raw feasibility data' }).click();
   const overlay = page.locator('[data-role="sim-data-overlay"]');
   await expect(overlay).toBeVisible();
   await overlay.locator('[data-action="close-sim-data"]').first().click();
   await selectShiftScope(page, 'morning');
-  const more = page.locator('details.feasibility-more-information');
-  if (await more.getAttribute('open') === null) await more.locator(':scope > summary').click();
-  await more.getByRole('button', { name: 'View raw feasibility data' }).click();
+  await access.getByRole('button', { name: 'View raw feasibility data' }).click();
   await expect(overlay).toBeVisible();
   await overlay.locator('[data-action="close-sim-data"]').first().click();
   await expect(overlay).toBeHidden();
