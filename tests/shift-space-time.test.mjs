@@ -12,6 +12,17 @@ import {
   buildStopOrder,
   mergeStopSequence,
 } from "../src/pages/Fleet/Shifts/shift-utils.js";
+import { translations } from "../src/i18n/translations.js";
+
+test("uses the general off-route label for depot-style timeline segments", () => {
+  assert.equal(translations.en["shifts.timeline_legend_depot"], "Non-revenue trip");
+  assert.equal(translations.de["shifts.timeline_legend_depot"], "Leerfahrt");
+  assert.equal(translations.fr["shifts.timeline_legend_depot"], "Course haut-le-pied");
+  assert.equal(
+    translations.it["shifts.timeline_legend_depot"],
+    "Corsa fuori linea"
+  );
+});
 
 test("builds one ordered space-time group from outbound and return trips", () => {
   const groups = buildSpaceTimeGroups([
