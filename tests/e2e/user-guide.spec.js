@@ -8,6 +8,9 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/v1/version", (route) => route.fulfill({
     json: { version: "user-guide-test" },
   }));
+  await page.route("**/api/v1/agency/agencies/**", (route) => route.fulfill({
+    json: [],
+  }));
 });
 
 const GUIDE_SECTIONS = [
