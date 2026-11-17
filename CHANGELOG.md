@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.0-rc.2] - 2026-11-17
+
+### Changed
+
+- Combine multi-line vehicle blocks into one space-time diagram with shared stops and a consistent colour for each line.
+- Use blue for single-line duties, orange dashed lines for non-revenue movements, and consistent singular or plural route legends.
+- Resolve the individual routes of imported service trips, including duties that alternate between lines 4 and 6.
+- Expand short diagrams to fill the available space on desktop and mobile while preserving readable spacing, internal scrolling and scroll position during resizing.
+- Generalize the depot-connection label to non-revenue trips and update the vehicle-block guide.
+
+### Validation and compatibility
+
+- Add regression coverage for route lookup, multi-line diagrams, colours, legends and responsive sizing; isolate production-bundle version requests from the real backend.
+- Limit local test processes and their descendants to eight CPU cores.
+- Pair with backend `1.7.0-rc.2`. TPL vehicle-block corrections remain installation data and are not included in the release archive or container image.
+- Publish as a prerelease without moving stable container aliases.
+
 ## [1.0.0-rc.1] - 2026-11-17
 
 ### Added
