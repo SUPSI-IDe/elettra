@@ -57,26 +57,50 @@ const findTrip = (candidates = [], trip = {}) => {
   );
 };
 
+const tripStatus = (trip = {}) => {
+  const status = firstAvailable(trip?.status, trip?.trip?.status).toLowerCase();
+  if (status) return status;
+  // The shift info response omits status. Auxiliary trip codes preserve it.
+  const prefix = resolveTripId(trip).toLowerCase().split("-")[0];
+  return ["service", "school", "transfer", "other", "depot"].includes(prefix)
+    ? prefix
+    : "gtfs";
+};
+
 export const createShiftRouteResolver = ({
   fetchTripsByStop,
+  fetchTripById,
   fetchRouteById,
   onError = () => {},
 } = {}) => {
   const tripsByStopCache = new Map();
   const routesByIdCache = new Map();
+  const tripsByIdCache = new Map();
 
-  const tripsForStop = async (stopId) => {
+  const tripsForStop = async (stopId, status) => {
     if (!stopId || typeof fetchTripsByStop !== "function") return [];
-    if (!tripsByStopCache.has(stopId)) {
+    const key = `${status}:${stopId}`;
+    if (!tripsByStopCache.has(key)) {
       tripsByStopCache.set(
-        stopId,
-        Promise.resolve(fetchTripsByStop(stopId)).catch((error) => {
+        key,
+        Promise.resolve(fetchTripsByStop(stopId, { status })).catch((error) => {
           onError(error, { type: "trips-by-stop", id: stopId });
           return [];
         })
       );
     }
-    return tripsByStopCache.get(stopId);
+    return tripsByStopCache.get(key);
+  };
+
+  const tripById = async (id) => {
+    if (!id || typeof fetchTripById !== "function") return null;
+    if (!tripsByIdCache.has(id)) {
+      tripsByIdCache.set(id, Promise.resolve(fetchTripById(id)).catch((error) => {
+        onError(error, { type: "trip", id });
+        return null;
+      }));
+    }
+    return tripsByIdCache.get(id);
   };
 
   const routeById = async (routeId) => {
@@ -99,13 +123,21 @@ export const createShiftRouteResolver = ({
 
     if (!resolvedRouteId) {
       const stopId = firstStopDatabaseId(trip);
-      const candidates = await tripsForStop(stopId);
+      const candidates = await tripsForStop(stopId, tripStatus(trip));
       const matchedTrip = findTrip(
         Array.isArray(candidates) ? candidates : [],
         trip
       );
       resolvedRouteId = resolveRouteId(matchedTrip ?? {});
       resolvedRouteLabel = resolvedRouteLabel || routeLabel(matchedTrip ?? {});
+    }
+
+    if (!resolvedRouteId) {
+      // A trip can lack a stop id or use a custom code with no status prefix.
+      // Resolve its actual record before considering the shift-wide fallback.
+      const record = await tripById(firstAvailable(trip?.id, trip?.trip?.id));
+      resolvedRouteId = resolveRouteId(record ?? {});
+      resolvedRouteLabel = resolvedRouteLabel || routeLabel(record ?? {});
     }
 
     if (resolvedRouteId && !resolvedRouteLabel) {

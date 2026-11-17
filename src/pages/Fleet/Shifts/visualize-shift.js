@@ -6,6 +6,7 @@ import {
   fetchShiftInfo,
   fetchStopsByTripId,
   fetchTripsByStop,
+  fetchTripById,
   fetchRouteById,
   fetchDepotById,
   fetchBusById,
@@ -330,6 +331,7 @@ export const initializeVisualizeShift = async (
       );
       const resolveTripRoute = createShiftRouteResolver({
         fetchTripsByStop,
+        fetchTripById,
         fetchRouteById,
         onError: (error, context) => {
           console.warn(

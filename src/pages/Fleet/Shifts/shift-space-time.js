@@ -120,6 +120,37 @@ export const buildSpaceTimeGroups = (trips = []) => {
   }));
 };
 
+// Merge the route axes, rather than concatenating trip stop lists: each route
+// already accounts for its return direction, short workings and terminal loops.
+// Shared stops occupy one row; the exclusive stops of each branch stay between
+// their common anchors. The points themselves always retain their travel order.
+export const combineSpaceTimeGroups = (groups = []) => {
+  if (groups.length < 2) return groups[0] ?? null;
+
+  const routes = groups.map((group) => ({
+    key: group.key,
+    label: group.label,
+    tripCount: group.trips.length,
+  })).sort((left, right) =>
+    left.label.localeCompare(right.label, undefined, { numeric: true }) ||
+    left.key.localeCompare(right.key)
+  );
+
+  return {
+    key: "combined-routes",
+    label: routes.map((route) => route.label).join(" / "),
+    routes,
+    stops: buildStopOrder(groups.map((group) => group.stops)),
+    trips: groups.flatMap((group) => group.trips.map((trip) => ({
+      ...trip,
+      routeKey: group.key,
+    }))).sort((left, right) =>
+      left.points[0].minute - right.points[0].minute ||
+      (left.sequence ?? 0) - (right.sequence ?? 0)
+    ),
+  };
+};
+
 export const buildTransferOnlySpaceTimeGroup = (
   depotTrips = [],
   { startDepotName = "", endDepotName = "" } = {}
@@ -286,7 +317,7 @@ export const findDepotConnectionGaps = (serviceTrips = [], depotTrips = []) => {
   });
 };
 
-const appendDiagram = (container, group, groupIndex, options = {}) => {
+const appendDiagram = (container, group, options = {}) => {
   const {
     connected: depotSeries,
     disconnected: disconnectedDepotSeries,
@@ -324,10 +355,22 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
   const routeName = group.transferOnly
     ? t("shifts.space_time_transfers")
     : group.label || t("shifts.space_time_all_routes");
-  heading.className = options.showRouteHeading ? "" : "sr-only";
-  heading.textContent = options.showRouteHeading
-    ? t("shifts.space_time_route", { route: routeName })
-    : routeName;
+  heading.textContent = group.transferOnly
+    ? routeName
+    : group.routes?.length > 1
+      ? t("shifts.space_time_routes", { routes: routeName })
+      : group.label
+        ? t("shifts.space_time_route", { route: routeName })
+        : routeName;
+  // Reserve orange for non-revenue movements. Keep a line's colour stable
+  // across all its trips and both directions within the duty.
+  const routePalette = ["#4e79a7", "#b07aa1", "#59a14f", "#e15759", "#76b7b2", "#9c755f", "#edc949", "#af7aa1"];
+  const routes = group.routes ?? (group.transferOnly ? [] : [
+    { key: group.key, label: routeName },
+  ]);
+  const routeColors = new Map(routes.map((route, index) => [
+    route.key, routePalette[index % routePalette.length],
+  ]));
   const summary = document.createElement("span");
   summary.textContent = group.transferOnly
     ? t("shifts.space_time_transfer_summary", {
@@ -341,6 +384,18 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
   const metadata = document.createElement("div");
   metadata.className = "shift-space-time__group-metadata";
   metadata.append(summary);
+  if (routes.length) {
+    const legend = document.createElement("div");
+    legend.className = "shift-space-time__route-legend";
+    routes.forEach((route) => {
+      const key = document.createElement("span");
+      key.className = "shift-space-time__route-key";
+      key.style.setProperty("--route-color", routeColors.get(route.key));
+      key.textContent = t("shifts.space_time_route", { route: route.label });
+      legend.append(key);
+    });
+    metadata.append(legend);
+  }
   if (depotSeries.length) {
     const depotKey = document.createElement("span");
     depotKey.className = "shift-space-time__depot-key";
@@ -492,7 +547,8 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
     .x((point) => x(point.minute))
     .y((point) => y(point.stop))
     .curve(d3.curveLinear);
-  const palette = d3.schemeTableau10;
+  const tripColor = (trip) =>
+    routeColors.get(trip.routeKey) ?? routePalette[0];
   const series = root
     .append("g")
     .attr("class", "shift-space-time__series")
@@ -500,14 +556,19 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
     .data(group.trips)
     .join("g")
     .attr("class", "shift-space-time__trip")
-    .attr("data-role", "space-time-trip");
+    .attr("data-role", "space-time-trip")
+    .attr("data-route-id", (trip) => trip.routeKey ?? trip.routeId);
+
+  series.append("title").text((trip) =>
+    `${t("shifts.space_time_route", { route: trip.routeLabel })} · ${trip.points[0].stop} ${clockLabel(trip.points[0].minute)} → ${trip.points.at(-1).stop} ${clockLabel(trip.points.at(-1).minute)}`
+  );
 
   series
     .append("path")
     .attr("d", (trip) => line(trip.points))
-    .attr("stroke", (_trip, index) => palette[(index + groupIndex) % palette.length]);
-  series.each(function appendTripDetails(trip, tripIndex) {
-    const color = palette[(tripIndex + groupIndex) % palette.length];
+    .attr("stroke", tripColor);
+  series.each(function appendTripDetails(trip) {
+    const color = tripColor(trip);
     const tripGroup = d3.select(this);
     const points = tripGroup
       .selectAll("g.shift-space-time__point")
@@ -524,7 +585,7 @@ const appendDiagram = (container, group, groupIndex, options = {}) => {
       .text((point) => String(point.minute % 60).padStart(2, "0"));
     points
       .append("title")
-      .text((point) => `${point.stop} - ${clockLabel(point.minute)}`);
+      .text((point) => `${t("shifts.space_time_route", { route: trip.routeLabel })} · ${point.stop} - ${clockLabel(point.minute)}`);
   });
 
   if (depotSeries.length) {
@@ -593,7 +654,8 @@ export const renderSpaceTimeDiagram = (container, trips = [], options = {}) => {
   container.innerHTML = "";
   container.classList.remove("shift-space-time--empty");
   container.setAttribute("aria-busy", "false");
-  let groups = buildSpaceTimeGroups(trips);
+  const combined = combineSpaceTimeGroups(buildSpaceTimeGroups(trips));
+  let groups = combined ? [combined] : [];
   if (!groups.length) {
     const transferGroup = buildTransferOnlySpaceTimeGroup(
       options.depotTrips,
@@ -641,11 +703,10 @@ export const renderSpaceTimeDiagram = (container, trips = [], options = {}) => {
     options.depotTrips,
     options
   );
-  groups.forEach((group, index) =>
-    appendDiagram(container, group, index, {
+  groups.forEach((group) =>
+    appendDiagram(container, group, {
       ...options,
       depotTrips: depotAssignments.get(group.key),
-      showRouteHeading: groups.length > 1,
     })
   );
 };

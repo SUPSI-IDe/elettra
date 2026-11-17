@@ -84,9 +84,13 @@ The visualization offers two views:
 
 - **Space-time** is selected by default. Time runs horizontally and the ordered
   stops run vertically. Each scheduled trip is plotted with its stop times;
-  dashed segments identify movements to or from a depot. Vehicle blocks that
-  serve more than one line are split into separate route groups, while route
-  variants and terminal loops retain their actual stop sequence.
+  dashed segments identify non-revenue movements. Vehicle blocks that serve
+  more than one line use a single diagram with a shared time axis and stop
+  axis. A single-line duty uses blue for all scheduled trips. In a multi-line
+  duty, each line has a consistent colour, identified in the legend; shared
+  stops occupy one row and each branch retains its exclusive stops. Hover a
+  trip or stop time to see its line. Route variants and terminal loops retain
+  their actual stop sequence. Stop rows are schematic, not a distance scale.
 - **Map** presents one movement at a time. **First**, **Previous**, **Next**, and
   **Last** move through the complete duty, including the initial and final depot
   movements. The side list shows every available stop and time for the selected

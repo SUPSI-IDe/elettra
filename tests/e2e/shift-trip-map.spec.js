@@ -514,7 +514,7 @@ test("keeps 40104 depot transfers separate from the service stop order", async (
   expect(stopPositions["TPL Rimessa 1"]).toBeGreaterThan(stopPositions["Lugano Centro"]);
 });
 
-test("separates a multi-line shift using each trip route", async ({ page }) => {
+test("combines a multi-line shift using each trip route", async ({ page }) => {
   const shiftTrips = [
     {
       id: "trip-route-10",
@@ -609,12 +609,12 @@ test("separates a multi-line shift using each trip route", async ({ page }) => {
   }, visualizeShiftHtml);
 
   const groups = page.locator(".shift-space-time__group");
-  await expect(groups).toHaveCount(2);
-  await expect(groups.locator("h3")).toHaveText(["Line 10", "Line 20"]);
-  await expect(groups.nth(0).locator(".shift-space-time__group-metadata"))
-    .toContainText(/1 trips? · 2 stops/);
-  await expect(groups.nth(1).locator(".shift-space-time__group-metadata"))
-    .toContainText(/1 trips? · 2 stops/);
+  await expect(groups).toHaveCount(1);
+  await expect(groups.locator("h3")).toHaveText("Lines 10 / 20");
+  await expect(groups.locator(".shift-space-time__route-key"))
+    .toHaveText(["Line 10", "Line 20"]);
+  await expect(groups.locator(".shift-space-time__group-metadata"))
+    .toContainText(/2 trips? · 3 stops/);
   expect(tripsByStopCalls).toBe(1);
 });
 

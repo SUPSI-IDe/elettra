@@ -1092,6 +1092,24 @@
   gap: var(--space-xs);
 }
 
+.shift-space-time__route-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+}
+
+.shift-space-time__route-key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.shift-space-time__route-key::before {
+  width: 1.5rem;
+  border-top: 3px solid var(--route-color);
+  content: "";
+}
+
 .shift-space-time__depot-key::before {
   width: 1.5rem;
   border-top: 2px dashed var(--color-warning);
