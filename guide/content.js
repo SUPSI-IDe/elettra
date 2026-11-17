@@ -1,7 +1,7 @@
 import { useCaseSections } from "./use-cases.js";
 
 export const GUIDE_BASELINE_VERSION = "0.11.0";
-export const GUIDE_UPDATED_AT = "13 November 2026";
+export const GUIDE_UPDATED_AT = "17 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -54,10 +54,10 @@ const GUIDE_FIGURES = {
   feasibilityEfficiency: {
     src: feasibilityEfficiencyImage,
     captions: {
-      en: "General feasibility view with compact recorded GTFS provenance, the common battery configuration and shared charging infrastructure.",
-      de: "Allgemeine Machbarkeitsansicht mit kompakter aufgezeichneter GTFS-Herkunft, gemeinsamer Batteriekonfiguration und geteilter Ladeinfrastruktur.",
-      fr: "Vue Général de la faisabilité avec provenance GTFS enregistrée compacte, batterie commune et infrastructure de recharge partagée.",
-      it: "Vista Generale della fattibilità con provenienza GTFS registrata e compatta, configurazione comune della batteria e infrastruttura condivisa.",
+      en: "General feasibility view with compact recorded GTFS provenance, battery configurations and investment for the fleet, shared charging infrastructure, and direct raw-data access in the header.",
+      de: "Allgemeine Machbarkeitsansicht mit kompakter aufgezeichneter GTFS-Herkunft, Batteriekonfigurationen und Investitionen der Flotte, geteilter Ladeinfrastruktur und direktem Rohdatenzugriff im Kopf.",
+      fr: "Vue Général de la faisabilité avec provenance GTFS enregistrée compacte, batteries et investissements de la flotte, infrastructure partagée et accès direct aux données brutes dans l’en-tête.",
+      it: "Vista Generale della fattibilità con provenienza GTFS registrata e compatta, batterie e investimenti della flotta, infrastruttura condivisa e accesso diretto ai dati grezzi nell’intestazione.",
     },
   },
   feasibilitySizing: {
@@ -315,6 +315,7 @@ export const guideContent = {
             title: "Distinguish infeasible from not determined",
             text: "Infeasible means that the optimisation completed and rejected the design. Not determined means that the calculation stopped before producing a feasibility verdict. General lists the outcome of every selected vehicle block; each vehicle-block tab identifies the reason, any blocking vehicle block and translated How to resolve guidance. Correct the indicated source data or configuration, then run a new evaluation. One invalid vehicle block can prevent the others from being evaluated without making them infeasible.",
           },
+          {"title": "Inspect raw feasibility data", "text": "View raw feasibility data is always available at the top right of the page, in place of the close icon, in both General and vehicle-block views. It opens the saved inputs and supporting configuration in a dialog; close the dialog to return to the result. The compact SOH, Technical times, HVAC assumptions and GTFS timetable cards in the header open the corresponding saved assumptions."},
         ],
         figures: getGuideFigures("en", "feasibilityEfficiency", "feasibilitySizing"),
       },
@@ -343,7 +344,7 @@ export const guideContent = {
           },
           {
             title: "Select a vehicle block",
-            text: "A compact white row immediately below the scope selector reports yearly energy, simulated distance and average efficiency. The Efficiency view then shows temperature-dependent consumption, uncertainty and occurrence-weighted energy directly, without a redundant single-item tab.",
+            text: "A compact white row below the HVAC and GTFS information cards reports yearly energy, simulated distance and average efficiency. The Efficiency view then shows temperature-dependent consumption, uncertainty and occurrence-weighted energy directly, without a redundant single-item tab.",
           },
           {
             title: "Check weather and HVAC provenance",
@@ -357,6 +358,8 @@ export const guideContent = {
             title: "Recognise aggregate-only historical results",
             text: "An older analysis that contains no per-vehicle block breakdown can show General only. ELETTRA leaves unavailable vehicle block details absent instead of inventing them from aggregate totals.",
           },
+          {"title": "Set charging infrastructure maintenance", "text": "In Costs → Edit economic assumptions → Additional economic parameters, choose a percentage of charging investment per year or a fixed amount in CHF/year. The percentage is editable: 2%/year is the default, with the INFRAS 2026 reference range of 2–5%. It is not CHF 2/year. Check the saved method and units, especially for historical analyses; a fixed amount of zero means no infrastructure maintenance cost is included. The percentage applies to the full charging investment and maintenance is counted once per fleet, excluding buses and batteries; the tooltip explains this modelling assumption."},
+          {"title": "Read the calculation boundaries", "text": "Additional economic parameters contains the editable maintenance method, horizon, discount rate, diesel purchase price and component lifetimes. Calculation method and boundaries separately explains TCO, time horizon, residual values and assessment limits; use it to interpret the results."},
         ],
         figures: getGuideFigures("en", "yearlyEfficiency", "yearlyEmissions"),
         note: {
@@ -430,7 +433,7 @@ export const guideContent = {
       baselineLabel: "Stand der Benutzeroberfläche",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Handbuch aktualisiert",
-      updatedValue: "13. November 2026",
+      updatedValue: "17. November 2026",
       footer:
         "ELETTRA unterstützt Vorstudien. Endgültige Fahrzeug-, Lade-, Netz- und Infrastrukturentscheidungen müssen durch eine detaillierte Fachplanung bestätigt werden.",
       skipLink: "Zum Handbuch springen",
@@ -539,6 +542,7 @@ export const guideContent = {
           { title: "Ladeplan prüfen", text: "Prüfen Sie Ort, Zeit und Tagesversatz jedes Ladevorgangs. Karten zeigen nur Geplanter Halt, Zum Laden verfügbar und Geladene Energie. Der Tooltip Ladedetails enthält Anschliessen/Trennen, Verspätungspuffer, aktive und inaktive Ladezeit sowie mittlere Leistung. Die verfügbare Zeit gilt nach Abzügen; das tatsächliche Laden kann kürzer sein. Bei Verbindung während des gesamten Halts ist der geplante Halt gemeint; historische frei verbundene Vorgänge können nur das angeschlossene Intervall beschreiben. Nur Batterie kann einen festen oder keinen Plan zeigen." },
           { title: "Bei Bedarf Weitere Informationen öffnen", text: "Ladeplan und Weitere Informationen sind aufklappbare weisse Karten. Sie enthalten Ladevorgänge, Prognosedetails, Betriebsannahmen, konfigurierte SOC-Grenzen und unterstützende Werte. Wenn ein Fahrzeugumlauf nicht abgedeckt ist, ändern Sie Fahrzeug, Ladezustandsfenster, Szenario oder Ladeauslegung und führen Sie eine separat benannte Bewertung aus." },
           { title: "Nicht machbar und Nicht bestimmt unterscheiden", text: "Nicht machbar bedeutet, dass die Optimierung abgeschlossen und die Auslegung verworfen wurde. Nicht bestimmt bedeutet, dass die Berechnung vor einem Machbarkeitsurteil abgebrochen ist. Allgemein zeigt das Ergebnis jedes ausgewählten Fahrzeugumlaufs; die jeweilige Registerkarte nennt den Grund, blockierende Fahrzeugumläufe und übersetzte Hinweise unter So beheben Sie das Problem. Korrigieren Sie die angegebenen Ausgangsdaten oder die Konfiguration und starten Sie eine neue Bewertung. Ein ungültiger Fahrzeugumlauf kann die Bewertung der anderen verhindern, ohne dass diese dadurch nicht machbar sind." },
+          {"title": "Rohdaten der Machbarkeit prüfen", "text": "Rohdaten der Machbarkeitsbewertung anzeigen steht oben rechts anstelle des Schliessen-Symbols zur Verfügung, sowohl unter Allgemein als auch bei jedem Fahrzeugumlauf. Die Schaltfläche öffnet gespeicherte Eingaben und Konfigurationsdetails in einem Dialog; schliessen Sie ihn, um zum Ergebnis zurückzukehren. Die kompakten Karten für SOH, technische Zeiten, HVAC-Annahmen und GTFS-Fahrplan im Kopf öffnen die jeweiligen gespeicherten Annahmen."},
         ],
         figures: getGuideFigures("de", "feasibilityEfficiency", "feasibilitySizing"),
       },
@@ -552,10 +556,12 @@ export const guideContent = {
           { title: "Übernommene Eingaben prüfen", text: "Prüfen Sie Bewertung, Betriebsannahmen, repräsentative Temperaturen und deren Häufigkeiten vor dem Start. Temperaturszenarien verändern Verbrauchsschätzungen; sie dimensionieren die Batterie nicht neu, ändern die Ladeinfrastruktur nicht und wiederholen die Machbarkeitsentscheidung nicht." },
           { title: "Mit Allgemein beginnen", text: "Die kompakte jährliche Flottenanalyse zeigt Distanz, Bus- und Netzenergie, minimale/maximale Umlaufeffizienz, Elektro-TCO und Klimawirkung. Mit Repräsentativer Bus / Flotte prüfen Sie die gesamte Flotte oder eine Gruppe mit gleichem Modell und gleicher Batteriegrösse; die Zuweisungen aus der Machbarkeit bleiben unverändert." },
           { title: "Kosten und Emissionen der Flotte prüfen", text: "Kosten kombiniert eine kompakte TCO-Zeile, Jahres- und kumulative Diagramme, Kostengleichheit und Detailtabellen. Bus- und Batterie-CAPEX gehören vollständig zu den physischen Fahrzeugen im gewählten Bereich; die gemeinsame Ladeinfrastruktur wird einmal für die Flotte gezählt und nur ihre Kosten werden repräsentativen Busgruppen auf Basis der jährlichen DC-Energie zugeordnet. Emissionen zeigt Balken nach Lebenszyklusphase und Umweltindikatoren. Die aufklappbaren Annahmen stehen unter den Diagrammen, verwenden automatisch gespeicherte gemeinsame Werte und starten die Machbarkeit nie neu." },
-          { title: "Einen Fahrzeugumlauf auswählen", text: "Direkt unter der Bereichsauswahl zeigt eine kompakte weisse Zeile Jahresenergie, simulierte Distanz und mittlere Effizienz. Danach erscheint Effizienz mit temperaturabhängigem Verbrauch, Unsicherheit und häufigkeitsgewichteter Energie direkt, ohne überflüssige Registerkarte mit nur einem Eintrag." },
+          { title: "Einen Fahrzeugumlauf auswählen", text: "Unter den HVAC- und GTFS-Informationskarten zeigt eine kompakte weisse Zeile Jahresenergie, simulierte Distanz und mittlere Effizienz. Danach erscheint Effizienz mit temperaturabhängigem Verbrauch, Unsicherheit und häufigkeitsgewichteter Energie direkt, ohne überflüssige Registerkarte mit nur einem Eintrag." },
           { title: "Wetter- und HVAC-Herkunft prüfen", text: "Die kompakten GTFS- und HVAC-Angaben nennen Fahrplan und gespeicherte Nebenverbrauchspolitik. Die Jahresanalyse verwendet stündliche PVGIS-GHI in der lokalen GTFS-Zeitzone und weist HVAC-Energie während Fahrt und Endaufenthalt aus; Nachvollziehbarkeit und JSON-Aktionen liefern Annahmen und vollständige Reproduktionseingaben." },
           { title: "Konfiguration prüfen und unter Allgemein exportieren", text: "Konfigurationsdaten anzeigen öffnet die festgeschriebene Auslegung. Alle Ergebnisse herunterladen steht nur unter Allgemein neben Schliessen zur Verfügung und speichert Allgemein sowie einen eigenen Eintrag für jeden verfügbaren Fahrzeugumlauf." },
           { title: "Nur aggregierte historische Ergebnisse erkennen", text: "Eine ältere Analyse ohne Aufschlüsselung nach Fahrzeugumläufen kann nur Allgemein anzeigen. ELETTRA lässt nicht verfügbare Fahrzeugumlaufdetails weg, statt sie aus Gesamtsummen zu erfinden." },
+          {"title": "Wartung der Ladeinfrastruktur einstellen", "text": "Unter Kosten → Wirtschaftliche Annahmen bearbeiten → Weitere wirtschaftliche Parameter wählen Sie einen jährlichen Prozentsatz der Ladeinvestition oder einen Festbetrag in CHF/Jahr. Der Prozentsatz ist editierbar: Standard sind 2%/Jahr, mit dem INFRAS-2026-Richtbereich von 2–5%. Das bedeutet nicht CHF 2/Jahr. Prüfen Sie gespeicherte Methode und Einheiten, besonders bei älteren Analysen; ein Festbetrag von null berücksichtigt keine Infrastrukturwartung. Die Prozentmethode bezieht sich auf die gesamte Ladeinvestition; Wartung wird einmal pro Flotte gezählt, ohne Busse und Batterien. Der Tooltip erklärt diese Modellannahme."},
+          {"title": "Berechnungsgrenzen lesen", "text": "Weitere wirtschaftliche Parameter enthält die editierbare Wartungsmethode, Betrachtungsdauer, den Diskontsatz, Diesel-Kaufpreis und Komponentenlebensdauern. Berechnungsmethode und Abgrenzung erklärt separat TCO, Zeitrahmen, Restwerte und Bewertungsgrenzen zur Interpretation der Ergebnisse."},
         ],
         figures: getGuideFigures("de", "yearlyEfficiency", "yearlyEmissions"),
         note: { title: "Fahrzeug hier nicht neu dimensionieren", text: "Die Jahresanalyse beschreibt den Betrieb des an der Machbarkeitsschwelle gewählten Designs. Kehren Sie zur Machbarkeitsbewertung zurück, wenn Fahrzeug, Batterie oder Laden geändert werden sollen." },
@@ -600,7 +606,7 @@ export const guideContent = {
       baselineLabel: "Version de référence de l’interface",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guide mis à jour",
-      updatedValue: "13 novembre 2026",
+      updatedValue: "17 novembre 2026",
       footer:
         "ELETTRA soutient les études de préfaisabilité. Les décisions finales relatives aux véhicules, à la recharge, au réseau et aux infrastructures doivent être confirmées par des études d’ingénierie détaillées.",
       skipLink: "Accéder au guide",
@@ -695,6 +701,7 @@ export const guideContent = {
           { title: "Contrôler le plan de recharge", text: "Vérifiez lieu, heure et décalage de jour de chaque session. Les cartes affichent uniquement Arrêt planifié, Disponible pour la recharge et Énergie rechargée. L’infobulle Détails de recharge contient connexion/déconnexion, marge pour retards, durées active et inactive, et puissance moyenne. Le temps disponible tient compte des déductions ; la recharge effective peut être plus courte. La connexion pendant tout l’arrêt décrit l’arrêt planifié ; les anciennes sessions à connexion libre peuvent décrire seulement l’intervalle connecté. Batterie uniquement peut afficher un plan fixe ou absent." },
           { title: "Ouvrir Plus d’informations si nécessaire", text: "Plan de recharge et Plus d’informations sont des cartes blanches dépliables. Elles contiennent sessions, détails des prévisions, hypothèses d’exploitation, limites SOC configurées et valeurs justificatives. Si un service voiture échoue, modifiez le véhicule, la fenêtre d’état de charge, le scénario ou la recharge et lancez une évaluation portant un autre nom." },
           { title: "Distinguer non faisable de non déterminée", text: "Non faisable signifie que l’optimisation s’est terminée et a rejeté le dimensionnement. Non déterminée signifie que le calcul s’est arrêté avant de produire un verdict de faisabilité. Général présente le résultat de chaque service voiture sélectionné; l’onglet correspondant indique le motif, les services bloquants et des conseils traduits sous Comment résoudre le problème. Corrigez les données sources ou la configuration indiquées, puis lancez une nouvelle évaluation. Un service voiture non valide peut empêcher l’évaluation des autres sans les rendre non faisables." },
+          {"title": "Consulter les données brutes de faisabilité", "text": "Afficher les données brutes de faisabilité est disponible en haut à droite, à la place de l’icône de fermeture, dans Général comme dans chaque service voiture. Le bouton ouvre les entrées enregistrées et la configuration détaillée dans une fenêtre ; fermez-la pour revenir au résultat. Les cartes compactes SOH, Temps techniques, Hypothèses HVAC et Horaire GTFS de l’en-tête ouvrent les hypothèses enregistrées correspondantes."},
         ],
         figures: getGuideFigures("fr", "feasibilityEfficiency", "feasibilitySizing"),
       },
@@ -708,10 +715,12 @@ export const guideContent = {
           { title: "Vérifier les données héritées", text: "Contrôlez l’évaluation, les hypothèses d’exploitation, les températures représentatives et leurs occurrences avant le calcul. Les scénarios de température modifient la consommation; ils ne redimensionnent pas la batterie, ne changent pas l’infrastructure et ne répètent pas la décision de faisabilité." },
           { title: "Commencer par Général", text: "L’analyse annuelle compacte de la flotte présente distance, énergie au bus et au réseau, efficacité minimale/maximale des services, TCO électrique et impact climatique. Bus représentatif / Flotte permet d’examiner la flotte entière ou un groupe partageant modèle et taille de batterie; les affectations de faisabilité ne changent pas." },
           { title: "Examiner les Coûts et les Émissions de la flotte", text: "Coûts combine une ligne TCO compacte, des graphiques annuels et cumulés, le seuil de rentabilité et des tableaux détaillés. Les CAPEX des bus et batteries appartiennent intégralement aux véhicules physiques du périmètre; l’infrastructure partagée est comptée une fois pour la flotte et seul son coût est attribué aux groupes représentatifs selon l’énergie DC annuelle. Émissions montre les barres par phase du cycle de vie et les indicateurs environnementaux. Les hypothèses dépliables sont sous les graphiques, partagent des valeurs enregistrées automatiquement et ne relancent jamais la faisabilité." },
-          { title: "Sélectionner un service voiture", text: "Une ligne blanche compacte, directement sous le sélecteur, indique énergie annuelle, distance simulée et efficacité moyenne. Efficacité présente ensuite directement consommation selon la température, incertitude et énergie pondérée, sans onglet redondant à élément unique." },
+          { title: "Sélectionner un service voiture", text: "Une ligne blanche compacte, sous les volets HVAC et GTFS, indique énergie annuelle, distance simulée et efficacité moyenne. Efficacité présente ensuite directement consommation selon la température, incertitude et énergie pondérée, sans onglet redondant à élément unique." },
           { title: "Vérifier la provenance météo et HVAC", text: "Les volets GTFS et HVAC compacts identifient l’horaire et la politique d’auxiliaires enregistrés. L’analyse annuelle utilise le GHI PVGIS horaire dans le fuseau GTFS local et indique l’énergie HVAC en course et au terminus; la traçabilité et les actions JSON donnent les hypothèses et les entrées complètes de reproduction." },
           { title: "Examiner la configuration et exporter depuis Général", text: "Afficher les données de configuration ouvre le dimensionnement figé. Télécharger tous les résultats apparaît uniquement dans Général, près de Fermer, et enregistre Général ainsi qu’une entrée distincte pour chaque service voiture disponible." },
           { title: "Reconnaître les anciens résultats uniquement agrégés", text: "Une ancienne analyse sans ventilation par service voiture peut n’afficher que Général. ELETTRA laisse absents les détails indisponibles au lieu de les inventer à partir des totaux." },
+          {"title": "Définir la maintenance de la recharge", "text": "Dans Coûts → Modifier les hypothèses économiques → Paramètres économiques supplémentaires, choisissez un pourcentage annuel de l’investissement de recharge ou un montant fixe en CHF/an. Le pourcentage est modifiable : 2%/an est la valeur initiale, avec la référence INFRAS 2026 de 2–5%. Il ne s’agit pas de CHF 2/an. Vérifiez la méthode enregistrée et les unités, surtout pour les anciennes analyses ; un montant fixe nul exclut la maintenance de l’infrastructure. Le pourcentage porte sur l’investissement complet de recharge, avec un entretien compté une seule fois par flotte, hors bus et batteries ; l’infobulle explique cette hypothèse."},
+          {"title": "Lire le périmètre de calcul", "text": "Paramètres économiques supplémentaires contient la méthode de maintenance, l’horizon, le taux d’actualisation, le prix d’achat diesel et les durées de vie modifiables. Méthode de calcul et périmètre explique séparément TCO, horizon temporel, valeurs résiduelles et limites de l’évaluation pour interpréter les résultats."},
         ],
         figures: getGuideFigures("fr", "yearlyEfficiency", "yearlyEmissions"),
         note: { title: "Ne pas redimensionner le véhicule ici", text: "L’analyse annuelle représente l’exploitation du design retenu lors de l’évaluation de faisabilité. Revenez à cette évaluation si le véhicule, la batterie ou la recharge doivent changer." },
@@ -756,7 +765,7 @@ export const guideContent = {
       baselineLabel: "Versione di riferimento dell’interfaccia",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guida aggiornata",
-      updatedValue: "13 novembre 2026",
+      updatedValue: "17 novembre 2026",
       footer:
         "ELETTRA supporta studi di prefattibilità. Le decisioni finali su veicoli, ricarica, rete e infrastrutture devono essere confermate mediante una progettazione tecnica dettagliata.",
       skipLink: "Vai alla guida",
@@ -851,6 +860,7 @@ export const guideContent = {
           { title: "Verificare il piano di ricarica", text: "Controllare luogo, ora e giorno di ogni sessione. Le schede mostrano solo Sosta pianificata, Disponibile per la ricarica ed Energia ricaricata. Il tooltip Dettagli di ricarica contiene collegamento/scollegamento, margine per ritardi, tempo attivo e inattivo e potenza media. Il tempo disponibile considera le detrazioni; la ricarica effettiva può durare meno. Con connessione per l’intera sosta si descrive la sosta pianificata; le sessioni storiche a connessione libera possono descrivere solo l’intervallo connesso. Solo batteria può mostrare un piano fisso o assente." },
           { title: "Aprire Maggiori informazioni quando serve", text: "Piano di ricarica e Maggiori informazioni sono schede bianche espandibili. Contengono sessioni, dettagli delle previsioni, ipotesi operative, limiti SOC configurati e valori di supporto. Se un turno macchina non è coperto, modificare veicolo, intervallo SOC, scenario o progetto di ricarica ed eseguire una valutazione con un nome distinto." },
           { title: "Distinguere non fattibile da non determinata", text: "Non fattibile significa che l’ottimizzazione è terminata e ha escluso la configurazione. Non determinata significa che il calcolo si è interrotto prima di produrre un verdetto di fattibilità. Generale mostra l’esito di ogni turno macchina selezionato; la relativa scheda indica il motivo, gli eventuali turni bloccanti e i suggerimenti tradotti sotto Come risolvere. Correggere i dati di origine o la configurazione indicati, quindi eseguire una nuova valutazione. Un turno macchina non valido può impedire la valutazione degli altri senza renderli non fattibili." },
+          {"title": "Consultare i dati grezzi di fattibilità", "text": "Visualizza i dati grezzi di fattibilità è sempre disponibile in alto a destra, al posto dell’icona di chiusura, sia in Generale sia nei singoli turni macchina. Il pulsante apre gli input salvati e i dettagli di configurazione in una finestra; chiuderla per tornare ai risultati. I riquadri compatti SOH, Tempi tecnici, Ipotesi HVAC e Orario GTFS nell’intestazione aprono le rispettive ipotesi salvate."},
         ],
         figures: getGuideFigures("it", "feasibilityEfficiency", "feasibilitySizing"),
       },
@@ -864,10 +874,12 @@ export const guideContent = {
           { title: "Verificare gli input ereditati", text: "Controllare la valutazione, le ipotesi operative, le temperature rappresentative e le loro occorrenze prima dell’avvio. Gli scenari di temperatura cambiano le stime di consumo; non ridimensionano la batteria, non modificano l’infrastruttura e non ripetono la decisione di fattibilità." },
           { title: "Iniziare da Generale", text: "L’Analisi annuale della flotta mostra in modo compatto distanza, energia ai bus e dalla rete, efficienza minima/massima dei turni, TCO elettrico e impatto climatico. Bus rappresentativo / Flotta consente di esaminare la flotta completa o un gruppo con lo stesso modello e la stessa batteria; le assegnazioni della fattibilità non cambiano." },
           { title: "Esaminare Costi ed Emissioni della flotta", text: "Costi combina una riga TCO compatta, grafici annui e cumulati, pareggio e tabelle di dettaglio. I CAPEX di autobus e batterie appartengono integralmente ai veicoli fisici nell’ambito selezionato; l’infrastruttura condivisa è conteggiata una sola volta per la flotta e solo il suo costo viene allocato ai gruppi rappresentativi in base all’energia DC annuale. Emissioni mostra barre per fase del ciclo di vita e indicatori ambientali. Le ipotesi espandibili sono sotto i grafici, condividono valori salvati automaticamente e non rilanciano mai la fattibilità." },
-          { title: "Selezionare un turno macchina", text: "Una riga bianca compatta subito sotto il selettore riporta energia annuale, distanza simulata ed efficienza media. Efficienza mostra quindi direttamente consumo in funzione della temperatura, incertezza ed energia ponderata, senza una tab ridondante con un solo elemento." },
+          { title: "Selezionare un turno macchina", text: "Una riga bianca compatta sotto i riquadri informativi HVAC e GTFS riporta energia annuale, distanza simulata ed efficienza media. Efficienza mostra quindi direttamente consumo in funzione della temperatura, incertezza ed energia ponderata, senza una tab ridondante con un solo elemento." },
           { title: "Verificare la provenienza meteo e HVAC", text: "I riquadri compatti GTFS e HVAC identificano orario e politica degli ausiliari salvati. L’analisi annuale usa il GHI orario PVGIS nel fuso GTFS locale e riporta energia HVAC in corsa e al capolinea; tracciabilità e azioni JSON espongono ipotesi e input completi di riproduzione." },
           { title: "Esaminare la configurazione ed esportare da Generale", text: "Visualizza dati di configurazione apre il progetto congelato. Scarica tutti i risultati compare solo in Generale, vicino a Chiudi, e salva Generale più una voce separata per ogni turno macchina disponibile." },
           { title: "Riconoscere i risultati storici solo aggregati", text: "Un’analisi precedente priva del dettaglio per turno macchina può mostrare soltanto Generale. ELETTRA lascia assenti i dettagli non disponibili invece di ricavarli artificialmente dai totali." },
+          {"title": "Impostare la manutenzione della ricarica", "text": "In Costi → Modifica ipotesi economiche → Parametri economici aggiuntivi, scegliere una percentuale annua dell’investimento di ricarica oppure un importo fisso in CHF/anno. La percentuale è modificabile: il valore iniziale è 2%/anno, con riferimento all’intervallo INFRAS 2026 del 2–5%. Non significa CHF 2/anno. Verificare metodo salvato e unità, soprattutto nelle analisi storiche; un importo fisso pari a zero esclude il costo di manutenzione dell’infrastruttura. La percentuale si applica all’investimento completo della ricarica, con manutenzione conteggiata una volta per flotta, esclusi autobus e batterie; il tooltip spiega questa ipotesi di modello."},
+          {"title": "Leggere il perimetro di calcolo", "text": "Parametri economici aggiuntivi contiene metodo di manutenzione, orizzonte, tasso di sconto, prezzo di acquisto diesel e durate dei componenti modificabili. Metodo di calcolo e perimetro spiega separatamente TCO, tempi, valori residui e limiti della valutazione per interpretare i risultati."},
         ],
         figures: getGuideFigures("it", "yearlyEfficiency", "yearlyEmissions"),
         note: { title: "Non ridimensionare qui il veicolo", text: "L’analisi annuale rappresenta l’esercizio del progetto scelto nella valutazione di fattibilità. Tornare alla fattibilità se occorre cambiare veicolo, batteria o ricarica." },

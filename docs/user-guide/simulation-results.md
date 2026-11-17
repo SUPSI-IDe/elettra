@@ -1,6 +1,6 @@
 # Feasibility Results
 
-> Last updated: 2026-11-09
+> Last updated: 2026-11-17
 > Interface baseline: Frontend v0.11.0
 
 The feasibility result page is the technical gate between service preparation
@@ -12,12 +12,14 @@ analysis.
 
 ## Result navigation
 
-The page header provides three independent contexts:
+The page header provides four independent contexts:
 
 1. **Result scope** — **General** or one named vehicle block.
 2. **Consumption basis** — **Mean** or **Q95** for paired evaluations.
 3. **GTFS provenance** — the timetable edition recorded when the evaluation
    was created.
+4. **Operating assumptions** — compact SOH, Technical times and HVAC cards
+   open the corresponding saved battery, timing and auxiliary-energy assumptions.
 
 Changing Mean/Q95 opens the complete optimized design for that profile,
 including its battery, charger configuration, and charging schedule. It does
@@ -166,10 +168,13 @@ The compact GTFS disclosure shows the edition recorded at evaluation creation.
 For historical results without a complete snapshot, the interface explicitly
 labels provenance derived from current vehicle-block data.
 
-**View raw feasibility data** opens supporting configuration panels for general
+**View raw feasibility data** is always visible at the top right of the page,
+in place of the close icon, in both General and individual vehicle-block views.
+It opens a dialog with supporting configuration panels for general
 inputs, bus information, charging-station information, scenario/scaling data,
 and investment breakdown. Use these values to audit the displayed result, not
-to replace the result's status and provenance labels.
+to replace the result's status and provenance labels. Close the dialog to
+return to the result; no additional disclosure needs to be opened first.
 
 ---
 

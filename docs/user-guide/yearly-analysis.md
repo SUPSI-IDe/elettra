@@ -1,6 +1,6 @@
 # Yearly Analysis
 
-> Last updated: 2026-11-10
+> Last updated: 2026-11-17
 > Interface baseline: Frontend v0.11.0
 
 A yearly analysis keeps the bus, battery, and charging design selected by a
@@ -94,6 +94,23 @@ are saved automatically in the yearly analysis and reused by Costs and
 Emissions. They update the displayed assessment but do not rerun feasibility or
 alter the selected technical design.
 
+Inside this card, **Additional economic parameters** contains maintenance,
+the assessment horizon, discount rate, diesel purchase price and component
+lifetimes. **Calculation method and boundaries** is a separate explanatory
+disclosure covering TCO, time horizon, residual values and assessment limits.
+
+For charging infrastructure maintenance, select either an editable percentage
+of charging investment per year or a fixed amount in CHF/year. The default
+percentage is **2%/year**, with the INFRAS 2026 reference range of **2–5%**.
+This is not a default of CHF 2/year. Historical analyses retain their saved
+method and values; a fixed amount of zero excludes infrastructure maintenance.
+Check the selected method and its units when reviewing an older analysis.
+
+The percentage applies to the full charging investment, including chargers,
+shared works and connection. Maintenance is counted once per fleet, excluding
+buses and batteries. The tooltip beside the reference explains this modelling
+assumption.
+
 ### Emissions
 
 The Emissions view presents climate impact by lifecycle phase, energy boundary,
@@ -118,7 +135,7 @@ kept missing: affected reductions are omitted instead of treating it as zero.
 
 ## Vehicle-block efficiency
 
-Select a named vehicle block. Directly below the scope selector, a compact
+Select a named vehicle block. Below the HVAC and GTFS information cards, a compact
 white summary reports annual energy, simulated distance, and average
 efficiency. The efficiency content is shown directly, without another
 single-item tab.
