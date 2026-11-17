@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+test.beforeEach(async ({ context }) => {
+  await context.route("**/api/v1/version", route => route.fulfill({
+    json: { version: "test" },
+  }));
+});
+
 test("the optimized bundle opens authenticated home and returns from the guide", async ({ page, context }) => {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
