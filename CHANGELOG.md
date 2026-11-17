@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.0-rc.1] - 2026-11-17
+
+### Added
+
+- Rename feasibility evaluations and yearly analyses directly from their lists.
+- Show positioning progress while creating custom stops.
+
+### Changed
+
+- Consolidate SOH, technical-time, HVAC and GTFS information into compact result disclosures.
+- Clarify Mean and Aggregate Q95 energy comparisons and simplify infeasible result views.
+- Refine feasible vehicle-block summaries, charging sessions and energy charts.
+- Improve yearly-analysis loading, navigation, cost charts, economic settings and emissions disclosures.
+- Distinguish charging maintenance as an editable annual investment percentage or a fixed CHF/year amount.
+- Place raw feasibility data access in the page header and refresh the multilingual guide and screenshots.
+
+### Validation and compatibility
+
+- Pair with backend `1.7.0-rc.1`. Existing saved analyses are preserved.
+- The large-fleet legacy diagnostic reached its solver time limit; the tolerance benchmark was interrupted because of execution time and memory use. OSRM tests were intentionally excluded. These opt-in diagnostics remain separate from routine release checks.
+- Publish as a prerelease without moving stable container aliases.
+
 ## [0.11.0] - 2026-11-10
 
 ### Added
