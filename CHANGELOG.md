@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.0] - 2026-11-18
+
+### Added
+
+- Rename feasibility evaluations and yearly analyses directly from their lists.
+- Show positioning progress while creating custom stops.
+
+### Changed
+
+- Promote the functionality validated in `1.0.0-rc.2`, with no functional changes.
+- Consolidate SOH, technical-time, HVAC and GTFS result information and clarify Mean/Aggregate Q95 comparisons.
+- Refine yearly-analysis loading, navigation, cost charts, charging-maintenance assumptions and emissions disclosures.
+- Combine multi-line vehicle blocks into a shared space-time diagram with consistent route colours and distinct non-revenue trips.
+- Improve diagram sizing, desktop/mobile scrolling and route lookup, and align the multilingual user guide.
+
+### Release
+
+- Pair with backend `1.7.0`. No database migration is required; existing analyses and installation-specific vehicle-block data are preserved.
+- Keep large-fleet diagnostics and tolerance benchmarks outside routine release checks.
+
 ## [1.0.0-rc.2] - 2026-11-17
 
 ### Changed
