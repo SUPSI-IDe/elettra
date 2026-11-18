@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0-rc.1] - 2026-11-18
+
+### Added
+
+- Add compact per-row actions for feasibility evaluations and yearly analyses: view details, rename, duplicate and delete.
+- Prefill duplicated yearly analyses from their source evaluation and occupancy, with localized editable copy-name suffixes.
+
+### Changed
+
+- Remove the top-level feasibility Duplicate action and keep individual deletion alongside the existing selected-row batch deletion.
+- Distinguish Rename from the generic Edit action with its own icon and label detail navigation as View details.
+- Update the multilingual online guide for the compact actions and duplication workflows.
+
+### Validation and compatibility
+
+- Validate 646 frontend tests, 286 desktop browser tests, 286 mobile browser tests, the production build and two optimized-bundle smoke tests; verify the deployed bundle against the live backend contract.
+- Frontend-only release compatible with backend `1.7.0`; no database migration or saved-data rewrite is required.
+- Publish as a prerelease without moving stable container aliases, including `latest`.
+
 ## [1.0.0] - 2026-11-18
 
 ### Added
