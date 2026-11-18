@@ -245,7 +245,7 @@ test("dense list tables remain readable and scroll only when needed", async ({
 });
 
 
-test("feasibility list uses accessible traffic-light indicators without clipping Results", async ({
+test("feasibility list uses accessible traffic-light indicators and compact row actions", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1180, height: 800 });
@@ -278,8 +278,9 @@ test("feasibility list uses accessible traffic-light indicators without clipping
   await expect(completedRow.locator("td.feasibility")).toHaveText("");
   await expect(failedRow.locator("td.feasibility")).toHaveText("");
   await expect(runningRow.locator("td.feasibility")).toHaveText("");
-  await expect(page.locator("th.results")).toHaveText("View");
-  await expect(completedRow.locator("td.results")).toHaveText("View");
+  await expect(page.locator("th.actions")).toHaveText("Actions");
+  await expect(completedRow.locator("td.actions [data-row-action]")).toHaveCount(4);
+  await expect(completedRow.locator("td.actions")).toHaveText("");
   await expect(completedRow.locator("td.status .simulation-state-indicator"))
     .toHaveAttribute("aria-label", "Completed");
   await expect(completedRow.locator("td.feasibility .simulation-state-indicator"))
@@ -302,17 +303,17 @@ test("feasibility list uses accessible traffic-light indicators without clipping
   ]);
 
   const layout = await page.locator(".simulation-runs-table").evaluate((wrapper) => {
-    const resultsHeader = wrapper.querySelector("th.results");
+    const actionsHeader = wrapper.querySelector("th.actions");
     return {
       bodyOverflows: document.body.scrollWidth > document.body.clientWidth,
       wrapperOverflows: wrapper.scrollWidth > wrapper.clientWidth,
-      resultsClipped: resultsHeader.scrollWidth > resultsHeader.clientWidth,
+      actionsClipped: actionsHeader.scrollWidth > actionsHeader.clientWidth,
     };
   });
   expect(layout).toEqual({
     bodyOverflows: false,
     wrapperOverflows: false,
-    resultsClipped: false,
+    actionsClipped: false,
   });
 });
 
@@ -466,7 +467,6 @@ test("created dates do not inherit action-column styling", async ({ page }) => {
     tbody.innerHTML = `
       <tr>
         <td class="checkbox">x</td>
-        <td class="rename"></td>
         <td class="name">Evaluation</td>
         <td class="created">02.06.2026, 17:13</td>
         <td class="day">Bus</td>
@@ -474,7 +474,7 @@ test("created dates do not inherit action-column styling", async ({ page }) => {
         <td class="type">Mode</td>
         <td class="status">Completed</td>
         <td class="feasibility">Feasible</td>
-        <td class="results">Results</td>
+        <td class="actions">Actions</td>
       </tr>`;
   });
 
@@ -496,7 +496,7 @@ test("created dates do not inherit action-column styling", async ({ page }) => {
 test("feasibility and yearly-analysis names align to the left", async ({ page }) => {
   await mountSourceElement(page, simulationRunsHtml, ".simulation-runs");
   await page.locator('[data-role="simulation-runs-body"]').evaluate((tbody) => {
-    tbody.innerHTML = `<tr><td class="checkbox"></td><td class="rename"></td><td class="name">Feasibility name</td></tr>`;
+    tbody.innerHTML = `<tr><td class="checkbox"></td><td class="name">Feasibility name</td></tr>`;
   });
   await expect(
     computedAlignments(page.locator(".simulation-runs-table :is(th.name, td.name)"))
@@ -523,7 +523,7 @@ test("feasibility and yearly-analysis names align to the left", async ({ page })
       Array.from(row.children).slice(1, 4).map((cell) => cell.className),
     )),
   ).resolves.toEqual([
-    ["rename", "name", "created"],
-    ["rename", "name", "created"],
+    ["name", "created", ""],
+    ["name", "created", ""],
   ]);
 });

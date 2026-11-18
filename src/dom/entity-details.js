@@ -2,22 +2,38 @@ import "./entity-details.css";
 import { textContent } from "../ui-helpers";
 
 export const renderEntityRowActions = (
-  { details, duplicate, edit, remove } = {}
-) => `
+  {
+    details,
+    duplicate,
+    edit,
+    rename,
+    remove,
+    order = ["details", "duplicate", "edit", "delete"],
+  } = {}
+) => {
+  const actions = {
+    details: { label: details, icon: "details" },
+    duplicate: { label: duplicate, icon: "duplicate" },
+    edit: { label: edit, icon: "edit" },
+    rename: { label: rename, icon: "rename" },
+    delete: { label: remove, icon: "delete", danger: true },
+  };
+  const buttons = order
+    .map((action) => {
+      const config = actions[action];
+      if (!config) return "";
+      const dangerClass = config.danger ? " entity-row-action--danger" : "";
+      return `<button type="button" class="entity-row-action${dangerClass}" data-row-action="${action}" aria-label="${textContent(config.label)}" title="${textContent(config.label)}">
+      <span class="entity-row-action__icon entity-row-action__icon--${config.icon}" aria-hidden="true"></span>
+    </button>`;
+    })
+    .join("");
+
+  return `
   <div class="entity-row-actions">
-    <button type="button" class="entity-row-action" data-row-action="details" aria-label="${textContent(details)}" title="${textContent(details)}">
-      <span class="entity-row-action__icon entity-row-action__icon--details" aria-hidden="true"></span>
-    </button>
-    <button type="button" class="entity-row-action" data-row-action="duplicate" aria-label="${textContent(duplicate)}" title="${textContent(duplicate)}">
-      <span class="entity-row-action__icon entity-row-action__icon--duplicate" aria-hidden="true"></span>
-    </button>
-    <button type="button" class="entity-row-action" data-row-action="edit" aria-label="${textContent(edit)}" title="${textContent(edit)}">
-      <span class="entity-row-action__icon entity-row-action__icon--edit" aria-hidden="true"></span>
-    </button>
-    <button type="button" class="entity-row-action entity-row-action--danger" data-row-action="delete" aria-label="${textContent(remove)}" title="${textContent(remove)}">
-      <span class="entity-row-action__icon entity-row-action__icon--delete" aria-hidden="true"></span>
-    </button>
+    ${buttons}
   </div>`;
+};
 
 const createElement = (tagName, className, text = "") => {
   const element = document.createElement(tagName);

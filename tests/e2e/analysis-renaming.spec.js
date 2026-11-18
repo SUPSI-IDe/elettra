@@ -59,6 +59,18 @@ test("a feasibility evaluation can be renamed from its list row", async ({ page 
 
   await page.goto("./#simulation-runs");
   const row = page.locator('tr[data-id="run-1"]');
+  await expect(page.locator('[data-action="duplicate-simulation"]')).toHaveCount(0);
+  await expect(row.locator("[data-row-action]")).toHaveCount(4);
+  await expect(row.locator('[data-row-action="details"]')).toHaveAttribute(
+    "title",
+    "View details: Original feasibility"
+  );
+  expect(await row.locator("[data-row-action]").evaluateAll((buttons) =>
+    buttons.map((button) => button.dataset.rowAction)
+  )).toEqual(["details", "rename", "duplicate", "delete"]);
+  await expect(
+    row.locator('[data-row-action="rename"] .entity-row-action__icon')
+  ).toHaveClass(/entity-row-action__icon--rename/);
   await row.getByRole("button", { name: "Rename: Original feasibility" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Rename" });
@@ -109,6 +121,17 @@ test("a yearly analysis can be renamed from its list row", async ({ page }) => {
 
   await page.goto("./#yearly-analysis-runs");
   const row = page.locator('tr[data-id="annual-1"]');
+  await expect(row.locator("[data-row-action]")).toHaveCount(4);
+  await expect(row.locator('[data-row-action="details"]')).toHaveAttribute(
+    "title",
+    "View details: Original yearly analysis"
+  );
+  expect(await row.locator("[data-row-action]").evaluateAll((buttons) =>
+    buttons.map((button) => button.dataset.rowAction)
+  )).toEqual(["details", "rename", "duplicate", "delete"]);
+  await expect(
+    row.locator('[data-row-action="rename"] .entity-row-action__icon')
+  ).toHaveClass(/entity-row-action__icon--rename/);
   await row.getByRole("button", { name: "Rename: Original yearly analysis" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Rename" });
@@ -121,4 +144,9 @@ test("a yearly analysis can be renamed from its list row", async ({ page }) => {
   await expect(row.locator("td.name")).toHaveText("Renamed yearly analysis");
   await expect(page.locator('[data-role="flash"]')).toHaveText("Name updated.");
   expect(patchBodies).toEqual([{ name: "Renamed yearly analysis" }]);
+
+  await row.getByRole("button", { name: "Duplicate: Renamed yearly analysis" }).click();
+  await expect(page.locator("#ya-analysis-name")).toHaveValue(
+    "Renamed yearly analysis_copy"
+  );
 });

@@ -50,13 +50,14 @@
   width: 2.5rem;
 }
 
-.ya-runs-table th.rename,
-.ya-runs-table td.rename {
-  width: 2.5rem;
+.ya-runs-table th.actions,
+.ya-runs-table td.actions {
+  width: 10rem;
+  text-align: right;
 }
 
-.ya-runs-table .ya-results-link {
-  font-size: var(--font-size-sm);
+.ya-runs-table td.actions .entity-row-actions {
+  justify-content: flex-end;
 }
 
 .ya-loading {

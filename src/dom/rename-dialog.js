@@ -4,7 +4,7 @@ import { textContent } from "../ui-helpers";
 
 export const renderRenameButton = ({ action, label } = {}) => `
   <button type="button" class="entity-row-action analysis-name-cell__rename" data-action="${textContent(action)}" aria-label="${textContent(label)}" title="${textContent(label)}">
-    <span class="entity-row-action__icon entity-row-action__icon--edit" aria-hidden="true"></span>
+    <span class="entity-row-action__icon entity-row-action__icon--rename" aria-hidden="true"></span>
   </button>`;
 
 export const initializeRenameDialog = (

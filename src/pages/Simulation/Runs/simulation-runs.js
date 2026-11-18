@@ -29,10 +29,9 @@ import { installPaginationControl } from "../../../dom/pagination";
 import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { triggerPartialLoad } from "../../../events";
 import { resolveBusModelDisplayName, textContent } from "../../../ui-helpers";
-import {
-  initializeRenameDialog,
-  renderRenameButton,
-} from "../../../dom/rename-dialog";
+import { initializeRenameDialog } from "../../../dom/rename-dialog";
+import { renderEntityRowActions } from "../../../dom/entity-details";
+import { appendCopyNameSuffix } from "../../../utils/copy-name";
 import {
   getOptimizationRunDisplayName,
   getOptimizationRunName,
@@ -89,7 +88,6 @@ const renderLoading = (tbody) => {
   tbody.innerHTML = `
     <tr class="table-state-row">
       <td class="checkbox"></td>
-      <td class="rename"></td>
       <td class="table-state-cell table-empty" colspan="8">${textContent(t("common.loading") || "Loading…")}</td>
     </tr>`;
 };
@@ -102,7 +100,6 @@ const renderError = (
   tbody.innerHTML = `
     <tr class="table-state-row">
       <td class="checkbox"></td>
-      <td class="rename"></td>
       <td class="table-state-cell table-empty" colspan="8">${textContent(message)}</td>
     </tr>`;
 };
@@ -112,7 +109,6 @@ const renderEmpty = (tbody) => {
   tbody.innerHTML = `
     <tr class="table-state-row">
       <td class="checkbox"></td>
-      <td class="rename"></td>
       <td class="table-state-cell table-empty" colspan="8">${textContent(t("simulation.no_runs"))}</td>
     </tr>`;
 };
@@ -775,20 +771,19 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
             feasibilityLabel !== "—" ? feasibilityLabel : statusLabel
           }`
         : feasibilityLabel;
-      const renameLabel = `${t("common.rename")}: ${displayName}`;
-      const renameButton = renderRenameButton({
-        action: "rename-evaluation",
-        label: renameLabel,
+      const rowActions = renderEntityRowActions({
+        details: `${t("common.view_details")}: ${displayName}`,
+        rename: `${t("common.rename")}: ${displayName}`,
+        duplicate: `${t("common.duplicate")}: ${displayName}`,
+        remove: `${t("common.delete")}: ${displayName}`,
+        order: ["details", "rename", "duplicate", "delete"],
       });
-
-      const resultsLink = `<a class="results-link table-action-link" href="#" data-action="view-results" data-run-id="${textContent(rowId)}">${textContent(t("common.view") || "View")}</a>`;
 
       return `
         <tr data-id="${textContent(rowId)}">
           <td class="checkbox">
             <input type="checkbox" aria-label="${textContent(t("simulation.select_run") || "Select run")}" />
           </td>
-          <td class="rename">${renameButton}</td>
           <td class="name" title="${textContent(displayName !== "—" ? displayName : shiftTitle)}">${textContent(displayName)}</td>
           <td class="created">${textContent(created)}</td>
           <td class="day" title="${textContent(busModelTooltip)}">${textContent(
@@ -814,7 +809,7 @@ export const renderSimulationRunRows = (tbody, runs = []) => {
               title="${textContent(accessibleFeasibilityLabel)}"
             ></span>
           </td>
-          <td class="results">${resultsLink}</td>
+          <td class="actions">${rowActions}</td>
         </tr>`;
     })
     .join("");
@@ -856,9 +851,6 @@ export const initializeSimulationRuns = async (
   const searchInput = section.querySelector("#simulation-filter");
   const deleteButton = section.querySelector(
     '[data-action="delete-selected-simulations"]'
-  );
-  const duplicateButton = section.querySelector(
-    '[data-action="duplicate-simulation"]'
   );
   const newButton = section.querySelector('[data-action="new-simulation"]');
   setFlashMessage(section, options.flashMessage ?? "");
@@ -1217,18 +1209,8 @@ export const initializeSimulationRuns = async (
     table.querySelector("thead")?.removeEventListener("click", handleSortClick)
   );
 
-  const handleDuplicateClick = async () => {
-    const ids = getSelectedIdsFrom(table);
-    if (ids.length !== 1) {
-      setFlashMessage(
-        section,
-        t("simulation.duplicate_select_one") ||
-          "Select exactly one simulation to duplicate."
-      );
-      return;
-    }
-
-    const run = allRuns.find((r) => text(r?.id) === ids[0]);
+  const duplicateRun = async (runId) => {
+    const run = allRuns.find((r) => text(r?.id) === runId);
     if (!run) return;
 
     // The list endpoint is lightweight and does not include
@@ -1277,7 +1259,11 @@ export const initializeSimulationRuns = async (
 
     triggerPartialLoad("add-simulation", {
       prefill: {
-        name: resolveRunName(run),
+        name: appendCopyNameSuffix(
+          resolveRunName(run) ||
+            getOptimizationRunDisplayName(run, resolveShiftLabel(run)),
+          t("common.copy_name_suffix"),
+        ),
         shiftIds: resolveShiftIds(run),
         optimizationMode: resolveRunMode(run) || "battery_only",
         consumptionBasis: run.input_params?.consumption_basis || "mean",
@@ -1297,15 +1283,8 @@ export const initializeSimulationRuns = async (
       },
     });
   };
-  if (duplicateButton) {
-    duplicateButton.addEventListener("click", handleDuplicateClick);
-    cleanupHandlers.push(() =>
-      duplicateButton.removeEventListener("click", handleDuplicateClick)
-    );
-  }
 
-  const handleDeleteClick = async () => {
-    const ids = getSelectedIdsFrom(table);
+  const deleteRuns = async (ids, trigger = deleteButton) => {
     if (!ids.length) {
       setFlashMessage(
         section,
@@ -1315,8 +1294,8 @@ export const initializeSimulationRuns = async (
       return;
     }
 
-    if (deleteButton) {
-      deleteButton.disabled = true;
+    if (trigger) {
+      trigger.disabled = true;
     }
 
     try {
@@ -1356,11 +1335,12 @@ export const initializeSimulationRuns = async (
       );
       await loadRuns();
     } finally {
-      if (deleteButton) {
-        deleteButton.disabled = false;
+      if (trigger) {
+        trigger.disabled = false;
       }
     }
   };
+  const handleDeleteClick = () => deleteRuns(getSelectedIdsFrom(table));
   if (deleteButton) {
     deleteButton.addEventListener("click", handleDeleteClick);
     cleanupHandlers.push(() =>
@@ -1368,16 +1348,18 @@ export const initializeSimulationRuns = async (
     );
   }
 
-  const handleResultsClick = async (event) => {
-    const renameButton = event.target.closest('[data-action="rename-evaluation"]');
-    if (renameButton) {
-      event.preventDefault();
-      const runId = renameButton.closest("tr")?.dataset?.id;
-      const run = allRuns.find((candidate) => text(candidate?.id) === runId);
-      if (!runId || !run) return;
+  const handleRowActionClick = async (event) => {
+    const actionButton = event.target.closest("[data-row-action]");
+    if (!actionButton) return;
+    event.preventDefault();
+    const runId = actionButton.closest("tr")?.dataset?.id;
+    const run = allRuns.find((candidate) => text(candidate?.id) === runId);
+    if (!runId || !run) return;
+
+    if (actionButton.dataset.rowAction === "rename") {
       renameDialog?.open({
         value: resolveRunName(run),
-        trigger: renameButton,
+        trigger: actionButton,
         onSubmit: async (name) => {
           const updated = await updateOptimizationRun(runId, { name });
           Object.assign(run, updated && typeof updated === "object" ? updated : { name });
@@ -1389,12 +1371,16 @@ export const initializeSimulationRuns = async (
       });
       return;
     }
-    const link = event.target.closest('[data-action="view-results"]');
-    if (!link) return;
-    event.preventDefault();
-    const runId = link.dataset.runId;
-    if (!runId) return;
-    const run = allRuns.find((r) => text(r?.id) === runId);
+    if (actionButton.dataset.rowAction === "duplicate") {
+      await duplicateRun(runId);
+      return;
+    }
+    if (actionButton.dataset.rowAction === "delete") {
+      await deleteRuns([runId], actionButton);
+      return;
+    }
+    if (actionButton.dataset.rowAction !== "details") return;
+
     const modelId = text(resolveBusModelId(run)).trim();
     // Fetch the bus model detail (with specs) since the list response
     // is lightweight and may not include them yet.
@@ -1436,9 +1422,9 @@ export const initializeSimulationRuns = async (
     });
   };
   if (table) {
-    table.addEventListener("click", handleResultsClick);
+    table.addEventListener("click", handleRowActionClick);
     cleanupHandlers.push(() =>
-      table.removeEventListener("click", handleResultsClick)
+      table.removeEventListener("click", handleRowActionClick)
     );
   }
 

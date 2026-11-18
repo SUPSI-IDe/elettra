@@ -20,10 +20,9 @@ import { isAuthenticated } from "../../../api/session";
 import { installPaginationControl } from "../../../dom/pagination";
 import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { bindSelectAll } from "../../../dom/tables";
-import {
-  initializeRenameDialog,
-  renderRenameButton,
-} from "../../../dom/rename-dialog";
+import { initializeRenameDialog } from "../../../dom/rename-dialog";
+import { renderEntityRowActions } from "../../../dom/entity-details";
+import { appendCopyNameSuffix } from "../../../utils/copy-name";
 
 const text = (v) => (v === null || v === undefined ? "" : String(v));
 
@@ -94,22 +93,22 @@ export const buildYearlyAnalysisRowsMarkup = (analyses = []) =>
       const renderedStatus = statusLabel(status);
       const tone = statusTone(status);
       const displayName = analysis.name || "—";
-      const renameButton = renderRenameButton({
-        action: "rename-yearly-analysis",
-        label: `${t("common.rename")}: ${displayName}`,
+      const rowActions = renderEntityRowActions({
+        details: `${t("common.view_details")}: ${displayName}`,
+        rename: `${t("common.rename")}: ${displayName}`,
+        duplicate: `${t("common.duplicate")}: ${displayName}`,
+        remove: `${t("common.delete")}: ${displayName}`,
+        order: ["details", "rename", "duplicate", "delete"],
       });
 
       return `<tr data-id="${textContent(id)}">
         <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("yearly_analysis.select_analysis"))}" /></td>
-        <td class="rename">${renameButton}</td>
         <td class="name">${textContent(displayName)}</td>
         <td class="created">${textContent(formatDate(analysis.created_at))}</td>
         <td title="${textContent(shifts)}">${textContent(shifts)}</td>
         <td>${textContent(mode)}</td>
         <td class="status"><span class="simulation-state-indicator simulation-state-indicator--${tone}" role="img" tabindex="0" aria-label="${textContent(renderedStatus)}" title="${textContent(renderedStatus)}"></span></td>
-        <td class="ya-actions-cell">
-          <a class="ya-results-link table-action-link" data-action="view-results" data-id="${textContent(id)}">${textContent(t("common.view"))}</a>
-        </td>
+        <td class="actions">${rowActions}</td>
       </tr>`;
     })
     .join("");
@@ -281,16 +280,18 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
     cleanups.push(() => searchInput.removeEventListener("input", applyFilter));
   }
 
-  const handleTableClick = (e) => {
-    const renameButton = e.target.closest('[data-action="rename-yearly-analysis"]');
-    if (renameButton) {
-      e.preventDefault();
-      const analysisId = renameButton.closest("tr")?.dataset?.id;
-      const analysis = analyses.find((candidate) => text(candidate?.id) === analysisId);
-      if (!analysisId || !analysis) return;
+  const handleTableClick = async (e) => {
+    const actionButton = e.target.closest("[data-row-action]");
+    if (!actionButton) return;
+    e.preventDefault();
+    const analysisId = actionButton.closest("tr")?.dataset?.id;
+    const analysis = analyses.find((candidate) => text(candidate?.id) === analysisId);
+    if (!analysisId || !analysis) return;
+
+    if (actionButton.dataset.rowAction === "rename") {
       renameDialog?.open({
         value: analysis.name || "",
-        trigger: renameButton,
+        trigger: actionButton,
         onSubmit: async (name) => {
           const updated = await updateYearlyAnalysis(analysisId, { name });
           Object.assign(
@@ -305,10 +306,37 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
       });
       return;
     }
-    const link = e.target.closest("[data-action='view-results']");
-    if (link) {
-      e.preventDefault();
-      triggerPartialLoad("yearly-analysis-results", { analysisId: link.dataset.id });
+    if (actionButton.dataset.rowAction === "duplicate") {
+      if (!analysis.features) {
+        try {
+          const detail = await fetchYearlyAnalysis(analysisId);
+          if (detail && typeof detail === "object") Object.assign(analysis, detail);
+        } catch (error) {
+          setFlashMessage(
+            section,
+            error?.message || t("yearly_analysis.failed_load"),
+          );
+          return;
+        }
+      }
+      triggerPartialLoad("create-yearly-analysis", {
+        prefill: {
+          name: appendCopyNameSuffix(
+            analysis.name || buildAnalysisName(analysis),
+            t("common.copy_name_suffix"),
+          ),
+          optimizationRunId: analysis.optimization_run_id,
+          occupancyPercent: analysis.features?.config?.occupancy_percent,
+        },
+      });
+      return;
+    }
+    if (actionButton.dataset.rowAction === "delete") {
+      void deleteAnalyses([analysisId], actionButton);
+      return;
+    }
+    if (actionButton.dataset.rowAction === "details") {
+      triggerPartialLoad("yearly-analysis-results", { analysisId });
     }
   };
   if (tbody) { tbody.addEventListener("click", handleTableClick); cleanups.push(() => tbody.removeEventListener("click", handleTableClick)); }
@@ -335,31 +363,39 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
     await Promise.allSettled(rest.map((r) => r?.id ? deletePredictionRun(r.id) : Promise.resolve()));
   };
 
-  const handleDeleteSelected = async () => {
-    const checked = tbody?.querySelectorAll("tr:has(input:checked)") ?? [];
-    if (!checked.length) return;
-
+  const deleteAnalyses = async (ids, trigger = null) => {
+    if (!ids.length) return;
     const confirmMessage = t("yearly_analysis.delete_confirm", {
-      count: checked.length,
+      count: ids.length,
     });
     if (!confirm(confirmMessage)) return;
 
+    if (trigger) trigger.disabled = true;
+    try {
+      const result = await settleBatchDeletion(ids, async (id) => {
+          await deleteLinkedPredictionRuns(id);
+          await deleteYearlyAnalysis(id);
+      });
+
+      setFlashMessage(
+        section,
+        result.failedCount
+          ? formatBatchDeletionFeedback(result, t, (error) =>
+              error?.message || t("yearly_analysis.delete_failed")
+            )
+          : ""
+      );
+
+      await loadAnalyses();
+    } finally {
+      if (trigger?.isConnected) trigger.disabled = false;
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    const checked = tbody?.querySelectorAll("tr:has(input:checked)") ?? [];
     const ids = Array.from(checked, (row) => row.dataset.id).filter(Boolean);
-    const result = await settleBatchDeletion(ids, async (id) => {
-        await deleteLinkedPredictionRuns(id);
-        await deleteYearlyAnalysis(id);
-    });
-
-    setFlashMessage(
-      section,
-      result.failedCount
-        ? formatBatchDeletionFeedback(result, t, (error) =>
-            error?.message || t("yearly_analysis.delete_failed")
-          )
-        : ""
-    );
-
-    await loadAnalyses();
+    await deleteAnalyses(ids);
   };
   section.querySelector('[data-action="delete-selected"]')?.addEventListener("click", handleDeleteSelected);
   cleanups.push(() => section.querySelector('[data-action="delete-selected"]')?.removeEventListener("click", handleDeleteSelected));

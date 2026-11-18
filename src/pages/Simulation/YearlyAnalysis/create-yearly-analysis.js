@@ -105,7 +105,7 @@ const resolveBusModelId = (run = {}) =>
 
 // ── Main initializer ─────────────────────────────────────────────────
 
-export const initializeCreateYearlyAnalysis = async (root = document) => {
+export const initializeCreateYearlyAnalysis = async (root = document, options = {}) => {
   const section = root.querySelector("section.create-yearly-analysis");
   if (!section) return null;
 
@@ -125,6 +125,8 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
   const feedbackEl = section.querySelector('[data-role="feedback"]');
   const dialogs = createYearlyDialogs(section);
   cleanups.push(() => dialogs.dispose());
+  const prefill = options.prefill ?? {};
+  if (nameInput && prefill.name) nameInput.value = text(prefill.name);
 
   let feasibleRuns = [];
   let resolvedNames = {};
@@ -774,6 +776,24 @@ export const initializeCreateYearlyAnalysis = async (root = document) => {
             o.value = id;
             o.textContent = formatRunOptionLabel(run);
             baseSelect.appendChild(o);
+          }
+
+          const prefillRunId = text(prefill.optimizationRunId).trim();
+          if (
+            prefillRunId &&
+            Array.from(baseSelect.options).some((option) => option.value === prefillRunId)
+          ) {
+            baseSelect.value = prefillRunId;
+            await handleRunChange();
+            const prefillOccupancy = text(prefill.occupancyPercent).trim();
+            if (
+              occupancySelect &&
+              Array.from(occupancySelect.options).some(
+                (option) => option.value === prefillOccupancy,
+              )
+            ) {
+              occupancySelect.value = prefillOccupancy;
+            }
           }
         }
       }

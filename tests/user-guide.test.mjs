@@ -131,8 +131,29 @@ test("the guide baseline follows the frontend version and exposes a valid update
   assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
   assert.deepEqual(
     SUPPORTED_GUIDE_LANGUAGES.map((language) => guideContent[language].ui.updatedValue),
-    ["17 November 2026", "17. November 2026", "17 novembre 2026", "17 novembre 2026"],
+    ["18 November 2026", "18. November 2026", "18 novembre 2026", "18 novembre 2026"],
   );
+});
+
+test("the guide documents compact row actions and localized duplicate names", () => {
+  const expectedTerms = {
+    en: { feasibility: ["View details", "Rename", "Duplicate", "Delete", "_copy", "without selecting the row"], yearly: ["View details", "Rename", "Duplicate", "Delete", "_copy", "occupancy"] },
+    de: { feasibility: ["Details anzeigen", "Umbenennen", "Duplizieren", "Löschen", "_Kopie", "ohne Zeilenauswahl"], yearly: ["Details anzeigen", "Umbenennen", "Duplizieren", "Löschen", "_Kopie", "Belegung"] },
+    fr: { feasibility: ["Afficher les détails", "Renommer", "Dupliquer", "Supprimer", "_copie", "sans sélectionner la ligne"], yearly: ["Afficher les détails", "Renommer", "Dupliquer", "Supprimer", "_copie", "occupation"] },
+    it: { feasibility: ["Visualizza dettagli", "Rinomina", "Duplica", "Elimina", "_copia", "senza selezionare la riga"], yearly: ["Visualizza dettagli", "Rinomina", "Duplica", "Elimina", "_copia", "occupazione"] },
+  };
+
+  for (const language of SUPPORTED_GUIDE_LANGUAGES) {
+    const sections = Object.fromEntries(
+      guideContent[language].sections.map((section) => [section.id, section]),
+    );
+    for (const [sectionId, terms] of Object.entries(expectedTerms[language])) {
+      const serialized = JSON.stringify(sections[sectionId]);
+      for (const term of terms) {
+        assert.ok(serialized.includes(term), `${language}.${sectionId} is missing ${term}`);
+      }
+    }
+  }
 });
 
 test("every guide language covers the user-facing workflows added in 0.9.0 and 0.10.0", () => {

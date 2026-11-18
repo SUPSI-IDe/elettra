@@ -105,7 +105,7 @@ for (const { mode, entry, outcome } of scenarios) {
       await page.goto("./#simulation-runs");
       if (entry === "duplicate") {
         await page.getByRole("checkbox", {name: "Select run", exact: true}).check();
-        await page.getByRole("button", {name: "Duplicate", exact: true}).click();
+        await page.locator('[data-row-action="duplicate"]').click();
       } else {
         await page.getByRole("button", {name: "New", exact: true}).click();
       }

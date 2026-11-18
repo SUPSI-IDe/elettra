@@ -237,8 +237,8 @@ test('duplicating a historical evaluation preserves SOH 100% and explicit zero t
   const { submissions } = await fixture(page, { input: { min_soc: .2, max_soc: .85, state_of_health: 1, session_connection_minutes: 0,
     layover_reduction_minutes: 0 } });
   await page.goto('./#simulation-runs');
-  await page.getByRole('checkbox', { name: 'Select run', exact: true }).check();
-  await page.getByRole('button', { name: 'Duplicate', exact: true }).click();
+  await page.locator('[data-row-action="duplicate"]').click();
+  await expect(page.locator('#simulation-name')).toHaveValue(/_copy$/);
   await expect(page.locator('#var-state-of-health')).toHaveValue('100');
   await expect(page.locator('#var-battery-policy')).toHaveValue('residual_soc');
   await expect(page.locator('#var-session-connection-minutes')).toBeVisible();

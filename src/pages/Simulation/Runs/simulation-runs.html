@@ -31,14 +31,6 @@
         </button>
         <button
           type="button"
-          class="list-secondary-action requires-single-selection"
-          data-action="duplicate-simulation"
-          data-i18n="simulation.duplicate"
-        >
-          Duplicate
-        </button>
-        <button
-          type="button"
           class="list-danger-action requires-selection"
           data-action="delete-selected-simulations"
           data-i18n="common.delete"
@@ -60,9 +52,6 @@
                 aria-label="Select all simulation runs"
                 data-i18n-aria-label="simulation.select_all"
               />
-            </th>
-            <th class="rename" scope="col">
-              <span class="sr-only" data-i18n="common.rename">Rename</span>
             </th>
             <th class="name" scope="col" data-sort-key="name" aria-sort="none">
               <button type="button" class="sort-button" data-sort-key="name">
@@ -116,8 +105,8 @@
                 <span class="sort-arrow" aria-hidden="true">↕</span>
               </button>
             </th>
-            <th class="results" scope="col" data-i18n="common.view">
-              View
+            <th class="actions" scope="col">
+              <span class="sr-only" data-i18n="common.actions">Actions</span>
             </th>
           </tr>
         </thead>

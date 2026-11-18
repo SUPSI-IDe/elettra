@@ -101,7 +101,7 @@ async function fixture(page, { mode = 'joint', variant = 'custom', basis = 'mean
     async open() {
       await page.goto('./#simulation-runs');
       await page.getByRole('checkbox', { name: 'Select run', exact: true }).check();
-      await page.getByRole('button', { name: 'Duplicate', exact: true }).click();
+      await page.locator('[data-row-action="duplicate"]').click();
     },
     async submit() {
       await page.getByRole('button', { name: 'Start evaluation', exact: true }).click();
