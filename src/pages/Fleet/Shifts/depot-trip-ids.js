@@ -1,7 +1,7 @@
 const requireTripId = (trip, label) => {
   const id = typeof trip?.id === "string" ? trip.id.trim() : "";
   if (!id) {
-    throw new Error(`Missing ${label} auxiliary trip id.`);
+    throw Object.assign(new Error(`Missing ${label} auxiliary trip id.`), { code: "invalid_auxiliary_trip_response" });
   }
   return id;
 };
@@ -15,14 +15,14 @@ export const buildCompleteShiftTripIds = ({
   returnTrip,
 } = {}) => {
   if (!Array.isArray(scheduledTripIds) || scheduledTripIds.length === 0) {
-    throw new Error("At least one scheduled trip id is required.");
+    throw Object.assign(new Error("At least one scheduled trip id is required."), { code: "invalid_shift_trip" });
   }
 
   const normalizedScheduledIds = scheduledTripIds.map((id) =>
     typeof id === "string" ? id.trim() : ""
   );
   if (normalizedScheduledIds.some((id) => !id)) {
-    throw new Error("Every scheduled trip must have an id.");
+    throw Object.assign(new Error("Every scheduled trip must have an id."), { code: "invalid_shift_trip" });
   }
 
   return [

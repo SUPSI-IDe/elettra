@@ -33,7 +33,7 @@ test('the translated list opens Add after changing language and a double click',
   const state = await composer({ application: true, entry: 'shifts' });
   await page.locator('.language-select').selectOption('it');
   const add = page.locator('[data-action="add-shift"]');
-  await expect(add).toHaveText('Aggiungi turno macchina');
+  await expect(add).toHaveText('Aggiungi');
   await add.dblclick();
   await expect(page.locator('.shift-composer')).toHaveAttribute('data-composer-step', 'setup');
   await configure(page);

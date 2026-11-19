@@ -113,11 +113,14 @@ It supports sorting, pagination, and these actions:
 
 - **Search** queries the complete server-side result set before pagination, so
   matching blocks are not limited to the visible page.
-- **Edit** opens one selected vehicle block and preserves its recorded edition
+- Each row ends with **Visualize**, **Edit**, **Duplicate**, and **Delete** icons,
+  with an action label available on hover and keyboard focus.
+- **Edit** opens that row's vehicle block and preserves its recorded edition
   until the user explicitly changes it.
-- **Duplicate** accepts one or more selected blocks and copies their trips, bus
-  model, and recorded GTFS edition into new editable records.
-- **Delete** removes the selected records after confirmation.
+- **Duplicate** copies that row's trips, bus model, and recorded GTFS edition
+  into a new editable record.
+- The row **Delete** icon removes one block after confirmation. Select multiple
+  checkboxes and use the top **Delete** button to remove several blocks together.
 - **Visualize/Details** shows general information, the default space-time
   diagram, and the trip-by-trip map with depot connections.
 

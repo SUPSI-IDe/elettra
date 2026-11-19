@@ -30,7 +30,7 @@ import {
   textContent,
   toText,
   toggleFormDisabled,
-  updateFeedback,
+  updateFeedback as renderFeedback,
 } from "../../../ui-helpers";
 import { t, I18N_CHANGE_EVENT } from "../../../i18n";
 import {
@@ -308,6 +308,24 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const isEditMode = mode === "edit" && Boolean(shiftId);
 
   const feedback = form.querySelector('[data-role="feedback"]');
+  const translatedMessages = new Map();
+  const resolveMessage = message => typeof message === 'function' ? message() : message;
+  const updateFeedback = (node, message, tone) => {
+    if (!node) return;
+    translatedMessages.set(node, { message, tone });
+    renderFeedback(node, resolveMessage(message), tone);
+  };
+  const localizedError = (key, params = {}) => {
+    const localize = () => t(key, typeof params === 'function' ? params() : params);
+    return Object.assign(new Error(localize()), { localize });
+  };
+  const errorMessage = (error, fallbackKey) => {
+    const key = {
+      invalid_auxiliary_trip_response: 'shifts.auxiliary_response_invalid',
+      invalid_shift_trip: 'shifts.selected_trip_invalid',
+    }[error?.code];
+    return error?.localize?.() || (key ? t(key) : error?.message) || t(fallbackKey);
+  };
   const cancelButton = form.querySelector('[data-action="cancel"]');
   const visualizeButton = form.querySelector('[data-action="visualize-shift"]');
   const closeButton = section.querySelector('[data-action="close"]');
@@ -318,7 +336,9 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
   const showProgress = (message) => {
     if (progressMessage) {
-      progressMessage.textContent = message;
+      progressMessage.removeAttribute('data-i18n');
+      translatedMessages.set(progressMessage, { message });
+      progressMessage.textContent = resolveMessage(message);
     }
     if (progressOverlay) {
       progressOverlay.hidden = false;
@@ -411,6 +431,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   let routesById = {};
   let currentTrips = [];
   let tripsLoading = false;
+  let tripLoadError = null;
   const selectedTripIds = new Set();
   let selectedTrips = [];
   let loadedShiftForDepotState = null;
@@ -420,6 +441,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   let saving = false;
   const composer = initializeShiftComposer({
     form,
+    updateFeedback,
     isEditMode,
     readState: () => ({ trips: selectedTrips }),
     isTimetableReady: () => isEditMode || Boolean(selectedDataset),
@@ -566,6 +588,12 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       updateEmptyState(scheduledTripsEmpty, true);
       return [];
     }
+    if (tripLoadError) {
+      clearNode(scheduledTripsBody);
+      if (addAllTripsButton) addAllTripsButton.disabled = true;
+      updateEmptyState(scheduledTripsEmpty, false, `${t('shifts.unable_to_load_trips')} ${errorMessage(tripLoadError, 'common.unknown_error')}`);
+      return [];
+    }
     const renderState = getScheduledTripsRenderState();
     const eligibleTrips = getEligibleScheduledTrips(renderState);
 
@@ -703,6 +731,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const resetScheduledTrips = (message) => {
+    tripLoadError = null;
     tripsLoading = false;
     currentTrips = [];
     clearNode(scheduledTripsBody);
@@ -781,7 +810,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     if (!eligibility.valid) {
       if (!silent) {
-        updateFeedback(feedback, getTripValidationMessage(eligibility), "error");
+        updateFeedback(feedback, () => getTripValidationMessage(eligibility), "error");
       }
       return false;
     }
@@ -853,7 +882,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     if (addedCount === 0) {
       updateFeedback(
         feedback,
-        getScheduledTripsEmptyMessage(0) ||
+        () => getScheduledTripsEmptyMessage(0) ||
           t("shifts.no_valid_trips_to_add") ||
           "No trips can be added with the current depot time limits.",
         "info"
@@ -867,7 +896,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateTimeline();
     updateFeedback(
       feedback,
-      t("shifts.bulk_added_trips", { count: addedCount }) ||
+      () => t("shifts.bulk_added_trips", { count: addedCount }) ||
         `${addedCount} trip(s) added to the vehicle block.`,
       "success"
     );
@@ -877,7 +906,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     if (selectedTrips.length === 0) {
       updateFeedback(
         feedback,
-        t("shifts.no_trips_to_remove") || "There are no trips to remove from the vehicle block.",
+        () => t("shifts.no_trips_to_remove"),
         "info"
       );
       return;
@@ -894,7 +923,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateTimeline();
     updateFeedback(
       feedback,
-      t("shifts.bulk_removed_trips", { count: removedCount }) ||
+      () => t("shifts.bulk_removed_trips", { count: removedCount }) ||
         `${removedCount} trip(s) removed from the vehicle block.`,
       "success"
     );
@@ -1155,7 +1184,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     try {
       const userId = await resolveUserId().catch(() => null);
       if (!userId) {
-        throw new Error("Unable to resolve current user.");
+        throw localizedError("shifts.login_required");
       }
       const [payload, models] = await Promise.all([
         fetchAllBuses(),
@@ -1193,7 +1222,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       renderBusOptions(busSelect, [], {});
       updateFeedback(
         feedback,
-        error?.message ?? t("shifts.unable_to_load_buses"),
+        () => `${t("shifts.unable_to_load_buses")} ${errorMessage(error, "common.unknown_error")}`,
         "error"
       );
     }
@@ -1233,7 +1262,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       renderDepotOptions(endDepotSelect, []);
       updateFeedback(
         feedback,
-        error?.message ?? t("shifts.unable_to_load_depots"),
+        () => `${t("shifts.unable_to_load_depots")} ${errorMessage(error, "common.unknown_error")}`,
         "error"
       );
     }
@@ -1272,7 +1301,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       routesById = renderRouteOptions(lineSelect, []);
       updateFeedback(
         feedback,
-        error?.message ?? t("shifts.unable_to_load_routes"),
+        () => `${t("shifts.unable_to_load_routes")} ${errorMessage(error, "common.unknown_error")}`,
         "error"
       );
     }
@@ -1315,7 +1344,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       selectedDataset = null;
       datasetStatus = "error";
       showDataset();
-      updateFeedback(feedback, t("gtfs.load_error"), "error");
+      updateFeedback(feedback, () => t("gtfs.load_error"), "error");
     }
   };
   const handleDatasetChange = async () => {
@@ -1352,6 +1381,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const loadTrips = async () => {
+    tripLoadError = null;
     const generation = ++tripGeneration;
     const editionGeneration = datasetGeneration;
     if (!lineSelect || !daySelect || !scheduledTripsBody) {
@@ -1429,6 +1459,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       console.error("Failed to load trips", error);
       if (disposed || generation !== tripGeneration || editionGeneration !== datasetGeneration) return;
       resetScheduledTrips(error?.message ?? t("shifts.unable_to_load_trips"));
+      tripLoadError = error;
+      refreshScheduledTrips();
     }
   };
 
@@ -1505,12 +1537,12 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateFeedback(feedback, "");
 
     if (isEditMode && editRouteReconstructionBlocked) {
-      updateFeedback(feedback, t("shifts.unable_to_load_for_edit"), "error");
+      updateFeedback(feedback, () => t("shifts.unable_to_load_for_edit"), "error");
       return;
     }
 
     if (!selectedDataset && !isEditMode) {
-      updateFeedback(feedback, t("gtfs.no_datasets"), "error");
+      updateFeedback(feedback, () => t("gtfs.no_datasets"), "error");
       return;
     }
 
@@ -1522,26 +1554,26 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     });
 
     if (!name || !busId) {
-      updateFeedback(feedback, t("shifts.name_bus_required"), "error");
+      updateFeedback(feedback, () => t("shifts.name_bus_required"), "error");
       return;
     }
 
     if (!Array.isArray(tripIds) || tripIds.length === 0) {
-      updateFeedback(feedback, t("shifts.add_at_least_one_trip"), "error");
+      updateFeedback(feedback, () => t("shifts.add_at_least_one_trip"), "error");
       return;
     }
 
     if (!startDepotId || !endDepotId || !startTime || !endTime) {
-      updateFeedback(feedback, t("shifts.depot_details_required"), "error");
+      updateFeedback(feedback, () => t("shifts.depot_details_required"), "error");
       return;
     }
 
     saving = true;
     toggleFormDisabled(form, true);
-    updateFeedback(feedback, isEditMode ? t("shifts.updating") : t("shifts.saving"), "info");
+    updateFeedback(feedback, () => t(isEditMode ? "shifts.updating" : "shifts.saving"), "info");
 
     try {
-      showProgress(isEditMode ? t("shifts.saving_shift") : t("shifts.creating_shift"));
+      showProgress(() => t(isEditMode ? "shifts.saving_shift" : "shifts.creating_shift"));
 
       // Get route info for auxiliary trips
       const firstTrip = serviceTripsForSave[0];
@@ -1549,7 +1581,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       const routeId = lineSelect?.value || firstTrip?.route_id || null;
 
       if (!routeId) {
-        throw new Error(t("shifts.depot_route_required"));
+        throw localizedError("shifts.depot_route_required");
       }
 
       // Find depot objects to get their stop_id
@@ -1566,11 +1598,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       });
 
       if (!startDepot?.stop_id || !endDepot?.stop_id) {
-        throw new Error(t("shifts.depot_stop_required"));
+        throw localizedError("shifts.depot_stop_required");
       }
 
-      updateFeedback(feedback, t("shifts.fetching_stops_first"), "info");
-      showProgress(t("shifts.fetching_stops_first"));
+      updateFeedback(feedback, () => t("shifts.fetching_stops_first"), "info");
+      showProgress(() => t("shifts.fetching_stops_first"));
       const firstTripDbId = firstTrip?.id || resolveTripPk(firstTrip);
       console.debug("[SHIFT] First trip DB ID:", firstTripDbId, "from trip:", {
         id: firstTrip?.id,
@@ -1578,7 +1610,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       });
       const firstTripEdges = await fetchTripStopEdges(firstTripDbId);
       if (!firstTripEdges?.firstStopId) {
-        throw new Error(t("shifts.depot_trip_stops_required"));
+        throw localizedError("shifts.depot_trip_stops_required");
       }
 
       let depotToFirstStop;
@@ -1607,13 +1639,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
           "[SHIFT] Failed to create depot → first stop auxiliary trip:",
           auxError
         );
-        throw new Error(
-          t("shifts.depot_departure_error", { message: auxError.message })
-        );
+        throw localizedError("shifts.depot_departure_error", () => ({ message: errorMessage(auxError, "shifts.unable_to_save") }));
       }
 
-      updateFeedback(feedback, t("shifts.fetching_stops_last"), "info");
-      showProgress(t("shifts.fetching_stops_last"));
+      updateFeedback(feedback, () => t("shifts.fetching_stops_last"), "info");
+      showProgress(() => t("shifts.fetching_stops_last"));
       const lastTripDbId = lastTrip?.id || resolveTripPk(lastTrip);
       console.debug("[SHIFT] Last trip DB ID:", lastTripDbId, "from trip:", {
         id: lastTrip?.id,
@@ -1621,7 +1651,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       });
       const lastTripEdges = await fetchTripStopEdges(lastTripDbId);
       if (!lastTripEdges?.lastStopId) {
-        throw new Error(t("shifts.depot_trip_stops_required"));
+        throw localizedError("shifts.depot_trip_stops_required");
       }
 
       let lastStopToDepot;
@@ -1650,9 +1680,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
           "[SHIFT] Failed to create last stop → depot auxiliary trip:",
           auxError
         );
-        throw new Error(
-          t("shifts.depot_return_error", { message: auxError.message })
-        );
+        throw localizedError("shifts.depot_return_error", () => ({ message: errorMessage(auxError, "shifts.unable_to_save") }));
       }
 
       const allTripIds = buildCompleteShiftTripIds({
@@ -1663,13 +1691,13 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
       updateFeedback(
         feedback,
-        isEditMode
+        () => isEditMode
           ? t("shifts.saving_shift")
           : t("shifts.creating_shift"),
         "info"
       );
       showProgress(
-        isEditMode
+        () => isEditMode
           ? t("shifts.saving_shift")
           : t("shifts.creating_shift")
       );
@@ -1677,9 +1705,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       if (isEditMode) {
         await updateShift(shiftId, { name, busId, tripIds: allTripIds, startTime, endTime, startDepotId, endDepotId, gtfsDataset: selectedDataset });
         invalidateShiftDistanceCache(shiftId);
-        updateFeedback(feedback, t("shifts.shift_updated"), "success");
+        updateFeedback(feedback, () => t("shifts.shift_updated"), "success");
         triggerPartialLoad("shifts", {
           flashMessage: t("shifts.shift_updated"),
+          flashMessageKey: "shifts.shift_updated",
         });
         return;
       }
@@ -1724,12 +1753,13 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       if (weatherDataWarning) {
         const msg =
           t("shifts.weather_data_warning", { message: weatherDataWarning });
-        updateFeedback(feedback, msg, "error");
-        triggerPartialLoad("shifts", { flashMessage: msg, flashType: "error" });
+        updateFeedback(feedback, () => t("shifts.weather_data_warning", { message: weatherDataWarning }), "error");
+        triggerPartialLoad("shifts", { flashMessage: msg, flashType: "error", flashMessageKey: "shifts.weather_data_warning", flashMessageParams: { message: weatherDataWarning } });
       } else {
-        updateFeedback(feedback, t("shifts.shift_created"), "success");
+        updateFeedback(feedback, () => t("shifts.shift_created"), "success");
         triggerPartialLoad("shifts", {
           flashMessage: t("shifts.shift_created"),
+          flashMessageKey: "shifts.shift_created",
         });
       }
     } catch (error) {
@@ -1740,10 +1770,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       hideProgress();
       updateFeedback(
         feedback,
-        error?.message ??
-          (isEditMode
-            ? t("shifts.unable_to_update")
-            : t("shifts.unable_to_save")),
+        () => `${t(isEditMode ? "shifts.unable_to_update" : "shifts.unable_to_save")} ${errorMessage(error, "common.unknown_error")}`,
         "error"
       );
     } finally {
@@ -1931,6 +1958,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateShiftTrips();
     refreshScheduledTrips();
     updateTimeline();
+    for (const [node, { message, tone }] of translatedMessages) {
+      if (node === progressMessage) node.textContent = resolveMessage(message);
+      else renderFeedback(node, resolveMessage(message), tone);
+    }
   };
   document.addEventListener(I18N_CHANGE_EVENT, handleLanguageChange);
   cleanupHandlers.push(() => document.removeEventListener(I18N_CHANGE_EVENT, handleLanguageChange));
@@ -2102,7 +2133,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
       toggleFormDisabled(form, false);
       if (editRouteReconstructionBlocked) {
-        updateFeedback(feedback, t("shifts.unable_to_load_for_edit"), "error");
+        updateFeedback(feedback, () => t("shifts.unable_to_load_for_edit"), "error");
         if (submitButton) {
           submitButton.disabled = true;
         }
@@ -2112,7 +2143,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         nameInput.setSelectionRange(length, length);
       }
     } else {
-      updateFeedback(feedback, t("shifts.unable_to_load_for_edit"), "error");
+      updateFeedback(feedback, () => t("shifts.unable_to_load_for_edit"), "error");
       toggleFormDisabled(form, false);
       if (submitButton) {
         submitButton.disabled = true;

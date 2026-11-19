@@ -389,6 +389,15 @@
 .shifts-toolbar-actions button {
   flex: 1 1 0;
   min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (width <= 900px) {
+  .shifts-table-controls input,
+  .shifts-toolbar-actions {
+    flex: 0 0 auto;
+  }
 }
 
 @media (width >= 1440px) {
@@ -467,7 +476,7 @@
 
 .shifts-table th.actions,
 .shifts-table td.actions {
-  width: 16rem;
+  width: 11rem;
   text-align: center;
   white-space: nowrap;
 }
@@ -475,6 +484,10 @@
 .shifts-table td.actions button {
   max-width: 100%;
   white-space: normal;
+}
+
+.shifts-table .entity-row-action {
+  flex: 0 0 2rem;
 }
 
 .visualize-shift {

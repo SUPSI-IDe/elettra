@@ -22,6 +22,7 @@ export const setLanguage = (lang) => {
 export const applyTranslations = (lang) => {
   const dict = translations[lang];
   if (!dict) return;
+  document.documentElement.lang = lang;
 
   document.querySelectorAll("[data-i18n-html]").forEach((el) => {
     const key = el.getAttribute("data-i18n-html");

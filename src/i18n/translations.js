@@ -1,5 +1,15 @@
 export const translations = {
   en: {
+    "shifts.selected_trip_invalid": "One of the selected trips is incomplete. Reload the vehicle block and try again.",
+    "shifts.validation_name_required": "Enter the vehicle block name.",
+    "shifts.validation_bus_required": "Select a bus model.",
+    "shifts.validation_start_depot_required": "Select the departure depot.",
+    "shifts.validation_start_time_required": "Enter the departure time.",
+    "shifts.validation_end_depot_required": "Select the return depot.",
+    "shifts.validation_end_time_required": "Enter the return time.",
+    "shifts.validation_time_invalid": "Enter a valid time in hours and minutes.",
+    "shifts.validation_value_invalid": "Check the entered value.",
+    "shifts.auxiliary_response_invalid": "The depot connection could not be confirmed. Please try again.",
     "common.page_load_failed": "Unable to open this page. Reload and try again.",
     "common.reload_page": "Reload page",
     "shifts.composer_pan_hint": "Scroll the timeline horizontally to see the whole working day.",
@@ -508,6 +518,7 @@ export const translations = {
     "about.privacy_link": "SUPSI Privacy Policy",
 
     // Common
+    "common.add": "Add",
     "common.delete": "Delete",
     "common.edit": "Edit",
     "common.rename": "Rename",
@@ -2243,6 +2254,16 @@ export const translations = {
     "yearly_analysis.yearly_uncertainty_title": "Yearly uncertainty summary",
   },
   de: {
+    "shifts.selected_trip_invalid": "Eine ausgewählte Fahrt ist unvollständig. Laden Sie den Fahrzeugumlauf neu und versuchen Sie es erneut.",
+    "shifts.validation_name_required": "Geben Sie den Namen des Fahrzeugumlaufs ein.",
+    "shifts.validation_bus_required": "Wählen Sie ein Busmodell aus.",
+    "shifts.validation_start_depot_required": "Wählen Sie das Startdepot aus.",
+    "shifts.validation_start_time_required": "Geben Sie die Abfahrtszeit ein.",
+    "shifts.validation_end_depot_required": "Wählen Sie das Rückkehrdepot aus.",
+    "shifts.validation_end_time_required": "Geben Sie die Rückkehrzeit ein.",
+    "shifts.validation_time_invalid": "Geben Sie eine gültige Uhrzeit in Stunden und Minuten ein.",
+    "shifts.validation_value_invalid": "Prüfen Sie den eingegebenen Wert.",
+    "shifts.auxiliary_response_invalid": "Die Verbindung zum Depot konnte nicht bestätigt werden. Versuchen Sie es erneut.",
     "common.page_load_failed": "Diese Seite konnte nicht geöffnet werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
     "common.reload_page": "Seite neu laden",
     "shifts.composer_pan_hint": "Scrollen Sie die Zeitleiste horizontal, um den ganzen Fahrzeugumlauf zu sehen.",
@@ -2751,6 +2772,7 @@ export const translations = {
     "about.privacy_link": "SUPSI Datenschutzerklärung",
 
     // Common
+    "common.add": "Hinzufügen",
     "common.delete": "Löschen",
     "common.edit": "Bearbeiten",
     "common.rename": "Umbenennen",
@@ -4482,6 +4504,16 @@ export const translations = {
     "simulation.sensitivity_driver_annual_distance": "Jährliche Distanz: {distance} km",
   },
   fr: {
+    "shifts.selected_trip_invalid": "Un des trajets sélectionnés est incomplet. Rechargez le service voiture et réessayez.",
+    "shifts.validation_name_required": "Saisissez le nom du service voiture.",
+    "shifts.validation_bus_required": "Sélectionnez un modèle de bus.",
+    "shifts.validation_start_depot_required": "Sélectionnez le dépôt de départ.",
+    "shifts.validation_start_time_required": "Saisissez l’heure de départ.",
+    "shifts.validation_end_depot_required": "Sélectionnez le dépôt de retour.",
+    "shifts.validation_end_time_required": "Saisissez l’heure de retour.",
+    "shifts.validation_time_invalid": "Saisissez une heure valide en heures et minutes.",
+    "shifts.validation_value_invalid": "Vérifiez la valeur saisie.",
+    "shifts.auxiliary_response_invalid": "La liaison avec le dépôt n’a pas pu être confirmée. Réessayez.",
     "common.page_load_failed": "Impossible d’ouvrir cette page. Rechargez-la et réessayez.",
     "common.reload_page": "Recharger la page",
     "shifts.composer_pan_hint": "Faites défiler la chronologie horizontalement pour voir toute la journée de service.",
@@ -4990,6 +5022,7 @@ export const translations = {
     "about.privacy_link": "Politique de confidentialité SUPSI",
 
     // Common
+    "common.add": "Ajouter",
     "common.delete": "Supprimer",
     "common.edit": "Modifier",
     "common.rename": "Renommer",
@@ -6721,6 +6754,16 @@ export const translations = {
     "simulation.sensitivity_driver_annual_distance": "Distance annuelle : {distance} km",
   },
   it: {
+    "shifts.selected_trip_invalid": "Una delle corse selezionate è incompleta. Ricarica il turno macchina e riprova.",
+    "shifts.validation_name_required": "Inserisci il nome del turno macchina.",
+    "shifts.validation_bus_required": "Seleziona un modello di autobus.",
+    "shifts.validation_start_depot_required": "Seleziona il deposito di partenza.",
+    "shifts.validation_start_time_required": "Inserisci l'orario di partenza.",
+    "shifts.validation_end_depot_required": "Seleziona il deposito di ritorno.",
+    "shifts.validation_end_time_required": "Inserisci l'orario di ritorno.",
+    "shifts.validation_time_invalid": "Inserisci un orario valido in ore e minuti.",
+    "shifts.validation_value_invalid": "Controlla il valore inserito.",
+    "shifts.auxiliary_response_invalid": "Il collegamento con il deposito non è stato confermato. Riprova.",
     "common.page_load_failed": "Impossibile aprire questa pagina. Ricarica e riprova.",
     "common.reload_page": "Ricarica la pagina",
     "shifts.composer_pan_hint": "Scorri la linea temporale in orizzontale per vedere tutto il turno.",
@@ -7229,6 +7272,7 @@ export const translations = {
     "about.privacy_link": "Informativa sulla privacy SUPSI",
 
     // Common
+    "common.add": "Aggiungi",
     "common.delete": "Elimina",
     "common.edit": "Modifica",
     "common.rename": "Rinomina",

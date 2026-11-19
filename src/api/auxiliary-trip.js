@@ -12,7 +12,9 @@ export const normalizeAuxiliaryTripResponse = (payload) => {
   const trip = payload?.trip ?? payload;
 
   if (!readTripId(trip)) {
-    throw new Error("Auxiliary trip response is missing trip.id.");
+    throw Object.assign(new Error("Auxiliary trip response is missing trip.id."), {
+      code: "invalid_auxiliary_trip_response",
+    });
   }
 
   return trip;

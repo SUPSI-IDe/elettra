@@ -19,7 +19,8 @@ import {
 } from "../../../utils/batch-delete";
 import { isAuthenticated, resolveUserId } from "../../../api/session";
 import { getCurrentUserId } from "../../../store";
-import { bindSelectAll } from "../../../dom/tables";
+import { bindSelectAll, updateActionButtons } from "../../../dom/tables";
+import { renderEntityRowActions } from "../../../dom/entity-details";
 import { installPaginationControl } from "../../../dom/pagination";
 import { DEFAULT_PAGE_SIZE } from "../../../api/pagination";
 import { triggerPartialLoad } from "../../../events";
@@ -355,7 +356,13 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } 
                       shift?._resolved_route_label ?? "—"
                     )}</td>
                     <td class="actions">
-                        <button type="button" data-action="visualize-shift">${textContent(t("shifts.visualize"))}</button>
+                        ${renderEntityRowActions({
+                          details: t("shifts.visualize"),
+                          edit: t("common.edit"),
+                          duplicate: t("common.duplicate"),
+                          remove: t("common.delete"),
+                          order: ["details", "edit", "duplicate", "delete"],
+                        })}
                     </td>
                 </tr>
             `;
@@ -394,15 +401,11 @@ export const initializeShifts = async (root = document, options = {}) => {
   const deleteButton = section.querySelector(
     '[data-action="delete-selected-shifts"]'
   );
-  const duplicateButton = section.querySelector(
-    '[data-action="duplicate-selected-shifts"]'
-  );
-  const editButton = section.querySelector(
-    '[data-action="edit-selected-shifts"]'
-  );
   const addButton = section.querySelector('[data-action="add-shift"]');
 
-  setFlashMessage(section, options.flashMessage ?? "");
+  setFlashMessage(section, options.flashMessageKey
+    ? t(options.flashMessageKey, options.flashMessageParams ?? {})
+    : options.flashMessage ?? "");
 
   if (!table || !tbody) {
     return null;
@@ -562,8 +565,7 @@ export const initializeShifts = async (root = document, options = {}) => {
     };
   };
 
-  const renderCurrentView = () => {
-    const selectedIds = new Set(getSelectedIdsFrom(table));
+  const renderCurrentView = (selectedIds = new Set(getSelectedIdsFrom(table))) => {
     const visibleShifts = sortShifts(allShifts, sortState);
     renderShiftRows(tbody, visibleShifts, { selectedIds });
     updateSortHeaders(table, sortState);
@@ -723,7 +725,8 @@ export const initializeShifts = async (root = document, options = {}) => {
     );
   };
 
-  const loadShifts = async () => {
+  const loadShifts = async ({ preserveSelection = false } = {}) => {
+    const selectedIds = preserveSelection ? new Set(getSelectedIdsFrom(table)) : new Set();
     const requestId = ++loadRequestId;
     activeLoadController?.abort();
     const controller = new AbortController();
@@ -818,7 +821,7 @@ export const initializeShifts = async (root = document, options = {}) => {
           };
         })
       );
-      renderCurrentView();
+      renderCurrentView(selectedIds);
       pagination?.update(envelope);
       hydrateShiftTimes(allShifts);
       hydrateShiftDistances(allShifts);
@@ -902,14 +905,9 @@ export const initializeShifts = async (root = document, options = {}) => {
     });
   }
 
-  const handleDeleteClick = async () => {
-    const ids = getSelectedIdsFrom(table);
-    if (!ids.length) {
-      setFlashMessage(section, t("shifts.select_min"));
-      return;
-    }
-
-    deleteButton.disabled = true;
+  const deleteShifts = async (ids, actionButton) => {
+    if (!ids.length) return;
+    if (actionButton) actionButton.disabled = true;
 
     try {
       const confirmDelete = confirm(
@@ -931,13 +929,22 @@ export const initializeShifts = async (root = document, options = {}) => {
             )
           : t("shifts.deleted")
       );
-      await loadShifts();
+      await loadShifts({ preserveSelection: true });
     } catch (error) {
       const resolved = resolveShiftDeleteFailure(error, t);
       setFlashMessage(section, resolved.message);
     } finally {
-      deleteButton.disabled = false;
+      if (actionButton) actionButton.disabled = false;
+      updateActionButtons(table);
     }
+  };
+  const handleDeleteClick = async () => {
+    const ids = getSelectedIdsFrom(table);
+    if (!ids.length) {
+      setFlashMessage(section, t("shifts.select_min"));
+      return;
+    }
+    await deleteShifts(ids, deleteButton);
   };
   if (deleteButton) {
     deleteButton.addEventListener("click", handleDeleteClick);
@@ -946,72 +953,11 @@ export const initializeShifts = async (root = document, options = {}) => {
     });
   }
 
-  const handleDuplicateClick = async () => {
-    const ids = getSelectedIdsFrom(table);
-    if (!ids.length) {
-      setFlashMessage(section, t("shifts.select_min_duplicate"));
-      return;
-    }
-
-    setFlashMessage(section, "");
-    duplicateButton.disabled = true;
-
-    try {
-      for (const id of ids) {
-        const shift = await fetchShiftById(id);
-        const { name, busId, tripIds } = buildDuplicateShiftPayload(shift, {
-          copySuffix: t("shifts.copy_suffix"),
-          untitledLabel: t("shifts.untitled_shift"),
-        });
-
-        await createShift({
-          name,
-          busId,
-          tripIds,
-        });
-      }
-      await loadShifts();
-      setFlashMessage(section, t("shifts.duplicated"));
-    } catch (error) {
-      console.error("Failed to duplicate shift(s)", error);
-      setFlashMessage(
-        section,
-        error?.message ?? t("shifts.unable_to_duplicate")
-      );
-    } finally {
-      duplicateButton.disabled = false;
-    }
-  };
-  if (duplicateButton) {
-    duplicateButton.addEventListener("click", handleDuplicateClick);
-    cleanupHandlers.push(() => {
-      duplicateButton.removeEventListener("click", handleDuplicateClick);
-    });
-  }
-
-  const handleEditClick = () => {
-    const ids = getSelectedIdsFrom(table);
-    if (ids.length !== 1) {
-      console.error(t("shifts.select_single"));
-      return;
-    }
-
-    const id = ids[0];
-
-    triggerPartialLoad("shift-form", { mode: "edit", shiftId: id });
-  };
-  if (editButton) {
-    editButton.addEventListener("click", handleEditClick);
-    cleanupHandlers.push(() => {
-      editButton.removeEventListener("click", handleEditClick);
-    });
-  }
-
-  const handleTableClick = (event) => {
+  const handleTableClick = async (event) => {
     const button = event.target?.closest?.(
-      'button[data-action="visualize-shift"]'
+      'button[data-row-action]'
     );
-    if (!button) {
+    if (!button || !table.contains(button) || button.disabled) {
       return;
     }
 
@@ -1021,7 +967,32 @@ export const initializeShifts = async (root = document, options = {}) => {
       return;
     }
 
-    triggerPartialLoad("visualize-shift", { shiftId: id });
+    const action = button.dataset.rowAction;
+    if (action === "details") {
+      triggerPartialLoad("visualize-shift", { shiftId: id });
+    } else if (action === "edit") {
+      triggerPartialLoad("shift-form", { mode: "edit", shiftId: id });
+    } else if (action === "delete") {
+      await deleteShifts([id], button);
+    } else if (action === "duplicate") {
+      button.disabled = true;
+      setFlashMessage(section, "");
+      try {
+        const shift = await fetchShiftById(id);
+        const { name, busId, tripIds } = buildDuplicateShiftPayload(shift, {
+          copySuffix: t("shifts.copy_suffix"),
+          untitledLabel: t("shifts.untitled_shift"),
+        });
+        await createShift({ name, busId, tripIds });
+        await loadShifts({ preserveSelection: true });
+        setFlashMessage(section, t("shifts.duplicated"));
+      } catch (error) {
+        console.error("Failed to duplicate shift", error);
+        setFlashMessage(section, `${t("shifts.unable_to_duplicate")}${error?.message ? ` ${error.message}` : ''}`);
+      } finally {
+        button.disabled = false;
+      }
+    }
   };
   if (table) {
     table.addEventListener("click", handleTableClick);

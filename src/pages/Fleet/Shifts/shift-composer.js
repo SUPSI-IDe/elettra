@@ -1,8 +1,7 @@
 import { t, I18N_CHANGE_EVENT } from '../../../i18n';
-import { updateFeedback } from '../../../ui-helpers';
 
 // Presentation only: eligibility, GTFS editions and persistence stay in shift-form.
-export const initializeShiftComposer = ({ form, isEditMode, readState, validateTrips, isTimetableReady = () => true }) => {
+export const initializeShiftComposer = ({ form, isEditMode, readState, validateTrips, updateFeedback, isTimetableReady = () => true }) => {
   const find = (selector) => form.querySelector(selector);
   const setup = find('.shift-config');
   const grid = find('.shift-form-grid');
@@ -15,6 +14,15 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
   const save = find('[type="submit"]');
   const steps = ['setup', 'compose', 'review'];
   let step = 'setup';
+  let invalidSetup = null;
+  const requiredFields = new Map([
+    ['shift-name', 'shifts.validation_name_required'],
+    ['shift-bus', 'shifts.validation_bus_required'],
+    ['shift-start-depot', 'shifts.validation_start_depot_required'],
+    ['shift-start-time', 'shifts.validation_start_time_required'],
+    ['shift-end-depot', 'shifts.validation_end_depot_required'],
+    ['shift-end-time', 'shifts.validation_end_time_required'],
+  ]);
   const dayOffset = document.createElement('small');
   dayOffset.setAttribute('aria-live', 'polite');
   dayOffset.dataset.role = 'composer-day-offset';
@@ -40,14 +48,37 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
     const input = find(`#${id}`);
     return input?.selectedOptions?.[0]?.textContent || input?.value || '—';
   };
+  const clearInvalidSetup = () => {
+    if (!invalidSetup) return;
+    invalidSetup.input.setCustomValidity('');
+    invalidSetup.input.removeAttribute('aria-invalid');
+    invalidSetup.input.removeAttribute('aria-errormessage');
+    invalidSetup = null;
+  };
+  const setupErrorKey = (input, requiredKey) => {
+    input.setCustomValidity('');
+    if (input.validity.badInput) return 'shifts.validation_time_invalid';
+    if (!input.value.trim()) return requiredKey;
+    if (!input.validity.valid) return input.type === 'time' ? 'shifts.validation_time_invalid' : 'shifts.validation_value_invalid';
+    return '';
+  };
+  const renderInvalidSetup = () => {
+    if (!invalidSetup) return;
+    const { input, key } = invalidSetup;
+    input.setCustomValidity(t(key));
+    input.setAttribute('aria-invalid', 'true');
+    input.setAttribute('aria-errormessage', 'shift-form-feedback');
+    updateFeedback(find('[data-role="feedback"]'), () => t(key), 'error');
+  };
   const validateSetup = () => {
-    for (const id of ['shift-name', 'shift-bus', 'shift-start-depot', 'shift-start-time', 'shift-end-depot', 'shift-end-time']) {
+    clearInvalidSetup();
+    for (const [id, requiredKey] of requiredFields) {
       const input = find(`#${id}`);
-      if (!input.value.trim() || !input.checkValidity()) {
+      const key = setupErrorKey(input, requiredKey);
+      if (key) {
+        invalidSetup = { input, key };
         show('setup');
-        if (!input.value.trim() && input.value) {
-          updateFeedback(find('[data-role="feedback"]'), t('shifts.name_bus_required'), 'error');
-        }
+        renderInvalidSetup();
         input.focus();
         input.reportValidity();
         return false;
@@ -137,7 +168,7 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
     const error = validateTrips();
     if (!error) return true;
     show('compose');
-    updateFeedback(find('[data-role="feedback"]'), error, 'error');
+    updateFeedback(find('[data-role="feedback"]'), () => validateTrips(), 'error');
     return false;
   };
   const onClick = (event) => {
@@ -148,7 +179,24 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
   };
   form.addEventListener('click', onClick);
   form.addEventListener('change', update);
-  document.addEventListener(I18N_CHANGE_EVENT, update);
+  const onValidationInput = event => {
+    if (event.target !== invalidSetup?.input) return;
+    const key = setupErrorKey(event.target, requiredFields.get(event.target.id));
+    if (key) {
+      invalidSetup.key = key;
+      renderInvalidSetup();
+    } else {
+      clearInvalidSetup();
+      updateFeedback(find('[data-role="feedback"]'), '');
+    }
+  };
+  const onLanguageChange = () => {
+    update();
+    renderInvalidSetup();
+  };
+  form.addEventListener('input', onValidationInput);
+  form.addEventListener('change', onValidationInput);
+  document.addEventListener(I18N_CHANGE_EVENT, onLanguageChange);
   show('setup', false);
   return {
     update,
@@ -163,7 +211,10 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
     cleanup: () => {
       form.removeEventListener('click', onClick);
       form.removeEventListener('change', update);
-      document.removeEventListener(I18N_CHANGE_EVENT, update);
+      form.removeEventListener('input', onValidationInput);
+      form.removeEventListener('change', onValidationInput);
+      document.removeEventListener(I18N_CHANGE_EVENT, onLanguageChange);
+      clearInvalidSetup();
     },
   };
 };
