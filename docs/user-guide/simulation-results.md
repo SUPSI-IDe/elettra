@@ -1,6 +1,6 @@
 # Feasibility Results
 
-> Last updated: 2026-11-17
+> Last updated: 2026-11-19
 > Interface baseline: Frontend v1.1.0
 
 The feasibility result page is the technical gate between service preparation
@@ -72,6 +72,55 @@ When a calculation is not determined, General lists the outcome of every
 selected block. The block view identifies the reason, any blocking vehicle
 block, and translated **How to resolve** guidance. Correct the indicated source
 data or configuration and run a separately named evaluation.
+
+### Infeasible configurations
+
+General uses the same layout for every established infeasible result: known
+constraints, the scope of any battery estimate, and a table of affected vehicle
+blocks. The table lists selected packs, the installable maximum, estimated
+required packs, and missing packs relative to the selected battery. Requirements
+above the physical maximum are highlighted. An em dash means no value was
+established; it is not zero. Select a block name to open its battery graphic.
+
+Battery figures can come from two different analyses:
+
+- The saved optimization result may contain virtual additional packs. These
+  describe a diagnostic shortfall, not an installable design verified at the
+  full battery mass.
+- When the complete daily cycle is infeasible, a separate diagnostic may
+  exclude restoration of the initial SOC before the next departure. Its scope
+  is stated explicitly. Even a verified daytime battery does not establish a
+  feasible complete daily cycle.
+
+Fixed-battery shortfalls within the installable maximum, insufficient depot
+power, unavailable plugs, overlapping plug occupancy and unusable charging
+windows use this same presentation. A shared depot constraint need not identify
+an individual limiting block. Missing or incomplete diagnostics produce an
+explicit explanation, without inventing battery counts or energy values.
+
+Recharge before the next departure is reported separately. A battery shortfall
+alone does not establish a depot recharge shortfall. Diagnostic depot bounds
+are not a verified overnight charging plan. Timeouts, calculation errors and
+unverified results remain separate from proven infeasibility. Feasible results
+retain their existing summary and operational detail.
+
+Infeasible vehicle-block details use one layout for both saved optimizer
+results and separate diagnostics: block summary, constraint explanation,
+battery graphic, and **More information** with the saved operating conditions.
+Unavailable battery details keep an explicit placeholder in the same layout.
+Consumption is labelled as a diagnostic solver trajectory, a reference
+forecast at its recorded pack count, or an unavailable value. Missing aggregate
+Q95 is never replaced by summed per-trip quantiles. Energy-deficit comparisons
+require a known charging amount and a compatible consumption reference.
+An unavailable Q95 consumption is shown as **N/A**, with a short tooltip
+explaining that the saved result does not contain it. Its kWh/km value remains
+an em dash, without a separate tooltip.
+
+A block without a battery shortfall in a relaxed diagnostic is labelled
+accordingly, without asserting that its complete daily cycle is feasible.
+Diagnostic blocks do not display virtual SOC or charging plans as verified
+physical operation. Physical, feasible blocks retain their existing detail,
+including when another block makes the overall evaluation infeasible.
 
 ---
 

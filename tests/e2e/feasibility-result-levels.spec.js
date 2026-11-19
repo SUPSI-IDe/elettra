@@ -74,6 +74,9 @@ const mountResults = async (page, {
   consumptionAnalysis,
   consumptionBasis,
   forecastVerification,
+  batteryPolicy = {},
+  solverStatus,
+  infeasibilityDiagnostics,
   basisRunIds,
   initialReferencePredictionRunIds,
   selectedPredictionRunIds,
@@ -183,6 +186,7 @@ const mountResults = async (page, {
             depot_peak_shaving: Boolean(dailyCycle),
             min_soc: 0.2,
             max_soc: 0.9,
+            ...batteryPolicy,
             ...(includeInfrastructureInput ? { charging_stations: chargingStations } : {}),
             ...(mode === "charging_only" ? { fixed_battery_packs: fixedBatteryPacks } : {}),
           },
@@ -192,6 +196,8 @@ const mountResults = async (page, {
             consumption_analysis: consumptionAnalysis,
             daily_cycle: dailyCycle,
             forecast_verification: forecastVerification,
+            solver_status: solverStatus,
+            infeasibility_diagnostics: infeasibilityDiagnostics,
             initial_reference_prediction_run_ids:
               initialReferencePredictionRunIds,
             selected_prediction_run_ids: selectedPredictionRunIds,
@@ -1133,7 +1139,7 @@ for (const consumptionBasis of ['mean', 'aggregate_q95']) {
     const critical = general.locator('[data-role="feasibility-critical-shifts"]');
     await expect(critical.locator('tbody tr')).toHaveCount(1);
     await expect(critical.locator('tbody th')).toHaveText('Current critical block');
-    await expect(critical.locator('tbody td')).toHaveText(['16', '18', '16']);
+    await expect(critical.locator('tbody td')).toHaveText(['16', '16', '18', '+2']);
     await expect(critical).not.toContainText('Morning service');
     await expect(general.locator('[data-role="feasibility-fleet-battery"], [data-role="feasibility-infrastructure"]')).toHaveCount(0);
     await expect(page.locator('[data-role="depot-cycle"]')).toHaveCount(0);
@@ -2004,7 +2010,7 @@ for (const [required, excess, unavailable] of [[18,8,2],[13,3,0]]) {
       batteryResultOverrides:{morning:{optimized_packs:10,required_total_packs:required,excess_packs:excess,
         optimized_kwh:required*50,physical_feasible:false}}});
     const critical = page.locator('[data-role="feasibility-critical-shifts"]');
-    await expect(critical.locator('tbody td')).toHaveText(['10', String(required), '16']);
+    await expect(critical.locator('tbody td')).toHaveText(['10', '16', String(required), `+${required - 10}`]);
     await expect(page.locator('[data-role="feasibility-infrastructure"]')).toHaveCount(0);
     await selectShiftScope(page,'morning');
     const card=page.locator('[data-role="aggregate-energy"]');
@@ -2500,3 +2506,350 @@ test('charging cards distinguish available time from active time and keep detail
   await page.locator('[data-role="feasibility-charging-session-location"]').click();
   await expect(tooltip).toBeHidden();
 });
+
+// The same physical shortfall can be returned directly (412) or in a
+// daytime-only diagnostic after an infeasible daily cycle (405).
+for (const mode of ['battery_only', 'charging_only', 'joint']) {
+  for (const consumptionBasis of ['mean', 'aggregate_q95']) {
+    for (const source of ['result', 'diagnostic']) {
+      test(`uniform infeasible ${mode} ${consumptionBasis} ${source}: General table opens one battery`, async ({ page }) => {
+        const warnings = [];
+        page.on('pageerror', error => warnings.push(error.message));
+        const critical = battery('Old saved name', 8, {
+          required_total_packs: 10, max_physical_packs: 8, max_physical_kwh: 400,
+          physical_feasible: false, excess_packs: 2,
+          feasibility_status: 'infeasible_requires_excess_packs',
+        });
+        await mountResults(page, {
+          mode, consumptionBasis, fixedBatteryPacks: 8, electrificationFeasible: false,
+          solverStatus: source === 'result' ? 'optimal' : 'infeasible',
+          forecastVerification: {status: source === 'result' ? 'physical_limits_exceeded' : 'infeasible'},
+          includeBatteryResults: source === 'result', includePerBusSummary: source === 'result',
+          batteryResultOverrides: {evening: critical}, dailyCycle: {status: 'unverified'},
+          infeasibilityDiagnostics: source === 'diagnostic' ? {
+            status: 'available', forecast_verification: {status: 'physical_limits_exceeded'},
+            battery_results: {evening: critical}, reasons: [],
+          } : undefined,
+        });
+        const general = page.locator('[data-role="feasibility-general-level"]');
+        const row = general.locator('[data-role="feasibility-critical-shifts"] tbody tr');
+        await expect(row).toHaveCount(1);
+        await expect(row.locator('td')).toHaveText(['8', '8', '10', '+2']);
+        await expect(row).toHaveAttribute('data-source', source);
+        await expect(row.locator('.infeasibility-pack-limit')).toHaveAttribute('title', '2 packs beyond the installable maximum');
+        await expect(general.locator('[data-role="infeasibility-estimate-scope"]')).toContainText(
+          source === 'result' ? 'virtual diagnostic capacity' : 'excluding only the requirement');
+        await expect(general.locator('[data-role="infeasibility-next-departure"]')).toHaveAttribute('data-status', 'unverified');
+        await expect(page.locator('[data-role="aggregate-energy"], [data-role="feasibility-infrastructure"], [data-role="depot-cycle"]')).toHaveCount(0);
+        await expect(general).not.toContainText('CHF');
+        if (mode === 'joint' && consumptionBasis === 'mean') {
+          await page.screenshot({path: test.info().outputPath(`uniform-${source}-general.png`), fullPage: true});
+        }
+        await row.getByRole('button', {name: 'Evening service', exact: true}).click();
+        await expect(scopeSelector(page).getByRole('tab', {name: 'Evening service', exact: true})).toHaveAttribute('aria-selected', 'true');
+        const card = page.locator('[data-role="aggregate-energy"]');
+        await expect(card).toHaveCount(1);
+        await expect(card.locator('.aggregate-pack--chosen')).toHaveCount(8);
+        await expect(card.locator('.aggregate-pack--excess')).toHaveCount(2);
+        await expect(card.locator('.result-kpis strong').first()).toHaveText('10 / 8');
+        await expect(page.locator('[data-role="feasibility-shift-summary"]')).toBeVisible();
+        await expect(page.locator('[data-role="feasibility-shift-summary"] h4')).toHaveText('Vehicle block summary');
+        await expect(page.locator('[data-role="feasibility-shift-required-packs"] strong')).toHaveText('10 packs');
+        await expect(page.locator('[data-role="feasibility-shift-common-packs"] strong')).toHaveText('8 packs');
+        await expect(card.locator('h3')).toHaveText('Battery and energy margin');
+        await expect(page.locator('[data-role="infeasibility-consumption-scope"]')).toHaveCount(consumptionBasis === 'aggregate_q95' ? 0 : 1);
+        const sections = await page.locator('[data-role="feasibility-shift-level"] > .feasibility-level__content > *').evaluateAll(elements =>
+          elements.map(element => element.getAttribute('data-role') ?? (element.matches('details.ya-more-information') ? 'more-information' : 'other')));
+        expect(sections).toEqual(['feasibility-shift-summary', 'infeasibility-context', 'aggregate-energy', 'more-information']);
+        await page.locator('details.ya-more-information > summary').click();
+        await expect(page.locator('details.ya-more-information')).toContainText('Operating Conditions');
+        await expect(page.locator('details.ya-more-information')).toContainText('Optimization Results');
+        await expect(page.locator('[data-role="infeasibility-context"]')).toContainText('Evening service');
+        await expect(page.locator('[data-role="infeasibility-context"]')).not.toContainText('Old saved name');
+        await expect(page.locator('[data-role="feasibility-shift-min-soc"], [data-role="depot-cycle"], [data-role="feasibility-charging-plan"]')).toHaveCount(0);
+        await scopeSelector(page).getByRole('tab', {name: 'General', exact: true}).click();
+        await expect(row.locator('td')).toHaveText(['8', '8', '10', '+2']);
+        expect(warnings).toEqual([]);
+      });
+    }
+  }
+}
+
+const depotReasons = [
+  {code: 'depot_power', shift_id: 'evening', shift_name: 'Saved name', stop_name: 'Depot',
+    required_recharge_kwh: 340.7, maximum_recharge_kwh: 319, minimum_shortfall_kwh: 21.7,
+    available_power_kw_dc: 32.5, minimum_average_power_kw_dc: 34.7},
+  {code: 'depot_no_plug', shift_id: 'evening', shift_name: 'Saved name', stop_name: 'Depot', required_recharge_kwh: 340.7},
+  {code: 'depot_time', shift_id: 'evening', shift_name: 'Saved name', stop_name: 'Depot', required_recharge_kwh: 340.7},
+  {code: 'depot_plugs', shift_ids: ['evening'], stop_name: 'Depot', required_plugs: 2, available_plugs: 1},
+  {code: 'depot_constraints'},
+];
+for (const reason of depotReasons) {
+  test(`uniform infeasible depot reason ${reason.code} preserves sufficient battery without claiming a feasible cycle`, async ({page}) => {
+    await mountResults(page, {
+      solverStatus: 'infeasible', electrificationFeasible: false,
+      includeBatteryResults: false, includePerBusSummary: false, dailyCycle: {status: 'unverified'},
+      infeasibilityDiagnostics: {status: 'available', forecast_verification: {status: 'verified'},
+        battery_results: {evening: battery('Evening service', 12)}, reasons: [reason]},
+    });
+    const general = page.locator('[data-role="feasibility-general-level"]');
+    await expect(general.locator(`[data-reason="${reason.code}"]`)).toBeVisible();
+    await expect(general.locator('[data-role="infeasibility-next-departure"]')).toHaveAttribute('data-status', 'identified');
+    const rows = general.locator('[data-role="feasibility-critical-shifts"] tbody tr');
+    await expect(rows).toHaveCount(reason.code === 'depot_constraints' ? 0 : 1);
+    if (reason.code !== 'depot_constraints') await expect(rows.locator('td')).toHaveText(['12', '16', '12', '0']);
+    await selectShiftScope(page, 'evening');
+    await expect(page.locator('[data-role="aggregate-energy"]')).toContainText('Battery sizing is verified for completing the vehicle block.');
+    await expect(page.locator('[data-role="aggregate-energy"]')).toContainText('complete daily cycle remains infeasible');
+    await expect(page.locator('[data-role="depot-cycle"], [data-role="feasibility-charging-plan"]')).toHaveCount(0);
+    await selectShiftScope(page, 'morning');
+    await expect(page.locator('[data-role="infeasibility-battery-unavailable"]')).toBeVisible();
+    await expect(page.locator('[data-role="aggregate-energy"]')).toHaveCount(0);
+    await expect(page.locator('[data-role="infeasibility-context"]')).not.toContainText('NaN');
+  });
+}
+
+for (const status of ['unavailable', 'available']) {
+  test(`uniform infeasible ${status} incomplete diagnostics show unknowns, never zero energy`, async ({page}) => {
+    await mountResults(page, {
+      solverStatus: 'infeasible', electrificationFeasible: false,
+      includeBatteryResults: false, includePerBusSummary: false, dailyCycle: {status: 'unverified'},
+      infeasibilityDiagnostics: {status, reason: 'time_budget_exhausted',
+        reasons: [{code: 'depot_power', shift_id: 'evening'}, {code: 'future_reason'}],
+        battery_results: status === 'available' ? {evening: {
+          shift_name: 'Evening service', physical_feasible: false,
+        }} : {}},
+    });
+    const general = page.locator('[data-role="feasibility-general-level"]');
+    await expect(general.locator('[data-role="infeasibility-context"]')).toContainText('A detailed diagnosis is not available');
+    const rows = general.locator('[data-role="feasibility-critical-shifts"] tbody tr');
+    await expect(rows).toHaveCount(status === 'available' ? 1 : 0);
+    if (status === 'available') await expect(rows.locator('td')).toHaveText(['—', '—', '—', '—']);
+    await selectShiftScope(page, 'evening');
+    await expect(page.locator('[data-role="infeasibility-battery-unavailable"]')).toBeVisible();
+    await expect(page.locator('[data-role="aggregate-energy"]')).toHaveCount(0);
+    await expect(page.locator('[data-role="infeasibility-context"]')).not.toContainText(/NaN|undefined|simulation\.diagnostic_future/);
+  });
+}
+
+for (const mode of ['battery_only', 'charging_only', 'joint']) {
+  for (const consumptionBasis of ['mean', 'aggregate_q95']) {
+    test(`feasible ${mode} ${consumptionBasis} markup is unchanged by irrelevant diagnostics`, async ({page}) => {
+      await mountResults(page, {mode, consumptionBasis});
+      const general = page.locator('[data-role="feasibility-general-level"]');
+      await expect(general).toBeVisible();
+      const beforeGeneral = await general.innerHTML();
+      await selectShiftScope(page, 'morning');
+      const card = page.locator('[data-role="aggregate-energy"]');
+      await expect(card).toBeVisible();
+      const beforeBattery = await card.innerHTML();
+      await mountResults(page, {mode, consumptionBasis, infeasibilityDiagnostics: {
+        status: 'available', battery_results: {morning: battery('Misleading diagnostic', 30)}, reasons: depotReasons,
+      }});
+      await expect(general).toBeVisible();
+      expect(await general.innerHTML()).toBe(beforeGeneral);
+      await selectShiftScope(page, 'morning');
+      await expect(card).toBeVisible();
+      expect(await card.innerHTML()).toBe(beforeBattery);
+      await expect(page.locator('[data-role="infeasibility-context"]')).toHaveCount(0);
+    });
+  }
+}
+
+for (const language of ['it', 'de', 'fr']) {
+  test(`uniform infeasibility vocabulary is localized in ${language}`, async ({page}) => {
+    await mountResults(page, {language, shiftIds: ['morning'], electrificationFeasible: false,
+      dailyCycle: {status: 'unverified'}, batteryResultOverrides: {morning: {
+        optimized_packs: 8, required_total_packs: 10, excess_packs: 2, physical_feasible: false,
+        max_physical_packs: 8,
+      }}});
+    const general = page.locator('[data-role="feasibility-general-level"]');
+    await expect(general.locator('[data-role="infeasibility-context"]')).toBeVisible();
+    await expect(general).not.toContainText(/simulation\.|Identified constraints|Missing packs/);
+  });
+}
+
+for (const status of ['time_budget_exhausted', 'solver_not_optimal', 'iteration_limit', 'cycle_detected']) {
+  test(`unverified ${status} is not presented as an established infeasible result`, async ({page}) => {
+    await mountResults(page, {
+      electrificationFeasible: false, forecastVerification: {status},
+      infeasibilityDiagnostics: {status: 'available', battery_results: {evening: battery('Evening', 30)},
+        reasons: [{code: 'depot_constraints'}]},
+    });
+    await expect(page.locator('[data-role="feasibility-overall-status"]')).toHaveText('Feasibility status unavailable');
+    await expect(page.locator('[data-role="infeasibility-context"], [data-role="feasibility-critical-shifts"]')).toHaveCount(0);
+  });
+}
+
+test('incomplete main battery records show unknown counts and no fabricated energy', async ({page}) => {
+  await mountResults(page, {
+    shiftIds: ['morning'], electrificationFeasible: false,
+    batteryResultOverrides: {morning: {optimized_packs: 8, max_physical_packs: 8,
+      required_total_packs: null, max_physical_kwh: null, physical_feasible: false}},
+  });
+  await expect(page.locator('[data-role="feasibility-critical-shifts"] tbody td')).toHaveText(['8', '8', '—', '—']);
+  await page.getByRole('button', {name: 'Morning service', exact: true}).click();
+  await expect(page.locator('[data-role="infeasibility-battery-unavailable"]')).toBeVisible();
+  await expect(page.locator('[data-role="aggregate-energy"]')).toHaveCount(0);
+});
+
+test('historical diagnostic-only shifts remain reachable when the input shift list is absent', async ({page}) => {
+  await mountResults(page, {shiftIds: [], includeBatteryResults: false, includePerBusSummary: false,
+    electrificationFeasible: false, solverStatus: 'infeasible', infeasibilityDiagnostics: {
+      status: 'available', reasons: [], battery_results: {evening: battery('Evening service', 8, {
+        required_total_packs: 10, max_physical_packs: 8, max_physical_kwh: 400, excess_packs: 2,
+        physical_feasible: false,
+      })},
+    }});
+  const row = page.locator('[data-role="feasibility-critical-shifts"] tbody tr');
+  await expect(row).toHaveCount(1);
+  await row.getByRole('button').click();
+  await expect(page.locator('[data-role="aggregate-energy"]')).toBeVisible();
+  await expect(scopeSelector(page).getByRole('tab', {name: 'Evening service', exact: true})).toHaveAttribute('aria-selected', 'true');
+});
+
+for (const consumptionBasis of ['mean', 'aggregate_q95']) {
+  test(`uniform shift 412 trajectory ${consumptionBasis} labels diagnostic consumption and retains physical capacity`, async ({page}) => {
+    const demand = consumptionBasis === 'mean' ? 462.4068608267054 : 496.40931589610295;
+    await mountResults(page, {
+      shiftIds: ['morning'], shiftNames: {morning: '41201_weekday'}, mode: 'joint',
+      electrificationFeasible: false, solverStatus: 'optimal', consumptionBasis,
+      forecastVerification: {status: 'physical_limits_exceeded'},
+      batteryPolicy: {min_soc: 0.4, max_soc: 0.9, state_of_health: 0.7},
+      consumptionAnalysis: {status: 'unverified'},
+      batteryResultOverrides: {morning: {
+        optimized_packs: 8, required_total_packs: consumptionBasis === 'mean' ? 34 : 36,
+        max_physical_packs: 8, max_physical_kwh: 320, pack_size_kwh: 40,
+        excess_packs: consumptionBasis === 'mean' ? 26 : 28,
+        physical_feasible: false, feasibility_status: 'infeasible_requires_excess_packs',
+        battery_energy: {usable_capacity_kwh: 112},
+      }},
+      perBusSummaryOverrides: {morning: {total_charged_kwh: 0, num_charging_sessions: 0,
+        energy_timeline: {first_minute: 0, step_minutes: 1, soc_kwh: [856.8, 856.8 - demand], charge_kwh: [0]},
+      }},
+    });
+    await selectShiftScope(page, 'morning');
+    await expect(page.locator('[data-role="feasibility-shift-predicted-consumption"] strong')).toHaveText(consumptionBasis === 'mean' ? '462' : '496');
+    const scope = page.locator('[data-role="infeasibility-consumption-scope"]');
+    await expect(scope).toHaveAttribute('data-source', 'solver_trajectory');
+    await expect(page.locator('.q95-consumption-info')).toHaveCount(0);
+    await expect(scope).toContainText('not been verified at its full mass');
+    await expect(page.locator('[data-role="aggregate-usable-capacity"]')).toHaveText(`112 kWh < ${consumptionBasis === 'mean' ? '462' : '496'} kWh`);
+    await expect(page.locator('[data-role="feasibility-shift-min-soc"], [data-role="feasibility-charging-plan"], .aggregate-soc')).toHaveCount(0);
+    await page.screenshot({path:test.info().outputPath(`412-detail-${consumptionBasis}.png`), fullPage:true});
+  });
+
+  test(`uniform shift 405 reference ${consumptionBasis} shows a full detail without inventing aggregate Q95 or charging`, async ({page}) => {
+    await mountResults(page, {
+      shiftIds: ['morning'], shiftNames: {morning: '40501_weekday'}, mode: 'joint',
+      electrificationFeasible: false, solverStatus: 'infeasible', consumptionBasis,
+      forecastVerification: {status: 'infeasible'},
+      batteryPolicy: {min_soc: 0.4, max_soc: 0.9, state_of_health: 0.7},
+      includeBatteryResults: false, includePerBusSummary: false,
+      infeasibilityDiagnostics: {status:'available', forecast_verification:{status:'physical_limits_exceeded'},
+        reasons:[], battery_results:{morning: battery('40501_weekday',8,{
+          base_packs:3, max_physical_packs:8, max_physical_kwh:800, pack_size_kwh:100,
+          required_total_packs:consumptionBasis === 'mean' ? 21 : 22,
+          excess_packs:consumptionBasis === 'mean' ? 13 : 14, physical_feasible:false,
+          battery_energy:{usable_capacity_kwh:280},
+        })}},
+    });
+    await selectShiftScope(page, 'morning');
+    const consumption = page.locator('[data-role="feasibility-shift-predicted-consumption"]');
+    await expect(consumption.locator('strong')).toHaveText(consumptionBasis === 'mean' ? '350' : 'N/A');
+    const scope=page.locator('[data-role="infeasibility-consumption-scope"]');
+    if (consumptionBasis === 'mean') {
+      await expect(scope).toHaveAttribute('data-source','reference_forecast');
+      await expect(scope).toContainText('Reference forecast at 8 battery packs');
+      await expect(consumption.locator('.q95-consumption-info')).toHaveCount(0);
+    } else {
+      await expect(scope).toHaveCount(0);
+      const help = consumption.getByRole('button', {name:'Why Q95 consumption is unavailable'});
+      const tooltip = help.getByRole('tooltip');
+      await expect(tooltip).toBeHidden();
+      await help.click();
+      await expect(tooltip).toBeVisible();
+      await expect(tooltip).toHaveText('Q95 consumption for this vehicle block is not included in the saved result.');
+      const box = await tooltip.boundingBox();
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize().width);
+      await help.press('Escape');
+      await expect(tooltip).toBeHidden();
+      await help.blur();
+      await help.focus();
+      await expect(tooltip).toBeVisible();
+      await help.press('Escape');
+      const specific = page.locator('[data-role="feasibility-shift-predicted-consumption-per-km"]');
+      await expect(specific.locator('strong')).toHaveText('—');
+      await expect(specific.locator('button, [role="tooltip"]')).toHaveCount(0);
+    }
+    await expect(consumption).not.toHaveClass(/result-metric--negative/);
+    await expect(page.locator('[data-role="aggregate-usable-capacity"]')).toHaveText('280 kWh');
+    await page.locator('details.ya-more-information > summary').click();
+    await expect(page.locator('details.ya-more-information')).toContainText('Operating Conditions');
+    await expect(page.locator('details.ya-more-information')).toContainText('State of Health');
+    await expect(page.locator('details.ya-more-information')).toContainText('100 kWh');
+    await expect(page.locator('details.ya-more-information .efficiency-infeasibility-notice tbody tr')).toHaveCount(1);
+    await expect(page.locator('details.ya-more-information .efficiency-limit-cell__warning')).toHaveCount(0);
+    await expect(page.locator('[data-role="feasibility-shift-charged-energy"], [data-role="feasibility-charging-plan"], .aggregate-soc')).toHaveCount(0);
+    await page.screenshot({path:test.info().outputPath(`405-detail-${consumptionBasis}.png`), fullPage:true});
+  });
+
+  test(`uniform shift 40509 ${consumptionBasis} has no invented excess packs or full-cycle certification`, async ({page}) => {
+    await mountResults(page, {
+      shiftIds:['morning'], shiftNames:{morning:'40509_weekday'}, mode:'joint', consumptionBasis,
+      electrificationFeasible:false, solverStatus:'infeasible', forecastVerification:{status:'infeasible'},
+      includeBatteryResults:false, includePerBusSummary:false, dailyCycle:{status:'unverified'},
+      batteryPolicy:{min_soc:0.4,max_soc:0.9,state_of_health:0.7},
+      infeasibilityDiagnostics:{status:'available',forecast_verification:{status:'physical_limits_exceeded'},
+        reasons:[],battery_results:{morning:battery('40509_weekday',4,{
+          base_packs:3,required_total_packs:4,max_physical_packs:8,max_physical_kwh:800,
+          pack_size_kwh:100,excess_packs:0,physical_feasible:true,
+          battery_energy:{usable_capacity_kwh:140},
+        })}},
+    });
+    await selectShiftScope(page,'morning');
+    const summary=page.locator('[data-role="feasibility-shift-summary"]');
+    await expect(summary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText('No battery shortfall identified');
+    await expect(summary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveClass(/result-status--neutral/);
+    await expect(summary.locator('[data-role="feasibility-shift-required-packs"] strong')).toHaveText('4 packs');
+    await expect(summary.locator('[data-role="feasibility-shift-common-packs"] strong')).toHaveText('4 packs');
+    const card=page.locator('[data-role="aggregate-energy"]');
+    await expect(card.locator('.aggregate-pack--chosen')).toHaveCount(4);
+    await expect(card.locator('.aggregate-pack--unused')).toHaveCount(4);
+    await expect(card.locator('.aggregate-pack--excess')).toHaveCount(0);
+    await expect(card).not.toContainText('Extra packs beyond the selected configuration');
+    await expect(card).toContainText('complete daily cycle has not been verified');
+    await expect(page.locator('[data-role="infeasibility-context"]')).not.toContainText('Extra packs beyond the selected configuration');
+    await expect(page.locator('[data-role="feasibility-shift-predicted-consumption"]')).not.toHaveClass(/result-metric--negative/);
+    await expect(page.locator('[data-role="forecast-verification"]')).toHaveCount(0);
+    await expect(page.locator('[data-role="depot-cycle"], [data-role="feasibility-charging-plan"], [data-role="feasibility-shift-min-soc"]')).toHaveCount(0);
+    await page.screenshot({path:test.info().outputPath(`40509-detail-${consumptionBasis}.png`),fullPage:true});
+  });
+}
+
+for (const [language, explanation] of [
+  ['it', 'Il consumo Q95 per questo turno non è presente nel risultato salvato.'],
+  ['de', 'Der Q95-Verbrauch dieses Fahrzeugumlaufs ist im gespeicherten Ergebnis nicht enthalten.'],
+  ['fr', 'La consommation Q95 de ce service voiture ne figure pas dans le résultat enregistré.'],
+]) {
+  test(`missing Q95 consumption has localized N/A help only on consumption in ${language}`, async ({page}) => {
+    await mountResults(page, {language, shiftIds:['morning'], consumptionBasis:'aggregate_q95',
+      electrificationFeasible:false, solverStatus:'infeasible',
+      includeBatteryResults:false, includePerBusSummary:false,
+      infeasibilityDiagnostics:{status:'available', reasons:[], battery_results:{morning:battery('Morning service',8,{
+        required_total_packs:10,excess_packs:2,physical_feasible:false,
+      })}},
+    });
+    await selectShiftScope(page,'morning');
+    const consumption=page.locator('[data-role="feasibility-shift-predicted-consumption"]');
+    await expect(consumption.locator('strong')).toHaveText('N/A');
+    await consumption.getByRole('button').click();
+    await expect(consumption.getByRole('tooltip')).toHaveText(explanation);
+    await expect(consumption.getByRole('tooltip')).toBeVisible();
+    const specific=page.locator('[data-role="feasibility-shift-predicted-consumption-per-km"]');
+    await expect(specific.locator('strong')).toHaveText('—');
+    await expect(specific.locator('button')).toHaveCount(0);
+    await expect(page.locator('[data-role="infeasibility-consumption-scope"]')).toHaveCount(0);
+  });
+}

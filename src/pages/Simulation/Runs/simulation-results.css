@@ -1178,6 +1178,11 @@
   margin: 0;
 }
 
+.q95-consumption-info {
+  margin-inline-start: var(--space-xs);
+  vertical-align: middle;
+}
+
 .feasibility-shift-metric__result {
   display: inline-flex;
   align-items: baseline;
@@ -2623,6 +2628,26 @@
 }
 
 /* Aggregate demand reuses the shared result-card type, KPIs and disclosures. */
+.infeasibility-shift-link {
+  border: 0;
+  padding: var(--space-xs);
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.infeasibility-shift-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.infeasibility-table .infeasibility-pack-limit {
+  color: var(--color-negative-strong);
+  font-weight: 700;
+}
+
 .aggregate-energy .result-card__header {
   align-items: start;
   flex-wrap: wrap;

@@ -11,7 +11,8 @@ import * as d3 from "d3";
 import { gridFromDc } from "../../../utils/charging-energy";
 import { t } from "../../../i18n";
 import { pairedFeasibility } from "../../../utils/paired-feasibility";
-import { renderInfeasibilityReasons, renderInfeasibilityBatteries } from "./infeasibility-diagnostics";
+import { renderInfeasibilitySummary, renderInfeasibilityContext, renderInfeasibilityBattery } from "./infeasibility-diagnostics";
+import { buildInfeasibilityPresentation, infeasibilityDetailRun } from "../../../utils/infeasibility-presentation";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
 import {
@@ -6680,36 +6681,14 @@ const buildFeasibilityGeneralLevelHtml = (
   const limitingLabel = battery.decision === FEASIBILITY_DECISION.OPTIMIZED
     ? translateOr("simulation.feasibility_sizing_shifts", "Sizing vehicle block")
     : translateOr("simulation.feasibility_most_demanding_shifts", "Most demanding vehicle block");
+  const infeasibility = buildInfeasibilityPresentation(run, { shiftNamesById });
+  const isInfeasible = infeasibility.active;
   const overallStatus = pairedOverallStatus(run) ?? feasibilityOverallStatus(
-    general.electrificationFeasible
+    isInfeasible ? false : general.electrificationFeasible
   );
   const optimizationMode = modeLabel(general.mode) ||
     translateOr("simulation.feasibility_decision_unknown", "Not available");
-  const isInfeasible = general.electrificationFeasible === false;
-  const criticalShifts = (viewState?.shiftOptions ?? []).filter(({ shift }) =>
-    hasDiagnosticShiftBattery(shift?.battery)
-  );
-  const diagnosticRows = criticalShifts.map(({ shiftId, shiftName, shift }) => {
-    const battery = shift.battery;
-    return `<tr data-shift-id="${textContent(shiftId)}">
-      <th scope="row">${textContent(shiftName)}</th>
-      <td class="efficiency-td-num">${formatOptionalFixed(battery.commonPacks, 0)}</td>
-      <td class="efficiency-td-num">${formatOptionalFixed(battery.requiredPacks, 0)}</td>
-      <td class="efficiency-td-num">${formatOptionalFixed(battery.maxPhysicalPacks, 0)}</td>
-    </tr>`;
-  }).join("");
-  const diagnosticHtml = `<section data-role="feasibility-critical-shifts">
-    <h4 class="efficiency-section-title">${textContent(t("simulation.feasibility_critical_shifts"))}</h4>
-    <p>${textContent(t(diagnosticRows ? "simulation.feasibility_critical_shifts_intro" : "simulation.feasibility_critical_shifts_unavailable"))}</p>
-    ${diagnosticRows ? `<div class="efficiency-table-wrap"><table class="efficiency-table">
-      <thead><tr>
-        <th>${textContent(t("simulation.opt_col_shift"))}</th>
-        <th>${textContent(t("simulation.opt_col_selected_packs"))}</th>
-        <th>${textContent(t("simulation.feasibility_estimated_required_packs"))}</th>
-        <th>${textContent(t("simulation.opt_col_max_packs"))}</th>
-      </tr></thead><tbody>${diagnosticRows}</tbody>
-    </table></div>` : ""}
-  </section>`;
+  const diagnosticHtml = isInfeasible ? renderInfeasibilitySummary(infeasibility) : "";
 
   return `
     <section class="feasibility-level feasibility-level--general result-card" data-role="feasibility-general-level">
@@ -6888,7 +6867,11 @@ const resolveShiftDecisionConsumption = (
           : null,
       );
 
-  return { totalKwh, perKmKwh };
+  return { totalKwh, perKmKwh, basis,
+    source: totalKwh === null ? "unavailable" : analysisTotalKwh !== null
+      ? aggregateAnalysisAvailable ? "aggregate_profile" : "solver_trajectory" : "reference_forecast",
+    referencePacks: selectedPrediction?.numBatteryPacks ?? null,
+  };
 };
 
 const buildSizingConsumptionEffectHtml = (
@@ -6992,6 +6975,7 @@ const buildShiftOperationalSummaryHtml = (
   viewState,
   decisionConsumption = {},
   energyComparison = null,
+  { row = null } = {},
 ) => {
   const detail = viewState?.selectedShiftSummary;
   if (!detail) {
@@ -7008,9 +6992,12 @@ const buildShiftOperationalSummaryHtml = (
       </section>`;
   }
 
-  const battery = detail.battery ?? {};
+  const battery = row ? { ...detail.battery,
+    requiredPacks: row.required, commonPacks: row.selected, maxPhysicalPacks: row.maximum,
+    commonPackMargin: row.selected !== null && row.required !== null ? row.selected - row.required : null,
+  } : detail.battery ?? {};
   const operation = detail.operation ?? {};
-  const diagnosticBattery = hasDiagnosticShiftBattery(battery);
+  const diagnosticBattery = Boolean(row) || hasDiagnosticShiftBattery(battery);
   const showPackDetails = diagnosticBattery || battery.physicalFeasible !== true;
   const margin = toOptionalFiniteNumber(battery.commonPackMargin);
   let coverageLabel = translateOr(
@@ -7044,6 +7031,24 @@ const buildShiftOperationalSummaryHtml = (
     coverageTone = "positive";
   }
 
+  if (row && !row.batteryCritical) {
+    coverageLabel = t(row.battery.physical_feasible === true
+      ? "simulation.infeasibility_no_shortfall_status"
+      : row.reasons.some(reason => reason.code.startsWith("depot_"))
+        ? "simulation.infeasibility_depot_status" : "simulation.feasibility_shift_status_unknown");
+    coverageTone = "unknown";
+  }
+  const q95ConsumptionUnavailable = decisionConsumption.basis === FEASIBILITY_DEMAND_BASIS.AGGREGATE_Q95 &&
+    toOptionalFiniteNumber(decisionConsumption.totalKwh) === null;
+  const q95TooltipId = `q95-consumption-unavailable-${detail.shiftId}`;
+  const consumptionHelp = q95ConsumptionUnavailable
+    ? `<button type="button" class="info-icon q95-consumption-info" aria-label="${textContent(t("simulation.infeasibility_q95_unavailable_help"))}" aria-describedby="${textContent(q95TooltipId)}" aria-expanded="false">i<span id="${textContent(q95TooltipId)}" class="info-tooltip" role="tooltip" hidden>${textContent(t("simulation.infeasibility_q95_unavailable_reason"))}</span></button>` : "";
+  const consumptionNote = row ? t(`simulation.infeasibility_consumption_${
+    decisionConsumption.source === "reference_forecast" ? "reference"
+      : decisionConsumption.source === "solver_trajectory" ? "trajectory"
+      : decisionConsumption.source === "aggregate_profile" ? "profile" : "unavailable"
+  }`, { packs: decisionConsumption.referencePacks ?? "—" }) : "";
+
   const requiredPacks = toOptionalFiniteNumber(battery.requiredPacks);
   const maxPhysicalPacks = toOptionalFiniteNumber(battery.maxPhysicalPacks);
   const withinPackLimit = requiredPacks !== null && maxPhysicalPacks !== null
@@ -7066,7 +7071,7 @@ const buildShiftOperationalSummaryHtml = (
       <div class="feasibility-shift-summary__header result-card__header">
         <div class="result-card__heading">
           <h4>${textContent(
-            translateOr("simulation.feasibility_shift_summary_title", "Vehicle block operational summary")
+            row ? t("simulation.infeasibility_shift_summary") : translateOr("simulation.feasibility_shift_summary_title", "Vehicle block operational summary")
           )}</h4>
         </div>
         <span class="feasibility-shift-status feasibility-shift-status--${coverageTone} result-status result-status--${coverageTone === "negative" ? "negative" : coverageTone === "unknown" ? "neutral" : "positive"}" data-role="feasibility-shift-coverage-status">${textContent(
@@ -7136,8 +7141,8 @@ const buildShiftOperationalSummaryHtml = (
           <span class="result-metric__label">${textContent(
             t("simulation.costs_input_prediction_consumption") ||
               "Prediction consumption per vehicle block (kWh)"
-          )}</span>
-          <strong class="result-metric__value${consumptionShowsDeficit ? " feasibility-shift-metric--negative" : ""}">${shiftMetricValue(
+          )}${consumptionHelp}</span>
+          <strong class="result-metric__value${consumptionShowsDeficit ? " feasibility-shift-metric--negative" : ""}">${q95ConsumptionUnavailable ? "N/A" : shiftMetricValue(
             decisionConsumption.totalKwh,
             "",
             { decimals: 0 }
@@ -7157,6 +7162,7 @@ const buildShiftOperationalSummaryHtml = (
           )}</strong>
         </article>
       </div>
+      ${row && !q95ConsumptionUnavailable ? `<p class="helper-text" data-role="infeasibility-consumption-scope" data-source="${textContent(decisionConsumption.source ?? "unavailable")}">${textContent(consumptionNote)}</p>` : ""}
       </div>
     </section>`;
 };
@@ -7342,8 +7348,15 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     return;
   }
 
-  const { optimizationRun, predictionRuns } = state;
+  const { optimizationRun: savedRun, predictionRuns } = state;
   const resultScope = viewOptions?.resultScope === "shift" ? "shift" : "general";
+  const infeasibility = buildInfeasibilityPresentation(savedRun, {
+    shiftNamesById: viewOptions?.shiftNamesById,
+  });
+  const infeasibleShift = infeasibility.rows.find(row => row.shiftId === viewOptions.selectedShiftId);
+  const diagnosticDetail = infeasibility.active && resultScope === "shift" &&
+    (infeasibleShift?.source !== "result" || infeasibleShift.critical);
+  const optimizationRun = diagnosticDetail ? infeasibilityDetailRun(savedRun, infeasibleShift) : savedRun;
   const feasibilityModel = buildFeasibilityResultModel(optimizationRun, {
     shiftNamesById: viewOptions?.shiftNamesById,
   });
@@ -7365,22 +7378,16 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   );
   const ip = optimizationRun?.input_params ?? {};
   const results = optimizationRun?.results ?? {};
-  if (results.solver_status === "infeasible" && !Object.keys(results.battery_results ?? {}).length) {
-    const pair = pairedFeasibility(optimizationRun);
-    const diagnosticShift = resultScope === "shift" ? viewOptions?.selectedShiftId : null;
-    el.innerHTML = `<section class="result-card" data-role="feasibility-no-solution">
-      <header class="result-card__header">
-        <h3 class="result-card__title">${textContent(feasibilityScenarioLabel(false, ip))}</h3>
-        ${pair ? `<span class="result-status result-status--${pair.tone}" data-role="feasibility-overall-status">${textContent(t(`simulation.paired_${pair.key}`))}</span>` : ""}
-      </header>
-      <div class="result-card__body">${renderInfeasibilityReasons(optimizationRun, diagnosticShift)}</div>
-    </section>${renderInfeasibilityBatteries(optimizationRun, diagnosticShift)}`;
+  if (infeasibility.active && resultScope === "general") {
+    el.innerHTML = buildFeasibilityGeneralLevelHtml(feasibilityViewState, ip,
+      optimizationRun, viewOptions.currentBusModel, viewOptions?.shiftNamesById);
     return;
   }
   const firstRun = scopedPredictionRuns[0] ?? {};
   const perBusSummary = results.per_bus_summary ?? [];
   const batteryResults = results.battery_results ?? {};
-  const singlePackCapacityKwh = resolveSinglePackCapacityKwh(
+  const savedPackCapacityKwh = diagnosticDetail ? toOptionalFiniteNumber(infeasibleShift?.battery.pack_size_kwh) : null;
+  const singlePackCapacityKwh = savedPackCapacityKwh > 0 ? savedPackCapacityKwh : resolveSinglePackCapacityKwh(
     firstRun,
     batteryResults,
     viewOptions
@@ -7526,19 +7533,30 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     ip,
     viewOptions?.selectedShiftId,
   );
-  const optimizationHtml = buildOptimizationResultsHtml(results, ip, {
+  const diagnosticChargingKwh = toOptionalFiniteNumber(selectedShiftSummary?.operation?.totalChargedKwh);
+  const diagnosticConsumptionComparable = diagnosticChargingKwh !== null &&
+    (shiftDecisionConsumption.source !== "reference_forecast" ||
+      shiftDecisionConsumption.referencePacks === infeasibleShift?.selected);
+  const optimizationHtml = diagnosticDetail &&
+    (!infeasibleShift?.source || infeasibleShift.required === null || infeasibleShift.maximum === null)
+    ? `<p data-role="infeasibility-optimization-unavailable">${textContent(t("simulation.infeasibility_optimization_unavailable"))}</p>`
+    : buildOptimizationResultsHtml(results, ip, {
     ...viewOptions,
-    predictedShiftConsumptionKwh:
-      toOptionalFiniteNumber(shiftDecisionConsumption.totalKwh) ??
+    ...(diagnosticDetail ? { costInputs: null } : {}),
+    predictedShiftConsumptionKwh: diagnosticDetail
+      ? diagnosticConsumptionComparable ? shiftDecisionConsumption.totalKwh : null
+      : toOptionalFiniteNumber(shiftDecisionConsumption.totalKwh) ??
       toOptionalFiniteNumber(viewOptions?.costInputs?.predictedShiftConsumptionKwh) ??
       toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh),
   });
   const shiftDecisionDemandKwh = toOptionalFiniteNumber(
     shiftDecisionConsumption.totalKwh,
   );
-  const shiftAvailableEnergyKwh = toOptionalFiniteNumber(
-    energyBalance?.comparisonEnergyKwh,
-  );
+  const savedUsableEnergyKwh = toOptionalFiniteNumber(infeasibleShift?.battery.battery_energy?.usable_capacity_kwh);
+  const shiftAvailableEnergyKwh = diagnosticDetail && !diagnosticConsumptionComparable
+    ? null : diagnosticDetail && savedUsableEnergyKwh !== null
+      ? savedUsableEnergyKwh + diagnosticChargingKwh
+      : toOptionalFiniteNumber(energyBalance?.comparisonEnergyKwh);
   const shiftEnergyComparison = {
     demandKwh: shiftDecisionDemandKwh,
     availableKwh: shiftAvailableEnergyKwh,
@@ -7641,14 +7659,16 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           feasibilityViewState,
           shiftDecisionConsumption,
           shiftEnergyComparison,
+          diagnosticDetail ? { row: infeasibleShift } : {},
         )}
-        ${renderAggregateEnergy(optimizationRun, viewOptions?.selectedShiftId, {
-          energyComparison: shiftEnergyComparison,
-        })}
-        ${diagnosticShiftBattery ? "" : renderDepotCycle(optimizationRun, viewOptions?.selectedShiftId)}
-        ${diagnosticShiftBattery || results.consumption_analysis ? "" : chartsHtml}
-        ${diagnosticShiftBattery || results.consumption_analysis ? "" : shiftEnergyAdequacyHtml}
-        ${diagnosticShiftBattery ? "" : buildShiftChargingPlanHtml(feasibilityViewState, {
+        ${diagnosticDetail ? renderInfeasibilityContext(infeasibility, viewOptions.selectedShiftId) : ""}
+        ${diagnosticDetail
+          ? renderInfeasibilityBattery(savedRun, infeasibility, viewOptions.selectedShiftId, shiftEnergyComparison)
+          : renderAggregateEnergy(optimizationRun, viewOptions?.selectedShiftId, { energyComparison: shiftEnergyComparison })}
+        ${diagnosticShiftBattery || diagnosticDetail ? "" : renderDepotCycle(optimizationRun, viewOptions?.selectedShiftId)}
+        ${diagnosticShiftBattery || diagnosticDetail || results.consumption_analysis ? "" : chartsHtml}
+        ${diagnosticShiftBattery || diagnosticDetail || results.consumption_analysis ? "" : shiftEnergyAdequacyHtml}
+        ${diagnosticShiftBattery || diagnosticDetail ? "" : buildShiftChargingPlanHtml(feasibilityViewState, {
           open: keepChargingPlanOpen, inputParams: ip,
         })}
         <details class="ya-more-information feasibility-more-information result-card"${keepMoreInformationOpen ? " open" : ""}>
@@ -9608,7 +9628,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   cleanupHandlers.push(() => {
     informationBar?.removeEventListener("click", handleInformationToggleClick);
   });
-  cleanupHandlers.push(bindInfoTooltips(section, '.charging-session-info'));
+  cleanupHandlers.push(bindInfoTooltips(section, '.charging-session-info, .q95-consumption-info'));
   const renderedTabs = new Set(["efficiency"]);
   const costOverrides = {
     fuelCostPerL: normalizeFuelCostPerL(options?.costOverrides?.fuelCostPerL),
@@ -10244,6 +10264,18 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     );
   }
 
+  const handleInfeasibilityShiftClick = (event) => {
+    const button = event.target.closest('[data-infeasibility-shift]');
+    if (!button || !section.contains(button)) return;
+    const scope = resultScopes.find(scope => scope.kind === "shift" && scope.shiftId === button.dataset.infeasibilityShift);
+    if (!scope) return;
+    activateResultScope(scope.key).then(() => {
+      shiftTabsEl?.querySelector('[aria-selected="true"]')?.focus();
+    }).catch(error => console.error("[elettra] Unable to open critical vehicle block:", error));
+  };
+  section.addEventListener("click", handleInfeasibilityShiftClick);
+  cleanupHandlers.push(() => section.removeEventListener("click", handleInfeasibilityShiftClick));
+
   if (shiftTabsEl) {
     const handleResultScopeClick = (event) => {
       const btn = event.target.closest('[data-action="select-result-scope"]');
@@ -10686,7 +10718,11 @@ export const initializeSimulationResults = (root = document, options = {}) => {
           shift.shiftName,
         ]),
       );
-      availableShiftTabs = await resolveShiftTabs(inputShiftIds, {
+      const infeasibility = buildInfeasibilityPresentation(optimizationRun);
+      const navigationShiftIds = infeasibility.active
+        ? [...new Set([...inputShiftIds, ...infeasibility.rows.map(row => row.shiftId)])]
+        : inputShiftIds;
+      availableShiftTabs = await resolveShiftTabs(navigationShiftIds, {
         fallbackShiftId: options.shiftId,
         fallbackShiftName: options.shiftName,
         fallbackShiftNamesById: resultShiftNamesById,
