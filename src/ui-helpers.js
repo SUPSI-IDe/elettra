@@ -38,6 +38,9 @@ export const resolveModelFields = (item = {}) => {
     };
 };
 
+export const resolveBusModelLabelI18nKey = (item = {}) =>
+    inferVehicleCategoryFromSpecs(parseSpecs(item?.specs))?.labelI18nKey ?? '';
+
 export const resolveBusModelDisplayName = (item = {}) => {
     if (!item) return '';
     const specs = parseSpecs(item.specs);

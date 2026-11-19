@@ -19,7 +19,7 @@ import { initializeRegister } from "./pages/Auth/register";
 import { initializeAbout } from "./pages/About/about";
 import { initializeSettings } from "./pages/Account/settings";
 import { initializeHome } from "./pages/Home/home";
-import { applyTranslations, getCurrentLang, I18N_CHANGE_EVENT } from "./i18n";
+import { applyTranslations, getCurrentLang, I18N_CHANGE_EVENT, t } from "./i18n";
 import { isAuthenticated } from "./api/session";
 import { consumeWindowRouteState, normalizeRouteOptions } from "./events";
 import { resolveRouteSlug } from "./utils/route-access";
@@ -112,7 +112,14 @@ const createPartialLoader = (render, onBeforeLoad) => {
       return state;
     }
 
-    const html = await loader();
+    let html;
+    try {
+      html = await loader();
+    } catch (error) {
+      if (generation !== loadGeneration) return null;
+      transition({ current: "", pending: "" });
+      throw error;
+    }
 
     if (generation !== loadGeneration) {
       return null;
@@ -272,7 +279,8 @@ export const initializeNavigation = (root = document) => {
     const redirected = resolvedSlug !== slug;
     const routeOptions = redirected ? {} : normalizeRouteOptions(options);
 
-    currentRoute = { slug: resolvedSlug, options: routeOptions };
+    const route = { slug: resolvedSlug, options: routeOptions };
+    currentRoute = route;
     updateNavVisibility();
     updateShellActiveState(resolvedSlug);
 
@@ -289,6 +297,21 @@ export const initializeNavigation = (root = document) => {
       // Reinitializing the current page must not accumulate event listeners.
       runCleanup();
       return initializePartial(resolvedSlug, container, routeOptions);
+    }).catch(error => {
+      if (currentRoute !== route) return;
+      console.error("Failed to open page", error);
+      const notice = document.createElement("section");
+      notice.className = "page-load-error";
+      notice.setAttribute("role", "alert");
+      const message = document.createElement("p");
+      message.textContent = t("common.page_load_failed");
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.dataset.action = "reload-page";
+      retry.textContent = t("common.reload_page");
+      retry.addEventListener("click", () => window.location.reload());
+      notice.append(message, retry);
+      container.replaceChildren(notice);
     });
   };
 
@@ -395,6 +418,9 @@ export const initializeNavigation = (root = document) => {
   });
 
   document.addEventListener(I18N_CHANGE_EVENT, () => {
+    // The composer translates its dynamic state in place. Reloading this
+    // partial would discard an unsaved programme when changing language.
+    if (root.querySelector('form.shift-composer')) return;
     if (!currentRoute.slug) {
       return;
     }

@@ -1,4 +1,4 @@
-import { resolveBusModelDisplayName, textContent } from "../../../ui-helpers";
+import { resolveBusModelDisplayName, resolveBusModelLabelI18nKey, textContent } from "../../../ui-helpers";
 import { t } from "../../../i18n";
 import {
   text,
@@ -158,7 +158,7 @@ export const renderRouteOptions = (select, routes = []) => {
   const seenLabels = new Set();
   const linePrefix = t("shifts.filter_line") || "Line";
   const options = [
-    `<option value="">${textContent(t("shifts.filter_all_lines") || "Select a line")}</option>`,
+    `<option value="" data-i18n="shifts.filter_all_lines">${textContent(t("shifts.filter_all_lines") || "Select a line")}</option>`,
     ...routes
       .filter((route) => route && route.id)
       .map((route) => {
@@ -176,7 +176,7 @@ export const renderRouteOptions = (select, routes = []) => {
         }
         seenLabels.add(displayLabel);
         map[id] = displayLabel;
-        return `<option value="${textContent(id)}">${textContent(displayLabel)}</option>`;
+        return `<option value="${textContent(id)}" data-route-label="${textContent(shortName || longName)}">${textContent(displayLabel)}</option>`;
       })
       .filter(Boolean),
   ].join("");
@@ -204,18 +204,19 @@ export const renderBusOptions = (select, buses = [], modelsById = {}) => {
 
   for (const [modelId, model] of Object.entries(modelsById)) {
     if (!modelId) continue;
-    const label = resolveBusModelDisplayName(model);
+    const i18nKey = resolveBusModelLabelI18nKey(model);
+    const label = i18nKey ? t(i18nKey) : resolveBusModelDisplayName(model);
     if (!label) continue;
 
     const bus = busByModelId[modelId];
     const value = bus ? text(bus.id) : text(modelId);
     modelOptions.push(
-      `<option value="${textContent(value)}" data-bus-model-id="${textContent(modelId)}">${textContent(label)}</option>`
+      `<option value="${textContent(value)}" data-bus-model-id="${textContent(modelId)}"${i18nKey ? ` data-i18n="${textContent(i18nKey)}"` : ''}>${textContent(label)}</option>`
     );
   }
 
   const options = [
-    `<option value="">${textContent(t("shifts.placeholder_bus_model"))}</option>`,
+    `<option value="" data-i18n="shifts.placeholder_bus_model">${textContent(t("shifts.placeholder_bus_model"))}</option>`,
     ...modelOptions,
   ].join("");
 
@@ -228,7 +229,7 @@ export const renderDepotOptions = (select, depots = []) => {
   }
 
   const options = [
-    `<option value="">${textContent(t("shifts.select_depot"))}</option>`,
+    `<option value="" data-i18n="shifts.select_depot">${textContent(t("shifts.select_depot"))}</option>`,
     ...depots
       .filter((depot) => depot && depot.id)
       .map((depot) => {
@@ -236,7 +237,8 @@ export const renderDepotOptions = (select, depots = []) => {
           t("shifts.depot_fallback", { id: depot.id }) ||
           `Depot ${depot.id}`;
         const label = depot?.name ?? depot?.label ?? fallbackLabel;
-        return `<option value="${textContent(depot.id)}">${textContent(label)}</option>`;
+        const fallback = depot?.name == null && depot?.label == null;
+        return `<option value="${textContent(depot.id)}"${fallback ? ' data-depot-fallback="true"' : ''}>${textContent(label)}</option>`;
       }),
   ].join("");
 
@@ -249,7 +251,7 @@ export const populateDayOptions = (select, days = []) => {
   }
 
   const options = [
-    `<option value="">${textContent(t("shifts.filter_all_days") || "Select a day")}</option>`,
+    `<option value="" data-i18n="shifts.filter_all_days">${textContent(t("shifts.filter_all_days") || "Select a day")}</option>`,
     ...days.map((day) => {
       const value = typeof day === "string" ? day : day.id || day.value;
       const label =
@@ -257,11 +259,27 @@ export const populateDayOptions = (select, days = []) => {
       const dayKey = typeof value === "string" ? `simulation.day_${value.toLowerCase()}` : "";
       const translatedLabel =
         dayKey && t(dayKey) !== dayKey ? t(dayKey) : label;
-      return `<option value="${textContent(value)}">${textContent(
+      const translation = dayKey && t(dayKey) !== dayKey ? ` data-i18n="${textContent(dayKey)}"` : "";
+      return `<option value="${textContent(value)}"${translation}>${textContent(
         translatedLabel
       )}</option>`;
     }),
   ].join("");
 
   select.innerHTML = options;
+};
+
+// Change labels in place: selected values, focus and any prefilled options
+// absent from the current catalogue must survive a language change.
+export const translateShiftSelectOptions = (form) => {
+  form.querySelectorAll('option[data-i18n]').forEach(option => {
+    option.textContent = t(option.dataset.i18n);
+  });
+  form.querySelectorAll('option[data-route-label]').forEach(option => {
+    const label = option.dataset.routeLabel || t('shifts.route_fallback', { id: option.value });
+    option.textContent = `${t('shifts.filter_line')} ${label}`;
+  });
+  form.querySelectorAll('option[data-depot-fallback]').forEach(option => {
+    option.textContent = t('shifts.depot_fallback', { id: option.value });
+  });
 };

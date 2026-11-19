@@ -15,6 +15,12 @@
   </header>
   <main>
     <form data-form="shift-form" novalidate>
+      <p class="composer-intro" data-i18n="shifts.composer_intro">Build the working day, one trip at a time.</p>
+      <div class="composer-steps" role="navigation" aria-label="Vehicle block editor" data-i18n-aria-label="shifts.composer_navigation">
+        <button type="button" data-composer-step="setup" aria-current="step"><span>1</span><span data-i18n="shifts.composer_setup">Set up</span></button>
+        <button type="button" data-composer-step="compose"><span>2</span><span data-i18n="shifts.composer_compose">Build the day</span></button>
+        <button type="button" data-composer-step="review"><span>3</span><span data-i18n="shifts.composer_review">Review & save</span></button>
+      </div>
       <p
         class="form-feedback"
         data-role="feedback"
@@ -26,7 +32,7 @@
         <div class="shift-form-left-column">
           <section class="shift-config shift-form-card" aria-labelledby="shift-details-heading">
           <header class="section-header shift-form-card__header">
-            <h2 id="shift-details-heading" class="section-title" data-i18n="shifts.information_heading">Information</h2>
+            <h2 id="shift-details-heading" class="section-title" tabindex="-1" data-i18n="shifts.composer_setup_heading">Start with the essentials</h2>
           </header>
 
           <div class="shift-control-grid shift-control-grid--details">
@@ -73,8 +79,13 @@
 
           <section class="add-stops shift-form-card" aria-labelledby="add-stops-heading">
           <header class="section-header shift-form-card__header">
-            <h2 id="add-stops-heading" class="section-title" data-i18n="shifts.add_stops_heading">Add stops</h2>
+            <h2 id="add-stops-heading" class="section-title" tabindex="-1" data-i18n="shifts.composer_available">Choose the next trip</h2>
           </header>
+          <p class="composer-next" data-role="composer-next" aria-live="polite"></p>
+          <div class="form-group composer-search">
+            <label for="composer-search" data-i18n="shifts.composer_search">Filter by stop or time</label>
+            <input id="composer-search" type="search" autocomplete="off" />
+          </div>
           <div class="table-toolbar">
             <button type="button" class="table-bulk-action action-positive" data-action="add-all-trips" data-i18n="shifts.add_all">
               Add all
@@ -106,8 +117,10 @@
 
         <section class="shift-stops shift-form-card" aria-labelledby="shift-stops-heading">
           <header class="section-header shift-form-card__header">
-            <h2 id="shift-stops-heading" class="section-title" data-i18n="shifts.stops_heading">Stops</h2>
+            <h2 id="shift-stops-heading" class="section-title" data-i18n="shifts.composer_programme">Your working day</h2>
           </header>
+          <p class="composer-count" data-role="composer-count" aria-live="polite"></p>
+          <button type="button" class="composer-undo" data-action="undo-trips" data-i18n="shifts.composer_undo" disabled>Undo last change</button>
           <div class="shift-stops__controls">
             <div class="form-group">
               <label for="shift-start-depot" data-i18n="shifts.stop_start_location_label">Start location:</label>
@@ -165,9 +178,11 @@
             aria-label="Vehicle block timeline"
             data-i18n-aria-label="shifts.timeline_section_label"
           >
+            <p class="composer-pan-hint" data-i18n="shifts.composer_pan_hint">Scroll the timeline horizontally to see the whole working day.</p>
             <div
               class="timeline shift-form-timeline"
               data-role="shift-timeline"
+              tabindex="0"
               role="img"
               aria-label="Vehicle block timeline chart"
               data-i18n-aria-label="shifts.timeline_chart_label"
@@ -177,8 +192,18 @@
           </section>
         </section>
       </div>
+      <section class="composer-review shift-form-card" data-composer-panel="review" hidden>
+        <header class="section-header shift-form-card__header">
+          <h2 tabindex="-1" data-i18n="shifts.composer_review_heading">Ready for the road?</h2>
+        </header>
+        <dl class="composer-summary" data-role="composer-summary"></dl>
+        <p class="composer-help" data-i18n="shifts.composer_transfers">The connections from and to the depot are generated when you save. Check that the departure and return times allow enough travel time.</p>
+      </section>
       <div class="form-actions">
         <button type="button" data-action="cancel" data-i18n="common.cancel">Cancel</button>
+        <button type="button" data-action="composer-back" data-i18n="shifts.composer_back" hidden>Back</button>
+        <p class="composer-footer-status" data-role="composer-status" aria-live="polite"></p>
+        <button type="button" data-action="composer-next" data-i18n="shifts.composer_continue">Continue</button>
         <button type="submit" data-i18n="shifts.save_shift">Save vehicle block</button>
       </div>
       <div class="shift-progress" data-role="shift-progress" hidden>

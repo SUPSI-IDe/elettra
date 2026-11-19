@@ -1,3 +1,70 @@
+.shift-composer [hidden] { display: none !important; }
+.composer-intro { color: var(--text-muted); margin: 0 0 var(--space-lg); }
+.composer-steps { display: flex; gap: var(--space-sm); margin-bottom: var(--space-lg); }
+.shift-form .composer-steps button {
+  flex: 1; display: flex; align-items: center; justify-content: flex-start;
+  gap: var(--space-sm); padding: var(--space-md);
+  border: 1px solid var(--border-light); border-radius: var(--radius-lg);
+  background: var(--color-surface); color: var(--text-main);
+}
+.composer-steps button > span:first-child {
+  display: grid; place-items: center; width: 1.8rem; height: 1.8rem;
+  border: 1px solid currentColor; border-radius: 50%; flex-shrink: 0;
+}
+.shift-form .composer-steps button[aria-current="step"] {
+  border-color: var(--color-primary, #16716a); background: var(--color-primary-light, #e8f5f2);
+  color: var(--color-primary, #16716a); font-weight: 600;
+}
+.shift-composer > .shift-config { max-width: 960px; margin-inline: auto; }
+.shift-composer .shift-form-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+.composer-filters { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); padding: var(--space-md) var(--space-lg); }
+.composer-next { margin: 0 var(--space-lg); padding: var(--space-md); background: var(--color-primary-light, #e8f5f2); border-radius: var(--radius-lg); color: var(--text-main); }
+.composer-search { margin: var(--space-md) var(--space-lg) 0; }
+.composer-count, .composer-help { margin: var(--space-md) var(--space-lg); color: var(--text-muted); }
+.shift-form .composer-undo { align-self: flex-start; margin: 0 var(--space-lg) var(--space-md); }
+.composer-summary { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr; gap: var(--space-md); padding: var(--space-md) var(--space-lg); margin: 0; }
+.composer-summary dt { color: var(--text-muted); }
+.composer-summary dd { margin: 0; overflow-wrap: anywhere; font-weight: 500; }
+.composer-itinerary { margin: 0 var(--space-lg) var(--space-lg); padding-left: 1.5rem; }
+.composer-itinerary li { padding: var(--space-sm); border-bottom: 1px solid var(--border-light); font-variant-numeric: tabular-nums; }
+.shift-composer .form-actions { position: sticky; bottom: 0; z-index: 5; padding: var(--space-md); background: var(--color-surface); border: 1px solid var(--border-light); border-radius: var(--radius-lg); align-items: center; flex-wrap: wrap; }
+.shift-composer .form-actions button { width: auto; min-width: 0; }
+.shift-composer button[data-action="composer-next"]:not(:disabled) { background: var(--color-brand-primary); color: white; border-color: var(--color-brand-primary); }
+.composer-footer-status { flex: 1; margin: 0; color: var(--text-muted); font-size: var(--font-size-sm); }
+.composer-pan-hint { display: none; color: var(--text-muted); font-size: var(--font-size-sm); }
+.shift-composer .table-wrapper { max-height: 55vh; overflow: auto; }
+.shift-composer thead { position: sticky; top: 0; z-index: 1; background: var(--color-surface); }
+@media (max-width: 700px) {
+  .shift-composer .composer-pan-hint { display: block; }
+  .shift-composer .form-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .shift-composer .form-actions .composer-footer-status,
+  .shift-composer .form-actions button[type="submit"],
+  .shift-composer .form-actions button[data-action="composer-next"] {
+    grid-column: 1 / -1;
+  }
+  .shift-composer .form-actions button { overflow-wrap: anywhere; }
+  .shift-composer .shift-form-timeline { display: block; overflow-x: auto; overflow-y: hidden; }
+  .shift-composer .shift-form-timeline .timeline__chart { min-width: 720px; }
+  .shift-composer .table-wrapper table { table-layout: auto; min-width: 0; }
+  .shift-composer .table-wrapper :is(th, td) { padding: var(--space-sm); white-space: normal; }
+  .shift-composer .table-wrapper .route { overflow-wrap: anywhere; }
+  .shift-composer .table-wrapper .actions button { min-width: 0; padding-inline: var(--space-sm); }
+}
+@media (max-width: 900px) {
+  .shift-composer .shift-form-grid { grid-template-columns: 1fr; }
+  .composer-steps { gap: 4px; }
+  .shift-form .composer-steps button { flex-direction: column; text-align: center; padding: var(--space-sm); font-size: var(--font-size-sm); }
+  .composer-filters { grid-template-columns: 1fr; }
+  .composer-summary { grid-template-columns: 1fr; gap: var(--space-sm); }
+  .composer-summary dd { margin-bottom: var(--space-md); }
+  .composer-footer-status { flex-basis: 100%; order: -1; }
+  .shift-composer .form-actions { flex-direction: row; gap: var(--space-sm); }
+  .shift-composer .form-actions button { flex: 1; padding-inline: var(--space-sm); }
+}
+
 .shift-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -5,6 +5,7 @@ import { initializeNavigation } from "./navigation";
 import { initializeI18n } from "./i18n";
 import { loadDeploymentVersions } from "./deployment-versions";
 import { initializeUsageNotice } from "./usage-notice";
+import { installChunkRecovery } from "./chunk-recovery";
 
 const LEGACY_ACTIVE_YEARLY_ANALYSIS_KEY = "cache.activeYearlyAnalysis";
 const loginButton = document.querySelector(".login");
@@ -17,6 +18,7 @@ try {
 }
 
 installAuthRedirectHandler(handleUnauthorizedSession);
+installChunkRecovery();
 loadDeploymentVersions();
 const sessionIsAuthenticated = await initializeSession(loginButton);
 initializeNavigation(root);

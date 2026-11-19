@@ -25,12 +25,13 @@ async function setup(page, {catalog=editions, edit=false, delay2025=false}={}) {
       data=[{id:'trip-2026',trip_id:'trip-2026',route_id:'route-2026',departure_time:'08:00:00',arrival_time:'09:00:00',start_stop_name:'Start',end_stop_name:'Finish',status:'gtfs'}];
     } else if(path.endsWith('/buses/'))data=[{id:'bus',user_id:'user',name:'Bus',bus_model_id:'model'}];
     else if(path.endsWith('/bus-models/'))data=[{id:'model',user_id:'user',name:'Model'}];
+    else if(path.endsWith('/depots/'))data=[{id:'depot',user_id:'user',name:'Depot',stop_id:'depot-stop'}];
     else if(path.endsWith('/shifts/old'))data={id:'old',name:'Old shift',bus_id:'bus',structure:[],gtfs_datasets:[editions[0]]};
     return route.fulfill({json:data});
   });
   await page.goto('./#landing');
   await page.evaluate(async edit=>{
-    const root=document.createElement('div');root.id='gtfs-form-test';document.body.replaceChildren(root);
+    const root=document.createElement('div');root.id='gtfs-form-test';root.className='layout-article';document.body.replaceChildren(root);
     root.innerHTML=await(await fetch(new URL('src/pages/Fleet/Shifts/shift-form.html',document.baseURI))).text();
     const {initializeShiftForm}=await import(new URL('src/pages/Fleet/Shifts/shift-form.js',document.baseURI).href);
     window.cleanupGtfsForm=await initializeShiftForm(root,edit?{mode:'edit',shiftId:'old'}:{});
@@ -52,10 +53,16 @@ test('new block defaults to the latest file and rapid selection discards old rou
   await expect(line.locator('option[value="route-2025"]')).toHaveCount(0);
   await expect(page.locator('#shift-name')).toHaveValue('Preserve me');
   await expect(page.locator('#shift-bus')).toHaveValue('bus');
+  await page.locator('#shift-start-depot').selectOption('depot');
+  await page.locator('#shift-end-depot').selectOption('depot');
+  await page.locator('#shift-start-time').fill('07:00');
+  await page.locator('#shift-end-time').fill('18:00');
+  await page.locator('[data-action="composer-next"]').click();
   await line.selectOption('route-2026');
   await page.locator('#scheduled-trips-day').selectOption('monday');
   await page.locator('[data-action="add-trip"]').first().click();
   await expect(page.locator('[data-role="shift-trips-body"] tr')).toHaveCount(1);
+  await page.locator('[data-composer-step="setup"]').click();
   page.once('dialog',dialog=>dialog.dismiss());
   await selector.selectOption('2027|2026-11-04');
   await expect(selector).toHaveValue('2026|2025-09-27');
@@ -67,6 +74,7 @@ test('new block defaults to the latest file and rapid selection discards old rou
 
 test('editing an old shift requests its own routes directly after 2027 is available',async({page})=>{
   const requests=await setup(page,{edit:true});
+  await page.locator('[data-composer-step="setup"]').click();
   await expect(page.locator('#shift-gtfs-dataset')).toBeHidden();
   await expect(page.locator('#shift-gtfs-summary')).toContainText('2025');
   expect(requests).toEqual([{year:'2025',date:'2025-10-02'}]);

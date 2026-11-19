@@ -86,6 +86,7 @@ const LANGUAGES = {
 };
 
 const expectLandingGuideLink = async (page, name = LANGUAGES.en.landingLink) => {
+  await page.waitForLoadState("load");
   await expect(page).toHaveURL(/\/elettra\/#landing$/);
   await expect(page.locator(".landing-page")).toBeVisible();
   await expect(page.locator('.landing-page a[href="./guide/"]')).toHaveCount(1);
@@ -308,6 +309,7 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     ).toBeVisible();
 
     await page.getByRole("link", { name: labels.backLink, exact: true }).first().click();
+    await page.waitForLoadState("load");
     await expect(page.locator(".language-select")).toHaveValue(language);
     await expectLandingGuideLink(page, labels.landingLink);
   });
@@ -322,6 +324,7 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     ).toBeVisible();
 
     await page.getByRole("link", { name: labels.backLink, exact: true }).first().click();
+    await page.waitForLoadState("load");
     await expect(page.locator(".language-select")).toHaveValue(language);
     await expectLandingGuideLink(page, labels.landingLink);
   });

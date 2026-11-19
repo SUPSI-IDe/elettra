@@ -25,6 +25,9 @@ test.beforeEach(async ({ context }) => {
 });
 
 const expectHome = async (page) => {
+  // A return from the separate guide commits navigation before the app's
+  // module graph has loaded. Check routing after that document is ready.
+  await page.waitForLoadState("load");
   await expect(page).toHaveURL(/\/elettra\/#home$/);
   await expect(page.locator(".home-page")).toBeVisible();
   await expect(page.locator(".home-card")).toHaveCount(6);

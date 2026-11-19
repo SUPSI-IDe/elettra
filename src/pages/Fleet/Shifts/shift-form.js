@@ -32,7 +32,7 @@ import {
   toggleFormDisabled,
   updateFeedback,
 } from "../../../ui-helpers";
-import { t } from "../../../i18n";
+import { t, I18N_CHANGE_EVENT } from "../../../i18n";
 import {
   text,
   firstAvailable,
@@ -41,12 +41,12 @@ import {
   resolveTripPk,
   normalizeTrip,
   resolveRouteLabel,
-  getNextDay,
   DAYS_OF_WEEK,
   evaluateTripEligibility,
   getEligibleScheduledTrips,
   normalizeOperationalTripCandidates,
   resolveShiftDepotIds,
+  resolveShiftDepotTimes,
   isShiftClosedAtDepot,
   resolveScheduledTripsEmptyMessageKey,
   buildEditableTripsFromShift,
@@ -55,6 +55,7 @@ import {
 } from "./shift-utils";
 import {
   populateDayOptions,
+  translateShiftSelectOptions,
   renderBusOptions,
   renderDepotOptions,
   renderRouteOptions,
@@ -65,6 +66,8 @@ import {
   clearNode,
 } from "./shift-renderers";
 import { buildCompleteShiftTripIds } from "./depot-trip-ids";
+import { initializeShiftComposer } from "./shift-composer";
+import { resolveShiftEndTime, toClockTime } from './shift-time-window';
 
 const readTripId = (node) => node?.dataset?.tripId?.trim() ?? "";
 
@@ -95,7 +98,7 @@ const buildShiftPayload = ({ form, selectedTrips }) => {
   const name = formData.get("name")?.toString().trim();
   const busId = formData.get("busId")?.toString().trim();
   const startTime = formData.get("startTime")?.toString().trim() || null;
-  const endTime = formData.get("endTime")?.toString().trim() || null;
+  const endTime = resolveShiftEndTime(startTime, formData.get("endTime")?.toString().trim()) || null;
   const startDepotId = formData.get("startDepot")?.toString().trim() || null;
   const endDepotId = formData.get("endDepot")?.toString().trim() || null;
   // Use the id field (UUID) for shift API, not trip_id (GTFS identifier)
@@ -176,6 +179,7 @@ const getDepotInfoFromShiftInfo = (shiftInfo) => {
 // Helper function to extract times from shift info or shift object
 // These are the custom depot departure/arrival times set by the user
 const getTimesFromShiftInfo = (shiftInfo, shift = null) => {
+  const depotTimes = resolveShiftDepotTimes({ shift: shift ?? {}, shiftInfo });
   // Priority: shiftInfo times, then shift times
   const startTime = 
     shiftInfo?.start_time ||
@@ -184,6 +188,7 @@ const getTimesFromShiftInfo = (shiftInfo, shift = null) => {
     shiftInfo?.departureTime ||
     shift?.start_time ||
     shift?.startTime ||
+    depotTimes.startTime ||
     null;
   
   const endTime = 
@@ -193,6 +198,7 @@ const getTimesFromShiftInfo = (shiftInfo, shift = null) => {
     shiftInfo?.arrivalTime ||
     shift?.end_time ||
     shift?.endTime ||
+    depotTimes.endTime ||
     null;
     
   return { startTime, endTime };
@@ -375,10 +381,12 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const submitButton = form.querySelector('button[type="submit"]');
 
   if (title) {
+    title.dataset.i18n = isEditMode ? 'shifts.edit_shift' : 'shifts.add_shift';
     title.textContent = isEditMode ? t("shifts.edit_shift") : t("shifts.add_shift");
   }
 
   if (submitButton) {
+    submitButton.dataset.i18n = isEditMode ? 'shifts.update_shift' : 'shifts.save_shift';
     submitButton.textContent = isEditMode ? t("shifts.update_shift") : t("shifts.save_shift");
   }
 
@@ -394,18 +402,54 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const datasetSummary = form.querySelector('[data-role="gtfs-dataset-summary"]');
   let datasets = [];
   let selectedDataset = null;
+  let datasetStatus = "loading";
+  let savedShiftDatasets;
   let datasetGeneration = 0;
   let tripGeneration = 0;
   let disposed = false;
   if (datasetSelect) datasetSelect.hidden = isEditMode;
   let routesById = {};
   let currentTrips = [];
+  let tripsLoading = false;
   const selectedTripIds = new Set();
   let selectedTrips = [];
   let loadedShiftForDepotState = null;
   let loadedShiftInfoForDepotState = null;
   let initialSelectedTripDbIds = new Set();
-  let editRouteReconstructionBlocked = false;
+  let editRouteReconstructionBlocked = isEditMode;
+  let saving = false;
+  const composer = initializeShiftComposer({
+    form,
+    isEditMode,
+    readState: () => ({ trips: selectedTrips }),
+    isTimetableReady: () => isEditMode || Boolean(selectedDataset),
+    validateTrips: () => {
+      let previous = null;
+      const seen = new Set();
+      for (const trip of filterServiceTripsForSave(selectedTrips)) {
+        const eligibility = evaluateTripEligibility({
+          trip,
+          selectedTripIds: seen,
+          lastTripEndTime: previous?.arrival_time,
+          lastTripEndStop: previous?.end_stop_name,
+          shiftStartTime: getShiftStartTime(),
+          shiftEndTime: getShiftEndTime(),
+        });
+        if (!eligibility.valid) return getTripValidationMessage(eligibility);
+        seen.add(resolveTripId(trip));
+        previous = trip;
+      }
+      return '';
+    },
+  });
+  cleanupHandlers.push(composer.cleanup);
+  const searchInput = form.querySelector('#composer-search');
+  const undoButton = form.querySelector('[data-action="undo-trips"]');
+  let tripHistory = [];
+  const rememberTrips = () => {
+    tripHistory.push([...selectedTrips]);
+    if (tripHistory.length > 30) tripHistory.shift();
+  };
 
   const dedupeTrips = (trips = []) => {
     const seenTripIds = new Set();
@@ -451,7 +495,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
           const earliest = [...departureTimes].sort((a, b) =>
             a.localeCompare(b)
           )[0];
-          startTimeInput.value = earliest;
+          startTimeInput.value = toClockTime(earliest);
         }
       }
     }
@@ -473,14 +517,18 @@ export const initializeShiftForm = async (root = document, options = {}) => {
           const latest = [...arrivalTimes]
             .sort((a, b) => a.localeCompare(b))
             .pop();
-          endTimeInput.value = latest;
+          endTimeInput.value = toClockTime(latest);
         }
       }
     }
   };
 
   const getScheduledTripsRenderState = () => ({
-    trips: currentTrips,
+    trips: currentTrips.filter((trip) => {
+      const query = searchInput?.value.trim().toLocaleLowerCase() || '';
+      return !query || [trip.start_stop_name, trip.end_stop_name, trip.departure_time, trip.arrival_time]
+        .some((value) => String(value || '').toLocaleLowerCase().includes(query));
+    }),
     routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
     selectedTripIds,
     lastTripEndTime: getLatestEndTime(),
@@ -512,6 +560,12 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const refreshScheduledTrips = () => {
+    if (tripsLoading) {
+      renderTripsLoading(scheduledTripsBody);
+      if (addAllTripsButton) addAllTripsButton.disabled = true;
+      updateEmptyState(scheduledTripsEmpty, true);
+      return [];
+    }
     const renderState = getScheduledTripsRenderState();
     const eligibleTrips = getEligibleScheduledTrips(renderState);
 
@@ -528,13 +582,15 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateEmptyState(
       scheduledTripsEmpty,
       eligibleTrips.length > 0,
-      getScheduledTripsEmptyMessage(eligibleTrips.length)
+      searchInput?.value.trim() ? t('shifts.no_trips_match') : getScheduledTripsEmptyMessage(eligibleTrips.length)
     );
 
     return eligibleTrips;
   };
 
   const updateShiftTrips = () => {
+    composer.update();
+    undoButton.disabled = tripHistory.length === 0;
     renderShiftTrips(shiftTripsBody, selectedTrips);
     updateEmptyState(shiftTripsEmpty, selectedTrips.length > 0);
     if (removeAllTripsButton instanceof HTMLButtonElement) {
@@ -623,7 +679,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return null;
     }
     const value = endTimeInput.value?.trim() ?? "";
-    return value || null;
+    return resolveShiftEndTime(startTimeInput?.value, value) || null;
   };
 
   const isTripSelectionReady = () => {
@@ -647,6 +703,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const resetScheduledTrips = (message) => {
+    tripsLoading = false;
     currentTrips = [];
     clearNode(scheduledTripsBody);
     if (addAllTripsButton instanceof HTMLButtonElement) {
@@ -706,7 +763,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
   };
 
-  const addTrip = (trip, { silent = false } = {}) => {
+  const addTrip = (trip, { silent = false, remember = true, render = true } = {}) => {
     const normalized = normalizeTrip(trip);
     const id = resolveTripId(normalized);
     if (!id || selectedTripIds.has(id)) {
@@ -729,11 +786,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return false;
     }
 
+    if (remember) rememberTrips();
     selectedTripIds.add(id);
     selectedTrips = [...selectedTrips, normalized];
-    updateShiftTrips();
-    refreshScheduledTrips();
-    updateTimeline();
+    if (render) {
+      updateShiftTrips();
+      refreshScheduledTrips();
+      updateTimeline();
+    }
     return true;
   };
 
@@ -742,6 +802,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return false;
     }
 
+    rememberTrips();
     const removedTrip = selectedTrips.find((trip = {}) => resolveTripId(trip) === id);
     const removedTripDbId = removedTrip?.id || id;
 
@@ -772,6 +833,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const addAllTrips = () => {
+    if (tripsLoading) return;
+    const before = [...selectedTrips];
     let addedCount = 0;
     const maxIterations = Array.isArray(currentTrips) ? currentTrips.length : 0;
 
@@ -781,7 +844,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       if (!nextTrip) {
         break;
       }
-      if (!addTrip(nextTrip, { silent: true })) {
+      if (!addTrip(nextTrip, { silent: true, remember: false, render: false })) {
         break;
       }
       addedCount += 1;
@@ -798,6 +861,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return;
     }
 
+    tripHistory.push(before);
+    updateShiftTrips();
+    refreshScheduledTrips();
+    updateTimeline();
     updateFeedback(
       feedback,
       t("shifts.bulk_added_trips", { count: addedCount }) ||
@@ -817,6 +884,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
 
     const removedCount = selectedTrips.length;
+    rememberTrips();
     currentTrips = dedupeTrips([...currentTrips, ...selectedTrips]);
     selectedTrips = [];
     selectedTripIds.clear();
@@ -896,7 +964,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       )
     );
     if (startTimeInput instanceof HTMLInputElement && startTime) {
-      startTimeInput.value = startTime;
+      startTimeInput.value = toClockTime(startTime);
     }
 
     const endTime = normalizeTime(
@@ -911,7 +979,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       )
     );
     if (endTimeInput instanceof HTMLInputElement && endTime) {
-      endTimeInput.value = endTime;
+      endTimeInput.value = toClockTime(endTime);
     }
 
     const { startDepotId, endDepotId } = resolveShiftDepotIds({
@@ -939,10 +1007,14 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     let trips = [];
     if (reconstructRoute) {
-      trips = buildEditableTripsFromShift({ shift, shiftInfo });
+      const reconstructed = buildEditableTripsFromShift({ shift, shiftInfo });
+      // Depot connections are generated from setup when saving, just as in
+      // creation. Showing the old return leg here would close the programme
+      // at the depot and make appending the next service trip impossible.
+      trips = filterServiceTripsForSave(reconstructed);
       selectedTrips = trips;
       selectedTripIds.clear();
-      initialSelectedTripDbIds = new Set();
+      initialSelectedTripDbIds = new Set(reconstructed.map(trip => text(trip?.id).trim()).filter(Boolean));
       trips.forEach((trip = {}) => {
         const id = resolveTripId(trip);
         const dbId = text(trip?.id).trim();
@@ -1043,7 +1115,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       
       // Set day display
       if (dayDisplayValue) {
-        dayDisplayValue.textContent = resolvedDayLabel || "—";
+        dayDisplayValue.textContent = daySelect?.selectedOptions?.[0]?.textContent || resolvedDayLabel || "—";
       }
       
       // Show the shift info section - always visible in edit mode
@@ -1074,8 +1146,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       lineSelect.value &&
       daySelect.value
     ) {
-      // In edit mode, include next day trips for overnight shifts
-      loadTrips({ includeNextDay: isEditMode });
+      // Overnight GTFS trips use extended hours in the selected service day.
+      loadTrips();
     }
   };
 
@@ -1207,19 +1279,27 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const showDataset = () => {
-    if (datasetSummary) datasetSummary.innerHTML = datasetSummaryHtml(
-      selectedDataset ? [selectedDataset] : (isEditMode ? [] : undefined), t
-    );
+    if (!datasetSummary) return;
+    if (datasetStatus !== "ready") {
+      datasetSummary.textContent = t(datasetStatus === "error" ? "gtfs.load_error" : "gtfs.loading");
+    } else if (!isEditMode && !datasets.length) {
+      datasetSummary.textContent = t("gtfs.no_datasets");
+    } else {
+      datasetSummary.innerHTML = datasetSummaryHtml(isEditMode ? savedShiftDatasets : [selectedDataset], t);
+    }
   };
   const loadDatasets = async (shift) => {
+    datasetStatus = "loading";
     if (datasetSummary) datasetSummary.textContent = t("gtfs.loading");
     try {
       datasets = sortDatasets(await fetchGtfsDatasets());
       if (disposed) return;
+      datasetStatus = "ready";
       if (isEditMode) {
         const saved = shift?.gtfs_datasets;
+        savedShiftDatasets = saved;
         selectedDataset = saved?.length === 1 ? saved[0] : null;
-        if (datasetSummary) datasetSummary.innerHTML = datasetSummaryHtml(saved, t);
+        showDataset();
       } else {
         selectedDataset = datasets[0] ?? null;
         if (datasetSelect) {
@@ -1233,7 +1313,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     } catch (error) {
       if (disposed) return;
       selectedDataset = null;
-      if (datasetSummary) datasetSummary.textContent = t("gtfs.load_error");
+      datasetStatus = "error";
+      showDataset();
       updateFeedback(feedback, t("gtfs.load_error"), "error");
     }
   };
@@ -1246,6 +1327,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return;
     }
     selectedDataset = next;
+    tripHistory = [];
+    if (searchInput) searchInput.value = '';
     datasetGeneration++;
     tripGeneration++;
     selectedTrips = [];
@@ -1268,7 +1351,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     populateDayOptions(daySelect, DAYS_OF_WEEK);
   };
 
-  const loadTrips = async ({ includeNextDay = false } = {}) => {
+  const loadTrips = async () => {
     const generation = ++tripGeneration;
     const editionGeneration = datasetGeneration;
     if (!lineSelect || !daySelect || !scheduledTripsBody) {
@@ -1283,25 +1366,22 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return;
     }
 
+    tripsLoading = true;
     renderTripsLoading(scheduledTripsBody);
+    if (addAllTripsButton) addAllTripsButton.disabled = true;
     updateEmptyState(scheduledTripsEmpty, true);
 
     try {
       const daysToFetch = [day];
-      if (includeNextDay) {
-        const nextDay = getNextDay(day);
-        if (nextDay) {
-          daysToFetch.push(nextDay);
-        }
-      }
 
       const results = await Promise.all(
         daysToFetch.map((d) =>
-          fetchTripsByRoute({ routeId, dayOfWeek: d }).catch(() => [])
+          fetchTripsByRoute({ routeId, dayOfWeek: d })
         )
       );
 
       if (disposed || generation !== tripGeneration || editionGeneration !== datasetGeneration) return;
+      tripsLoading = false;
       const allTrips = results.flatMap((payload) => {
         const trips =
           Array.isArray(payload) ? payload : (
@@ -1419,6 +1499,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (saving) return;
+    if (!composer.canSubmit()) return;
 
     updateFeedback(feedback, "");
 
@@ -1454,6 +1536,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return;
     }
 
+    saving = true;
     toggleFormDisabled(form, true);
     updateFeedback(feedback, isEditMode ? t("shifts.updating") : t("shifts.saving"), "info");
 
@@ -1664,8 +1747,12 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         "error"
       );
     } finally {
+      saving = false;
       hideProgress();
       toggleFormDisabled(form, false);
+      if (datasetSelect) datasetSelect.disabled = isEditMode || datasets.length === 0;
+      updateShiftTrips();
+      refreshScheduledTrips();
     }
   };
 
@@ -1716,6 +1803,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     let hoverCheckTimeout = null;
     
     const handleTripMouseOver = (event) => {
+      if (window.matchMedia('(hover: none)').matches) return;
       const row = event.target.closest("tr[data-trip-id]");
       if (!row || row === currentHoveredRow) return;
       
@@ -1802,8 +1890,50 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   }
 
   const handleTripFiltersChange = () => {
-    loadTrips({ includeNextDay: isEditMode });
+    loadTrips();
   };
+  searchInput?.addEventListener('input', refreshScheduledTrips);
+  const handleSearchKey = (event) => {
+    if (event.key === 'Enter') event.preventDefault();
+  };
+  searchInput?.addEventListener('keydown', handleSearchKey);
+  cleanupHandlers.push(() => searchInput?.removeEventListener('keydown', handleSearchKey));
+  const undoTrips = () => {
+    const previous = tripHistory.pop();
+    if (!previous) return;
+    currentTrips = dedupeTrips([...currentTrips, ...selectedTrips]);
+    selectedTrips = previous;
+    selectedTripIds.clear();
+    selectedTrips.forEach((trip) => selectedTripIds.add(resolveTripId(trip)));
+    updateShiftTrips();
+    refreshScheduledTrips();
+    updateTimeline();
+    updateFeedback(feedback, '');
+  };
+  undoButton.addEventListener('click', undoTrips);
+  cleanupHandlers.push(() => undoButton.removeEventListener('click', undoTrips));
+  cleanupHandlers.push(() => searchInput?.removeEventListener('input', refreshScheduledTrips));
+  form.addEventListener('composer:layout', updateTimeline);
+  cleanupHandlers.push(() => form.removeEventListener('composer:layout', updateTimeline));
+  const handleLanguageChange = () => {
+    translateShiftSelectOptions(form);
+    for (const option of datasetSelect?.options ?? []) {
+      const dataset = datasets.find(item => datasetKey(item) === option.value);
+      if (dataset) option.textContent = datasetLabel(dataset, t);
+    }
+    routesById = Object.fromEntries(Array.from(lineSelect?.options ?? [])
+      .filter(option => option.value).map(option => [option.value, option.textContent]));
+    if (isEditMode) {
+      if (dayDisplayValue && daySelect?.value) dayDisplayValue.textContent = daySelect.selectedOptions[0].textContent;
+      if (lineDisplayValue && lineSelect?.value) lineDisplayValue.textContent = lineSelect.selectedOptions[0].textContent;
+    }
+    showDataset();
+    updateShiftTrips();
+    refreshScheduledTrips();
+    updateTimeline();
+  };
+  document.addEventListener(I18N_CHANGE_EVENT, handleLanguageChange);
+  cleanupHandlers.push(() => document.removeEventListener(I18N_CHANGE_EVENT, handleLanguageChange));
   if (lineSelect) {
     lineSelect.addEventListener("change", handleTripFiltersChange);
     cleanupHandlers.push(() => {
@@ -1821,7 +1951,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     if (currentTrips.length > 0) {
       refreshScheduledTrips();
     } else {
-      loadTrips({ includeNextDay: isEditMode });
+      loadTrips();
     }
     updateTimeline();
   };
@@ -1842,7 +1972,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     if (currentTrips.length > 0) {
       refreshScheduledTrips();
     } else {
-      loadTrips({ includeNextDay: isEditMode });
+      loadTrips();
     }
     updateTimeline();
   };
@@ -1990,6 +2120,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
   }
 
+  composer.ready();
   return () => {
     disposed = true;
     datasetGeneration++;

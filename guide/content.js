@@ -208,7 +208,7 @@ export const guideContent = {
         id: "shifts",
         title: "4. Building a vehicle block",
         intro:
-          "A vehicle block is the ordered sequence of trips and depot connections assigned to one bus, evaluated for the selected bus model.",
+          "A vehicle block is the ordered sequence of trips and depot connections assigned to one bus. The editor has three steps: Set up (name, bus model, GTFS edition, depots and times), Build the day (line, day and compatible trips), and Review & save (itinerary and timeline). Editing opens the existing programme directly; use the step buttons to revisit settings without losing trips. Undo last change restores the previous trip selection, including after Remove all.",
         ordered: true,
         items: [
           {
@@ -225,11 +225,11 @@ export const guideContent = {
           },
           {
             title: "Define the vehicle block boundaries",
-            text: "Select the start and return locations and their times. ELETTRA includes the connecting auxiliary movements needed to represent the complete vehicle block.",
+            text: "Select the start and return locations and their times. A return time earlier than departure means the next day; the review marks it explicitly. GTFS times after 24:00 retain their service-day offset. Depot connections are regenerated when saving, so editing opens only the service trips and lets you append compatible trips directly.",
           },
           {
             title: "Check and save",
-            text: "Review the trip sequence, timeline, distance and map/elevation context. Correct gaps or implausible timing before saving the vehicle block.",
+            text: "Open Review & save to check the itinerary, depot times and timeline. Search available trips by stop or time while composing. ELETTRA checks time limits and connections again before review; correct any reported gaps. Depot connections are generated on save, so leave enough travel time.",
           },
           {
             title: "Find or duplicate saved vehicle blocks",
@@ -503,14 +503,14 @@ export const guideContent = {
       {
         id: "shifts",
         title: "4. Fahrzeugumlauf aufbauen",
-        intro: "Ein Fahrzeugumlauf stellt den vollständigen, geordneten Tagesumlauf dar, der für ein Busmodell bewertet wird.",
+        intro: "Ein Fahrzeugumlauf stellt den vollständigen Tagesumlauf eines Busses dar. Der Editor hat drei Schritte: Einrichten (Name, Busmodell, GTFS-Ausgabe, Depots und Zeiten), Tag zusammenstellen (Linie, Tag und passende Fahrten) und Prüfen & speichern (Fahrtenfolge und Zeitachse). Beim Bearbeiten öffnet sich das vorhandene Programm direkt. Die Schrittschaltflächen erhalten die Auswahl; Letzte Änderung rückgängig machen stellt sie auch nach Alle entfernen wieder her.",
         ordered: true,
         items: [
           { title: "Flotte → Fahrzeugumläufe öffnen und Fahrzeugumlauf erstellen", text: "Vergeben Sie einen verständlichen Namen und wählen Sie das vorgesehene Busmodell." },
           { title: "GTFS-Fahrplan wählen", text: "Ein neuer Fahrzeugumlauf verwendet zunächst die neueste verfügbare GTFS-Ausgabe. Wählen Sie die Ausgabe vor Linie und Tag; ein späterer Wechsel muss bestätigt werden und entfernt bereits ausgewählte Fahrten. Die gespeicherte Ausgabe wird Teil der Herkunft des Fahrzeugumlaufs." },
           { title: "Fahrplanfahrten filtern und hinzufügen", text: "Filtern Sie nach Linie und Tag und fügen Sie die benötigten Fahrten in Betriebsreihenfolge hinzu. Die Liste enthält nur Fahrten der gewählten GTFS-Ausgabe." },
-          { title: "Grenzen des Fahrzeugumlaufs festlegen", text: "Wählen Sie Start- und Rückkehrort sowie die Zeiten. ELETTRA berücksichtigt die Verbindungsfahrten, die für den vollständigen Fahrzeugumlauf benötigt werden." },
-          { title: "Prüfen und speichern", text: "Prüfen Sie Fahrtenfolge, Zeitachse, Distanz sowie Karten- und Höhenkontext. Korrigieren Sie Lücken oder unplausible Zeiten vor dem Speichern." },
+          { title: "Grenzen des Fahrzeugumlaufs festlegen", text: "Wählen Sie Start- und Rückkehrort sowie die Zeiten. Liegt die Rückkehrzeit vor der Abfahrt, gilt sie für den Folgetag; die Übersicht zeigt dies ausdrücklich. GTFS-Zeiten nach 24:00 behalten ihren Betriebstagsbezug. Depotverbindungen werden beim Speichern neu erzeugt. Beim Bearbeiten erscheinen daher nur die Servicefahrten, an die passende Fahrten direkt angehängt werden können." },
+          { title: "Prüfen und speichern", text: "Prüfen Sie Fahrtenfolge, Depotzeiten und Zeitachse unter Prüfen & speichern. Suchen Sie beim Zusammenstellen nach Haltestelle oder Uhrzeit. ELETTRA prüft Zeitgrenzen und Anschlüsse vor der Übersicht erneut. Depotverbindungen werden beim Speichern erzeugt; planen Sie genügend Fahrzeit ein." },
           { title: "Gespeicherte Fahrzeugumläufe finden oder duplizieren", text: "Die Suche prüft die vollständige serverseitige Liste vor der Seitennummerierung, sodass Treffer auch ausserhalb der aktuellen Seite gefunden werden. Wählen Sie einen oder mehrere Fahrzeugumläufe und verwenden Sie Duplizieren, um Fahrten, Busmodell und gespeicherte GTFS-Ausgabe zu übernehmen." },
           { title: "Gespeicherten Fahrzeugumlauf visualisieren", text: "Öffnen Sie Visualisieren/Details, um die allgemeinen Informationen und die vollständige Bewegungskette zu prüfen. Raum-Zeit ist die Standardansicht: Die Zeit verläuft horizontal, die Haltestellen vertikal, Mehrlinien-Umläufe werden nach Linie getrennt und Depotverbindungen gestrichelt dargestellt. Wechseln Sie zu Karte, um jede Bewegung mit Haltestellen und Zeiten einzeln über Erste, Vorherige, Nächste und Letzte zu prüfen. Ein Hinweis kennzeichnet Unterbrechungen durch fehlende Überführungsdaten, statt eine Verbindung zu erfinden." },
         ],
@@ -663,14 +663,14 @@ export const guideContent = {
       {
         id: "shifts",
         title: "4. Construire un service voiture",
-        intro: "Un service voiture représente la mission journalière complète et ordonnée évaluée pour un modèle de bus candidat.",
+        intro: "Un service voiture représente la journée complète d’un bus. L’éditeur comporte trois étapes : Configurer (nom, modèle, édition GTFS, dépôts et horaires), Composer la journée (ligne, jour et trajets compatibles), puis Vérifier et enregistrer (itinéraire et chronologie). La modification ouvre directement le programme existant. Les boutons des étapes conservent les trajets ; Annuler la dernière modification restaure la sélection, même après Tout retirer.",
         ordered: true,
         items: [
           { title: "Ouvrir Flotte → Services voiture et créer un service voiture", text: "Donnez au service voiture un nom explicite et sélectionnez le modèle de bus candidat." },
           { title: "Choisir l’horaire GTFS", text: "Un nouveau service voiture utilise d’abord la dernière édition GTFS disponible. Choisissez l’édition avant la ligne et le jour; un changement après l’ajout de courses demande confirmation et efface la sélection. L’édition enregistrée fait partie de la provenance du service voiture." },
           { title: "Filtrer et ajouter les courses planifiées", text: "Utilisez les filtres de ligne et de jour, puis ajoutez les courses dans leur ordre d’exploitation. La liste contient uniquement les courses de l’édition GTFS choisie." },
-          { title: "Définir les limites du service voiture", text: "Sélectionnez les lieux et heures de départ et de retour. ELETTRA inclut les déplacements auxiliaires nécessaires pour représenter la mission complète." },
-          { title: "Vérifier et enregistrer", text: "Contrôlez la séquence, la chronologie, la distance et le contexte cartographique et altimétrique. Corrigez les lacunes ou horaires invraisemblables avant l’enregistrement." },
+          { title: "Définir les limites du service voiture", text: "Sélectionnez les lieux et heures de départ et de retour. Un retour antérieur au départ désigne le jour suivant, indiqué explicitement dans le récapitulatif. Les horaires GTFS après 24:00 conservent leur décalage de jour de service. Les liaisons au dépôt sont régénérées à l’enregistrement : la modification affiche les trajets de service et permet d’ajouter directement des correspondances compatibles." },
+          { title: "Vérifier et enregistrer", text: "Contrôlez l’itinéraire, les horaires du dépôt et la chronologie dans Vérifier et enregistrer. Recherchez un arrêt ou un horaire pendant la composition. ELETTRA vérifie à nouveau les limites horaires et les correspondances avant le récapitulatif. Les liaisons au dépôt sont générées à l’enregistrement ; prévoyez suffisamment de temps de trajet." },
           { title: "Rechercher ou dupliquer les services enregistrés", text: "La recherche interroge la liste complète côté serveur avant la pagination, afin de retrouver une correspondance au-delà de la page courante. Sélectionnez un ou plusieurs services et utilisez Dupliquer pour reprendre leurs courses, leur modèle de bus et leur édition GTFS enregistrée." },
           { title: "Visualiser un service voiture enregistré", text: "Ouvrez Visualiser/Détails pour contrôler les informations générales et la chaîne complète des mouvements. Espace-temps est la vue par défaut: le temps est horizontal, les arrêts verticaux, les services multiligne sont séparés par ligne et les liaisons au dépôt sont en pointillés. Passez à Carte pour examiner chaque mouvement, ses arrêts et ses horaires avec Première, Précédente, Suivante et Dernière. Un avertissement signale les discontinuités dues à des données de transfert manquantes au lieu d’inventer une liaison." },
         ],
@@ -823,14 +823,14 @@ export const guideContent = {
       {
         id: "shifts",
         title: "4. Costruire un turno macchina",
-        intro: "Un turno macchina rappresenta il servizio giornaliero completo e ordinato valutato per un modello di autobus candidato.",
+        intro: "Un turno macchina rappresenta il servizio giornaliero completo e ordinato di un autobus. L’editor ha tre passaggi: Imposta il turno (nome, modello, edizione GTFS, depositi e orari), Componi la giornata (linea, giorno e corse compatibili), Rivedi e salva (itinerario e linea temporale). La modifica apre direttamente il programma esistente; i pulsanti dei passaggi consentono di rivedere le impostazioni senza perdere le corse. Annulla ultima modifica ripristina la selezione precedente, anche dopo Rimuovi tutto.",
         ordered: true,
         items: [
           { title: "Aprire Flotta → Turni macchina e creare un turno macchina", text: "Assegnare un nome riconoscibile e selezionare il modello di autobus candidato." },
           { title: "Scegliere l’orario GTFS", text: "Un nuovo turno macchina usa inizialmente l’edizione GTFS più recente disponibile. Selezionare l’edizione prima di linea e giorno; cambiarla dopo aver aggiunto corse richiede conferma e svuota la selezione. L’edizione salvata entra nella provenienza del turno." },
           { title: "Filtrare e aggiungere le corse programmate", text: "Usare i filtri per linea e giorno, quindi aggiungere le corse necessarie nel loro ordine operativo. L’elenco contiene solo corse dell’edizione GTFS selezionata." },
-          { title: "Definire i limiti del servizio", text: "Selezionare località e orari di partenza e ritorno. ELETTRA include gli spostamenti ausiliari necessari per rappresentare il servizio completo." },
-          { title: "Verificare e salvare", text: "Controllare sequenza, linea temporale, distanza e contesto cartografico e altimetrico. Correggere lacune o tempi non plausibili prima di salvare." },
+          { title: "Definire i limiti del servizio", text: "Selezionare località e orari di partenza e ritorno. Un rientro precedente alla partenza indica il giorno successivo, segnalato nel riepilogo. Gli orari GTFS oltre le 24:00 mantengono l’offset del giorno di servizio. I collegamenti al deposito sono rigenerati al salvataggio: in modifica vengono mostrate le corse di servizio e si possono aggiungere direttamente le corse compatibili." },
+          { title: "Verificare e salvare", text: "Aprire Rivedi e salva per controllare itinerario, orari del deposito e linea temporale. Durante la composizione si può cercare per fermata o orario. ELETTRA ricontrolla limiti temporali e continuità prima del riepilogo: correggere le lacune segnalate. I collegamenti al deposito sono generati al salvataggio; prevedere il tempo necessario." },
           { title: "Cercare o duplicare i turni salvati", text: "La ricerca interroga l’elenco completo sul server prima della paginazione, quindi trova corrispondenze oltre la pagina corrente. Selezionare uno o più turni e usare Duplica per copiarne corse, modello di autobus ed edizione GTFS registrata prima di modificare le copie." },
           { title: "Visualizzare un turno salvato", text: "Aprire Visualizza/Dettagli per controllare le informazioni generali e la catena completa dei movimenti. Spazio-tempo è la vista predefinita: il tempo scorre in orizzontale, le fermate in verticale, i turni multilinea sono separati per linea e i collegamenti al deposito sono tratteggiati. Passare a Mappa per esaminare un movimento alla volta con fermate e orari usando Prima, Precedente, Successiva e Ultima. Un avviso segnala le discontinuità dovute a dati di trasferimento mancanti invece di inventare un collegamento." },
         ],

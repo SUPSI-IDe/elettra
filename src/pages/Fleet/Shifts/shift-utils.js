@@ -688,7 +688,7 @@ export const formatMinutes = (value) => {
   if (!Number.isFinite(value)) {
     return "";
   }
-  const hours = Math.max(0, Math.min(23, Math.floor(value / 60)));
+  const hours = Math.max(0, Math.floor(value / 60));
   const minutes = Math.max(0, Math.min(59, Math.round(value % 60)));
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 };
@@ -1163,6 +1163,22 @@ export const resolveDepotPrefillFromStructure = ({
   return {
     startDepotId: resolveDepotIdFromLegSide(outboundLeg, "start", loadedDepots),
     endDepotId: resolveDepotIdFromLegSide(returnLeg, "end", loadedDepots),
+  };
+};
+
+export const resolveShiftDepotTimes = ({ shift = {}, shiftInfo = null } = {}) => {
+  const legs = mergeStructureWithInfoTrips(shift?.structure, shiftInfo?.trips);
+  const infoTrips = Array.isArray(shiftInfo?.trips) ? shiftInfo.trips : [];
+  const infoById = new Map(infoTrips.filter(trip => text(trip?.id).trim()).map(trip => [text(trip.id), trip]));
+  const outbound = selectOutboundDepotLeg(legs);
+  const inbound = selectReturnDepotLeg(legs);
+  const startInfo = infoById.get(text(outbound?.trip_db_id));
+  const endInfo = infoById.get(text(inbound?.trip_db_id));
+  const firstStop = outbound?.stop_times?.[0];
+  const lastStop = inbound?.stop_times?.at(-1);
+  return {
+    startTime: firstAvailable(startInfo?.departure_time, firstStop?.departure_time, firstStop?.arrival_time) || null,
+    endTime: firstAvailable(endInfo?.arrival_time, lastStop?.arrival_time, lastStop?.departure_time) || null,
   };
 };
 
