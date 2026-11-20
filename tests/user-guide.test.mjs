@@ -65,7 +65,7 @@ test("all supported guide languages expose the same complete section structure",
     "comparison",
     "practice",
   ];
-  const expectedFigureCounts = [0, 1, 0, 1, 1, 1, 2, 2, 0, 0];
+  const expectedFigureCounts = [0, 1, 0, 1, 2, 1, 3, 2, 0, 0];
 
   assert.deepEqual(Object.keys(guideContent).sort(), [...SUPPORTED_GUIDE_LANGUAGES].sort());
 
@@ -131,7 +131,7 @@ test("the guide baseline follows the frontend version and exposes a valid update
   assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
   assert.deepEqual(
     SUPPORTED_GUIDE_LANGUAGES.map((language) => guideContent[language].ui.updatedValue),
-    ["18 November 2026", "18. November 2026", "18 novembre 2026", "18 novembre 2026"],
+    ["20 November 2026", "20. November 2026", "20 novembre 2026", "20 novembre 2026"],
   );
 });
 
@@ -244,7 +244,7 @@ test("every guide language explains the two-level feasibility and yearly result 
     for (const term of expectedTerms[language].yearly) {
       assert.ok(yearlyText.includes(term), `${language} yearly guide is missing ${term}`);
     }
-    assert.equal(feasibility.figures.length, 2);
+    assert.equal(feasibility.figures.length, 3);
     assert.equal(yearly.figures.length, 2);
   }
 });
@@ -273,7 +273,7 @@ test("every referenced guide screenshot is packaged locally", async () => {
     )
   );
 
-  assert.equal(sources.size, 8);
+  assert.equal(sources.size, 10);
   await Promise.all([...sources].map((src) => access(new URL(src))));
 });
 
@@ -290,4 +290,48 @@ test("the release version has a changelog entry required by the publishing workf
   const packageJson = JSON.parse(await readProjectFile("package.json"));
   const changelog = await readProjectFile("CHANGELOG.md");
   assert.ok(changelog.split("\n").some(line => line.startsWith(`## [${packageJson.version}]`)));
+});
+
+test("all guide languages explain diagnostic batteries, orange Q95 outcomes and unavailable data", () => {
+  const vocabulary = {
+    en: { battery: ['missing packs', 'physical maximum', 'not a verified installable battery', 'next departure', 'verified operation'], q95: ['orange', 'feasible with Mean but infeasible with Q95', 'N/A', 'tooltip', '—', 'not zero', 'per-trip quantiles'], help: ['keyboard focus', 'tap', 'Escape'] },
+    de: { battery: ['fehlenden Packs', 'physische Maximum', 'keine verifizierte installierbare Batterie', 'nächsten Abfahrt', 'verifizierter Betrieb'], q95: ['oranges', 'mit Mittelwert machbar, mit Q95 nicht machbar', 'N/A', 'Tooltip', '—', 'nicht null', 'Einzelquantile'], help: ['Tastaturfokus', 'Antippen', 'Escape'] },
+    fr: { battery: ['packs manquants', 'maximum physique', 'pas une batterie installable vérifiée', 'prochain départ', 'exploitation vérifiée'], q95: ['orange', 'faisable en moyenne, non faisable en Q95', 'N/A', 'infobulle', '—', 'pas zéro', 'quantiles par course'], help: ['focus clavier', 'toucher', 'Échap'] },
+    it: { battery: ['pacchi mancanti', 'massimo fisico', 'non una batteria installabile verificata', 'prossima partenza', 'esercizio verificato'], q95: ['arancione', 'fattibile con Media ma non con Q95', 'N/A', 'tooltip', '—', 'Non significa zero', 'quantili delle singole corse'], help: ['tastiera', 'tocco', 'Esc'] },
+  };
+  for (const language of SUPPORTED_GUIDE_LANGUAGES) {
+    const items = guideContent[language].sections.find(({id}) => id === 'results').items;
+    for (const [topic, words] of Object.entries(vocabulary[language])) {
+      assert.ok(items.some(({text}) => words.every(word => text.includes(word))), `${language} must explain ${topic} coherently`);
+    }
+  }
+});
+
+test("the guide prepares depots before composing trips and preserves verified-result context", () => {
+  const terms = {
+    en: {boundaries:'Define the vehicle block boundaries',trips:'Filter and add scheduled trips',feasible:'For a feasible design',verified:'physically verified',separate:'separate lines'},
+    de: {boundaries:'Grenzen des Fahrzeugumlaufs festlegen',trips:'Fahrplanfahrten filtern und hinzufügen',feasible:'machbaren Design',verified:'physisch verifizierten',separate:'getrennten Zeilen'},
+    fr: {boundaries:'Définir les limites du service voiture',trips:'Filtrer et ajouter les courses planifiées',feasible:'configuration faisable',verified:'physiquement vérifié',separate:'deux lignes'},
+    it: {boundaries:'Definire i limiti del servizio',trips:'Filtrare e aggiungere le corse programmate',feasible:'configurazione fattibile',verified:'fisicamente verificato',separate:'due righe'},
+  };
+  for (const language of SUPPORTED_GUIDE_LANGUAGES) {
+    const sections = Object.fromEntries(guideContent[language].sections.map(s => [s.id,s]));
+    const titles = sections.shifts.items.map(({title}) => title);
+    const expected = terms[language];
+    assert.ok(titles.indexOf(expected.boundaries) >= 0);
+    assert.ok(titles.indexOf(expected.boundaries) < titles.indexOf(expected.trips));
+    assert.ok(sections.results.items[0].text.includes(expected.feasible));
+    assert.ok(sections.results.items[1].text.includes(expected.verified));
+    assert.ok(sections.yearly.items.some(({text}) => text.includes('Min') && text.includes('Max') && text.includes(expected.separate)));
+  }
+});
+
+test("Markdown chapters share the published guide baseline and document the three-step editor", async () => {
+  for (const chapter of ['overview','fleet-management','shifts-and-routes','feasibility-evaluation','simulation-results','yearly-analysis','comparison-and-export']) {
+    const text = await readProjectFile(`docs/user-guide/${chapter}.md`);
+    assert.ok(text.includes(`Interface baseline: Frontend v${GUIDE_BASELINE_VERSION}`), `${chapter} baseline is stale`);
+  }
+  const shifts = await readProjectFile('docs/user-guide/shifts-and-routes.md');
+  assert.deepEqual([...shifts.matchAll(/^### \d\. (.+)$/gm)].map(match => match[1]), ['Set up the block','Compose the day','Review and save']);
+  assert.match(shifts,/Undo last\s+change/);
 });

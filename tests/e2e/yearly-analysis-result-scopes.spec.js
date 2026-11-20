@@ -668,7 +668,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
     await page.locator(".ya-results-main").evaluate((main) => {
       main.scrollTop = 0;
     });
-    await page.screenshot({ path: "guide/images/yearly-efficiency.png" });
+    await page.screenshot({ path: test.info().outputPath("yearly-legacy-general.png") });
   }
 
   await tabs.getByText("Morning service", { exact: true }).click();
@@ -907,7 +907,7 @@ test("yearly results use General and one primary tab per shift", async ({ page }
     await page.locator(".ya-results-main").evaluate((main) => {
       main.scrollTop = 0;
     });
-    await page.screenshot({ path: "guide/images/yearly-emissions.png" });
+    await page.screenshot({ path: test.info().outputPath("yearly-legacy-emissions.png") });
   }
 
   await resultViewTabs.getByText("Emissions", { exact: true }).focus();

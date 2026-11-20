@@ -152,9 +152,10 @@ test("uses the singular heading and a single blue colour with orange dashed tran
   const diagram = page.locator('[data-role="space-time"]');
   await expect(diagram.locator(".shift-space-time__group-header h3")).toHaveText("Line 7");
   await expect(diagram.locator(".shift-space-time__route-key")).toHaveText(["Line 7"]);
-  const colours = await diagram.locator('.shift-space-time__trip path').evaluateAll(paths => paths.map(path => getComputedStyle(path).stroke));
-  expect(new Set(colours).size).toBe(1);
-  expect(colours[0]).toBe("rgb(78, 121, 167)");
+  // ResizeObserver can replace the SVG while its first layout settles.
+  await expect.poll(async () => diagram.locator('.shift-space-time__trip path').evaluateAll(
+    paths => [...new Set(paths.map(path => getComputedStyle(path).stroke))]
+  )).toEqual(["rgb(78, 121, 167)"]);
   const transfers = diagram.locator(".shift-space-time__depot-line");
   await expect(transfers).toHaveCount(2);
   await expect(transfers.first()).toHaveCSS("stroke", "rgb(245, 166, 35)");
@@ -603,13 +604,15 @@ test("keeps 40104 depot transfers separate from the service stop order", async (
   await expect(diagram.locator('[data-role="space-time-depot-dwell"]')).toHaveCount(1);
   await expect(diagram).toContainText("TPL Rimessa 1");
   await expect(diagram).toContainText("TPL Rimessa 2");
-  const stopPositions = await diagram.locator("[data-stop-name]").evaluateAll(
-    (labels) => Object.fromEntries(
-      labels.map((label) => [label.getAttribute("data-stop-name"), label.getBoundingClientRect().top])
-    )
-  );
-  expect(stopPositions["TPL Rimessa 2"]).toBeLessThan(stopPositions.Pazzallo);
-  expect(stopPositions["TPL Rimessa 1"]).toBeGreaterThan(stopPositions["Lugano Centro"]);
+  await expect.poll(async () => diagram.locator("[data-stop-name]").evaluateAll(labels => {
+    const positions = Object.fromEntries(labels.map(label =>
+      [label.getAttribute("data-stop-name"), label.getBoundingClientRect().top]
+    ));
+    return {
+      startBeforeService: positions["TPL Rimessa 2"] < positions.Pazzallo,
+      endAfterService: positions["TPL Rimessa 1"] > positions["Lugano Centro"],
+    };
+  })).toEqual({startBeforeService: true, endAfterService: true});
 });
 
 for (const status of ["gtfs", "service"]) {

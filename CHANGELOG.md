@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.2.0-rc.3] - 2026-11-20
+
+### Changed
+
+- Include the multilingual guide alignment, refreshed screenshots and documentation regression checks prepared for `1.2.0-rc.2`.
+- Synchronize existing browser checks with SVG relayout and asynchronous tab focus restoration, preserving their colour, stop-order and keyboard assertions.
+
+### Compatibility
+
+- Documentation and test updates only; application behavior and backend `1.7.0` compatibility are unchanged.
+- The `1.2.0-rc.2` tag is retained as the failed CI candidate; no container or GitHub release was published for it.
+- Publish as a prerelease without moving stable container aliases, including `latest`.
+
+## [1.2.0-rc.2] - 2026-11-20
+
+### Documentation
+
+- Align all four online guide languages with infeasible-result diagnostics, battery estimates, orange Mean/Q95 outcomes and unavailable Q95 consumption.
+- Explain contextual tooltips and distinguish verified operational detail from diagnostic results.
+- Align the guided vehicle-block instructions with the editor order and refresh the feasibility and annual-result screenshots, including new composer and infeasible-result examples.
+- Synchronize the Markdown guide baseline and add focused documentation regression checks.
+
+### Compatibility
+
+- Documentation-only update to `1.2.0-rc.1`; application behavior and backend `1.7.0` compatibility are unchanged.
+- Publish as a prerelease without moving stable container aliases, including `latest`.
+
+## [1.2.0-rc.1] - 2026-11-20
+
+### Added
+
+- Add a guided vehicle-block composer with schedule review, undo, safe depot connections and live translations.
+- Add compact row actions for vehicle blocks and localized validation across fleet forms.
+- Present established infeasible evaluations consistently across General and individual vehicle blocks, including saved diagnostic battery limits and missing Q95 consumption.
+
+### Changed
+
+- Move contextual explanations for fleet investment, charging infrastructure and infeasibility into accessible tooltips.
+- Align the demand scenario, optimization mode and feasibility outcome in the fleet header, with consistent Mean and Q95 wording.
+- Wrap long vehicle-block lists without hiding names or expanding result cards and annual-analysis tables.
+- Split annual efficiency minima and maxima into separate lines and keep values clear on desktop and mobile.
+- Preserve saved feasibility verdicts, physical pack limits, costs and available energy data; unavailable Q95 consumption remains N/A with contextual help.
+
+### Validation and compatibility
+
+- Validate 669 unit tests, 424 desktop browser tests, 424 mobile browser tests, the production build and 21 optimized-bundle smoke tests on the integrated application.
+- Frontend-only prerelease compatible with backend `1.7.0`; no database migration or saved-data rewrite is required.
+- Publish as a prerelease without moving stable container aliases, including `latest`.
+
 ## [1.1.0] - 2026-11-19
 
 ### Added

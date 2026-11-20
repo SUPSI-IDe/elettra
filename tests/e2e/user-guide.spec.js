@@ -345,8 +345,8 @@ test("switching languages preserves the active use-case anchor and updates its d
 test("the guide screenshots load and the guide fits the viewport", async ({ page }) => {
   await page.goto("./guide/");
 
-  await expect(page.locator(".guide-figure img")).toHaveCount(8);
-  await expect(page.locator(".guide-figure figcaption")).toHaveCount(8);
+  await expect(page.locator(".guide-figure img")).toHaveCount(10);
+  await expect(page.locator(".guide-figure figcaption")).toHaveCount(10);
   for (const image of await page.locator(".guide-figure img").all()) {
     await image.scrollIntoViewIfNeeded();
     await expect.poll(() =>
@@ -359,3 +359,40 @@ test("the guide screenshots load and the guide fits the viewport", async ({ page
   );
   expect(hasHorizontalOverflow).toBe(false);
 });
+
+for (const [language, labels] of Object.entries({
+  en: {battery:'Read infeasible battery estimates',q95:'Understand orange outcomes and unavailable Q95',help:'Find contextual help'},
+  de: {battery:'Batterieschätzungen bei Nichtmachbarkeit lesen',q95:'Orange Ergebnisse und fehlendes Q95 verstehen',help:'Kontexthilfe finden'},
+  fr: {battery:'Lire les estimations de batterie non faisables',q95:'Comprendre les résultats orange et le Q95 absent',help:'Trouver les explications contextuelles'},
+  it: {battery:'Leggere le stime di batteria nei casi non fattibili',q95:'Interpretare l’arancione e i dati Q95 mancanti',help:'Trovare le spiegazioni contestuali'},
+})) {
+  test(`diagnostic guidance, Q95 availability and new screenshots are readable in ${language}`, async ({page}) => {
+    const errors=[];
+    const failed=[];
+    page.on('pageerror',error => errors.push(error.message));
+    page.on('requestfailed',request => failed.push(request.url()));
+    await page.goto('./guide/#results');
+    await page.locator('#guide-language').selectOption(language);
+    const result=page.locator('#results');
+    for(const title of Object.values(labels)) {
+      const heading=result.getByRole('heading',{name:title,exact:true});
+      await heading.scrollIntoViewIfNeeded();
+      await expect(heading).toBeVisible();
+    }
+    const q95=result.locator('.guide-item').filter({has:page.getByRole('heading',{name:labels.q95,exact:true})});
+    await expect(q95).toContainText('N/A');
+    await expect(q95).toContainText('—');
+    for(const [section,suffix] of [['results','feasibility-infeasible'],['shifts','shift-composer']]) {
+      const image=page.locator(`#${section} img`);
+      const sources=await image.evaluateAll(images => images.map(img=>img.src));
+      expect(sources.some(src=>src.includes(suffix))).toBe(true);
+      await expect(page.locator(`#${section} img`)).toHaveCount(section==='results'?3:2);
+    }
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+    await page.setViewportSize({width:320,height:720});
+    await result.getByRole('heading',{name:labels.q95,exact:true}).scrollIntoViewIfNeeded();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+    expect(errors).toEqual([]);
+    expect(failed).toEqual([]);
+  });
+}

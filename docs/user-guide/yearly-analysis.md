@@ -1,7 +1,7 @@
 # Yearly Analysis
 
-> Last updated: 2026-11-17
-> Interface baseline: Frontend v1.1.0
+> Last updated: 2026-11-20
+> Interface baseline: Frontend v1.2.0-rc.3
 
 A yearly analysis keeps the bus, battery, and charging design selected by a
 completed feasibility evaluation fixed and applies it to representative
@@ -77,6 +77,11 @@ The **Annual fleet assessment** starts with a compact six-metric summary:
 - annual distance, bus-side DC energy, and purchased grid electricity;
 - minimum/maximum average vehicle-block efficiency, electric TCO, and climate
   impact.
+
+Efficiency **Min** and **Max** appear on separate lines, each with its vehicle
+block name; values remain vertically centred beside the label. Long vehicle
+block lists wrap within cells in the annual-analysis list without hiding
+names or widening the table.
 
 Use **Representative bus / Fleet** to switch between the complete fleet and a
 group sharing the same bus model and battery size. Vehicle blocks remain in the

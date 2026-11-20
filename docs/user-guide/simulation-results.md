@@ -1,7 +1,7 @@
 # Feasibility Results
 
-> Last updated: 2026-11-19
-> Interface baseline: Frontend v1.1.0
+> Last updated: 2026-11-20
+> Interface baseline: Frontend v1.2.0-rc.3
 
 The feasibility result page is the technical gate between service preparation
 and yearly assessment. Read the overall verdict first, then inspect every
@@ -34,7 +34,7 @@ quantiles as Aggregate Q95.
 
 ## Start with General
 
-General summarizes the common evaluation context:
+For a feasible design, General summarizes the common evaluation context:
 
 - optimization mode and active decision basis;
 - overall feasibility status;
@@ -72,6 +72,16 @@ When a calculation is not determined, General lists the outcome of every
 selected block. The block view identifies the reason, any blocking vehicle
 block, and translated **How to resolve** guidance. Correct the indicated source
 data or configuration and run a separately named evaluation.
+
+An orange outcome means **feasible with Mean but infeasible with Q95**.
+The technical verdict and numeric data availability are independent: an
+infeasible Q95 result may contain consumption values or lack them.
+
+The demand scenario, optimization mode and outcome share the fleet header.
+Explanations for **Fleet evaluation**, **Batteries and bus investment**,
+**Charging infrastructure for the selected vehicle blocks** and **Charging
+infrastructure investment by site** are available through their information
+icons rather than repeated paragraphs.
 
 ### Infeasible configurations
 
@@ -132,7 +142,7 @@ including when another block makes the overall evaluation infeasible.
 
 ## Inspect every vehicle block
 
-The vehicle-block summary reports:
+For a physically verified vehicle block, the summary reports:
 
 - active Mean or Q95 total consumption;
 - active specific consumption in kWh/km;
