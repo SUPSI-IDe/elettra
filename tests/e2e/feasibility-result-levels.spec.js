@@ -84,6 +84,7 @@ const mountResults = async (page, {
   language = "en",
   gtfsProvenance,
   currentGtfs = [],
+  initializerOptions = {},
 } = {}) => {
   const requestedApiPaths = [];
   await page.addInitScript((selectedLanguage) => {
@@ -282,7 +283,7 @@ const mountResults = async (page, {
   });
 
   await page.goto("./");
-  await page.evaluate(async () => {
+  await page.evaluate(async (options) => {
     const template = await fetch(
       "/elettra/src/pages/Simulation/Runs/simulation-results.html",
     ).then((response) => response.text());
@@ -292,8 +293,9 @@ const mountResults = async (page, {
     );
     window.__cleanupSimulationResults = initializeSimulationResults(document, {
       runId: "level-test",
+      ...options,
     });
-  });
+  }, initializerOptions);
   return requestedApiPaths;
 };
 
@@ -386,6 +388,21 @@ for (const mode of ["battery_only", "charging_only", "joint"]) {
     await expect(energyAdequacy).toContainText("0.0 kWh");
     await expect(energyAdequacy).toContainText("Sensitivity drivers");
     await expect(page.locator('[data-role="feasibility-shift-sensitivity"]')).toHaveCount(0);
+
+    const assessment = await page.evaluate(async () => {
+      const { buildFeasibilityAssessment } = await import('/elettra/src/utils/feasibility-assessment.js');
+      const [optimizationRun, predictionRuns] = await Promise.all([
+        fetch('/api/v1/simulation/optimization-runs/level-test').then(response => response.json()),
+        fetch('/api/v1/simulation/prediction-runs/').then(response => response.json()),
+      ]);
+      return buildFeasibilityAssessment({ optimizationRun, predictionRuns, scope: 'morning' });
+    });
+    expect(assessment.decisionConsumption.totalKwh).toBe(meanDemandKwh);
+    expect(assessment.energyBalance.plannedChargingEnergyKwh).toBe(plannedChargingKwh);
+    expect(assessment.energyBalance.usableBatteryEnergyKwh).toBe(560);
+    expect(assessment.energyComparison.isDeficit).toBe(false);
+    const displayedDemand = Number((await consumptionMetric.locator('strong').textContent()).replace(/[^\d.-]/g, ''));
+    expect(displayedDemand).toBe(Math.round(assessment.decisionConsumption.totalKwh));
 
     if (mode === "charging_only") {
       await expect(
@@ -1139,6 +1156,22 @@ test("renders unavailable values safely when a historical result has no shift de
   await expect(page.locator('[data-role="feasibility-infrastructure-unavailable"]')).toBeVisible();
   await expect(page.locator('[data-role="feasibility-shift-summary"]')).toHaveCount(0);
   await expect(page.locator('[data-role="feasibility-charging-plan"]')).toHaveCount(0);
+});
+
+test('historical navigation keeps a block without saved identifiers unavailable', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await mountResults(page, { shiftIds: [], predictionRunIds: [],
+    includeBatteryResults: false, includePerBusSummary: false,
+    initializerOptions: { shiftId: 'historical-block', shiftName: 'Historical block' } });
+  await selectShiftScope(page, 'historical-block');
+  await expect(page.locator('[data-role="feasibility-shift-level"]')).toBeVisible();
+  const summary = page.locator('[data-role="feasibility-shift-summary"]');
+  await expect(summary).toContainText('Operational details are not available for this vehicle block.');
+  await expect(summary.locator('strong')).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-charging-plan"]')).toHaveCount(0);
+  await expect(page.locator('[data-role="feasibility-sizing-effect"]')).toHaveCount(0);
+  expect(errors).toEqual([]);
 });
 
 test("shows an overall infeasible status with no invented critical shifts", async ({ page }) => {

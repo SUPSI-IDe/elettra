@@ -1,3 +1,11 @@
+import {
+  applyUsableSocWindow,
+  resolveUsableSocFraction,
+  readPredictionTotalQuantiles,
+  buildPredictionComponentRows,
+  resolveOptimizedInstalledNominalKwh,
+} from '../../../utils/feasibility-predictions.js';
+import { buildFeasibilityAssessment } from '../../../utils/feasibility-assessment.js';
 import { bindInfoTooltips } from '../../../utils/info-tooltips';
 import { resultBatteryPolicy } from '../../../utils/battery-policy';
 import { renderBatteryAssumptions } from './battery-assumptions';
@@ -12,7 +20,7 @@ import { gridFromDc } from "../../../utils/charging-energy";
 import { t } from "../../../i18n";
 import { pairedFeasibility } from "../../../utils/paired-feasibility";
 import { renderInfeasibilitySummary, renderInfeasibilityContext, renderInfeasibilityInfo, renderInfeasibilityBattery } from "./infeasibility-diagnostics";
-import { buildInfeasibilityPresentation, infeasibilityDetailRun } from "../../../utils/infeasibility-presentation";
+import { buildInfeasibilityPresentation } from "../../../utils/infeasibility-presentation";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
 import {
@@ -77,7 +85,6 @@ import {
 } from "../../../utils/feasibility-demand-basis";
 import {
   ENERGY_BALANCE_TOLERANCE_KWH,
-  buildShiftEnergyBalance,
 } from "../../../utils/feasibility-energy-balance";
 import {
   buildFeasibilityResultModel,
@@ -88,7 +95,6 @@ import {
   buildFeasibilityFailureGuidance,
   FEASIBILITY_FAILURE_GUIDANCE,
 } from "../../../utils/feasibility-failure-guidance";
-import { buildFeasibilityViewState } from "../../../utils/feasibility-view-state";
 import { formatFeasibilityClockMinute } from "../../../utils/feasibility-charging-plan";
 import {
   hasShiftSelection,
@@ -3011,19 +3017,6 @@ const normalizeSocFraction = (value) => {
   return numeric > 1 ? numeric / 100 : numeric;
 };
 
-const resolveUsableSocFraction = (inputParams = {}) => {
-  try { return resultBatteryPolicy({ input_params: inputParams }).usable_fraction_initial; }
-  catch { return null; }
-};
-
-const applyUsableSocWindow = (nominalKwh, usableSocFraction) => {
-  const nominal = toOptionalFiniteNumber(nominalKwh);
-  if (nominal == null) return null;
-  if (usableSocFraction === null || usableSocFraction === undefined) return nominal;
-  const usable = toFiniteNumber(usableSocFraction);
-  return usable == null ? nominal : nominal * usable;
-};
-
 const buildUsableSocCapacityNoteHtml = () => "";
 
 const buildUsableSocTooltip = ({
@@ -3368,181 +3361,6 @@ const buildOptimizationBatteryChartData = (batteryResults = {}, viewOptions = {}
     }))
     .filter((row) => row.basePacks != null || row.optimizedPacks != null);
 
-const deriveSocKwh = (batteryCapacityKwh, socFraction) => {
-  const capacity = toFiniteNumber(batteryCapacityKwh);
-  const soc = toFiniteNumber(socFraction);
-
-  if (capacity == null || soc == null) return null;
-  return capacity * soc;
-};
-
-const buildUnifiedPredictionData = (predictionRuns, perBusSummary, batteryResults = {}, viewOptions = {}) => {
-  const allRuns = [...(predictionRuns ?? [])];
-  const policy = resultBatteryPolicy({ input_params: viewOptions?.inputParams });
-  const minSocFraction = policy.min_soc * policy.state_of_health;
-  const maxSocFraction = policy.max_soc * policy.state_of_health;
-  const selectedPredictionIds = new Set(
-    Object.values(viewOptions?.selectedPredictionRunIds ?? {})
-      .map((value) => String(value ?? "").trim())
-      .filter(Boolean)
-  );
-  const initialReferencePredictionIds = new Set(
-    Object.values(viewOptions?.initialReferencePredictionRunIds ?? {})
-      .map((value) => String(value ?? "").trim())
-      .filter(Boolean)
-  );
-
-  const sorted = scopePredictionRunsByShift(allRuns, viewOptions);
-
-  const perBusArr = Array.isArray(perBusSummary) ? perBusSummary : [];
-  const filteredPerBus = hasShiftSelection(viewOptions)
-    ? perBusArr.filter((entry) =>
-        matchesSelectedShift(entry, "", viewOptions)
-      )
-    : perBusArr;
-
-  const optimizedPackSet = new Set(
-    Object.entries(batteryResults ?? {})
-      .filter(([shiftKey, result]) =>
-        matchesSelectedShift(result, shiftKey, viewOptions)
-      )
-      .map(([, result]) => toFiniteNumber(result?.optimized_packs))
-      .filter((value) => value != null)
-  );
-  const referencePackSet = new Set(
-    Object.entries(batteryResults ?? {})
-      .filter(([shiftKey, result]) =>
-        matchesSelectedShift(result, shiftKey, viewOptions)
-      )
-      .map(([, result]) => toFiniteNumber(result?.reference_packs))
-      .filter((value) => value != null)
-  );
-  const maxPhysicalPackSet = new Set(
-    Object.entries(batteryResults ?? {})
-      .filter(([shiftKey, result]) =>
-        matchesSelectedShift(result, shiftKey, viewOptions)
-      )
-      .map(([, result]) => toFiniteNumber(result?.max_physical_packs))
-      .filter((value) => value != null)
-  );
-
-  const rows = sorted.map((run) => {
-    const cp = run?.contextual_parameters ?? {};
-    const s = run?.summary ?? {};
-    const packs = toFiniteNumber(cp.num_battery_packs);
-    const batteryCapacityKwh = toFiniteNumber(cp.battery_capacity_kwh);
-    const totalQuantiles = readPredictionTotalQuantiles(s, { kind: "absolute" });
-    const perKmQuantiles = readPredictionTotalQuantiles(s, { kind: "per_km" });
-    const componentRows = buildPredictionQuantileRows(s, "absolute");
-    const meanDrivetrainKwh = toOptionalFiniteNumber(
-      componentRows.find((row) => row.key === "drivetrain")?.mean
-    );
-    const meanAuxiliaryKwh = toOptionalFiniteNumber(
-      componentRows.find((row) => row.key === "auxiliary")?.mean
-    );
-    const totalConsumptionMeanKwh = toOptionalFiniteNumber(s.total_consumption_kwh);
-    const totalConsumptionQ05Kwh = toOptionalFiniteNumber(totalQuantiles?.q05);
-    const totalConsumptionQ50Kwh = toOptionalFiniteNumber(totalQuantiles?.q50);
-    const totalConsumptionQ95Kwh = toOptionalFiniteNumber(totalQuantiles?.q95);
-    const consumptionPerKmMeanKwh = toOptionalFiniteNumber(s.consumption_per_km_kwh);
-    const consumptionPerKmQ05Kwh = toOptionalFiniteNumber(perKmQuantiles?.q05);
-    const consumptionPerKmQ50Kwh = toOptionalFiniteNumber(perKmQuantiles?.q50);
-    const consumptionPerKmQ95Kwh = toOptionalFiniteNumber(perKmQuantiles?.q95);
-    const matchedBus = filteredPerBus.find((entry) => {
-      const entryPacks = toFiniteNumber(entry?.optimized_packs ?? entry?.num_battery_packs);
-      return entryPacks != null && entryPacks === packs;
-    }) ?? {};
-
-    const runId = String(run?.id ?? "").trim();
-    const selectedById = Boolean(runId) && selectedPredictionIds.has(runId);
-    const initialReferenceById =
-      Boolean(runId) && initialReferencePredictionIds.has(runId);
-    const isOptimized = selectedById || (
-      selectedPredictionIds.size === 0 &&
-      packs != null &&
-      optimizedPackSet.has(packs)
-    );
-    const isInitialReference = initialReferenceById || (
-      initialReferencePredictionIds.size === 0 &&
-      packs != null &&
-      referencePackSet.has(packs)
-    );
-    const isMaximumPhysical =
-      packs != null && maxPhysicalPackSet.has(packs);
-    const predictionRole = isOptimized
-      ? isInitialReference
-        ? "selected_reference"
-        : "selected"
-      : isInitialReference
-        ? isMaximumPhysical
-          ? "initial_max_physical"
-          : "initial_reference"
-        : "verification";
-
-    return {
-      runId,
-      numBatteryPacks: packs,
-      batteryCapacityKwh,
-      totalWeightKg: toFiniteNumber(cp.total_weight_kg),
-      totalDistanceKm: toFiniteNumber(s.total_distance_km),
-      totalConsumptionKwh: totalConsumptionMeanKwh,
-      totalConsumptionQ05Kwh,
-      totalConsumptionMeanKwh,
-      totalConsumptionMedianKwh: totalConsumptionQ50Kwh,
-      totalConsumptionQ95Kwh,
-      consumptionPerKmKwh: consumptionPerKmMeanKwh,
-      consumptionPerKmQ05Kwh,
-      consumptionPerKmMeanKwh,
-      consumptionPerKmMedianKwh: consumptionPerKmQ50Kwh,
-      consumptionPerKmQ95Kwh,
-      totalDrivetrainKwh: meanDrivetrainKwh,
-      totalAuxiliaryKwh: meanAuxiliaryKwh,
-      minSocKwh:
-        deriveSocKwh(batteryCapacityKwh, minSocFraction) ??
-        toFiniteNumber(matchedBus.min_soc_kwh),
-      maxSocKwh:
-        deriveSocKwh(batteryCapacityKwh, maxSocFraction) ??
-        toFiniteNumber(matchedBus.max_soc_kwh),
-      isOptimized,
-      isVerifiedSelection:
-        isOptimized && viewOptions?.forecastVerificationStatus === "verified",
-      predictionRole,
-    };
-  });
-
-  if (!optimizedPackSet.size) {
-    const bestRow = rows.reduce((best, row) => {
-      if (row.consumptionPerKmMeanKwh == null) return best;
-      if (!best || row.consumptionPerKmMeanKwh < best.consumptionPerKmMeanKwh) {
-        return row;
-      }
-      return best;
-    }, null);
-    if (bestRow?.numBatteryPacks != null) {
-      optimizedPackSet.add(bestRow.numBatteryPacks);
-    }
-  }
-
-  return rows.map((row) => {
-    if (row.isOptimized || optimizedPackSet.size === 0) return row;
-    if (selectedPredictionIds.size > 0) return row;
-    if (row.numBatteryPacks == null || !optimizedPackSet.has(row.numBatteryPacks)) {
-      return row;
-    }
-    return {
-      ...row,
-      isOptimized: true,
-      isVerifiedSelection:
-        viewOptions?.forecastVerificationStatus === "verified",
-      predictionRole:
-        row.predictionRole === "initial_max_physical" ||
-        row.predictionRole === "initial_reference"
-          ? "selected_reference"
-          : "selected",
-    };
-  });
-};
-
 const formatOptionalFixed = (val, dec = 1) =>
   val === null || val === undefined ? "—" : formatFixed(val, dec);
 
@@ -3624,7 +3442,6 @@ const buildUnifiedPredictionRows = (rows, { includePerBus = false } = {}) =>
   })
     .join("");
 
-const PREDICTION_QUANTILE_KEYS = ["q05", "q50", "q95"];
 const PREDICTION_DISTRIBUTION_KEYS = ["q05", "mean", "q50", "q95"];
 const PREDICTION_CONSUMPTION_COLORS = {
   drivetrain: "#6fbeec",
@@ -3647,102 +3464,8 @@ const predictionConsumptionLabel = (key) =>
     total: t("simulation.predictions_consumption_total") || "Total",
   })[key] ?? key;
 
-const readPredictionQuantiles = (summary = {}, candidateKeys = []) => {
-  const sourceKey = candidateKeys.find((key) => {
-    const value = summary?.[key];
-    return value && typeof value === "object" && !Array.isArray(value);
-  });
-  const source = sourceKey ? summary[sourceKey] : {};
-
-  return Object.fromEntries(
-    PREDICTION_QUANTILE_KEYS.map((key) => [key, toFiniteNumber(source?.[key])])
-  );
-};
-
-const hasPredictionQuantiles = (quantiles = {}) =>
-  PREDICTION_QUANTILE_KEYS.some((key) => quantiles?.[key] != null);
-
-const readPredictionTotalQuantiles = (
-  summary = {},
-  { kind = "absolute" } = {}
-) =>
-  readPredictionQuantiles(
-    summary,
-    kind === "per_km"
-      ? [
-          "consumption_per_km_kwh_quantiles",
-          "total_consumption_per_km_kwh_quantiles",
-          "total_per_km_kwh_quantiles",
-        ]
-      : ["quantiles", "total_quantiles", "consumption_quantiles"]
-  );
-
-const readPredictionTotalQuantileValue = (
-  summary = {},
-  { kind = "absolute", quantileKey = "q50" } = {}
-) => toFiniteNumber(readPredictionTotalQuantiles(summary, { kind })?.[quantileKey]);
-
-const subtractPredictionQuantiles = (total = {}, drivetrain = {}) =>
-  Object.fromEntries(
-    PREDICTION_QUANTILE_KEYS.map((key) => {
-      const totalValue = toFiniteNumber(total?.[key]);
-      const drivetrainValue = toFiniteNumber(drivetrain?.[key]);
-      return [
-        key,
-        totalValue != null && drivetrainValue != null
-          ? totalValue - drivetrainValue
-          : null,
-      ];
-    })
-  );
-
-const buildPredictionQuantileRows = (summary = {}, kind = "absolute") => {
-  const isPerKm = kind === "per_km";
-  const totalQuantiles = readPredictionTotalQuantiles(summary, {
-    kind: isPerKm ? "per_km" : "absolute",
-  });
-  const drivetrainQuantiles = readPredictionQuantiles(
-    summary,
-    isPerKm ? ["drivetrain_per_km_kwh_quantiles"] : ["drivetrain_quantiles"]
-  );
-  const auxiliaryQuantilesDirect = readPredictionQuantiles(
-    summary,
-    isPerKm ? ["auxiliary_per_km_kwh_quantiles"] : ["auxiliary_quantiles"]
-  );
-  const auxiliaryQuantiles = hasPredictionQuantiles(auxiliaryQuantilesDirect)
-    ? auxiliaryQuantilesDirect
-    : subtractPredictionQuantiles(totalQuantiles, drivetrainQuantiles);
-
-  return [
-    {
-      key: "drivetrain",
-      label: predictionConsumptionLabel("drivetrain"),
-      mean: toFiniteNumber(
-        isPerKm ? summary?.drivetrain_per_km_kwh : summary?.total_drivetrain_kwh
-      ),
-      quantiles: drivetrainQuantiles,
-      derived: false,
-    },
-    {
-      key: "auxiliary",
-      label: predictionConsumptionLabel("auxiliary"),
-      mean: toFiniteNumber(
-        isPerKm ? summary?.auxiliary_per_km_kwh : summary?.total_auxiliary_kwh
-      ),
-      quantiles: auxiliaryQuantiles,
-      derived: !hasPredictionQuantiles(auxiliaryQuantilesDirect),
-    },
-    {
-      key: "total",
-      label: predictionConsumptionLabel("total"),
-      mean: toFiniteNumber(
-        isPerKm ? summary?.consumption_per_km_kwh : summary?.total_consumption_kwh
-      ),
-      quantiles: totalQuantiles,
-      derived: false,
-    },
-  ].filter((row) => row.mean != null || hasPredictionQuantiles(row.quantiles));
-};
+const buildPredictionQuantileRows = (summary = {}, kind = 'absolute') =>
+  buildPredictionComponentRows(summary, kind).map(row => ({ ...row, label: predictionConsumptionLabel(row.key) }));
 
 const buildPredictionScenarioTitle = (run = {}, index = 0) => {
   const packs = toFiniteNumber(run?.contextual_parameters?.num_battery_packs);
@@ -3855,20 +3578,16 @@ const buildPredictionOverviewData = (
       const summary = run?.summary ?? {};
       const packs = toFiniteNumber(run?.contextual_parameters?.num_battery_packs);
       const totalQuantiles = readPredictionTotalQuantiles(summary, { kind });
-      const mean = toFiniteNumber(
-        kind === "per_km"
-          ? summary?.consumption_per_km_kwh
-          : summary?.total_consumption_kwh
-      );
+      const mean = buildPredictionComponentRows(summary, kind).find(row => row.key === 'total')?.mean ?? null;
 
       return {
         scenarioLabel:
           packs != null ? formatFixed(packs, 0) : String(index + 1),
         scenarioTitle: buildPredictionScenarioTitle(run, index),
-        q05: toFiniteNumber(totalQuantiles?.q05),
+        q05: totalQuantiles.q05,
         mean,
-        q50: toFiniteNumber(totalQuantiles?.q50),
-        q95: toFiniteNumber(totalQuantiles?.q95),
+        q50: totalQuantiles.q50,
+        q95: totalQuantiles.q95,
       };
     })
     .filter(
@@ -5757,114 +5476,10 @@ const renderOptimizationBatteryChart = (el, rows) => {
   el.appendChild(svg.node());
 };
 
-const resolveSinglePackCapacityKwh = (predictionRun = {}, batteryResults = {}, viewOptions = {}) => {
-  const cp = predictionRun?.contextual_parameters ?? {};
-  const predictionCapacity = toOptionalFiniteNumber(cp.battery_capacity_kwh);
-  const predictionPacks = toOptionalFiniteNumber(cp.num_battery_packs);
-  if (predictionCapacity != null && predictionPacks > 0) {
-    return predictionCapacity / predictionPacks;
-  }
-
-  const batteryEntry = Object.entries(batteryResults ?? {})
-    .find(([shiftKey, result]) => matchesSelectedShift(result, shiftKey, viewOptions))?.[1];
-  const maxPhysicalKwh = toOptionalFiniteNumber(batteryEntry?.max_physical_kwh);
-  const maxPhysicalPacks = toOptionalFiniteNumber(batteryEntry?.max_physical_packs);
-  if (maxPhysicalKwh != null && maxPhysicalPacks > 0) {
-    return maxPhysicalKwh / maxPhysicalPacks;
-  }
-
-  return null;
-};
-
-const resolveOptimizedInstalledNominalKwh = ({
-  batteryEntry = {},
-  matchedRun = null,
-  scopedRuns = [],
-  batteryResults = {},
-  viewOptions = {},
-} = {}) => {
-  const optimizedPacks = toOptionalFiniteNumber(batteryEntry?.optimized_packs);
-  const matchedRunCapacity = toOptionalFiniteNumber(
-    matchedRun?.contextual_parameters?.battery_capacity_kwh
-  );
-  const matchedRunPacks = toOptionalFiniteNumber(
-    matchedRun?.contextual_parameters?.num_battery_packs
-  );
-  if (
-    optimizedPacks != null &&
-    matchedRunCapacity != null &&
-    matchedRunPacks === optimizedPacks
-  ) {
-    return matchedRunCapacity;
-  }
-
-  const maxPhysicalKwh = toOptionalFiniteNumber(batteryEntry?.max_physical_kwh);
-  const maxPhysicalPacks = toOptionalFiniteNumber(batteryEntry?.max_physical_packs);
-  if (
-    optimizedPacks != null &&
-    maxPhysicalKwh != null &&
-    maxPhysicalPacks === optimizedPacks
-  ) {
-    return maxPhysicalKwh;
-  }
-
-  if (optimizedPacks != null) {
-    const singlePackCapacityKwh = resolveSinglePackCapacityKwh(
-      matchedRun ?? scopedRuns[0] ?? {},
-      batteryResults,
-      viewOptions
-    );
-    if (singlePackCapacityKwh != null) {
-      return singlePackCapacityKwh * optimizedPacks;
-    }
-  }
-
-  return toOptionalFiniteNumber(batteryEntry?.optimized_kwh);
-};
-
-const resolveOptimizedBatteryCoverageMarker = (
-  predictionRuns = [],
-  batteryResults = {},
-  inputParams = {},
-  viewOptions = {}
-) => {
-  const scopedRuns = scopePredictionRunsByShift(predictionRuns, viewOptions);
-  const batteryEntries = Object.entries(batteryResults ?? {})
-    .filter(([shiftKey, result]) => matchesSelectedShift(result, shiftKey, viewOptions))
-    .map(([, result]) => result);
-  const optimizedPacksValues = batteryEntries
-    .map((entry) => toFiniteNumber(entry?.optimized_packs))
-    .filter((value) => value != null);
-  const optimizedPacks = optimizedPacksValues.length ? d3.max(optimizedPacksValues) : null;
-  const batteryEntryForOptimized =
-    batteryEntries.find(
-      (entry) => toFiniteNumber(entry?.optimized_packs) === optimizedPacks
-    ) ?? batteryEntries[0] ?? {};
-  const matchedRun =
-    optimizedPacks == null
-      ? null
-      : scopedRuns.find(
-          (run) =>
-            toFiniteNumber(run?.contextual_parameters?.num_battery_packs) ===
-            optimizedPacks
-        ) ?? null;
-  const matchedRunIndex = matchedRun ? scopedRuns.indexOf(matchedRun) : -1;
-
-  const optimizedNominalKwh = resolveOptimizedInstalledNominalKwh({
-    batteryEntry: batteryEntryForOptimized,
-    matchedRun,
-    scopedRuns,
-    batteryResults,
-    viewOptions,
-  });
-
-  const optimizedCoveredKwh =
-    applyUsableSocWindow(optimizedNominalKwh, resolveUsableSocFraction(inputParams)) ??
-    optimizedNominalKwh;
-
-  if (optimizedCoveredKwh == null) {
-    return null;
-  }
+const resolveOptimizedBatteryCoverageMarker = (coverage) => {
+  if (!coverage) return null;
+  const { optimizedPacks, matchedRun, matchedRunIndex,
+    nominalKwh: optimizedNominalKwh, usableKwh: optimizedCoveredKwh } = coverage;
 
   const scenarioLabel =
     optimizedPacks != null
@@ -6762,121 +6377,10 @@ const shiftMetricValue = (value, unit = "", { signed = false, decimals = 0 } = {
   return textContent(`${prefix}${formatFixed(numeric, decimals)}${unit ? ` ${unit}` : ""}`);
 };
 
-const resolveShiftDecisionConsumption = (
-  predictionData,
-  results,
-  inputParams,
-  selectedShiftId,
-) => {
-  const basis = resolveFeasibilityDemandBasis(inputParams);
-  const selectedPrediction = predictionData.find((row) => row.isOptimized) ??
-    predictionData[0] ?? null;
-  const perShiftAnalysis = results?.consumption_analysis?.per_shift ?? {};
-  const normalizedShiftId = String(selectedShiftId ?? "").trim();
-  const shiftAnalysis = perShiftAnalysis?.[normalizedShiftId] ??
-    Object.entries(perShiftAnalysis).find(([shiftKey, detail]) =>
-      [shiftKey, detail?.shift_id, detail?.id]
-        .map((value) => String(value ?? "").trim())
-        .includes(normalizedShiftId)
-    )?.[1] ?? null;
-  const analysisStatistics = shiftAnalysis?.statistics ?? {};
-  const analysisCases = shiftAnalysis?.cases ?? {};
-  const aggregateAnalysisAvailable =
-    results?.consumption_analysis?.status === "available" &&
-    shiftAnalysis?.status === "available";
-  const finite = (...values) =>
-    values
-      .map((value) => toOptionalFiniteNumber(value))
-      .find((value) => value !== null) ?? null;
-  const shiftSummary = (Array.isArray(results?.per_bus_summary)
-    ? results.per_bus_summary
-    : []
-  ).find((summary) =>
-    [summary?.shift_id, summary?.id]
-      .map((value) => String(value ?? "").trim())
-      .includes(normalizedShiftId)
-  );
-  const timelineSoc = Array.isArray(shiftSummary?.energy_timeline?.soc_kwh)
-    ? shiftSummary.energy_timeline.soc_kwh.map((value) =>
-        toOptionalFiniteNumber(value)
-      )
-    : [];
-  const timelineCharge = Array.isArray(shiftSummary?.energy_timeline?.charge_kwh)
-    ? shiftSummary.energy_timeline.charge_kwh.map((value) =>
-        toOptionalFiniteNumber(value)
-      )
-    : [];
-  const timelineChargeTotal =
-    timelineCharge.length && timelineCharge.every((value) => value !== null)
-      ? timelineCharge.reduce((sum, value) => sum + value, 0)
-      : null;
-  const chargedEnergyKwh = finite(
-    timelineChargeTotal,
-    shiftSummary?.total_charged_kwh,
-  );
-  const timelineNetDemandKwh =
-    timelineSoc.length >= 2 &&
-    timelineSoc[0] !== null &&
-    timelineSoc[timelineSoc.length - 1] !== null &&
-    chargedEnergyKwh !== null
-      ? Math.max(
-          0,
-          timelineSoc[0] +
-            chargedEnergyKwh -
-            timelineSoc[timelineSoc.length - 1],
-        )
-      : null;
-
-  let analysisTotalKwh = null;
-  let predictionTotalKwh = null;
-  let predictionPerKmKwh = null;
-  if (basis === FEASIBILITY_DEMAND_BASIS.AGGREGATE_Q95) {
-    // The prediction summary Q95 is the sum of the per-trip Q95 values. It is
-    // not the aggregate Q95 profile used by the optimizer and therefore must
-    // never be presented as the decision-basis shift demand. The aggregate
-    // value is published only after the fixed design has been verified.
-    analysisTotalKwh = aggregateAnalysisAvailable
-      ? finite(
-          analysisStatistics.q95_total_kwh,
-          analysisCases.aggregate_q95?.total_consumption_kwh,
-        )
-      : timelineNetDemandKwh;
-  } else if (basis === FEASIBILITY_DEMAND_BASIS.Q50) {
-    predictionTotalKwh = selectedPrediction?.totalConsumptionMedianKwh ?? null;
-    predictionPerKmKwh = selectedPrediction?.consumptionPerKmMedianKwh ?? null;
-  } else {
-    analysisTotalKwh = aggregateAnalysisAvailable
-      ? finite(
-          analysisStatistics.mean_total_kwh,
-          analysisCases.mean?.total_consumption_kwh,
-        )
-      : timelineNetDemandKwh;
-    predictionTotalKwh = selectedPrediction?.totalConsumptionMeanKwh ?? null;
-    predictionPerKmKwh = selectedPrediction?.consumptionPerKmMeanKwh ?? null;
-  }
-
-  const totalKwh = finite(analysisTotalKwh, predictionTotalKwh);
-  const distanceKm = toOptionalFiniteNumber(selectedPrediction?.totalDistanceKm);
-  const perKmKwh = analysisTotalKwh !== null && distanceKm !== null && distanceKm > 0
-    ? analysisTotalKwh / distanceKm
-    : finite(
-        predictionPerKmKwh,
-        totalKwh !== null && distanceKm !== null && distanceKm > 0
-          ? totalKwh / distanceKm
-          : null,
-      );
-
-  return { totalKwh, perKmKwh, basis,
-    source: totalKwh === null ? "unavailable" : analysisTotalKwh !== null
-      ? aggregateAnalysisAvailable ? "aggregate_profile" : "solver_trajectory" : "reference_forecast",
-    referencePacks: selectedPrediction?.numBatteryPacks ?? null,
-  };
-};
-
 const buildSizingConsumptionEffectHtml = (
   predictionData = [],
-  decisionConsumption = {},
   inputParams = {},
+  sizingEffect = {},
 ) => {
   const selectedPrediction = predictionData.find((row) => row.isOptimized) ??
     predictionData[0] ?? null;
@@ -6905,24 +6409,8 @@ const buildSizingConsumptionEffectHtml = (
       <td class="efficiency-td-num">${formatOptionalFixed(row.consumptionPerKmMeanKwh, 3)}</td>
     </tr>`).join("");
 
-  const decisionTotalKwh = toOptionalFiniteNumber(decisionConsumption.totalKwh);
-  const decisionPerKmKwh = toOptionalFiniteNumber(decisionConsumption.perKmKwh);
+  const { decisionTotalKwh, decisionPerKmKwh, decisionAuxiliaryKwh, decisionDrivetrainKwh } = sizingEffect;
   const decisionBasis = feasibilityDemandBasisLabel(inputParams);
-  const selectedMeanKwh = toOptionalFiniteNumber(selectedPrediction.totalConsumptionMeanKwh);
-  const meanDrivetrainKwh = toOptionalFiniteNumber(selectedPrediction.totalDrivetrainKwh);
-  const meanAuxiliaryKwh = toOptionalFiniteNumber(selectedPrediction.totalAuxiliaryKwh);
-  const componentSumKwh = meanDrivetrainKwh !== null && meanAuxiliaryKwh !== null
-    ? meanDrivetrainKwh + meanAuxiliaryKwh
-    : null;
-  const componentsAreCoherent = componentSumKwh !== null && selectedMeanKwh !== null &&
-    Math.abs(componentSumKwh - selectedMeanKwh) <= Math.max(0.1, Math.abs(selectedMeanKwh) * 0.001);
-  // Auxiliary demand is deterministic for the selected operating conditions. For
-  // Q50/Q95, the aggregate decision total therefore changes the drivetrain share.
-  const decisionAuxiliaryKwh = componentsAreCoherent ? meanAuxiliaryKwh : null;
-  const decisionDrivetrainKwh = decisionTotalKwh !== null && decisionAuxiliaryKwh !== null &&
-    decisionTotalKwh >= decisionAuxiliaryKwh
-    ? decisionTotalKwh - decisionAuxiliaryKwh
-    : null;
 
   return `
     <section class="efficiency-section feasibility-sizing-effect" data-role="feasibility-sizing-effect">
@@ -7349,20 +6837,15 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
 
   const { optimizationRun: savedRun, predictionRuns } = state;
   const resultScope = viewOptions?.resultScope === "shift" ? "shift" : "general";
-  const infeasibility = buildInfeasibilityPresentation(savedRun, {
-    shiftNamesById: viewOptions?.shiftNamesById,
+  const assessment = buildFeasibilityAssessment({
+    optimizationRun: savedRun, predictionRuns,
+    currentBusModel: viewOptions.currentBusModel,
+    shiftNamesById: viewOptions.shiftNamesById,
+    scope: resultScope === 'shift' ? viewOptions.selectedShiftId : 'general',
   });
-  const infeasibleShift = infeasibility.rows.find(row => row.shiftId === viewOptions.selectedShiftId);
-  const diagnosticDetail = infeasibility.active && resultScope === "shift" &&
-    (infeasibleShift?.source !== "result" || infeasibleShift.critical);
-  const optimizationRun = diagnosticDetail ? infeasibilityDetailRun(savedRun, infeasibleShift) : savedRun;
-  const feasibilityModel = buildFeasibilityResultModel(optimizationRun, {
-    shiftNamesById: viewOptions?.shiftNamesById,
-  });
-  const feasibilityViewState = buildFeasibilityViewState(
-    feasibilityModel,
-    resultScope === "shift" ? viewOptions?.selectedShiftId : null
-  );
+  const { run: optimizationRun, infeasibility, diagnosticRow: infeasibleShift,
+    isDiagnostic: diagnosticDetail, model: feasibilityModel, viewState: feasibilityViewState,
+    predictionRuns: scopedPredictionRuns } = assessment;
   if (feasibilityModel.failure) {
     el.innerHTML = buildFeasibilityFailureHtml(
       feasibilityModel,
@@ -7371,26 +6854,18 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     );
     return;
   }
-  const scopedPredictionRuns = scopePredictionRunsByShift(
-    predictionRuns,
-    viewOptions
-  );
   const ip = optimizationRun?.input_params ?? {};
   const results = optimizationRun?.results ?? {};
-  if (infeasibility.active && resultScope === "general") {
+  if (resultScope === "general") {
+    const names = new Map(feasibilityModel.shifts.map(shift => [shift.shiftId, shift.shiftName]));
     el.innerHTML = buildFeasibilityGeneralLevelHtml(feasibilityViewState, ip,
-      optimizationRun, viewOptions.currentBusModel, viewOptions?.shiftNamesById);
+      optimizationRun, viewOptions.currentBusModel, names) +
+      (infeasibility.active || feasibilityViewState.general.electrificationFeasible === false ? '' : renderDepotCycle(optimizationRun));
     return;
   }
   const firstRun = scopedPredictionRuns[0] ?? {};
-  const perBusSummary = results.per_bus_summary ?? [];
   const batteryResults = results.battery_results ?? {};
-  const savedPackCapacityKwh = diagnosticDetail ? toOptionalFiniteNumber(infeasibleShift?.battery.pack_size_kwh) : null;
-  const singlePackCapacityKwh = savedPackCapacityKwh > 0 ? savedPackCapacityKwh : resolveSinglePackCapacityKwh(
-    firstRun,
-    batteryResults,
-    viewOptions
-  );
+  const singlePackCapacityKwh = assessment.singlePackCapacityKwh;
   const heatingTranslationKey = getAuxiliaryHeatingTranslationKey(
     firstRun.auxiliary_heating_type,
   );
@@ -7443,70 +6918,15 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     results.electrification_feasible !== false &&
     (resultScope !== "shift" || selectedShiftFeasible !== false);
 
-  const predictionData = buildUnifiedPredictionData(
-    scopedPredictionRuns,
-    perBusSummary,
-    batteryResults,
-    {
-      ...viewOptions,
-      inputParams: ip,
-      initialReferencePredictionRunIds:
-        results.initial_reference_prediction_run_ids,
-      selectedPredictionRunIds: results.selected_prediction_run_ids,
-      forecastVerificationStatus: results.forecast_verification?.status,
-    }
-  );
+  const predictionData = assessment.predictions;
   const consumptionOverviewData = buildPredictionOverviewData(
     scopedPredictionRuns,
     { kind: "absolute" }
   );
-  const optimizedCoverageMarker = resolveOptimizedBatteryCoverageMarker(
-    scopedPredictionRuns,
-    batteryResults,
-    ip,
-    viewOptions
-  );
-  const adequacyScenario = optimizedCoverageMarker
-    ? consumptionOverviewData.find(
-        (item) => item?.scenarioLabel === optimizedCoverageMarker.scenarioLabel
-      ) ?? null
-    : null;
+  const optimizedCoverageMarker = resolveOptimizedBatteryCoverageMarker(assessment.batteryCoverage);
   const selectedShiftSummary = feasibilityViewState?.selectedShiftSummary ?? null;
   const diagnosticShiftBattery = hasDiagnosticShiftBattery(selectedShiftSummary?.battery);
-  const appliedPolicy = resultBatteryPolicy(optimizationRun);
-  const minimumSocFraction = appliedPolicy.min_soc;
-  const maximumSocFraction = appliedPolicy.max_soc;
-  const optimizedNominalKwh = toOptionalFiniteNumber(
-    optimizedCoverageMarker?.nominalKwh
-  );
-  const minimumAllowedSocKwh =
-    optimizedNominalKwh != null &&
-    minimumSocFraction != null
-      ? optimizedNominalKwh * appliedPolicy.state_of_health * minimumSocFraction
-      : null;
-  const maximumAllowedSocKwh =
-    optimizedNominalKwh != null &&
-    maximumSocFraction != null
-      ? optimizedNominalKwh * appliedPolicy.state_of_health * maximumSocFraction
-      : null;
-  const energyBalance = optimizedCoverageMarker
-    ? buildShiftEnergyBalance({
-        usableBatteryEnergyKwh: optimizedCoverageMarker.value,
-        plannedChargingEnergyKwh:
-          selectedShiftSummary?.operation?.totalChargedKwh,
-        q05DemandKwh: adequacyScenario?.q05,
-        meanDemandKwh: adequacyScenario?.mean,
-        q50DemandKwh: adequacyScenario?.q50,
-        q95DemandKwh: adequacyScenario?.q95,
-        meanScheduleFeasible: selectedShiftSummary?.battery?.physicalFeasible,
-        minimumSocKwh: selectedShiftSummary?.operation?.minSocKwh,
-        minimumAllowedSocKwh,
-        maximumSocKwh: selectedShiftSummary?.operation?.maxSocKwh,
-        maximumAllowedSocKwh,
-        minimumSocFraction,
-        maximumSocFraction,
-      })
-    : null;
+  const energyBalance = assessment.energyBalance;
   const energyCoverageMarker = optimizedCoverageMarker && energyBalance
     ? {
         ...optimizedCoverageMarker,
@@ -7526,16 +6946,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           : optimizedCoverageMarker.tooltipLines,
       }
     : optimizedCoverageMarker;
-  const shiftDecisionConsumption = resolveShiftDecisionConsumption(
-    predictionData,
-    results,
-    ip,
-    viewOptions?.selectedShiftId,
-  );
-  const diagnosticChargingKwh = toOptionalFiniteNumber(selectedShiftSummary?.operation?.totalChargedKwh);
-  const diagnosticConsumptionComparable = diagnosticChargingKwh !== null &&
-    (shiftDecisionConsumption.source !== "reference_forecast" ||
-      shiftDecisionConsumption.referencePacks === infeasibleShift?.selected);
+  const shiftDecisionConsumption = assessment.decisionConsumption;
+  const diagnosticConsumptionComparable = assessment.diagnosticConsumptionComparable;
   const optimizationHtml = diagnosticDetail &&
     (!infeasibleShift?.source || infeasibleShift.required === null || infeasibleShift.maximum === null)
     ? `<p data-role="infeasibility-optimization-unavailable">${textContent(t("simulation.infeasibility_optimization_unavailable"))}</p>`
@@ -7548,23 +6960,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       toOptionalFiniteNumber(viewOptions?.costInputs?.predictedShiftConsumptionKwh) ??
       toOptionalFiniteNumber(firstRun?.summary?.total_consumption_kwh),
   });
-  const shiftDecisionDemandKwh = toOptionalFiniteNumber(
-    shiftDecisionConsumption.totalKwh,
-  );
-  const savedUsableEnergyKwh = toOptionalFiniteNumber(infeasibleShift?.battery.battery_energy?.usable_capacity_kwh);
-  const shiftAvailableEnergyKwh = diagnosticDetail && !diagnosticConsumptionComparable
-    ? null : diagnosticDetail && savedUsableEnergyKwh !== null
-      ? savedUsableEnergyKwh + diagnosticChargingKwh
-      : toOptionalFiniteNumber(energyBalance?.comparisonEnergyKwh);
-  const shiftEnergyComparison = {
-    demandKwh: shiftDecisionDemandKwh,
-    availableKwh: shiftAvailableEnergyKwh,
-    isDeficit:
-      shiftDecisionDemandKwh !== null &&
-      shiftAvailableEnergyKwh !== null &&
-      shiftAvailableEnergyKwh + ENERGY_BALANCE_TOLERANCE_KWH <
-        shiftDecisionDemandKwh,
-  };
+  const shiftEnergyComparison = assessment.energyComparison;
 
   const chartCards = [];
 
@@ -7623,8 +7019,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
   const sizingEffectHtml = showPredictionDiagnostics
     ? buildSizingConsumptionEffectHtml(
         predictionData,
-        shiftDecisionConsumption,
         ip,
+        assessment.sizingEffect,
       )
     : "";
 
@@ -7636,17 +7032,6 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
     energyBalance
   );
 
-  const resolvedShiftNamesById = new Map(
-    feasibilityModel.shifts.map((shift) => [shift.shiftId, shift.shiftName]),
-  );
-  const generalLevelHtml = buildFeasibilityGeneralLevelHtml(
-    feasibilityViewState,
-    ip,
-    optimizationRun,
-    viewOptions.currentBusModel,
-    resolvedShiftNamesById,
-  ) + (feasibilityViewState?.general?.electrificationFeasible === false
-    ? "" : renderDepotCycle(optimizationRun));
   const shiftLevelHtml = `
     <section class="feasibility-level feasibility-level--shift" data-role="feasibility-shift-level">
       ${buildFeasibilityShiftLevelHeaderHtml(
@@ -7687,7 +7072,7 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
       </div>
     </section>`;
 
-  el.innerHTML = resultScope === "shift" ? shiftLevelHtml : generalLevelHtml;
+  el.innerHTML = shiftLevelHtml;
   bindAggregateEnergy(el, optimizationRun);
 
   renderEfficiencyEnergySplitChart(
