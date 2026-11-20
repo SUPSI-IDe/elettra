@@ -105,10 +105,16 @@ unverified results remain separate from proven infeasibility. Feasible results
 retain their existing summary and operational detail.
 
 Infeasible vehicle-block details use one layout for both saved optimizer
-results and separate diagnostics: block summary, constraint explanation,
+results and separate diagnostics: block summary,
 battery graphic, and **More information** with the saved operating conditions.
 Unavailable battery details keep an explicit placeholder in the same layout.
-Consumption is labelled as a diagnostic solver trajectory, a reference
+The tooltip beside the outcome explains identified battery or charging constraints.
+The battery estimate and colour legend have their own tooltips; numeric limits
+and missing packs remain visible without repeated explanatory paragraphs.
+General table headings explain estimated and missing packs in tooltips.
+Help is available by hover, keyboard focus, or tap; Escape closes it.
+
+The consumption tooltip identifies a diagnostic solver trajectory, a reference
 forecast at its recorded pack count, or an unavailable value. Missing aggregate
 Q95 is never replaced by summed per-trip quantiles. Energy-deficit comparisons
 require a known charging amount and a compatible consumption reference.

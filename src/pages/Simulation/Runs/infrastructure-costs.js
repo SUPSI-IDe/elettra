@@ -68,8 +68,7 @@ export function infrastructureCostHtml(stations, feasible) {
   const key=k=>textContent(t('simulation.'+k));
   const totals=rows.reduce((a,s)=>{for(const k of Object.keys(a))a[k]+=s.costBreakdown[k];return a;},
     {chargers_cost_chf:0,site_fixed_cost_chf:0,site_power_cost_chf:0,total_cost_chf:0});
-  return `<details class="infrastructure-cost-breakdown" open><summary>${key('cost_breakdown')}</summary>
-    <p class="helper-text">${key('cost_result_help')}</p>
+  return `<details class="infrastructure-cost-breakdown" open><summary>${key('cost_breakdown')} <button type="button" class="info-icon investment-info" aria-label="${key('cost_breakdown')}" aria-describedby="infrastructure-investment-help" aria-expanded="false">i<span id="infrastructure-investment-help" class="info-tooltip" role="tooltip" hidden>${key('cost_result_help')}</span></button></summary>
     <div class="table-scroll"><table class="table-standard"><thead><tr><th>${key('cs_stop_name')}</th><th>${key('cost_type')}</th>
       <th>${key('cost_chargers')}</th><th>${key('cost_fixed_total')}</th><th>${key('cost_power_total')}</th><th>${key('cost_total')}</th></tr></thead>
       <tbody>${rows.map(s=>{const b=s.costBreakdown;return `<tr><td>${textContent(s.stopName)}</td><td>${key('cost_type_'+b.station_type)}</td><td>${value(b.chargers_cost_chf)}</td><td>${value(b.site_fixed_cost_chf)}</td><td>${value(b.site_power_cost_chf)}</td><td>${value(b.total_cost_chf)}</td></tr>`;}).join('')}</tbody>

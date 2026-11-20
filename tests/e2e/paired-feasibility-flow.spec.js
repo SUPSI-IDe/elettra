@@ -181,19 +181,27 @@ for (const { mode, entry, outcome } of scenarios) {
       }
       await expect(page.getByRole("heading", {level: 1})).toContainText("Paired mean");
       const switcher = page.locator('[data-role="paired-basis-switch"] [data-role="aggregate-basis"]');
+      await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText('Mean-based demand scenario');
+      await expect(page.locator('.feasibility-level__scenario-mode [data-role="feasibility-overall-status"]')).toHaveCount(1);
       if (outcome === "q95-infeasible") {
         const mixedText = "Feasible for Mean, not feasible for Q95";
         await expect(page.locator('[data-role="feasibility-overall-status"]')).toHaveText(mixedText);
         await expect(page.locator('[data-role="feasibility-overall-status"]')).toHaveClass(/result-status--warning/);
         await page.screenshot({path:test.info().outputPath("mixed-feasibility.png")});
         await switcher.selectOption("aggregate_q95");
+        await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText('Q95-based demand scenario');
         await expect(page.locator('[data-role="feasibility-general-level"]')).toBeVisible();
-        await expect(page.locator('[data-role="feasibility-general-level"]')).toContainText("The complete daily cycle is infeasible");
+        await expect(page.locator('[data-role="feasibility-general-level"]')).toContainText("The displayed demand profile is not feasible with the selected configuration.");
         await expect(page.locator('[data-role="feasibility-overall-status"]')).toHaveClass(/result-status--warning/);
         await expect(page.locator('[data-role="aggregate-energy"]')).toHaveCount(0);
         await expect(page.locator('[data-role="feasibility-critical-shifts"] tbody td')).toHaveText(
           mode === "joint" ? ['16', '16', '17', '+1'] : ['14', '16', '14', '0']);
-        await expect(page.locator('[data-role="feasibility-general-level"]')).toContainText("21.7 kWh are missing");
+        const constraintHelp = page.getByRole('button', {name:'Identified constraints', exact:true});
+        await expect(constraintHelp.getByRole('tooltip')).toBeHidden();
+        await constraintHelp.click();
+        await expect(constraintHelp.getByRole('tooltip')).toBeVisible();
+        await expect(constraintHelp.getByRole('tooltip')).toContainText('21.7 kWh are missing');
+        await constraintHelp.press('Escape');
         await page.getByRole("tab", {name:"Test duty", exact:true}).click();
         await expect(page.locator('[data-role="aggregate-energy"]')).toContainText("Battery and energy margin");
         await expect(page.locator('[data-role="feasibility-shift-predicted-consumption"] strong')).toHaveText('N/A');
@@ -212,12 +220,14 @@ for (const { mode, entry, outcome } of scenarios) {
         return;
       }
       await switcher.selectOption("aggregate_q95");
+      await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText('Q95-based demand scenario');
       await expect(page.getByRole("heading", {level: 1})).toContainText("Paired aggregate_q95");
       const batteryRow = page.locator('[data-role="feasibility-fleet-battery"] tbody tr[data-shift-id="shift"]');
       await expect(batteryRow.locator('td').nth(0)).toHaveText('14');
       await expect(batteryRow.locator('td').nth(1)).toHaveText('700');
       await expect(page.getByRole("button", {name: "Run new optimization", exact: true})).toHaveCount(0);
       await switcher.selectOption("mean");
+      await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText('Mean-based demand scenario');
       await expect(page.getByRole("heading", {level: 1})).toContainText("Paired mean");
       expect(submitted).toHaveLength(1);
     });

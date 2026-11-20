@@ -11,8 +11,7 @@ export function fleetInvestmentHtml(run, currentModel, shiftNamesById = {}) {
       ? `<small class="fleet-investment__unit">${fmt(row.packs)} × ${formatChf(row.packCost)}</small>` : ''}</td>
     <td>${formatChf(row.totalCost)}</td>`;
   return `<section class="fleet-investment" data-role="feasibility-fleet-battery">
-    <h4 class="efficiency-section-title">${key('investment_title')}</h4>
-    <p class="helper-text">${key('investment_help')}</p>
+    <h4 class="efficiency-section-title">${key('investment_title')} <button type="button" class="info-icon investment-info" aria-label="${key('investment_title')}" aria-describedby="fleet-investment-help" aria-expanded="false">i<span id="fleet-investment-help" class="info-tooltip" role="tooltip" hidden>${key('investment_help')}</span></button></h4>
     ${!model.verified ? `<p class="helper-text">${key('investment_unverified')}</p>` : ''}
     <div class="table-scroll"><table class="table-standard">
       <thead><tr><th>${key('block')}</th><th>${key('packs')}</th><th>${key('capacity')}</th>

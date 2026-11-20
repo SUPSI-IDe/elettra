@@ -45,6 +45,19 @@
   text-align: left;
 }
 
+.ya-runs-table td.shifts {
+  max-width: 22rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ya-runs-shift-name {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
 .ya-runs-table th.checkbox,
 .ya-runs-table td.checkbox {
   width: 2.5rem;

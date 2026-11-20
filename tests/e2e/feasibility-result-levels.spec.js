@@ -239,6 +239,10 @@ const mountResults = async (page, {
       return;
     }
 
+    if (path.endsWith('/simulation/prediction-runs/') && route.request().method()==='GET') {
+      await route.fulfill({json:Object.values(predictions)});
+      return;
+    }
     const predictionId = Object.keys(predictions).find((id) => path.endsWith(`/${id}`));
     if (predictionId) {
       await route.fulfill({ json: predictions[predictionId] });
@@ -605,6 +609,30 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(page.locator(".results-tab")).toHaveCount(0);
   await expect(page.locator('[data-role="feasibility-shift-predictions"]')).toHaveCount(0);
   await expect(general).toContainText("Fleet evaluation");
+  const fleetHelp=general.locator('h3 .fleet-evaluation-info');
+  await expect(general.locator('.feasibility-level__subtitle')).toHaveCount(0);
+  await expect(fleetHelp.getByRole('tooltip')).toBeHidden();
+  await fleetHelp.click();
+  await expect(fleetHelp.getByRole('tooltip')).toBeVisible();
+  await expect(fleetHelp.getByRole('tooltip')).toHaveText('Battery sizes and bus investment for all selected vehicle blocks, with shared charging infrastructure.');
+  await fleetHelp.press('Escape');
+  await expect(fleetHelp.getByRole('tooltip')).toBeHidden();
+  const demand=general.locator('[data-role="feasibility-demand-basis"]');
+  await expect(demand).toHaveText('Mean-based demand scenario');
+  await expect(general.locator('.feasibility-level__header-meta')).not.toContainText('Decision basis:');
+  await expect(general.locator('.feasibility-level__scenario-mode [data-role="feasibility-overall-status"]')).toHaveCount(1);
+  const scenarioMode=await general.locator('.feasibility-level__scenario-mode').evaluate(element => {
+    const children=[...element.children];
+    return children.map(child => {
+      const style=getComputedStyle(child);const bounds=child.getBoundingClientRect();return {top:bounds.top,center:(bounds.top+bounds.bottom)/2,
+        font:style.font,fontWeight:style.fontWeight,color:style.color};
+    });
+  });
+  expect(scenarioMode[0].font).toBe(scenarioMode[1].font);
+  expect(scenarioMode[0].fontWeight).toBe('600');
+  expect(scenarioMode[0].color).toBe(scenarioMode[1].color);
+  if (page.viewportSize().width>620) expect(Math.abs(scenarioMode[0].top-scenarioMode[1].top)).toBeLessThan(1);
+  if (page.viewportSize().width>620) expect(Math.abs(scenarioMode[0].center-scenarioMode[2].center)).toBeLessThan(1);
   await expect(general.locator('[data-role="feasibility-mode"]')).toHaveText(
     "Optimization mode: Battery only",
   );
@@ -1638,7 +1666,8 @@ test('historical infeasible results show virtual packs separately without invent
   await expect(kpis).toContainText('Estimated required / installable packs');
   await expect(kpis.locator('strong').nth(1)).toHaveText('800 kWh');
   await expect(kpis).toContainText('Selected battery · nominal capacity');
-  await expect(card).toContainText('Physical limit exceeded');
+  await expect(card.locator('.aggregate-warning')).toHaveCount(0);
+  await expect(card.locator('[role="tooltip"]').first()).toContainText('estimated shortfall');
   await expect(card.locator('.aggregate-demand')).toHaveCount(0);
 });
 
@@ -2019,13 +2048,12 @@ for (const [required, excess, unavailable] of [[18,8,2],[13,3,0]]) {
     await expect(card.locator('.aggregate-pack--excess')).toHaveCount(unavailable);
     await expect(card).toContainText('500 kWh');
     await expect(card.locator('.result-kpis strong').first()).toHaveText(`${required} / 16`);
-    await expect(card).toContainText(`${required} packs`);
+    await expect(card.locator('.aggregate-warning')).toHaveCount(0);
     const summary=page.locator('[data-role="feasibility-shift-summary"]');
     await expect(summary).toContainText('Battery shortfall');
     await expect(summary.locator('[data-role="feasibility-shift-physical-limit"]')).toContainText(
       unavailable ? 'Exceeds physical pack limit' : 'Within physical pack limit');
-    if(unavailable) await expect(card).toContainText(`+${unavailable} beyond the installable maximum`);
-    else await expect(card).not.toContainText('Physical limit exceeded');
+    await expect(card).not.toContainText('Physical limit exceeded');
   });
 }
 
@@ -2158,6 +2186,15 @@ test('daily depot cycle separates energy and discloses simulated peak shaving', 
   }},stations:{depot:{stop_name:'Depot',is_depot:true,during_shift_kwh:80,outside_shift_kwh:220,
     total_charged_kwh:300,available_power_kw_dc:100,previous_plan_peak_kw_dc:100,simulated_peak_kw_dc:18.36}}};
   await mountResults(page,{shiftIds:['morning'],dailyCycle,forecastVerification:{status:'verified'},totalInstallationCostChf:0});
+  const infrastructureHeader=page.locator('.feasibility-infrastructure__header');
+  const help=infrastructureHeader.locator('h4 .infrastructure-info');
+  await expect(infrastructureHeader.locator('p')).toHaveCount(0);
+  await expect(help.getByRole('tooltip')).toBeHidden();
+  await help.click();
+  await expect(help.getByRole('tooltip')).toBeVisible();
+  await expect(help.getByRole('tooltip')).toHaveText('Chargers shared by the selected buses. Daily-cycle results below include depot charging before the next departure.');
+  await help.press('Escape');
+  await expect(help.getByRole('tooltip')).toBeHidden();
   const card=page.locator('[data-role="depot-cycle"]');
   await expect(card).toContainText('1 / 1 buses ready');
   await expect(card).toContainText('220 kWh');
@@ -2191,6 +2228,22 @@ test("shows every selected battery and complete vehicle investment totals", asyn
   await expect(fleet.locator('tbody tr').nth(1).locator('td')).toHaveText(['12', '600', "CHF 400'000", "CHF 84'00012 × CHF 7'000", "CHF 484'000"]);
   await expect(fleet.locator('tfoot td')).toHaveText(['20', "1'000", "CHF 700'000", "CHF 132'000", "CHF 832'000"]);
   const infrastructure = page.locator('.infrastructure-cost-breakdown');
+  const fleetHelp=fleet.locator('h4 .investment-info');
+  const infrastructureHelp=infrastructure.locator(':scope > summary .investment-info');
+  await expect(fleet.locator(':scope > p').filter({hasText:'One bus per vehicle block.'})).toHaveCount(0);
+  await expect(infrastructure.locator(':scope > p')).toHaveCount(0);
+  for (const [help,explanation] of [
+    [fleetHelp,'One bus per vehicle block. Battery cost = selected packs × price per pack. Bus total excludes charging infrastructure.'],
+    [infrastructureHelp,'One-time investment for the selected infrastructure, in CHF. Fixed infrastructure is included in battery-only evaluations.'],
+  ]) {
+    await expect(help.getByRole('tooltip')).toBeHidden();
+    await help.click();
+    await expect(help.getByRole('tooltip')).toBeVisible();
+    await expect(help.getByRole('tooltip')).toHaveText(explanation);
+    await help.press('Escape');
+    await expect(help.getByRole('tooltip')).toBeHidden();
+  }
+  await expect(infrastructure).toHaveAttribute('open','');
   await expect(infrastructure.locator('tbody td')).toHaveText(['Depot', 'Depot', "CHF 220'000", "CHF 250'000", "CHF 78'947", "CHF 548'947"]);
   await expect(infrastructure.locator('tfoot td')).toHaveText(["CHF 220'000", "CHF 250'000", "CHF 78'947", "CHF 548'947"]);
   await expect(page.locator('[data-role="feasibility-total-installation-cost"]')).toHaveText("CHF 548'947");
@@ -2537,8 +2590,14 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
         await expect(row.locator('td')).toHaveText(['8', '8', '10', '+2']);
         await expect(row).toHaveAttribute('data-source', source);
         await expect(row.locator('.infeasibility-pack-limit')).toHaveAttribute('title', '2 packs beyond the installable maximum');
-        await expect(general.locator('[data-role="infeasibility-estimate-scope"]')).toContainText(
-          source === 'result' ? 'virtual diagnostic capacity' : 'excluding only the requirement');
+        const constraints = general.locator('[data-role="infeasibility-context"]');
+        await expect(constraints).toBeHidden();
+        await constraints.locator('..').click();
+        await expect(constraints).toBeVisible();
+        await expect(constraints).toContainText('estimated battery requirement exceeds the installable maximum');
+        await constraints.locator('..').press('Escape');
+        await expect(constraints).toBeHidden();
+        await expect(general.locator('.helper-text, .aggregate-warning')).toHaveCount(0);
         await expect(general.locator('[data-role="infeasibility-next-departure"]')).toHaveAttribute('data-status', 'unverified');
         await expect(page.locator('[data-role="aggregate-energy"], [data-role="feasibility-infrastructure"], [data-role="depot-cycle"]')).toHaveCount(0);
         await expect(general).not.toContainText('CHF');
@@ -2557,10 +2616,26 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
         await expect(page.locator('[data-role="feasibility-shift-required-packs"] strong')).toHaveText('10 packs');
         await expect(page.locator('[data-role="feasibility-shift-common-packs"] strong')).toHaveText('8 packs');
         await expect(card.locator('h3')).toHaveText('Battery and energy margin');
+        await expect(card.locator('.aggregate-warning')).toHaveCount(0);
+        const estimateHelp = card.locator('.result-card__subtitle .infeasibility-info');
+        await expect(estimateHelp.getByRole('tooltip')).toBeHidden();
+        await estimateHelp.focus();
+        await expect(estimateHelp.getByRole('tooltip')).toBeVisible();
+        await expect(estimateHelp.getByRole('tooltip')).toContainText('Battery mass and energy margins have not been verified');
+        const box = await estimateHelp.getByRole('tooltip').boundingBox();
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize().width);
+        await estimateHelp.press('Escape');
+        await expect(estimateHelp.getByRole('tooltip')).toBeHidden();
+        const legendHelp = card.locator('.aggregate-pack-key .infeasibility-info');
+        await legendHelp.click();
+        await expect(legendHelp.getByRole('tooltip')).toBeVisible();
+        await expect(legendHelp.getByRole('tooltip')).toContainText('Blue: usable SOC band');
+        await legendHelp.press('Escape');
         await expect(page.locator('[data-role="infeasibility-consumption-scope"]')).toHaveCount(consumptionBasis === 'aggregate_q95' ? 0 : 1);
         const sections = await page.locator('[data-role="feasibility-shift-level"] > .feasibility-level__content > *').evaluateAll(elements =>
           elements.map(element => element.getAttribute('data-role') ?? (element.matches('details.ya-more-information') ? 'more-information' : 'other')));
-        expect(sections).toEqual(['feasibility-shift-summary', 'infeasibility-context', 'aggregate-energy', 'more-information']);
+        expect(sections).toEqual(['feasibility-shift-summary', 'aggregate-energy', 'more-information']);
         await page.locator('details.ya-more-information > summary').click();
         await expect(page.locator('details.ya-more-information')).toContainText('Operating Conditions');
         await expect(page.locator('details.ya-more-information')).toContainText('Optimization Results');
@@ -2593,14 +2668,19 @@ for (const reason of depotReasons) {
         battery_results: {evening: battery('Evening service', 12)}, reasons: [reason]},
     });
     const general = page.locator('[data-role="feasibility-general-level"]');
+    const help = general.getByRole('button', {name: 'Identified constraints', exact: true});
+    await expect(general.locator(`[data-reason="${reason.code}"]`)).toBeHidden();
+    await help.click();
     await expect(general.locator(`[data-reason="${reason.code}"]`)).toBeVisible();
-    await expect(general.locator('[data-role="infeasibility-next-departure"]')).toHaveAttribute('data-status', 'identified');
+    if (reason.code === 'depot_power') await expect(help.getByRole('tooltip')).toContainText('21.7 kWh are missing');
+    await help.press('Escape');
+    await expect(general.locator('[data-role="infeasibility-context"]')).toHaveAttribute('data-cycle-status', 'identified');
     const rows = general.locator('[data-role="feasibility-critical-shifts"] tbody tr');
     await expect(rows).toHaveCount(reason.code === 'depot_constraints' ? 0 : 1);
     if (reason.code !== 'depot_constraints') await expect(rows.locator('td')).toHaveText(['12', '16', '12', '0']);
     await selectShiftScope(page, 'evening');
-    await expect(page.locator('[data-role="aggregate-energy"]')).toContainText('Battery sizing is verified for completing the vehicle block.');
-    await expect(page.locator('[data-role="aggregate-energy"]')).toContainText('complete daily cycle remains infeasible');
+    await expect(page.locator('[data-role="aggregate-energy"] .result-card__subtitle [role="tooltip"]')).toContainText('battery has been verified for the vehicle block');
+    await expect(page.locator('[data-role="aggregate-energy"] .result-card__subtitle [role="tooltip"]')).toContainText('complete daily cycle remains infeasible');
     await expect(page.locator('[data-role="depot-cycle"], [data-role="feasibility-charging-plan"]')).toHaveCount(0);
     await selectShiftScope(page, 'morning');
     await expect(page.locator('[data-role="infeasibility-battery-unavailable"]')).toBeVisible();
@@ -2664,6 +2744,8 @@ for (const language of ['it', 'de', 'fr']) {
         max_physical_packs: 8,
       }}});
     const general = page.locator('[data-role="feasibility-general-level"]');
+    await expect(general.locator('[data-role="infeasibility-context"]')).toBeHidden();
+    await general.locator('[data-role="infeasibility-context"]').locator('..').click();
     await expect(general.locator('[data-role="infeasibility-context"]')).toBeVisible();
     await expect(general).not.toContainText(/simulation\.|Identified constraints|Missing packs/);
   });
@@ -2734,6 +2816,11 @@ for (const consumptionBasis of ['mean', 'aggregate_q95']) {
     await expect(scope).toHaveAttribute('data-source', 'solver_trajectory');
     await expect(page.locator('.q95-consumption-info')).toHaveCount(0);
     await expect(scope).toContainText('not been verified at its full mass');
+    await expect(scope).toBeHidden();
+    await scope.locator('..').click();
+    await expect(scope).toBeVisible();
+    await scope.locator('..').press('Escape');
+    await expect(scope).toBeHidden();
     await expect(page.locator('[data-role="aggregate-usable-capacity"]')).toHaveText(`112 kWh < ${consumptionBasis === 'mean' ? '462' : '496'} kWh`);
     await expect(page.locator('[data-role="feasibility-shift-min-soc"], [data-role="feasibility-charging-plan"], .aggregate-soc')).toHaveCount(0);
     await page.screenshot({path:test.info().outputPath(`412-detail-${consumptionBasis}.png`), fullPage:true});
@@ -2761,6 +2848,10 @@ for (const consumptionBasis of ['mean', 'aggregate_q95']) {
     if (consumptionBasis === 'mean') {
       await expect(scope).toHaveAttribute('data-source','reference_forecast');
       await expect(scope).toContainText('Reference forecast at 8 battery packs');
+      await expect(scope).toBeHidden();
+      await consumption.getByRole('button').click();
+      await expect(scope).toBeVisible();
+      await consumption.getByRole('button').press('Escape');
       await expect(consumption.locator('.q95-consumption-info')).toHaveCount(0);
     } else {
       await expect(scope).toHaveCount(0);
@@ -2853,3 +2944,78 @@ for (const [language, explanation] of [
     await expect(page.locator('[data-role="infeasibility-consumption-scope"]')).toHaveCount(0);
   });
 }
+
+test('infeasibility cleanup keeps table explanations in contextual help', async ({page}) => {
+  await mountResults(page, {shiftIds:['morning'], electrificationFeasible:false,
+    batteryResultOverrides:{morning:{optimized_packs:8,required_total_packs:10,
+      max_physical_packs:8,excess_packs:2,physical_feasible:false}}});
+  const table=page.locator('[data-role="feasibility-critical-shifts"]');
+  const required=table.getByRole('button',{name:'Estimated required packs',exact:true});
+  const missing=table.getByRole('button',{name:'Missing packs',exact:true});
+  await expect(required.getByRole('tooltip')).toBeHidden();
+  await expect(missing.getByRole('tooltip')).toBeHidden();
+  await required.click();
+  await expect(required.getByRole('tooltip')).toBeVisible();
+  await expect(required.getByRole('tooltip')).toContainText('not a verified battery size');
+  await missing.click();
+  await expect(required.getByRole('tooltip')).toBeHidden();
+  await expect(missing.getByRole('tooltip')).toBeVisible();
+  await expect(missing.getByRole('tooltip')).toContainText('relative to the selected battery');
+  await page.getByRole('heading',{level:1}).click();
+  await expect(missing.getByRole('tooltip')).toBeHidden();
+  await expect(table.locator('tbody td')).toHaveText(['8','8','10','+2']);
+  await expect(table.locator('.helper-text, .aggregate-warning')).toHaveCount(0);
+});
+
+test('infeasibility cleanup retains separate depot constraints and scopes shift help', async ({page}) => {
+  await mountResults(page,{solverStatus:'infeasible',electrificationFeasible:false,
+    includeBatteryResults:false,includePerBusSummary:false,
+    infeasibilityDiagnostics:{status:'available',forecast_verification:{status:'verified'},
+      battery_results:{morning:battery('Morning service',8),evening:battery('Evening service',12)},
+      reasons:[{...depotReasons[0],shift_id:'morning',stop_name:'North depot'},
+        {...depotReasons[0],shift_id:'evening',stop_name:'South depot'}]}});
+  const help=page.getByRole('button',{name:'Identified constraints',exact:true});
+  await expect(help.getByRole('tooltip')).toBeHidden();
+  await help.click();
+  await expect(help.getByRole('tooltip').locator('[data-reason="depot_power"]')).toHaveCount(2);
+  await expect(help.getByRole('tooltip')).toContainText('North depot');
+  await expect(help.getByRole('tooltip')).toContainText('South depot');
+  await expect(help.getByRole('tooltip')).toContainText('21.7 kWh are missing');
+  await selectShiftScope(page,'evening');
+  await help.click();
+  await expect(help.getByRole('tooltip')).toBeVisible();
+  await expect(help.getByRole('tooltip')).toContainText('South depot');
+  await expect(help.getByRole('tooltip')).not.toContainText('North depot');
+});
+
+test('wraps all nine 405 sizing vehicle blocks within the General summary cell', async ({page}) => {
+  const names=Array.from({length:9},(_,i) => `405${String(i+1).padStart(2,'0')}_weekday`);
+  await mountResults(page, {mode:'joint',language:'it',shiftIds:names,
+    shiftNames:Object.fromEntries(names.map(name => [name,name])),
+    predictionOverrides:Object.fromEntries(names.map(name => [`prediction-${name}`,prediction(`prediction-${name}`,name,8,350)])),
+  });
+  const cell=page.locator('[data-role="feasibility-limiting-shifts"]');
+  const value=cell.locator('.feasibility-general-card__value--text');
+  await expect(value).toHaveText(names.join(', '));
+  await expect(cell.locator('.result-metric__label')).toHaveText('Turni macchina con la batteria scelta più grande');
+  for (const width of [1280,900,390]) {
+    await page.setViewportSize({width,height:900});
+    const layout=await cell.evaluate(element => {
+      const value=element.querySelector('.feasibility-general-card__value--text');
+      const label=element.querySelector('.result-metric__label');
+      const r=value.getBoundingClientRect(),l=label.getBoundingClientRect(),c=element.getBoundingClientRect();
+      return {overflow:value.scrollWidth>value.clientWidth+1,
+        inside:r.left>=c.left && r.right<=c.right,
+        multiline:r.height>parseFloat(getComputedStyle(value).lineHeight)*1.5,
+        separated:l.right<=r.left || l.bottom<=r.top,
+        topDifference:Math.abs(l.top-r.top)};
+    });
+    expect(layout.overflow,`${width}px`).toBe(false);
+    expect(layout.inside,`${width}px`).toBe(true);
+    expect(layout.multiline,`${width}px`).toBe(true);
+    expect(layout.separated,`${width}px`).toBe(true);
+    if (width>620) expect(layout.topDifference).toBeLessThan(1);
+  }
+  await page.setViewportSize({width:1280,height:900});
+  await page.screenshot({path:test.info().outputPath('405-sizing-shifts.png'),fullPage:true});
+});

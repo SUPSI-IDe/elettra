@@ -11,7 +11,7 @@ import * as d3 from "d3";
 import { gridFromDc } from "../../../utils/charging-energy";
 import { t } from "../../../i18n";
 import { pairedFeasibility } from "../../../utils/paired-feasibility";
-import { renderInfeasibilitySummary, renderInfeasibilityContext, renderInfeasibilityBattery } from "./infeasibility-diagnostics";
+import { renderInfeasibilitySummary, renderInfeasibilityContext, renderInfeasibilityInfo, renderInfeasibilityBattery } from "./infeasibility-diagnostics";
 import { buildInfeasibilityPresentation, infeasibilityDetailRun } from "../../../utils/infeasibility-presentation";
 import { triggerPartialLoad } from "../../../events";
 import { textContent } from "../../../ui-helpers";
@@ -6623,13 +6623,11 @@ const buildSharedInfrastructureDetailsHtml = (viewState, inputParams = {}) => {
         <div>
           <h4>${textContent(
             inputParams.daily_cycle ? t('simulation.depot_infrastructure_title') : translateOr("simulation.feasibility_infrastructure_title", "Shared charging infrastructure")
-          )}</h4>
-          <p>${textContent(
-            inputParams.daily_cycle ? t('simulation.depot_infrastructure_help') : translateOr(
+          )}${inputParams.daily_cycle ? `<button type="button" class="info-icon infrastructure-info" aria-label="${textContent(t('simulation.depot_infrastructure_title'))}" aria-describedby="depot-infrastructure-help" aria-expanded="false">i<span id="depot-infrastructure-help" class="info-tooltip" role="tooltip" hidden>${textContent(t('simulation.depot_infrastructure_help'))}</span></button>` : ''}</h4>
+          ${inputParams.daily_cycle ? '' : `<p>${textContent(translateOr(
               "simulation.feasibility_infrastructure_subtitle",
               "Global charging resources available to the whole fleet across all selected vehicle blocks."
-            )
-          )}</p>
+            ))}</p>`}
         </div>
         <span class="feasibility-configuration-state feasibility-configuration-state--${configurationTone} result-status${configurationTone === "incomplete" ? " result-status--warning" : ""}">${textContent(
           configurationState
@@ -6696,16 +6694,16 @@ const buildFeasibilityGeneralLevelHtml = (
         <div class="result-card__heading">
           <h3 class="feasibility-level__title result-card__title">${textContent(
             translateOr("simulation.feasibility_general_title", "Common fleet configuration")
-          )}</h3>
-          <p class="feasibility-level__subtitle result-card__subtitle">${textContent(
-            isInfeasible ? t("simulation.feasibility_infeasible_general_subtitle") : translateOr(
+          )}${!isInfeasible ? `<button type="button" class="info-icon fleet-evaluation-info" aria-label="${textContent(t('simulation.feasibility_general_title'))}" aria-describedby="fleet-evaluation-help" aria-expanded="false">i<span id="fleet-evaluation-help" class="info-tooltip" role="tooltip" hidden>${textContent(translateOr(
               "simulation.feasibility_general_subtitle",
               "Battery sizes and bus investment for all selected vehicle blocks, with shared charging infrastructure."
-            )
-          )}</p>
+            ))}</span></button>` : ''}</h3>
+          ${isInfeasible ? `<p class="feasibility-level__subtitle result-card__subtitle">${textContent(t("simulation.feasibility_infeasible_general_subtitle"))}</p>` : ''}
         </div>
         <div class="feasibility-level__header-meta">
-          <span>${textContent(t("simulation.feasibility_decision_basis"))}: ${textContent(feasibilityDemandBasisLabel(inputParams))}</span>
+          <div class="feasibility-level__scenario-mode">
+          <span data-role="feasibility-demand-basis">${textContent(resolveFeasibilityDemandBasis(inputParams) === FEASIBILITY_DEMAND_BASIS.AGGREGATE_Q95
+            ? t('simulation.feasibility_basis_q95') : feasibilityDemandBasisLabel(inputParams))}</span>
           <span
             class="feasibility-mode"
             data-role="feasibility-mode"
@@ -6716,10 +6714,11 @@ const buildFeasibilityGeneralLevelHtml = (
               { mode: optimizationMode }
             )
           )}</span>
-          <span
+          ${isInfeasible ? '<div class="infeasibility-outcome">' : ''}<span
             class="feasibility-overall-status feasibility-overall-status--${overallStatus.tone} result-status result-status--${overallStatus.tone === "feasible" ? "positive" : overallStatus.tone === "infeasible" ? "negative" : overallStatus.tone === "warning" ? "warning" : "neutral"}"
             data-role="feasibility-overall-status"
-          >${textContent(overallStatus.label)}</span>
+          >${textContent(overallStatus.label)}</span>${isInfeasible ? `${renderInfeasibilityContext(infeasibility)}</div>` : ""}
+          </div>
         </div>
       </header>
       <div class="feasibility-level__content result-card__body">
@@ -6738,7 +6737,7 @@ const buildFeasibilityGeneralLevelHtml = (
           </div>
         </article>
         <article class="feasibility-general-card result-metric" data-role="feasibility-limiting-shifts">
-          <div class="feasibility-general-card__heading">
+          <div class="feasibility-general-card__heading feasibility-general-card__heading--text">
             <span class="result-metric__label">${textContent(limitingLabel)}</span>
             <strong class="feasibility-general-card__value feasibility-general-card__value--text result-metric__value">
               ${limitingNames.length ? textContent(limitingNames.join(", ")) : "—"}
@@ -6975,7 +6974,7 @@ const buildShiftOperationalSummaryHtml = (
   viewState,
   decisionConsumption = {},
   energyComparison = null,
-  { row = null } = {},
+  { row = null, contextHelp = "" } = {},
 ) => {
   const detail = viewState?.selectedShiftSummary;
   if (!detail) {
@@ -7041,13 +7040,14 @@ const buildShiftOperationalSummaryHtml = (
   const q95ConsumptionUnavailable = decisionConsumption.basis === FEASIBILITY_DEMAND_BASIS.AGGREGATE_Q95 &&
     toOptionalFiniteNumber(decisionConsumption.totalKwh) === null;
   const q95TooltipId = `q95-consumption-unavailable-${detail.shiftId}`;
-  const consumptionHelp = q95ConsumptionUnavailable
-    ? `<button type="button" class="info-icon q95-consumption-info" aria-label="${textContent(t("simulation.infeasibility_q95_unavailable_help"))}" aria-describedby="${textContent(q95TooltipId)}" aria-expanded="false">i<span id="${textContent(q95TooltipId)}" class="info-tooltip" role="tooltip" hidden>${textContent(t("simulation.infeasibility_q95_unavailable_reason"))}</span></button>` : "";
   const consumptionNote = row ? t(`simulation.infeasibility_consumption_${
     decisionConsumption.source === "reference_forecast" ? "reference"
       : decisionConsumption.source === "solver_trajectory" ? "trajectory"
       : decisionConsumption.source === "aggregate_profile" ? "profile" : "unavailable"
   }`, { packs: decisionConsumption.referencePacks ?? "—" }) : "";
+  const consumptionHelp = q95ConsumptionUnavailable
+    ? `<button type="button" class="info-icon q95-consumption-info" aria-label="${textContent(t("simulation.infeasibility_q95_unavailable_help"))}" aria-describedby="${textContent(q95TooltipId)}" aria-expanded="false">i<span id="${textContent(q95TooltipId)}" class="info-tooltip" role="tooltip" hidden>${textContent(t("simulation.infeasibility_q95_unavailable_reason"))}</span></button>`
+    : row ? renderInfeasibilityInfo(`infeasibility-consumption-${detail.shiftId}`, t("simulation.costs_input_prediction_consumption"), textContent(consumptionNote), `data-role="infeasibility-consumption-scope" data-source="${textContent(decisionConsumption.source ?? "unavailable")}"`) : "";
 
   const requiredPacks = toOptionalFiniteNumber(battery.requiredPacks);
   const maxPhysicalPacks = toOptionalFiniteNumber(battery.maxPhysicalPacks);
@@ -7074,9 +7074,9 @@ const buildShiftOperationalSummaryHtml = (
             row ? t("simulation.infeasibility_shift_summary") : translateOr("simulation.feasibility_shift_summary_title", "Vehicle block operational summary")
           )}</h4>
         </div>
-        <span class="feasibility-shift-status feasibility-shift-status--${coverageTone} result-status result-status--${coverageTone === "negative" ? "negative" : coverageTone === "unknown" ? "neutral" : "positive"}" data-role="feasibility-shift-coverage-status">${textContent(
+        ${contextHelp ? '<div class="infeasibility-outcome">' : ''}<span class="feasibility-shift-status feasibility-shift-status--${coverageTone} result-status result-status--${coverageTone === "negative" ? "negative" : coverageTone === "unknown" ? "neutral" : "positive"}" data-role="feasibility-shift-coverage-status">${textContent(
           coverageLabel
-        )}</span>
+        )}</span>${contextHelp}${contextHelp ? "</div>" : ""}
       </div>
       <div class="result-card__body">
       <div class="feasibility-shift-metrics result-metric-grid">
@@ -7162,7 +7162,6 @@ const buildShiftOperationalSummaryHtml = (
           )}</strong>
         </article>
       </div>
-      ${row && !q95ConsumptionUnavailable ? `<p class="helper-text" data-role="infeasibility-consumption-scope" data-source="${textContent(decisionConsumption.source ?? "unavailable")}">${textContent(consumptionNote)}</p>` : ""}
       </div>
     </section>`;
 };
@@ -7659,9 +7658,8 @@ const renderEfficiencyTable = (el, state, viewOptions = {}) => {
           feasibilityViewState,
           shiftDecisionConsumption,
           shiftEnergyComparison,
-          diagnosticDetail ? { row: infeasibleShift } : {},
+          diagnosticDetail ? { row: infeasibleShift, contextHelp: renderInfeasibilityContext(infeasibility, viewOptions.selectedShiftId) } : {},
         )}
-        ${diagnosticDetail ? renderInfeasibilityContext(infeasibility, viewOptions.selectedShiftId) : ""}
         ${diagnosticDetail
           ? renderInfeasibilityBattery(savedRun, infeasibility, viewOptions.selectedShiftId, shiftEnergyComparison)
           : renderAggregateEnergy(optimizationRun, viewOptions?.selectedShiftId, { energyComparison: shiftEnergyComparison })}
@@ -9628,7 +9626,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   cleanupHandlers.push(() => {
     informationBar?.removeEventListener("click", handleInformationToggleClick);
   });
-  cleanupHandlers.push(bindInfoTooltips(section, '.charging-session-info, .q95-consumption-info'));
+  cleanupHandlers.push(bindInfoTooltips(section, '.charging-session-info, .q95-consumption-info, .infeasibility-info, .infrastructure-info, .investment-info, .fleet-evaluation-info'));
   const renderedTabs = new Set(["efficiency"]);
   const costOverrides = {
     fuelCostPerL: normalizeFuelCostPerL(options?.costOverrides?.fuelCostPerL),

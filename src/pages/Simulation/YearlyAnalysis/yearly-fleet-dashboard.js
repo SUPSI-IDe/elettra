@@ -319,7 +319,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       : '—';
     const outcomes = [
       efficiencyMetric(efficiencyRows.length > 1
-        ? `Min: ${shiftConsumption(efficient)} · Max: ${shiftConsumption(inefficient)}`
+        ? `<span>Min: ${shiftConsumption(efficient)}</span><span>Max: ${shiftConsumption(inefficient)}</span>`
         : shiftConsumption(efficient)),
       outcomeMetric({
         key: 'electric-tco',

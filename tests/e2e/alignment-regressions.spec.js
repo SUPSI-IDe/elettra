@@ -523,7 +523,7 @@ test("feasibility and yearly-analysis names align to the left", async ({ page })
       Array.from(row.children).slice(1, 4).map((cell) => cell.className),
     )),
   ).resolves.toEqual([
-    ["name", "created", ""],
-    ["name", "created", ""],
+    ["name", "created", "shifts"],
+    ["name", "created", "shifts"],
   ]);
 });

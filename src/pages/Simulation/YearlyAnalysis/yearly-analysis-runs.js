@@ -105,7 +105,9 @@ export const buildYearlyAnalysisRowsMarkup = (analyses = []) =>
         <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("yearly_analysis.select_analysis"))}" /></td>
         <td class="name">${textContent(displayName)}</td>
         <td class="created">${textContent(formatDate(analysis.created_at))}</td>
-        <td title="${textContent(shifts)}">${textContent(shifts)}</td>
+        <td class="shifts" title="${textContent(shifts)}">${(meta.shiftNames ?? []).length
+          ? meta.shiftNames.map(name => `<span class="ya-runs-shift-name">${textContent(name)}</span>`).join(', ')
+          : '—'}</td>
         <td>${textContent(mode)}</td>
         <td class="status"><span class="simulation-state-indicator simulation-state-indicator--${tone}" role="img" tabindex="0" aria-label="${textContent(renderedStatus)}" title="${textContent(renderedStatus)}"></span></td>
         <td class="actions">${rowActions}</td>

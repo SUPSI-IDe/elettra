@@ -49,7 +49,7 @@ test('representative and fleet views reconcile investment and TCO, assumptions a
   await expect(page.locator('[data-annual-header] [data-outcome="diesel-tco"], [data-annual-header] [data-outcome="tco-difference"], [data-annual-header] [data-outcome="break-even"]')).toHaveCount(0);
   await expect(page.locator('[data-annual-header] .helper-text').filter({ hasText: 'Groups keep the vehicle blocks assigned' })).toHaveCount(0);
   await expect(page.locator('[data-outcome="efficiency"] .annual-outcome__label')).toHaveText('Average efficiency [kWh/km DC]');
-  await expect(page.locator('[data-outcome="efficiency"] .annual-outcome__value')).toHaveText('Min: 0.8 (b) · Max: 1.8 (a)');
+  await expect(page.locator('[data-outcome="efficiency"] .annual-outcome__value > span')).toHaveText(['Min: 0.8 (b)', 'Max: 1.8 (a)']);
   await expect(page.locator('[data-outcome="efficiency"] .annual-outcome__hint')).toHaveCount(0);
   await expect(page.locator('[data-outcome="electric-tco"] .annual-outcome__label')).toHaveText('TCO [CHF/km]');
   expect(await page.locator('.annual-summary-grid > .result-metric').evaluateAll(elements => elements.map(element => element.dataset.summary ?? element.dataset.outcome))).toEqual([
@@ -58,7 +58,7 @@ test('representative and fleet views reconcile investment and TCO, assumptions a
   expect(await page.locator('.annual-summary-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length)).toBe(
     await page.evaluate(() => innerWidth <= 700 ? 1 : 3),
   );
-  expect(await page.locator('.annual-efficiency__value').evaluate(element => ({ fontWeight: getComputedStyle(element).fontWeight, whiteSpace: getComputedStyle(element).whiteSpace }))).toEqual({ fontWeight: '600', whiteSpace: 'nowrap' });
+  expect(await page.locator('.annual-efficiency__value').evaluate(element => ({ fontWeight: getComputedStyle(element).fontWeight, whiteSpace: getComputedStyle(element).whiteSpace }))).toEqual({ fontWeight: '600', whiteSpace: 'normal' });
   expect(await page.locator('.annual-efficiency__value').evaluate((element, comparison) => getComputedStyle(element).fontSize === getComputedStyle(document.querySelector(comparison)).fontSize, '[data-outcome="electric-tco"] .annual-outcome__value')).toBe(true);
   expect(await page.locator('.annual-efficiency__value').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
   expect(await page.locator('.annual-summary-grid > .result-metric').evaluateAll(elements => elements.every(element => getComputedStyle(element).alignItems === 'center'))).toBe(true);
@@ -115,7 +115,7 @@ test('representative and fleet views reconcile investment and TCO, assumptions a
     "160'000",
     "170'213",
   ]);
-  await expect(page.locator('[data-outcome="efficiency"] .annual-outcome__value')).toHaveText('Min: 0.8 (b) · Max: 1.8 (a)');
+  await expect(page.locator('[data-outcome="efficiency"] .annual-outcome__value > span')).toHaveText(['Min: 0.8 (b)', 'Max: 1.8 (a)']);
   await expect(page.getByText("CHF 2'168'000", { exact: true }).first()).toBeVisible();
   await expect(page.locator('[data-role="fleet-tco"]')).toHaveText(tco);
   await expect(page.locator('[data-outcome="electric-tco"] .annual-outcome__value')).toHaveText(tco.replace(' CHF/km', ''));
@@ -251,7 +251,7 @@ test('different battery groups retain duties and consumption; sliders restore di
     "160'000",
     "170'213",
   ]);
-  await expect(page.locator('[data-outcome="efficiency"] .annual-outcome__value')).toHaveText('Min: 0.8 (short) · Max: 1.8 (long)');
+  await expect(page.locator('[data-outcome="efficiency"] .annual-outcome__value > span')).toHaveText(['Min: 0.8 (short)', 'Max: 1.8 (long)']);
   await expect(page.locator('[data-outcome="climate"] .annual-outcome__value')).toHaveText('51.77');
   await expect(page.locator('[data-outcome="climate"] .annual-outcome__hint')).toHaveText('Diesel comparator [t/year] 151.5');
   await expect(page.locator('.ya-lca-phase-bar__label')).toHaveText([
