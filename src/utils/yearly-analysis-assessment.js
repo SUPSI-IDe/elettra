@@ -31,8 +31,12 @@ const matchesLca = (raw, fleet, assumptions) => raw?.status === 'complete' &&
     close(vehicle.lifetime_battery, assumptions.batteryLife) &&
     close(vehicle.lifetime_diesel_bus, assumptions.dieselLife) &&
     close(vehicle.diesel_consumption_l_per_km, assumptions.dieselConsumption)) &&
-  fleet.groups.every(group => close(raw.vehicles.filter(vehicle => belongsToGroup(vehicle, group))
-    .reduce((total, vehicle) => total + vehicle.annual_km * (vehicle.vehicle_count ?? 1), 0), group.km));
+  close(raw.annual_km, fleet.totals.km) && close(raw.energy_boundary?.dc_kwh, fleet.totals.dc) &&
+  fleet.groups.every(group => {
+    const members = raw.vehicles.filter(vehicle => belongsToGroup(vehicle, group));
+    return close(members.reduce((total, vehicle) => total + vehicle.annual_km * (vehicle.vehicle_count ?? 1), 0), group.km) &&
+      close(members.reduce((total, vehicle) => total + vehicle.dc_kwh * (vehicle.vehicle_count ?? 1), 0), group.dc);
+  });
 
 const scopedFleet = (fleet, group, share) => group ? {
   ...fleet,
@@ -89,7 +93,8 @@ export function buildYearlyAssessment({
   if (!electric && !issues.length) issues.push('invalid_electric_assumptions');
   if (!diesel && !local.issues.length) issues.push('invalid_diesel_assumptions');
 
-  const currentLca = matchesLca(raw, fleet, assumptions) ? scopeFleetLca(raw, group) : null;
+  const matchingLca = matchesLca(raw, fleet, assumptions) ? scopeFleetLca(raw, group) : null;
+  const currentLca = emissionsState.status === 'done' ? matchingLca : null;
   const staleLca = !currentLca && raw?.status === 'complete' && ['loading', 'error'].includes(emissionsState.status)
     ? scopeFleetLca(raw, group) : null;
 
@@ -123,7 +128,7 @@ export function buildYearlyAssessment({
       status: emissionsState.status,
       error: emissionsState.error ?? null,
       rawLca: currentLca ?? staleLca,
-      matchesAssumptions: Boolean(currentLca),
+      matchesAssumptions: Boolean(matchingLca),
       isStale: !currentLca && Boolean(staleLca),
     },
   });

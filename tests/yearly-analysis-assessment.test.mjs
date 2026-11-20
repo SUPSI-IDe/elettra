@@ -169,6 +169,27 @@ test('missing diesel heater activity keeps electric economics unavailable, rathe
   assert.ok(result.economics.issues.includes('diesel_heating_activity_unavailable'));
 });
 
+for (const status of ['loading', 'error']) {
+  test(`a ${status} refresh keeps even matching LCA data explicitly previous`, () => {
+    const result = buildYearlyAssessment({ features: configuration(), model, emissionsState: { status, rawLca: lca() } });
+    assert.equal(result.environment.matchesAssumptions, true);
+    assert.equal(result.environment.isStale, true);
+    assert.equal(result.environment.rawLca.annual_km, 100000);
+  });
+}
+
+for (const mismatch of ['fleet-energy', 'vehicle-energy', 'fleet-distance']) {
+  test(`LCA ${mismatch} disagreement cannot be marked as the current assessment`, () => {
+    const raw = lca();
+    if (mismatch === 'fleet-energy') raw.energy_boundary.dc_kwh += 1;
+    if (mismatch === 'vehicle-energy') raw.vehicles[0].dc_kwh += 1;
+    if (mismatch === 'fleet-distance') raw.annual_km += 1;
+    const result = buildYearlyAssessment({ features: configuration(), model, emissionsState: { status: 'done', rawLca: raw } });
+    assert.equal(result.environment.matchesAssumptions, false);
+    assert.equal(result.environment.rawLca, null);
+  });
+}
+
 test('historical missing fleet and incomplete frozen inputs remain explicit', () => {
   const historical = buildYearlyAssessment();
   assert.equal(historical.economics.status, 'incomplete');

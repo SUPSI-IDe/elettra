@@ -314,6 +314,7 @@ const mountResults = async (
     analysisGate = null,
     hvacPayload = null,
     lcaResponse = null,
+    saveAnalysis = null,
   } = {},
 ) => {
   const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
@@ -338,13 +339,17 @@ const mountResults = async (
       const annualKmRaw = url.searchParams.get("annual_km");
       const annualKm = annualKmRaw == null ? null : Number(annualKmRaw);
       lcaRequests?.push({ shiftId, annualKm });
-      await route.fulfill({ json: lcaResponse ? lcaResponse(url, lca) : lcaForShiftDistance(lca, shiftId, annualKm) });
+      await route.fulfill({ json: lcaResponse ? await lcaResponse(url, lca) : lcaForShiftDistance(lca, shiftId, annualKm) });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}/costs`)) {
       if (yearlyCosts) await route.fulfill({ json: yearlyCosts });
       else await route.fulfill({ status: 503, json: { detail: "Use deterministic local costs" } });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}/auxiliary-assumptions`)) {
       await route.fulfill({ json: hvacPayload ?? { runs: [] } });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}`)) {
+      if (route.request().method() === 'PATCH' && saveAnalysis) {
+        await route.fulfill(await saveAnalysis(route.request().postDataJSON(), analysis));
+        return;
+      }
       if (analysisGate) await analysisGate;
       await route.fulfill({ json: analysis });
     } else if (path.endsWith("/simulation/prediction-runs/")) {
@@ -1051,9 +1056,9 @@ test('saved fleet JSON is generated from effective assumptions without mounting 
   expect(exported.groups[0].representativeBus.activity.distanceKm).toBe(60000);
 });
 
-test("current fleet-dashboard analyses retain the General JSON export", async ({ page }) => {
+const currentFleetAnalysis = (id = 'fleet-dashboard-export') => {
   const analysis = structuredClone(multishiftAnalysis);
-  analysis.id = "fleet-dashboard-export";
+  analysis.id = id;
   analysis.features.config.fixedConfiguration.investment = {
     rows: [
       {
@@ -1087,24 +1092,33 @@ test("current fleet-dashboard analyses retain the General JSON export", async ({
     costBreakdown: { chargers_cost_chf: 100000, site_fixed_cost_chf: 100000, site_power_cost_chf: 50000 } });
   analysis.features.gtfs_provenance = { shifts: { morning: [{ id: 'frozen-edition', dataset_year: 2026 }] } };
   analysis.features.config.weather_reference = { weather_temperature_series_id: 'saved-weather-series' };
+  return analysis;
+};
 
-  await mountResults(page, analysis, { lcaResponse: (url, original) => {
-    const requested = JSON.parse(url.searchParams.get('annual_km_by_shift') ?? 'null');
-    let raw = structuredClone(original);
-    for (const [shiftId, km] of Object.entries(requested ?? {})) raw = lcaForShiftDistance(raw, shiftId, km);
-    raw.vehicles.forEach(vehicle => {
-      vehicle.lifetime_bus = 12; vehicle.lifetime_battery = 8; vehicle.lifetime_diesel_bus = 12;
-      vehicle.diesel_consumption_l_per_km = .4318;
-      const technical = analysis.features.results.shiftResults.find(shift => shift.shiftId === vehicle.shift_id);
-      vehicle.dc_kwh = technical.yearlyTotals.totalEnergyKwh / technical.yearlyTotals.distanceKm * vehicle.annual_km;
-      vehicle.actual_dc_consumption_kwh_per_100km = vehicle.dc_kwh / vehicle.annual_km * 100;
-      vehicle.battery_capacity_kwh = vehicle.shift_id === 'morning' ? 400 : 600;
-      vehicle.bus_length_m = 12;
-    });
-    const dc = raw.vehicles.reduce((sum, vehicle) => sum + vehicle.dc_kwh, 0);
-    raw.energy_boundary = { ...raw.energy_boundary, dc_kwh: dc, grid_kwh: dc / .94, charging_losses_kwh: dc / .94 - dc };
-    return raw;
-  } });
+const currentFleetLca = (url, original, analysis) => {
+  const saved = analysis.features.assessment_assumptions?.tco ?? {};
+  const requested = JSON.parse(url.searchParams.get('annual_km_by_shift') ?? 'null') ?? saved.annualKmByShift;
+  let raw = structuredClone(original);
+  for (const [shiftId, km] of Object.entries(requested ?? {})) raw = lcaForShiftDistance(raw, shiftId, km);
+  raw.vehicles.forEach(vehicle => {
+    vehicle.lifetime_bus = Number(url.searchParams.get('lifetime_bus') ?? saved.bodyLife ?? 12);
+    vehicle.lifetime_battery = Number(url.searchParams.get('lifetime_battery') ?? saved.batteryLife ?? 8);
+    vehicle.lifetime_diesel_bus = Number(url.searchParams.get('lifetime_diesel_bus') ?? saved.dieselLife ?? 12);
+    vehicle.diesel_consumption_l_per_km = Number(url.searchParams.get('diesel_consumption_l_per_km') ?? saved.dieselConsumption ?? .4318);
+    const technical = analysis.features.results.shiftResults.find(shift => shift.shiftId === vehicle.shift_id);
+    vehicle.dc_kwh = technical.yearlyTotals.totalEnergyKwh / technical.yearlyTotals.distanceKm * vehicle.annual_km;
+    vehicle.actual_dc_consumption_kwh_per_100km = vehicle.dc_kwh / vehicle.annual_km * 100;
+    vehicle.battery_capacity_kwh = vehicle.shift_id === 'morning' ? 400 : 600;
+    vehicle.bus_length_m = 12;
+  });
+  const dc = raw.vehicles.reduce((sum, vehicle) => sum + vehicle.dc_kwh, 0);
+  raw.energy_boundary = { ...raw.energy_boundary, dc_kwh: dc, grid_kwh: dc / .94, charging_losses_kwh: dc / .94 - dc };
+  return raw;
+};
+
+test("current fleet-dashboard analyses retain the General JSON export", async ({ page }) => {
+  const analysis = currentFleetAnalysis();
+  await mountResults(page, analysis, { lcaResponse: (url, original) => currentFleetLca(url, original, analysis) });
 
   await expect(page.locator('[data-role="annual-fleet-dashboard"]')).toBeVisible();
   const downloadButton = page.getByRole("button", { name: "Download all results (JSON)" });
@@ -1789,4 +1803,211 @@ test('shared recorded GTFS version uses one compact header disclosure',async({pa
     await expect(panel.locator('.gtfs-metadata__source')).toHaveCount(0);
     await panel.locator('summary').click();
     await expect(panel.locator('[data-role="gtfs-metadata"]')).toBeHidden();
+});
+
+const deferred = () => {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+};
+const storeAnalysis = (payload, analysis) => {
+  Object.assign(analysis, structuredClone(payload));
+  return { json: analysis };
+};
+const openAnnualAssumptions = async page => {
+  const panel = page.locator('[data-tco-assumptions]');
+  if (!await panel.evaluate(element => element.open)) await panel.locator(':scope > summary').click();
+};
+
+test('annual export follows the latest edit during a slow save and restores it on reopening', async ({ page }) => {
+  const analysis = currentFleetAnalysis('save-round-trip');
+  const gate = deferred(), writes = [];
+  const options = {
+    lcaResponse: (url, raw) => currentFleetLca(url, raw, analysis),
+    saveAnalysis: async payload => {
+      writes.push(structuredClone(payload));
+      if (writes.length === 1) await gate.promise;
+      return storeAnalysis(payload, analysis);
+    },
+  };
+  try {
+    await mountResults(page, analysis, options);
+    expect((await downloadAllResults(page)).exported.persistence.status).toBe('loaded');
+    await openAnnualAssumptions(page);
+    const price = page.locator('input[type="number"][data-tco-input="energyPrice"]');
+    await price.fill('.31'); await price.blur();
+    await expect.poll(() => writes.length).toBe(1);
+    await price.fill('.47');
+    const mileage = page.locator('input[type="number"][data-tco-input="km:morning"]');
+    await mileage.fill('43800'); await mileage.blur();
+    const pending = (await downloadAllResults(page)).exported;
+    expect(pending.assumptions.energyPrice).toBe(.47);
+    expect(pending.general.activity.distanceKm).toBe(58400);
+    expect(pending.persistence).toMatchObject({ status: 'pending', hasUnsavedChanges: true });
+    gate.resolve();
+    await expect(page.locator('[data-save-status]')).toHaveText('Changes saved');
+    await expect.poll(() => analysis.features.assessment_assumptions?.tco?.energyPrice).toBe(.47);
+    expect(writes).toHaveLength(2);
+    await page.getByRole('tab', { name: 'Emissions', exact: true }).click();
+    await expect(page.locator('[data-lca-export]')).toBeEnabled();
+    const saved = (await downloadAllResults(page)).exported;
+    expect(saved.persistence).toMatchObject({ status: 'saved', hasUnsavedChanges: false });
+    await mountResults(page, analysis, options);
+    const reopened = (await downloadAllResults(page)).exported;
+    expect(reopened.persistence).toMatchObject({ status: 'loaded', hasUnsavedChanges: false });
+    expect(reopened.assumptions).toEqual(saved.assumptions);
+    expect(reopened.general.activity).toEqual(saved.general.activity);
+    expect(reopened.general.economics).toEqual(saved.general.economics);
+    expect(reopened.general.environment.result).toEqual(saved.general.environment.result);
+  } finally { gate.resolve(); }
+});
+
+test('invalid and failed annual saves stay explicit in JSON; closing waits for a successful retry', async ({ page }) => {
+  const analysis = currentFleetAnalysis('save-failure');
+  const gate = deferred(); let failSave = true, writes = 0;
+  try {
+    await mountResults(page, analysis, {
+      lcaResponse: (url, raw) => currentFleetLca(url, raw, analysis),
+      saveAnalysis: async payload => {
+        writes++;
+        if (failSave) return { status: 503, json: { detail: 'Save unavailable' } };
+        await gate.promise;
+        return storeAnalysis(payload, analysis);
+      },
+    });
+    await page.evaluate(() => {
+      window.annualCloseRequests = 0;
+      document.addEventListener('partial:request', event => {
+        if (event.detail.slug !== 'yearly-analysis-runs') return;
+        window.annualCloseRequests++; event.stopImmediatePropagation();
+      }, true);
+    });
+    await openAnnualAssumptions(page);
+    const price = page.locator('input[type="number"][data-tco-input="energyPrice"]');
+    await price.fill('');
+    const invalid = (await downloadAllResults(page)).exported;
+    expect(invalid.persistence).toMatchObject({ status: 'invalid', hasUnsavedChanges: true });
+    expect(invalid.assumptions.energyPrice).toBe(.2);
+    expect(writes).toBe(0);
+    await price.fill('.45'); await price.blur();
+    await expect(page.locator('[data-save-status]')).toHaveText('Could not save changes');
+    const failed = (await downloadAllResults(page)).exported;
+    expect(failed.persistence).toMatchObject({ status: 'error', hasUnsavedChanges: true, error: 'Save unavailable' });
+    expect(failed.assumptions.energyPrice).toBe(.45);
+    await page.locator('[data-action="back"]').first().click();
+    await expect.poll(() => writes).toBe(2);
+    expect(await page.evaluate(() => window.annualCloseRequests)).toBe(0);
+    failSave = false;
+    await page.locator('[data-autosave-retry]').click();
+    await expect(page.locator('[data-save-status]')).toHaveText('Saving…');
+    await page.locator('[data-action="back"]').first().click();
+    await page.locator('[data-action="back"]').first().click();
+    expect(await page.evaluate(() => window.annualCloseRequests)).toBe(0);
+    gate.resolve();
+    await expect.poll(() => page.evaluate(() => window.annualCloseRequests)).toBe(1);
+    expect(analysis.features.assessment_assumptions.tco.energyPrice).toBe(.45);
+  } finally { gate.resolve(); }
+});
+
+test('annual LCA exports ignore late responses and preserve previous data through failure and retry', async ({ page }) => {
+  const analysis = currentFleetAnalysis('lca-races');
+  const oldGate = deferred(), failedGate = deferred();
+  let firstStarted = false, failNext = true;
+  try {
+    await mountResults(page, analysis, {
+      saveAnalysis: async payload => storeAnalysis(payload, analysis),
+      lcaResponse: async (url, raw) => {
+        const mileage = JSON.parse(url.searchParams.get('annual_km_by_shift') ?? 'null');
+        if (mileage?.morning === 43800) { firstStarted = true; await oldGate.promise; }
+        if (mileage?.morning === 87600 && failNext) {
+          await failedGate.promise;
+          failNext = false;
+          return { status: 'incomplete', reason: 'Preview unavailable', vehicles: [], indicators: {} };
+        }
+        return currentFleetLca(url, raw, analysis);
+      },
+    });
+    await page.getByRole('tab', { name: 'Emissions', exact: true }).click();
+    await openAnnualAssumptions(page);
+    const mileage = page.locator('input[type="number"][data-tco-input="km:morning"]');
+    await mileage.fill('43800'); await mileage.blur();
+    await expect.poll(() => firstStarted).toBe(true);
+    const updating = (await downloadAllResults(page)).exported;
+    expect(updating.general.environment).toMatchObject({ status: 'loading', isStale: true, result: null });
+    expect(updating.general.environment.previousResult.annual_km).toBe(36500);
+    await expect(page.locator('[data-lca-export]')).toBeDisabled();
+    await mileage.fill('65700'); await mileage.blur();
+    await expect(page.locator('[data-lca-export]')).toBeEnabled();
+    expect((await downloadAllResults(page)).exported.general.environment.result.annual_km).toBe(80300);
+    const lateResponse = page.waitForResponse(response => {
+      const mapping = new URL(response.url()).searchParams.get('annual_km_by_shift');
+      return mapping && JSON.parse(mapping).morning === 43800;
+    });
+    oldGate.resolve(); await (await lateResponse).finished();
+    expect((await downloadAllResults(page)).exported.general.environment.result.annual_km).toBe(80300);
+    await mileage.fill('87600'); await mileage.blur();
+    await expect(page.locator('[data-lca-export]')).toBeDisabled();
+    failedGate.resolve();
+    await expect(page.locator('[data-lca-retry]')).toBeVisible();
+    const failed = (await downloadAllResults(page)).exported;
+    expect(failed.general.environment).toMatchObject({ status: 'error', isStale: true, result: null });
+    expect(failed.general.environment.previousResult.annual_km).toBe(80300);
+    expect(failed.general.activity.distanceKm).toBe(102200);
+    await page.locator('[data-lca-retry]').click();
+    await expect(page.locator('[data-lca-export]')).toBeEnabled();
+    const recovered = (await downloadAllResults(page)).exported;
+    expect(recovered.general.environment.status).toBe('complete');
+    expect(recovered.general.environment.previousResult).toBeNull();
+    expect(recovered.general.environment.result.annual_km).toBe(102200);
+  } finally { oldGate.resolve(); failedGate.resolve(); }
+});
+
+test('reopening saved mileage refreshes incompatible LCA once and rejects wrong-energy responses', async ({ page }) => {
+  const analysis = currentFleetAnalysis('incompatible-lca');
+  analysis.features.assessment_assumptions = { tco: { energyPrice: .45,
+    annualKmByGroup: { morning: 43800, evening: 14600 }, annualKmByShift: { morning: 43800, evening: 14600 } } };
+  let previews = 0;
+  await mountResults(page, analysis, { lcaResponse: (url, raw) => {
+    const requested = url.searchParams.has('annual_km_by_shift');
+    if (!requested) return currentFleetLca(url, raw, { ...analysis, features: { ...analysis.features, assessment_assumptions: {} } });
+    const response = currentFleetLca(url, raw, analysis);
+    if (++previews === 1) {
+      response.vehicles[0].dc_kwh += 10;
+      response.energy_boundary.dc_kwh += 10;
+      response.energy_boundary.grid_kwh = response.energy_boundary.dc_kwh / .94;
+      response.energy_boundary.charging_losses_kwh = response.energy_boundary.grid_kwh - response.energy_boundary.dc_kwh;
+    }
+    return response;
+  } });
+  await page.getByRole('tab', { name: 'Emissions', exact: true }).click();
+  await expect(page.locator('[data-lca-retry]')).toBeVisible();
+  expect(previews).toBe(1);
+  const failed = (await downloadAllResults(page)).exported;
+  expect(failed.assumptions.energyPrice).toBe(.45);
+  expect(failed.general.activity.distanceKm).toBe(58400);
+  expect(failed.general.environment.result).toBeNull();
+  expect(failed.general.environment.error).toContain('do not match');
+  await page.locator('[data-lca-retry]').click();
+  await expect(page.locator('[data-lca-export]')).toBeEnabled();
+  expect(previews).toBe(2);
+  const recovered = (await downloadAllResults(page)).exported;
+  expect(recovered.general.environment.result.annual_km).toBe(58400);
+  expect(recovered.general.environment.result.energy_boundary.dc_kwh).toBeCloseTo(recovered.general.activity.busEnergyDcKwh, 6);
+});
+
+test('historical JSON labels its legacy state and never assigns loading fleet emissions to each shift', async ({ page }) => {
+  await page.route('**/api/v1/**', route => route.fulfill({ json: { version: 'legacy-export-test' } }));
+  await page.goto('./');
+  const exported = await page.evaluate(async ({ features, rawLca }) => {
+    const { buildCompleteYearlyExportPayload } = await import('/elettra/src/pages/Simulation/YearlyAnalysis/yearly-analysis-results.js');
+    return buildCompleteYearlyExportPayload({ features, busModelData: { bus_length_m: 12 },
+      generalEmissionsState: { status: 'loading', rawLca },
+      generalCostState: { status: 'error', error: 'Costs unavailable', costsData: null },
+    });
+  }, { features: multishiftAnalysis.features, rawLca: multiShiftLca() });
+  expect(exported.schemaVersion).toBe(3);
+  expect(exported.exportState).toMatchObject({ model: 'legacy', environment: { status: 'loading' }, costs: { status: 'error' } });
+  expect(exported.general.emissions).toBeNull();
+  expect(exported.shifts.every(shift => shift.emissions === null)).toBe(true);
+  expect(exported.general.costs.operatingReconciliation.status).toBe('unavailable');
 });

@@ -271,8 +271,18 @@ test('different battery groups retain duties and consumption; sliders restore di
         if (window.failPreview) throw Error('Preview unavailable');
         return makeLca(values);
       } });
-    window.dashboard.mount(document.querySelector('main'), { status: 'done', rawLca: makeLca() });
+    const incomingState = { status: 'done', rawLca: makeLca() };
+    window.dashboard.mount(document.querySelector('main'), incomingState);
+    // The page loader mutates its state object while starting another request.
+    // That must not silently mutate the dashboard's accepted assessment.
+    incomingState.status = 'error'; incomingState.rawLca = null;
   }, lcaFixture);
+  expect(await page.evaluate(() => {
+    const snapshot = window.dashboard.getExportState();
+    return { status: snapshot.assessment.environment.status,
+      matches: snapshot.assessment.environment.matchesAssumptions,
+      persistence: snapshot.persistence.status };
+  })).toEqual({ status: 'done', matches: true, persistence: 'loaded' });
   await expect(page.locator('[data-tco-scope]')).toHaveValue('fleet');
   await expect(page.locator('[data-role="annual-activity-summary"] strong')).toHaveText([
     "100'000",

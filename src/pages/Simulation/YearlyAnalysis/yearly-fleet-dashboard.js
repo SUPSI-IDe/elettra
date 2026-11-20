@@ -132,6 +132,7 @@ const vocabulary = {
   autosave_invalid: ['Check the entered values', 'Controlla i valori inseriti', 'Eingaben prüfen', 'Vérifiez les valeurs saisies'],
   autosave_help: ['Changes are saved automatically in this annual analysis after you finish editing. Costs and Emissions share the same values, which are restored when you reopen the analysis. Reset values are saved too. This does not rerun feasibility or change the selected design.', 'Le modifiche vengono salvate automaticamente in questa analisi annuale al termine della modifica. Costi ed Emissioni condividono gli stessi valori, che ritrovi alla riapertura. Anche il ripristino dei valori viene salvato. Non viene rilanciata la fattibilità né modificato il dimensionamento scelto.', 'Änderungen werden nach der Eingabe automatisch in dieser Jahresanalyse gespeichert. Kosten und Emissionen verwenden dieselben Werte; beim erneuten Öffnen werden sie wiederhergestellt. Auch zurückgesetzte Werte werden gespeichert. Die Machbarkeit wird nicht neu berechnet und die gewählte Auslegung bleibt erhalten.', 'Les modifications sont enregistrées automatiquement dans cette analyse annuelle à la fin de la saisie. Coûts et Émissions partagent les mêmes valeurs, retrouvées à la réouverture. Les valeurs réinitialisées sont aussi enregistrées. La faisabilité et le dimensionnement choisi ne sont pas recalculés.'],
   retry: ['Retry', 'Riprova', 'Erneut versuchen', 'Réessayer'],
+  assessmentMismatch: ['Environmental results do not match the current activity and assumptions.', 'I risultati ambientali non corrispondono alle percorrenze e alle ipotesi attuali.', 'Die Umweltergebnisse entsprechen nicht der aktuellen Fahrleistung und den Annahmen.', 'Les résultats environnementaux ne correspondent pas au kilométrage et aux hypothèses actuels.'],
   noInfraMaintenance: ['Infrastructure maintenance is currently excluded (CHF 0/year); enter an annual fleet estimate above.', 'La manutenzione dell’infrastruttura è al momento esclusa (CHF 0/anno); inserisci sopra una stima annuale per la flotta.', 'Infrastrukturwartung ist derzeit ausgeschlossen (CHF 0/Jahr); oben einen Jahreswert für die Flotte eingeben.', 'L’entretien de l’infrastructure est actuellement exclu (CHF 0/an) ; indiquez ci-dessus une estimation annuelle pour la flotte.'],
   method: ['Calculation method and boundaries', 'Metodo di calcolo e perimetro', 'Berechnungsmethode und Abgrenzung', 'Méthode de calcul et périmètre'],
   methodFormula: ['Discounted purchase, replacement and operating costs minus terminal residual value, divided by discounted fleet kilometres.', 'Acquisti, sostituzioni e costi operativi attualizzati meno valore residuo finale, divisi per i km attualizzati della flotta.', 'Diskontierte Anschaffungs-, Ersatz- und Betriebskosten abzüglich Endrestwert, geteilt durch diskontierte Flottenkilometer.', 'Achats, remplacements et coûts d’exploitation actualisés moins valeur résiduelle finale, divisés par les kilomètres actualisés de la flotte.'],
@@ -202,11 +203,24 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
   });
   const assumptionsModified = () => assumptionsKey(assumptions) !== assumptionsKey(defaultAssumptions);
   const lcaKey = () => yearlyAssessmentLcaKey(assumptions);
+  const assessmentInputs = () => ({ features, baseline,
+    assumptions: structuredClone(assumptions),
+    emissionsState: structuredClone(preview?.key === lcaKey() ? preview : emissions),
+  });
   // Default to the complete fleet even when the page displays a representative.
   const getAssessment = ({ scope = 'fleet' } = {}) => buildYearlyAssessment({
-    features, baseline, assumptions, scope,
-    emissionsState: preview?.key === lcaKey() ? preview : emissions,
+    ...assessmentInputs(), scope,
   });
+  const getExportState = () => {
+    const inputs = assessmentInputs();
+    const assessment = buildYearlyAssessment(inputs);
+    return {
+      assessment,
+      groupAssessments: assessment.fleet.groups.map(group => buildYearlyAssessment({ ...inputs, scope: group.id })),
+      persistence: { status: autosave.state.status === 'idle' ? 'loaded' : autosave.state.status,
+        hasUnsavedChanges: autosave.unsaved, error: autosave.state.error ?? null },
+    };
+  };
   const payload = () => getAssessment().assumptions;
   const queueLca = () => {
     clearTimeout(previewTimer); const id = ++requestId;
@@ -217,6 +231,8 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       try {
         const rawLca = await onPreviewLca(payload());
         if (id !== requestId || key !== lcaKey() || !root) return;
+        if (!buildYearlyAssessment({ features, baseline, assumptions, emissionsState: { status: 'done', rawLca } })
+          .environment.matchesAssumptions) throw new Error(fleetLabel('assessmentMismatch'));
         preview = { key, status: 'done', rawLca };
       } catch (error) {
         if (id !== requestId || !root) return;
@@ -224,6 +240,17 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       }
       paint(true);
     }, 500);
+  };
+  const acceptEmissions = state => {
+    const incoming = structuredClone(state);
+    if (!incoming.rawLca && ['loading', 'error'].includes(incoming.status)) {
+      incoming.rawLca = structuredClone(preview?.rawLca ?? emissions.rawLca ?? null);
+    }
+    emissions = incoming;
+    const matchesIncoming = buildYearlyAssessment({ features, baseline, assumptions, emissionsState: incoming })
+      .environment.matchesAssumptions;
+    if (incoming.status === 'done' && matchesIncoming && preview?.status !== 'loading') preview = null;
+    if (root && incoming.status === 'done' && !matchesIncoming && preview?.key !== lcaKey()) queueLca();
   };
   const controls = current => {
     const sliderLabels = {
@@ -395,6 +422,12 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       const exportButton = lcaHost.querySelector('[data-lca-export]');
       if (exportButton) exportButton.disabled = true;
     }
+    if (state.status === 'error' && onPreviewLca) {
+      const retry = document.createElement('button');
+      retry.type = 'button'; retry.className = 'result-header-action';
+      retry.dataset.lcaRetry = ''; retry.textContent = fleetLabel('retry');
+      lcaHost.append(retry);
+    }
     if (phaseCharts) phaseCharts.after(emissionsControlsHost);
     else lcaHost.after(emissionsControlsHost);
   };
@@ -423,6 +456,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     else if (event.target.matches('[data-tco-input]')) { onInput(event); void autosave.flush(); }
   };
   const onClick = event => {
+    if (event.target.closest('[data-lca-retry]')) { queueLca(); paint(true); }
     const tab = event.target.closest('[data-annual-tab]');
     if (tab) { activeTab = tab.dataset.annualTab; paint(true); }
     if (event.target.closest('[data-tco-reset]')) {
@@ -455,11 +489,13 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
   const unbind = () => { unbindMaintenanceTooltip(); unbindMaintenanceTooltip = () => {}; root?.removeEventListener('input', onInput); root?.removeEventListener('change', onChange); root?.removeEventListener('click', onClick); root?.removeEventListener('submit', onSubmit); root?.removeEventListener('toggle', onToggle, true); };
   return {
     getAssessment,
+    getExportState,
+    async flushAssumptions() { await autosave.flush(); return !autosave.unsaved; },
     mount(el, state) {
       if (root !== el) { unbind(); root = el; root.addEventListener('input', onInput); root.addEventListener('change', onChange); root.addEventListener('click', onClick); root.addEventListener('submit', onSubmit); root.addEventListener('toggle', onToggle, true); unbindMaintenanceTooltip = bindInfoTooltips(root, '.annual-maintenance-info'); window.addEventListener('beforeunload', beforeUnload); }
-      emissions = state; paint(true);
+      acceptEmissions(state); paint(true);
     },
-    update(state) { emissions = state; paint(true); },
+    update(state) { acceptEmissions(state); paint(true); },
     dispose() { clearTimeout(previewTimer); requestId++; unbind(); root = null; window.removeEventListener('beforeunload', beforeUnload); void autosave.dispose(); },
   };
 }

@@ -3915,7 +3915,7 @@ export const buildExportPayload = (features, effState, costState, emissionsState
       emissionsState.structured?.assumptions?.auxiliary_heating_type ??
       emissionsState.emissionsMetadata?.auxiliaryHeatingType,
   );
-  const emissions = emissionsState.status === "error"
+  const emissions = emissionsState.status !== "done"
     ? null
     : emissionsState.rawLca ?? buildYearlyEmissionsExport(emissionsState, {
         auxiliaryHeatingType,
@@ -4162,12 +4162,17 @@ const buildLegacyYearlyExportPayload = ({
       };
     });
   generalCosts.operatingReconciliation = reconcileYearlyOperatingCosts(
-    generalCostState?.costsData,
+    generalCostState?.status === "done" ? generalCostState.costsData : null,
     shiftRawCosts,
   );
 
   return {
     schemaVersion: 3,
+    exportState: {
+      model: "legacy",
+      costs: { status: generalCostState.status, error: generalCostState.error ?? null },
+      environment: { status: generalEmissionsState.status, error: generalEmissionsState.error ?? null },
+    },
     ...aggregate,
     costs: generalCosts,
     general: {
@@ -4196,6 +4201,7 @@ export const buildCompleteYearlyExportPayload = (options = {}) => {
   return buildYearlyExportDocument({
     features, analysisId: options.analysisId, analysisName: options.analysisName,
     assessment, groupAssessments, exportedAt: options.exportedAt,
+    persistence: options.persistence ?? (options.assessment ? undefined : { status: "loaded", hasUnsavedChanges: false, error: null }),
   });
 };
 
@@ -5287,7 +5293,15 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   };
 
   /* ── Back/close handler ──────────────────────────────────── */
-  const backHandler = () => triggerPartialLoad("yearly-analysis-runs");
+  let closing = false;
+  const backHandler = async () => {
+    if (closing) return;
+    closing = true;
+    try {
+      if (fleetDashboard && !(await fleetDashboard.flushAssumptions())) return;
+      triggerPartialLoad("yearly-analysis-runs");
+    } finally { closing = false; }
+  };
   section.querySelectorAll('[data-action="back"]').forEach((btn) => {
     btn.addEventListener("click", backHandler);
     cleanups.push(() => btn.removeEventListener("click", backHandler));
@@ -5300,21 +5314,19 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const downloadClickHandler = (event) => {
     const button = event.target.closest('[data-action="download-json"]');
     if (!button || !section.contains(button) || activeScope?.kind !== "general") return;
-    const assessment = fleetDashboard?.getAssessment();
-    const groupAssessments = assessment?.fleet.groups.map(group => fleetDashboard.getAssessment({ scope: group.id }));
+    const exportState = fleetDashboard?.getExportState();
     const exportCostState = {
       ...costState,
       costsData: generalCostsData ?? costState.costsData,
       error: generalCostsError,
-      status: generalCostsData ? "done" : costState.status,
+      status: generalCostsError ? "error" : generalCostsData ? "done" : costState.status,
     };
     const payload = buildCompleteYearlyExportPayload({
       features,
       busModelData,
       analysisId,
       analysisName,
-      assessment,
-      groupAssessments,
+      ...exportState,
       generalCostState: exportCostState,
       generalEmissionsState: getGeneralDisplayedEmissionsState(),
       costOverrides,

@@ -74,6 +74,7 @@ export function buildYearlyExportDocument({
   analysisName = null,
   assessment,
   groupAssessments = [],
+  persistence = { status: 'unknown', hasUnsavedChanges: null, error: null },
   exportedAt = new Date().toISOString(),
 }) {
   if (assessment.scope.kind !== 'fleet') throw new Error('The complete annual export requires a fleet assessment');
@@ -129,6 +130,7 @@ export function buildYearlyExportDocument({
     };
   });
   const issues = [...assessment.economics.issues, ...(environment.reason ? [environment.reason] : [])];
+  if (persistence.hasUnsavedChanges) issues.push(`assessment_assumptions_${persistence.status}`);
   for (const group of groups) {
     issues.push(...group.fleetContribution.economics.issues.map(issue => `group:${group.groupId}:${issue}`));
     if (group.representativeBus.environment.reason) issues.push(`group:${group.groupId}:${group.representativeBus.environment.reason}`);
@@ -156,6 +158,7 @@ export function buildYearlyExportDocument({
     },
     configuration: config,
     assumptions: assessment.assumptions,
+    persistence,
     technicalBaseline: {
       activity: activity(assessment.baseline.totals),
       vehicles: assessment.baseline.rows,

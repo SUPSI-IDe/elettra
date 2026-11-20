@@ -78,6 +78,18 @@ test('a group from a previous tariff or mileage cannot be mixed into the fleet d
   assert.throws(() => buildYearlyExportDocument({ features, assessment: edited, groupAssessments }), /different annual inputs/);
 });
 
+for (const status of ['pending', 'saving', 'error', 'invalid']) {
+  test(`export labels ${status} assumptions separately from saved analysis values`, () => {
+    const features = configuration();
+    const { assessment, groupAssessments } = makeDocument(features);
+    const persistence = { status, hasUnsavedChanges: true, error: status === 'error' ? 'Offline' : null };
+    const document = buildYearlyExportDocument({ features, assessment, groupAssessments, persistence });
+    assert.deepEqual(document.persistence, persistence);
+    assert.ok(document.dataQuality.issues.includes(`assessment_assumptions_${status}`));
+    assert.equal(document.dataQuality.status, 'partial');
+  });
+}
+
 test('group contributions conserve unequal frozen investments instead of repeating common maximum packs', () => {
   const features = configuration();
   Object.assign(features.config.fixedConfiguration.investment.rows[1], { packs: 10, capacity: 500, batteryCost: 60000 });

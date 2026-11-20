@@ -24,6 +24,7 @@ layout. It does not expose those names as aliases for new calculations.
 | `provenance` | Recorded GTFS provenance, weather reference, bus-model snapshot and source feasibility ID. Missing references remain null. |
 | `configuration` | The recorded configuration, including individual frozen investments, batteries, infrastructure and operating assumptions. |
 | `assumptions` | Effective assessment inputs, including prices, horizon, discount rate, component lifetimes, maintenance method and annual mileage mappings. |
+| `persistence` | Whether those inputs are loaded/saved, pending, saving, invalid or failed; includes `hasUnsavedChanges` and the save error. |
 | `technicalBaseline` | Simulated activity and original technical results, scenarios, physical vehicles and infrastructure. These remain separate from changes to assessed annual mileage. |
 | `general` | Complete fleet activity, economic assessment and environmental response/state. |
 | `groups` | Battery groups with additive fleet contributions and separately scoped representative-bus values. |
@@ -78,11 +79,43 @@ is separately identified as `previousResult`. A done response with no applicable
 current result has status `unavailable`. Consumers must not add previous results
 to current fleet/group totals.
 
+A refresh keeps the previous response explicitly stale even when its physical
+inputs still match. The environmental download remains disabled until that
+refresh succeeds. Matching also requires annual DC energy and distance to agree
+with the current fleet and its assigned groups. Reopening an analysis with an
+incompatible initial response requests the current assessment once; failed or
+incompatible previews offer Retry. Responses from earlier edits cannot replace
+the result of a newer edit.
+
 Fleet results preserve the upstream fleet LCA payload. Representative results
 preserve the same scoped payload used by the environmental download, including
 backend `shift_ids`, physical counts, attribution metadata and provenance.
 Full HVAC reproduction inputs remain available through the dedicated HVAC
 download; this document retains the recorded configuration and weather reference.
+
+## Saving and reopening
+
+Fleet and group snapshots are captured from one set of current inputs together
+with their persistence state. The complete download represents the current
+assessment even while a write is pending or has failed; it does not claim that
+those values are already stored. Such files have a partial `dataQuality` status
+and an `assessment_assumptions_<status>` issue.
+
+`loaded` identifies inputs restored when opening the analysis; `saved` confirms
+the latest edit completed. `pending` can also identify a newer edit waiting
+behind an older write. If a control is invalid, the assessment retains its last
+valid inputs and reports `invalid`, rather than exporting a fabricated numeric
+value. Standalone serializer callers without persistence information use
+`unknown` with a null `hasUnsavedChanges`.
+
+Close waits for the queued/current save. Failed saves or invalid controls leave
+the page open with the save status. Correct invalid inputs or retry the failed
+save before closing, so an immediate reopen cannot silently restore older inputs.
+
+Historical schema-3 files retain their original structure and add `exportState`
+with `model: legacy` and cost/environment availability. In-progress or failed
+environmental data is omitted from their current emissions fields, including
+per-shift entries. Historical results are not silently converted to schema 4.
 
 ## Precision and consistency
 
