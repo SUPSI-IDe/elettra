@@ -46,6 +46,7 @@ export function buildFeasibilityAssessment({
     scope: { kind: isShift ? 'shift' : 'general', shiftId: isShift ? scope : null },
     sourceRun: savedRun, run, predictionRuns: scopedPredictionRuns,
     execution: evaluationStatus(savedRun), pairedOutcome: pairedFeasibility(savedRun),
+    designExecution: evaluationStatus({ ...savedRun, basis_summaries: null }),
     model, viewState, infeasibility, diagnosticRow, isDiagnostic, operatingAssumptions,
     fleetInvestment: buildFleetInvestment(savedRun, source.currentBusModel, options),
   };

@@ -389,13 +389,20 @@ for (const mode of ["battery_only", "charging_only", "joint"]) {
     await expect(energyAdequacy).toContainText("Sensitivity drivers");
     await expect(page.locator('[data-role="feasibility-shift-sensitivity"]')).toHaveCount(0);
 
-    const assessment = await page.evaluate(async () => {
+    const { assessment, exported } = await page.evaluate(async () => {
       const { buildFeasibilityAssessment } = await import('/elettra/src/utils/feasibility-assessment.js');
+      const { buildFeasibilityExportDocument } = await import('/elettra/src/utils/feasibility-export.js');
       const [optimizationRun, predictionRuns] = await Promise.all([
         fetch('/api/v1/simulation/optimization-runs/level-test').then(response => response.json()),
         fetch('/api/v1/simulation/prediction-runs/').then(response => response.json()),
       ]);
-      return buildFeasibilityAssessment({ optimizationRun, predictionRuns, scope: 'morning' });
+      const options = { optimizationRun, predictionRuns };
+      const assessment = buildFeasibilityAssessment({ ...options, scope: 'morning' });
+      const general = buildFeasibilityAssessment({ ...options, scope: 'general' });
+      const document = buildFeasibilityExportDocument({ designs: [{ assessment: general,
+        shiftAssessments: general.model.shifts.map(row => buildFeasibilityAssessment({ ...options, scope: row.shiftId })),
+      }] });
+      return { assessment, exported: JSON.parse(JSON.stringify(document)) };
     });
     expect(assessment.decisionConsumption.totalKwh).toBe(meanDemandKwh);
     expect(assessment.energyBalance.plannedChargingEnergyKwh).toBe(plannedChargingKwh);
@@ -403,6 +410,11 @@ for (const mode of ["battery_only", "charging_only", "joint"]) {
     expect(assessment.energyComparison.isDeficit).toBe(false);
     const displayedDemand = Number((await consumptionMetric.locator('strong').textContent()).replace(/[^\d.-]/g, ''));
     expect(displayedDemand).toBe(Math.round(assessment.decisionConsumption.totalKwh));
+    const block = exported.designs[0].shifts.find(row => row.shiftId === 'morning');
+    expect(exported.schemaVersion).toBe(1);
+    expect(block.consumption).toEqual(assessment.decisionConsumption);
+    expect(block.energyBalance).toEqual(assessment.energyBalance);
+    expect(displayedDemand).toBe(Math.round(block.consumption.totalKwh));
 
     if (mode === "charging_only") {
       await expect(
