@@ -29,6 +29,10 @@ export function registerGuideLayoutTests(test, expect) {
         await expect(heading).toBeInViewport();
         // Check the served guide, including the production bundle, documents both annual export paths.
         await expect(page.locator('#yearly')).toContainText('JSON');
+        await expect(page.locator('#results')).toContainText('JSON');
+        await expect(page.locator('#results')).toContainText(/(?:schema|Schema|schéma) 1/);
+        await expect(page.locator('#results')).toContainText('Mean');
+        await expect(page.locator('#results')).toContainText('Aggregate Q95');
         await expect(page.locator('#yearly')).toContainText(/(?:schema|Schema|schéma) 4/);
         await expect(page.locator('#yearly')).toContainText(/(?:schema|Schema|schéma) 3/);
         await expect.poll(() => delayedImages).toBeGreaterThan(0);

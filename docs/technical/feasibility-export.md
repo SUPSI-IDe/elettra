@@ -134,7 +134,52 @@ TCO and environmental assessment belong to the annual-analysis export. Full
 HVAC reproduction inputs remain in the dedicated HVAC download; the document
 explicitly reports that they are not embedded and provides its resource.
 
-Permanent tests in `tests/feasibility-export.test.mjs` reconcile both designs
-across the three optimization modes, uniform/mixed batteries, unavailable
-profiles, historical records and diagnostic/failure states. The existing
-feasibility browser tests compare the serialized values to the visible page.
+## Verification
+
+The permanent unit matrix in `tests/feasibility-export.test.mjs` covers both
+profiles across all three optimization modes and uniform/mixed batteries,
+plus unavailable profiles, historical records, inconsistent families,
+missing inputs and diagnostic/failure states. Collector tests separately cover
+read-only lookup, exact forecast IDs, request limits, retry, timeout and
+cancellation.
+
+`test-support/feasibility-export-reconciliation.js` uses only Node assertions,
+without importing the assessment or serializer. It checks the actual serialized
+file: fleet investment sums, frozen vehicle prices, battery costs, profile/run
+references, missing forecast IDs, decision consumption, energy intensity,
+SOC limits, operational energy and charging-session duration/power. Shared
+infrastructure must not appear as a per-block expense; diagnostic blocks must
+not publish a physical operation.
+
+One shared browser scenario registration runs in both the source and compiled
+application, through `tests/e2e/feasibility-export.spec.js` and
+`tests/dist/feasibility-export.spec.js`. Tests navigate the real application and
+parse actual browser downloads. They do not inject result markup or import
+application modules into the page. Acceptance covers all optimization modes,
+uniform/mixed batteries, saved-result reload, unavailable profiles and retry,
+click-time context, cancellation, invalid references, diagnostic Q95 results,
+old forecast IDs outside a bounded history list and all four UI languages.
+Visible consumption, SOC and charging values are compared with the downloaded
+values, allowing only display rounding. The same conservation assertions run
+on the downloaded JSON.
+
+The guide's existing language and delayed-image/anchor tests also check the
+new workflow, including the compiled guide. Source and preview suites must run
+sequentially because they use the same port. Focused commands:
+
+```sh
+taskset --cpu-list 0-7 node --test tests/feasibility-export.test.mjs tests/feasibility-export-loader.test.mjs tests/feasibility-assessment.test.mjs tests/user-guide.test.mjs tests/guide-image-dimensions.test.mjs
+taskset --cpu-list 0-7 npx playwright test tests/e2e/feasibility-export.spec.js tests/e2e/guide-layout-stability.spec.js
+taskset --cpu-list 0-7 npm run build
+taskset --cpu-list 0-7 npx playwright test --config playwright.dist.config.js tests/dist/feasibility-export.spec.js tests/dist/guide-layout-stability.spec.js
+```
+
+Browser tests mock `/api/v1/version` and every expected API read; unexpected
+requests fail their assertions. The bounded-history fixture deliberately
+truncates the list while retaining per-ID records: its UI history warning is
+expected, and the export must still recover the exact saved IDs. HTTP failure
+responses are explicit scenario inputs, not ignored proxy errors.
+
+These deterministic fixtures verify frontend serialization, UI reconciliation
+and bundle integration. They do not validate the backend optimizer, database
+contents or a deployed service.

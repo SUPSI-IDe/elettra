@@ -1,6 +1,6 @@
 # ELETTRA Documentation
 
-> Last updated: 2026-11-12
+> Last updated: 2026-11-20
 
 **ELETTRA** (Electric Transport Transition Assessment) is a web tool for electric bus fleet planning and simulation, developed within the ELETTRA research project to support public transport companies in transitioning to electric bus fleets.
 
@@ -29,7 +29,7 @@ This repository contains the **frontend only** — a Vite-based single-page appl
 - [Fleet Management](user-guide/fleet-management.md) — Bus models and custom operational locations
 - [Vehicle Blocks and Routes](user-guide/shifts-and-routes.md) — GTFS provenance, scheduled trips, auxiliary journeys, space-time diagrams, and trip maps
 - [Feasibility Evaluation](user-guide/feasibility-evaluation.md) — Configuring and launching optimization runs
-- [Feasibility Results](user-guide/simulation-results.md) — Technical verdicts, Mean/Q95 designs, SOC, and charging
+- [Feasibility Results](user-guide/simulation-results.md) — Technical verdicts, Mean/Q95 designs, SOC, charging and complete JSON export
 - [Yearly Analysis](user-guide/yearly-analysis.md) — Fleet costs/emissions, per-vehicle-block efficiency, HVAC provenance, and JSON export
 - [Comparison and Export](user-guide/comparison-and-export.md) — Side-by-side yearly-analysis comparison with CSV and JSON export
 
@@ -39,6 +39,7 @@ This repository contains the **frontend only** — a Vite-based single-page appl
 - [Frontend Structure](technical/frontend-structure.md) — Code organization, routing, page lifecycle
 - [API Integration](technical/api-integration.md) — API client, auth, pagination, error handling
 - [Configuration Defaults](technical/configuration-defaults.md) — Embedded constants and domain defaults
+- [Feasibility JSON Export](technical/feasibility-export.md) — Schema, availability, collection and reconciliation tests
 - [Internationalization](technical/i18n.md) — Translation system (en/de/fr/it)
 
 ### Deployment

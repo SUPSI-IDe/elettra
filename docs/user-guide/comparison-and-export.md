@@ -90,6 +90,18 @@ decision record.
 
 ---
 
+## Export a feasibility evaluation
+
+Open the saved feasibility result, select **General**, and choose
+**Download all results (JSON)**. This separate schema 1 export includes all
+vehicle blocks and available Mean/Q95 designs, with their technical evidence,
+configuration and investments. It reads existing calculations only. Check its
+availability warnings before interpreting partial or historical results.
+See [Feasibility Results](simulation-results.md#export-the-complete-evaluation)
+for the complete workflow and the distinction from yearly exports.
+
+---
+
 ## Good comparison practice
 
 - Name analyses after their principal difference, such as bus model, heating,

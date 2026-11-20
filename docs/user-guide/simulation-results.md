@@ -243,6 +243,36 @@ return to the result; no additional disclosure needs to be opened first.
 
 ---
 
+## Export the complete evaluation
+
+In **General**, choose **Download all results (JSON)**. The schema 1 file
+(`kind: feasibility_evaluation`) contains all vehicle blocks and both available
+**Mean** and **Aggregate Q95** designs, regardless of the currently displayed
+profile. The download reads saved calculations and never starts optimization.
+
+Each design includes its own configuration, technical verdict, battery and
+vehicle investments, shared infrastructure, decision consumption, SOC limits,
+charging plan, forecast references and recorded provenance. Shared infrastructure
+is counted once per design. Mean and Q95 are alternative designs: do not add
+their investments or energy values. Numbers retain their precision in the file;
+the interface may round them for display.
+
+Collection captures the context when you click. Missing forecasts or unavailable,
+pending or failed profiles are reported explicitly; the file may be partial.
+Download again to retry loading. An inconsistent calculation family produces an
+error instead of combining unrelated designs. Leaving the page cancels a pending
+download. A partial file is not proof of infeasibility, and diagnostic records do
+not establish a verified charging plan. Historical defaults and current catalogue
+price fallbacks remain labelled. Missing values remain missing, rather than zero.
+
+Original results and forecast records remain available for audit. Complete HVAC
+reproduction inputs require the separate HVAC download. Annual costs and emissions
+belong to the yearly-analysis export. See the
+[technical JSON contract](../technical/feasibility-export.md) for field meanings
+and availability states.
+
+---
+
 ## What belongs in yearly analysis
 
 Feasibility answers whether the design can operate under the selected technical

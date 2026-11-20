@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { feasibilityExportFixture } from './feasibility-export-fixture.js';
 import { browserApplicationOrigin } from './browser-application-target.mjs';
+import { assertFeasibilityExportReconciles } from './feasibility-export-reconciliation.js';
 
 export const exportButton = page => page.locator('[data-action="download-feasibility-json"]');
 export const exportStatus = page => page.locator('[data-role="feasibility-export-status"]');
@@ -8,12 +9,29 @@ export async function downloadedFeasibility(page) {
   const pending = page.waitForEvent('download');
   await exportButton(page).click();
   const download = await pending;
-  return { filename: download.suggestedFilename(), document: JSON.parse(readFileSync(await download.path(), 'utf8')) };
+  const document = JSON.parse(readFileSync(await download.path(), 'utf8'));
+  assertFeasibilityExportReconciles(document);
+  return { filename: download.suggestedFilename(), document };
 }
 
-export async function mountFeasibilityExport(page, baseURL, { mode = 'joint', language = 'en',
+export async function mountFeasibilityExport(page, baseURL, { mode = 'joint', language = 'en', uniform = false,
   entryRunId = 'mean-design', transform = () => {}, runResponse, predictionList, predictionResponse } = {}) {
-  const mean = feasibilityExportFixture({ mode }), q95 = feasibilityExportFixture({ mode, basis: 'aggregate_q95' });
+  const mean = feasibilityExportFixture({ mode, uniform }), q95 = feasibilityExportFixture({ mode, uniform, basis: 'aggregate_q95' });
+  // The visible aggregate chart needs complete cases, not only consumption statistics.
+  for (const options of [mean, q95]) {
+    const results = options.optimizationRun.results;
+    for (const [key, detail] of Object.entries(results.consumption_analysis.per_shift)) {
+      const summary = results.per_bus_summary.find(row => row.shift_id === key);
+      const usable = results.battery_results[key].optimized_kwh * .5;
+      detail.cases = Object.fromEntries(['mean', 'aggregate_q95'].map(basis => {
+        const total = detail.statistics[basis === 'mean' ? 'mean_total_kwh' : 'q95_total_kwh'];
+        const required = total - summary.total_charged_kwh;
+        return [basis, { total_consumption_kwh: total, accepted_charge_kwh: summary.total_charged_kwh,
+          required_usable_kwh: required, margin_kwh: usable - required,
+          first_minute: 0, soc_kwh: [summary.max_soc_kwh, summary.min_soc_kwh] }];
+      }));
+    }
+  }
   const fixtures = { mean, q95 };
   transform(fixtures);
   const runs = [mean.optimizationRun, q95.optimizationRun];
@@ -27,6 +45,10 @@ export async function mountFeasibilityExport(page, baseURL, { mode = 'joint', la
     unexpected.push(url.href); return route.abort('blockedbyclient');
   });
   page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => {
+    // Expected HTTP failures are controlled by individual scenario responses.
+    if (message.type() === 'error' && !message.text().startsWith('Failed to load resource:')) errors.push(message.text());
+  });
   await page.addInitScript(lang => {
     localStorage.setItem('access_token', 'feasibility-export-test');
     localStorage.setItem('elettra_lang', lang);

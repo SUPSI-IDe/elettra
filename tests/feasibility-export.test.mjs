@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { assertFeasibilityExportReconciles } from '../test-support/feasibility-export-reconciliation.js';
 import { buildFeasibilityExportDocument } from '../src/utils/feasibility-export.js';
 import { feasibilityExportFixture as fixture, feasibilityExportSnapshots as snapshots } from '../test-support/feasibility-export-fixture.js';
 
@@ -20,6 +21,7 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) for (const unifor
     assert.equal(document.dataQuality.status, 'complete');
     assert.deepEqual(document.profiles.map(row => row.status), ['available', 'available']);
     assert.deepEqual(JSON.parse(JSON.stringify(document)), document);
+    assertFeasibilityExportReconciles(JSON.parse(JSON.stringify(document)));
     document.designs.forEach((design, index) => {
       const source = designs[index];
       assert.equal(design.verdict.status, 'feasible');
@@ -328,4 +330,21 @@ test('loading issues remain explicit and detached from caller state', () => {
   assert.deepEqual(document.dataQuality.issues[0], collectionIssues[0]);
   document.dataQuality.issues[0].error = 'Changed';
   assert.equal(collectionIssues[0].error, 'Timeout');
+});
+
+
+test('independent reconciliation rejects drift in the serialized investment, energy and references', () => {
+  const original = buildFeasibilityExportDocument({ designs: paired(), exportedAt });
+  const corruptions = [
+    document => { document.designs[0].general.investment.totals.totalCost += 1; },
+    document => { document.designs[0].shifts[0].energyBalance.operationalEnergyKwh += 1; },
+    document => { document.designs[0].shifts[0].operation.result.totalChargedKwh += 1; },
+    document => { document.designs[0].shifts[0].consumption.totalKwh += 1; },
+    document => { document.profiles[0].runId = 'unrelated-design'; },
+  ];
+  for (const corrupt of corruptions) {
+    const document = JSON.parse(JSON.stringify(original));
+    corrupt(document);
+    assert.throws(() => assertFeasibilityExportReconciles(document));
+  }
 });
