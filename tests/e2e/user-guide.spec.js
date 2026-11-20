@@ -38,7 +38,7 @@ const LANGUAGES = {
       shifts: ["GTFS", "complete server-side list", "Space-time", "Map"],
       feasibility: ["one GTFS edition", "Duplicate"],
       results: ["Configured SOC window", "initial physical-maximum reference"],
-      yearly: ["recorded provenance"],
+      yearly: ["recorded provenance", "complete fleet", "schema 4", "schema 3", "Check the save status before closing", "previous response", "Retry"],
     },
   },
   de: {
@@ -52,7 +52,7 @@ const LANGUAGES = {
       shifts: ["GTFS", "vollständige serverseitige Liste", "Raum-Zeit", "Karte"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren"],
       results: ["Konfiguriertes SOC-Fenster", "physischen Maximum"],
-      yearly: ["aufgezeichnete Herkunft"],
+      yearly: ["aufgezeichnete Herkunft", "gesamte Flotte", "Schema 4", "Schema 3", "Speicherstatus vor dem Schliessen prüfen", "frühere Antwort", "Erneut versuchen"],
     },
   },
   fr: {
@@ -66,7 +66,7 @@ const LANGUAGES = {
       shifts: ["GTFS", "liste complète côté serveur", "Espace-temps", "Carte"],
       feasibility: ["édition GTFS", "Dupliquer"],
       results: ["Fenêtre SOC configurée", "maximum physique"],
-      yearly: ["provenance enregistrée"],
+      yearly: ["provenance enregistrée", "flotte complète", "schéma 4", "schéma 3", "Vérifier l’état de sauvegarde avant de fermer", "réponse précédente", "Réessayer"],
     },
   },
   it: {
@@ -80,7 +80,7 @@ const LANGUAGES = {
       shifts: ["GTFS", "elenco completo sul server", "Spazio-tempo", "Mappa"],
       feasibility: ["una sola edizione GTFS", "Duplica"],
       results: ["Intervallo SOC configurato", "massimo fisico"],
-      yearly: ["provenienza registrata"],
+      yearly: ["provenienza registrata", "flotta completa", "schema 4", "schema 3", "Controllare lo stato del salvataggio prima di chiudere", "risposte precedenti", "Riprova"],
     },
   },
 };
