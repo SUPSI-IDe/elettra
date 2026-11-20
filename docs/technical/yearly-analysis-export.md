@@ -125,7 +125,48 @@ Group snapshots with different effective assumptions or vehicle activity/design
 are rejected instead of being combined with the fleet snapshot. Returned export
 objects are detached from the saved inputs and shared assessment snapshots.
 
-Dedicated regressions are in `tests/yearly-analysis-export.test.mjs`. The annual
-result browser tests check downloaded values against the current dashboard,
-including heterogeneous batteries, changed tariffs/mileage and the separate
-environmental download.
+## Reading a schema-4 file
+
+Use `general` for fleet totals. For a representative bus, select an entry in
+`groups` and read `representativeBus`; use `fleetContribution` when summing
+groups. Summing representative buses without their physical counts understates
+the fleet. Read vehicle-block energy from `shifts[].assessedActivity` for the
+effective scenario, or `technicalBaseline` for the original simulation.
+
+Check `persistence` before treating the file as a saved scenario. Check each
+section's availability before using its results: an overall completed analysis
+can still have a pending save or unavailable environmental assessment. Retain
+the native units on environmental indicators rather than assigning one unit to
+the whole response.
+
+## Regression verification
+
+| Coverage | Permanent tests |
+| --- | --- |
+| Schema, missing data, precision, snapshot isolation and inconsistent inputs | `tests/yearly-analysis-export.test.mjs` |
+| Independent reconciliation of serialized fleet, group and block energy, frozen investment, OPEX, discounted costs, representative allocation and all LCA indicators/phases | `tests/yearly-analysis-export-reconciliation.test.mjs` |
+| Dashboard/download parity, edited assumptions, save failures, stale/late LCA responses and historical schema 3 | `tests/e2e/yearly-analysis-result-scopes.spec.js`, `tests/e2e/yearly-fleet-tco.spec.js` |
+| Application navigation, visible costs/activity, full and environmental downloads, saved edits and actual page reload | `tests/e2e/yearly-export-acceptance.spec.js`, `tests/dist/yearly-export-acceptance.spec.js` |
+
+The independent reconciliation matrix crosses uniform/mixed batteries,
+electric/diesel heating and zero/positive discount rates, before and after
+mileage, tariff and component-lifetime changes. Browser acceptance uses three
+physical buses pooled into one or two representative groups. It also reprices
+the current model catalogue to detect accidental use of live prices instead of
+the frozen investment.
+
+The same browser scenarios run on source desktop/mobile and on the compiled
+production application. Their API responses are deterministic fixtures;
+unmocked requests and browser errors fail acceptance. These tests validate
+frontend interpretation and export consistency, not the backend's LCA inventory
+calculations or a deployed database.
+
+Run the dedicated acceptance checks from the frontend repository (the browser
+commands run sequentially because they share the local server port):
+
+```sh
+taskset --cpu-list 0-7 node --test tests/yearly-analysis-export-reconciliation.test.mjs
+taskset --cpu-list 0-7 npx playwright test tests/e2e/yearly-export-acceptance.spec.js
+taskset --cpu-list 0-7 npm run build
+taskset --cpu-list 0-7 npx playwright test --config playwright.dist.config.js tests/dist/yearly-export-acceptance.spec.js
+```

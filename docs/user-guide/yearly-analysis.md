@@ -176,6 +176,17 @@ annual mileage. Environmental results identify their scope and availability;
 previous responses retained during an update are labelled separately. Historical
 analyses without that investment snapshot retain schema 3.
 
+The complete JSON always contains fleet totals and all representative groups,
+even when a single representative bus is selected. The separate download in
+**Emissions** follows the selected scope and becomes available when its current
+assessment is ready. After a failed update, use **Retry** to obtain current
+environmental results.
+
+The complete file also reports whether the current assumptions have been saved.
+An export made during a pending or failed save still describes the displayed
+assessment. Check the save status before closing; a failed save or invalid input
+keeps the result page open so the changes can be corrected or saved again.
+
 The [JSON export contract](../technical/yearly-analysis-export.md) describes the
 fields, units and version differences.
 

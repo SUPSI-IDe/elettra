@@ -407,15 +407,21 @@ test("yearly results show a generic loading popup while initial data is fetched"
   const analysisGate = new Promise((resolve) => {
     releaseAnalysis = resolve;
   });
+  const analysisRequested = page.waitForRequest(request => request.method() === 'GET' &&
+    new URL(request.url()).pathname.endsWith(`/yearly-analysis/${multishiftAnalysis.id}`));
   const mounting = mountResults(page, multishiftAnalysis, { analysisGate });
   const popup = page.locator('[data-role="ya-initial-loading"]');
 
-  await expect(popup).toBeVisible();
-  await expect(popup.getByRole("heading", { name: "Loading data" })).toBeVisible();
-  await expect(popup).toContainText("Loading in progress…");
-
-  releaseAnalysis();
-  await mounting;
+  try {
+    // Wait for navigation and module loading before checking the deliberately blocked fetch.
+    await analysisRequested;
+    await expect(popup).toBeVisible();
+    await expect(popup.getByRole("heading", { name: "Loading data" })).toBeVisible();
+    await expect(popup).toContainText("Loading in progress…");
+  } finally {
+    releaseAnalysis();
+    await mounting;
+  }
   await expect(popup).toBeHidden();
 });
 
