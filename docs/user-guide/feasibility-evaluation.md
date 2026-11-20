@@ -1,7 +1,7 @@
 # Feasibility Evaluation
 
 > Last updated: 2026-11-20
-> Interface baseline: Frontend v1.2.0-rc.4
+> Interface baseline: Frontend v1.2.0
 
 A feasibility evaluation tests whether the selected vehicle blocks can be
 operated with the configured bus, battery, charging, and environmental inputs.

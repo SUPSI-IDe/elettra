@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.2.0] - 2026-11-20
+
+### Added
+
+- Introduce the guided vehicle-block composer with schedule review, undo, safe depot connections, compact row actions and live translations.
+- Present infeasible evaluations consistently across General and individual vehicle blocks, including saved physical battery limits and contextual help for unavailable Q95 consumption.
+
+### Changed
+
+- Improve feasibility and annual-analysis headers, contextual explanations and responsive layouts.
+- Align the multilingual guide and screenshots with the new composer and result views.
+
+### Fixed
+
+- Keep guide deep-link headings stable while screenshots load.
+- Preserve the selected vehicle-block result across language changes, returning safely to General if the block is unavailable.
+
+### Release
+
+- Promote the functionality validated in `1.2.0-rc.4` without functional changes.
+- Compatible with backend `1.7.0`; no database migration or saved-data rewrite is required.
+
 ## [1.2.0-rc.4] - 2026-11-20
 
 ### Fixed
