@@ -97,6 +97,8 @@ import {
   resolveShiftCapitalAllocationBasis,
 } from "../../../utils/yearly-analysis-cost-scope";
 import { resolveYearlyEconomicAssumptions } from "../../../utils/yearly-analysis-cost-assumptions";
+import { buildYearlyAssessment, hasYearlyFleetInvestment } from "../../../utils/yearly-analysis-assessment.js";
+import { buildYearlyExportDocument } from "../../../utils/yearly-analysis-export.js";
 import {
   reconcileYearlyOperatingCosts,
   resolveYearlyOperatingActivity,
@@ -4015,7 +4017,7 @@ const buildShiftExportConfiguration = (features, scope) => {
  * export, while `general` and `shifts` expose the result hierarchy shown in
  * the multi-shift UI.
  */
-export const buildCompleteYearlyExportPayload = ({
+const buildLegacyYearlyExportPayload = ({
   features = {},
   busModelData = {},
   analysisId = "",
@@ -4176,6 +4178,25 @@ export const buildCompleteYearlyExportPayload = ({
     },
     shifts,
   };
+};
+
+/** Current fleet exports serialize shared assessments; historical results keep schema v3. */
+export const buildCompleteYearlyExportPayload = (options = {}) => {
+  const { features = {}, busModelData = {}, generalEmissionsState = { status: "idle" } } = options;
+  if (!options.assessment && !hasYearlyFleetInvestment(features)) {
+    return buildLegacyYearlyExportPayload(options);
+  }
+  const assessment = options.assessment ?? buildYearlyAssessment({
+    features, model: busModelData, emissionsState: generalEmissionsState,
+  });
+  const groupAssessments = options.groupAssessments ?? (options.assessment ? [] : assessment.fleet.groups.map(group => buildYearlyAssessment({
+    features, baseline: assessment.baseline, assumptions: assessment.assumptions,
+    emissionsState: generalEmissionsState, scope: group.id,
+  })));
+  return buildYearlyExportDocument({
+    features, analysisId: options.analysisId, analysisName: options.analysisName,
+    assessment, groupAssessments, exportedAt: options.exportedAt,
+  });
 };
 
 const downloadJson = (data, filename) => {
@@ -5279,6 +5300,8 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   const downloadClickHandler = (event) => {
     const button = event.target.closest('[data-action="download-json"]');
     if (!button || !section.contains(button) || activeScope?.kind !== "general") return;
+    const assessment = fleetDashboard?.getAssessment();
+    const groupAssessments = assessment?.fleet.groups.map(group => fleetDashboard.getAssessment({ scope: group.id }));
     const exportCostState = {
       ...costState,
       costsData: generalCostsData ?? costState.costsData,
@@ -5289,6 +5312,9 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
       features,
       busModelData,
       analysisId,
+      analysisName,
+      assessment,
+      groupAssessments,
       generalCostState: exportCostState,
       generalEmissionsState: getGeneralDisplayedEmissionsState(),
       costOverrides,
@@ -5656,8 +5682,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
 
   // Historical analyses without the saved fleet investment ledger retain the
   // original duty views; never replace useful results with an incomplete card.
-  const savedInvestmentRows = features.config?.fixedConfiguration?.investment?.rows;
-  if (savedInvestmentRows?.length && savedInvestmentRows.every(row => row.busCost != null && row.batteryCost != null)) fleetDashboard = createYearlyFleetDashboard({
+  if (hasYearlyFleetInvestment(features)) fleetDashboard = createYearlyFleetDashboard({
     features, model: busModelData, predictionRuns: analysisPredictionRuns,
     onPreviewLca: async (values) => {
       const raw = await fetchYearlyAnalysisLca(analysisId, {

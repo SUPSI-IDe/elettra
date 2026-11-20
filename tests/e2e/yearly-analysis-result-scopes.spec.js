@@ -313,6 +313,7 @@ const mountResults = async (
     currentGtfs = [],
     analysisGate = null,
     hvacPayload = null,
+    lcaResponse = null,
   } = {},
 ) => {
   const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
@@ -337,7 +338,7 @@ const mountResults = async (
       const annualKmRaw = url.searchParams.get("annual_km");
       const annualKm = annualKmRaw == null ? null : Number(annualKmRaw);
       lcaRequests?.push({ shiftId, annualKm });
-      await route.fulfill({ json: lcaForShiftDistance(lca, shiftId, annualKm) });
+      await route.fulfill({ json: lcaResponse ? lcaResponse(url, lca) : lcaForShiftDistance(lca, shiftId, annualKm) });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}/costs`)) {
       if (yearlyCosts) await route.fulfill({ json: yearlyCosts });
       else await route.fulfill({ status: 503, json: { detail: "Use deterministic local costs" } });
@@ -1023,6 +1024,33 @@ test("fleet and shift CAPEX expose multiple physical vehicles without reallocati
   await expect(capex).toContainText(/CHF 700['’,]000/);
 });
 
+test('saved fleet JSON is generated from effective assumptions without mounting the results page', async ({ page }) => {
+  await page.route('**/api/v1/**', route => route.fulfill({ json: { version: 'export-test' } }));
+  await page.goto('./');
+  const exported = await page.evaluate(async () => {
+    const { yearlyFleetConfiguration } = await import('/elettra/test-support/yearly-fleet-fixture.js');
+    const { buildCompleteYearlyExportPayload } = await import('/elettra/src/pages/Simulation/YearlyAnalysis/yearly-analysis-results.js');
+    const features = yearlyFleetConfiguration();
+    features.assessment_assumptions = { tco: { energyPrice: .45, annualKmByGroup: { a: 60000 } } };
+    const modern = buildCompleteYearlyExportPayload({ features, analysisId: 'saved-export',
+      busModelData: { bus_length_m: 18, cost: 999999, battery_pack_cost: 999999 },
+      // A schema-4 export must never read the legacy costs state.
+      generalCostState: { status: 'done', costsData: {} },
+    });
+    const historical = structuredClone(features);
+    historical.config.fixedConfiguration.investment.rows = [];
+    const legacy = buildCompleteYearlyExportPayload({ features: historical, busModelData: { bus_length_m: 18 } });
+    return { ...modern, historicalSchemaVersion: legacy.schemaVersion };
+  });
+  expect(exported.schemaVersion).toBe(4);
+  expect(exported.historicalSchemaVersion).toBe(3);
+  expect(exported.assumptions.energyPrice).toBe(.45);
+  expect(exported.general.activity.distanceKm).toBe(120000);
+  expect(exported.technicalBaseline.activity.distanceKm).toBe(100000);
+  expect(exported.general.economics.electric.initial).toBe(2168000);
+  expect(exported.groups[0].representativeBus.activity.distanceKm).toBe(60000);
+});
+
 test("current fleet-dashboard analyses retain the General JSON export", async ({ page }) => {
   const analysis = structuredClone(multishiftAnalysis);
   analysis.id = "fleet-dashboard-export";
@@ -1032,11 +1060,11 @@ test("current fleet-dashboard analyses retain the General JSON export", async ({
         id: "morning",
         name: "Morning service",
         modelName: "Reference bus",
-        packs: 12,
-        capacity: 600,
+        packs: 8,
+        capacity: 400,
         busCost: 400000,
         packCost: 10000,
-        batteryCost: 120000,
+        batteryCost: 80000,
       },
       {
         id: "evening",
@@ -1050,15 +1078,71 @@ test("current fleet-dashboard analyses retain the General JSON export", async ({
       },
     ],
   };
+  const fixed = analysis.features.config.fixedConfiguration;
+  fixed.battery.uniform = false;
+  fixed.shifts[0].battery.selectedPacks = 8;
+  fixed.shifts[1].battery.selectedPacks = 12;
+  Object.assign(fixed.infrastructure, { dataAvailable: true, resultAvailable: true, selectionComplete: true });
+  Object.assign(fixed.infrastructure.stations[0], { installationCostChf: 250000,
+    costBreakdown: { chargers_cost_chf: 100000, site_fixed_cost_chf: 100000, site_power_cost_chf: 50000 } });
+  analysis.features.gtfs_provenance = { shifts: { morning: [{ id: 'frozen-edition', dataset_year: 2026 }] } };
+  analysis.features.config.weather_reference = { weather_temperature_series_id: 'saved-weather-series' };
 
-  await mountResults(page, analysis);
+  await mountResults(page, analysis, { lcaResponse: (url, original) => {
+    const requested = JSON.parse(url.searchParams.get('annual_km_by_shift') ?? 'null');
+    let raw = structuredClone(original);
+    for (const [shiftId, km] of Object.entries(requested ?? {})) raw = lcaForShiftDistance(raw, shiftId, km);
+    raw.vehicles.forEach(vehicle => {
+      vehicle.lifetime_bus = 12; vehicle.lifetime_battery = 8; vehicle.lifetime_diesel_bus = 12;
+      vehicle.diesel_consumption_l_per_km = .4318;
+      const technical = analysis.features.results.shiftResults.find(shift => shift.shiftId === vehicle.shift_id);
+      vehicle.dc_kwh = technical.yearlyTotals.totalEnergyKwh / technical.yearlyTotals.distanceKm * vehicle.annual_km;
+      vehicle.actual_dc_consumption_kwh_per_100km = vehicle.dc_kwh / vehicle.annual_km * 100;
+      vehicle.battery_capacity_kwh = vehicle.shift_id === 'morning' ? 400 : 600;
+      vehicle.bus_length_m = 12;
+    });
+    const dc = raw.vehicles.reduce((sum, vehicle) => sum + vehicle.dc_kwh, 0);
+    raw.energy_boundary = { ...raw.energy_boundary, dc_kwh: dc, grid_kwh: dc / .94, charging_losses_kwh: dc / .94 - dc };
+    return raw;
+  } });
 
   await expect(page.locator('[data-role="annual-fleet-dashboard"]')).toBeVisible();
   const downloadButton = page.getByRole("button", { name: "Download all results (JSON)" });
   await expect(downloadButton).toBeVisible();
   const { exported } = await downloadAllResults(page);
-  expect(exported.schemaVersion).toBe(3);
+  expect(exported.schemaVersion).toBe(4);
+  expect(exported.analysis).toMatchObject({ id: analysis.id, name: analysis.name });
+  expect(exported.general.economics.electric.initial).toBe(1250000);
+  expect(exported.general.activity.distanceKm).toBe(36500);
+  expect(exported.general.environment.result.annual_km).toBe(36500);
+  expect(exported.groups.map(group => group.batteryPacks)).toEqual([8, 12]);
+  expect(exported.provenance.gtfs).toEqual(analysis.features.gtfs_provenance);
+  expect(exported.provenance.weather).toEqual(analysis.features.config.weather_reference);
   expect(exported.shifts.map(({ shiftId }) => shiftId)).toEqual(["morning", "evening"]);
+
+  await page.locator('[data-tco-scope]').selectOption('morning');
+  await page.locator('[data-tco-assumptions] > summary').click();
+  await page.locator('input[type="number"][data-tco-input="energyPrice"]').fill('.45');
+  await page.locator('input[type="number"][data-tco-input="km:morning"]').fill('43800');
+  await page.locator('input[type="number"][data-tco-input="km:morning"]').blur();
+  await expect(page.locator('[data-save-status]')).toHaveText('Changes saved');
+  await page.getByRole('tab', { name: 'Emissions', exact: true }).click();
+  await expect(page.locator('[data-lca-export]')).toBeEnabled();
+  const lcaDownloadPromise = page.waitForEvent('download');
+  await page.locator('[data-lca-export]').click();
+  const lcaExport = JSON.parse(readFileSync(await (await lcaDownloadPromise).path(), 'utf8'));
+  const edited = (await downloadAllResults(page)).exported;
+  expect(edited.assumptions.energyPrice).toBe(.45);
+  expect(edited.general.scope.kind).toBe('fleet');
+  expect(edited.general.activity.distanceKm).toBe(58400);
+  expect(edited.technicalBaseline.activity.distanceKm).toBe(36500);
+  expect(edited.shifts[0].assessedActivity.distanceKm).toBe(43800);
+  expect(edited.shifts[0].technicalResults.yearlyTotals.distanceKm).toBe(21900);
+  expect(edited.general.environment.result.annual_km).toBe(58400);
+  expect(edited.general.environment.result.energy_boundary.dc_kwh).toBeCloseTo(edited.general.activity.busEnergyDcKwh, 6);
+  expect(edited.groups[0].representativeBus.environment.result).toEqual(lcaExport);
+  expect(Number((await page.locator('[data-role="fleet-tco"]').textContent()).replace(/['’]/g, '')))
+    .toBeCloseTo(edited.groups[0].representativeBus.economics.electric.perKm, 3);
 
   await page.getByRole("tab", { name: "Morning service" }).click();
   await expect(downloadButton).toBeHidden();

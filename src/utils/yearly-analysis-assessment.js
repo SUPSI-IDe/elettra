@@ -8,6 +8,13 @@ import {
   yearlyTcoDefaults,
 } from './yearly-fleet-tco.js';
 
+export const YEARLY_ASSESSMENT_METHOD = 'annual-fleet-tco-v1';
+
+export const hasYearlyFleetInvestment = (features = {}) => {
+  const rows = features.config?.fixedConfiguration?.investment?.rows;
+  return Array.isArray(rows) && rows.length > 0 && rows.every(row => row?.busCost != null && row?.batteryCost != null);
+};
+
 // Only physical assessment inputs invalidate LCA; financial edits do not.
 export const yearlyAssessmentLcaKey = assumptions => JSON.stringify([
   assumptions.bodyLife, assumptions.batteryLife, assumptions.dieselLife,

@@ -169,6 +169,16 @@ The export contains General and a separate entry for every available vehicle
 block, including assumptions, provenance, scope, and allocation metadata where
 available.
 
+For analyses with the current fleet investment snapshot, the file uses JSON
+schema 4 and includes fleet totals, representative groups and the effective
+economic assumptions. Simulated technical activity is kept separate from edited
+annual mileage. Environmental results identify their scope and availability;
+previous responses retained during an update are labelled separately. Historical
+analyses without that investment snapshot retain schema 3.
+
+The [JSON export contract](../technical/yearly-analysis-export.md) describes the
+fields, units and version differences.
+
 ---
 
 ## Next steps
