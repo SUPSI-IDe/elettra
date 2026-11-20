@@ -258,6 +258,17 @@ export function registerFeasibilityExportTests(test, expect) {
       const fixture = await mountFeasibilityExport(page, baseURL, { language });
       await expect(exportButton(page)).toBeEnabled();
       await expect(exportButton(page)).toHaveText(label);
+      const actions = page.locator('.simulation-results-page .results-actions');
+      await expect(actions.locator('[data-action="download-feasibility-json"]')).toBeVisible();
+      await expect(exportButton(page).locator('svg')).toBeVisible();
+      await expect(page.locator('.simulation-results-page .page-header [data-action="download-feasibility-json"]')).toHaveCount(0);
+      const layout = await actions.evaluate(element => {
+        const download = element.querySelector('[data-action="download-feasibility-json"]').getBoundingClientRect();
+        const close = element.querySelector('[data-action="back"]').getBoundingClientRect();
+        const panels = document.querySelector('.results-tab-panels').getBoundingClientRect();
+        return { afterResults: download.top >= panels.bottom, beforeClose: download.right <= close.left || download.bottom <= close.top };
+      });
+      expect(layout).toEqual({ afterResults: true, beforeClose: true });
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
       expect(fixture.unexpected).toEqual([]);
       expect(fixture.errors).toEqual([]);

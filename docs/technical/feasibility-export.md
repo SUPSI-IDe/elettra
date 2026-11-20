@@ -34,7 +34,7 @@ it appears in `evaluation.sourceRecord` and never occupies another profile slot.
 
 ## Download collection
 
-The General header's download captures the displayed run, forecasts, price
+The General footer's download, next to Close, captures the displayed run, forecasts, price
 context and names at click time. Changing profile while it loads does not change
 that export. The collector uses terminal cached designs and refreshes unfinished
 counterparts. Historical basis lookups use GET only and never start optimization.

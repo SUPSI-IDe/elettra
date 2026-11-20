@@ -245,7 +245,8 @@ return to the result; no additional disclosure needs to be opened first.
 
 ## Export the complete evaluation
 
-In **General**, choose **Download all results (JSON)**. The schema 1 file
+In **General**, choose **Download all results (JSON)** at the bottom of the
+results, next to **Close**, as in yearly analysis. The schema 1 file
 (`kind: feasibility_evaluation`) contains all vehicle blocks and both available
 **Mean** and **Aggregate Q95** designs, regardless of the currently displayed
 profile. The download reads saved calculations and never starts optimization.

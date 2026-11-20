@@ -13,20 +13,6 @@
   overflow-wrap: anywhere;
 }
 
-.simulation-results-page .feasibility-header-actions {
-  display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  flex: 0 1 auto;
-  max-width: 45%;
-}
-
-.simulation-results-page .feasibility-header-actions .result-header-action {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-
 .simulation-results-page .feasibility-export-status {
   margin-block: var(--space-sm);
 }
@@ -645,7 +631,22 @@
 .results-actions {
   margin-top: var(--space-xl);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.results-actions [data-action="download-feasibility-json"] {
+  max-width: 100%;
+}
+
+.results-actions [data-action="download-feasibility-json"] svg {
+  flex-shrink: 0;
+}
+
+.results-actions [data-action="download-feasibility-json"][hidden] {
+  display: none;
 }
 
 .btn-close-results {

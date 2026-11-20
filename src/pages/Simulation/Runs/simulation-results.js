@@ -9056,6 +9056,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   let exportController = null;
   const exportButton = section.querySelector('[data-action="download-feasibility-json"]');
   const exportStatus = section.querySelector('[data-role="feasibility-export-status"]');
+  const exportLabel = exportButton?.querySelector('[data-i18n="simulation.results_download_json"]');
   let shiftRefreshSeq = 0;
   let costVariableRefreshTimer = null;
 
@@ -9115,7 +9116,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     if (exportButton) {
       exportButton.hidden = !general;
       exportButton.disabled = exportBusy || !loadedOptimizationRun || efficiencyState.status !== 'done';
-      exportButton.textContent = t('simulation.results_download_json');
+      if (exportLabel) exportLabel.textContent = t('simulation.results_download_json');
       exportButton.setAttribute('aria-busy', String(exportBusy));
     }
     if (exportStatus) exportStatus.hidden = !general || !exportStatus.textContent;
