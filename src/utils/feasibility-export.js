@@ -162,6 +162,7 @@ function serializeDesign({ assessment, shiftAssessments = [] }) {
 
 /** Serialize shared snapshots only. Does not fetch data, optimize, or recalculate technical results. */
 export function buildFeasibilityExportDocument({ designs = [], entryRunId = null, unavailableProfiles = [],
+  sourceRun = null, collectionIssues = [],
   exportedAt = new Date().toISOString() } = {}) {
   if (!designs.length) throw new Error('At least one feasibility design is required');
   const serialized = designs.map(serializeDesign);
@@ -178,6 +179,10 @@ export function buildFeasibilityExportDocument({ designs = [], entryRunId = null
   }
   if (new Set(references.values()).size !== references.size) throw new Error('A paired design ID cannot represent both bases');
   const rootId = id(entry.configuration.basis_source_run_id) ?? references.get('mean') ?? entryId;
+  if (sourceRun && (id(sourceRun.id) !== rootId || (byId.has(rootId) &&
+      !same(sourceRun, designs.find(design => id(design.assessment.sourceRun.id) === rootId).assessment.sourceRun)))) {
+    throw new Error('The source feasibility record belongs to another snapshot');
+  }
   if (references.has('mean') && references.get('mean') !== rootId) throw new Error('Conflicting feasibility family root');
   const profiles = new Map(['mean', 'aggregate_q95'].map(key => [key, {
     basis: key, runId: references.get(key) ?? null,
@@ -214,13 +219,17 @@ export function buildFeasibilityExportDocument({ designs = [], entryRunId = null
   const profileList = [...profiles.values()];
   const assignedIds = profileList.map(profile => profile.runId).filter(Boolean);
   if (new Set(assignedIds).size !== assignedIds.length) throw new Error('A feasibility run ID cannot represent multiple profiles');
-  const issues = serialized.flatMap(design => design.dataQuality.issues.map(item => ({ ...item, runId: design.run.id })));
+  const issues = [...collectionIssues,
+    ...serialized.flatMap(design => design.dataQuality.issues.map(item => ({ ...item, runId: design.run.id })))];
   for (const profile of profileList) if (!['available', 'not_recorded', 'not_calculated'].includes(profile.status)) {
     issues.push({ code: `profile_${profile.status}`, basis: profile.basis, runId: profile.runId });
   }
-  if (!byId.has(rootId)) issues.push({ code: 'source_design_unavailable', runId: rootId });
+  if (!byId.has(rootId) && !sourceRun) issues.push({ code: 'source_design_unavailable', runId: rootId });
   const document = { schemaVersion: FEASIBILITY_EXPORT_SCHEMA_VERSION, kind: 'feasibility_evaluation', exportedAt,
-    evaluation: { id: rootId, entryRunId: entryId, name: byId.get(rootId)?.run.name ?? null,
+    evaluation: { id: rootId, entryRunId: entryId, name: byId.get(rootId)?.run.name ?? sourceRun?.name ?? null,
+      sourceRecord: sourceRun && !byId.has(rootId) ? { id: rootId, name: sourceRun.name ?? null,
+        status: sourceRun.status ?? null, inputParams: sourceRun.input_params ?? null,
+        predictionRunIds: sourceRun.prediction_run_ids ?? [], results: sourceRun.results ?? null } : null,
       recordedExecution: designs.find(design => id(design.assessment.sourceRun.id) === entryId).assessment.execution,
       recordedPairedOutcome: designs.find(design => id(design.assessment.sourceRun.id) === entryId).assessment.pairedOutcome },
     units: { energy: 'kWh', batteryCapacity: 'kWh_nominal', power: 'kW_DC', distance: 'km', specificConsumption: 'kWh/km',

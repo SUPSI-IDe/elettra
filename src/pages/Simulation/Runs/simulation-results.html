@@ -6,8 +6,12 @@
           <h1 class="page-title" data-role="results-page-title">Feasibility evaluation results</h1>
         </div>
       </div>
-      <button type="button" class="result-header-action" data-action="toggle-sim-data" data-i18n="simulation.results_view_raw_data">View raw feasibility data</button>
+      <div class="feasibility-header-actions">
+        <button type="button" class="result-header-action" data-action="download-feasibility-json" data-i18n="simulation.results_download_json" disabled>Download all results (JSON)</button>
+        <button type="button" class="result-header-action" data-action="toggle-sim-data" data-i18n="simulation.results_view_raw_data">View raw feasibility data</button>
+      </div>
     </div>
+    <p class="helper-text feasibility-export-status" role="status" data-role="feasibility-export-status" hidden></p>
     <div class="results-navigation">
       <div
         class="results-shift-tabs"

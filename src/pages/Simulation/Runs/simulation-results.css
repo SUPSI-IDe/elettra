@@ -13,9 +13,22 @@
   overflow-wrap: anywhere;
 }
 
-.simulation-results-page .header-with-close > .result-header-action {
+.simulation-results-page .feasibility-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
   flex: 0 1 auto;
   max-width: 45%;
+}
+
+.simulation-results-page .feasibility-header-actions .result-header-action {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.simulation-results-page .feasibility-export-status {
+  margin-block: var(--space-sm);
 }
 
 .simulation-results-page .badge {

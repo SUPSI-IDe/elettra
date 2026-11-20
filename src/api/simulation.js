@@ -23,10 +23,10 @@ import {
 
 const SIMULATION_PATH = `${API_ROOT}/api/v1/simulation`;
 
-export const resolveOptimizationBasis = async (runId, basis, { start = false } = {}) => {
+export const resolveOptimizationBasis = async (runId, basis, { start = false, signal } = {}) => {
   if (!runId || !["mean", "aggregate_q95"].includes(basis)) throw new Error("Invalid optimization basis");
   const response = await fetch(`${SIMULATION_PATH}/optimization-runs/${encodeURIComponent(runId)}/basis/${basis}`, {
-    method: start ? "POST" : "GET", headers: authHeaders(),
+    method: start ? "POST" : "GET", headers: authHeaders(), signal,
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "Unable to load optimization basis");
@@ -508,12 +508,12 @@ export const fetchPredictionRuns = async ({ yearly_analysis_id } = {}) => {
   return payload;
 };
 
-export const fetchPredictionRun = async (runId) => {
+export const fetchPredictionRun = async (runId, { signal } = {}) => {
   if (!runId) throw new Error("Missing runId");
   const headers = authHeaders();
   const response = await fetch(
     `${SIMULATION_PATH}/prediction-runs/${encodeURIComponent(runId)}`,
-    { method: "GET", headers }
+    { method: "GET", headers, signal }
   );
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -536,6 +536,27 @@ const predictionRunIndex = createPredictionRunIndex({
   fetchOne: fetchPredictionRun,
   fetchAll: fetchPredictionRuns,
 });
+
+// Export needs exact saved IDs, including forecasts older than the bounded history list.
+// Keep these requests independent from the UI's shared index so cancellation is local.
+export const resolveFeasibilityExportPredictions = async (ids, { signal } = {}) => {
+  const wanted = [...new Set(ids.map(String))];
+  const found = new Map(), errors = [];
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(4, wanted.length) }, async () => {
+    while (next < wanted.length && !signal?.aborted) {
+      const key = wanted[next++];
+      try {
+        const prediction = await fetchPredictionRun(key, { signal });
+        if (String(prediction?.id) !== key) throw new Error('Unexpected prediction run ID');
+        found.set(key, prediction);
+      }
+      catch (error) { if (error.status !== 404) errors.push({ id: key, error }); }
+    }
+  }));
+  return { runs: wanted.filter(key => found.has(key)).map(key => found.get(key)), errors,
+    missing: wanted.filter(key => !found.has(key)) };
+};
 
 /**
  * Resolves prediction runs by id, batching through the list endpoint when the

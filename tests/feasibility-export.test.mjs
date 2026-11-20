@@ -304,3 +304,28 @@ test('exported objects, source snapshots and a second export never share mutable
   assert.equal(next.designs[0].shifts[0].consumption.totalKwh, 300);
   assert.equal(next.designs[0].general.infrastructure.totalInstallationCostChf, 100000);
 });
+
+test('the original source can be audited without occupying a duplicate current basis slot', () => {
+  const source = fixture({ paired: false }).optimizationRun;
+  const options = fixture({ paired: false });
+  options.optimizationRun.id = 'compatible-mean';
+  options.optimizationRun.input_params.basis_source_run_id = source.id;
+  const document = documentFor(options, { sourceRun: source });
+  assert.equal(document.designs.length, 1);
+  assert.equal(document.profiles.find(row => row.basis === 'mean').runId, 'compatible-mean');
+  assert.equal(document.evaluation.sourceRecord.id, source.id);
+  assert.equal(document.evaluation.sourceRecord.results.battery_results.a.optimized_packs, 10);
+  assert.equal(codes(document).includes('source_design_unavailable'), false);
+  document.evaluation.sourceRecord.results.battery_results.a.optimized_packs = 999;
+  assert.equal(source.results.battery_results.a.optimized_packs, 10);
+  assert.throws(() => documentFor(options, { sourceRun: { ...source, id: 'other-source' } }), /source feasibility/);
+});
+
+test('loading issues remain explicit and detached from caller state', () => {
+  const collectionIssues = [{ code: 'prediction_loading_failed', error: 'Timeout', predictionRunId: 'mean-a' }];
+  const document = documentFor(fixture({ paired: false }), { collectionIssues });
+  assert.equal(document.dataQuality.status, 'partial');
+  assert.deepEqual(document.dataQuality.issues[0], collectionIssues[0]);
+  document.dataQuality.issues[0].error = 'Changed';
+  assert.equal(collectionIssues[0].error, 'Timeout');
+});

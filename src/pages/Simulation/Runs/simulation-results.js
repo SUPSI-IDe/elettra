@@ -6,6 +6,7 @@ import {
   resolveOptimizedInstalledNominalKwh,
 } from '../../../utils/feasibility-predictions.js';
 import { buildFeasibilityAssessment } from '../../../utils/feasibility-assessment.js';
+import { loadFeasibilityExport } from '../../../utils/feasibility-export-loader.js';
 import { bindInfoTooltips } from '../../../utils/info-tooltips';
 import { resultBatteryPolicy } from '../../../utils/battery-policy';
 import { renderBatteryAssumptions } from './battery-assumptions';
@@ -27,6 +28,8 @@ import {
   fetchEconomicComparison,
   fetchEconomicDefaults,
   fetchOptimizationRun,
+  resolveOptimizationBasis,
+  resolveFeasibilityExportPredictions,
   fetchPredictionRunPredictions,
   resolvePredictionRuns,
 } from "../../../api/simulation";
@@ -9049,6 +9052,10 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   let loadedPredictionRuns = [];
   const loadedDesigns = new Map();
   let disposed = false;
+  let exportBusy = false;
+  let exportController = null;
+  const exportButton = section.querySelector('[data-action="download-feasibility-json"]');
+  const exportStatus = section.querySelector('[data-role="feasibility-export-status"]');
   let shiftRefreshSeq = 0;
   let costVariableRefreshTimer = null;
 
@@ -9102,6 +9109,58 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       tripStopLookup: activeShift?.tripStopLookup,
     };
   };
+
+  const paintExport = () => {
+    const general = getActiveResultScope()?.kind === 'general';
+    if (exportButton) {
+      exportButton.hidden = !general;
+      exportButton.disabled = exportBusy || !loadedOptimizationRun || efficiencyState.status !== 'done';
+      exportButton.textContent = t('simulation.results_download_json');
+      exportButton.setAttribute('aria-busy', String(exportBusy));
+    }
+    if (exportStatus) exportStatus.hidden = !general || !exportStatus.textContent;
+  };
+  const handleExport = async () => {
+    if (exportBusy || !loadedOptimizationRun || efficiencyState.status !== 'done' || getActiveResultScope()?.kind !== 'general') return;
+    exportBusy = true;
+    const controller = new AbortController();
+    exportController = controller;
+    if (exportStatus) {
+      exportStatus.dataset.state = 'loading';
+      exportStatus.textContent = t('simulation.export_preparing');
+    }
+    paintExport();
+    try {
+      const data = await loadFeasibilityExport({ entryRun: loadedOptimizationRun,
+        entryPredictionRuns: loadedPredictionRuns, cachedDesigns: loadedDesigns,
+        currentBusModel: { ...options.busModelData, id: options.busModelId },
+        shiftNamesById: new Map(availableShiftTabs.map(row => [row.id, row.shiftName])),
+        fetchRun: fetchOptimizationRun, lookupBasis: resolveOptimizationBasis,
+        resolvePredictions: resolveFeasibilityExportPredictions, signal: controller.signal });
+      if (disposed || controller.signal.aborted || !section.isConnected) return;
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `feasibility-${data.evaluation.id.replace(/[^A-Za-z0-9._-]/g, '_')}.json`;
+      document.body.append(link);
+      try { link.click(); } finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+      if (exportStatus) {
+        exportStatus.dataset.state = data.dataQuality.status;
+        exportStatus.textContent = t(data.dataQuality.status === 'partial' ? 'simulation.export_partial' : 'simulation.export_ready');
+      }
+    } catch (error) {
+      if (!disposed && !controller.signal.aborted && exportStatus) {
+        exportStatus.dataset.state = 'error';
+        exportStatus.textContent = t('simulation.export_failed');
+      }
+    } finally {
+      exportBusy = false;
+      if (exportController === controller) exportController = null;
+      if (!disposed) paintExport();
+    }
+  };
+  exportButton?.addEventListener('click', handleExport);
+  cleanupHandlers.push(() => exportButton?.removeEventListener('click', handleExport));
 
   const renderInfeasibleNotice = (container) => {
     if (!container) return;
@@ -9218,6 +9277,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   };
 
   const refreshEfficiencyTab = () => {
+    paintExport();
     if (!renderedTabs.has("efficiency")) return;
     const scopeOptions = getActiveResultViewOptions();
     const batteryContext = section.querySelector(
@@ -9392,6 +9452,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   };
 
   const renderResultScopeTabs = () => {
+    paintExport();
     if (!shiftTabsEl) return;
     shiftTabsEl.hidden = false;
     shiftTabsEl.setAttribute(
@@ -10163,6 +10224,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
 
   return () => {
     disposed = true;
+    exportController?.abort();
     ++shiftRefreshSeq;
     if (costVariableRefreshTimer) {
       clearTimeout(costVariableRefreshTimer);

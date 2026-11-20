@@ -1,5 +1,10 @@
 export const translations = {
   en: {
+    "simulation.results_download_json": "Download all results (JSON)",
+    "simulation.export_preparing": "Preparing export…",
+    "simulation.export_ready": "Export prepared.",
+    "simulation.export_partial": "Export prepared with unavailable data. Check the availability details in the JSON.",
+    "simulation.export_failed": "The export could not be prepared. Try again.",
     "simulation.infeasibility_help_battery_limit": "The estimated battery requirement exceeds the installable maximum.",
     "simulation.infeasibility_help_fixed_battery": "The selected battery is insufficient.",
     "simulation.infeasibility_help_unverified_cycle": "Recharge before the next departure has not been verified independently.",
@@ -2284,6 +2289,11 @@ export const translations = {
     "yearly_analysis.yearly_uncertainty_title": "Yearly uncertainty summary",
   },
   de: {
+    "simulation.results_download_json": "Alle Ergebnisse herunterladen (JSON)",
+    "simulation.export_preparing": "Export wird vorbereitet…",
+    "simulation.export_ready": "Export vorbereitet.",
+    "simulation.export_partial": "Export mit nicht verfügbaren Daten vorbereitet. Prüfen Sie die Verfügbarkeitsangaben in der JSON-Datei.",
+    "simulation.export_failed": "Der Export konnte nicht vorbereitet werden. Versuchen Sie es erneut.",
     "simulation.infeasibility_help_battery_limit": "Der geschätzte Batteriebedarf überschreitet die Einbaugrenze.",
     "simulation.infeasibility_help_fixed_battery": "Die gewählte Batterie reicht nicht aus.",
     "simulation.infeasibility_help_unverified_cycle": "Die Nachladung vor der nächsten Abfahrt ist nicht separat verifiziert.",
@@ -4564,6 +4574,11 @@ export const translations = {
     "simulation.sensitivity_driver_annual_distance": "Jährliche Distanz: {distance} km",
   },
   fr: {
+    "simulation.results_download_json": "Télécharger tous les résultats (JSON)",
+    "simulation.export_preparing": "Préparation de l’export…",
+    "simulation.export_ready": "Export préparé.",
+    "simulation.export_partial": "Export préparé avec des données indisponibles. Vérifiez les indications de disponibilité dans le JSON.",
+    "simulation.export_failed": "Impossible de préparer l’export. Réessayez.",
     "simulation.infeasibility_help_battery_limit": "Le besoin de batterie estimé dépasse le maximum installable.",
     "simulation.infeasibility_help_fixed_battery": "La batterie sélectionnée est insuffisante.",
     "simulation.infeasibility_help_unverified_cycle": "La recharge avant le départ suivant n’a pas été vérifiée séparément.",
@@ -6844,6 +6859,11 @@ export const translations = {
     "simulation.sensitivity_driver_annual_distance": "Distance annuelle : {distance} km",
   },
   it: {
+    "simulation.results_download_json": "Scarica tutti i risultati (JSON)",
+    "simulation.export_preparing": "Preparazione esportazione…",
+    "simulation.export_ready": "Esportazione preparata.",
+    "simulation.export_partial": "Esportazione preparata con dati non disponibili. Verificare i dettagli sulla disponibilità nel JSON.",
+    "simulation.export_failed": "Impossibile preparare l’esportazione. Riprovare.",
     "simulation.infeasibility_help_battery_limit": "Il fabbisogno di batteria stimato supera il massimo installabile.",
     "simulation.infeasibility_help_fixed_battery": "La batteria selezionata è insufficiente.",
     "simulation.infeasibility_help_unverified_cycle": "La ricarica prima della partenza successiva non è stata verificata separatamente.",

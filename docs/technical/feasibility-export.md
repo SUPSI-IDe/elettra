@@ -27,6 +27,25 @@ run ID and must be established by the caller's lookup. Without recorded
 references or a lookup result, an absent profile is `not_recorded`, which does
 not assert that no historical comparison exists.
 
+An optional `sourceRun` can preserve the original source as audit when a newer
+compatible calculation occupies the same basis. It must match the family root;
+it appears in `evaluation.sourceRecord` and never occupies another profile slot.
+`collectionIssues` records loading failures alongside data-availability issues.
+
+## Download collection
+
+The General header's download captures the displayed run, forecasts, price
+context and names at click time. Changing profile while it loads does not change
+that export. The collector uses terminal cached designs and refreshes unfinished
+counterparts. Historical basis lookups use GET only and never start optimization.
+
+Missing forecast IDs are fetched through the per-ID route with at most four
+parallel reads, independently of the UI's history cache. This also retrieves
+older forecasts outside the server's bounded history list. Each request group
+has a timeout and export-local cancellation. Leaving the page aborts collection
+and suppresses any late download. Loading failures produce a partial file where
+possible; inconsistent design/family data produces an error and permits retry.
+
 ## Document structure
 
 | Field | Meaning |
