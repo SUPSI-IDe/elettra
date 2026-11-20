@@ -1,12 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { browserApplicationOrigin } from '../../test-support/browser-application-target.mjs';
 import { registerGuideLayoutTests } from '../../test-support/guide-layout-scenarios.js';
 import { test, expect } from '@playwright/test';
 import { resolveStagingTargets } from '../../test-support/staging-targets.mjs';
 
 const targets = resolveStagingTargets();
-test.beforeEach(async ({ context }) => {
+const frontendVersion = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version;
+test.beforeEach(async ({ context, baseURL }) => {
+  const origin = browserApplicationOrigin(baseURL);
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
-    return url.origin === targets.frontendUrl ? route.fallback() : route.abort('blockedbyclient');
+    return url.origin === origin ? route.fallback() : route.abort('blockedbyclient');
   });
 });
 
@@ -17,7 +21,7 @@ test('deployed application reports RC and real staging backend on desktop and mo
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => localStorage.setItem('elettra.usageNotice.dismissed.v1', 'true'));
   await page.goto('./#about');
-  await expect(page.locator('[data-role="frontend-version"]')).toHaveText('v1.2.0-rc.3');
+  await expect(page.locator('[data-role="frontend-version"]')).toHaveText('v' + frontendVersion);
   await expect(page.locator('[data-role="backend-version"]')).toHaveText('v1.7.0');
   expect(errors).toEqual([]);
 });

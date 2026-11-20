@@ -1,0 +1,62 @@
+{
+  "status": "passed",
+  "branch": "test/frontend-rc3-extended-20261120",
+  "base_commit": "9869d43593cfc25d0209f4bd9bfdd87b5dbe57cb",
+  "changes": [
+    "Reserve intrinsic dimensions of all ten guide screenshots before lazy loading",
+    "Retain result scope in page navigation options and validate it against current shift IDs"
+  ],
+  "unit": {
+    "passed": 675
+  },
+  "browser_full": {
+    "passed": 876
+  },
+  "targeted_source": {
+    "passed": 20
+  },
+  "guide_stress": {
+    "passed": 24
+  },
+  "optimized_bundle": {
+    "passed": 32,
+    "final_staging_root_repetition": "passed"
+  },
+  "candidate_staging_backed": {
+    "startTime": "2026-11-20T11:25:09.086Z",
+    "duration": 53138.503000000004,
+    "expected": 55,
+    "skipped": 1,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "real_api": {
+    "steps": [
+      "temporary account registered and authenticated",
+      "real validation rejects whitespace names and duplicate trip IDs; direct/proxy responses match",
+      "deployed UI saved one service trip plus two real depot connections, retaining its GTFS edition",
+      "deployed UI reopened the saved programme and persisted an edit with PUT"
+    ],
+    "createdAuxiliaryTrips": 4,
+    "createdShifts": 1,
+    "cleanupErrors": []
+  },
+  "remaining_temporary_users": 0,
+  "safety": {
+    "installed_staging_containers_unchanged": true,
+    "installed_frontend": "1.2.0-rc.3",
+    "backend": "1.7.0",
+    "main_checkout_unchanged": true,
+    "cpu_affinity": "0-7",
+    "candidate_origin": "http://127.0.0.1:9010",
+    "api_proxy": "http://127.0.0.1:9005",
+    "all_non_test_browser_origins_blocked": true
+  },
+  "artifacts": "/ssd2/elettra-releases/frontend-rc3-fixes-20261120-Gh8jsm",
+  "rerun_candidate": "ELETTRA_EXTENDED_LOCAL_BUNDLE=1 taskset -c 0-7 npx playwright test --config playwright.staging-extended.config.js",
+  "application_files_sha256": {
+    "guide/content.js": "11ae17162a48cb3e17890dde31dce4814d20fa8725809b14760961a0ae349b25",
+    "guide/guide.js": "133e4280da60c114f587db9a65b5476c381578c0bf9f9ad83a6cb9b714277515",
+    "src/pages/Simulation/Runs/simulation-results.js": "c0a53d2b93952c1a0195c24a217c1fe0d505b50a077464c4c80fabe8d8217c34"
+  }
+}

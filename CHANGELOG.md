@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Reserve the guide screenshots' intrinsic dimensions so delayed images do not move deep-link headings out of view.
+- Preserve the selected vehicle-block result scope across language changes, with a safe return to General when the block is unavailable.
+
+### Tests
+
+- Cover both fixes in shared desktop/mobile source and optimized-bundle regressions, with staging-backed integration and target guards.
+
 ## [1.2.0-rc.3] - 2026-11-20
 
 ### Changed

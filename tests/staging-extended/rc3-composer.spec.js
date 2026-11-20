@@ -1,8 +1,7 @@
 import { test, expect, configure, edition } from '../../test-support/shift-composer-fixture.js';
-import { resolveStagingTargets } from '../../test-support/staging-targets.mjs';
-
-const { frontendUrl } = resolveStagingTargets();
-test.beforeEach(async ({ context }) => {
+import { browserApplicationOrigin } from '../../test-support/browser-application-target.mjs';
+test.beforeEach(async ({ context, baseURL }) => {
+  const frontendUrl = browserApplicationOrigin(baseURL);
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
     return url.origin === frontendUrl ? route.fallback() : route.abort('blockedbyclient');

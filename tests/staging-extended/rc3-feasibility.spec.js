@@ -1,10 +1,11 @@
+import { registerResultScopeLanguageTests } from '../../test-support/result-scope-language-scenarios.js';
 import { test, expect } from '@playwright/test';
 import { openSavedInfeasibility } from '../../test-support/deployed-infeasibility.js';
 for (const mode of ['battery_only', 'charging_only', 'joint']) {
   for (const basis of ['mean', 'aggregate_q95']) {
     for (const source of ['result', 'diagnostic']) {
-      test(`deployed ${mode} ${basis} ${source} renders the same saved limits after language changes`, async ({ page }, info) => {
-        const { saved, before, writes, errors } = await openSavedInfeasibility(page, { mode, basis, source });
+      test(`deployed ${mode} ${basis} ${source} renders the same saved limits after language changes`, async ({ page, baseURL }, info) => {
+        const { saved, before, writes, errors } = await openSavedInfeasibility(page, { mode, basis, source, applicationURL: baseURL });
         const row = page.locator('[data-role="feasibility-critical-shifts"] tbody tr');
         await expect(row).toHaveCount(1);
         await expect(row.locator('td')).toHaveText(['8', '8', '10', '+2']);
@@ -38,11 +39,4 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
   }
 }
 
-test('changing language retains the selected vehicle-block result scope', async ({ page }) => {
-  await openSavedInfeasibility(page);
-  await page.locator('[data-role="feasibility-critical-shifts"]').getByRole('button', { name: 'Current vehicle block', exact: true }).click();
-  const selected = page.getByRole('tab', { name: 'Current vehicle block', exact: true });
-  await expect(selected).toHaveAttribute('aria-selected', 'true');
-  await page.locator('.language-select').selectOption('it');
-  await expect(selected).toHaveAttribute('aria-selected', 'true');
-});
+registerResultScopeLanguageTests(test, expect);

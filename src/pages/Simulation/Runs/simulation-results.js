@@ -10200,6 +10200,9 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     if (!scope) return;
 
     activeResultScopeKey = scope.key;
+    // Keep navigation context in the page options, never in the saved result.
+    // The shell reuses these options when it remounts the page to translate it.
+    options.resultScopeKey = scope.key;
     renderResultScopeTabs();
 
     if (scope.kind !== "shift") {
@@ -10728,7 +10731,12 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       resultScopes = buildFeasibilityResultScopes(availableShiftTabs, {
         generalLabel: translateOr("simulation.feasibility_scope_general", "General"),
       });
-      activeResultScopeKey = FEASIBILITY_GENERAL_SCOPE_KEY;
+      // Validate the remembered ID against the current result. A removed
+      // vehicle block must return to General rather than show another block.
+      const restoredScope = resolveFeasibilityResultScope(resultScopes, options.resultScopeKey);
+      activeResultScopeKey = restoredScope.key;
+      options.resultScopeKey = restoredScope.key;
+      activeShiftId = restoredScope.kind === "shift" ? restoredScope.shiftId : activeShiftId;
       activeShiftId =
         availableShiftTabs.find((shift) => shift.id === activeShiftId)?.id ??
         availableShiftTabs[0]?.id ??

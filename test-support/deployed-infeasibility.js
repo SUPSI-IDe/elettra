@@ -1,8 +1,9 @@
 import { expect } from '@playwright/test';
-import { resolveStagingTargets } from './staging-targets.mjs';
-const { frontendUrl } = resolveStagingTargets();
+import { browserApplicationOrigin } from './browser-application-target.mjs';
 
-export async function openSavedInfeasibility(page, { mode = 'joint', basis = 'aggregate_q95', source = 'diagnostic' } = {}) {
+export async function openSavedInfeasibility(page, { mode = 'joint', basis = 'aggregate_q95', source = 'diagnostic', applicationURL, routeOptions = {} } = {}) {
+  const frontendUrl = browserApplicationOrigin(applicationURL);
+  const state = { runReads: 0 };
   const writes = [], errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.context().route('**/*', route => new URL(route.request().url()).origin === frontendUrl
@@ -41,7 +42,7 @@ export async function openSavedInfeasibility(page, { mode = 'joint', basis = 'ag
       writes.push({ method: request.method(), path });
       return route.fulfill({ status: 500, json: { detail: 'Viewing a saved result must never write' } });
     }
-    if (path.endsWith('/optimization-runs/rc3-saved')) return route.fulfill({ json: saved });
+    if (path.endsWith('/optimization-runs/rc3-saved')) { state.runReads++; return route.fulfill({ json: saved }); }
     if (path.includes('/user/shifts/') && !path.endsWith('/shifts/'))
       return route.fulfill({ json: { id: 'critical', name: 'Current vehicle block', structure: [] } });
     if (path.endsWith('/version')) return route.fulfill({ json: { version: 'staging-fixture' } });
@@ -52,8 +53,8 @@ export async function openSavedInfeasibility(page, { mode = 'joint', basis = 'ag
   });
   await page.goto('./#home');
   await expect(page.locator('.home-page')).toBeVisible();
-  await page.evaluate(() => document.dispatchEvent(new CustomEvent('partial:request', {
-    detail: { slug: 'simulation-results', runId: 'rc3-saved' },
-  })));
-  return { saved, before, writes, errors };
+  await page.evaluate(routeOptions => document.dispatchEvent(new CustomEvent('partial:request', {
+    detail: { slug: 'simulation-results', runId: 'rc3-saved', ...routeOptions },
+  })), routeOptions);
+  return Object.assign(state, { saved, before, writes, errors });
 }

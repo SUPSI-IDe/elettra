@@ -1,4 +1,5 @@
 import { test, expect, request as requestFactory } from '@playwright/test';
+import { browserApplicationOrigin } from '../../test-support/browser-application-target.mjs';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { resolveStagingTargets } from '../../test-support/staging-targets.mjs';
 
@@ -6,7 +7,8 @@ const { frontendUrl, backendUrl } = resolveStagingTargets();
 
 // All writes belong to one newly registered staging-only account. Never reuse
 // an operator's credentials, bus, depot, shift or auxiliary trip for this test.
-test('real staging composer creates and edits a shift with owned depot connections', async ({ page, request }, info) => {
+test('real staging composer creates and edits a shift with owned depot connections', async ({ page, request, baseURL }, info) => {
+  const applicationOrigin = browserApplicationOrigin(baseURL);
   test.skip(info.project.name.includes('mobile'), 'One real-data transaction; responsive variants use the deterministic bundle tests.');
   test.setTimeout(150_000);
   const suffix = randomUUID();
@@ -32,7 +34,7 @@ test('real staging composer creates and edits a shift with owned depot connectio
   };
   await page.context().route('**/*', route => {
     const url = new URL(route.request().url());
-    return url.origin === frontendUrl ? route.fallback() : route.abort('blockedbyclient');
+    return url.origin === applicationOrigin ? route.fallback() : route.abort('blockedbyclient');
   });
   // Weather is independent from saving the block and may populate a shared
   // cache. Exercise its non-blocking failure path without requesting a forecast.
@@ -59,7 +61,9 @@ test('real staging composer creates and edits a shift with owned depot connectio
     }
     const agency = agencies.find(a => /Trasporti Pubblici Luganesi/i.test(a.agency_name));
     expect(agency, 'The staging fixture requires the loaded TPL timetable').toBeTruthy();
-    const password = 'Qa!' + randomBytes(20).toString('hex');
+    // Separate random byte pairs so the fixture cannot accidentally contain
+    // a forbidden triple repetition or ascending three-character sequence.
+    const password = 'Q!a7!' + Array.from(randomBytes(16), byte => byte.toString(16).padStart(2, '0')).join('!');
     user = await json('POST', '/auth/register', {
       company_id: agency.id, email: 'rc3-qa-' + suffix + '@example.com',
       full_name: name, password,
