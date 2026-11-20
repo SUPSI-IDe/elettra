@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.2.0-rc.4] - 2026-11-20
 
 ### Fixed
 
@@ -10,6 +10,11 @@
 ### Tests
 
 - Cover both fixes in shared desktop/mobile source and optimized-bundle regressions, with staging-backed integration and target guards.
+
+### Compatibility
+
+- Frontend-only prerelease compatible with backend `1.7.0`; no database migration or saved-data rewrite is required.
+- Publish as a prerelease without moving stable container aliases, including `latest`.
 
 ## [1.2.0-rc.3] - 2026-11-20
 
