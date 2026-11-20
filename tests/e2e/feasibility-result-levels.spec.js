@@ -714,6 +714,10 @@ test("separates the common result from one selected shift without an aggregate o
   if (updateGuideScreenshots) {
     await page.setViewportSize({ width: 1000, height: 850 });
     await page.locator(".results-main").evaluate((main) => { main.scrollTop = 0; });
+    await page.keyboard.press('Escape');
+    await page.locator(':focus').evaluateAll(elements => elements.forEach(element => element.blur()));
+    await page.mouse.move(0, 0);
+    await expect(page.locator('[role="tooltip"]:visible')).toHaveCount(0);
     await page.screenshot({ path: "guide/images/feasibility-efficiency.png" });
   }
 
@@ -2603,6 +2607,11 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
         await expect(general).not.toContainText('CHF');
         if (mode === 'joint' && consumptionBasis === 'mean') {
           await page.screenshot({path: test.info().outputPath(`uniform-${source}-general.png`), fullPage: true});
+        }
+        if (updateGuideScreenshots && mode === 'joint' && consumptionBasis === 'mean' && source === 'diagnostic') {
+          await page.setViewportSize({width: 1100, height: 800});
+          await page.mouse.move(0, 0);
+          await page.screenshot({path: 'guide/images/feasibility-infeasible.png'});
         }
         await row.getByRole('button', {name: 'Evening service', exact: true}).click();
         await expect(scopeSelector(page).getByRole('tab', {name: 'Evening service', exact: true})).toHaveAttribute('aria-selected', 'true');

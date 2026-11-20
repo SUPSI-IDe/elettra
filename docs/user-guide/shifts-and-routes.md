@@ -1,7 +1,7 @@
 # Vehicle Blocks and Routes
 
-> Last updated: 2026-11-12
-> Interface baseline: Frontend v1.1.0
+> Last updated: 2026-11-20
+> Interface baseline: Frontend v1.2.0-rc.2
 
 A vehicle block is the ordered service assigned to one bus over a day. It joins
 scheduled GTFS trips to the movements required before, between, and after them.
@@ -13,50 +13,34 @@ Vehicle blocks are the service inputs selected by feasibility evaluations.
 
 Open **Fleet → Vehicle blocks** and select **Add vehicle block**.
 
-### 1. Enter the basic information
+### 1. Set up the block
 
-Provide a recognizable name and choose the candidate bus model. The bus model
-supplies the battery limits, mass, capacity, charging power, and cost inputs used
-later by the evaluation.
+Enter a recognizable name and choose the candidate bus model and GTFS timetable
+edition. New blocks initially select the latest edition. Changing edition after
+adding trips requires confirmation and clears the selection.
 
-### 2. Select the GTFS timetable edition
+Set departure and return depots and times in this first step. A return earlier
+than departure means the following day. GTFS times beyond 24:00 retain their
+service-day offset. Allow time for the connecting auxiliary journeys: depot
+connections are regenerated when saving and consume energy without passengers.
 
-A new vehicle block initially selects the newest available GTFS edition. Choose
-the edition before filtering by line and day.
+### 2. Compose the day
 
-Changing the edition after adding trips requires confirmation because the
-selected trips are cleared. This prevents trips from different timetable
-editions from being combined silently. The saved edition becomes part of the
-vehicle block's provenance.
+Filter by line and day and add compatible scheduled departures in operating
+order. Search by stop or time to narrow the list. **Add all** adds the currently
+filtered trips; individual trips can also be added or removed. **Undo last
+change** restores the preceding selection, including after **Remove all**.
 
-### 3. Filter and add scheduled trips
+Step buttons let you revisit settings without losing the selected trips.
+Editing a saved block opens its existing programme directly, without duplicating
+the generated depot connections.
 
-Select a line and day, then add the required departures in operating order. The
-available list contains only trips from the selected GTFS edition. **Add all**
-adds the trips currently presented by the filters; individual trips can also be
-added or removed.
+### 3. Review and save
 
-### 4. Define the boundaries
-
-Set the start location and time, then the return location and time. These
-locations can include operational custom stops such as depots. ELETTRA includes
-the connecting auxiliary journeys required to represent the complete vehicle
-block.
-
-Auxiliary or deadhead movements consume energy even without passengers.
-Omitting them can make the technical assessment too optimistic.
-
-### 5. Review and save
-
-Use the ordered-trip table and timeline to check:
-
-- departure and arrival sequence;
-- gaps and overlaps;
-- start and return connections;
-- total operating interval;
-- distance and route plausibility.
-
-Save only after the displayed service represents the complete daily duty.
+Open **Review and save** to inspect the ordered itinerary, depot times and
+timeline. Check connections, gaps, overlaps and the complete daily interval.
+ELETTRA checks time boundaries and continuity before review; correct reported
+problems before saving. The saved GTFS edition forms part of the provenance.
 
 ---
 

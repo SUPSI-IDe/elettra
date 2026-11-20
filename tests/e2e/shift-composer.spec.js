@@ -101,6 +101,10 @@ test('compose, search, review and create a complete block with depot connections
   await page.evaluate(() => { document.querySelector('.layout-article').scrollTop = 0; });
   await expect(page.locator('.trip-preview-row')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('compose.png'), fullPage: true });
+  if (process.env.UPDATE_GUIDE_SCREENSHOTS === '1') {
+    await page.setViewportSize({width: 1280, height: 1000});
+    await page.screenshot({path: 'guide/images/shift-composer.png', fullPage: true});
+  }
   await page.locator('[data-action="composer-next"]').click();
   await expect(page.locator('.composer-itinerary li')).toHaveCount(2);
   await expect(page.locator('.composer-summary')).toContainText('Main depot');

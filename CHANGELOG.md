@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.0-rc.2] - 2026-11-20
+
+### Documentation
+
+- Align all four online guide languages with infeasible-result diagnostics, battery estimates, orange Mean/Q95 outcomes and unavailable Q95 consumption.
+- Explain contextual tooltips and distinguish verified operational detail from diagnostic results.
+- Align the guided vehicle-block instructions with the editor order and refresh the feasibility and annual-result screenshots, including new composer and infeasible-result examples.
+- Synchronize the Markdown guide baseline and add focused documentation regression checks.
+
+### Compatibility
+
+- Documentation-only update to `1.2.0-rc.1`; application behavior and backend `1.7.0` compatibility are unchanged.
+- Publish as a prerelease without moving stable container aliases, including `latest`.
+
 ## [1.2.0-rc.1] - 2026-11-20
 
 ### Added

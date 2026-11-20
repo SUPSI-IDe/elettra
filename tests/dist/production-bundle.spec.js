@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 test.beforeEach(async ({ context }) => {
   await context.route("**/api/v1/version", route => route.fulfill({
@@ -41,4 +42,26 @@ test("the optimized bundle renders the application and public guide", async ({
   await expect(page).toHaveURL(/\/elettra\/guide\/$/);
   await expect(page.locator("h1")).toContainText("ELETTRA");
   expect(pageErrors).toEqual([]);
+});
+
+
+test("the optimized guide packages diagnostic guidance and all current screenshots", async ({page}) => {
+  const version=JSON.parse(readFileSync(new URL('../../package.json',import.meta.url),'utf8')).version;
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('./guide/');
+  await expect(page.locator('.guide-meta')).toContainText(`Frontend v${version}`);
+  await expect(page.locator('.guide-figure img')).toHaveCount(10);
+  for(const image of await page.locator('.guide-figure img').all()) {
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(()=>image.evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
+  }
+  for(const language of ['en','de','fr','it']) {
+    await page.locator('#guide-language').selectOption(language);
+    await expect(page.locator('#results')).toContainText('N/A');
+    await expect(page.locator('#results')).toContainText('—');
+    await expect(page.locator('#results img[src*="feasibility-infeasible"]')).toHaveCount(1);
+    await expect(page.locator('#shifts img[src*="shift-composer"]')).toHaveCount(1);
+  }
+  expect(errors).toEqual([]);
 });
