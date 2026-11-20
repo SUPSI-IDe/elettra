@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0-rc.3] - 2026-11-20
+
+### Changed
+
+- Include the multilingual guide alignment, refreshed screenshots and documentation regression checks prepared for `1.2.0-rc.2`.
+- Synchronize existing browser checks with SVG relayout and asynchronous tab focus restoration, preserving their colour, stop-order and keyboard assertions.
+
+### Compatibility
+
+- Documentation and test updates only; application behavior and backend `1.7.0` compatibility are unchanged.
+- The `1.2.0-rc.2` tag is retained as the failed CI candidate; no container or GitHub release was published for it.
+- Publish as a prerelease without moving stable container aliases, including `latest`.
+
 ## [1.2.0-rc.2] - 2026-11-20
 
 ### Documentation

@@ -1037,8 +1037,10 @@ test("supports keyboard navigation, duplicate names, safe labels, and horizontal
 
   await page.keyboard.press("ArrowLeft");
   await expect(eveningTab).toHaveAttribute("aria-selected", "true");
+  await expect(eveningTab).toBeFocused();
   await page.keyboard.press("Home");
   await expect(generalTab).toHaveAttribute("aria-selected", "true");
+  await expect(generalTab).toBeFocused();
 });
 
 test("never reuses another shift prediction when the selected shift has none", async ({ page }) => {
