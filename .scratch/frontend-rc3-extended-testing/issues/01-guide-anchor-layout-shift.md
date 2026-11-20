@@ -1,6 +1,6 @@
 # Guide deep links move out of view after screenshots load
 
-Status: ready-for-agent
+Status: resolved
 Priority: P2
 Affected release: frontend 1.2.0-rc.3 (69b07ac), main 9869d43
 Environment: elettra-user-staging, frontend :55558, backend 1.7.0 :9005
@@ -28,3 +28,12 @@ The initial hash position is correct. The screenshots are lazy-loaded without in
 - Preserve the regression in all four languages and desktop/mobile.
 - Verify cold links, regular guide navigation, language changes and return-to-app navigation.
 - Application code and deployment were not changed during this test session.
+
+
+## Resolution
+
+Reserve each screenshot's actual intrinsic PNG width and height in the localized guide content and set both image attributes before assigning its source. The existing responsive width/height CSS then reserves the correct aspect ratio while the response is delayed.
+
+The original regression failed in all four desktop languages before the change. The shared source/staging regression now also checks language changes after delayed loading and is included in the optimized-bundle suite. A unit test compares every localized figure's metadata with the corresponding PNG header.
+
+Targeted source validation: 20 guide/scope cases passed on desktop and mobile. Full validation is recorded in the branch's final test report. The installed staging RC remains unchanged until a new release candidate is deployed.

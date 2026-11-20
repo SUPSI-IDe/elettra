@@ -17,6 +17,8 @@ const yearlyEmissionsImage = new URL("./images/yearly-emissions.png", import.met
 const GUIDE_FIGURES = {
   shiftComposer: {
     src: new URL("./images/shift-composer.png", import.meta.url).href,
+    width: 1280,
+    height: 1000,
     captions: {
       en: "The guided vehicle-block editor in Build the day: compatible departures, search, selected trips and navigation to Review & save.",
       de: "Der geführte Fahrzeugumlauf-Editor unter Tag zusammenstellen: passende Abfahrten, Suche, ausgewählte Fahrten und Navigation zu Prüfen & speichern.",
@@ -26,6 +28,8 @@ const GUIDE_FIGURES = {
   },
   infeasibility: {
     src: new URL("./images/feasibility-infeasible.png", import.meta.url).href,
+    width: 1100,
+    height: 800,
     captions: {
       en: "An infeasible fleet result: selected packs, physical maximum, estimated requirement and missing packs. Open a vehicle block for its diagnostic battery graphic; explanations are in the information tooltips.",
       de: "Nicht machbares Flottenergebnis: gewählte Packs, physisches Maximum, geschätzter Bedarf und fehlende Packs. Öffnen Sie einen Umlauf für die diagnostische Batteriegrafik; Erklärungen stehen in den Informationstooltips.",
@@ -36,6 +40,8 @@ const GUIDE_FIGURES = {
 
   shell: {
     src: applicationShellImage,
+    width: 1440,
+    height: 1100,
     captions: {
       en: "Authenticated Home with direct links to the six planning sections. Home, Fleet, Simulations and the user guide remain available from the sidebar.",
       de: "Authentifizierte Startseite mit direkten Links zu den sechs Planungsbereichen. Startseite, Flotte, Simulationen und Benutzerhandbuch bleiben über die Seitenleiste erreichbar.",
@@ -45,6 +51,8 @@ const GUIDE_FIGURES = {
   },
   customStop: {
     src: customStopImage,
+    width: 1760,
+    height: 1080,
     captions: {
       en: "Editing a legacy custom stop: recovered location fields remain editable and a current stop type can be assigned before saving.",
       de: "Bearbeitung einer älteren benutzerdefinierten Haltestelle: wiederhergestellte Ortsfelder bleiben editierbar und vor dem Speichern kann ein aktueller Typ zugewiesen werden.",
@@ -54,6 +62,8 @@ const GUIDE_FIGURES = {
   },
   shift: {
     src: shiftVisualisationImage,
+    width: 2075,
+    height: 1050,
     captions: {
       en: "Vehicle block visualisation with general information and the default space-time diagram. The toggle also opens a trip-by-trip map; depot connections are included in both views.",
       de: "Visualisierung eines Fahrzeugumlaufs mit allgemeinen Informationen und dem standardmässigen Raum-Zeit-Diagramm. Über den Umschalter lässt sich auch eine Karte für jede einzelne Fahrt öffnen; Depotverbindungen sind in beiden Ansichten enthalten.",
@@ -63,6 +73,8 @@ const GUIDE_FIGURES = {
   },
   feasibilityForm: {
     src: feasibilityFormImage,
+    width: 1440,
+    height: 1000,
     captions: {
       en: "Feasibility form with the selected GTFS timetable, compatible vehicle blocks and the environmental, state-of-charge and optimisation assumptions.",
       de: "Machbarkeitsformular mit gewähltem GTFS-Fahrplan, kompatiblen Fahrzeugumläufen sowie Umwelt-, Ladezustands- und Optimierungsannahmen.",
@@ -72,6 +84,8 @@ const GUIDE_FIGURES = {
   },
   feasibilityEfficiency: {
     src: feasibilityEfficiencyImage,
+    width: 1000,
+    height: 850,
     captions: {
       en: "General feasibility view with compact recorded GTFS provenance, battery configurations and investment for the fleet, shared charging infrastructure, and direct raw-data access in the header.",
       de: "Allgemeine Machbarkeitsansicht mit kompakter aufgezeichneter GTFS-Herkunft, Batteriekonfigurationen und Investitionen der Flotte, geteilter Ladeinfrastruktur und direktem Rohdatenzugriff im Kopf.",
@@ -81,6 +95,8 @@ const GUIDE_FIGURES = {
   },
   feasibilitySizing: {
     src: feasibilitySizingImage,
+    width: 1900,
+    height: 1000,
     captions: {
       en: "A vehicle-block result with active Mean/Q95 consumption, reached SOC values, visual energy analysis and expandable charging details.",
       de: "Ergebnis eines Fahrzeugumlaufs mit aktivem Mittelwert-/Q95-Verbrauch, erreichten SOC-Werten, visueller Energieanalyse und aufklappbaren Ladedetails.",
@@ -90,6 +106,8 @@ const GUIDE_FIGURES = {
   },
   yearlyEfficiency: {
     src: yearlyEfficiencyImage,
+    width: 1440,
+    height: 1020,
     captions: {
       en: "General yearly-analysis scope with the compact fleet summary and Costs view for the fleet or a representative bus group.",
       de: "Allgemeiner Bereich der Jahresanalyse mit kompakter Flottenübersicht und Kostenansicht für die Flotte oder eine repräsentative Busgruppe.",
@@ -99,6 +117,8 @@ const GUIDE_FIGURES = {
   },
   yearlyEmissions: {
     src: yearlyEmissionsImage,
+    width: 1440,
+    height: 1020,
     captions: {
       en: "Fleet Emissions view with lifecycle-phase bars and the expandable activity and diesel-consumption controls below the charts.",
       de: "Emissionsansicht der Flotte mit Balken nach Lebenszyklusphase und den aufklappbaren Reglern für Fahrleistung und Dieselverbrauch unter den Diagrammen.",
@@ -110,6 +130,8 @@ const GUIDE_FIGURES = {
 
 const getGuideFigures = (language, ...keys) => keys.map((key) => ({
   src: GUIDE_FIGURES[key].src,
+  width: GUIDE_FIGURES[key].width,
+  height: GUIDE_FIGURES[key].height,
   caption: GUIDE_FIGURES[key].captions[language] ?? GUIDE_FIGURES[key].captions.en,
 }));
 

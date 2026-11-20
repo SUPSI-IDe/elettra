@@ -188,6 +188,10 @@ const renderFigures = (figures, ui) => {
     link.setAttribute("aria-label", `${ui.openImage}: ${figureData.caption}`);
 
     const image = document.createElement("img");
+    // Reserve the screenshot's aspect ratio before its lazy response arrives,
+    // so loading earlier figures cannot move the URL's anchor destination.
+    image.width = figureData.width;
+    image.height = figureData.height;
     image.src = figureData.src;
     image.alt = "";
     image.loading = "lazy";
