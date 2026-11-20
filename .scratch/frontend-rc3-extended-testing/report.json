@@ -1,0 +1,101 @@
+{
+  "frontend_release": "1.2.0-rc.3",
+  "backend_release": "1.7.0",
+  "tested_commit": "9869d43593cfc25d0209f4bd9bfdd87b5dbe57cb",
+  "source_unit": {
+    "passed": 672
+  },
+  "source_browser": {
+    "passed": 856,
+    "failed": 0
+  },
+  "production_bundle": {
+    "passed": 22
+  },
+  "build": "passed",
+  "staging_stack": "passed",
+  "extended": {
+    "startTime": "2026-11-20T10:56:57.503Z",
+    "duration": 65411.11899999999,
+    "expected": 39,
+    "skipped": 1,
+    "unexpected": 6,
+    "flaky": 0
+  },
+  "findings": [
+    {
+      "id": "01",
+      "issue": "Guide deep links move out of the desktop viewport when delayed images load",
+      "affected": "en,it,de,fr desktop",
+      "additional_reproductions": "3/3 English desktop"
+    },
+    {
+      "id": "02",
+      "issue": "Changing language resets individual result scope to General",
+      "affected": "desktop,mobile",
+      "triage": "confirm expected scope preservation"
+    }
+  ],
+  "real_api": {
+    "register_login": true,
+    "save_from_ui": true,
+    "edit_from_ui": true,
+    "actual_auxiliary_trips_created": 4,
+    "validation_422": true,
+    "direct_proxy_contract": true,
+    "cleanup_verified": true,
+    "remaining_qa_users": 0,
+    "weather": "non-blocking failure simulated; no forecast requested"
+  },
+  "safety": {
+    "target_project": "elettra-user-staging",
+    "frontend_url": "http://127.0.0.1:55558",
+    "backend_url": "http://127.0.0.1:9005",
+    "db_container": "elettra-user-staging-db",
+    "containers_unchanged": true,
+    "application_source_changed": false,
+    "deployment_changed": false,
+    "main_working_tree_clean": true
+  },
+  "artifact_directory": "/ssd2/elettra-releases/frontend-rc3-tests-20261120-5qix4z",
+  "worktree": "/home/elettra/projects/.worktrees/elettra-frontend-rc3-extended-20261120",
+  "branch": "test/frontend-rc3-extended-20261120",
+  "services": [
+    {
+      "name": "elettra-user-staging-frontend",
+      "status": "running",
+      "health": "healthy",
+      "image": "ghcr.io/supsi-ide/elettra@sha256:cb1bda6b918dd8b0e472a7e715d90744826ae9c9ec9a5bba37567818b2eeb196"
+    },
+    {
+      "name": "elettra-user-staging-api",
+      "status": "running",
+      "health": "healthy",
+      "image": "ghcr.io/supsi-dacd-isaac/elettra-backend@sha256:8a6c60b1367121dfcb99e99e26ae156ecdc26569a4500954165b7b5574b23c1e"
+    },
+    {
+      "name": "elettra-user-staging-elevation-worker",
+      "status": "running",
+      "health": "healthy",
+      "image": "sha256:c2962bc99857dd4f4ae170e3f7ac17596c99821febb6dd51377119ffa3fb316d"
+    },
+    {
+      "name": "elettra-user-staging-db",
+      "status": "running",
+      "health": "healthy",
+      "image": "postgres:18-alpine"
+    },
+    {
+      "name": "elettra-user-staging-osrm",
+      "status": "running",
+      "health": null,
+      "image": "osrm/osrm-backend:latest"
+    },
+    {
+      "name": "elettra-user-staging-minio",
+      "status": "running",
+      "health": "healthy",
+      "image": "minio/minio:RELEASE.2025-04-22T22-12-26Z-cpuv1"
+    }
+  ]
+}
