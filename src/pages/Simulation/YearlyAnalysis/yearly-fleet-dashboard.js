@@ -1,7 +1,8 @@
 import { getCurrentLang, t } from '../../../i18n';
 import { escapeHtml } from '../../../utils/html.js';
 import { formatNumber as n, formatChf as chf } from '../../../utils/number-format.js';
-import { buildAnnualFleet, computeFleetTco, computeDieselTco, cumulativeCostComparison, scopeFleetLca, scaleAnnualFleet, yearlyTcoDefaults } from '../../../utils/yearly-fleet-tco.js';
+import { buildAnnualFleet, yearlyTcoDefaults } from '../../../utils/yearly-fleet-tco.js';
+import { buildYearlyAssessment, yearlyAssessmentLcaKey } from '../../../utils/yearly-analysis-assessment.js';
 import { renderParameterizedLca } from './parameterized-lca';
 import { renderAnnualCostCharts } from './yearly-fleet-charts';
 import { createAssumptionAutosave } from '../../../utils/assumption-autosave.js';
@@ -196,21 +197,17 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     root.querySelector('[data-autosave-retry]').hidden = autosave.state.status !== 'error';
   };
   const autosave = createAssumptionAutosave({ save: onSave, onState: paintSaveStatus });
-  const fleet = () => scaleAnnualFleet(baseline, assumptions.annualKmByGroup);
   const assumptionsKey = values => JSON.stringify({ ...values,
     annualKmByGroup: Object.fromEntries(Object.entries(values.annualKmByGroup ?? {}).sort(([a], [b]) => a.localeCompare(b))),
   });
   const assumptionsModified = () => assumptionsKey(assumptions) !== assumptionsKey(defaultAssumptions);
-  const payload = () => ({ ...assumptions, annualKmByGroup: { ...assumptions.annualKmByGroup },
-    annualKmByShift: Object.fromEntries(fleet().rows.map(r => [r.id, r.km])) });
-  const lcaKey = () => JSON.stringify([assumptions.bodyLife, assumptions.batteryLife, assumptions.dieselLife,
-    assumptions.dieselConsumption, assumptions.annualKmByGroup]);
-  const close = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a), Math.abs(b));
-  const matchesLca = (raw, current) => raw?.status === 'complete' &&
-    raw.vehicles.every(v => close(v.lifetime_bus, assumptions.bodyLife) && close(v.lifetime_battery, assumptions.batteryLife) &&
-      close(v.lifetime_diesel_bus, assumptions.dieselLife) && close(v.diesel_consumption_l_per_km, assumptions.dieselConsumption)) &&
-    current.groups.every(g => close(raw.vehicles.filter(v => (v.shift_ids ?? [v.shift_id]).some(id => g.members.some(m => m.id === id)))
-      .reduce((s, v) => s + v.annual_km * (v.vehicle_count ?? 1), 0), g.km));
+  const lcaKey = () => yearlyAssessmentLcaKey(assumptions);
+  // Default to the complete fleet even when the page displays a representative.
+  const getAssessment = ({ scope = 'fleet' } = {}) => buildYearlyAssessment({
+    features, baseline, assumptions, scope,
+    emissionsState: preview?.key === lcaKey() ? preview : emissions,
+  });
+  const payload = () => getAssessment().assumptions;
   const queueLca = () => {
     clearTimeout(previewTimer); const id = ++requestId;
     if (!onPreviewLca) return;
@@ -282,31 +279,16 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     if (previousPanel?.dataset.assumptionsTab === 'emissions') emissionsAssumptionsOpen = previousPanel.open;
     else if (previousPanel) costAssumptionsOpen = previousPanel.open;
     if (!root) return;
-    const current = fleet(), group = current.groups.find(g => g.id === scope);
-    const divisor = group ? group.count : 1, share = group ? group.count / current.count : 1;
-    const local = group ? { ...current, count: group.count, rows: group.members,
-      totals: Object.fromEntries(['km', 'dc', 'grid', 'busCost', 'batteryCost'].map(k => [k, group.members.every(r => Number.isFinite(r[k])) ? group.members.reduce((s, r) => s + r[k], 0) : null])),
-      infrastructure: Object.fromEntries(Object.entries(current.infrastructure).map(([key, value]) => [key, scaled(value, share)])),
-    } : current;
-    const state = preview?.key === lcaKey() ? preview : emissions;
-    const raw = state.rawLca;
-    const lcaRows = (raw?.vehicles ?? []).filter(v => !group || (v.shift_ids ?? [v.shift_id]).some(id => group.members.some(m => m.id === id)));
-    const lcaKm = lcaRows.reduce((s, v) => s + v.annual_km * (v.vehicle_count ?? 1), 0);
-    const heater = features.config?.auxiliary_heating_type === 'diesel'
-      ? lcaKm > 0 ? lcaRows.reduce((s, v) => s + v.diesel_heating_liters * (v.vehicle_count ?? 1), 0) * local.totals.km / lcaKm : null : 0;
-    const result = computeFleetTco(local, { ...assumptions, infrastructureMaintenance: assumptions.infrastructureMaintenance * share }, { dieselHeatingLiters: heater });
-    const diesel = computeDieselTco(local, assumptions), comparison = cumulativeCostComparison(result, diesel, assumptions);
-    const tcoDifference = result && diesel ? diesel.perKm - result.perKm : null;
+    const assessment = getAssessment({ scope });
+    const { fleet: current, group, scopedFleet: local, divisor, infrastructureShare: share } = assessment;
+    const { electric: result, diesel, comparison, differencePerKm: tcoDifference, dieselHeatingLiters: heater } = assessment.economics;
+    const state = assessment.environment;
     const breakEvenValue = !comparison ? '—' : comparison.breakEven === null
       ? label('noBreakEven')
       : comparison.residualOnly
         ? label('residualBreakEven')
         : `${label('year')} ${comparison.breakEven}`;
-    const currentScopedLca = matchesLca(raw, current) ? scopeFleetLca(raw, group) : null;
-    const staleScopedLca = !currentScopedLca && raw?.status === 'complete' && ['loading', 'error'].includes(state.status)
-      ? scopeFleetLca(raw, group) : null;
-    const scopedLca = currentScopedLca ?? staleScopedLca;
-    const lcaIsStale = !currentScopedLca && Boolean(staleScopedLca);
+    const { rawLca: scopedLca, isStale: lcaIsStale } = state;
     const climate = scopedLca?.indicators?.gwp100a;
     const hasClimate = Number.isFinite(climate?.total) && Number.isFinite(climate?.diesel_comparator_total);
     const efficiencyRows = local.rows
@@ -472,6 +454,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
   };
   const unbind = () => { unbindMaintenanceTooltip(); unbindMaintenanceTooltip = () => {}; root?.removeEventListener('input', onInput); root?.removeEventListener('change', onChange); root?.removeEventListener('click', onClick); root?.removeEventListener('submit', onSubmit); root?.removeEventListener('toggle', onToggle, true); };
   return {
+    getAssessment,
     mount(el, state) {
       if (root !== el) { unbind(); root = el; root.addEventListener('input', onInput); root.addEventListener('change', onChange); root.addEventListener('click', onClick); root.addEventListener('submit', onSubmit); root.addEventListener('toggle', onToggle, true); unbindMaintenanceTooltip = bindInfoTooltips(root, '.annual-maintenance-info'); window.addEventListener('beforeunload', beforeUnload); }
       emissions = state; paint(true);

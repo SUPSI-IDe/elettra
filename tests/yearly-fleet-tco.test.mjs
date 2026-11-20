@@ -3,21 +3,8 @@ import test from 'node:test';
 import { buildAnnualFleet, capitalCashFlow, computeFleetTco, computeDieselTco, cumulativeCostComparison, yearlyTcoDefaults, scaleAnnualFleet, scopeFleetLca } from '../src/utils/yearly-fleet-tco.js';
 import { buildYearlyPredictionGroups } from '../src/utils/yearly-analysis-model.js';
 
-const configuration = () => ({
-  config: { fixedConfiguration: {
-    busModelId: 'bus', fleet: { vehicleCount: 2 },
-    investment: { rows: [
-      { id: 'a', packs: 14, capacity: 700, busCost: 800000, batteryCost: 84000 },
-      { id: 'b', packs: 14, capacity: 700, busCost: 800000, batteryCost: 84000 },
-    ] },
-    infrastructure: { dataAvailable: true, stations: [{ selected: true, installationCostChf: 400000,
-      costBreakdown: { chargers_cost_chf: 110000, site_fixed_cost_chf: 250000, site_power_cost_chf: 40000 } }] },
-  } },
-  results: { yearlyTotals: { distanceKm: 100000, totalEnergyKwh: 160000 }, shiftResults: [
-    { shiftId: 'a', status: 'completed', yearlyTotals: { distanceKm: 80000, totalEnergyKwh: 144000 } },
-    { shiftId: 'b', status: 'completed', yearlyTotals: { distanceKm: 20000, totalEnergyKwh: 16000 } },
-  ] },
-});
+import { yearlyFleetConfiguration as configuration } from '../test-support/yearly-fleet-fixture.js';
+
 const assumptions = { horizon: 12, rate: 0, bodyLife: 12, batteryLife: 8, pointLife: 15, siteLife: 30,
   energyPrice: .20, maintenancePerKm: .40, infrastructureMaintenance: 5000, fuelPrice: 1.85, heaterMaintenanceFactor: .10 };
 

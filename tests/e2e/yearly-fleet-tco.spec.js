@@ -10,6 +10,23 @@ const expectCostOutcomes = async (page, { electric, diesel, difference }) => {
   await expect(page.locator('[data-outcome="electric-tco"] .annual-outcome__value')).toHaveText(electric.replace(' CHF/km', ''));
 };
 
+const expectSharedAssessment = async page => {
+  const assessment = await page.evaluate(() => window.dashboard.getAssessment({
+    scope: document.querySelector('[data-tco-scope]').value,
+  }));
+  for (const [role, value] of [
+    ['fleet-tco', assessment.economics.electric.perKm],
+    ['diesel-tco', assessment.economics.diesel.perKm],
+    ['tco-difference', assessment.economics.differencePerKm],
+  ]) {
+    const displayed = Number((await page.locator(`[data-role="${role}"]`).textContent()).replace(/['’]/g, ''));
+    expect(displayed).toBeCloseTo(value, 3);
+  }
+  const distance = Number((await page.locator('[data-summary="distance"] strong').textContent()).replace(/['’]/g, ''));
+  expect(distance).toBe(Math.round(assessment.scopedFleet.totals.km / assessment.divisor));
+  return assessment;
+};
+
 test('representative and fleet views reconcile investment and TCO, assumptions autosave with an accessible explanation', async ({ page }) => {
   await page.route('**/api/v1/**', route => route.fulfill({ json: {} }));
   await page.goto('./');
@@ -34,6 +51,14 @@ test('representative and fleet views reconcile investment and TCO, assumptions a
     window.dashboard.mount(document.querySelector('main'), { status: 'error', error: 'Environmental service unavailable' });
   });
   await expect(page.locator('[data-tco-scope]')).toHaveValue('a');
+  expect(await page.evaluate(() => {
+    const snapshot = window.dashboard.getAssessment();
+    snapshot.assumptions.energyPrice = 999;
+    snapshot.fleet.rows[0].busCost = 0;
+    const next = window.dashboard.getAssessment();
+    return { scope: next.scope.kind, price: next.assumptions.energyPrice, initial: next.economics.electric.initial };
+  })).toEqual({ scope: 'fleet', price: .2, initial: 2168000 });
+  await expectSharedAssessment(page);
   await expect(page.locator('[data-role="annual-activity-summary"] strong')).toHaveText([
     "50'000",
     "80'000",
@@ -148,6 +173,9 @@ test('representative and fleet views reconcile investment and TCO, assumptions a
   await expect(page.getByRole('button', { name: 'Save assumptions', exact: true })).toHaveCount(0);
   await expect(page.locator('[data-save-status]')).toHaveText('Changes saved');
   expect(await page.evaluate(() => window.savedTco.energyPrice)).toBe(.4);
+  const editedAssessment = await expectSharedAssessment(page);
+  expect(editedAssessment.assumptions.energyPrice).toBe(.4);
+  expect(editedAssessment.assumptions.annualKmByShift).toEqual({ a: 80000, b: 20000 });
   await page.getByRole('button', { name: 'Information about these assumptions', exact: true }).focus();
   await expect(page.getByRole('tooltip')).toBeVisible();
   await expect(page.getByRole('tooltip')).toContainText('Costs and Emissions share the same values');
@@ -346,6 +374,11 @@ test('different battery groups retain duties and consumption; sliders restore di
   await expect(page.locator('.annual-lca-refresh-status')).toHaveText('Updating…');
   await expect(page.locator('.ya-lca-phase-bar__label')).toHaveText(previousPhaseBars);
   await expect(page.locator('[data-lca-export]')).toBeDisabled();
+  expect(await page.evaluate(() => {
+    const assessment = window.dashboard.getAssessment({ scope: 'short' });
+    return { status: assessment.environment.status, stale: assessment.environment.isStale,
+      matches: assessment.environment.matchesAssumptions, consumption: assessment.assumptions.dieselConsumption };
+  })).toEqual({ status: 'loading', stale: true, matches: false, consumption: .65 });
   await expect.poll(() => page.evaluate(() => window.previews.at(-1)?.dieselConsumption)).toBe(.65);
   await page.evaluate(() => { window.holdPreview = false; window.releasePreview(); });
   await expect(page.locator('.annual-lca-refresh-status')).toHaveCount(0);
@@ -377,6 +410,13 @@ test('different battery groups retain duties and consumption; sliders restore di
   await expect(page.locator('[data-save-status]')).toHaveText('Changes saved');
   expect(await page.evaluate(() => window.savedTco.annualKmByShift)).toEqual({ long: 100000, short: 30000 });
   expect(await page.evaluate(() => window.savedTco.dieselConsumption)).toBe(.65);
+  const updatedAssessment = await expectSharedAssessment(page);
+  expect(updatedAssessment.environment.matchesAssumptions).toBe(true);
+  expect(updatedAssessment.environment.rawLca.annual_km).toBe(30000);
+  expect(updatedAssessment.assumptions.annualKmByShift).toEqual({ long: 100000, short: 30000 });
+  const fullFleetAssessment = await page.evaluate(() => window.dashboard.getAssessment());
+  expect(fullFleetAssessment.scope.kind).toBe('fleet');
+  expect(fullFleetAssessment.fleet.totals.km).toBe(130000);
 
   await page.getByRole('tab', { name: 'Costs', exact: true }).click();
   await expect(dieselConsumption).toHaveValue('0.65');
