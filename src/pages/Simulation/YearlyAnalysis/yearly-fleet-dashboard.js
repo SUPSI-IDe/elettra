@@ -2,7 +2,7 @@ import { getCurrentLang, t } from '../../../i18n';
 import { escapeHtml } from '../../../utils/html.js';
 import { formatNumber as n, formatChf as chf } from '../../../utils/number-format.js';
 import { buildAnnualFleet, yearlyTcoDefaults } from '../../../utils/yearly-fleet-tco.js';
-import { buildYearlyAssessment, yearlyAssessmentLcaKey } from '../../../utils/yearly-analysis-assessment.js';
+import { buildYearlyAssessment, yearlyAssessmentLcaKey, yearlyProjectScopes } from '../../../utils/yearly-analysis-assessment.js';
 import { renderParameterizedLca } from './parameterized-lca';
 import { renderAnnualCostCharts } from './yearly-fleet-charts';
 import { createAssumptionAutosave } from '../../../utils/assumption-autosave.js';
@@ -69,6 +69,7 @@ const vocabulary = {
   climateImpact: ['Climate impact', 'Impatto climatico', 'Klimawirkung', 'Impact climatique'],
   averageEfficiency: ['Average efficiency', 'Efficienza media', 'Durchschnittliche Effizienz', 'Efficacité moyenne'],
   primaryEnergy: ['Primary energy', 'Energia primaria', 'Primärenergie', 'Énergie primaire'],
+  retryTco: ['Retry TCO calculation', 'Riprova il calcolo TCO', 'TCO erneut berechnen', 'Relancer le calcul du TCO'],
   title: ['Annual fleet assessment', 'Analisi annuale della flotta', 'Jährliche Flottenanalyse', 'Analyse annuelle de la flotte'],
   representative: ['Representative bus', 'Bus rappresentativo', 'Repräsentativer Bus', 'Bus représentatif'],
   fleet: ['Fleet', 'Flotta', 'Flotte', 'Flotte'],
@@ -182,7 +183,7 @@ const efficiencyMetric = value => `<article class="result-metric annual-summary-
 const percentFields = new Set(['rate', 'infrastructureMaintenanceRate']);
 const maintenanceReport = 'https://www.infras.ch/media/filer_public/79/e5/79e599d9-0dae-491e-ac2b-19f07385834a/4166a_technologiestudie_elektrobusse_vov_schlussbericht.pdf#page=51';
 
-export function createYearlyFleetDashboard({ features, model, predictionRuns, onSave, onPreviewLca }) {
+export function createYearlyFleetDashboard({ features, model, predictionRuns, onSave, onPreviewLca, onProjectTco }) {
   const baseline = buildAnnualFleet(features, predictionRuns);
   const defaultAssumptions = yearlyTcoDefaults({ ...features, assessment_assumptions: {} }, model);
   let assumptions = yearlyTcoDefaults(features, model);
@@ -207,19 +208,59 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     assumptions: structuredClone(assumptions),
     emissionsState: structuredClone(preview?.key === lcaKey() ? preview : emissions),
   });
-  // Default to the complete fleet even when the page displays a representative.
-  const getAssessment = ({ scope = 'fleet' } = {}) => buildYearlyAssessment({
-    ...assessmentInputs(), scope,
+  let quote = null;
+  const stopQuote = () => quote?.controller.abort();
+  // Fleet and representative groups are priced together at the same inputs.
+  // An out-of-order reply can never replace the result for a later edit.
+  const requestQuote = () => {
+    if (!onProjectTco) return;
+    const effectiveEmissions = preview?.key === lcaKey() ? preview : emissions;
+    const heaterActivity = features.config?.auxiliary_heating_type === 'diesel'
+      ? effectiveEmissions.rawLca?.vehicles?.map(v => [
+        v.shift_ids ?? v.shift_id, v.vehicle_count, v.annual_km, v.diesel_heating_liters,
+      ]) : null;
+    const key = JSON.stringify([assumptions, heaterActivity]);
+    if (quote?.key === key) return;
+    const inputs = assessmentInputs();
+    const scopes = yearlyProjectScopes(inputs);
+    const body = { horizon: assumptions.horizon, rate: assumptions.rate, scopes };
+    stopQuote();
+    const current = { key, controller: new AbortController(), results: new Map(), issue: 'project_tco_pending' };
+    quote = current;
+    const valid = scopes.some(item => item.electric || item.diesel);
+    if (!valid) { current.issue = null; return; }
+    current.pending = Promise.resolve().then(() => onProjectTco(body, current.controller.signal)).then(response => {
+      if (quote !== current) return;
+      const results = new Map(response.scopes.map(item => [item.id, item]));
+      if (scopes.some(item => !results.has(item.id)
+        || ['electric', 'diesel'].some(type => Boolean(item[type]) !== Boolean(results.get(item.id)[type])))) {
+        throw new Error('Incomplete project TCO response');
+      }
+      current.results = results;
+      current.issue = null;
+    }).catch(() => { current.issue = 'project_tco_unavailable'; }).finally(() => {
+      current.pending = null;
+      if (root && quote === current) paint(true);
+    });
+  };
+  const makeAssessment = (inputs, scope) => buildYearlyAssessment({
+    ...inputs, scope, project: onProjectTco ? quote?.results.get(scope) ?? { issue: quote?.issue } : undefined,
   });
+  const getAssessment = ({ scope = 'fleet' } = {}) => makeAssessment(assessmentInputs(), scope);
   const getExportState = () => {
     const inputs = assessmentInputs();
-    const assessment = buildYearlyAssessment(inputs);
+    const assessment = makeAssessment(inputs, 'fleet');
     return {
       assessment,
-      groupAssessments: assessment.fleet.groups.map(group => buildYearlyAssessment({ ...inputs, scope: group.id })),
+      groupAssessments: baseline.groups.map(group => makeAssessment(inputs, group.id)),
       persistence: { status: autosave.state.status === 'idle' ? 'loaded' : autosave.state.status,
         hasUnsavedChanges: autosave.unsaved, error: autosave.state.error ?? null },
     };
+  };
+  const resolveExportState = async () => {
+    requestQuote();
+    while (quote?.pending) await quote.pending;
+    return getExportState();
   };
   const payload = () => getAssessment().assumptions;
   const queueLca = () => {
@@ -231,7 +272,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       try {
         const rawLca = await onPreviewLca(payload());
         if (id !== requestId || key !== lcaKey() || !root) return;
-        if (!buildYearlyAssessment({ features, baseline, assumptions, emissionsState: { status: 'done', rawLca } })
+        if (!buildYearlyAssessment({ features, baseline, assumptions, project: null, emissionsState: { status: 'done', rawLca } })
           .environment.matchesAssumptions) throw new Error(fleetLabel('assessmentMismatch'));
         preview = { key, status: 'done', rawLca };
       } catch (error) {
@@ -247,7 +288,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       incoming.rawLca = structuredClone(preview?.rawLca ?? emissions.rawLca ?? null);
     }
     emissions = incoming;
-    const matchesIncoming = buildYearlyAssessment({ features, baseline, assumptions, emissionsState: incoming })
+    const matchesIncoming = buildYearlyAssessment({ features, baseline, assumptions, project: null, emissionsState: incoming })
       .environment.matchesAssumptions;
     if (incoming.status === 'done' && matchesIncoming && preview?.status !== 'loading') preview = null;
     if (root && incoming.status === 'done' && !matchesIncoming && preview?.key !== lcaKey()) queueLca();
@@ -276,7 +317,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     };
     const setting = (key, titleKey, unit) => {
       const value = assumptions[key] == null ? '' : percentFields.has(key) ? Number((assumptions[key] * 100).toFixed(4)) : assumptions[key];
-      return `<label class="annual-setting"><span class="annual-slider__heading"><span>${label(titleKey)}</span><small>${e(unit)}</small></span><input type="number" aria-label="${label(key)}" name="${key}" data-tco-input="${key}" min="${['horizon', 'bodyLife', 'batteryLife', 'dieselLife', 'pointLife', 'siteLife'].includes(key) ? 1 : 0}" ${key === 'horizon' ? 'max="60"' : key === 'rate' ? 'max="100"' : ''} step="${key === 'infrastructureMaintenanceRate' ? 'any' : key === 'rate' ? '.01' : '1'}" value="${value}" required></label>`;
+      return `<label class="annual-setting"><span class="annual-slider__heading"><span>${label(titleKey)}</span><small>${e(unit)}</small></span><input type="number" aria-label="${label(key)}" name="${key}" data-tco-input="${key}" min="${['horizon', 'bodyLife', 'batteryLife', 'dieselLife', 'pointLife', 'siteLife'].includes(key) ? 1 : 0}" ${key === 'horizon' ? 'max="60"' : key === 'rate' ? 'max="100"' : ''} step="${['dieselCapex', 'infrastructureMaintenance', 'infrastructureMaintenanceRate'].includes(key) ? 'any' : key === 'rate' ? '.01' : '1'}" value="${value}" required></label>`;
     };
     const settingsOpen = root.querySelector('[data-tco-settings]')?.open;
     const assumptionsOpen = activeTab === 'emissions' ? emissionsAssumptionsOpen : costAssumptionsOpen;
@@ -306,6 +347,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     if (previousPanel?.dataset.assumptionsTab === 'emissions') emissionsAssumptionsOpen = previousPanel.open;
     else if (previousPanel) costAssumptionsOpen = previousPanel.open;
     if (!root) return;
+    requestQuote();
     const assessment = getAssessment({ scope });
     const { fleet: current, group, scopedFleet: local, divisor, infrastructureShare: share } = assessment;
     const { electric: result, diesel, comparison, differencePerKm: tcoDifference, dieselHeatingLiters: heater } = assessment.economics;
@@ -404,6 +446,18 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
       <details data-detail="infrastructure"><summary>${label('infrastructure')}</summary><p class="helper-text">${label('allocation')}</p>${table([label('location'), label('points'), label('site'), label('connection'), label('total')], current.stations.map(site => row([e(site.stopName), chf(scaled(site.points, share / divisor)), chf(scaled(site.fixed, share / divisor)), chf(scaled(site.power, share / divisor)), chf(scaled(site.total, share / divisor))])), row([label('total'), ...['points', 'fixed', 'power', 'total'].map(key => chf(scaled(local.infrastructure[key], 1 / divisor)))]))}</details>
       <details class="annual-economic-disclosure" data-detail="method"><summary>${label('method')}</summary><div class="annual-economic-disclosure__body"><dl class="annual-method-notes"><div><dt>TCO</dt><dd>${label('methodFormula')}</dd></div>${['Timing', 'Energy', 'Boundary'].map(part => `<div><dt>${label(`method${part}Title`)}</dt><dd>${label(`method${part}`)}</dd></div>`).join('')}</dl>${result && diesel ? table(['', label('electric'), label('diesel')], [row([label('replacements'), chf(result.discountedReplacements / divisor), chf(diesel.discountedReplacements / divisor)]), row([label('residual'), chf(result.discountedResidual / divisor), chf(diesel.discountedResidual / divisor)])]) : ''}</div></details>`;
     detail.querySelectorAll('details').forEach(el => { el.open = openDetails.includes(el.dataset.detail); });
+    if (quote?.issue === 'project_tco_pending') {
+      const status = document.createElement('p');
+      status.setAttribute('role', 'status');
+      status.textContent = fleetLabel('loading');
+      summary.append(status);
+    }
+    if (quote?.issue === 'project_tco_unavailable') {
+      const retry = document.createElement('button');
+      retry.type = 'button'; retry.dataset.tcoRetry = '';
+      retry.textContent = fleetLabel('retryTco');
+      summary.append(retry);
+    }
     if (comparison) renderAnnualCostCharts({ opexHost: summary.querySelector('[data-cost-opex]'), cumulativeHost: summary.querySelector('[data-cost-cumulative]'), electric: result, diesel, comparison, divisor, assumptions, label: fleetLabel });
     const lcaHost = root.querySelector('[data-annual-lca]');
     const emissionsControlsHost = root.querySelector('[data-emissions-controls]');
@@ -456,6 +510,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     else if (event.target.matches('[data-tco-input]')) { onInput(event); void autosave.flush(); }
   };
   const onClick = event => {
+    if (event.target.closest('[data-tco-retry]')) { quote = null; paint(true); }
     if (event.target.closest('[data-lca-retry]')) { queueLca(); paint(true); }
     const tab = event.target.closest('[data-annual-tab]');
     if (tab) { activeTab = tab.dataset.annualTab; paint(true); }
@@ -490,12 +545,13 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
   return {
     getAssessment,
     getExportState,
+    resolveExportState,
     async flushAssumptions() { await autosave.flush(); return !autosave.unsaved; },
     mount(el, state) {
       if (root !== el) { unbind(); root = el; root.addEventListener('input', onInput); root.addEventListener('change', onChange); root.addEventListener('click', onClick); root.addEventListener('submit', onSubmit); root.addEventListener('toggle', onToggle, true); unbindMaintenanceTooltip = bindInfoTooltips(root, '.annual-maintenance-info'); window.addEventListener('beforeunload', beforeUnload); }
       acceptEmissions(state); paint(true);
     },
     update(state) { acceptEmissions(state); paint(true); },
-    dispose() { clearTimeout(previewTimer); requestId++; unbind(); root = null; window.removeEventListener('beforeunload', beforeUnload); void autosave.dispose(); },
+    dispose() { stopQuote(); quote = null; clearTimeout(previewTimer); requestId++; unbind(); root = null; window.removeEventListener('beforeunload', beforeUnload); void autosave.dispose(); },
   };
 }

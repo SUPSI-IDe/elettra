@@ -15,6 +15,7 @@ import {
   fetchYearlyAnalysis,
   updateYearlyAnalysis,
   fetchYearlyAnalysisCosts,
+  fetchYearlyProjectTco,
   fetchYearlyAnalysisLca,
   fetchOptimizationRun,
   fetchPredictionRuns,
@@ -5311,10 +5312,10 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   let busModelData = {};
   let optimizationRun = null;
 
-  const downloadClickHandler = (event) => {
+  const downloadClickHandler = async (event) => {
     const button = event.target.closest('[data-action="download-json"]');
     if (!button || !section.contains(button) || activeScope?.kind !== "general") return;
-    const exportState = fleetDashboard?.getExportState();
+    const exportState = await fleetDashboard?.resolveExportState();
     const exportCostState = {
       ...costState,
       costsData: generalCostsData ?? costState.costsData,
@@ -5696,6 +5697,7 @@ export const initializeYearlyAnalysisResults = async (root = document, options =
   // original duty views; never replace useful results with an incomplete card.
   if (hasYearlyFleetInvestment(features)) fleetDashboard = createYearlyFleetDashboard({
     features, model: busModelData, predictionRuns: analysisPredictionRuns,
+    onProjectTco: (inputs, signal) => fetchYearlyProjectTco(analysisId, inputs, signal),
     onPreviewLca: async (values) => {
       const raw = await fetchYearlyAnalysisLca(analysisId, {
         annual_km_by_shift: JSON.stringify(values.annualKmByShift),

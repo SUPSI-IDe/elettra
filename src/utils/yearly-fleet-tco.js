@@ -111,7 +111,7 @@ export function capitalCashFlow(initial, life, horizon, rate) {
     presentValue: initial + discountedReplacements - discountedResidual };
 }
 
-export function computeFleetTco(fleet, assumptions, { dieselHeatingLiters = 0 } = {}) {
+export function electricProjectInputs(fleet, assumptions, { dieselHeatingLiters = 0 } = {}) {
   if (fleet.issues.length || !fleet.count || !(fleet.totals.km > 0)) return null;
   const a = assumptions;
   if (!Number.isInteger(a.horizon) || a.horizon < 1 || a.horizon > 60 || number(a.rate) === null || a.rate > 1 ||
@@ -121,49 +121,59 @@ export function computeFleetTco(fleet, assumptions, { dieselHeatingLiters = 0 } 
   const infrastructureMaintenance = a.infrastructureMaintenanceMode === 'rate'
     ? fleet.infrastructure.total * a.infrastructureMaintenanceRate : a.infrastructureMaintenance;
   if (number(infrastructureMaintenance) === null) return null;
-  const annuityFactor = a.rate === 0 ? a.horizon : (1 - (1 + a.rate) ** -a.horizon) / a.rate;
-  const components = [
+  const assets = [
     ['body', fleet.totals.busCost, a.bodyLife], ['battery', fleet.totals.batteryCost, a.batteryLife],
     ['points', fleet.infrastructure.points, a.pointLife], ['site', fleet.infrastructure.fixed, a.siteLife],
     ['connection', fleet.infrastructure.power, a.siteLife],
-  ].map(([key, cost, life]) => ({ key, life, ...capitalCashFlow(cost, life, a.horizon, a.rate) }));
+  ].map(([key, initial, life]) => ({ key, initial, life }));
   const operating = [
     { key: 'electricity', annual: fleet.totals.grid * a.energyPrice },
     { key: 'maintenance', annual: fleet.totals.km * a.maintenancePerKm },
     { key: 'infraMaintenance', annual: infrastructureMaintenance },
     { key: 'heater', annual: dieselHeatingLiters * a.fuelPrice * (1 + a.heaterMaintenanceFactor) },
   ];
-  const initial = sum(components.map(c => c.initial));
-  const annualOpex = sum(operating.map(c => c.annual));
-  const presentValue = sum(components.map(c => c.presentValue)) + annualOpex * annuityFactor;
-  return { components, operating, initial, annualOpex, presentValue, annuityFactor,
-    annualEquivalent: presentValue / annuityFactor,
-    perKm: presentValue / (fleet.totals.km * annuityFactor),
-    residual: sum(components.map(c => c.residual)),
-    discountedResidual: sum(components.map(c => c.discountedResidual)),
-    discountedReplacements: sum(components.map(c => c.discountedReplacements)),
-  };
+  return { assets, operating };
 }
 
 /** Same financial horizon, annual mileage and discounting as the electric bus. */
-export function computeDieselTco(fleet, a) {
+export function dieselProjectInputs(fleet, a) {
   if (fleet.issues.length || !fleet.count || !(fleet.totals.km > 0) ||
       !Number.isInteger(a.horizon) || a.horizon < 1 || a.horizon > 60 ||
       number(a.rate) === null || a.rate > 1 || !(a.dieselLife >= 1) ||
       ['dieselCapex', 'dieselConsumption', 'dieselMaintenance', 'fuelPrice'].some(k => number(a[k]) === null)) return null;
-  const components = [{ key: 'dieselVehicle', life: a.dieselLife,
-    ...capitalCashFlow(fleet.count * a.dieselCapex, a.dieselLife, a.horizon, a.rate) }];
+  const assets = [{ key: 'dieselVehicle', life: a.dieselLife, initial: fleet.count * a.dieselCapex }];
   const operating = [
     { key: 'fuel', annual: fleet.totals.km * a.dieselConsumption * a.fuelPrice },
     { key: 'maintenance', annual: fleet.totals.km * a.dieselMaintenance },
   ];
-  const annuityFactor = a.rate === 0 ? a.horizon : (1 - (1 + a.rate) ** -a.horizon) / a.rate;
-  const annualOpex = sum(operating.map(c => c.annual));
-  const presentValue = sum(components.map(c => c.presentValue)) + annualOpex * annuityFactor;
-  return { components, operating, initial: components[0].initial, annualOpex, presentValue, annuityFactor,
-    annualEquivalent: presentValue / annuityFactor, perKm: presentValue / (fleet.totals.km * annuityFactor),
-    discountedResidual: components[0].discountedResidual,
-    discountedReplacements: components[0].discountedReplacements };
+  return { assets, operating };
+}
+
+// Synchronous assessment for standalone data and historical exports. The live
+// annual dashboard obtains the project cash flows and totals from the API.
+export function evaluateProjectDesign(inputs, km, horizon, rate) {
+  if (!inputs) return null;
+  const { assets, operating } = inputs;
+  const components = assets.map(({ key, initial, life }) => ({
+    key, life, ...capitalCashFlow(initial, life, horizon, rate),
+  }));
+  const annuityFactor = rate === 0 ? horizon : -Math.expm1(-horizon * Math.log1p(rate)) / rate;
+  const annualOpex = sum(operating.map(item => item.annual));
+  const presentValue = sum(components.map(item => item.presentValue)) + annualOpex * annuityFactor;
+  return { components, operating, initial: sum(assets.map(item => item.initial)), annualOpex,
+    presentValue, annuityFactor, annualEquivalent: presentValue / annuityFactor,
+    perKm: presentValue / (km * annuityFactor),
+    residual: sum(components.map(item => item.residual)),
+    discountedResidual: sum(components.map(item => item.discountedResidual)),
+    discountedReplacements: sum(components.map(item => item.discountedReplacements)) };
+}
+
+export function computeFleetTco(fleet, a, options) {
+  return evaluateProjectDesign(electricProjectInputs(fleet, a, options), fleet.totals.km, a.horizon, a.rate);
+}
+
+export function computeDieselTco(fleet, a) {
+  return evaluateProjectDesign(dieselProjectInputs(fleet, a), fleet.totals.km, a.horizon, a.rate);
 }
 
 /** End-of-year OPEX, exact replacement times, and terminal residuals: the final

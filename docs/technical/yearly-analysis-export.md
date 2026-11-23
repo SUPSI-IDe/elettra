@@ -6,6 +6,12 @@ fleet and group snapshots from `buildYearlyAssessment` and does not recalculate
 economic results. The page supplies the dashboard's current snapshots, including
 edits that have already changed the displayed assessment.
 
+The dashboard sends its fleet and group investments, annual operating line items,
+discount rate and horizon to the annual project-cost API. The download waits for
+the projection for the current inputs. If the request fails, the economic section
+is incomplete and the dashboard offers a retry. A reply for an earlier edit
+cannot supply costs for the current export.
+
 ## Schema versions
 
 `schemaVersion: 4` identifies the shared-assessment document for analyses with a

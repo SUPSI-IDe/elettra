@@ -1,3 +1,4 @@
+import { fixtureProjectTco } from './project-tco-response.js';
 import { readFileSync } from 'node:fs';
 import { annualExportFixture, annualExportLca } from './yearly-export-acceptance-fixture.js';
 import { assertYearlyExportReconciles } from './yearly-export-reconciliation.js';
@@ -57,6 +58,9 @@ export function registerYearlyExportAcceptance(test, expect) {
             if (url.searchParams.has(query)) values[field] = Number(url.searchParams.get(query));
           }
           return route.fulfill({ json: annualExportLca(analysis, values) });
+        }
+        if (path === `/api/v1/yearly-analysis/${analysis.id}/costs/project`) {
+          return route.fulfill({ json: fixtureProjectTco(request.postDataJSON()) });
         }
         if (path === `/api/v1/yearly-analysis/${analysis.id}/costs`) return route.fulfill({ json: {
           assumptions: {}, ebus: { opex_items: [] }, diesel_comparator: { opex_items: [] }, scenarios: [],

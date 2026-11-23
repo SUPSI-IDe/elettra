@@ -446,3 +446,49 @@ test('different battery groups retain duties and consumption; sliders restore di
   await expect(page.locator('[data-assumptions-state]')).toHaveAttribute('data-modified', 'false');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test('dashboard and export use the latest API projection and recover after a failed request', async ({ page }) => {
+  await page.route('**/api/v1/**', route => route.fulfill({ json: {} }));
+  await page.goto('./');
+  await page.evaluate(async () => {
+    const { createYearlyFleetDashboard } = await import('/elettra/src/pages/Simulation/YearlyAnalysis/yearly-fleet-dashboard.js');
+    const { fixtureProjectTco } = await import('/elettra/test-support/project-tco-response.js');
+    localStorage.setItem('elettra_lang', 'en');
+    document.body.innerHTML = '<main></main>';
+    const activity = { distanceKm: 20000, totalEnergyKwh: 25000 };
+    const features = { assessment_assumptions: { tco: { dieselCapex: 324414.06 } }, config: { fixedConfiguration: {
+      fleet: { vehicleCount: 1 }, investment: { rows: [{ id: 'a', packs: 10, capacity: 400, busCost: 471250, batteryCost: 132000 }] },
+      infrastructure: { dataAvailable: true, stations: [] },
+    } }, results: { yearlyTotals: activity, shiftResults: [{ shiftId: 'a', status: 'completed', yearlyTotals: activity }] } };
+    window.quotes = [];
+    window.dashboard = createYearlyFleetDashboard({ features, model: { bus_length_m: 10.75 }, predictionRuns: [], onSave: async () => {},
+      onProjectTco: body => new Promise((resolve, reject) => {
+        window.quotes.push({ reject, reply(value) {
+          const result = fixtureProjectTco(body);
+          result.scopes.forEach(scope => { scope.electric.annualEquivalent = value; scope.electric.perKm = value / 20000; });
+          resolve(result);
+        } });
+      }),
+    });
+    window.dashboard.mount(document.querySelector('main'), { status: 'idle' });
+  });
+  await expect.poll(() => page.evaluate(() => window.quotes.length)).toBe(1);
+  await page.locator('[data-tco-assumptions] > summary').click();
+  await page.locator('input[type="number"][data-tco-input="energyPrice"]').fill('0.37');
+  await expect.poll(() => page.evaluate(() => window.quotes.length)).toBe(2);
+  expect(await page.locator('[data-tco-form]').evaluate(form => form.checkValidity())).toBe(true);
+  await page.evaluate(() => window.quotes[1].reject(new Error('offline')));
+  await page.locator('[data-tco-retry]').waitFor();
+  const failed = await page.evaluate(async () => (await window.dashboard.resolveExportState()).assessment.economics);
+  expect(failed.issues).toContain('project_tco_unavailable');
+  expect(failed.electric).toBeNull();
+  await page.locator('[data-tco-retry]').click();
+  await expect.poll(() => page.evaluate(() => window.quotes.length)).toBe(3);
+  await page.evaluate(() => {
+    window.exported = window.dashboard.resolveExportState();
+    window.quotes[2].reply(90000);
+    window.quotes[0].reply(40000);
+  });
+  await expect(page.locator('[data-role="fleet-tco"]')).toHaveText(/^4\.5(?:00)?$/);
+  expect(await page.evaluate(async () => (await window.exported).assessment.economics.electric.annualEquivalent)).toBe(90000);
+});

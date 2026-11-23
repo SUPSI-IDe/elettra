@@ -1,3 +1,4 @@
+import { fixtureProjectTco } from '../../test-support/project-tco-response.js';
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
@@ -340,6 +341,8 @@ const mountResults = async (
       const annualKm = annualKmRaw == null ? null : Number(annualKmRaw);
       lcaRequests?.push({ shiftId, annualKm });
       await route.fulfill({ json: lcaResponse ? await lcaResponse(url, lca) : lcaForShiftDistance(lca, shiftId, annualKm) });
+    } else if (path.endsWith(`/yearly-analysis/${analysis.id}/costs/project`)) {
+      await route.fulfill({ json: fixtureProjectTco(route.request().postDataJSON()) });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}/costs`)) {
       if (yearlyCosts) await route.fulfill({ json: yearlyCosts });
       else await route.fulfill({ status: 503, json: { detail: "Use deterministic local costs" } });

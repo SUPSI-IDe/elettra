@@ -1163,6 +1163,15 @@ export const deleteYearlyAnalysis = async (id) => {
   return { deleted: true };
 };
 
+export async function fetchYearlyProjectTco(id, inputs, signal) {
+  const response = await fetch(`${YEARLY_ANALYSIS_PATH}/${encodeURIComponent(id)}/costs/project`, {
+    method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(inputs), signal,
+  });
+  if (!response.ok) throw new Error(`Project TCO (HTTP ${response.status})`);
+  return response.json();
+}
+
 export const fetchYearlyAnalysisCosts = async (id, params = {}) => {
   if (!id) throw new Error("Missing yearly analysis ID.");
   const headers = authHeaders();

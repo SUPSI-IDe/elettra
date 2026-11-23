@@ -1,7 +1,8 @@
 import {
   buildAnnualFleet,
-  computeDieselTco,
-  computeFleetTco,
+  dieselProjectInputs,
+  electricProjectInputs,
+  evaluateProjectDesign,
   cumulativeCostComparison,
   scaleAnnualFleet,
   scopeFleetLca,
@@ -50,6 +51,34 @@ const scopedFleet = (fleet, group, share) => group ? {
     .map(([key, value]) => [key, value == null ? null : value * share])),
 } : fleet;
 
+function prepareScope(features, fleet, assumptions, raw, scope) {
+  const group = fleet.groups.find(candidate => candidate.id === scope) ?? null;
+  const divisor = group ? group.count : 1;
+  const infrastructureShare = group ? group.count / fleet.count : 1;
+  const local = scopedFleet(fleet, group, infrastructureShare);
+  const vehicles = (raw?.vehicles ?? []).filter(vehicle => !group || belongsToGroup(vehicle, group));
+  const lcaKm = vehicles.reduce((total, vehicle) => total + vehicle.annual_km * (vehicle.vehicle_count ?? 1), 0);
+  const heater = features.config?.auxiliary_heating_type === 'diesel'
+    ? lcaKm > 0 ? vehicles.reduce((total, vehicle) => total + vehicle.diesel_heating_liters * (vehicle.vehicle_count ?? 1), 0) * local.totals.km / lcaKm : null
+    : 0;
+  const dieselHeatingLiters = Number.isFinite(heater) ? heater : null;
+  const inputs = {
+    id: group?.id ?? 'fleet', km: local.totals.km ?? 0,
+    electric: electricProjectInputs(local, {
+      ...assumptions,
+      infrastructureMaintenance: assumptions.infrastructureMaintenance * infrastructureShare,
+    }, { dieselHeatingLiters }),
+    diesel: dieselProjectInputs(local, assumptions),
+  };
+  return { group, divisor, infrastructureShare, local, dieselHeatingLiters, inputs };
+}
+
+export function yearlyProjectScopes({ features, baseline, assumptions, emissionsState }) {
+  const fleet = scaleAnnualFleet(baseline, assumptions.annualKmByGroup);
+  return ['fleet', ...fleet.groups.map(group => group.id)].map(scope =>
+    prepareScope(features, fleet, assumptions, emissionsState.rawLca, scope).inputs);
+}
+
 /**
  * Evaluate the saved design and effective annual assumptions without a DOM or
  * network access. An optional baseline lets a page retain its frozen design
@@ -69,29 +98,22 @@ export function buildYearlyAssessment({
   assumptions = yearlyTcoDefaults(features, model),
   emissionsState = { status: 'idle' },
   scope = 'fleet',
+  project,
 } = {}) {
   const fleet = scaleAnnualFleet(baseline, assumptions.annualKmByGroup);
-  const group = fleet.groups.find(candidate => candidate.id === scope) ?? null;
-  const divisor = group ? group.count : 1;
-  const infrastructureShare = group ? group.count / fleet.count : 1;
-  const local = scopedFleet(fleet, group, infrastructureShare);
   const raw = emissionsState.rawLca;
-  const vehicles = (raw?.vehicles ?? []).filter(vehicle => !group || belongsToGroup(vehicle, group));
-  const lcaKm = vehicles.reduce((total, vehicle) => total + vehicle.annual_km * (vehicle.vehicle_count ?? 1), 0);
-  const heater = features.config?.auxiliary_heating_type === 'diesel'
-    ? lcaKm > 0 ? vehicles.reduce((total, vehicle) => total + vehicle.diesel_heating_liters * (vehicle.vehicle_count ?? 1), 0) * local.totals.km / lcaKm : null
-    : 0;
-  const dieselHeatingLiters = Number.isFinite(heater) ? heater : null;
-  const electric = computeFleetTco(local, {
-    ...assumptions,
-    infrastructureMaintenance: assumptions.infrastructureMaintenance * infrastructureShare,
-  }, { dieselHeatingLiters });
-  const diesel = computeDieselTco(local, assumptions);
+  const { group, divisor, infrastructureShare, local, dieselHeatingLiters, inputs } =
+    prepareScope(features, fleet, assumptions, raw, scope);
+  const design = key => project === undefined
+    ? evaluateProjectDesign(inputs[key], inputs.km, assumptions.horizon, assumptions.rate)
+    : project?.[key] ?? null;
+  const electric = design('electric'), diesel = design('diesel');
   const comparison = cumulativeCostComparison(electric, diesel, assumptions);
   const issues = [...local.issues];
   if (dieselHeatingLiters === null) issues.push('diesel_heating_activity_unavailable');
-  if (!electric && !issues.length) issues.push('invalid_electric_assumptions');
-  if (!diesel && !local.issues.length) issues.push('invalid_diesel_assumptions');
+  if (project?.issue) issues.push(project.issue);
+  if (!inputs.electric && !issues.length) issues.push('invalid_electric_assumptions');
+  if (!inputs.diesel && !local.issues.length) issues.push('invalid_diesel_assumptions');
 
   const matchingLca = matchesLca(raw, fleet, assumptions) ? scopeFleetLca(raw, group) : null;
   const currentLca = emissionsState.status === 'done' ? matchingLca : null;
