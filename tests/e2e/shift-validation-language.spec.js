@@ -73,6 +73,7 @@ test('saving progress preserves its current operation when the language changes'
       await page.locator('.language-select').selectOption(lang);
       await expect(page.locator('[data-role="shift-progress-message"]')).toHaveText(translations[lang]['shifts.fetching_stops_first']);
       await expect(page.locator('[data-role="feedback"]')).toHaveText(translations[lang]['shifts.fetching_stops_first']);
+      await expect(page.locator('[data-action="add-stay"]')).toBeDisabled();
     }
   } finally { gate.resolve(); }
   await expect.poll(() => state.writes.length).toBe(3);

@@ -49,7 +49,6 @@ import {
   resolveShiftDepotTimes,
   isShiftClosedAtDepot,
   resolveScheduledTripsEmptyMessageKey,
-  buildEditableTripsFromShift,
   filterServiceTripsForSave,
   assessEditRouteReconstruction,
 } from "./shift-utils";
@@ -65,7 +64,13 @@ import {
   updateEmptyState,
   clearNode,
 } from "./shift-renderers";
-import { buildCompleteShiftTripIds } from "./depot-trip-ids";
+import { splitServicePeriods, readShiftDepotStays, validateDepotStays, periodBounds, buildProgrammeMovements, persistProgrammeMovements } from './shift-depot-stays.js';
+import { adjustStayProgramme, mapWithLimit, planPeriodTripInsertion, serviceMinutes } from './shift-stay-adjustment.js';
+import { createShiftTransferResolver } from './shift-transfer-routing.js';
+import { fetchShiftTransferDuration } from '../../../api/shift-routing.js';
+import { rebuildStayProgramme } from './shift-stay-programme.js';
+import { initializeShiftStayEditor } from './shift-stay-editor.js';
+import { initializeDepotStayControls } from './shift-depot-stay-controls.js';
 import { initializeShiftComposer } from "./shift-composer";
 import { resolveShiftEndTime, toClockTime } from './shift-time-window';
 
@@ -241,12 +246,19 @@ const hydrateShift = async (shift, shiftInfo = null) => {
   const { startDepotId, startDepotName, endDepotId, endDepotName } = getDepotInfoFromShiftInfo(shiftInfo);
   const { startTime, endTime } = getTimesFromShiftInfo(shiftInfo, shift);
 
+  const infoTrips = new Map((shiftInfo?.trips || []).map(trip => [trip.id, trip]));
   const structure = await Promise.all(
     shift.structure.map(async (item) => {
       if (!item.trip_id) {
         return item;
       }
       try {
+        const infoTrip = infoTrips.get(item.trip_id);
+        // A block may contain several lines. Its summary route only supplies
+        // a fallback; it must never overwrite each trip's own route.
+        const tripRouteId = firstAvailable(infoTrip?.route_id, infoTrip?.route?.id, item.route_id, item.trip?.route_id, routeId);
+        const tripRouteLabel = firstAvailable(infoTrip?.route_short_name, infoTrip?.route?.route_short_name,
+          item.route_short_name, item.trip?.route_short_name, tripRouteId === routeId ? routeLabel : '');
         // Fetch stop times for trip preview/display
         const stopTimes = await fetchStopsByTripId(item.trip_id).catch(() => []);
 
@@ -255,14 +267,14 @@ const hydrateShift = async (shift, shiftInfo = null) => {
           stop_times: stopTimes,
           // Use the info from the shift info endpoint
           day_of_week: dayOfWeek || item.day_of_week,
-          route_id: routeId || item.route_id,
-          route_short_name: routeLabel || item.route_short_name,
+          route_id: tripRouteId,
+          route_short_name: tripRouteLabel,
           trip: {
             ...(item.trip || {}),
             stop_times: stopTimes,
             day_of_week: dayOfWeek || item.trip?.day_of_week,
-            route_id: routeId || item.trip?.route_id,
-            route_short_name: routeLabel || item.trip?.route_short_name,
+            route_id: tripRouteId,
+            route_short_name: tripRouteLabel,
           },
         };
       } catch (error) {
@@ -323,6 +335,8 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     const key = {
       invalid_auxiliary_trip_response: 'shifts.auxiliary_response_invalid',
       invalid_shift_trip: 'shifts.selected_trip_invalid',
+      invalid_depot_stop: 'shifts.depot_stop_required',
+      invalid_trip_stops: 'shifts.depot_trip_stops_required',
     }[error?.code];
     return error?.localize?.() || (key ? t(key) : error?.message) || t(fallbackKey);
   };
@@ -434,6 +448,51 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   let tripLoadError = null;
   const selectedTripIds = new Set();
   let selectedTrips = [];
+  let depotStays = [];
+  let activePeriod = 0;
+  let existingConnections = [];
+  let adjustmentRevision = 0;
+  let adjustmentPending = false;
+  let adjustmentError = '';
+  let adjustmentIndex = null;
+  let adjustmentSummary = null;
+  let stayUndoGroup = null;
+  let dirtyStay = null;
+  let adjustmentTask = null;
+  let stayPreview = null;
+  let previewPending = false;
+  let previewTimer = null;
+  let eligibleGeneration = 0;
+  let bulkAdding = false;
+  const travelMinutes = createShiftTransferResolver({ fetchStops: fetchStopsByTripId, fetchDuration: fetchShiftTransferDuration });
+  const invalidateAdjustment = () => {
+    clearTimeout(previewTimer);
+    stayPreview = null;
+    previewPending = false;
+    adjustmentRevision++;
+    eligibleGeneration++;
+    adjustmentPending = false;
+    adjustmentError = '';
+    adjustmentIndex = null;
+    adjustmentSummary = null;
+    dirtyStay = null;
+    stayUndoGroup = null;
+  };
+  const getPeriods = () => splitServicePeriods(selectedTrips, depotStays);
+  const getActivePeriod = () => getPeriods()[activePeriod] || getPeriods().at(-1);
+  const getActiveBounds = () => periodBounds(getActivePeriod(), { startTime: getShiftStartTime(), endTime: getShiftEndTime() });
+  const getDisplayProgramme = () => stayPreview || { trips: selectedTrips, stays: depotStays };
+  const getDisplayPeriod = () => {
+    const { trips, stays } = getDisplayProgramme();
+    const periods = splitServicePeriods(trips, stays);
+    return periods[activePeriod] || periods.at(-1);
+  };
+  const getDisplayBounds = () => periodBounds(getDisplayPeriod(), { startTime: getShiftStartTime(), endTime: getShiftEndTime() });
+  const settleStayChanges = async () => {
+    if (dirtyStay) await runStayAdjustment(dirtyStay);
+    else if (adjustmentPending && adjustmentTask) await adjustmentTask;
+    return !disposed && !dirtyStay && !adjustmentPending && !adjustmentError;
+  };
   let loadedShiftForDepotState = null;
   let loadedShiftInfoForDepotState = null;
   let initialSelectedTripDbIds = new Set();
@@ -443,24 +502,41 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     form,
     updateFeedback,
     isEditMode,
-    readState: () => ({ trips: selectedTrips }),
+    onOpenStays: () => stayControls.open(),
+    onLeaveStays: () => stayControls.leave(),
+    readState: () => ({ ...getDisplayProgramme(), depots: loadedDepots, activeTrips: getDisplayPeriod().trips, activePeriod, activeBounds: periodBounds(getDisplayPeriod(), { startTime: startTimeInput.value, endTime: resolveShiftEndTime(startTimeInput.value, endTimeInput.value) }), adjusting: adjustmentPending || previewPending || bulkAdding }),
     isTimetableReady: () => isEditMode || Boolean(selectedDataset),
+    prepareReview: async () => {
+      return await settleStayChanges() && !bulkAdding;
+    },
     validateTrips: () => {
-      let previous = null;
-      const seen = new Set();
-      for (const trip of filterServiceTripsForSave(selectedTrips)) {
-        const eligibility = evaluateTripEligibility({
-          trip,
-          selectedTripIds: seen,
-          lastTripEndTime: previous?.arrival_time,
-          lastTripEndStop: previous?.end_stop_name,
-          shiftStartTime: getShiftStartTime(),
-          shiftEndTime: getShiftEndTime(),
-        });
-        if (!eligibility.valid) return getTripValidationMessage(eligibility);
-        seen.add(resolveTripId(trip));
-        previous = trip;
+      if (dirtyStay) {
+        const change = dirtyStay;
+        dirtyStay = null;
+        void runStayAdjustment(change);
+        return t('shifts.stay_adjusting');
       }
+      if (adjustmentPending) return t('shifts.stay_adjusting');
+      if (adjustmentError) return t(adjustmentError);
+
+      const stayError = validateDepotStays({ trips: selectedTrips, stays: depotStays, depots: loadedDepots,
+        startTime: getShiftStartTime(), endTime: getShiftEndTime() });
+      if (stayError) return t(stayError);
+      const seen = new Set();
+      for (const period of getPeriods()) {
+        let previous = null;
+        const bounds = periodBounds(period, { startTime: getShiftStartTime(), endTime: getShiftEndTime() });
+        for (const trip of period.trips) {
+          const eligibility = evaluateTripEligibility({ trip, selectedTripIds: seen,
+            lastTripEndTime: previous?.arrival_time, lastTripEndStop: previous?.end_stop_name,
+            shiftStartTime: bounds.startTime, shiftEndTime: bounds.endTime });
+          // Uniqueness is global; spatial continuity applies inside each period.
+          if (!eligibility.valid) return getTripValidationMessage(eligibility);
+          seen.add(resolveTripId(trip));
+          previous = trip;
+        }
+      }
+      stayUndoGroup = null;
       return '';
     },
   });
@@ -468,9 +544,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const searchInput = form.querySelector('#composer-search');
   const undoButton = form.querySelector('[data-action="undo-trips"]');
   let tripHistory = [];
-  const rememberTrips = () => {
-    tripHistory.push([...selectedTrips]);
+  const rememberTrips = ({ groupKey = null } = {}) => {
+    if (groupKey && stayUndoGroup?.key === groupKey && stayUndoGroup.length === tripHistory.length) return;
+    tripHistory.push({ trips: [...selectedTrips], stays: structuredClone(depotStays), activePeriod });
     if (tripHistory.length > 30) tripHistory.shift();
+    stayUndoGroup = groupKey ? { key: groupKey, length: tripHistory.length } : null;
   };
 
   const dedupeTrips = (trips = []) => {
@@ -551,12 +629,13 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return !query || [trip.start_stop_name, trip.end_stop_name, trip.departure_time, trip.arrival_time]
         .some((value) => String(value || '').toLocaleLowerCase().includes(query));
     }),
+    period: getDisplayPeriod(),
     routeLabel: routesById[lineSelect?.value ?? ""] ?? "",
-    selectedTripIds,
+    selectedTripIds: stayPreview ? new Set(stayPreview.trips.map(resolveTripId)) : selectedTripIds,
     lastTripEndTime: getLatestEndTime(),
     lastTripEndStop: getLastTripEndStop(),
-    shiftStartTime: getShiftStartTime(),
-    shiftEndTime: getShiftEndTime(),
+    shiftStartTime: getDisplayBounds().startTime,
+    shiftEndTime: getDisplayBounds().endTime,
   });
 
   const getEndDepotId = () =>
@@ -581,8 +660,60 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     return messageKey ? t(messageKey) : "";
   };
 
+  const insertionPeriod = trip => getPeriods().find(period => {
+    const bounds = periodBounds(period, { startTime: getShiftStartTime(), endTime: getShiftEndTime() });
+    return serviceMinutes(trip.departure_time) >= serviceMinutes(bounds.startTime)
+      && serviceMinutes(trip.arrival_time) <= serviceMinutes(bounds.endTime);
+  });
+  const periodCandidates = (state) => isEditMode ? state.trips.flatMap(trip => {
+    const period = insertionPeriod(trip);
+    if (!period) return [];
+    const bounds = periodBounds(period, { startTime: getShiftStartTime(), endTime: getShiftEndTime() });
+    const insertion = planPeriodTripInsertion({ trip, period, selectedTripIds: state.selectedTripIds, ...bounds });
+    return insertion && !insertion.removedTrips.length ? [{ ...trip, programmeInsertion: insertion, programmePeriod: period }] : [];
+  }) : depotStays.length ? state.trips.flatMap(trip => {
+    const insertion = planPeriodTripInsertion({ trip, period: state.period, selectedTripIds: state.selectedTripIds,
+      startTime: state.shiftStartTime, endTime: state.shiftEndTime });
+    return insertion ? [{ ...trip, programmeInsertion: insertion }] : [];
+  }) : getEligibleScheduledTrips(state);
+
+  const resolvePeriodCandidates = async (state) => {
+    const candidates = periodCandidates(state);
+    if (!depotStays.length && !isEditMode) return candidates;
+    const valid = await mapWithLimit(candidates, async trip => {
+      const { index, trips } = trip.programmeInsertion;
+      const period = trip.programmePeriod || state.period;
+      const replacing = trip.programmeInsertion.removedTrips.length > 0;
+      const checkOuter = isEditMode || replacing;
+      const start = period.precedingStay || (checkOuter ? { depotId: startDepotSelect.value,
+        arrivalTime: getShiftStartTime(), departureTime: getShiftStartTime() } : null);
+      const end = period.followingStay || (checkOuter ? { depotId: endDepotSelect.value,
+        arrivalTime: getShiftEndTime(), departureTime: getShiftEndTime() } : null);
+      for (const [boundary, direction] of [
+        [index === 0 && start, 'to_stop'],
+        [index === trips.length - 1 && end, 'from_stop'],
+      ]) {
+        if (!boundary) continue;
+        const customStop = loadedDepots.find(stop => stop.id === boundary.depotId);
+        if (!customStop || !boundary.arrivalTime || !boundary.departureTime) return null;
+        const duration = await travelMinutes(trip, customStop, direction);
+        if (direction === 'to_stop' && serviceMinutes(boundary.departureTime) + duration > serviceMinutes(trip.departure_time)) return null;
+        if (direction === 'from_stop' && serviceMinutes(trip.arrival_time) + duration > serviceMinutes(boundary.arrivalTime)) return null;
+      }
+      return trip;
+    });
+    return valid.filter(Boolean);
+  };
+
   const refreshScheduledTrips = () => {
-    if (tripsLoading) {
+    const generation = ++eligibleGeneration;
+    if (dirtyStay && !stayPreview && !previewPending) {
+      clearNode(scheduledTripsBody);
+      if (addAllTripsButton) addAllTripsButton.disabled = true;
+      updateEmptyState(scheduledTripsEmpty, false, t('shifts.stay_commit_hint'));
+      return [];
+    }
+    if (tripsLoading || adjustmentPending || previewPending || bulkAdding) {
       renderTripsLoading(scheduledTripsBody);
       if (addAllTripsButton) addAllTripsButton.disabled = true;
       updateEmptyState(scheduledTripsEmpty, true);
@@ -594,35 +725,42 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       updateEmptyState(scheduledTripsEmpty, false, `${t('shifts.unable_to_load_trips')} ${errorMessage(tripLoadError, 'common.unknown_error')}`);
       return [];
     }
-    const renderState = getScheduledTripsRenderState();
-    const eligibleTrips = getEligibleScheduledTrips(renderState);
-
-    renderScheduledTrips({
-      tbody: scheduledTripsBody,
-      ...renderState,
-      eligibleTrips,
-    });
-
-    if (addAllTripsButton instanceof HTMLButtonElement) {
-      addAllTripsButton.disabled = eligibleTrips.length === 0;
+    const state = getScheduledTripsRenderState();
+    const apply = eligibleTrips => {
+      if (disposed || generation !== eligibleGeneration) return;
+      renderScheduledTrips({ tbody: scheduledTripsBody, ...state, eligibleTrips });
+      if (addAllTripsButton) addAllTripsButton.disabled = !eligibleTrips.some(trip => !trip.programmeInsertion?.removedTrips.length) || bulkAdding;
+      updateEmptyState(scheduledTripsEmpty, eligibleTrips.length > 0,
+        searchInput?.value.trim() ? t('shifts.no_trips_match') : getScheduledTripsEmptyMessage(eligibleTrips.length));
+    };
+    if (!depotStays.length && !isEditMode) {
+      const eligible = periodCandidates(state);
+      apply(eligible);
+      return eligible;
     }
-
-    updateEmptyState(
-      scheduledTripsEmpty,
-      eligibleTrips.length > 0,
-      searchInput?.value.trim() ? t('shifts.no_trips_match') : getScheduledTripsEmptyMessage(eligibleTrips.length)
-    );
-
-    return eligibleTrips;
+    renderTripsLoading(scheduledTripsBody);
+    if (addAllTripsButton) addAllTripsButton.disabled = true;
+    updateEmptyState(scheduledTripsEmpty, true);
+    void resolvePeriodCandidates(state).then(apply).catch(() => {
+      if (disposed || generation !== eligibleGeneration) return;
+      clearNode(scheduledTripsBody);
+      updateEmptyState(scheduledTripsEmpty, false, t('shifts.stay_routing_error'));
+    });
+    return [];
   };
 
-  const updateShiftTrips = () => {
+  const updateShiftTrips = ({ renderStays = true } = {}) => {
+    if (renderStays) stayControls.render();
     composer.update();
+    if (!saving && !editRouteReconstructionBlocked) submitButton.disabled = adjustmentPending || bulkAdding;
     undoButton.disabled = tripHistory.length === 0;
-    renderShiftTrips(shiftTripsBody, selectedTrips);
-    updateEmptyState(shiftTripsEmpty, selectedTrips.length > 0);
+    const shownTrips = isEditMode ? selectedTrips : getDisplayPeriod().trips;
+    renderShiftTrips(shiftTripsBody, shownTrips);
+    shiftTripsBody.setAttribute('aria-busy', String(previewPending || adjustmentPending));
+    if (adjustmentPending || bulkAdding) shiftTripsBody.querySelectorAll('button').forEach(button => { button.disabled = true; });
+    updateEmptyState(shiftTripsEmpty, shownTrips.length > 0);
     if (removeAllTripsButton instanceof HTMLButtonElement) {
-      removeAllTripsButton.disabled = selectedTrips.length === 0;
+      removeAllTripsButton.disabled = selectedTrips.length === 0 || adjustmentPending || bulkAdding;
     }
   };
 
@@ -642,6 +780,9 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       endDepotName,
       startTime: getShiftStartTime() || "",
       endTime: getShiftEndTime() || "",
+      depotTrips: buildProgrammeMovements({ trips: selectedTrips, stays: depotStays, depots: loadedDepots,
+        startDepotId: startDepotSelect.value, endDepotId: endDepotSelect.value,
+        startTime: getShiftStartTime(), endTime: getShiftEndTime() }).filter(item => item.kind === 'connection'),
     });
   };
 
@@ -685,13 +826,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const getLatestEndTime = () => {
-    if (!Array.isArray(selectedTrips) || selectedTrips.length === 0) {
-      return null;
-    }
-    return selectedTrips
-      .map((t) => t.arrival_time || t.departure_time || "")
-      .filter(Boolean)
-      .sort((a, b) => b.localeCompare(a))[0];
+    return getActivePeriod().trips.at(-1)?.arrival_time || getActivePeriod().precedingStay?.departureTime || null;
   };
 
   const getShiftStartTime = () => {
@@ -744,13 +879,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   // Get the end stop name of the last selected trip (where the bus currently is)
   // Returns normalized (trimmed) string for consistent comparison
   const getLastTripEndStop = () => {
-    if (!Array.isArray(selectedTrips) || selectedTrips.length === 0) {
-      return null;
-    }
-    const lastTrip = selectedTrips[selectedTrips.length - 1];
-    const stopName = lastTrip?.end_stop_name ?? lastTrip?.endStopName ?? "";
-    const normalized = String(stopName).trim();
-    return normalized || null;
+    return getActivePeriod().trips.at(-1)?.end_stop_name || null;
   };
 
   const getTripValidationMessage = (eligibility) => {
@@ -761,7 +890,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
             departure: eligibility?.departure ?? "",
             start: eligibility?.boundary ?? "",
           }) ||
-          `Trip departs at ${eligibility?.departure ?? ""} but the vehicle block starts at ${eligibility?.boundary ?? ""}. The bus cannot be at a stop before leaving the depot.`
+          `Trip departs at ${eligibility?.departure ?? ""} but the vehicle block starts at ${eligibility?.boundary ?? ""}. The bus cannot be at a stop before leaving the custom stop.`
         );
       case "after_shift_end":
         return (
@@ -769,7 +898,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
             arrival: eligibility?.arrival ?? "",
             end: eligibility?.boundary ?? "",
           }) ||
-          `Trip arrives at ${eligibility?.arrival ?? ""} but the vehicle block ends at ${eligibility?.boundary ?? ""}. The bus must return to the depot by the vehicle block end time.`
+          `Trip arrives at ${eligibility?.arrival ?? ""} but the vehicle block ends at ${eligibility?.boundary ?? ""}. The bus must reach the final custom stop by the vehicle block end time.`
         );
       case "location_mismatch":
         return (
@@ -795,29 +924,42 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const addTrip = (trip, { silent = false, remember = true, render = true } = {}) => {
     const normalized = normalizeTrip(trip);
     const id = resolveTripId(normalized);
-    if (!id || selectedTripIds.has(id)) {
+    if (!id || selectedTripIds.has(id) || adjustmentPending || saving || (bulkAdding && remember)) {
       return false;
     }
 
-    const eligibility = evaluateTripEligibility({
-      trip: normalized,
-      selectedTripIds,
-      lastTripEndTime: getLatestEndTime(),
-      lastTripEndStop: getLastTripEndStop(),
-      shiftStartTime: getShiftStartTime(),
-      shiftEndTime: getShiftEndTime(),
+    const period = isEditMode ? insertionPeriod(normalized) : getActivePeriod();
+    if (!period) return false;
+    const bounds = periodBounds(period, { startTime: getShiftStartTime(), endTime: getShiftEndTime() });
+    const insertion = depotStays.length || isEditMode ? planPeriodTripInsertion({ trip: normalized, period, selectedTripIds,
+      startTime: bounds.startTime, endTime: bounds.endTime }) : null;
+    const eligibility = depotStays.length || isEditMode ? { valid: Boolean(insertion) && (!isEditMode || !insertion.removedTrips.length) } : evaluateTripEligibility({
+      trip: normalized, selectedTripIds, lastTripEndTime: getLatestEndTime(), lastTripEndStop: getLastTripEndStop(),
+      shiftStartTime: bounds.startTime, shiftEndTime: bounds.endTime,
     });
-
     if (!eligibility.valid) {
-      if (!silent) {
-        updateFeedback(feedback, () => getTripValidationMessage(eligibility), "error");
-      }
+      if (!silent) updateFeedback(feedback, () => getTripValidationMessage(eligibility), 'error');
       return false;
     }
-
     if (remember) rememberTrips();
-    selectedTripIds.add(id);
-    selectedTrips = [...selectedTrips, normalized];
+    invalidateAdjustment();
+    if (insertion) {
+      const offset = period.trips.length ? selectedTrips.indexOf(period.trips[0]) : selectedTrips.length;
+      selectedTrips = [...selectedTrips.slice(0, offset), ...insertion.trips, ...selectedTrips.slice(offset + period.trips.length)];
+      if (period.followingStay) period.followingStay.afterTripId = insertion.trips.at(-1).id;
+      currentTrips = dedupeTrips([...currentTrips, ...insertion.removedTrips]);
+      if (insertion.removedTrips.length) {
+        const stay = period.precedingStay || period.followingStay;
+        adjustmentSummary = { index: depotStays.indexOf(stay), kind: 'trip-insertion', removedTrips: insertion.removedTrips, adjustedTimes: [] };
+        if (!silent) updateFeedback(feedback, () => t('shifts.trip_replaced', { count: insertion.removedTrips.length }), 'info');
+      }
+    } else {
+      const last = period.trips.at(-1);
+      const insertAt = last ? selectedTrips.indexOf(last) + 1 : selectedTrips.length;
+      selectedTrips = [...selectedTrips.slice(0, insertAt), normalized, ...selectedTrips.slice(insertAt)];
+    }
+    selectedTripIds.clear();
+    selectedTrips.forEach(trip => selectedTripIds.add(resolveTripId(trip)));
     if (render) {
       updateShiftTrips();
       refreshScheduledTrips();
@@ -827,14 +969,25 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   };
 
   const removeTrip = (id) => {
+    if (adjustmentPending || bulkAdding || saving) return false;
     if (!selectedTripIds.has(id)) {
       return false;
     }
 
     rememberTrips();
+    invalidateAdjustment();
     const removedTrip = selectedTrips.find((trip = {}) => resolveTripId(trip) === id);
     const removedTripDbId = removedTrip?.id || id;
 
+    const period = getPeriods().find(item => item.trips.some(trip => resolveTripId(trip) === id));
+    const remaining = period?.trips.filter(trip => resolveTripId(trip) !== id) || [];
+    if (!remaining.length) {
+      const adjacent = period?.followingStay || period?.precedingStay;
+      depotStays = depotStays.filter(stay => stay !== adjacent);
+    } else if (period.followingStay?.afterTripId === removedTripDbId) {
+      period.followingStay.afterTripId = remaining.at(-1).id;
+    }
+    activePeriod = Math.min(activePeriod, depotStays.length);
     selectedTripIds.delete(id);
 
     selectedTrips = selectedTrips.filter((trip = {}) => {
@@ -861,39 +1014,60 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     return true;
   };
 
-  const addAllTrips = () => {
-    if (tripsLoading) return;
-    const before = [...selectedTrips];
+  const addAllTrips = async () => {
+    if ((dirtyStay || adjustmentPending) && !await settleStayChanges()) return;
+    if (tripsLoading || adjustmentPending || bulkAdding || saving) return;
+    bulkAdding = true;
+    const before = { trips: [...selectedTrips], stays: structuredClone(depotStays), activePeriod };
+    rememberTrips();
+    const historyLength = tripHistory.length;
+    updateShiftTrips({ renderStays: false });
+    refreshScheduledTrips();
     let addedCount = 0;
+    let routingFailed = false;
+    let expectedRevision = adjustmentRevision;
+    const initialPeriod = activePeriod;
     const maxIterations = Array.isArray(currentTrips) ? currentTrips.length : 0;
 
     for (let index = 0; index < maxIterations; index += 1) {
-      const eligibleTrips = getEligibleScheduledTrips(getScheduledTripsRenderState());
-      const nextTrip = eligibleTrips[0];
+      let eligibleTrips;
+      try { eligibleTrips = await resolvePeriodCandidates(getScheduledTripsRenderState()); }
+      catch { routingFailed = true; break; }
+      if (disposed || expectedRevision !== adjustmentRevision || initialPeriod !== activePeriod) break;
+      const nextTrip = eligibleTrips.find(trip => !trip.programmeInsertion?.removedTrips.length);
       if (!nextTrip) {
         break;
       }
       if (!addTrip(nextTrip, { silent: true, remember: false, render: false })) {
         break;
       }
+      expectedRevision = adjustmentRevision;
       addedCount += 1;
     }
 
+    bulkAdding = false;
+    if (disposed) return;
+    updateShiftTrips();
+    refreshScheduledTrips();
+    updateTimeline();
+    if (expectedRevision !== adjustmentRevision || initialPeriod !== activePeriod) return;
+    if (routingFailed) {
+      updateFeedback(feedback, () => t('shifts.stay_routing_error'), 'error');
+      return;
+    }
     if (addedCount === 0) {
+      if (tripHistory.length === historyLength && tripHistory.at(-1)?.trips.every((trip, i) => trip === before.trips[i])) tripHistory.pop();
+      updateShiftTrips();
       updateFeedback(
         feedback,
         () => getScheduledTripsEmptyMessage(0) ||
           t("shifts.no_valid_trips_to_add") ||
-          "No trips can be added with the current depot time limits.",
+          "No trips can be added with the current period time limits.",
         "info"
       );
       return;
     }
 
-    tripHistory.push(before);
-    updateShiftTrips();
-    refreshScheduledTrips();
-    updateTimeline();
     updateFeedback(
       feedback,
       () => t("shifts.bulk_added_trips", { count: addedCount }) ||
@@ -914,8 +1088,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     const removedCount = selectedTrips.length;
     rememberTrips();
+    invalidateAdjustment();
     currentTrips = dedupeTrips([...currentTrips, ...selectedTrips]);
     selectedTrips = [];
+    depotStays = [];
+    activePeriod = 0;
     selectedTripIds.clear();
 
     updateShiftTrips();
@@ -1036,14 +1213,15 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
     let trips = [];
     if (reconstructRoute) {
-      const reconstructed = buildEditableTripsFromShift({ shift, shiftInfo });
-      // Depot connections are generated from setup when saving, just as in
-      // creation. Showing the old return leg here would close the programme
-      // at the depot and make appending the next service trip impossible.
-      trips = filterServiceTripsForSave(reconstructed);
+      const programme = readShiftDepotStays({ shift, shiftInfo, depots: loadedDepots });
+      depotStays = programme.stays;
+      existingConnections = programme.connections;
+      activePeriod = depotStays.length;
+      // Service selection and depot stays have independent editable state.
+      trips = programme.trips;
       selectedTrips = trips;
       selectedTripIds.clear();
-      initialSelectedTripDbIds = new Set(reconstructed.map(trip => text(trip?.id).trim()).filter(Boolean));
+      initialSelectedTripDbIds = new Set([...programme.trips, ...programme.connections].map(trip => trip.id));
       trips.forEach((trip = {}) => {
         const id = resolveTripId(trip);
         const dbId = text(trip?.id).trim();
@@ -1355,12 +1533,15 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       datasetSelect.value = datasetKey(selectedDataset);
       return;
     }
+    invalidateAdjustment();
     selectedDataset = next;
     tripHistory = [];
     if (searchInput) searchInput.value = '';
     datasetGeneration++;
     tripGeneration++;
     selectedTrips = [];
+    depotStays = [];
+    activePeriod = 0;
     selectedTripIds.clear();
     currentTrips = [];
     routesById = renderRouteOptions(lineSelect, []);
@@ -1464,7 +1645,176 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
   };
 
-  const handleScheduledTripsClick = (event) => {
+  const previewStayAdjustment = async (change, revision) => {
+    let result;
+    try {
+      result = await adjustStayProgramme({ trips: [...selectedTrips], stays: structuredClone(depotStays), ...change,
+        depots: loadedDepots, startTime: getShiftStartTime(), endTime: getShiftEndTime(), travelMinutes });
+    } catch { result = { status: 'error', key: 'shifts.stay_routing_error' }; }
+    if (disposed || revision !== adjustmentRevision || !dirtyStay) return;
+    previewPending = false;
+    // Preview from the committed selection every time: intermediate keystrokes
+    // must never permanently remove trips or rewrite either time input.
+    stayPreview = result.status === 'ready' && !result.adjustedTimes.length ? result : null;
+    if (result.status === 'error') updateFeedback(feedback, () => t(result.key), 'error');
+    updateShiftTrips();
+    refreshScheduledTrips();
+  };
+  const runStayAdjustment = (change) => {
+    clearTimeout(previewTimer);
+    previewPending = false;
+    adjustmentTask = performStayAdjustment(change);
+    return adjustmentTask;
+  };
+  const performStayAdjustment = async ({ index, field, explicitDay = false }) => {
+    const revision = ++adjustmentRevision;
+    adjustmentIndex = index;
+    dirtyStay = null;
+    adjustmentPending = true;
+    adjustmentError = '';
+    updateShiftTrips({ renderStays: false });
+    refreshScheduledTrips();
+    updateFeedback(feedback, () => t('shifts.stay_adjusting'), 'info');
+    let result;
+    try {
+      result = await adjustStayProgramme({ trips: [...selectedTrips], stays: structuredClone(depotStays), index, field, explicitDay,
+        depots: loadedDepots, startTime: getShiftStartTime(), endTime: getShiftEndTime(), travelMinutes });
+    } catch { result = { status: 'error', key: 'shifts.stay_routing_error' }; }
+    if (disposed || revision !== adjustmentRevision) return;
+    adjustmentPending = false;
+    stayControls.acceptDraft();
+    stayPreview = null;
+    if (result.status === 'ready') {
+      if (field === 'arrivalTime') activePeriod = index;
+      if (field === 'departureTime') activePeriod = index + 1;
+      const removed = adjustmentSummary?.index === index ? adjustmentSummary.removedTrips : [];
+      selectedTrips = result.trips;
+      depotStays = result.stays;
+      currentTrips = dedupeTrips([...currentTrips, ...result.removedTrips]);
+      selectedTripIds.clear();
+      selectedTrips.forEach(trip => selectedTripIds.add(resolveTripId(trip)));
+      adjustmentSummary = { index,
+        removedTrips: [...new Map([...removed, ...result.removedTrips].map(trip => [trip.id, trip])).values()],
+        adjustedTimes: result.adjustedTimes,
+      };
+      updateFeedback(feedback, () => t('shifts.stay_adjusted', { count: adjustmentSummary?.removedTrips.length || 0 }), 'info');
+    } else if (result.status === 'error') {
+      adjustmentError = result.key;
+      updateFeedback(feedback, () => t(adjustmentError), 'error');
+    } else {
+      if (result.stays) depotStays = result.stays;
+      updateFeedback(feedback, '');
+    }
+    updateShiftTrips({ renderStays: result.status !== 'incomplete' || Boolean(result.stays) });
+    refreshScheduledTrips();
+    updateTimeline();
+  };
+
+  const proposalCandidates = new Map();
+  const loadProposalCandidates = async () => {
+    const day = daySelect.value;
+    if (!day) throw new Error('Missing service day');
+    // Every line already present in the block participates, independently of
+    // the line/search filters currently visible in the ordinary trip list.
+    const routes = [...new Set(selectedTrips.map(trip => trip.route_id).filter(Boolean))];
+    const groups = await mapWithLimit(routes, routeId => {
+      const key = JSON.stringify([routeId, day]);
+      if (!proposalCandidates.has(key)) proposalCandidates.set(key, fetchTripsByRoute({ routeId, dayOfWeek: day })
+        .then(payload => {
+          const trips = Array.isArray(payload) ? payload : payload?.items ?? payload?.results;
+          if (!Array.isArray(trips)) throw new Error('Invalid trips response');
+          return trips;
+        })
+        .catch(error => { proposalCandidates.delete(key); throw error; }));
+      return proposalCandidates.get(key);
+    });
+    return normalizeOperationalTripCandidates(groups.flat().map(normalizeTrip));
+  };
+  const stayControls = isEditMode ? initializeShiftStayEditor({ form,
+    readState: () => ({ trips: selectedTrips, stays: depotStays, depots: loadedDepots,
+      disabled: saving || editRouteReconstructionBlocked || bulkAdding,
+      overnight: serviceMinutes(getShiftEndTime()) >= 1440,
+      scope: t('shifts.editor_scope', { day: daySelect.selectedOptions[0]?.textContent || '—' }),
+    }),
+    propose: async stays => {
+      if (!daySelect.value) return { status: 'error', key: 'shifts.editor_select_day' };
+      let candidates;
+      try { candidates = await loadProposalCandidates(); }
+      catch { return { status: 'error', key: 'shifts.unable_to_load_trips' }; }
+      return rebuildStayProgramme({ trips: selectedTrips, previousStays: depotStays, stays,
+        candidates, depots: loadedDepots, existingConnections,
+        startDepotId: startDepotSelect.value, endDepotId: endDepotSelect.value,
+        startTime: getShiftStartTime(), endTime: getShiftEndTime(), travelMinutes });
+    },
+    apply: proposal => {
+      rememberTrips();
+      invalidateAdjustment();
+      currentTrips = dedupeTrips([...currentTrips, ...selectedTrips, ...proposal.addedTrips]);
+      selectedTrips = proposal.trips;
+      depotStays = proposal.stays;
+      activePeriod = 0;
+      selectedTripIds.clear();
+      selectedTrips.forEach(trip => selectedTripIds.add(resolveTripId(trip)));
+      updateShiftTrips(); refreshScheduledTrips(); updateTimeline();
+      updateFeedback(feedback, () => t('shifts.editor_applied', { added: proposal.addedTrips.length, removed: proposal.removedTrips.length }), 'info');
+    },
+    close: () => composer.showProgramme(),
+  }) : initializeDepotStayControls({ form,
+    readState: () => ({ ...getDisplayProgramme(), depots: loadedDepots, activePeriod,
+      adjustmentPending, adjustmentError, adjustmentIndex, adjustmentSummary }),
+    onAction: ({ action, index, period, afterTripId, field, value, explicitDay }) => {
+      if (saving) return;
+      if (action === 'draft-stay' || action === 'change-stay') {
+        if (stayUndoGroup?.key !== `stay-${index}` || stayUndoGroup.length !== tripHistory.length) adjustmentSummary = null;
+        rememberTrips({ groupKey: `stay-${index}` });
+        adjustmentRevision++;
+        clearTimeout(previewTimer);
+        eligibleGeneration++;
+        adjustmentPending = false;
+        adjustmentError = '';
+        depotStays[index][field] = value;
+        dirtyStay = { index, field, explicitDay };
+        if (action === 'change-stay') void runStayAdjustment(dirtyStay);
+        else {
+          if (field === 'arrivalTime') activePeriod = index;
+          if (field === 'departureTime') activePeriod = index + 1;
+          previewPending = true;
+          const revision = adjustmentRevision;
+          previewTimer = setTimeout(() => void previewStayAdjustment({ index, field, explicitDay }, revision), 150);
+          updateFeedback(feedback, '');
+          updateShiftTrips();
+          refreshScheduledTrips();
+        }
+        return;
+      }
+      if (action === 'retry-stay-adjustment') {
+        void runStayAdjustment({ index, field: 'depotId' });
+        return;
+      }
+      if (action === 'select-period') { activePeriod = period; stayUndoGroup = null; }
+      else {
+        rememberTrips();
+        invalidateAdjustment();
+        if (action === 'add-stay') {
+          const trip = selectedTrips.find(item => item.id === afterTripId);
+          if (!trip || depotStays.some(stay => stay.afterTripId === afterTripId)) return;
+          depotStays.push({ afterTripId, depotId: endDepotSelect.value, arrivalTime: '', departureTime: '' });
+          depotStays.sort((a, b) => selectedTrips.findIndex(trip => trip.id === a.afterTripId) - selectedTrips.findIndex(trip => trip.id === b.afterTripId));
+          activePeriod = depotStays.findIndex(stay => stay.afterTripId === afterTripId) + 1;
+        } else if (action === 'remove-stay') {
+          depotStays.splice(index, 1);
+          activePeriod = Math.min(activePeriod, depotStays.length);
+        }
+      }
+      updateShiftTrips();
+      refreshScheduledTrips();
+      updateTimeline();
+      updateFeedback(feedback, '');
+    },
+  });
+  cleanupHandlers.push(stayControls.cleanup);
+
+  const handleScheduledTripsClick = async (event) => {
     const button = event.target?.closest?.('button[data-action="add-trip"]');
     if (!button || button.disabled) {
       return;
@@ -1475,6 +1825,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     if (!id) {
       return;
     }
+    if ((dirtyStay || adjustmentPending) && !await settleStayChanges()) return;
 
     const trip = currentTrips.find((item = {}) => {
       const tripId = resolveTripId(item);
@@ -1486,7 +1837,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     }
   };
 
-  const handleShiftTripsClick = (event) => {
+  const handleShiftTripsClick = async (event) => {
     const button = event.target?.closest?.('button[data-action="remove-trip"]');
     if (!button) {
       return;
@@ -1498,6 +1849,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
       return;
     }
 
+    if ((dirtyStay || adjustmentPending) && !await settleStayChanges()) return;
     removeTrip(id);
   };
 
@@ -1505,9 +1857,19 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     addAllTrips();
   };
 
-  const handleRemoveAllTripsClick = () => {
+  const handleRemoveAllTripsClick = async () => {
+    if ((dirtyStay || adjustmentPending) && !await settleStayChanges()) return;
     removeAllTrips();
   };
+  const preserveTimeDraftForTripAction = event => {
+    if (dirtyStay && event.target.closest('[data-action="add-trip"], [data-action="add-all-trips"], [data-action="remove-trip"], [data-action="remove-all-trips"]')) {
+      // Commit from the click handler, after capturing the requested trip.
+      // Native blur would otherwise replace that button before click arrives.
+      event.preventDefault();
+    }
+  };
+  form.addEventListener('pointerdown', preserveTimeDraftForTripAction);
+  cleanupHandlers.push(() => form.removeEventListener('pointerdown', preserveTimeDraftForTripAction));
 
   // Helper to fetch stops for a trip and extract first/last stop info
   const fetchTripStopEdges = async (tripDbId) => {
@@ -1577,116 +1939,27 @@ export const initializeShiftForm = async (root = document, options = {}) => {
 
       // Get route info for auxiliary trips
       const firstTrip = serviceTripsForSave[0];
-      const lastTrip = serviceTripsForSave[serviceTripsForSave.length - 1];
       const routeId = lineSelect?.value || firstTrip?.route_id || null;
 
       if (!routeId) {
         throw localizedError("shifts.depot_route_required");
       }
 
-      // Find depot objects to get their stop_id
-      const startDepot = loadedDepots.find((d) => d.id === startDepotId);
-      const endDepot = loadedDepots.find((d) => d.id === endDepotId);
-
-      console.debug("[SHIFT] Depot info:", {
-        startDepotId,
-        startDepot,
-        startDepotStopId: startDepot?.stop_id,
-        endDepotId,
-        endDepot,
-        endDepotStopId: endDepot?.stop_id,
-      });
-
-      if (!startDepot?.stop_id || !endDepot?.stop_id) {
-        throw localizedError("shifts.depot_stop_required");
-      }
-
-      updateFeedback(feedback, () => t("shifts.fetching_stops_first"), "info");
-      showProgress(() => t("shifts.fetching_stops_first"));
-      const firstTripDbId = firstTrip?.id || resolveTripPk(firstTrip);
-      console.debug("[SHIFT] First trip DB ID:", firstTripDbId, "from trip:", {
-        id: firstTrip?.id,
-        trip_id: firstTrip?.trip_id,
-      });
-      const firstTripEdges = await fetchTripStopEdges(firstTripDbId);
-      if (!firstTripEdges?.firstStopId) {
-        throw localizedError("shifts.depot_trip_stops_required");
-      }
-
-      let depotToFirstStop;
-      try {
-        console.debug("[SHIFT] Creating auxiliary trip: depot → first stop", {
-          depotStopId: startDepot.stop_id,
-          firstStopId: firstTripEdges.firstStopId,
-          departureTime: startTime,
-          arrivalTime: firstTripEdges.firstStopArrival,
-          routeId,
-        });
-        depotToFirstStop = await createAuxiliaryTrip({
-          departureStopId: startDepot.stop_id,
-          arrivalStopId: firstTripEdges.firstStopId,
-          departureTime: startTime,
-          arrivalTime: firstTripEdges.firstStopArrival || startTime,
-          routeId,
-          status: "depot",
-        });
-        console.debug(
-          "[SHIFT] Created depot → first stop trip:",
-          depotToFirstStop.id
-        );
-      } catch (auxError) {
-        console.error(
-          "[SHIFT] Failed to create depot → first stop auxiliary trip:",
-          auxError
-        );
-        throw localizedError("shifts.depot_departure_error", () => ({ message: errorMessage(auxError, "shifts.unable_to_save") }));
-      }
-
-      updateFeedback(feedback, () => t("shifts.fetching_stops_last"), "info");
-      showProgress(() => t("shifts.fetching_stops_last"));
-      const lastTripDbId = lastTrip?.id || resolveTripPk(lastTrip);
-      console.debug("[SHIFT] Last trip DB ID:", lastTripDbId, "from trip:", {
-        id: lastTrip?.id,
-        trip_id: lastTrip?.trip_id,
-      });
-      const lastTripEdges = await fetchTripStopEdges(lastTripDbId);
-      if (!lastTripEdges?.lastStopId) {
-        throw localizedError("shifts.depot_trip_stops_required");
-      }
-
-      let lastStopToDepot;
-      try {
-        console.debug("[SHIFT] Creating auxiliary trip: last stop → depot", {
-          lastStopId: lastTripEdges.lastStopId,
-          depotStopId: endDepot.stop_id,
-          departureTime: lastTripEdges.lastStopDeparture,
-          arrivalTime: endTime,
-          routeId,
-        });
-        lastStopToDepot = await createAuxiliaryTrip({
-          departureStopId: lastTripEdges.lastStopId,
-          arrivalStopId: endDepot.stop_id,
-          departureTime: lastTripEdges.lastStopDeparture || endTime,
-          arrivalTime: endTime,
-          routeId,
-          status: "depot",
-        });
-        console.debug(
-          "[SHIFT] Created last stop → depot trip:",
-          lastStopToDepot.id
-        );
-      } catch (auxError) {
-        console.error(
-          "[SHIFT] Failed to create last stop → depot auxiliary trip:",
-          auxError
-        );
-        throw localizedError("shifts.depot_return_error", () => ({ message: errorMessage(auxError, "shifts.unable_to_save") }));
-      }
-
-      const allTripIds = buildCompleteShiftTripIds({
-        scheduledTripIds: tripIds,
-        departureTrip: depotToFirstStop,
-        returnTrip: lastStopToDepot,
+      const movements = buildProgrammeMovements({ trips: serviceTripsForSave, stays: depotStays, depots: loadedDepots,
+        startDepotId, endDepotId, startTime, endTime });
+      const allTripIds = await persistProgrammeMovements({ movements, existingConnections,
+        fetchEdges: (tripId, movement) => {
+          const key = movement.direction === 'departure' ? 'shifts.fetching_stops_first' : 'shifts.fetching_stops_last';
+          updateFeedback(feedback, () => t(key), 'info');
+          showProgress(() => t(key));
+          return fetchTripStopEdges(tripId);
+        },
+        createConnection: async (connection) => {
+          const key = connection.direction === 'departure' ? 'shifts.depot_departure_error' : 'shifts.depot_return_error';
+          try { return await createAuxiliaryTrip(connection); }
+          catch (error) { throw localizedError(key, () => ({ message: errorMessage(error, 'shifts.unable_to_save') })); }
+        },
+        routeId,
       });
 
       updateFeedback(
@@ -1813,7 +2086,9 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         endDepotSelect instanceof HTMLSelectElement && endDepotSelect.value ?
           (endDepotSelect.selectedOptions?.[0]?.text ?? "")
         : "",
-      trips: selectedTrips,
+      trips: [...selectedTrips, ...buildProgrammeMovements({ trips: selectedTrips, stays: depotStays, depots: loadedDepots,
+        startDepotId: startDepotSelect.value, endDepotId: endDepotSelect.value,
+        startTime: getShiftStartTime(), endTime: getShiftEndTime() }).filter(item => item.kind === 'connection')],
     };
 
     triggerPartialLoad("visualize-shift", payload);
@@ -1928,8 +2203,11 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   const undoTrips = () => {
     const previous = tripHistory.pop();
     if (!previous) return;
+    invalidateAdjustment();
     currentTrips = dedupeTrips([...currentTrips, ...selectedTrips]);
-    selectedTrips = previous;
+    selectedTrips = previous.trips;
+    depotStays = previous.stays;
+    activePeriod = previous.activePeriod;
     selectedTripIds.clear();
     selectedTrips.forEach((trip) => selectedTripIds.add(resolveTripId(trip)));
     updateShiftTrips();
@@ -1958,6 +2236,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     updateShiftTrips();
     refreshScheduledTrips();
     updateTimeline();
+    if (saving) toggleFormDisabled(form, true);
     for (const [node, { message, tone }] of translatedMessages) {
       if (node === progressMessage) node.textContent = resolveMessage(message);
       else renderFeedback(node, resolveMessage(message), tone);
@@ -1979,6 +2258,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   }
 
   const handleShiftTimeChange = () => {
+    invalidateAdjustment();
     if (currentTrips.length > 0) {
       refreshScheduledTrips();
     } else {
@@ -2000,6 +2280,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   }
   
   const handleDepotChange = () => {
+    invalidateAdjustment();
     if (currentTrips.length > 0) {
       refreshScheduledTrips();
     } else {
@@ -2120,6 +2401,10 @@ export const initializeShiftForm = async (root = document, options = {}) => {
         shift: hydratedShift,
         shiftInfo,
       });
+      if (reconstruction.ok) {
+        try { readShiftDepotStays({ shift: hydratedShift, shiftInfo, depots: loadedDepots }); }
+        catch { reconstruction.ok = false; reconstruction.reason = 'unrecoverable_depot_stay'; }
+      }
       editRouteReconstructionBlocked = !reconstruction.ok;
       if (editRouteReconstructionBlocked) {
         console.warn("[SHIFT] Edit route reconstruction unsafe:", reconstruction);
@@ -2154,6 +2439,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
   composer.ready();
   return () => {
     disposed = true;
+    invalidateAdjustment();
     datasetGeneration++;
     tripGeneration++;
     cleanupHandlers.forEach((handler) => handler());

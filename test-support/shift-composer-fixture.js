@@ -37,6 +37,7 @@ export const test = base.extend({
         else if (path.includes('/agency/agencies/')) json = { id: 'company', gtfs_agency_id: 'agency' };
         else if (path.includes('/elevation-profile/by-trip/')) json = { records: [] };
         else if (path.endsWith('/shifts/') && method === 'GET') json = [];
+        else if (path.endsWith('/osrm/driving-distance')) json = { duration_seconds: 120, distance_meters: 1000 };
         else if (path.endsWith('/datasets')) {
           await options.datasetGate?.promise;
           json = options.datasets ?? [edition, { gtfs_year: 2025, gtfs_file_date: '2024-09-27' }];
@@ -50,7 +51,7 @@ export const test = base.extend({
           ];
         } else if (path.endsWith('/buses/')) json = options.buses ?? [{ id: 'bus', user_id: 'user', bus_model_id: 'model' }];
         else if (path.endsWith('/bus-models/')) json = options.models ?? [{ id: 'model', user_id: 'user', name: 'Electric city bus' }];
-        else if (path.endsWith('/depots/')) json = options.depots ?? [{ id: 'depot', user_id: 'user', name: 'Main depot', stop_id: 'depot-stop' }];
+        else if (path.endsWith('/depots/')) json = (options.depots?.map(stop => ({ latitude: 46, longitude: 9, ...stop }))) ?? [{ id: 'depot', user_id: 'user', name: 'Main depot', stop_id: 'depot-stop', latitude: 46, longitude: 9 }];
         else if (path.includes('pvgis') || path.includes('weather')) json = [{ id: 'weather' }];
         else if (path.endsWith('/shifts/old/info')) json = { trips: [serviceTrips[0]], route_id: 'line', days_of_week: ['monday'] };
         else if (path.endsWith('/shifts/old') && method === 'GET') json = {
@@ -101,11 +102,11 @@ export const test = base.extend({
 });
 export { expect };
 
-export async function configure(page, { name = 'Morning service', start = '07:30', end = '12:00', chooseTrips = true } = {}) {
+export async function configure(page, { name = 'Morning service', start = '07:30', end = '12:00', chooseTrips = true, depotId = 'depot' } = {}) {
   await page.locator('#shift-name').fill(name);
   await page.locator('#shift-bus').selectOption('bus');
-  await page.locator('#shift-start-depot').selectOption('depot');
-  await page.locator('#shift-end-depot').selectOption('depot');
+  await page.locator('#shift-start-depot').selectOption(depotId);
+  await page.locator('#shift-end-depot').selectOption(depotId);
   await page.locator('#shift-start-time').fill(start);
   await page.locator('#shift-end-time').fill(end);
   if (chooseTrips) {

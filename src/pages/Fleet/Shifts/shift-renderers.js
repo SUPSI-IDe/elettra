@@ -130,6 +130,9 @@ export const renderScheduledTrips = ({
       const endStop = text(
         normalized?.end_stop_name ?? normalized?.endStopName ?? ""
       );
+      const replaced = trip.programmeInsertion?.removedTrips || [];
+      const actionLabel = replaced.length ? t('shifts.insert_replacing', { count: replaced.length }) : t('shifts.add_trip');
+      const replacedTimes = replaced.map(item => `${item.departure_time} – ${item.arrival_time}`).join(', ');
 
       return `
                 <tr data-trip-id="${textContent(id)}">
@@ -139,7 +142,8 @@ export const renderScheduledTrips = ({
                       startStop && endStop ? `${startStop} – ${endStop}` : startStop || endStop || "—"
                     )}</td>
                     <td class="actions">
-                        <button type="button" data-action="add-trip">${textContent(t("shifts.add_trip"))}</button>
+                        <button type="button" data-action="add-trip">${textContent(actionLabel)}</button>
+                        ${replaced.length ? `<small class="trip-replacement-hint">${textContent(t('shifts.replaces_trips', { times: replacedTimes }))}</small>` : ''}
                     </td>
                 </tr>
             `;

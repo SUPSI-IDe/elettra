@@ -1,0 +1,724 @@
+{
+  "shift": {
+    "structure": [
+      {
+        "id": "7c4a9d6a-7906-4a91-b80c-12970e08b0e6",
+        "trip_id": "0350aa6a-663a-5fea-a973-50125e9d5c61",
+        "stop_times": [
+          {
+            "id": "31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_id": "depot_31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_name": "TPL Rimessa 1",
+            "arrival_time": "06:54:00",
+            "stop_sequence": 1,
+            "departure_time": "06:54:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "07:02:00",
+            "stop_sequence": 2,
+            "departure_time": "07:02:00"
+          }
+        ],
+        "sequence_number": 1
+      },
+      {
+        "id": "73acdda6-e876-473a-afdb-b87daa8b633b",
+        "trip_id": "08b8489b-48cc-4c8a-8603-329d9d0e9afa",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "07:02:00",
+            "stop_sequence": 1,
+            "departure_time": "07:02:00"
+          },
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "07:33:00",
+            "stop_sequence": 27,
+            "departure_time": "07:33:00"
+          }
+        ],
+        "sequence_number": 2
+      },
+      {
+        "id": "c2eaa898-1b62-40e3-a010-c800eba05734",
+        "trip_id": "c1e082fb-9231-4fd2-b22f-b655f24dc338",
+        "stop_times": [
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "07:40:00",
+            "stop_sequence": 1,
+            "departure_time": "07:40:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "08:16:00",
+            "stop_sequence": 25,
+            "departure_time": "08:16:00"
+          }
+        ],
+        "sequence_number": 3
+      },
+      {
+        "id": "2bfea78b-6cfb-44c3-8c31-6247f0b71031",
+        "trip_id": "cb8db79b-57c6-44eb-b838-bcedbdb05ec0",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "08:20:00",
+            "stop_sequence": 1,
+            "departure_time": "08:20:00"
+          },
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "08:53:00",
+            "stop_sequence": 27,
+            "departure_time": "08:53:00"
+          }
+        ],
+        "sequence_number": 4
+      },
+      {
+        "id": "3ac48187-4d83-429e-a5ad-1731ae37b5b6",
+        "trip_id": "d2977810-6818-49fa-8f5f-ae9841010c08",
+        "stop_times": [
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "09:00:00",
+            "stop_sequence": 1,
+            "departure_time": "09:00:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "09:36:00",
+            "stop_sequence": 25,
+            "departure_time": "09:36:00"
+          }
+        ],
+        "sequence_number": 5
+      },
+      {
+        "id": "ea39440c-b371-4c9b-9da1-7b0bc6aa8a38",
+        "trip_id": "63d74341-d6b9-58ac-ba3c-fc7a3d5e213a",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "09:36:00",
+            "stop_sequence": 1,
+            "departure_time": "09:36:00"
+          },
+          {
+            "id": "31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_id": "depot_31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_name": "TPL Rimessa 1",
+            "arrival_time": "09:43:00",
+            "stop_sequence": 2,
+            "departure_time": "09:43:00"
+          }
+        ],
+        "sequence_number": 6
+      },
+      {
+        "id": "1a5b6fe3-ec01-47cd-920f-4bc0ac60b100",
+        "trip_id": "1fd43647-ae43-5a53-a770-d299d21458e1",
+        "stop_times": [
+          {
+            "id": "31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_id": "depot_31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_name": "TPL Rimessa 1",
+            "arrival_time": "16:02:00",
+            "stop_sequence": 1,
+            "departure_time": "16:02:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "16:10:00",
+            "stop_sequence": 2,
+            "departure_time": "16:10:00"
+          }
+        ],
+        "sequence_number": 7
+      },
+      {
+        "id": "e71d924a-8a00-4d8f-a924-731b3067d707",
+        "trip_id": "e5ac4776-45fe-46bc-9d51-571b788488d2",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "16:10:00",
+            "stop_sequence": 1,
+            "departure_time": "16:10:00"
+          },
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "16:43:00",
+            "stop_sequence": 27,
+            "departure_time": "16:43:00"
+          }
+        ],
+        "sequence_number": 8
+      },
+      {
+        "id": "cd9d4a97-adef-442b-bfde-6cc47bab30b4",
+        "trip_id": "6221a546-d2ad-4268-ae63-a5ee07fef8a9",
+        "stop_times": [
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "16:50:00",
+            "stop_sequence": 1,
+            "departure_time": "16:50:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "17:31:00",
+            "stop_sequence": 25,
+            "departure_time": "17:31:00"
+          }
+        ],
+        "sequence_number": 9
+      },
+      {
+        "id": "94d01b79-7e45-45b6-adc4-0b4a20b55c44",
+        "trip_id": "42d2e235-7b46-4bc1-8c48-77ad90078263",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "17:33:00",
+            "stop_sequence": 1,
+            "departure_time": "17:33:00"
+          },
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "18:13:00",
+            "stop_sequence": 27,
+            "departure_time": "18:13:00"
+          }
+        ],
+        "sequence_number": 10
+      },
+      {
+        "id": "a2edf589-8f4b-44f9-8123-ea789bc6b592",
+        "trip_id": "950d5b12-2031-47d2-995a-4cac0740c165",
+        "stop_times": [
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "18:20:00",
+            "stop_sequence": 1,
+            "departure_time": "18:20:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "19:01:00",
+            "stop_sequence": 25,
+            "departure_time": "19:01:00"
+          }
+        ],
+        "sequence_number": 11
+      },
+      {
+        "id": "3fa3c0a8-2248-4b27-81ea-e388d9b26c54",
+        "trip_id": "b35b4791-c571-4bfd-93b4-d6a868074c88",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "19:03:00",
+            "stop_sequence": 1,
+            "departure_time": "19:03:00"
+          },
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "19:43:00",
+            "stop_sequence": 27,
+            "departure_time": "19:43:00"
+          }
+        ],
+        "sequence_number": 12
+      },
+      {
+        "id": "c8daf519-a5d4-42f0-af92-98d3154fc64a",
+        "trip_id": "f7beef2e-3d4b-40d7-af73-609c95eaf55d",
+        "stop_times": [
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "19:50:00",
+            "stop_sequence": 1,
+            "departure_time": "19:50:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "20:13:00",
+            "stop_sequence": 25,
+            "departure_time": "20:13:00"
+          }
+        ],
+        "sequence_number": 13
+      },
+      {
+        "id": "ccb0f884-a486-4494-be8d-ce8b5af25950",
+        "trip_id": "00fac257-628f-40e6-aeb5-ea83d5b81b9d",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "20:18:00",
+            "stop_sequence": 1,
+            "departure_time": "20:18:00"
+          },
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "20:43:00",
+            "stop_sequence": 27,
+            "departure_time": "20:43:00"
+          }
+        ],
+        "sequence_number": 14
+      },
+      {
+        "id": "eb1bd3fa-9eaa-44eb-8344-871bd63042b5",
+        "trip_id": "495f8781-836a-4c4e-b135-c05483ff8c2c",
+        "stop_times": [
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "20:50:00",
+            "stop_sequence": 1,
+            "departure_time": "20:50:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "21:13:00",
+            "stop_sequence": 25,
+            "departure_time": "21:13:00"
+          }
+        ],
+        "sequence_number": 15
+      },
+      {
+        "id": "8bb2c81e-0ef9-4c6b-9695-3f9f1750e264",
+        "trip_id": "e4605986-b5fb-45b4-9ba3-535ae84b867b",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "21:18:00",
+            "stop_sequence": 1,
+            "departure_time": "21:18:00"
+          },
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "21:43:00",
+            "stop_sequence": 27,
+            "departure_time": "21:43:00"
+          }
+        ],
+        "sequence_number": 16
+      },
+      {
+        "id": "326eaf6d-a2ed-4e10-a4cd-15a176b18723",
+        "trip_id": "2f03275a-d14b-4927-b3a0-82a2ce394727",
+        "stop_times": [
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "21:50:00",
+            "stop_sequence": 1,
+            "departure_time": "21:50:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "22:13:00",
+            "stop_sequence": 25,
+            "departure_time": "22:13:00"
+          }
+        ],
+        "sequence_number": 17
+      },
+      {
+        "id": "a05a4016-ed3c-4dfa-a0da-182a4409a6f9",
+        "trip_id": "1204df47-b85b-43ec-9f76-b20ccd37a4bd",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "22:18:00",
+            "stop_sequence": 1,
+            "departure_time": "22:18:00"
+          },
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "22:43:00",
+            "stop_sequence": 27,
+            "departure_time": "22:43:00"
+          }
+        ],
+        "sequence_number": 18
+      },
+      {
+        "id": "fea62f7d-736e-4ec5-8e80-21772d8ec46a",
+        "trip_id": "5562f316-6bc9-49da-8b9a-c5623029de47",
+        "stop_times": [
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "22:50:00",
+            "stop_sequence": 1,
+            "departure_time": "22:50:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "23:13:00",
+            "stop_sequence": 25,
+            "departure_time": "23:13:00"
+          }
+        ],
+        "sequence_number": 19
+      },
+      {
+        "id": "22a403a6-2f74-4fba-b338-ee2dd5273d9d",
+        "trip_id": "34da0aca-6e1e-4f78-a872-9e8cd5e1d4f3",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "23:18:00",
+            "stop_sequence": 1,
+            "departure_time": "23:18:00"
+          },
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "23:43:00",
+            "stop_sequence": 27,
+            "departure_time": "23:43:00"
+          }
+        ],
+        "sequence_number": 20
+      },
+      {
+        "id": "e3382a68-64ec-4960-8000-52bffe380014",
+        "trip_id": "429bd4f9-e635-4116-9660-04ea77f209dd",
+        "stop_times": [
+          {
+            "id": "5c49afd1-04b2-4b10-a06e-f3e87a58896e",
+            "stop_id": "8575333",
+            "stop_name": "Manno, Uovo di Manno",
+            "arrival_time": "23:50:00",
+            "stop_sequence": 1,
+            "departure_time": "23:50:00"
+          },
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "24:13:00",
+            "stop_sequence": 25,
+            "departure_time": "24:13:00"
+          }
+        ],
+        "sequence_number": 21
+      },
+      {
+        "id": "7fd0e523-2cd7-44d6-84bb-a18126d7c2b2",
+        "trip_id": "c46df057-4f94-5eea-a35c-ca9b546ecd67",
+        "stop_times": [
+          {
+            "id": "85770dea-2cd3-49a3-a766-312539f04be4",
+            "stop_id": "8505561",
+            "stop_name": "Viganello, S. Siro",
+            "arrival_time": "24:13:00",
+            "stop_sequence": 1,
+            "departure_time": "24:13:00"
+          },
+          {
+            "id": "31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_id": "depot_31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_name": "TPL Rimessa 1",
+            "arrival_time": "24:20:00",
+            "stop_sequence": 2,
+            "departure_time": "24:20:00"
+          }
+        ],
+        "sequence_number": 22
+      }
+    ],
+    "id": "9b7cb10d-58c4-5737-a5d7-7f5355527a54",
+    "name": "40507_weekday",
+    "bus_id": "bus"
+  },
+  "shiftInfo": {
+    "trips": [
+      {
+        "id": "0350aa6a-663a-5fea-a973-50125e9d5c61",
+        "trip_id": "depot-0350aa6a663a5feaa97350125e9d5c61",
+        "arrival_time": "07:02:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "06:54:00",
+        "sequence_number": 1,
+        "start_stop_name": "TPL Rimessa 1"
+      },
+      {
+        "id": "08b8489b-48cc-4c8a-8603-329d9d0e9afa",
+        "trip_id": "350.TA.92-5-D-j26-1.2.R",
+        "arrival_time": "07:33:00",
+        "end_stop_name": "Manno, Uovo di Manno",
+        "departure_time": "07:02:00",
+        "sequence_number": 2,
+        "start_stop_name": "Viganello, S. Siro"
+      },
+      {
+        "id": "c1e082fb-9231-4fd2-b22f-b655f24dc338",
+        "trip_id": "183.TA.92-5-D-j26-1.1.H",
+        "arrival_time": "08:16:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "07:40:00",
+        "sequence_number": 3,
+        "start_stop_name": "Manno, Uovo di Manno"
+      },
+      {
+        "id": "cb8db79b-57c6-44eb-b838-bcedbdb05ec0",
+        "trip_id": "384.TA.92-5-D-j26-1.2.R",
+        "arrival_time": "08:53:00",
+        "end_stop_name": "Manno, Uovo di Manno",
+        "departure_time": "08:20:00",
+        "sequence_number": 4,
+        "start_stop_name": "Viganello, S. Siro"
+      },
+      {
+        "id": "d2977810-6818-49fa-8f5f-ae9841010c08",
+        "trip_id": "184.TA.92-5-D-j26-1.1.H",
+        "arrival_time": "09:36:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "09:00:00",
+        "sequence_number": 5,
+        "start_stop_name": "Manno, Uovo di Manno"
+      },
+      {
+        "id": "63d74341-d6b9-58ac-ba3c-fc7a3d5e213a",
+        "trip_id": "depot-63d74341d6b958acba3cfc7a3d5e213a",
+        "arrival_time": "09:43:00",
+        "end_stop_name": "TPL Rimessa 1",
+        "departure_time": "09:36:00",
+        "sequence_number": 6,
+        "start_stop_name": "Viganello, S. Siro"
+      },
+      {
+        "id": "1fd43647-ae43-5a53-a770-d299d21458e1",
+        "trip_id": "depot-1fd43647ae435a53a770d299d21458e1",
+        "arrival_time": "16:10:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "16:02:00",
+        "sequence_number": 7,
+        "start_stop_name": "TPL Rimessa 1"
+      },
+      {
+        "id": "e5ac4776-45fe-46bc-9d51-571b788488d2",
+        "trip_id": "387.TA.92-5-D-j26-1.2.R",
+        "arrival_time": "16:43:00",
+        "end_stop_name": "Manno, Uovo di Manno",
+        "departure_time": "16:10:00",
+        "sequence_number": 8,
+        "start_stop_name": "Viganello, S. Siro"
+      },
+      {
+        "id": "6221a546-d2ad-4268-ae63-a5ee07fef8a9",
+        "trip_id": "202.TA.92-5-D-j26-1.1.H",
+        "arrival_time": "17:31:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "16:50:00",
+        "sequence_number": 9,
+        "start_stop_name": "Manno, Uovo di Manno"
+      },
+      {
+        "id": "42d2e235-7b46-4bc1-8c48-77ad90078263",
+        "trip_id": "361.TA.92-5-D-j26-1.2.R",
+        "arrival_time": "18:13:00",
+        "end_stop_name": "Manno, Uovo di Manno",
+        "departure_time": "17:33:00",
+        "sequence_number": 10,
+        "start_stop_name": "Viganello, S. Siro"
+      },
+      {
+        "id": "950d5b12-2031-47d2-995a-4cac0740c165",
+        "trip_id": "194.TA.92-5-D-j26-1.1.H",
+        "arrival_time": "19:01:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "18:20:00",
+        "sequence_number": 11,
+        "start_stop_name": "Manno, Uovo di Manno"
+      },
+      {
+        "id": "b35b4791-c571-4bfd-93b4-d6a868074c88",
+        "trip_id": "368.TA.92-5-D-j26-1.2.R",
+        "arrival_time": "19:43:00",
+        "end_stop_name": "Manno, Uovo di Manno",
+        "departure_time": "19:03:00",
+        "sequence_number": 12,
+        "start_stop_name": "Viganello, S. Siro"
+      },
+      {
+        "id": "f7beef2e-3d4b-40d7-af73-609c95eaf55d",
+        "trip_id": "2.TA.92-5-D-j26-1.1.H",
+        "arrival_time": "20:13:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "19:50:00",
+        "sequence_number": 13,
+        "start_stop_name": "Manno, Uovo di Manno"
+      },
+      {
+        "id": "00fac257-628f-40e6-aeb5-ea83d5b81b9d",
+        "trip_id": "242.TA.92-5-D-j26-1.2.R",
+        "arrival_time": "20:43:00",
+        "end_stop_name": "Manno, Uovo di Manno",
+        "departure_time": "20:18:00",
+        "sequence_number": 14,
+        "start_stop_name": "Viganello, S. Siro"
+      },
+      {
+        "id": "495f8781-836a-4c4e-b135-c05483ff8c2c",
+        "trip_id": "53.TA.92-5-D-j26-1.1.H",
+        "arrival_time": "21:13:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "20:50:00",
+        "sequence_number": 15,
+        "start_stop_name": "Manno, Uovo di Manno"
+      },
+      {
+        "id": "e4605986-b5fb-45b4-9ba3-535ae84b867b",
+        "trip_id": "244.TA.92-5-D-j26-1.2.R",
+        "arrival_time": "21:43:00",
+        "end_stop_name": "Manno, Uovo di Manno",
+        "departure_time": "21:18:00",
+        "sequence_number": 16,
+        "start_stop_name": "Viganello, S. Siro"
+      },
+      {
+        "id": "2f03275a-d14b-4927-b3a0-82a2ce394727",
+        "trip_id": "38.TA.92-5-D-j26-1.1.H",
+        "arrival_time": "22:13:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "21:50:00",
+        "sequence_number": 17,
+        "start_stop_name": "Manno, Uovo di Manno"
+      },
+      {
+        "id": "1204df47-b85b-43ec-9f76-b20ccd37a4bd",
+        "trip_id": "241.TA.92-5-D-j26-1.2.R",
+        "arrival_time": "22:43:00",
+        "end_stop_name": "Manno, Uovo di Manno",
+        "departure_time": "22:18:00",
+        "sequence_number": 18,
+        "start_stop_name": "Viganello, S. Siro"
+      },
+      {
+        "id": "5562f316-6bc9-49da-8b9a-c5623029de47",
+        "trip_id": "18.TA.92-5-D-j26-1.1.H",
+        "arrival_time": "23:13:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "22:50:00",
+        "sequence_number": 19,
+        "start_stop_name": "Manno, Uovo di Manno"
+      },
+      {
+        "id": "34da0aca-6e1e-4f78-a872-9e8cd5e1d4f3",
+        "trip_id": "264.TA.92-5-D-j26-1.2.R",
+        "arrival_time": "23:43:00",
+        "end_stop_name": "Manno, Uovo di Manno",
+        "departure_time": "23:18:00",
+        "sequence_number": 20,
+        "start_stop_name": "Viganello, S. Siro"
+      },
+      {
+        "id": "429bd4f9-e635-4116-9660-04ea77f209dd",
+        "trip_id": "16.TA.92-5-D-j26-1.1.H",
+        "arrival_time": "24:13:00",
+        "end_stop_name": "Viganello, S. Siro",
+        "departure_time": "23:50:00",
+        "sequence_number": 21,
+        "start_stop_name": "Manno, Uovo di Manno"
+      },
+      {
+        "id": "c46df057-4f94-5eea-a35c-ca9b546ecd67",
+        "trip_id": "depot-c46df0574f945eeaa35cca9b546ecd67",
+        "arrival_time": "24:20:00",
+        "end_stop_name": "TPL Rimessa 1",
+        "departure_time": "24:13:00",
+        "sequence_number": 22,
+        "start_stop_name": "Viganello, S. Siro"
+      }
+    ]
+  },
+  "depots": [
+    {
+      "id": "2183fd4b-9690-545a-aef3-5d12977aa60f",
+      "name": "TPL Rimessa 1",
+      "stop_id": "31dec1ab-00a3-57d5-8d3e-f337c17e6b56"
+    }
+  ]
+}

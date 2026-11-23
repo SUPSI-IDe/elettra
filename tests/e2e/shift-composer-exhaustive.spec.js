@@ -486,7 +486,7 @@ test('a failed edit save keeps undo disabled when there is no edit history', asy
   await expect(chosen(page)).toHaveCount(1);
 });
 
-test('editing a real saved structure exposes service trips and regenerates depot connections on update', async ({ page, composer }) => {
+test('editing a real saved structure reuses unchanged connections and regenerates the changed return', async ({ page, composer }) => {
   const outbound = { id: 'db-out', trip_id: 'depot-out', status: 'depot', start_stop_name: 'Main depot', end_stop_name: 'Station', departure_time: '07:30', arrival_time: '08:00', route_id: 'line' };
   const inbound = { id: 'db-back', trip_id: 'depot-back', status: 'depot', start_stop_name: 'Airport', end_stop_name: 'Main depot', departure_time: '09:00', arrival_time: '12:00', route_id: 'line' };
   const saved = [outbound, serviceTrips[0], inbound];
@@ -512,8 +512,9 @@ test('editing a real saved structure exposes service trips and regenerates depot
   await next(page).click();
   await expect(page.locator('.composer-itinerary li')).toHaveCount(2);
   await page.locator('[type="submit"]').click();
-  await expect.poll(() => state.writes.length).toBe(3);
-  expect(state.writes[2].body.trip_ids).toEqual(['created-1', 'db-1', 'db-2', 'created-2']);
+  await expect.poll(() => state.writes.length).toBe(2);
+  expect(state.writes[0].body.departure_stop_id).toBe('stop-b');
+  expect(state.writes[1].body.trip_ids).toEqual(['db-out', 'db-1', 'db-2', 'created-1']);
 });
 
 test('editing Monday never offers Tuesday-only services', async ({ page, composer }) => {

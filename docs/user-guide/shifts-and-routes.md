@@ -1,6 +1,6 @@
 # Vehicle Blocks and Routes
 
-> Last updated: 2026-11-20
+> Last updated: 2026-11-23
 > Interface baseline: Frontend v1.2.0
 
 A vehicle block is the ordered service assigned to one bus over a day. It joins
@@ -19,10 +19,11 @@ Enter a recognizable name and choose the candidate bus model and GTFS timetable
 edition. New blocks initially select the latest edition. Changing edition after
 adding trips requires confirmation and clears the selection.
 
-Set departure and return depots and times in this first step. A return earlier
-than departure means the following day. GTFS times beyond 24:00 retain their
-service-day offset. Allow time for the connecting auxiliary journeys: depot
-connections are regenerated when saving and consume energy without passengers.
+Set starting and final custom stops and their times in this first step. An
+arrival earlier than departure means the following day. GTFS times beyond
+24:00 retain their service-day offset. Allow time for connecting auxiliary
+journeys: connections to custom stops consume energy without passengers.
+Saving reuses unchanged connections and creates those affected by changes.
 
 ### 2. Compose the day
 
@@ -32,15 +33,71 @@ filtered trips; individual trips can also be added or removed. **Undo last
 change** restores the preceding selection, including after **Remove all**.
 
 Step buttons let you revisit settings without losing the selected trips.
-Editing a saved block opens its existing programme directly, without duplicating
-the generated depot connections.
+Editing a saved block opens the whole existing programme directly, without
+duplicating generated connections. The stay controls described below apply to
+creation; editing uses the dedicated screen described under **Edit a block**.
+
+For an arrival at a custom stop followed by another departure in the same block,
+choose the preceding trip under **After this trip** and select **Add
+intermediate stay**. Select the custom stop and set arrival and departure
+times. A custom stop can be a depot, a charging location or a hub. Select the
+day next to each time when the stay crosses midnight. The block remains one
+vehicle block, with multiple service periods.
+
+Use the **Period** buttons to choose which period to edit. The selected-trip
+table and available departures follow that period's location and time limits.
+Each period needs at least one scheduled trip. **Remove stay** merges adjacent
+periods; their trips must then connect directly. **Undo last change** also
+restores removed stays and their settings. Editing an existing block restores
+its intermediate stays at custom stops automatically in a separate editing screen.
+
+Changing a stay recalculates the transfers to and from the custom stop. Widening
+the stay removes incompatible scheduled trips and lists them below the stay;
+their GTFS times remain fixed. Shortening it makes compatible trips available
+in the left-hand list, including trips before the first selected trip of the
+next period. Add them individually or with **Add all compatible trips**.
+**Undo last change** restores the stay and its excluded trips together.
+The available-trip list also includes alternatives to the selected programme.
+When insertion requires replacing selected trips, **Replace N** shows their
+number and times before you choose it. The replacement keeps GTFS times fixed
+and can be undone. **Add all** adds compatible trips without replacing selected
+trips; alternatives requiring replacement must be chosen individually.
+Requests beyond the feasible interval are limited automatically, with an
+explanation, keeping a positive stay and at least one trip in each period.
+If transfer calculation fails, the selection is retained and **Retry** repeats
+the calculation before review or saving.
 
 ### 3. Review and save
 
-Open **Review and save** to inspect the ordered itinerary, depot times and
+Open **Review and save** to inspect the ordered itinerary, custom stops, times and
 timeline. Check connections, gaps, overlaps and the complete daily interval.
+Intermediate connections and stays appear in the itinerary and timeline.
 ELETTRA checks time boundaries and continuity before review; correct reported
 problems before saving. The saved GTFS edition forms part of the provenance.
+
+---
+
+## Edit a block
+
+Editing opens **Build the day** with every selected trip in one chronological
+list. Available trips can be inserted into compatible gaps without choosing a
+service period or replacing other trips.
+
+Select **Manage intermediate stays** (or **Add intermediate stay**) to open the
+conditional **Intermediate stays** step. Enter the custom stop, arrival and
+departure; no preceding-trip selection is needed. Set the explicit day for
+stays crossing midnight. The preview keeps existing trips first, then fills
+changed service windows with connected GTFS trips from the lines already in
+the block and the selected service day. Unaffected service windows stay intact.
+
+The preview lists added and excluded trips and the complete resulting programme.
+It never changes the entered stay times or GTFS times. Impossible intervals and
+routing failures disable **Apply to block** and explain the problem. **Retry**
+repeats a failed calculation. **Cancel** discards the preview.
+
+**Apply to block** updates the whole working programme in one action.
+**Undo last change** restores its previous trips and stays. Review and save
+persists the result; previewing and applying alone do not write to the database.
 
 ---
 

@@ -1,0 +1,970 @@
+{
+  "shift": {
+    "id": "c6dbd509-8935-485e-912f-314ef3f24e97",
+    "name": "00000",
+    "structure": [
+      {
+        "id": "1b6fb92c-1beb-44d4-b370-5f3b36273d90",
+        "trip_id": "e76b76a7-83f8-460b-90e6-b0a4e9dff389",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_id": "depot_31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_lat": 46.029820843364824,
+            "stop_lon": 8.970798254013063,
+            "stop_name": "TPL Rimessa 1",
+            "arrival_time": "08:00:00",
+            "stop_sequence": 1,
+            "departure_time": "08:00:00"
+          },
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "08:04:00",
+            "stop_sequence": 2,
+            "departure_time": "08:04:00"
+          }
+        ],
+        "sequence_number": 1
+      },
+      {
+        "id": "9f8ee03e-a71f-4ae3-883f-e1dc7295084b",
+        "trip_id": "af033ec1-e43c-46d6-b9e8-d9a34804abf8",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "08:04:00",
+            "stop_sequence": 1,
+            "departure_time": "08:04:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "08:17:00",
+            "stop_sequence": 10,
+            "departure_time": "08:17:00"
+          }
+        ],
+        "sequence_number": 2
+      },
+      {
+        "id": "036bc455-399a-4a38-b473-9350cd4ab107",
+        "trip_id": "1c9b0b76-f985-498a-9c7d-be9a50ada7c2",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "08:22:00",
+            "stop_sequence": 1,
+            "departure_time": "08:22:00"
+          },
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "08:36:00",
+            "stop_sequence": 13,
+            "departure_time": "08:36:00"
+          }
+        ],
+        "sequence_number": 3
+      },
+      {
+        "id": "3ba7714a-f026-4c6b-9051-7383525d677a",
+        "trip_id": "53959970-217a-4129-b984-764ddf6d9e1d",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "08:44:00",
+            "stop_sequence": 1,
+            "departure_time": "08:44:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "08:57:00",
+            "stop_sequence": 10,
+            "departure_time": "08:57:00"
+          }
+        ],
+        "sequence_number": 4
+      },
+      {
+        "id": "0cec15ce-7005-4f12-b57c-19f9a2a33d36",
+        "trip_id": "61414762-f40e-4470-aa93-e49eac8620b1",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "09:02:00",
+            "stop_sequence": 1,
+            "departure_time": "09:02:00"
+          },
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "09:16:00",
+            "stop_sequence": 13,
+            "departure_time": "09:16:00"
+          }
+        ],
+        "sequence_number": 5
+      },
+      {
+        "id": "068c298a-9b89-4cc2-82b7-247887966425",
+        "trip_id": "83655e4e-4d04-4f97-856c-d1363a5cc0f9",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "09:22:00",
+            "stop_sequence": 1,
+            "departure_time": "09:22:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "09:34:00",
+            "stop_sequence": 10,
+            "departure_time": "09:34:00"
+          }
+        ],
+        "sequence_number": 6
+      },
+      {
+        "id": "b8fbe586-b673-4428-8aed-2b24f6dfd083",
+        "trip_id": "77dc143a-1389-4dff-add0-f2137631a304",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "09:40:00",
+            "stop_sequence": 1,
+            "departure_time": "09:40:00"
+          },
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "09:53:00",
+            "stop_sequence": 13,
+            "departure_time": "09:53:00"
+          }
+        ],
+        "sequence_number": 7
+      },
+      {
+        "id": "3c087f24-5e7d-475c-8f31-8ab3dceae36f",
+        "trip_id": "1bcc340c-67f4-4b12-8aa9-6055dfe14598",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "10:07:00",
+            "stop_sequence": 1,
+            "departure_time": "10:07:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "10:19:00",
+            "stop_sequence": 10,
+            "departure_time": "10:19:00"
+          }
+        ],
+        "sequence_number": 8
+      },
+      {
+        "id": "1f33a3b0-923c-4c2a-981e-32b5d21be9fd",
+        "trip_id": "820413b6-14e4-4062-a2a0-9004ce747bfa",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "10:25:00",
+            "stop_sequence": 1,
+            "departure_time": "10:25:00"
+          },
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "10:38:00",
+            "stop_sequence": 13,
+            "departure_time": "10:38:00"
+          }
+        ],
+        "sequence_number": 9
+      },
+      {
+        "id": "f2c5b8ed-c8a7-40c3-9dc0-2fd7fb1e7466",
+        "trip_id": "97a8d2f9-4b89-451f-b593-ce922a807eec",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "10:52:00",
+            "stop_sequence": 1,
+            "departure_time": "10:52:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "11:04:00",
+            "stop_sequence": 10,
+            "departure_time": "11:04:00"
+          }
+        ],
+        "sequence_number": 10
+      },
+      {
+        "id": "d05fb873-288a-4e97-b38b-528d1bed9815",
+        "trip_id": "dcb81bb0-7e61-47eb-914e-ae0e8d5c5521",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "11:10:00",
+            "stop_sequence": 1,
+            "departure_time": "11:10:00"
+          },
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "11:23:00",
+            "stop_sequence": 13,
+            "departure_time": "11:23:00"
+          }
+        ],
+        "sequence_number": 11
+      },
+      {
+        "id": "414d1fe7-56c6-45fc-863e-8986cc1dc9d3",
+        "trip_id": "ffe89234-94b4-4d81-bf10-4560c2e88eba",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "11:37:00",
+            "stop_sequence": 1,
+            "departure_time": "11:37:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "11:49:00",
+            "stop_sequence": 10,
+            "departure_time": "11:49:00"
+          }
+        ],
+        "sequence_number": 12
+      },
+      {
+        "id": "090468d4-b5d9-454c-927c-8a69206eaf98",
+        "trip_id": "553a6237-c78a-4b73-a85c-2481c074e9e8",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "11:49:00",
+            "stop_sequence": 1,
+            "departure_time": "11:49:00"
+          },
+          {
+            "id": "7ce5b359-c0cc-5828-b233-931b101a93bf",
+            "stop_id": "depot_7ce5b359-c0cc-5828-b233-931b101a93bf",
+            "stop_lat": 46.00586757702194,
+            "stop_lon": 8.952323198318483,
+            "stop_name": "TPL Posteggio Lugano Centro",
+            "arrival_time": "12:00:00",
+            "stop_sequence": 2,
+            "departure_time": "12:00:00"
+          }
+        ],
+        "sequence_number": 13
+      },
+      {
+        "id": "4d8cc21f-79d1-45f5-b8cf-265bc065ae91",
+        "trip_id": "f8e1f322-7a8b-46f7-90e8-7377640ce72c",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "7ce5b359-c0cc-5828-b233-931b101a93bf",
+            "stop_id": "depot_7ce5b359-c0cc-5828-b233-931b101a93bf",
+            "stop_lat": 46.00586757702194,
+            "stop_lon": 8.952323198318483,
+            "stop_name": "TPL Posteggio Lugano Centro",
+            "arrival_time": "13:00:00",
+            "stop_sequence": 1,
+            "departure_time": "13:00:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "13:10:00",
+            "stop_sequence": 2,
+            "departure_time": "13:10:00"
+          }
+        ],
+        "sequence_number": 14
+      },
+      {
+        "id": "2455d0b6-f061-414e-931d-b72b31f447c8",
+        "trip_id": "b3a9388c-ec13-4a4c-846d-e83d2a027fff",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "13:10:00",
+            "stop_sequence": 1,
+            "departure_time": "13:10:00"
+          },
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "13:23:00",
+            "stop_sequence": 13,
+            "departure_time": "13:23:00"
+          }
+        ],
+        "sequence_number": 15
+      },
+      {
+        "id": "fc348ffb-a0c4-4c1d-bd0f-08ca351bb12d",
+        "trip_id": "ff42c6ca-e265-4677-974e-2beed88ed401",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "13:26:00",
+            "stop_sequence": 1,
+            "departure_time": "13:26:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "13:38:00",
+            "stop_sequence": 10,
+            "departure_time": "13:38:00"
+          }
+        ],
+        "sequence_number": 16
+      },
+      {
+        "id": "f98699d0-b241-4bcf-af69-e019714bddba",
+        "trip_id": "0c89a1be-66f8-42ee-9a93-d9ae993289bc",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "13:40:00",
+            "stop_sequence": 1,
+            "departure_time": "13:40:00"
+          },
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "13:53:00",
+            "stop_sequence": 13,
+            "departure_time": "13:53:00"
+          }
+        ],
+        "sequence_number": 17
+      },
+      {
+        "id": "b46a0d16-ee8f-479f-be45-0e64052f6d15",
+        "trip_id": "870619d0-89fb-44f9-ac18-d9b734f591a2",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "14:07:00",
+            "stop_sequence": 1,
+            "departure_time": "14:07:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "14:19:00",
+            "stop_sequence": 10,
+            "departure_time": "14:19:00"
+          }
+        ],
+        "sequence_number": 18
+      },
+      {
+        "id": "0e000e6e-f302-4758-b9cc-9f79d84a81c0",
+        "trip_id": "4dec960a-bb42-40e6-8d1b-269b6ad08776",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "14:25:00",
+            "stop_sequence": 1,
+            "departure_time": "14:25:00"
+          },
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "14:38:00",
+            "stop_sequence": 13,
+            "departure_time": "14:38:00"
+          }
+        ],
+        "sequence_number": 19
+      },
+      {
+        "id": "42f89164-2962-4804-9f6e-90a788903763",
+        "trip_id": "50f23373-eda6-4037-90a7-5d2ad1468da8",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "14:52:00",
+            "stop_sequence": 1,
+            "departure_time": "14:52:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "15:04:00",
+            "stop_sequence": 10,
+            "departure_time": "15:04:00"
+          }
+        ],
+        "sequence_number": 20
+      },
+      {
+        "id": "cee5454c-e3a5-4820-98f7-09d981ea0a71",
+        "trip_id": "945d74b5-aad0-4cc1-bb9b-0f4a19b3c025",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "15:10:00",
+            "stop_sequence": 1,
+            "departure_time": "15:10:00"
+          },
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "15:23:00",
+            "stop_sequence": 13,
+            "departure_time": "15:23:00"
+          }
+        ],
+        "sequence_number": 21
+      },
+      {
+        "id": "c93acb58-0086-45cd-b21a-f18184136217",
+        "trip_id": "8670fdb3-dfe1-49d9-bd5f-a2ff8eb49a1e",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e298e706-c6ad-47f4-8b7a-54b726a3b2fc",
+            "stop_id": "8591637",
+            "stop_lat": 45.984882,
+            "stop_lon": 8.932829,
+            "stop_name": "Pazzallo, P+R Fornaci",
+            "arrival_time": "15:37:00",
+            "stop_sequence": 1,
+            "departure_time": "15:37:00"
+          },
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "15:49:00",
+            "stop_sequence": 10,
+            "departure_time": "15:49:00"
+          }
+        ],
+        "sequence_number": 22
+      },
+      {
+        "id": "a75e02be-f2b3-4436-8c83-fc62b301ce9f",
+        "trip_id": "0aa33a8b-76aa-4762-9d80-89bb0582b971",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "stop_times": [
+          {
+            "id": "e63134b1-839d-4cf7-9911-59b13e84aa26",
+            "stop_id": "8591603",
+            "stop_lat": 46.005981,
+            "stop_lon": 8.952449,
+            "stop_name": "Lugano, Centro",
+            "arrival_time": "15:49:00",
+            "stop_sequence": 1,
+            "departure_time": "15:49:00"
+          },
+          {
+            "id": "31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_id": "depot_31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+            "stop_lat": 46.029820843364824,
+            "stop_lon": 8.970798254013063,
+            "stop_name": "TPL Rimessa 1",
+            "arrival_time": "16:00:00",
+            "stop_sequence": 2,
+            "departure_time": "16:00:00"
+          }
+        ],
+        "sequence_number": 23
+      }
+    ]
+  },
+  "depots": [
+    {
+      "id": "1aeda5be-8776-5318-8b7d-3e5788eef677",
+      "name": "TPL Posteggio Lugano Centro",
+      "stop_id": "7ce5b359-c0cc-5828-b233-931b101a93bf",
+      "features": {
+        "city": "Lugano",
+        "type": "depot"
+      },
+      "latitude": 46.00586757702194,
+      "longitude": 8.952323198318483
+    },
+    {
+      "id": "2183fd4b-9690-545a-aef3-5d12977aa60f",
+      "name": "TPL Rimessa 1",
+      "stop_id": "31dec1ab-00a3-57d5-8d3e-f337c17e6b56",
+      "features": {
+        "city": "Lugano",
+        "type": "depot"
+      },
+      "latitude": 46.029820843364824,
+      "longitude": 8.970798254013063
+    },
+    {
+      "id": "291b41c3-a1d8-53e5-81e0-43434d92650c",
+      "name": "TPL Rimessa 2",
+      "stop_id": "095b836f-474d-5815-8613-7963852cf02e",
+      "features": {
+        "city": "Lugano",
+        "type": "depot"
+      },
+      "latitude": 46.02678907504332,
+      "longitude": 8.968802690505983
+    }
+  ],
+  "shiftInfo": {
+    "trips": [
+      {
+        "id": "e76b76a7-83f8-460b-90e6-b0a4e9dff389",
+        "status": "depot",
+        "trip_id": "depot-6988f49ec351409ebac61016e79c7438",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "08:04:00",
+        "end_stop_name": "Pazzallo, P+R Fornaci",
+        "departure_time": "08:00:00",
+        "sequence_number": 1,
+        "start_stop_name": "TPL Rimessa 1"
+      },
+      {
+        "id": "af033ec1-e43c-46d6-b9e8-d9a34804abf8",
+        "status": "gtfs",
+        "trip_id": "183.TA.92-1-G-j26-1.1.H",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "08:17:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "08:04:00",
+        "sequence_number": 2,
+        "start_stop_name": "Pazzallo, P+R Fornaci"
+      },
+      {
+        "id": "1c9b0b76-f985-498a-9c7d-be9a50ada7c2",
+        "status": "gtfs",
+        "trip_id": "353.TA.92-1-G-j26-1.2.R",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "08:36:00",
+        "end_stop_name": "Pazzallo, P+R Fornaci",
+        "departure_time": "08:22:00",
+        "sequence_number": 3,
+        "start_stop_name": "Lugano, Centro"
+      },
+      {
+        "id": "53959970-217a-4129-b984-764ddf6d9e1d",
+        "status": "gtfs",
+        "trip_id": "187.TA.92-1-G-j26-1.1.H",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "08:57:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "08:44:00",
+        "sequence_number": 4,
+        "start_stop_name": "Pazzallo, P+R Fornaci"
+      },
+      {
+        "id": "61414762-f40e-4470-aa93-e49eac8620b1",
+        "status": "gtfs",
+        "trip_id": "344.TA.92-1-G-j26-1.2.R",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "09:16:00",
+        "end_stop_name": "Pazzallo, P+R Fornaci",
+        "departure_time": "09:02:00",
+        "sequence_number": 5,
+        "start_stop_name": "Lugano, Centro"
+      },
+      {
+        "id": "83655e4e-4d04-4f97-856c-d1363a5cc0f9",
+        "status": "gtfs",
+        "trip_id": "48.TA.92-1-G-j26-1.1.H",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "09:34:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "09:22:00",
+        "sequence_number": 6,
+        "start_stop_name": "Pazzallo, P+R Fornaci"
+      },
+      {
+        "id": "77dc143a-1389-4dff-add0-f2137631a304",
+        "status": "gtfs",
+        "trip_id": "310.TA.92-1-G-j26-1.2.R",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "09:53:00",
+        "end_stop_name": "Pazzallo, P+R Fornaci",
+        "departure_time": "09:40:00",
+        "sequence_number": 7,
+        "start_stop_name": "Lugano, Centro"
+      },
+      {
+        "id": "1bcc340c-67f4-4b12-8aa9-6055dfe14598",
+        "status": "gtfs",
+        "trip_id": "68.TA.92-1-G-j26-1.1.H",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "10:19:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "10:07:00",
+        "sequence_number": 8,
+        "start_stop_name": "Pazzallo, P+R Fornaci"
+      },
+      {
+        "id": "820413b6-14e4-4062-a2a0-9004ce747bfa",
+        "status": "gtfs",
+        "trip_id": "307.TA.92-1-G-j26-1.2.R",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "10:38:00",
+        "end_stop_name": "Pazzallo, P+R Fornaci",
+        "departure_time": "10:25:00",
+        "sequence_number": 9,
+        "start_stop_name": "Lugano, Centro"
+      },
+      {
+        "id": "97a8d2f9-4b89-451f-b593-ce922a807eec",
+        "status": "gtfs",
+        "trip_id": "69.TA.92-1-G-j26-1.1.H",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "11:04:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "10:52:00",
+        "sequence_number": 10,
+        "start_stop_name": "Pazzallo, P+R Fornaci"
+      },
+      {
+        "id": "dcb81bb0-7e61-47eb-914e-ae0e8d5c5521",
+        "status": "gtfs",
+        "trip_id": "320.TA.92-1-G-j26-1.2.R",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "11:23:00",
+        "end_stop_name": "Pazzallo, P+R Fornaci",
+        "departure_time": "11:10:00",
+        "sequence_number": 11,
+        "start_stop_name": "Lugano, Centro"
+      },
+      {
+        "id": "ffe89234-94b4-4d81-bf10-4560c2e88eba",
+        "status": "gtfs",
+        "trip_id": "29.TA.92-1-G-j26-1.1.H",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "11:49:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "11:37:00",
+        "sequence_number": 12,
+        "start_stop_name": "Pazzallo, P+R Fornaci"
+      },
+      {
+        "id": "553a6237-c78a-4b73-a85c-2481c074e9e8",
+        "status": "depot",
+        "trip_id": "depot-44c156ba72ec429084f04a749af1c1e3",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "12:00:00",
+        "end_stop_name": "TPL Posteggio Lugano Centro",
+        "departure_time": "11:49:00",
+        "sequence_number": 13,
+        "start_stop_name": "Lugano, Centro"
+      },
+      {
+        "id": "f8e1f322-7a8b-46f7-90e8-7377640ce72c",
+        "status": "depot",
+        "trip_id": "depot-ecb6be772b804ca39c72a0cfa6a05a90",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "13:10:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "13:00:00",
+        "sequence_number": 14,
+        "start_stop_name": "TPL Posteggio Lugano Centro"
+      },
+      {
+        "id": "b3a9388c-ec13-4a4c-846d-e83d2a027fff",
+        "status": "gtfs",
+        "trip_id": "315.TA.92-1-G-j26-1.2.R",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "13:23:00",
+        "end_stop_name": "Pazzallo, P+R Fornaci",
+        "departure_time": "13:10:00",
+        "sequence_number": 15,
+        "start_stop_name": "Lugano, Centro"
+      },
+      {
+        "id": "ff42c6ca-e265-4677-974e-2beed88ed401",
+        "status": "gtfs",
+        "trip_id": "67.TA.92-1-G-j26-1.1.H",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "13:38:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "13:26:00",
+        "sequence_number": 16,
+        "start_stop_name": "Pazzallo, P+R Fornaci"
+      },
+      {
+        "id": "0c89a1be-66f8-42ee-9a93-d9ae993289bc",
+        "status": "gtfs",
+        "trip_id": "323.TA.92-1-G-j26-1.2.R",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "13:53:00",
+        "end_stop_name": "Pazzallo, P+R Fornaci",
+        "departure_time": "13:40:00",
+        "sequence_number": 17,
+        "start_stop_name": "Lugano, Centro"
+      },
+      {
+        "id": "870619d0-89fb-44f9-ac18-d9b734f591a2",
+        "status": "gtfs",
+        "trip_id": "27.TA.92-1-G-j26-1.1.H",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "14:19:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "14:07:00",
+        "sequence_number": 18,
+        "start_stop_name": "Pazzallo, P+R Fornaci"
+      },
+      {
+        "id": "4dec960a-bb42-40e6-8d1b-269b6ad08776",
+        "status": "gtfs",
+        "trip_id": "316.TA.92-1-G-j26-1.2.R",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "14:38:00",
+        "end_stop_name": "Pazzallo, P+R Fornaci",
+        "departure_time": "14:25:00",
+        "sequence_number": 19,
+        "start_stop_name": "Lugano, Centro"
+      },
+      {
+        "id": "50f23373-eda6-4037-90a7-5d2ad1468da8",
+        "status": "gtfs",
+        "trip_id": "45.TA.92-1-G-j26-1.1.H",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "15:04:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "14:52:00",
+        "sequence_number": 20,
+        "start_stop_name": "Pazzallo, P+R Fornaci"
+      },
+      {
+        "id": "945d74b5-aad0-4cc1-bb9b-0f4a19b3c025",
+        "status": "gtfs",
+        "trip_id": "314.TA.92-1-G-j26-1.2.R",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "15:23:00",
+        "end_stop_name": "Pazzallo, P+R Fornaci",
+        "departure_time": "15:10:00",
+        "sequence_number": 21,
+        "start_stop_name": "Lugano, Centro"
+      },
+      {
+        "id": "8670fdb3-dfe1-49d9-bd5f-a2ff8eb49a1e",
+        "status": "gtfs",
+        "trip_id": "58.TA.92-1-G-j26-1.1.H",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "15:49:00",
+        "end_stop_name": "Lugano, Centro",
+        "departure_time": "15:37:00",
+        "sequence_number": 22,
+        "start_stop_name": "Pazzallo, P+R Fornaci"
+      },
+      {
+        "id": "0aa33a8b-76aa-4762-9d80-89bb0582b971",
+        "status": "depot",
+        "trip_id": "depot-9f326d45a28243c7a26f7f007c4b65ba",
+        "route_id": "d81b062d-11a1-413b-a68c-0898dbd0b436",
+        "arrival_time": "16:00:00",
+        "end_stop_name": "TPL Rimessa 1",
+        "departure_time": "15:49:00",
+        "sequence_number": 23,
+        "start_stop_name": "Lugano, Centro"
+      }
+    ]
+  },
+  "routing_observations": [
+    {
+      "name": "Pazzallo, P+R Fornaci",
+      "direction": "from_stop",
+      "seconds": 402.2,
+      "minutes": 7
+    },
+    {
+      "name": "Pazzallo, P+R Fornaci",
+      "direction": "to_stop",
+      "seconds": 441.3,
+      "minutes": 8
+    },
+    {
+      "name": "Lugano, Centro",
+      "direction": "from_stop",
+      "seconds": 100.9,
+      "minutes": 2
+    },
+    {
+      "name": "Lugano, Centro",
+      "direction": "to_stop",
+      "seconds": 0.5,
+      "minutes": 1
+    }
+  ]
+}

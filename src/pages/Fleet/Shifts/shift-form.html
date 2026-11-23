@@ -124,9 +124,9 @@
           <button type="button" class="composer-undo" data-action="undo-trips" data-i18n="shifts.composer_undo" disabled>Undo last change</button>
           <div class="shift-stops__controls">
             <div class="form-group">
-              <label for="shift-start-depot" data-i18n="shifts.stop_start_location_label">Start location:</label>
+              <label for="shift-start-depot" data-i18n="shifts.stop_start_location_label">Starting custom stop:</label>
               <select id="shift-start-depot" name="startDepot" data-field="start-depot" required>
-                <option value="" data-i18n="shifts.placeholder_depot">Depot name</option>
+                <option value="" data-i18n="shifts.placeholder_depot">Custom stop name</option>
               </select>
             </div>
             <div class="form-group">
@@ -164,13 +164,13 @@
           </section>
           <div class="shift-stops__controls">
             <div class="form-group">
-              <label for="shift-end-depot" data-i18n="shifts.stop_return_location_label">Return location:</label>
+              <label for="shift-end-depot" data-i18n="shifts.stop_return_location_label">Final custom stop:</label>
               <select id="shift-end-depot" name="endDepot" data-field="end-depot" required>
-                <option value="" data-i18n="shifts.placeholder_depot">Depot name</option>
+                <option value="" data-i18n="shifts.placeholder_depot">Custom stop name</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="shift-end-time" data-i18n="shifts.stop_return_time_label">Return time:</label>
+              <label for="shift-end-time" data-i18n="shifts.stop_return_time_label">Arrival time:</label>
               <input type="time" id="shift-end-time" name="endTime" data-field="end-time" step="60" required />
             </div>
           </div>
@@ -198,7 +198,7 @@
           <h2 tabindex="-1" data-i18n="shifts.composer_review_heading">Ready for the road?</h2>
         </header>
         <dl class="composer-summary" data-role="composer-summary"></dl>
-        <p class="composer-help" data-i18n="shifts.composer_transfers">The connections from and to the depot are generated when you save. Check that the departure and return times allow enough travel time.</p>
+        <p class="composer-help" data-i18n="shifts.composer_transfers">Connections to and from custom stops are generated when you save. Allow enough travel time for each service period.</p>
       </section>
       <div class="form-actions">
         <button type="button" data-action="cancel" data-i18n="common.cancel">Cancel</button>

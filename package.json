@@ -6,9 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:local": "VITE_API_ROOT= vite build",
     "preview": "vite preview",
     "test": "node --test",
+    "test:shift-stays": "node --test tests/shift-depot-stays.test.mjs tests/shift-stay-adjustment.test.mjs tests/shift-stay-programme.test.mjs tests/shift-translations.test.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:shift-stays": "playwright test --config playwright.shift-stays.config.js",
     "test:dist": "playwright test --config playwright.dist.config.js",
     "test:staging": "playwright test --config playwright.staging.config.js"
   },

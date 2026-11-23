@@ -1,7 +1,7 @@
 import { t, I18N_CHANGE_EVENT } from '../../../i18n';
 
 // Presentation only: eligibility, GTFS editions and persistence stay in shift-form.
-export const initializeShiftComposer = ({ form, isEditMode, readState, validateTrips, updateFeedback, isTimetableReady = () => true }) => {
+export const initializeShiftComposer = ({ form, isEditMode, readState, validateTrips, updateFeedback, isTimetableReady = () => true, prepareReview = async () => true, onOpenStays = () => {}, onLeaveStays = () => {} }) => {
   const find = (selector) => form.querySelector(selector);
   const setup = find('.shift-config');
   const grid = find('.shift-form-grid');
@@ -15,6 +15,7 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
   const steps = ['setup', 'compose', 'review'];
   let step = 'setup';
   let invalidSetup = null;
+  let navigationRevision = 0;
   const requiredFields = new Map([
     ['shift-name', 'shifts.validation_name_required'],
     ['shift-bus', 'shifts.validation_bus_required'],
@@ -88,12 +89,14 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
   };
 
   const update = () => {
-    const { trips } = readState();
+    const { trips, activeTrips = trips, stays = [], depots = [], activePeriod = 0, activeBounds, adjusting = false } = readState();
     const count = t(trips.length === 1 ? 'shifts.composer_count_one' : 'shifts.composer_count', { count: trips.length });
     find('[data-role="composer-count"]').textContent = count;
     find('[data-role="composer-status"]').textContent = count;
-    const last = trips.at(-1);
-    find('[data-role="composer-next"]').textContent = last
+    const last = activeTrips.at(-1);
+    find('[data-role="composer-next"]').textContent = isEditMode ? t('shifts.editor_whole_day') : stays.length
+      ? t('shifts.stay_period_candidates', { number: activePeriod + 1, start: activeBounds?.startTime || '—', end: activeBounds?.endTime || '—' })
+      : last
       ? t('shifts.composer_next_from', { stop: last.end_stop_name || '—', time: last.arrival_time || '—' })
       : t('shifts.composer_first_trip');
     const summary = find('[data-role="composer-summary"]');
@@ -121,18 +124,35 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
       list.className = 'composer-itinerary';
       summary.after(list);
     }
-    list.replaceChildren(...trips.map((trip) => {
+    list.replaceChildren(...trips.flatMap((trip) => {
       const li = document.createElement('li');
       li.textContent = `${trip.departure_time || '—'} – ${trip.arrival_time || '—'}   ${trip.start_stop_name || '—'} → ${trip.end_stop_name || '—'}`;
-      return li;
+      const stay = stays.find(item => item.afterTripId === trip.id);
+      if (!stay) return [li];
+      const pause = document.createElement('li');
+      pause.className = 'composer-itinerary__stay';
+      pause.textContent = `${stay.arrivalTime || '—'} – ${stay.departureTime || '—'}   ${t('shifts.stay_review', { depot: depots.find(item => item.id === stay.depotId)?.name || '—' })}`;
+      return [li, pause];
     }));
+    const stayStep = find('[data-composer-step="stays"]');
+    if (stayStep) {
+      stayStep.hidden = !stays.length && step !== 'stays';
+      find('[data-composer-step="review"] > span').textContent = stayStep.hidden ? '3' : '4';
+    }
     next.disabled = step === 'compose' && trips.length === 0;
+    next.setAttribute('aria-busy', String(adjusting));
     next.dataset.i18n = step === 'compose' ? 'shifts.composer_review' : 'shifts.composer_continue';
     next.textContent = t(next.dataset.i18n);
   };
 
   const show = (target, focus = true) => {
+    const previous = step;
+    if (previous === 'stays' && target !== 'stays') onLeaveStays();
     step = target;
+    if (step === 'stays' && previous !== 'stays') onOpenStays();
+    const stayPanel = find('[data-composer-panel="stays"]');
+    if (stayPanel) stayPanel.hidden = step !== 'stays';
+    find('.form-actions').hidden = step === 'stays';
     form.dataset.composerStep = step;
     setup.hidden = step !== 'setup';
     grid.hidden = step !== 'compose';
@@ -146,11 +166,12 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
       else button.removeAttribute('aria-current');
     }
     update();
-    if (focus) (step === 'setup' ? setup : step === 'compose' ? available : review).querySelector('h2').focus();
+    if (focus) (step === 'setup' ? setup : step === 'compose' ? available : step === 'stays' ? stayPanel : review).querySelector('h2').focus();
     // The timeline needs its visible width, so ask the form to redraw it.
     form.dispatchEvent(new CustomEvent('composer:layout'));
   };
-  const navigate = (target) => {
+  const navigate = async (target) => {
+    const revision = ++navigationRevision;
     if (target !== 'setup' && !validateSetup()) return;
     if (target !== 'setup' && !isTimetableReady()) {
       show('setup');
@@ -160,7 +181,10 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
       show('compose');
       return;
     }
-    if (target === 'review' && !checkTrips()) return;
+    if (target === 'review') {
+      if (!await prepareReview() || revision !== navigationRevision) return;
+      if (!checkTrips()) return;
+    }
     updateFeedback(find('[data-role="feedback"]'), '');
     show(target);
   };
@@ -173,9 +197,10 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
   };
   const onClick = (event) => {
     const button = event.target.closest('button');
+    if (button?.dataset.action === 'edit-stays') navigate('stays');
     if (button?.dataset.composerStep) navigate(button.dataset.composerStep);
     if (button === next) navigate(steps[steps.indexOf(step) + 1]);
-    if (button === back) show(steps[steps.indexOf(step) - 1]);
+    if (button === back) { navigationRevision++; show(steps[steps.indexOf(step) - 1]); }
   };
   form.addEventListener('click', onClick);
   form.addEventListener('change', update);
@@ -200,6 +225,7 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
   show('setup', false);
   return {
     update,
+    showProgramme: () => { navigationRevision++; show('compose'); },
     ready: () => isEditMode ? show('compose', false) : update(),
     canSubmit: () => {
       if (step !== 'review') {
@@ -209,6 +235,7 @@ export const initializeShiftComposer = ({ form, isEditMode, readState, validateT
       return validateSetup() && checkTrips();
     },
     cleanup: () => {
+      navigationRevision++;
       form.removeEventListener('click', onClick);
       form.removeEventListener('change', update);
       form.removeEventListener('input', onValidationInput);
