@@ -79,9 +79,14 @@ problems before saving. The saved GTFS edition forms part of the provenance.
 
 ## Edit a block
 
-Editing opens **Build the day** with every selected trip in one chronological
-list. Available trips can be inserted into compatible gaps without choosing a
-service period or replacing other trips.
+Choose **Edit** on the block's row. Editing opens **Build the day** with every
+selected trip in one chronological list. Available trips can be inserted into compatible gaps without choosing a
+service period or replacing other trips. This includes work before and after
+each intermediate stay. Add or remove trips as needed; **Undo last change**
+restores the previous programme.
+
+Return to **Set up** to change the name, bus model, starting/final custom stops
+or times. Changing the GTFS edition still requires reviewing the trip selection.
 
 Select **Manage intermediate stays** (or **Add intermediate stay**) to open the
 conditional **Intermediate stays** step. Enter the custom stop, arrival and
@@ -89,6 +94,14 @@ departure; no preceding-trip selection is needed. Set the explicit day for
 stays crossing midnight. The preview keeps existing trips first, then fills
 changed service windows with connected GTFS trips from the lines already in
 the block and the selected service day. Unaffected service windows stay intact.
+
+Select the service day in **Build the day** before adjusting the stays.
+The preview updates once the arrival and departure fields contain complete
+times, without requiring a visit to **Review & save**. For example, changing
+departure from a custom stop from 16:00 to 15:00 previews the compatible trips
+that can fit into the newly available window after the transfer from the
+custom stop. The available timetable and connections determine which trips
+can be added.
 
 The preview lists added and excluded trips and the complete resulting programme.
 It never changes the entered stay times or GTFS times. Impossible intervals and
@@ -159,7 +172,10 @@ It supports sorting, pagination, and these actions:
 - **Edit** opens that row's vehicle block and preserves its recorded edition
   until the user explicitly changes it.
 - **Duplicate** copies that row's trips, bus model, and recorded GTFS edition
-  into a new editable record.
+  into a new editable record, including intermediate stays. The proposed name
+  uses `_copy_1`, `_copy_2`, and so on. Copying a copy continues the original
+  name family's numbering across all list pages instead of repeating `_copy`.
+  The suffix follows the interface language and the name remains editable.
 - The row **Delete** icon removes one block after confirmation. Select multiple
   checkboxes and use the top **Delete** button to remove several blocks together.
 - **Visualize/Details** shows general information, the default space-time

@@ -1,6 +1,6 @@
 # Yearly Analysis
 
-> Last updated: 2026-11-20
+> Last updated: 2026-11-23
 > Interface baseline: Frontend v1.2.0
 
 A yearly analysis keeps the bus, battery, and charging design selected by a
@@ -37,6 +37,19 @@ replace the feasibility verdict.
 
 If the occurrences do not cover the intended year, the form reports the
 mismatch. Resolve that boundary before interpreting annual values.
+
+---
+
+## Duplicate a saved analysis
+
+Choose **Duplicate** on the source row to open a new-analysis form with the
+source feasibility evaluation and occupancy already selected. Review the
+inherited inputs before starting the new calculation.
+
+The editable proposed name uses `_copy_1`, `_copy_2`, and so on, localized to
+the interface language. Copying a copy continues the original name family's
+numbering rather than repeating the suffix. The next number follows the
+highest existing copy number across all list pages.
 
 ---
 

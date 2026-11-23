@@ -1,6 +1,6 @@
 # Feasibility Evaluation
 
-> Last updated: 2026-11-20
+> Last updated: 2026-11-23
 > Interface baseline: Frontend v1.2.0
 
 A feasibility evaluation tests whether the selected vehicle blocks can be
@@ -87,6 +87,18 @@ Candidate locations come from relevant service stops and custom operational
 locations. Depending on the selected mode, configure availability, installed or
 maximum plugs, power per plug, and installation costs.
 
+For a new evaluation, non-depot terminal candidates start with **1 plug** in
+all three optimization modes. A depot instead starts with the number of
+selected blocks returning to that depot: **N blocks → N buses → N plugs**.
+Counts are per depot, not the total number of blocks at unrelated depots.
+These values remain editable. Battery only uses the installed count;
+Charging and Joint use it as the maximum allowed.
+
+With the default powers, one terminal plug corresponds to a 450 kW site limit,
+while N depot plugs correspond to 150 × N kW. Review the plug counts and power
+limits before starting. Duplication preserves saved charging inputs rather
+than replacing them with new-evaluation defaults.
+
 Additional options can:
 
 - verify the next day's departure using the depot stay already represented by
@@ -143,7 +155,11 @@ interpret a pending or failed execution as a technical verdict.
 
 ## Duplicate an evaluation safely
 
-From the evaluation list, select exactly one record and choose **Duplicate**.
+From the evaluation list, choose **Duplicate** on the source row; row selection
+is not required. The proposed name uses `_copy_1`, `_copy_2`, and so on, in the
+interface language. Copying a copy continues the original name family's
+numbering, using the highest existing copy number across all list pages.
+The name remains editable.
 The form restores, where available:
 
 - GTFS edition, vehicle blocks, and bus model;

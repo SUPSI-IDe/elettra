@@ -131,7 +131,7 @@ test("the guide baseline follows the frontend version and exposes a valid update
   assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
   assert.deepEqual(
     SUPPORTED_GUIDE_LANGUAGES.map((language) => guideContent[language].ui.updatedValue),
-    ["20 November 2026", "20. November 2026", "20 novembre 2026", "20 novembre 2026"],
+    ["23 November 2026", "23. November 2026", "23 novembre 2026", "23 novembre 2026"],
   );
 });
 
