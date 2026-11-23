@@ -27,8 +27,8 @@ test('narrow translated review keeps actions readable and the timeline scrollabl
   await page.screenshot({ path: testInfo.outputPath('translated-mobile-review.png'), fullPage: true });
 });
 
-for (const trips of [{}, 'invalid']) {
-  test(`malformed edit trip metadata (${typeof trips}) blocks writes without an uncaught error`, async ({ page, composer }) => {
+for (const [label, trips] of [['object', {}], ['string', 'invalid'], ['null entry', [null]], ['numeric entry', [42]]]) {
+  test(`malformed edit trip metadata (${label}) blocks writes without an uncaught error`, async ({ page, composer }) => {
     const state = await composer({ edit: true, respond: ({ path }) => path.endsWith('/info')
       ? { json: { trips, route_id: 'line', days_of_week: ['monday'] } } : undefined });
     await expect(page.locator('[data-role="feedback"]')).toHaveAttribute('data-tone', 'error');

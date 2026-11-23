@@ -163,6 +163,7 @@ test("session expiry in the guide returns to the public landing", async ({ page,
   await page.goto("./guide/");
   await context.route("**/auth/me", (route) => route.fulfill({ status: 401, json: { detail: "Expired session" } }));
   await page.locator('header [data-guide-ui="backToApp"]').click();
+  await page.waitForLoadState("load");
   await expect(page).toHaveURL(/#landing$/);
   await expect(page.locator(".landing-page")).toBeVisible();
   await expect(page.locator("#primary-nav")).toBeHidden();

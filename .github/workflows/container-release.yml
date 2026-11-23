@@ -32,6 +32,8 @@ jobs:
       - name: Browser tests
         run: npm run test:e2e
       - name: Build
+        env:
+          VITE_API_ROOT: ""
         run: npm run build
       - name: Production bundle smoke test
         run: npm run test:dist
@@ -154,6 +156,7 @@ jobs:
       - name: Build release archive
         env:
           RELEASE_TAG: ${{ github.ref_name }}
+          VITE_API_ROOT: ""
         run: |
           npm ci
           npm run build

@@ -246,7 +246,10 @@ const hydrateShift = async (shift, shiftInfo = null) => {
   const { startDepotId, startDepotName, endDepotId, endDepotName } = getDepotInfoFromShiftInfo(shiftInfo);
   const { startTime, endTime } = getTimesFromShiftInfo(shiftInfo, shift);
 
-  const infoTrips = new Map((shiftInfo?.trips || []).map(trip => [trip.id, trip]));
+  // Keep invalid metadata available to the reconstruction check below, which
+  // reports the problem and blocks saving instead of failing during hydration.
+  const metadataTrips = Array.isArray(shiftInfo?.trips) ? shiftInfo.trips : [];
+  const infoTrips = new Map(metadataTrips.filter(trip => trip?.id).map(trip => [trip.id, trip]));
   const structure = await Promise.all(
     shift.structure.map(async (item) => {
       if (!item.trip_id) {

@@ -118,6 +118,9 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
   for (const variant of ['standard', 'custom', 'tiny', 'legacy']) {
     for (const basis of ['mean', 'aggregate_q95']) {
       test(`complete repeated ${basis} duplication preserves ${variant} settings in ${mode}`, async ({ page }) => {
+        // Two complete duplicate/submit/reload cycles, including cold Vite loads.
+        // Keep assertion timeouts unchanged while allowing both journeys to finish.
+        test.setTimeout(60_000);
         const f = await fixture(page, { mode, variant, basis });
         for (let copy = 1; copy <= 2; copy++) {
           await f.open();

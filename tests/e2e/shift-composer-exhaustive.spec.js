@@ -506,7 +506,7 @@ test('editing a real saved structure reuses unchanged connections and regenerate
   await expect(chosen(page)).toHaveCount(1);
   await expect(page.locator('#shift-start-time')).toHaveValue('07:30');
   await expect(page.locator('#shift-end-time')).toHaveValue('12:00');
-  await expect(page.locator('[data-role="composer-next"]')).toContainText('Airport');
+  await expect(page.locator('[data-role="composer-next"]')).toContainText('All trips in the working day');
   await expect(page.locator('tr[data-trip-id="gtfs-2"]')).toBeVisible();
   await add(page).first().click();
   await next(page).click();

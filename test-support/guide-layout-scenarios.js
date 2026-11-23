@@ -47,6 +47,9 @@ export function registerGuideLayoutTests(test, expect) {
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
         await page.locator('header [data-guide-ui="backToApp"]').click();
+        // A cold source application still has its static module graph to load.
+        // Check SPA readiness after that navigation has finished loading.
+        await page.waitForLoadState('load');
         await expect(page.locator('.landing-page')).toBeVisible();
       } finally { release(); }
     });

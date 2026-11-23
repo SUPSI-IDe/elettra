@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.3.0-rc.1] - 2026-11-23
+
+### Added
+
+- Support intermediate stays at custom stops, with transfers and multiple service periods in one vehicle block.
+- Add a dedicated stay editor for saved blocks with a live whole-programme preview, added/excluded trips, Apply, Cancel and atomic undo.
+- Export complete feasibility evaluations as JSON, preserving available Mean and Aggregate Q95 designs, recorded inputs and availability details.
+
+### Changed
+
+- Simplify saved-block editing and allow compatible trips to be inserted throughout the working day while preserving GTFS times.
+- Use sourced INFRAS vehicle and initial-battery cost defaults, with an explicitly estimated 9 m vehicle cost and translated source tooltips.
+- Default non-depot terminal candidates to one plug; keep depot defaults based on the selected blocks returning to each depot.
+- Number duplicates progressively within the original name family across models, stops, blocks, feasibility evaluations and yearly analyses.
+- Align all four online-guide languages and the Markdown chapters with the refined creation, editing, defaults, duplication and export workflows.
+
+### Fixed
+
+- Keep annual JSON exports consistent with shared fleet assessments, saving state, LCA state and the configuration displayed in the application.
+- Collect feasibility exports from saved assessments without starting a new optimization; preserve separate alternative designs and explicit unavailable data.
+- Build release containers, smoke-test bundles and downloadable archives with relative API paths instead of inheriting a remote API origin.
+- Handle malformed saved-block trip metadata without an uncaught hydration error, show the existing error feedback and block writes.
+- Wait for cold application navigation to finish in guide regressions and allow repeated-duplication tests enough total time for two complete cycles, without relaxing assertion timeouts.
+
+### Compatibility
+
+- Frontend-only prerelease compatible with backend `1.7.0`; no database migration or saved-data rewrite is required.
+- Publish as a GitHub prerelease without moving stable container aliases, including `latest`.
+
 ## [1.2.0] - 2026-11-20
 
 ### Added

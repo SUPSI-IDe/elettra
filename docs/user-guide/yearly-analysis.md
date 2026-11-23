@@ -1,7 +1,7 @@
 # Yearly Analysis
 
 > Last updated: 2026-11-23
-> Interface baseline: Frontend v1.2.0
+> Interface baseline: Frontend v1.3.0-rc.1
 
 A yearly analysis keeps the bus, battery, and charging design selected by a
 completed feasibility evaluation fixed and applies it to representative
