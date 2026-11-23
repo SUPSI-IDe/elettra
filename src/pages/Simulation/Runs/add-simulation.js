@@ -202,15 +202,15 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } 
 
 const COLUMN_DEFS = {
   battery_only: [
-    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Plugs", min: 0, step: 1, defaultVal: 2 },
+    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Plugs", min: 0, step: 1, defaultVal: 1 },
     { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 150 },
   ],
   charging_only: [
-    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Max plugs", min: 1, step: 1, defaultVal: 2 },
+    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Max plugs", min: 1, step: 1, defaultVal: 1 },
     { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 450 },
   ],
   joint: [
-    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Max plugs", min: 1, step: 1, defaultVal: 2 },
+    { key: "num_slots", label: "simulation.cs_num_plugs", fallback: "Max plugs", min: 1, step: 1, defaultVal: 1 },
     { key: "max_power_per_slot_kw", label: "simulation.cs_power_per_plug", fallback: "kW / plug", min: 0, step: 10, defaultVal: 450 },
   ],
 };
@@ -256,18 +256,19 @@ const renderStopsTable = (thead, tbody, stops, mode) => {
   }
 
   tbody.innerHTML = stops
-    .map(
-      (stop) => `<tr data-stop-id="${textContent(stop.stop_id)}">
+    .map((stop) => {
+      const defaultSlots = stop.isDepot ? (stop.depotBusCount || 2) : 1;
+      return `<tr data-stop-id="${textContent(stop.stop_id)}">
         ${isConfigurable ? `<td class="checkbox"><input type="checkbox" ${stop.isCustom ? "checked" : ""} aria-label="${textContent(t("simulation.select_stop") || "Select stop")}" /></td>` : ""}
         <td class="stop-name" title="${textContent(stop.stop_id)}">${textContent(stop.stop_name || stop.stop_id)}</td>
         ${cols
           .map(
             (c) =>
-              `<td><input type="number" data-field="${c.key}" min="${c.min}" step="${c.key === 'num_slots' ? c.step : 'any'}" ${c.key === 'max_power_per_slot_kw' ? `placeholder="${textContent(t('simulation.cs_no_plug_limit'))}"` : ''} value="${c.key === 'num_slots' && stop.depotBusCount ? stop.depotBusCount : c.key === 'max_total_power_kw' ? (stop.depotBusCount || 2) * (stop.isDepot ? 150 : 450) : c.key === 'max_power_per_slot_kw' ? (stop.isDepot ? 150 : 450) : c.defaultVal}" /></td>`
+              `<td><input type="number" data-field="${c.key}" min="${c.min}" step="${c.key === 'num_slots' ? c.step : 'any'}" ${c.key === 'max_power_per_slot_kw' ? `placeholder="${textContent(t('simulation.cs_no_plug_limit'))}"` : ''} value="${c.key === 'num_slots' ? defaultSlots : c.key === 'max_total_power_kw' ? defaultSlots * (stop.isDepot ? 150 : 450) : c.key === 'max_power_per_slot_kw' ? (stop.isDepot ? 150 : 450) : c.defaultVal}" /></td>`
           )
           .join("")}
-      </tr>`
-    )
+      </tr>`;
+    })
     .join("");
 
   if (isConfigurable) syncSelectAllCheckbox(thead, tbody);

@@ -82,13 +82,19 @@ test("the feasibility form batches stop candidates and reuses them across mode c
   await expect(page.locator(`tr[data-stop-id="${stopId}"]`)).toBeVisible();
   await expect(
     page.locator(`tr[data-stop-id="${opportunityStopId}"] [data-field="max_total_power_kw"]`)
-  ).toHaveValue("900");
+  ).toHaveValue("450");
+  await expect(
+    page.locator(`tr[data-stop-id="${opportunityStopId}"] [data-field="num_slots"]`)
+  ).toHaveValue("1");
   await expect.poll(() => candidateRequests.length).toBe(1);
   expect(candidateRequests[0]).toEqual({ shift_ids: ["shift-a"] });
   expect(legacyTripStopRequests).toBe(0);
 
-  await page.locator("#var-optimization-mode").selectOption("joint");
-  await expect(page.locator(`tr[data-stop-id="${stopId}"]`)).toBeVisible();
+  for (const mode of ["charging_only", "joint"]) {
+    await page.locator("#var-optimization-mode").selectOption(mode);
+    await expect(page.locator(`tr[data-stop-id="${stopId}"]`)).toBeVisible();
+    await expect(page.locator(`tr[data-stop-id="${opportunityStopId}"] [data-field="num_slots"]`)).toHaveValue("1");
+  }
   expect(candidateRequests).toHaveLength(1);
 
   await boxes.nth(1).check();
