@@ -104,28 +104,39 @@ test('multiple overnight stays retain explicit service days and save six connect
   ];
   const state = await composer({ trips: night });
   await configure(page, { start: '22:50', end: '02:20' });
-  await page.locator('[data-action="add-trip"]').first().click();
+  const addTrip = trip => page.locator(`[data-role="scheduled-trips-body"] tr[data-trip-id="${trip.trip_id}"] [data-action="add-trip"]`).click();
+  const next = page.locator('[data-action="composer-next"]');
+  await addTrip(night[0]);
   const addStay = async (index, arrival, departure, arrivalDay) => {
     await page.locator('[data-action="add-stay"]').click();
     const row = page.locator('[data-role="depot-stay"]').nth(index);
-    await row.locator('[data-stay-field="arrivalTime"]').fill(arrival);
-    await row.locator('[data-stay-field="arrivalTime"]').press('Enter');
-    await row.locator('[data-stay-day="arrivalTime"]').selectOption(arrivalDay);
-    await row.locator('[data-stay-field="departureTime"]').fill(departure);
-    await row.locator('[data-stay-field="departureTime"]').press('Enter');
-    await row.locator('[data-stay-day="departureTime"]').selectOption('1');
+    const setTime = async (field, clock, offset) => {
+      const time = row.locator(`[data-stay-field="${field}"]`);
+      const day = row.locator(`[data-stay-day="${field}"]`);
+      await time.fill(clock);
+      await time.press('Enter');
+      await expect(next).toHaveAttribute('aria-busy', 'false');
+      // selectOption does not move focus away from the native time editor.
+      await day.focus();
+      await day.selectOption(offset);
+      await expect(next).toHaveAttribute('aria-busy', 'false');
+      await expect(time).toHaveValue(clock);
+      await expect(day).toHaveValue(offset);
+    };
+    await setTime('arrivalTime', arrival, arrivalDay);
+    await setTime('departureTime', departure, '1');
   };
   await addStay(0, '23:40', '00:10', '0');
-  await page.locator('[data-action="add-trip"]').first().click();
+  await addTrip(night[1]);
   await addStay(1, '00:55', '01:20', '1');
-  await page.locator('[data-action="add-trip"]').click();
+  await addTrip(night[2]);
   await expect(page.locator('[data-action="select-period"]')).toHaveCount(3);
   for (const control of await page.locator('.depot-stay input, .depot-stay select').all()) {
     const box = await control.boundingBox();
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize().width + 1);
   }
-  await page.locator('[data-action="composer-next"]').click();
+  await next.click();
   await expect(page.locator('.composer-itinerary__stay')).toHaveCount(2);
   await expect(page.locator('.composer-itinerary__stay').first()).toContainText('23:40 – 24:10');
   await expect(page.locator('.composer-itinerary__stay').last()).toContainText('24:55 – 25:20');
@@ -139,7 +150,15 @@ test('multiple overnight stays retain explicit service days and save six connect
 });
 
 test('deleting the trip before a stay reanchors it and Undo restores the full day', async ({ page, composer }) => {
-  const state = await composer(options(true));
+  const opts = options(true);
+  const state = await composer({ ...opts, application: true, entry: 'shifts', respond: args => {
+    if (args.path.endsWith('/shifts/') && args.method === 'GET') {
+      return { json: [{ id: 'old', name: '40507_weekday', daily_distance_km: 120 }] };
+    }
+    return opts.respond(args);
+  } });
+  await page.locator('section.shifts tr[data-id="old"] [data-row-action="edit"]').click();
+  await expect(page.locator('[data-role="shift-trips-body"] tr')).toHaveCount(18);
   await page.locator('[data-action="remove-trip"]').nth(3).click();
   await expect(page.locator('[data-role="shift-trips-body"] tr')).toHaveCount(17);
   await page.locator('[data-action="composer-next"]').click();
