@@ -23,6 +23,8 @@
 .annual-cost-summary-grid .result-metric { align-items: center; border-right: 1px solid var(--border-light, #dce4e9); border-bottom: 0; }
 .annual-cost-summary-grid .result-metric:nth-child(3n) { border-right: 0; }
 .annual-cost-results-card { margin-bottom: 1rem; }
+.annual-cost-heading { display: flex; align-items: center; gap: .75rem; min-height: 2rem; }
+.annual-cost-heading small { font-size: .875rem; font-weight: 400; color: var(--text-muted, #52616b); }
 .annual-break-even { margin: .75rem 0 .35rem; padding: .75rem .9rem; border-left: 3px solid #4d7f80; background: #f3f8f8; }
 .annual-cost-comparison { margin-top: 0; }
 .annual-cost-comparison h3 { margin-top: 0; }

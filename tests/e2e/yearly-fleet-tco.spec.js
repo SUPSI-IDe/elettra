@@ -492,3 +492,100 @@ test('dashboard and export use the latest API projection and recover after a fai
   await expect(page.locator('[data-role="fleet-tco"]')).toHaveText(/^4\.5(?:00)?$/);
   expect(await page.evaluate(async () => (await window.exported).assessment.economics.electric.annualEquivalent)).toBe(90000);
 });
+
+test('dragging the electricity price keeps the controls and costs in place while the projection updates', async ({ page }) => {
+  await page.route('**/api/v1/**', route => route.fulfill({ json: {} }));
+  await page.goto('./');
+  await page.evaluate(async () => {
+    await import('/elettra/src/style.css');
+    const { createYearlyFleetDashboard } = await import('/elettra/src/pages/Simulation/YearlyAnalysis/yearly-fleet-dashboard.js');
+    const { yearlyFleetConfiguration } = await import('/elettra/test-support/yearly-fleet-fixture.js');
+    const { fixtureProjectTco } = await import('/elettra/test-support/project-tco-response.js');
+    localStorage.setItem('elettra_lang', 'en');
+    document.body.innerHTML = '<main></main>';
+    window.projections = [];
+    window.dashboard = createYearlyFleetDashboard({
+      features: yearlyFleetConfiguration(), model: { bus_length_m: 18 }, predictionRuns: [], onSave: async () => {},
+      onProjectTco: (body, signal) => new Promise((resolve, reject) => {
+        const reply = () => resolve(fixtureProjectTco(body));
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        window.projections.push(reply);
+        if (window.projections.length === 1) reply();
+      }),
+    });
+    window.dashboard.mount(document.querySelector('main'), { status: 'idle' });
+  });
+
+  const tco = page.locator('[data-role="fleet-tco"]');
+  const headerTco = page.locator('[data-outcome="electric-tco"] .annual-outcome__value');
+  const opexChart = page.locator('[data-cost-opex] svg');
+  const cumulativeChart = page.locator('[data-cost-cumulative] svg');
+  await expect(tco).toHaveText('2.934');
+  await expect(opexChart).toBeVisible();
+  await expect(cumulativeChart).toBeVisible();
+  const initial = await page.evaluate(() => window.dashboard.getExportState().assessment);
+
+  await page.locator('[data-tco-assumptions] > summary').click();
+  const slider = page.locator('input[type="range"][data-tco-input="energyPrice"]');
+  await slider.evaluate(input => {
+    input.scrollIntoView({ block: 'center' });
+    window.draggedSlider = input;
+    window.draggedForm = input.form;
+  });
+  await expect(slider).toBeInViewport({ ratio: 1 });
+  const readPosition = () => slider.evaluate(input => {
+    const { x, y, width, height } = input.getBoundingClientRect();
+    const { x: formX, y: formY } = input.form.getBoundingClientRect();
+    return { x, y, width, height, formX, formY, scrollY,
+      sameControls: input === window.draggedSlider && input.form === window.draggedForm };
+  });
+  const before = await readPosition();
+  const thumbFraction = await slider.evaluate(input => (input.valueAsNumber - Number(input.min)) / (Number(input.max) - Number(input.min)));
+  const dragY = before.y + before.height / 2;
+  await page.mouse.move(before.x + before.width * thumbFraction, dragY);
+  await page.mouse.down();
+  try {
+    await page.mouse.move(before.x + before.width * .7, dragY, { steps: 5 });
+    await expect.poll(() => page.evaluate(() => window.projections.length)).toBeGreaterThan(1);
+    expect.soft(await readPosition(), 'range, form and document position during drag').toEqual(before);
+    // Supersede the request while the export is waiting on it.
+    await page.evaluate(() => {
+      window.exportReady = false;
+      window.pendingExport = window.dashboard.resolveExportState().then(state => {
+        window.exportReady = true;
+        return state.assessment;
+      });
+    });
+    await page.mouse.move(before.x + before.width * .85, dragY, { steps: 4 });
+  } finally {
+    await page.mouse.up();
+  }
+  const energyPrice = Number(await slider.inputValue());
+  expect(energyPrice).toBeGreaterThan(.46);
+  await expect(page.locator('input[type="number"][data-tco-input="energyPrice"]')).toHaveValue(String(energyPrice));
+  expect.soft(await readPosition(), 'range, form and document position while waiting').toEqual(before);
+  await expect.soft(tco).toHaveText('2.934', { timeout: 1000 });
+  await expect.soft(headerTco).toHaveText('2.934', { timeout: 1000 });
+  await expect.soft(opexChart).toBeVisible({ timeout: 1000 });
+  await expect.soft(cumulativeChart).toBeVisible({ timeout: 1000 });
+
+  const pending = await page.evaluate(() => {
+    const { electric, issues } = window.dashboard.getExportState().assessment.economics;
+    return { electric, issues, ready: window.exportReady };
+  });
+  expect(pending.electric).toBeNull();
+  expect(pending.issues).toContain('project_tco_pending');
+  expect(pending.ready).toBe(false);
+
+  const exported = await page.evaluate(() => {
+    window.projections.at(-1)();
+    return window.pendingExport;
+  });
+  const addedElectricityCost = (energyPrice - initial.assumptions.energyPrice) * initial.scopedFleet.totals.grid;
+  expect(exported.assumptions.energyPrice).toBe(energyPrice);
+  expect(exported.economics.electric.annualEquivalent).toBeCloseTo(initial.economics.electric.annualEquivalent + addedElectricityCost, 5);
+  await expect.poll(async () => Number(await tco.textContent())).toBeCloseTo(exported.economics.electric.perKm, 3);
+  await expect(opexChart).toBeVisible();
+  await expect(cumulativeChart).toBeVisible();
+  expect(await readPosition(), 'range, form and document position after the projection').toEqual(before);
+});
