@@ -53,18 +53,6 @@ export const DEFAULT_BATTERY_LIFETIME_YEARS = 8;
 // Matches the economic API default used for optimized charging infrastructure.
 export const DEFAULT_CHARGING_INFRASTRUCTURE_LIFETIME_YEARS = 15;
 
-const normalizeBusLengthKey = (length) => {
-  if (length === null || length === undefined || length === "") return null;
-
-  const numeric = Number(length);
-  if (Number.isFinite(numeric)) {
-    return String(numeric);
-  }
-
-  const trimmed = String(length).trim();
-  return trimmed || null;
-};
-
 export const evalLinearModel = (length, intercept, slope) =>
   intercept + slope * length;
 
@@ -100,9 +88,15 @@ export const rescaleLinearModelFromAnchor = (
 };
 
 export const getEquivalentDieselBusCapexForLength = (length) => {
-  const key = normalizeBusLengthKey(length);
-  if (!key) return null;
-  return EQUIVALENT_DIESEL_BUS_CAPEX_BY_LENGTH[key] ?? null;
+  const metres = Number(length);
+  if (!((metres >= 9 && metres <= 13) || (metres >= 17 && metres <= 19))) return null;
+  const anchors = Object.keys(EQUIVALENT_DIESEL_BUS_CAPEX_BY_LENGTH).map(Number);
+  const next = anchors.findIndex((anchor, index) => index > 0 && metres <= anchor);
+  const end = next < 0 ? anchors.length - 1 : next;
+  const [a, b] = anchors.slice(end - 1, end + 1);
+  const startPrice = EQUIVALENT_DIESEL_BUS_CAPEX_BY_LENGTH[a];
+  const slope = (EQUIVALENT_DIESEL_BUS_CAPEX_BY_LENGTH[b] - startPrice) / (b - a);
+  return Math.round((startPrice + (metres - a) * slope) * 100) / 100;
 };
 
 export const getDieselEfficiencyForLength = (length) => {

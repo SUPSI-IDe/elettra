@@ -59,6 +59,14 @@ const normalizeSize = (value) => normalizeValue(value).replace(/\s+/g, "");
 export const getVehicleCategoryByKey = (key) =>
   VEHICLE_CATEGORIES.find((category) => category.key === key) || null;
 
+export const getVehicleCategoryForLength = value => {
+  const length = Number(value);
+  if (length >= 9 && length <= 10) return VEHICLE_CATEGORIES[0];
+  if (length > 10 && length <= 13) return VEHICLE_CATEGORIES[1];
+  if (length >= 17 && length <= 19) return VEHICLE_CATEGORIES[2];
+  return null;
+};
+
 export const getVehicleCategoryByLcaName = (vehicleName) => {
   const normalized = normalizeValue(vehicleName);
   return (
@@ -92,7 +100,7 @@ export const inferVehicleCategoryFromSpecs = (specs = {}) => {
       category.legacySizes.some((legacySize) =>
         sizeCandidates.includes(normalizeSize(legacySize))
       )
-    ) || null
+    ) || getVehicleCategoryForLength(specs.bus_length_m ?? specs.length_m)
   );
 };
 
@@ -129,14 +137,14 @@ export const buildVehicleCategorySpecsForSubmission = (
   category,
   passengerCapacity,
   lcaVehicle = null,
-  { currentSpecs = {}, preserveLegacyTwelveMetres = false } = {}
+  { currentSpecs = {}, physicalLength = category?.lengthM, preserveLegacyTwelveMetres = false } = {}
 ) => {
   const derived = buildVehicleCategorySpecs(
     category,
     passengerCapacity,
     lcaVehicle
   );
-  if (!preserveLegacyTwelveMetres) return derived;
+  if (!preserveLegacyTwelveMetres) return { ...derived, bus_length_m: physicalLength, length_m: physicalLength };
 
   const currentLca =
     currentSpecs?.lca &&

@@ -15,45 +15,28 @@ Open **Fleet → Bus Models** and select **Add Bus Model**. A bus model defines
 the technical and economic limits used when ELETTRA sizes a battery or evaluates
 a fixed configuration.
 
-### Vehicle category and defaults
+### Vehicle length and estimates
 
-Choose one of the supported vehicle categories:
+Enter the vehicle length from 9 to 13 m or from 17 to 19 m. The VECTO climate
+control model has no profile for lengths strictly between 13 and 17 m.
+Select the battery chemistry (LFP or NMC).
 
-- midi electric bus — 9 m;
-- standard electric bus — 13 m;
-- articulated electric bus — 18 m.
+ELETTRA estimates the vehicle price without batteries by interpolating tender
+prices by length, with extrapolation from 18 to 19 m. The estimated price per
+battery pack uses its capacity and the reference price in CHF/kWh for the
+selected chemistry. Both prices are in CHF excluding VAT. Pack mass is
+estimated from its capacity and chemistry and is expressed in kg.
 
-The category supplies representative starting values and an LCA reference. It
-does not select a commercial model or manufacturer. Review and replace the
-defaults when project-specific data are available.
-
-The economic defaults for new models use INFRAS, *Umwelt- und Kostenbilanz
-von Bussen mit H2-Verbrennungsantrieb*, 4 December 2025, table 11, p. 45,
-with acquisition assumptions for 2030. The source tooltips beside the vehicle
-and battery cost fields explain the assumptions and open the
-[INFRAS report](https://www.infras.ch/media/filer_public/86/db/86dbb9ed-9fc1-482e-85ca-a9f36f3da3b8/3954a_umweltbilanz_h2-busse_schlussbericht.pdf#page=45).
-
-| App category | Vehicle cost without batteries | Reference |
-|---|---:|---|
-| Midi, 9 m | CHF 253’781 | Proportional estimate: 12 m cost × 9/12, rounded; the report has no direct 9 m value |
-| Standard, 13 m | CHF 338’375 | The report's 12 m standard bus |
-| Articulated, 18 m | CHF 474’032 | The report's 18 m articulated bus |
-
-The initial battery reference is **CHF 257/kWh**, from the slow
-battery-development scenario: **CHF 10’280** for the default **40 kWh** pack.
-The report distinguishes initial and replacement battery prices. These defaults
-are editable starting points; they do not update costs in saved models.
-Changing pack capacity does not automatically recalculate the pack price, so
-review both fields together. Battery and vehicle lifetimes remain separate
-project assumptions.
+Enter your own values when operator or manufacturer data are available. Use
+**Restore estimate** to reapply the current estimate to a field.
 
 ### Required input groups
 
 | Group | Inputs and interpretation |
 |---|---|
-| General | Name, vehicle category, optional description |
+| General | Name, optional description |
 | Vehicle | Length, vehicle cost without batteries, passenger capacity, empty mass without battery packs or passengers, bus lifetime |
-| Battery | Minimum and maximum pack count, capacity per pack, cost per pack, mass per pack, battery lifetime |
+| Battery | Chemistry, minimum and maximum pack count, capacity per pack, cost per pack, mass per pack, battery lifetime |
 | Charging | Maximum charging power accepted by the vehicle |
 
 Minimum and maximum pack counts define the configurations available to the

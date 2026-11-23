@@ -7,12 +7,13 @@ import {
   buildBusModelEditRequestBody,
 } from "../../../api";
 import { fetchLcaVehicles } from "../../../api/environmental";
-import { getBusModelDefaultsForLength, INFRAS_BUS_COST_REFERENCE } from "../../../config/bus-model-defaults";
+import { fetchEconomicDefaults } from "../../../api/simulation";
+import { getBusModelDefaultsForLength, ESTIMATED_SPEC_FIELDS, estimateBusSpecs } from "../../../config/bus-model-defaults";
 import { AUXILIARY_CONSUMPTION_KW_DEFAULTS } from "../../../config/auxiliary-consumption-defaults";
 import {
   buildVehicleCategorySpecsForSubmission,
   getCuratedLcaVehicle,
-  getVehicleCategoryByKey,
+  getVehicleCategoryForLength,
   inferVehicleCategoryFromSpecs,
 } from "../../../config/vehicle-categories";
 import { resolveUserId } from "../../../api/session";
@@ -26,7 +27,6 @@ import {
   captureBusModelSpecFormState,
   mergeBusModelSpecs,
   normalizeBusModelSpecValues,
-  resolveExpectedBusLengthM,
   shouldSubmitBusModelSpecs,
   validateBusModelSpecs,
 } from "../../../utils/bus-model-specs";
@@ -66,13 +66,10 @@ const readRawSpecValues = (formData) =>
 const toBusModelPayload = (formData) => {
   const name = formData.get("name")?.toString().trim();
   const description = formData.get("description")?.toString().trim() ?? "";
-  const vehicleReferenceKey =
-    formData.get("vehicle_reference_key")?.toString().trim() ?? "";
-
   const rawSpecs = readRawSpecValues(formData);
   const specs = normalizeBusModelSpecValues(rawSpecs);
 
-  return { name, description, vehicleReferenceKey, rawSpecs, specs };
+  return { name, description, rawSpecs, specs };
 };
 
 const specIssueMessage = (issue) => {
@@ -86,7 +83,7 @@ const specIssueMessage = (issue) => {
     non_negative: "buses.spec_non_negative",
     integer: "buses.spec_integer",
     pack_range: "buses.spec_pack_range",
-    category_length: "buses.spec_category_length",
+    length_ranges: "buses.length_ranges",
   };
   const messageKey = keyByCode[issue?.code] ?? "buses.spec_invalid";
   return t(messageKey, {
@@ -149,10 +146,26 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
   const batteryCostInfo = form.querySelector('[data-role="battery-cost-info"]');
   const emptyWeightInfo = form.querySelector('[data-role="empty-weight-info"]');
   const busLengthInput = form.querySelector("#bus_length_m");
-  const passengerCapacityInput = form.querySelector("#max_passengers");
+  const chemistryInput = form.elements.battery_chemistry;
+  const original = parseSpecs(currentModel.specs);
+  const copyingSpecs = isEditMode || isDuplicateMode;
+  const savedChemistry = original.battery_chemistry ?? original.batteryChemistry;
+  // Existing unlabelled models used NMC in annual LCA. A new model starts in LFP.
+  if (savedChemistry && !Array.from(chemistryInput.options).some(o => o.value === savedChemistry)) {
+    chemistryInput.add(new Option(savedChemistry, savedChemistry));
+  }
+  chemistryInput.value = savedChemistry || (copyingSpecs ? "NMC" : "LFP");
+  const suggested = new Set(copyingSpecs
+    ? original.suggested_spec_fields ?? ESTIMATED_SPEC_FIELDS.filter(field => original[field] == null)
+    : ESTIMATED_SPEC_FIELDS);
   let selectedVehicleCategory = null;
-  let vehicleCategoryWasTouched = false;
-
+  let lastCategoryWithDefaults = null;
+  let pricing;
+  const pendingEstimates = new Set();
+  const listen = (element, event, handler) => {
+    element.addEventListener(event, handler);
+    cleanupHandlers.push(() => element.removeEventListener(event, handler));
+  };
   let curatedLcaVehicles = [];
   const curatedLcaVehiclesReady = fetchLcaVehicles()
     .then((data) => {
@@ -166,132 +179,113 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       return [];
     });
 
-  const applyVehicleCategory = (category) => {
-    if (!category) return;
-
-    const defaults = getBusModelDefaultsForLength(category.defaultSpecLength);
-    if (defaults) {
-      for (const [field, value] of Object.entries(defaults)) {
-        const el = form.querySelector(`#${field}`);
-        if (!el) continue;
-        el.value = value;
-      }
-    }
-
-    if (busLengthInput) {
-      busLengthInput.value = category.lengthM;
-    }
-
-    if (passengerCapacityInput) {
-      passengerCapacityInput.value = category.defaultPassengerCapacity;
-    }
+  const setTooltip = (element, key) => {
+    if (!element) return;
+    const value = t(key);
+    element.dataset.tooltip = value;
+    element.title = value;
+    element.setAttribute("aria-label", value);
+  };
+  const updateTooltips = () => {
+    setTooltip(vehicleCategoryInfo, selectedVehicleCategory?.tooltipI18nKey || "buses.vehicle_category_tooltip_default");
+    setTooltip(form.querySelector('[data-role="length-info"]'), "buses.length_vecto_tooltip");
+    setTooltip(emptyWeightInfo, "buses.empty_weight_tooltip");
+    setTooltip(costInfo, "buses.price_body_reference");
+    setTooltip(batteryCostInfo, "buses.price_pack_reference");
+    setTooltip(form.querySelector('[data-role="pack-weight-info"]'), "buses.pack_weight_reference");
   };
 
-  const updateVehicleCategoryTooltip = (category) => {
-    if (!vehicleCategoryInfo) return;
-    const text = category?.tooltipI18nKey
-      ? t(category.tooltipI18nKey)
-      : t("buses.vehicle_category_tooltip_default");
-    vehicleCategoryInfo.dataset.tooltip = text;
-    vehicleCategoryInfo.setAttribute("aria-label", text);
-    vehicleCategoryInfo.setAttribute("title", text);
-  };
-
-  const updateCostTooltip = () => {
-    const length = Number(busLengthInput?.value);
-    const defaults = getBusModelDefaultsForLength(selectedVehicleCategory?.defaultSpecLength || length);
-    const source = t('buses.cost_infras_source');
-    const categoryKey = length === 9 ? 'buses.cost_infras_midi'
-      : length === 18 ? 'buses.cost_infras_articulated'
-      : length === 12 || length === 13 ? 'buses.cost_infras_standard' : '';
-    const setReference = (element, description) => {
-      if (!element) return;
-      const text = `${description} ${source} ${t('buses.cost_infras_open')}`;
-      element.href = INFRAS_BUS_COST_REFERENCE.url;
-      element.dataset.tooltip = text;
-      element.setAttribute('aria-label', text);
-      element.setAttribute('title', text);
-    };
-    setReference(costInfo, `${t('buses.cost_tooltip')} ${categoryKey ? t(categoryKey, { cost: defaults?.cost?.toLocaleString('de-CH') || '—' }) : ''}`);
-    setReference(batteryCostInfo, t('buses.battery_cost_infras_tooltip', {
-      cost: (defaults?.battery_pack_cost_chf ?? 40 * INFRAS_BUS_COST_REFERENCE.batteryChfPerKwh).toLocaleString('de-CH'),
-      capacity: defaults?.battery_pack_size_kwh ?? 40,
-      rate: INFRAS_BUS_COST_REFERENCE.batteryChfPerKwh,
-    }));
-  };
-
-  const updateEmptyWeightTooltip = () => {
-    if (!emptyWeightInfo) return;
-    const text = t("buses.empty_weight_tooltip");
-    emptyWeightInfo.dataset.tooltip = text;
-    emptyWeightInfo.setAttribute("aria-label", text);
-    emptyWeightInfo.setAttribute("title", text);
-  };
-
-  if (vehicleCategorySelect) {
-    const handleVehicleCategoryChange = () => {
-      vehicleCategoryWasTouched = true;
-      const category = getVehicleCategoryByKey(vehicleCategorySelect.value);
-      selectedVehicleCategory = category;
-      applyVehicleCategory(category);
-      updateVehicleCategoryTooltip(category);
-      updateCostTooltip();
-    };
-    vehicleCategorySelect.addEventListener("change", handleVehicleCategoryChange);
-    cleanupHandlers.push(() =>
-      vehicleCategorySelect.removeEventListener("change", handleVehicleCategoryChange)
-    );
-  }
-
-  updateVehicleCategoryTooltip(null);
-  updateCostTooltip();
-  updateEmptyWeightTooltip();
-
-  const handleI18nChange = () => {
-    updateVehicleCategoryTooltip(selectedVehicleCategory);
-    updateCostTooltip();
-    updateEmptyWeightTooltip();
-  };
-  document.addEventListener(I18N_CHANGE_EVENT, handleI18nChange);
-  cleanupHandlers.push(() => {
-    document.removeEventListener(I18N_CHANGE_EVENT, handleI18nChange);
-  });
-
-  /* ── Edit and duplicate mode pre-fill ── */
-  if (isEditMode || isDuplicateMode) {
+  if (copyingSpecs) {
     if (header) {
       header.dataset.i18n = isEditMode ? "buses.edit_model" : "buses.add_model";
       header.textContent = t(header.dataset.i18n);
     }
-
-    const specs = parseSpecs(currentModel.specs);
-    const category = inferVehicleCategoryFromSpecs(specs);
-
-    if (nameInput)
-      nameInput.value = currentModel.name || currentModel.model || "";
-    if (descriptionInput)
-      descriptionInput.value = currentModel.description || "";
-
+    nameInput.value = currentModel.name || currentModel.model || "";
+    descriptionInput.value = currentModel.description || "";
     for (const field of BUS_MODEL_SPEC_FIELDS) {
-      const input = form.querySelector(`#${field}`);
-      if (input && specs?.[field] != null) {
-        input.value = specs[field];
-      }
-    }
-
-    if (category && vehicleCategorySelect) {
-      selectedVehicleCategory = category;
-      vehicleCategorySelect.value = category.key;
-      updateVehicleCategoryTooltip(category);
+      if (original[field] != null) form.elements[field].value = original[field];
     }
   }
 
-  updateCostTooltip();
+  const updateCategory = (applyDefaults = false) => {
+    const next = getVehicleCategoryForLength(busLengthInput.value);
+    const previous = lastCategoryWithDefaults;
+    selectedVehicleCategory = next;
+    vehicleCategorySelect.value = next?.key ?? "";
+    if (applyDefaults && next && next !== previous) {
+      const defaultsFor = category => category ? {
+        ...getBusModelDefaultsForLength(category.defaultSpecLength),
+        max_passengers: category.defaultPassengerCapacity,
+      } : {};
+      const oldDefaults = defaultsFor(previous);
+      for (const [field, value] of Object.entries(defaultsFor(next))) {
+        const input = form.elements[field];
+        if (!input.value || (!copyingSpecs && Number(input.value) === oldDefaults[field])) {
+          input.value = value;
+        }
+      }
+    }
+    if (next) lastCategoryWithDefaults = next;
+    updateTooltips();
+  };
 
+  const estimate = () => estimateBusSpecs(pricing,
+    selectedVehicleCategory && Number(busLengthInput.value),
+    Number(form.elements.battery_pack_size_kwh.value), chemistryInput.value);
+  const updateEstimates = (fields = ESTIMATED_SPEC_FIELDS) => {
+    if (!pricing) {
+      for (const field of fields) pendingEstimates.add(field);
+      return;
+    }
+    const values = estimate();
+    for (const field of fields) {
+      if (suggested.has(field)) form.elements[field].value = values[field] ?? "";
+      const restore = form.querySelector('[data-restore-field="' + field + '"]');
+      restore.hidden = suggested.has(field) || values[field] == null;
+    }
+  };
+  updateCategory();
+  const initialChemistry = chemistryInput.value;
+  const initialSuggested = [...suggested].sort().join(",");
   const initialSpecFormState = captureBusModelSpecFormState(
-    readRawSpecValues(new FormData(form)),
-    vehicleCategorySelect?.value ?? ""
+    readRawSpecValues(new FormData(form)), vehicleCategorySelect.value
   );
+  const pricingReady = fetchEconomicDefaults().then(data => {
+    if (!data?.battery_chemistries || !data?.bus_body_price_points?.length) {
+      throw new Error(t("buses.unable_to_load_defaults"));
+    }
+    pricing = data;
+    // Restoring a saved form must not reprice it merely by opening it.
+    const current = estimate();
+    for (const field of ESTIMATED_SPEC_FIELDS) {
+      if (suggested.has(field) && (!copyingSpecs || pendingEstimates.has(field))) {
+        form.elements[field].value = current[field] ?? "";
+      }
+      form.querySelector('[data-restore-field="' + field + '"]').hidden =
+        suggested.has(field) || current[field] == null;
+    }
+  }).catch(() => {
+    updateFeedback(feedback, t("buses.unable_to_load_defaults"), "error");
+  });
+
+  listen(busLengthInput, "input", () => {
+    updateCategory(true);
+    updateEstimates();
+  });
+  listen(chemistryInput, "change", () => updateEstimates(["battery_pack_weight_kg", "battery_pack_cost_chf"]));
+  listen(form.elements.battery_pack_size_kwh, "input", () => updateEstimates(["battery_pack_weight_kg", "battery_pack_cost_chf"]));
+  for (const field of ESTIMATED_SPEC_FIELDS) {
+    const restore = form.querySelector('[data-restore-field="' + field + '"]');
+    listen(form.elements[field], "input", () => {
+      suggested.delete(field);
+      restore.hidden = estimate()[field] == null;
+    });
+    listen(restore, "click", () => {
+      suggested.add(field);
+      updateEstimates([field]);
+    });
+  }
+  listen(document, I18N_CHANGE_EVENT, updateTooltips);
 
   /* ── Close / Cancel ── */
   const handleCloseClick = () => {
@@ -318,21 +312,21 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    await pricingReady;
     const formData = new FormData(form);
-    const { name, description, vehicleReferenceKey, rawSpecs, specs } =
+    const { name, description, rawSpecs, specs } =
       toBusModelPayload(formData);
     const currentSpecs = parseSpecs(currentModel.specs);
-    const category = getVehicleCategoryByKey(vehicleReferenceKey);
+    const category = getVehicleCategoryForLength(specs.bus_length_m);
     const currentSpecFormState = captureBusModelSpecFormState(
       rawSpecs,
-      vehicleReferenceKey
+      category?.key ?? ""
     );
-    let expectedBusLengthM = category?.lengthM;
     const specsChanged = shouldSubmitBusModelSpecs({
       isEditMode,
       initialState: initialSpecFormState,
       currentState: currentSpecFormState,
-    });
+    }) || chemistryInput.value !== initialChemistry || [...suggested].sort().join(",") !== initialSuggested;
 
     if (!name) {
       updateFeedback(feedback, t("buses.name_required"), "error");
@@ -340,22 +334,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     }
 
     if (specsChanged) {
-      if (!category) {
-        updateFeedback(feedback, t("buses.vehicle_category_required"), "error");
-        vehicleCategorySelect?.focus();
-        return;
-      }
-
-      expectedBusLengthM = resolveExpectedBusLengthM({
-        isEditMode: isEditMode || isDuplicateMode,
-        categoryLengthM: category.lengthM,
-        initialState: initialSpecFormState,
-        currentState: currentSpecFormState,
-        categoryWasTouched: vehicleCategoryWasTouched,
-      });
-      const validation = validateBusModelSpecs(specs, {
-        expectedLengthM: expectedBusLengthM,
-      });
+      const validation = validateBusModelSpecs(specs);
       if (!validation.ok) {
         updateFeedback(feedback, specIssueMessage(validation.issue), "error");
         form.querySelector(`#${validation.issue.field}`)?.focus();
@@ -380,25 +359,30 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       await curatedLcaVehiclesReady;
       const lcaVehicle = getCuratedLcaVehicle(curatedLcaVehicles, category);
       const preservesLegacyTwelveMetreMetadata =
-        expectedBusLengthM === 12 && category.lengthM === 13;
+        copyingSpecs && Number(currentSpecs.bus_length_m) === 12 && specs.bus_length_m === 12 &&
+        inferVehicleCategoryFromSpecs(currentSpecs)?.lengthM === 13;
       const categorySpecs = buildVehicleCategorySpecsForSubmission(
         category,
         specs.max_passengers,
         lcaVehicle,
         {
           currentSpecs,
+          physicalLength: specs.bus_length_m,
           preserveLegacyTwelveMetres: preservesLegacyTwelveMetreMetadata,
         }
       );
       const mergedSpecs = mergeBusModelSpecs({
         currentSpecs,
-        formSpecs: specs,
+        formSpecs: { ...specs, battery_chemistry: chemistryInput.value, suggested_spec_fields: [...suggested] },
         categorySpecs,
         modelType: preservesLegacyTwelveMetreMetadata
           ? currentSpecs.model_type
           : category.label,
         defaultAuxiliaryConsumption: AUXILIARY_CONSUMPTION_KW_DEFAULTS,
       });
+      if (currentSpecs.lca?.vehicle_id && !lcaVehicle && inferVehicleCategoryFromSpecs(currentSpecs)?.key !== category.key) {
+        delete mergedSpecs.lca.vehicle_id;
+      }
       if (isEditMode) {
         await updateBusModel(
           currentModel.id,
@@ -464,6 +448,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       );
     } finally {
       toggleFormDisabled(form, false);
+      vehicleCategorySelect.disabled = true;
     }
   };
 

@@ -38,7 +38,22 @@
               </div>
               <div class="form-group">
                 <div class="vehicle-category-label-row">
-                  <label for="vehicle_reference_key"><span data-i18n="buses.vehicle_category">Vehicle category</span> <span class="required-mark" aria-hidden="true">*</span></label>
+                  <label for="bus_length_m"><span data-i18n="buses.field_bus_length">Bus length (m)</span> <span class="required-mark" aria-hidden="true">*</span></label>
+                  <button type="button" class="vehicle-category-info" data-role="length-info">i</button>
+                </div>
+                <input
+                  type="number"
+                  id="bus_length_m"
+                  name="bus_length_m"
+                  required
+                  min="9" max="19"
+                  step="any"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="form-group">
+                <div class="vehicle-category-label-row">
+                  <label for="vehicle_reference_key"><span data-i18n="buses.vehicle_category">Vehicle category</span></label>
                   <button
                     type="button"
                     class="vehicle-category-info"
@@ -49,8 +64,8 @@
                     i
                   </button>
                 </div>
-                <select id="vehicle_reference_key" name="vehicle_reference_key" required>
-                  <option value="" disabled selected data-i18n="buses.placeholder_vehicle_category">Select a vehicle category…</option>
+                <select id="vehicle_reference_key" name="vehicle_reference_key" disabled>
+                  <option value="" disabled selected>—</option>
                   <option value="midi_electric_bus_9m" data-i18n="buses.vehicle_category_midi_9m">Midi electric bus — 9 m</option>
                   <option value="standard_electric_bus_12_13m" data-i18n="buses.vehicle_category_standard_12_13m">Standard electric bus — 13 m</option>
                   <option value="articulated_electric_bus_18m" data-i18n="buses.vehicle_category_articulated_18m">Articulated electric bus — 18 m</option>
@@ -74,31 +89,9 @@
             </div>
             <div class="bus-model-grid">
               <div class="form-group">
-                <label for="bus_length_m"><span data-i18n="buses.field_bus_length">Bus length (m)</span> <span class="required-mark" aria-hidden="true">*</span></label>
-                <input
-                  type="number"
-                  id="bus_length_m"
-                  name="bus_length_m"
-                  required
-                  min="0.001"
-                  step="any"
-                  autocomplete="off"
-                  readonly
-                />
-              </div>
-              <div class="form-group">
                 <div class="vehicle-category-label-row">
                   <label for="cost" data-i18n="buses.field_cost">Cost (CHF) <span class="required-mark" aria-hidden="true">*</span></label>
-                  <a
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="vehicle-category-info"
-                    data-role="cost-info"
-                    data-tooltip="Vehicle cost without batteries."
-                    aria-label="Vehicle cost without batteries."
-                  >
-                    i
-                  </a>
+                  <button type="button" class="vehicle-category-info" data-role="cost-info">i</button>
                 </div>
                 <input
                   type="number"
@@ -109,6 +102,7 @@
                   step="any"
                   autocomplete="off"
                 />
+                <button type="button" class="restore-bus-estimate" data-restore-field="cost" data-i18n="buses.restore_estimate" hidden>Restore estimate</button>
               </div>
               <div class="form-group">
                 <label for="max_passengers" data-i18n="buses.field_passenger_capacity">Passenger capacity <span class="required-mark" aria-hidden="true">*</span></label>
@@ -166,6 +160,10 @@
             </div>
             <div class="bus-model-grid">
               <div class="form-group">
+                <label for="battery_chemistry" data-i18n="buses.battery_chemistry">Battery chemistry</label>
+                <select id="battery_chemistry" name="battery_chemistry"><option selected>LFP</option><option>NMC</option></select>
+              </div>
+              <div class="form-group">
                 <label for="min_battery_packs" data-i18n="buses.field_min_battery_packs">Min battery packs <span class="required-mark" aria-hidden="true">*</span></label>
                 <input
                   type="number"
@@ -204,7 +202,7 @@
               <div class="form-group">
                 <div class="vehicle-category-label-row">
                   <label for="battery_pack_cost_chf" data-i18n="buses.field_battery_pack_cost">Battery pack cost (CHF) <span class="required-mark" aria-hidden="true">*</span></label>
-                  <a class="vehicle-category-info" data-role="battery-cost-info" target="_blank" rel="noopener noreferrer">i</a>
+                  <a class="vehicle-category-info" data-role="battery-cost-info" href="https://www.infras.ch/media/filer_public/79/e5/79e599d9-0dae-491e-ac2b-19f07385834a/4166a_technologiestudie_elektrobusse_vov_schlussbericht.pdf#page=25" target="_blank" rel="noopener noreferrer">i</a>
                 </div>
                 <input
                   type="number"
@@ -215,6 +213,7 @@
                   step="any"
                   autocomplete="off"
                 />
+                <button type="button" class="restore-bus-estimate" data-restore-field="battery_pack_cost_chf" data-i18n="buses.restore_estimate" hidden>Restore estimate</button>
               </div>
               <div class="form-group">
                 <label for="max_charging_power_kw" data-i18n="buses.field_max_charging_power">Max charging power (kW) <span class="required-mark" aria-hidden="true">*</span></label>
@@ -229,7 +228,10 @@
                 />
               </div>
               <div class="form-group">
-                <label for="battery_pack_weight_kg" data-i18n="buses.field_battery_pack_weight">Battery pack weight (kg) <span class="required-mark" aria-hidden="true">*</span></label>
+                <div class="vehicle-category-label-row">
+                  <label for="battery_pack_weight_kg" data-i18n="buses.field_battery_pack_weight">Battery pack weight (kg) <span class="required-mark" aria-hidden="true">*</span></label>
+                  <button type="button" class="vehicle-category-info" data-role="pack-weight-info">i</button>
+                </div>
                 <input
                   type="number"
                   id="battery_pack_weight_kg"
@@ -239,6 +241,7 @@
                   step="any"
                   autocomplete="off"
                 />
+                <button type="button" class="restore-bus-estimate" data-restore-field="battery_pack_weight_kg" data-i18n="buses.restore_estimate" hidden>Restore estimate</button>
               </div>
               <div class="form-group bus-model-field--compact">
                 <label for="battery_pack_lifetime" data-i18n="buses.field_battery_pack_lifetime">Battery pack lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>

@@ -1,9 +1,9 @@
+import { getEquivalentDieselBusCapexForLength } from "../src/config/economic-defaults.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  BUS_MODEL_LENGTH_OPTIONS,
-  INFRAS_BUS_COST_REFERENCE,
+  estimateBusSpecs,
   getBusModelDefaultsForLength,
 } from "../src/config/bus-model-defaults.js";
 import {
@@ -18,7 +18,6 @@ import {
   haveBusModelSpecsChanged,
   mergeBusModelSpecs,
   normalizeBusModelSpecValues,
-  resolveExpectedBusLengthM,
   shouldSubmitBusModelSpecs,
   validateBusModelSpecs,
 } from "../src/utils/bus-model-specs.js";
@@ -39,15 +38,14 @@ const validSpecs = {
 };
 
 test("training-aligned weight defaults use the canonical 9, 13 and 18 m lengths", () => {
-  assert.deepEqual(BUS_MODEL_LENGTH_OPTIONS, ["9", "13", "18"]);
   assert.equal(getBusModelDefaultsForLength(9).empty_weight_kg, 9875);
   assert.equal(getBusModelDefaultsForLength(13).empty_weight_kg, 12750);
   assert.equal(getBusModelDefaultsForLength(18).empty_weight_kg, 16325);
 
-  for (const length of BUS_MODEL_LENGTH_OPTIONS) {
+  for (const length of [9, 13, 18]) {
     const defaults = getBusModelDefaultsForLength(length);
     assert.equal(defaults.battery_pack_size_kwh, 40);
-    assert.equal(defaults.battery_pack_weight_kg, 274);
+    assert.ok(defaults.empty_weight_kg > 0);
   }
 
   assert.equal(getBusModelDefaultsForLength(12), null);
@@ -146,9 +144,13 @@ test("validation enforces battery range and category length", () => {
   });
   assert.equal(packRange.issue.code, "pack_range");
 
-  const length = validateBusModelSpecs(validSpecs, { expectedLengthM: 18 });
-  assert.equal(length.issue.code, "category_length");
-  assert.equal(length.issue.expectedLengthM, 18);
+  for (const length of [8.99, 13.01, 15, 16.99, 19.01]) {
+    assert.equal(validateBusModelSpecs({ ...validSpecs, bus_length_m: length }).issue.code, "length_ranges");
+  }
+  for (const length of [9, 10, 10.75, 13, 17, 18.75, 19]) {
+    assert.ok(validateBusModelSpecs({ ...validSpecs, bus_length_m: length }).ok);
+  }
+
 });
 
 test("metadata-only edits keep the original specification snapshot unchanged", () => {
@@ -239,27 +241,6 @@ test("legacy 12 m passenger edits retain identity and update derived passenger f
       custom_provenance: { release: "legacy-v1" },
     },
   };
-  const initial = captureBusModelSpecFormState(legacySpecs, key);
-  const changedPassengerCapacity = captureBusModelSpecFormState(
-    { ...legacySpecs, max_passengers: 72 },
-    key
-  );
-
-  const legacyExpected = resolveExpectedBusLengthM({
-    isEditMode: true,
-    categoryLengthM: 13,
-    initialState: initial,
-    currentState: changedPassengerCapacity,
-    categoryWasTouched: false,
-  });
-  assert.equal(legacyExpected, 12);
-  assert.equal(
-    validateBusModelSpecs(
-      { ...legacySpecs, max_passengers: 72 },
-      { expectedLengthM: legacyExpected }
-    ).ok,
-    true
-  );
   const standardCategory = getVehicleCategoryByKey(key);
   const derivedLegacySpecs = buildVehicleCategorySpecsForSubmission(
     standardCategory,
@@ -290,32 +271,7 @@ test("legacy 12 m passenger edits retain identity and update derived passenger f
     release: "legacy-v1",
   });
 
-  for (const scenario of [
-    { isEditMode: false, categoryWasTouched: false },
-    { isEditMode: true, categoryWasTouched: true },
-  ]) {
-    assert.equal(
-      resolveExpectedBusLengthM({
-        ...scenario,
-        categoryLengthM: 13,
-        initialState: initial,
-        currentState: changedPassengerCapacity,
-      }),
-      13
-    );
-  }
 
-  const changedCategory = captureBusModelSpecFormState(legacySpecs, "articulated");
-  assert.equal(
-    resolveExpectedBusLengthM({
-      isEditMode: true,
-      categoryLengthM: 18,
-      initialState: initial,
-      currentState: changedCategory,
-      categoryWasTouched: false,
-    }),
-    18
-  );
 });
 
 test("new validation and weight help messages exist in all supported languages", () => {
@@ -339,29 +295,20 @@ test("new validation and weight help messages exist in all supported languages",
   }
 });
 
-// Values read from INFRAS 04.12.2025, table 11, p. 45. The body and
-// initial battery have separate rows; adding a complete vehicle price here
-// would count the initial battery twice in ELETTRA's investment calculation.
-test("INFRAS defaults separate vehicle bodies from initial battery packs", () => {
-  assert.equal(getBusModelDefaultsForLength(13).cost, 338375);
-  assert.equal(getBusModelDefaultsForLength(18).cost, 474032);
-  for (const length of BUS_MODEL_LENGTH_OPTIONS) {
-    const specs = getBusModelDefaultsForLength(length);
-    assert.equal(specs.battery_pack_cost_chf / specs.battery_pack_size_kwh, 257);
-    assert.equal(specs.battery_pack_cost_chf, 10280);
-  }
-  assert.equal(INFRAS_BUS_COST_REFERENCE.url.endsWith('#page=45'), true);
+test("estimates use server-provided CHF and mass rates for nominal capacity", () => {
+  const pricing = {
+    bus_body_price_points: [[9,360000], [10,460000], [12,490000], [18,570000]].map(
+      ([length_m,cost_chf]) => ({length_m,cost_chf})),
+    battery_chemistries: { LFP: { kg_per_kwh: 6.85, cost_per_kwh: 330 }, NMC: { kg_per_kwh: 1000/195, cost_per_kwh: 450 } }
+  };
+  assert.deepEqual(estimateBusSpecs(pricing, 10.75, 40, "LFP"),
+    {cost:471250, battery_pack_weight_kg:274, battery_pack_cost_chf:13200});
+  assert.deepEqual(estimateBusSpecs(pricing, 19, 40, "NMC"),
+    {cost:583333.33, battery_pack_weight_kg:205.13, battery_pack_cost_chf:18000});
 });
 
-test("the unsupported 9 m price is an explicit rounded 9/12 estimate", () => {
-  assert.equal(getBusModelDefaultsForLength(9).cost, 253781);
-  assert.equal(getBusModelDefaultsForLength(9).cost, Math.round(getBusModelDefaultsForLength(13).cost * 9 / 12));
-  for (const lang of ['en','it','de','fr']) {
-    for (const key of ['cost_infras_source','cost_infras_midi','cost_infras_standard','cost_infras_articulated','cost_infras_open','battery_cost_infras_tooltip']) {
-      const value = translations[lang][`buses.${key}`];
-      assert.ok(value, `${lang}: ${key}`);
-      const params = text => [...text.matchAll(/\{([^}]+)\}/g)].map(match => match[1]).sort();
-      assert.deepEqual(params(value), params(translations.en[`buses.${key}`]), `${lang}: ${key} parameters`);
-    }
+test("the diesel comparator is available for each supported physical length", () => {
+  for (const [length, price] of [[9,280000], [10.75,320833.33], [12,350000], [13,385000], [17,477000], [18,500000], [19,523000]]) {
+    assert.equal(getEquivalentDieselBusCapexForLength(length), price);
   }
 });

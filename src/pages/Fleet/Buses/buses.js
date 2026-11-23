@@ -105,6 +105,7 @@ export const buildBusModelDetailGroups = (busModel = {}) => {
     {
       title: t("buses.section_battery_system"),
       rows: [
+        { label: t("buses.battery_chemistry"), value: detailValue(specs?.battery_chemistry ?? specs?.batteryChemistry) },
         {
           label: t("buses.field_min_battery_packs"),
           value: detailValue(specs?.min_battery_packs),

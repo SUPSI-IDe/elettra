@@ -14,6 +14,7 @@ const busModel = {
     bus_lifetime: 14,
     min_battery_packs: 8,
     max_battery_packs: 14,
+    battery_chemistry: "NMC",
     battery_pack_size_kwh: 42,
     battery_pack_cost_chf: 7200,
     max_charging_power_kw: 300,
@@ -154,7 +155,9 @@ test("bus model rows stay compact and expose details, duplicate, edit and delete
   await expect(dialog.locator('[data-role="entity-details-title"]')).toHaveText(
     "Dettagli modello autobus — Electric 13"
   );
-  await expect(dialog.locator(".entity-details__item")).toHaveCount(15);
+  await expect(dialog.locator(".entity-details__item")).toHaveCount(16);
+  const chemistry = dialog.locator(".entity-details__item").filter({ hasText: "Chimica della batteria" });
+  await expect(chemistry).toContainText("NMC");
   await expect(dialog).toContainText("Standard city service");
   await expect(dialog).toContainText("12800");
   await expect(dialog).toContainText("7200");

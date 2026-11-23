@@ -1,3 +1,5 @@
+import { getVehicleCategoryForLength } from "../config/vehicle-categories.js";
+
 export const BUS_MODEL_SPEC_FIELDS = Object.freeze([
   "cost",
   "bus_length_m",
@@ -79,9 +81,13 @@ export const normalizeBusModelSpecValues = (rawValues = {}) => {
  *
  * The returned issue is deliberately semantic so the UI can translate it.
  */
-export const validateBusModelSpecs = (specs, { expectedLengthM } = {}) => {
+export const validateBusModelSpecs = (specs) => {
   if (!specs || typeof specs !== "object" || Array.isArray(specs)) {
     return { ok: false, issue: { code: "required", field: "specs" } };
+  }
+
+  if (Number.isFinite(specs.bus_length_m) && specs.bus_length_m > 0 && !getVehicleCategoryForLength(specs.bus_length_m)) {
+    return { ok: false, issue: { code: "length_ranges", field: "bus_length_m" } };
   }
 
   for (const field of BUS_MODEL_SPEC_FIELDS) {
@@ -108,21 +114,6 @@ export const validateBusModelSpecs = (specs, { expectedLengthM } = {}) => {
     return {
       ok: false,
       issue: { code: "pack_range", field: "min_battery_packs" },
-    };
-  }
-
-  if (
-    expectedLengthM !== undefined &&
-    (!Number.isFinite(expectedLengthM) ||
-      Math.abs(specs.bus_length_m - expectedLengthM) > 1e-9)
-  ) {
-    return {
-      ok: false,
-      issue: {
-        code: "category_length",
-        field: "bus_length_m",
-        expectedLengthM,
-      },
     };
   }
 
@@ -161,29 +152,6 @@ export const shouldSubmitBusModelSpecs = ({
   currentState,
 }) =>
   !isEditMode || haveBusModelSpecsChanged(initialState, currentState);
-
-const STANDARD_VEHICLE_CATEGORY_KEY = "standard_electric_bus_12_13m";
-
-export const resolveExpectedBusLengthM = ({
-  isEditMode,
-  categoryLengthM,
-  initialState,
-  currentState,
-  categoryWasTouched = false,
-}) => {
-  const keepsLegacyStandardCategory =
-    isEditMode &&
-    !categoryWasTouched &&
-    initialState?.vehicleReferenceKey === STANDARD_VEHICLE_CATEGORY_KEY &&
-    currentState?.vehicleReferenceKey === STANDARD_VEHICLE_CATEGORY_KEY;
-  const keepsLegacyTwelveMetreLength =
-    initialState?.fields?.bus_length_m === "12" &&
-    currentState?.fields?.bus_length_m === "12";
-
-  return keepsLegacyStandardCategory && keepsLegacyTwelveMetreLength
-    ? 12
-    : categoryLengthM;
-};
 
 export const mergeBusModelSpecs = ({
   currentSpecs = {},

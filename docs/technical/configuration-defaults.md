@@ -90,21 +90,20 @@ selection interfaces.
 
 ## Bus model defaults (`bus-model-defaults.js`)
 
-Pre-filled values when creating a new bus model, based on selected length:
+Physical lengths of 9–13 m and 17–19 m are supported. The form derives the Mobitool category from the length and uses its operating defaults.
 
-| Field | 9m | 12m | 18m |
+| Field | Midi (up to 10 m) | Standard (over 10 to 13 m) | Articulated (17–19 m) |
 |-------|-----|------|------|
-| Cost (CHF) | 450,000 | 600,000 | 800,000 |
-| Max passengers | 55 | 85 | 120 |
-| Empty weight (kg) | 12,000 | 14,000 | 18,000 |
-| Battery packs max | 8 | 11 | 16 |
-| Battery packs min | 5 | 7 | 12 |
-| Pack size (kWh) | 40 | 40 | 40 |
-| Pack cost (CHF) | 6,000 | 6,000 | 6,000 |
+| Max passengers | 34 | 64 | 150 |
+| Empty mass excluding passengers and batteries (kg) | 9,875 | 12,750 | 16,325 |
+| Battery packs min–max | 5–8 | 7–11 | 12–16 |
 | Max charging power (kW) | 300 | 450 | 450 |
-| Pack weight (kg) | 275 | 275 | 275 |
-| Battery lifetime (years) | 8 | 8 | 8 |
-| Bus lifetime (years) | 12 | 12 | 12 |
+
+The economic defaults API supplies the net body cost anchors (CHF 360,000 at 9 m, 460,000 at 10 m, 490,000 at 12 m and 570,000 at 18 m). Interpolation is linear, with the last slope extended through 19 m. These are estimates from the 2025–2026 procurement calibration. The 9 m anchor has limited Swiss evidence and the 18 m estimate depends on assumed battery capacity.
+
+For the diesel comparator, the frontend interpolates its existing 9, 12, 13 and 18 m prices and extends the final slope to 19 m.
+
+For a new bus the nominal pack size starts at 40 kWh. LFP is preselected (6.85 kg/kWh, CHF 330/kWh). NMC uses 195 Wh/kg and CHF 450/kWh. An entered price or mass overrides its own estimate. Bus and battery lives default to 12 and 8 years. Replacement uses the pack price entered for the initial purchase. [INFRAS/VöV, figure 19, p. 25](https://www.infras.ch/media/filer_public/79/e5/79e599d9-0dae-491e-ac2b-19f07385834a/4166a_technologiestudie_elektrobusse_vov_schlussbericht.pdf#page=25)
 
 ---
 
