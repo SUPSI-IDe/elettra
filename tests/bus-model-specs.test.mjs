@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   BUS_MODEL_LENGTH_OPTIONS,
+  INFRAS_BUS_COST_REFERENCE,
   getBusModelDefaultsForLength,
 } from "../src/config/bus-model-defaults.js";
 import {
@@ -334,6 +335,33 @@ test("new validation and weight help messages exist in all supported languages",
     for (const key of keys) {
       assert.equal(typeof translations[lang][key], "string", `${lang}: ${key}`);
       assert.ok(translations[lang][key].length > 5, `${lang}: ${key}`);
+    }
+  }
+});
+
+// Values read from INFRAS 04.12.2025, table 11, p. 45. The body and
+// initial battery have separate rows; adding a complete vehicle price here
+// would count the initial battery twice in ELETTRA's investment calculation.
+test("INFRAS defaults separate vehicle bodies from initial battery packs", () => {
+  assert.equal(getBusModelDefaultsForLength(13).cost, 338375);
+  assert.equal(getBusModelDefaultsForLength(18).cost, 474032);
+  for (const length of BUS_MODEL_LENGTH_OPTIONS) {
+    const specs = getBusModelDefaultsForLength(length);
+    assert.equal(specs.battery_pack_cost_chf / specs.battery_pack_size_kwh, 257);
+    assert.equal(specs.battery_pack_cost_chf, 10280);
+  }
+  assert.equal(INFRAS_BUS_COST_REFERENCE.url.endsWith('#page=45'), true);
+});
+
+test("the unsupported 9 m price is an explicit rounded 9/12 estimate", () => {
+  assert.equal(getBusModelDefaultsForLength(9).cost, 253781);
+  assert.equal(getBusModelDefaultsForLength(9).cost, Math.round(getBusModelDefaultsForLength(13).cost * 9 / 12));
+  for (const lang of ['en','it','de','fr']) {
+    for (const key of ['cost_infras_source','cost_infras_midi','cost_infras_standard','cost_infras_articulated','cost_infras_open','battery_cost_infras_tooltip']) {
+      const value = translations[lang][`buses.${key}`];
+      assert.ok(value, `${lang}: ${key}`);
+      const params = text => [...text.matchAll(/\{([^}]+)\}/g)].map(match => match[1]).sort();
+      assert.deepEqual(params(value), params(translations.en[`buses.${key}`]), `${lang}: ${key} parameters`);
     }
   }
 });

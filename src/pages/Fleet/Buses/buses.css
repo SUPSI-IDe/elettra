@@ -243,3 +243,22 @@
     justify-content: flex-end;
   }
 }
+
+.add-bus-model a.vehicle-category-info {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Keep the longer source references above their fields, clear of the footer. */
+.add-bus-model [data-role="cost-info"]::after,
+.add-bus-model [data-role="battery-cost-info"]::after {
+  --tooltip-enter-offset: 0.2rem;
+  top: auto;
+  bottom: calc(100% + var(--space-2xs));
+}
+@media (max-width: 700px) {
+  .add-bus-model [data-role="cost-info"]::after,
+  .add-bus-model [data-role="battery-cost-info"]::after {
+    max-width: 60vw;
+  }
+}

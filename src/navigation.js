@@ -418,9 +418,9 @@ export const initializeNavigation = (root = document) => {
   });
 
   document.addEventListener(I18N_CHANGE_EVENT, () => {
-    // The composer translates its dynamic state in place. Reloading this
-    // partial would discard an unsaved programme when changing language.
-    if (root.querySelector('form.shift-composer')) return;
+    // These editors translate their dynamic state in place. Reloading their
+    // partial would discard an unsaved programme or edited vehicle prices.
+    if (root.querySelector('form.shift-composer, form[data-form="add-bus-model"]')) return;
     if (!currentRoute.slug) {
       return;
     }

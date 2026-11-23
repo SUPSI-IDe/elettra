@@ -7,7 +7,7 @@ import {
   buildBusModelEditRequestBody,
 } from "../../../api";
 import { fetchLcaVehicles } from "../../../api/environmental";
-import { getBusModelDefaultsForLength } from "../../../config/bus-model-defaults";
+import { getBusModelDefaultsForLength, INFRAS_BUS_COST_REFERENCE } from "../../../config/bus-model-defaults";
 import { AUXILIARY_CONSUMPTION_KW_DEFAULTS } from "../../../config/auxiliary-consumption-defaults";
 import {
   buildVehicleCategorySpecsForSubmission,
@@ -146,6 +146,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     '[data-role="vehicle-category-info"]'
   );
   const costInfo = form.querySelector('[data-role="cost-info"]');
+  const batteryCostInfo = form.querySelector('[data-role="battery-cost-info"]');
   const emptyWeightInfo = form.querySelector('[data-role="empty-weight-info"]');
   const busLengthInput = form.querySelector("#bus_length_m");
   const passengerCapacityInput = form.querySelector("#max_passengers");
@@ -197,11 +198,26 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
   };
 
   const updateCostTooltip = () => {
-    if (!costInfo) return;
-    const text = t("buses.cost_tooltip");
-    costInfo.dataset.tooltip = text;
-    costInfo.setAttribute("aria-label", text);
-    costInfo.setAttribute("title", text);
+    const length = Number(busLengthInput?.value);
+    const defaults = getBusModelDefaultsForLength(selectedVehicleCategory?.defaultSpecLength || length);
+    const source = t('buses.cost_infras_source');
+    const categoryKey = length === 9 ? 'buses.cost_infras_midi'
+      : length === 18 ? 'buses.cost_infras_articulated'
+      : length === 12 || length === 13 ? 'buses.cost_infras_standard' : '';
+    const setReference = (element, description) => {
+      if (!element) return;
+      const text = `${description} ${source} ${t('buses.cost_infras_open')}`;
+      element.href = INFRAS_BUS_COST_REFERENCE.url;
+      element.dataset.tooltip = text;
+      element.setAttribute('aria-label', text);
+      element.setAttribute('title', text);
+    };
+    setReference(costInfo, `${t('buses.cost_tooltip')} ${categoryKey ? t(categoryKey, { cost: defaults?.cost?.toLocaleString('de-CH') || '—' }) : ''}`);
+    setReference(batteryCostInfo, t('buses.battery_cost_infras_tooltip', {
+      cost: (defaults?.battery_pack_cost_chf ?? 40 * INFRAS_BUS_COST_REFERENCE.batteryChfPerKwh).toLocaleString('de-CH'),
+      capacity: defaults?.battery_pack_size_kwh ?? 40,
+      rate: INFRAS_BUS_COST_REFERENCE.batteryChfPerKwh,
+    }));
   };
 
   const updateEmptyWeightTooltip = () => {
@@ -219,6 +235,7 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       selectedVehicleCategory = category;
       applyVehicleCategory(category);
       updateVehicleCategoryTooltip(category);
+      updateCostTooltip();
     };
     vehicleCategorySelect.addEventListener("change", handleVehicleCategoryChange);
     cleanupHandlers.push(() =>
@@ -243,9 +260,8 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
   /* ── Edit and duplicate mode pre-fill ── */
   if (isEditMode || isDuplicateMode) {
     if (header) {
-      header.textContent = isEditMode
-        ? t("buses.edit_model")
-        : t("buses.add_model");
+      header.dataset.i18n = isEditMode ? "buses.edit_model" : "buses.add_model";
+      header.textContent = t(header.dataset.i18n);
     }
 
     const specs = parseSpecs(currentModel.specs);
@@ -269,6 +285,8 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       updateVehicleCategoryTooltip(category);
     }
   }
+
+  updateCostTooltip();
 
   const initialSpecFormState = captureBusModelSpecFormState(
     readRawSpecValues(new FormData(form)),
