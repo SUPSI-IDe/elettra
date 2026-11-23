@@ -164,7 +164,7 @@ test("bus model rows stay compact and expose details, duplicate, edit and delete
 
   await table.locator('[data-row-action="duplicate"]').click();
   await expect(page.locator("section.add-bus-model")).toBeVisible();
-  await expect(page.locator("#name")).toHaveValue("Electric 13 (copia)");
+  await expect(page.locator("#name")).toHaveValue("Electric 13_copia_1");
   await page.locator('section.add-bus-model button[type="submit"]').click();
   await expect.poll(() => createRequests).toBe(1);
   expect(updateRequests).toBe(0);
@@ -249,7 +249,7 @@ test("custom stop rows expose translated type and all popup fields with inline a
   await table.locator('[data-row-action="duplicate"]').click();
   await expect(page.locator("section.add-custom-stop")).toBeVisible();
   await expect(page.locator("#custom-stop-name")).toHaveValue(
-    "Central depot (copy)"
+    "Central depot_copy_1"
   );
   await expect(page.locator("#custom-stop-address")).toHaveValue("Depot road 4");
   await page.locator('section.add-custom-stop button[type="submit"]').click();

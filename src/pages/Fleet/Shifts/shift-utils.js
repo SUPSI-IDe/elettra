@@ -1,3 +1,4 @@
+import { appendCopyNameSuffix } from "../../../utils/copy-name.js";
 export const text = (value) =>
   value === null || value === undefined ? "" : String(value);
 
@@ -622,10 +623,10 @@ export const readShiftTripsFromStructure = (shift = {}) => {
 // create/edit form so nested `bus` payloads are handled too.
 export const buildDuplicateShiftPayload = (
   shift = {},
-  { copySuffix = "", untitledLabel = "" } = {}
+  { copySuffix = "", untitledLabel = "", existingNames = [] } = {}
 ) => {
   const baseName = text(shift?.name).trim() || untitledLabel;
-  const name = `${baseName} ${copySuffix}`.trim();
+  const name = appendCopyNameSuffix(baseName, copySuffix, existingNames);
 
   const busId = firstAvailable(
     shift?.bus_id,

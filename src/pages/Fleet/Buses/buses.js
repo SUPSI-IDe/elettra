@@ -1,3 +1,4 @@
+import { appendCopyNameSuffix } from "../../../utils/copy-name";
 import { t } from "../../../i18n";
 import "./buses.css";
 import {
@@ -430,14 +431,15 @@ export const initializeBuses = async (root = document, options = {}) => {
 
     button.disabled = true;
     try {
-      const busModel = await loadBusModelDetail(id);
+      const [busModel, existing] = await Promise.all([loadBusModelDetail(id),
+        action === "duplicate" ? fetchAllBusModels({ userId: cachedUserId }) : []]);
       if (action === "edit") {
         triggerPartialLoad("add-bus-model", { busModel });
       } else if (action === "duplicate") {
         triggerPartialLoad("add-bus-model", {
           busModel: {
             ...busModel,
-            name: `${busModel?.name ?? ""} ${t("common.copy_suffix")}`.trim(),
+            name: appendCopyNameSuffix(busModel?.name, t("common.copy_name_suffix"), existing.map(item => item.name)),
           },
           duplicate: true,
         });

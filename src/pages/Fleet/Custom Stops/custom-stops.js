@@ -1,3 +1,4 @@
+import { appendCopyNameSuffix } from "../../../utils/copy-name";
 import { t } from "../../../i18n";
 import "./custom-stops.css";
 import { deleteDepot, fetchAllDepots, fetchDepotById } from "../../../api";
@@ -352,10 +353,11 @@ export const initializeCustomStops = async (root = document, options = {}) => {
       if (action === "edit") {
         triggerPartialLoad("add-custom-stop", { depot });
       } else if (action === "duplicate") {
+        const existing = await fetchAllDepots();
         triggerPartialLoad("add-custom-stop", {
           depot: {
             ...depot,
-            name: `${depot?.name ?? ""} ${t("common.copy_suffix")}`.trim(),
+            name: appendCopyNameSuffix(depot?.name, t("common.copy_name_suffix"), existing.map(item => item.name)),
           },
           duplicate: true,
         });

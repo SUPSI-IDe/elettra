@@ -6,6 +6,7 @@ import {
   deleteShift,
   fetchShiftById,
   fetchShifts,
+  fetchAllShifts,
   fetchBusById,
   fetchAllBusModels,
   fetchStopsByTripId,
@@ -978,9 +979,10 @@ export const initializeShifts = async (root = document, options = {}) => {
       button.disabled = true;
       setFlashMessage(section, "");
       try {
-        const shift = await fetchShiftById(id);
+        const [shift, existing] = await Promise.all([fetchShiftById(id), fetchAllShifts({ userId: await resolveUserId() })]);
         const { name, busId, tripIds } = buildDuplicateShiftPayload(shift, {
-          copySuffix: t("shifts.copy_suffix"),
+          copySuffix: t("common.copy_name_suffix"),
+          existingNames: existing.map(item => item.name),
           untitledLabel: t("shifts.untitled_shift"),
         });
         await createShift({ name, busId, tripIds });

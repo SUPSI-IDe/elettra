@@ -1257,12 +1257,16 @@ export const initializeSimulationRuns = async (
       return;
     }
 
+    let existingNames;
+    try { existingNames = (await fetchAllOptimizationRuns()).map(item => resolveRunName(item)); }
+    catch (error) { setFlashMessage(section, t('simulation.duplicate_load_failed')); return; }
     triggerPartialLoad("add-simulation", {
       prefill: {
         name: appendCopyNameSuffix(
           resolveRunName(run) ||
             getOptimizationRunDisplayName(run, resolveShiftLabel(run)),
           t("common.copy_name_suffix"),
+          existingNames,
         ),
         shiftIds: resolveShiftIds(run),
         optimizationMode: resolveRunMode(run) || "battery_only",

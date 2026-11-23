@@ -10,6 +10,7 @@ import { textContent } from "../../../ui-helpers";
 import { MODE_LABELS, MODE_LABEL_KEYS } from "./yearly-analysis-store";
 import {
   fetchYearlyAnalyses,
+  fetchAllYearlyAnalyses,
   fetchYearlyAnalysis,
   updateYearlyAnalysis,
   deleteYearlyAnalysis,
@@ -321,11 +322,15 @@ export const initializeYearlyAnalysisRuns = (root = document, options = {}) => {
           return;
         }
       }
+      let existingNames;
+      try { existingNames = (await fetchAllYearlyAnalyses()).map(item => item.name || buildAnalysisName(item)); }
+      catch (error) { setFlashMessage(section, error?.message || t('yearly_analysis.failed_load')); return; }
       triggerPartialLoad("create-yearly-analysis", {
         prefill: {
           name: appendCopyNameSuffix(
             analysis.name || buildAnalysisName(analysis),
             t("common.copy_name_suffix"),
+            existingNames,
           ),
           optimizationRunId: analysis.optimization_run_id,
           occupancyPercent: analysis.features?.config?.occupancy_percent,

@@ -10,7 +10,7 @@ test("appends the copy suffix to the shift name", () => {
     { name: "40308", bus_id: "bus-1", structure: [] },
     OPTS
   );
-  assert.equal(payload.name, "40308 (copy)");
+  assert.equal(payload.name, "40308_copy_1");
 });
 
 test("falls back to the untitled label when the name is missing", () => {
@@ -18,7 +18,7 @@ test("falls back to the untitled label when the name is missing", () => {
     { bus_id: "bus-1", structure: [] },
     OPTS
   );
-  assert.equal(payload.name, "Untitled shift (copy)");
+  assert.equal(payload.name, "Untitled shift_copy_1");
 });
 
 test("resolves busId from top-level bus_id", () => {
