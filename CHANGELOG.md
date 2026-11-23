@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0-rc.2] - 2026-11-23
+
+- Enter actual bus lengths, with automatic Mobitool class selection and interpolated vehicle prices. Choose LFP or NMC and retain manual pack mass and price overrides.
+- Use the backend project-horizon TCO for annual fleet and group views and JSON exports. Keep results consistent when assumptions change or a saved analysis is reopened.
+- Keep annual cost charts and the slider position stable during price and mileage edits while pending TCO requests are coalesced.
+- Accept fractional CHF estimates when editing annual economic assumptions. Pair with backend 1.8.0-rc.1.
+
 ## [1.3.0-rc.1] - 2026-11-23
 
 ### Added

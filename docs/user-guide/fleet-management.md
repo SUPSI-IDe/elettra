@@ -1,7 +1,7 @@
 # Fleet Management
 
 > Last updated: 2026-11-23
-> Interface baseline: Frontend v1.3.0-rc.1
+> Interface baseline: Frontend v1.3.0-rc.2
 
 The Fleet area contains reusable inputs for analyses: **Bus Models**, **Custom
 Stops**, and **Vehicle blocks**. The current interface works with bus models;
