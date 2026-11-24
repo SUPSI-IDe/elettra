@@ -1,7 +1,7 @@
 # Comparison and Export
 
 > Last updated: 2026-11-20
-> Interface baseline: Frontend v1.3.0-rc.2
+> Interface baseline: Frontend v1.3.0-rc.3
 
 The Analysis comparison page compares **two saved yearly analyses** side by
 side. It does not compare two feasibility runs directly, and it is not limited

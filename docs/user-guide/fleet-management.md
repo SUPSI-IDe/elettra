@@ -1,7 +1,7 @@
 # Fleet Management
 
-> Last updated: 2026-11-23
-> Interface baseline: Frontend v1.3.0-rc.2
+> Last updated: 2026-11-24
+> Interface baseline: Frontend v1.3.0-rc.3
 
 The Fleet area contains reusable inputs for analyses: **Bus Models**, **Custom
 Stops**, and **Vehicle blocks**. The current interface works with bus models;
@@ -39,9 +39,12 @@ Enter your own values when operator or manufacturer data are available. Use
 | Battery | Chemistry, minimum and maximum pack count, capacity per pack, cost per pack, mass per pack, battery lifetime |
 | Charging | Maximum charging power accepted by the vehicle |
 
-Minimum and maximum pack counts define the configurations available to the
-optimizer. Pack capacity and the configured usable SOC determine available
-energy; pack mass also changes the vehicle mass used by the prediction model.
+The form multiplies the minimum and maximum pack counts by the nominal pack
+capacity to show the available range in kWh. It also displays the current
+pack price divided by its nominal capacity in CHF/kWh. These figures update
+as you edit the model. The feasibility study sets the usable energy from the
+state of health and the operating SOC limits. Pack mass also affects the
+vehicle mass used to predict consumption.
 
 ### List actions
 

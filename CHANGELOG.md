@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.0-rc.3] - 2026-11-24
+
+- Show minimum and maximum nominal battery capacity and the current price per kWh in the bus model form. Usable capacity is set in the feasibility study.
+- Align inputs when labels wrap in the bus battery panel, intermediate stays and charging infrastructure costs.
+
 ## [1.3.0-rc.2] - 2026-11-23
 
 - Enter actual bus lengths, with automatic Mobitool class selection and interpolated vehicle prices. Choose LFP or NMC and retain manual pack mass and price overrides.

@@ -1,7 +1,7 @@
 import { useCaseSections } from "./use-cases.js";
 
-export const GUIDE_BASELINE_VERSION = "1.3.0-rc.2";
-export const GUIDE_UPDATED_AT = "23 November 2026";
+export const GUIDE_BASELINE_VERSION = "1.3.0-rc.3";
+export const GUIDE_UPDATED_AT = "24 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -233,7 +233,7 @@ export const guideContent = {
           { title: "Vehicle and battery estimates", text: "The vehicle price excludes batteries and is estimated from tender prices by vehicle length, with extrapolation from 18 to 19 m. The price and mass per battery pack are estimated from its capacity and chemistry. Prices are in CHF excluding VAT. You can enter your own values or use Restore estimate to apply the current estimate again." },
           {
             title: "Battery limits",
-            text: "Minimum and maximum pack counts, pack capacity and pack mass define the battery configurations the feasibility calculation may use. Maximum charging power limits the power accepted by the vehicle.",
+            text: "Minimum and maximum pack counts, pack capacity and pack mass define the battery configurations the feasibility calculation may use. Maximum charging power limits the power accepted by the vehicle. The form shows the nominal capacity range and current pack price per kWh. Usable capacity is set in the feasibility study.",
           },
           {
             title: "Custom stops",
@@ -498,7 +498,7 @@ export const guideContent = {
       baselineLabel: "Stand der Benutzeroberfläche",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Handbuch aktualisiert",
-      updatedValue: "23. November 2026",
+      updatedValue: "24. November 2026",
       footer:
         "ELETTRA unterstützt Vorstudien. Endgültige Fahrzeug-, Lade-, Netz- und Infrastrukturentscheidungen müssen durch eine detaillierte Fachplanung bestätigt werden.",
       skipLink: "Zum Handbuch springen",
@@ -556,7 +556,7 @@ export const guideContent = {
         items: [
           { title: "Busmodelle", text: "Öffnen Sie Flotte → Busmodelle und wählen Sie Busmodell hinzufügen. Geben Sie eine Fahrzeuglänge von 9 bis 13 m oder von 17 bis 19 m ein und wählen Sie die Batteriechemie (LFP oder NMC). Prüfen Sie vor dem Speichern alle technischen und wirtschaftlichen Pflichtfelder. Ersetzen Sie Standardwerte durch Betreiber- oder Herstellerdaten, wenn diese verfügbar sind." },
           { title: "Schätzwerte für Fahrzeug und Batterie", text: "Der Fahrzeugpreis ohne Batterien wird anhand von Ausschreibungspreisen nach Fahrzeuglänge geschätzt und von 18 bis 19 m extrapoliert. Preis und Masse pro Batteriepack werden anhand der Kapazität und Batteriechemie geschätzt. Die Preise sind in CHF exkl. MWST angegeben. Sie können eigene Werte eingeben oder mit «Schätzwert wiederherstellen» erneut den aktuellen Schätzwert übernehmen." },
-          { title: "Batteriegrenzen", text: "Minimale und maximale Packzahl, Packkapazität und Packmasse definieren die zulässigen Batteriekonfigurationen. Die maximale Ladeleistung begrenzt die vom Fahrzeug aufnehmbare Leistung." },
+          { title: "Batteriegrenzen", text: "Minimale und maximale Packzahl, Packkapazität und Packmasse definieren die zulässigen Batteriekonfigurationen. Die maximale Ladeleistung begrenzt die vom Fahrzeug aufnehmbare Leistung. Das Formular zeigt den Bereich der Nennkapazität und den aktuellen Packpreis pro kWh. Die nutzbare Kapazität wird in der Machbarkeitsstudie festgelegt." },
           { title: "Benutzerdefinierte Haltestellen", text: "Öffnen Sie Flotte → Benutzerdefinierte Haltestellen und wählen Sie den Typ. Geben Sie Adresse oder Koordinaten ein oder setzen Sie den Punkt auf der Karte. Details öffnet einen einheitlichen schreibgeschützten Dialog; Bearbeiten unterstützt auch ältere Haltestellen, deren gespeicherte Daten dem aktuellen Formular vorausgehen. Verwenden Sie eindeutige Namen für Depots, Ladeorte und Knoten." },
           { title: "Modelle und individuelle Haltestellen duplizieren", text: "Duplizieren in der jeweiligen Zeile öffnet eine editierbare Kopie. Namen werden innerhalb der ursprünglichen Namensfamilie fortlaufend vergeben: Linie A_Kopie_1, Linie A_Kopie_2 usw., auch beim Kopieren einer Kopie. Die nächste Zahl folgt auf die höchste vorhandene Kopiennummer über alle Listenseiten. Dieselbe Regel gilt für Fahrzeugumläufe, Machbarkeitsbewertungen und Jahresanalysen. Der vorgeschlagene Name bleibt editierbar." },
         ],
@@ -686,7 +686,7 @@ export const guideContent = {
       baselineLabel: "Version de référence de l’interface",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guide mis à jour",
-      updatedValue: "23 novembre 2026",
+      updatedValue: "24 novembre 2026",
       footer:
         "ELETTRA soutient les études de préfaisabilité. Les décisions finales relatives aux véhicules, à la recharge, au réseau et aux infrastructures doivent être confirmées par des études d’ingénierie détaillées.",
       skipLink: "Accéder au guide",
@@ -730,7 +730,7 @@ export const guideContent = {
         items: [
           { title: "Modèles de bus", text: "Ouvrez Flotte → Modèles de bus et sélectionnez Ajouter un modèle de bus. Saisissez une longueur de 9 à 13 m ou de 17 à 19 m et sélectionnez la chimie de la batterie (LFP ou NMC). Vérifiez les champs techniques et économiques requis avant d’enregistrer. Remplacez les valeurs par défaut lorsque des données d’opérateur ou de constructeur sont disponibles." },
           { title: "Estimations pour le véhicule et la batterie", text: "Le prix du véhicule hors batterie est estimé à partir de prix d’appels d’offres selon la longueur du véhicule, avec extrapolation de 18 à 19 m. Le prix et la masse par pack sont estimés à partir de sa capacité et de sa chimie. Les prix sont exprimés en CHF hors TVA. Vous pouvez saisir vos propres valeurs ou utiliser « Rétablir l’estimation » pour appliquer de nouveau l’estimation actuelle." },
-          { title: "Limites de batterie", text: "Les nombres minimal et maximal de packs, leur capacité et leur masse définissent les configurations utilisables par le calcul. La puissance maximale de recharge limite la puissance acceptée par le véhicule." },
+          { title: "Limites de batterie", text: "Les nombres minimal et maximal de packs, leur capacité et leur masse définissent les configurations utilisables par le calcul. La puissance maximale de recharge limite la puissance acceptée par le véhicule. Le formulaire affiche la plage de capacité nominale et le prix actuel du pack par kWh. La capacité utilisable est définie dans l’étude de faisabilité." },
           { title: "Arrêts personnalisés", text: "Ouvrez Flotte → Arrêts personnalisés et choisissez le type. Saisissez une adresse ou des coordonnées, ou placez le point sur la carte. Détails ouvre un dialogue cohérent en lecture seule; Modifier prend aussi en charge les anciens arrêts dont les données précèdent le formulaire actuel. Utilisez des noms clairs pour les dépôts, points de recharge et pôles." },
           { title: "Dupliquer les modèles et arrêts personnalisés", text: "Utilisez Dupliquer sur la ligne concernée pour ouvrir une copie modifiable. Les noms progressent dans la famille du nom initial : Ligne A_copie_1, Ligne A_copie_2, etc., même en copiant une copie. Le numéro suivant vient après le plus grand numéro existant, toutes pages de la liste comprises. La même règle s’applique aux services voiture, évaluations de faisabilité et analyses annuelles. Le nom proposé reste modifiable." },
         ],
@@ -860,7 +860,7 @@ export const guideContent = {
       baselineLabel: "Versione di riferimento dell’interfaccia",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guida aggiornata",
-      updatedValue: "23 novembre 2026",
+      updatedValue: "24 novembre 2026",
       footer:
         "ELETTRA supporta studi di prefattibilità. Le decisioni finali su veicoli, ricarica, rete e infrastrutture devono essere confermate mediante una progettazione tecnica dettagliata.",
       skipLink: "Vai alla guida",
@@ -904,7 +904,7 @@ export const guideContent = {
         items: [
           { title: "Modelli di autobus", text: "Aprire Flotta → Modelli di autobus e selezionare Aggiungi modello. Inserire una lunghezza da 9 a 13 m o da 17 a 19 m e scegliere la chimica della batteria (LFP o NMC). Verificare i campi tecnici ed economici obbligatori prima di salvare. Sostituire i valori predefiniti quando sono disponibili dati dell’operatore o del costruttore." },
           { title: "Stime per il veicolo e la batteria", text: "Il prezzo del veicolo senza batterie è stimato a partire dai prezzi di gara in funzione della lunghezza del veicolo, con estrapolazione da 18 a 19 m. Il prezzo e la massa di ogni pacco batteria sono stimati a partire dalla sua capacità e dalla sua chimica. I prezzi sono in CHF, IVA esclusa. È possibile inserire valori propri o usare «Ripristina stima» per riapplicare la stima corrente." },
-          { title: "Limiti della batteria", text: "Numero minimo e massimo di pacchi, capacità e massa definiscono le configurazioni utilizzabili dal calcolo. La potenza massima di ricarica limita la potenza accettata dal veicolo." },
+          { title: "Limiti della batteria", text: "Numero minimo e massimo di pacchi, capacità e massa definiscono le configurazioni utilizzabili dal calcolo. La potenza massima di ricarica limita la potenza accettata dal veicolo. Il modulo mostra la capacità nominale minima e massima e il prezzo corrente del pacco per kWh. La capacità utilizzabile si definisce nello studio di fattibilità." },
           { title: "Fermate personalizzate", text: "Aprire Flotta → Fermate personalizzate e scegliere il tipo. Cercare un indirizzo sulla mappa oppure posizionare il mirino spostando la mappa; le coordinate vengono aggiornate automaticamente. Dettagli apre una finestra coerente in sola lettura; Modifica supporta anche le fermate storiche salvate prima del modulo attuale. Usare nomi chiari per depositi, punti di ricarica e nodi." },
           { title: "Duplicare modelli e fermate personalizzate", text: "Usare Duplica sulla riga interessata per aprire una copia modificabile. I nomi proseguono nella famiglia del nome originale: Linea A_copia_1, Linea A_copia_2 e così via, anche copiando una copia. Il numero successivo segue il più alto già esistente, considerando tutte le pagine dell’elenco. La stessa regola vale per turni macchina, valutazioni di fattibilità e analisi annuali. Il nome proposto resta modificabile." },
         ],
