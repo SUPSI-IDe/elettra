@@ -57,6 +57,44 @@ test('create inserts an intermediate depot stay and saves four connections in or
   expect(saved.filter(id => !id.startsWith('created-'))).toEqual(trips.map(trip => trip.id));
 });
 
+test('create aligns Italian stay fields on desktop and stacks them in order on mobile', async ({ page, composer }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await composer({ application: true, entry: 'shift-form' });
+  await page.locator('.language-select').selectOption('it');
+  await configure(page);
+  await page.locator('[data-action="add-trip"]').first().click();
+  await page.locator('[data-action="add-stay"]').click();
+
+  const grid = page.locator('.depot-stay-fields');
+  const stopLabel = grid.locator('label[for="stay-0-depot"]');
+  await expect(stopLabel).toHaveText('Fermata personalizzata');
+  // Reproduce the wrapped label regardless of the installed or loaded font.
+  await page.addStyleTag({ content: 'label[for="stay-0-depot"] { max-inline-size: min-content; }' });
+
+  const fields = ['depot', 'arrivalTime', 'arrivalTime-day', 'departureTime', 'departureTime-day'];
+  const controls = fields.map(field => `#stay-0-${field}`);
+  for (const selector of controls) await expect(grid.locator(selector)).toBeVisible();
+  const measure = () => grid.locator(controls.join(', ')).evaluateAll(elements => Object.fromEntries(elements.map(element => {
+    const { left, top, bottom } = element.getBoundingClientRect();
+    return [element.id.slice('stay-0-'.length), { left, top, bottom }];
+  })));
+
+  const desktop = await measure();
+  const [stop, arrival, departure] = [desktop.depot, desktop.arrivalTime, desktop.departureTime];
+  expect(arrival.left).toBeGreaterThan(stop.left);
+  expect(departure.left).toBeGreaterThan(arrival.left);
+  expect(Math.abs(stop.top - arrival.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(departure.top - arrival.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(desktop['arrivalTime-day'].top - desktop['departureTime-day'].top)).toBeLessThanOrEqual(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobile = await measure();
+  for (const [index, field] of fields.entries()) {
+    expect(Math.abs(mobile[field].left - mobile.depot.left), field).toBeLessThanOrEqual(1);
+    if (index > 0) expect(mobile[field].top, field).toBeGreaterThanOrEqual(mobile[fields[index - 1]].bottom);
+  }
+});
+
 test('a new period permits a different terminus; removing the stay restores continuity validation and Undo', async ({ page, composer }) => {
   const morning = trips[3], afternoon = { ...trips[4], start_stop_name: 'Different terminus' };
   const state = await composer({ trips: [morning, afternoon], depots: [{ id: 'depot', user_id: 'user', name: 'Punto di interscambio', stop_id: 'custom-stop', features: { type: 'hub' } }] });

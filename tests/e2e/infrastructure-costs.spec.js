@@ -1,13 +1,14 @@
 import {test,expect} from '@playwright/test';
 
-for (const mode of ['battery_only', 'joint']) test(`advanced costs and uniform battery sizing in ${mode}`,async({page})=>{
-  const departure='11111111-1111-4111-8111-111111111111';
-  const arrival='22222222-2222-4222-8222-222222222222';
+const departure='11111111-1111-4111-8111-111111111111';
+const arrival='22222222-2222-4222-8222-222222222222';
+
+async function openFeasibilityWithCosts(page, language = 'en') {
   const model={id:'model',user_id:'user',name:'Test bus',specs:{min_battery_packs:10,max_battery_packs:16,battery_pack_size_kwh:50,battery_pack_cost_chf:6000}};
   const shifts=['one','two'].map(id=>({id,name:id,bus_id:'bus',structure:[{trip_id:'trip-'+id,sequence_number:1,trip_type:'auxiliary'}]}));
   const predictions=shifts.map(shift=>({id:'prediction-'+shift.id,shift_id:shift.id,status:'completed',contextual_parameters:{num_battery_packs:16}}));
   let submitted;
-  await page.addInitScript(()=>{localStorage.setItem('access_token','test');localStorage.setItem('elettra_lang','en');});
+  await page.addInitScript(lang=>{localStorage.setItem('access_token','test');localStorage.setItem('elettra_lang',lang);}, language);
   await page.route('**/auth/me',route=>route.fulfill({json:{id:'user',email:'local@example.invalid'}}));
   await page.route('**/api/v1/**',route=>{
     const request=route.request(),path=new URL(request.url()).pathname;
@@ -28,6 +29,11 @@ for (const mode of ['battery_only', 'joint']) test(`advanced costs and uniform b
     return route.fulfill({json:data});
   });
   await page.goto('./#add-simulation');
+  return () => submitted;
+}
+
+for (const mode of ['battery_only', 'joint']) test(`advanced costs and uniform battery sizing in ${mode}`,async({page})=>{
+  const getSubmitted = await openFeasibilityWithCosts(page);
   await page.locator('#simulation-name').fill('Daily cycle');
   const boxes=page.getByRole('checkbox',{name:'Select vehicle block',exact:true});
   await boxes.nth(0).check();await boxes.nth(1).check();
@@ -59,7 +65,8 @@ for (const mode of ['battery_only', 'joint']) test(`advanced costs and uniform b
   if (mode === 'battery_only') await page.locator('#var-optimization-mode').selectOption(mode);
   await page.getByRole('button',{name:'Start evaluation',exact:true}).click();
   await page.getByRole('dialog').getByRole('button',{name:'Start evaluation',exact:true}).click();
-  await expect.poll(()=>submitted?.daily_cycle).toBe(true);
+  await expect.poll(()=>getSubmitted()?.daily_cycle).toBe(true);
+  const submitted = getSubmitted();
   expect(submitted.depot_peak_shaving).toBe(true);
   expect(submitted.battery_cost_per_kwh).toBeUndefined();
   expect(submitted.mode).toBe(mode);
@@ -67,4 +74,29 @@ for (const mode of ['battery_only', 'joint']) test(`advanced costs and uniform b
   expect(submitted.charging_stations[0].slot_costs_chf).toBeUndefined();
   expect(submitted.charging_stations[0].cost_model).toMatchObject({point_cost_chf:125000,site_fixed_cost_chf:250000,connection_cost_per_kw_chf:250,station_type:'depot'});
   expect(submitted.charging_stations[0]).toMatchObject({stop_id:arrival,num_slots:1,max_total_power_kw:80,max_power_per_slot_kw:150});
+});
+
+test('aligns the infrastructure cost inputs across wrapped Italian labels', async ({ page }) => {
+  await page.setViewportSize({ width: 1680, height: 900 });
+  await openFeasibilityWithCosts(page, 'it');
+  await page.locator('.shift-table tbody input[type="checkbox"]').first().check();
+  await page.locator('#var-optimization-mode').selectOption('joint');
+  await page.locator('[data-role="cost-options"] summary').click();
+
+  const card = page.locator(`[data-cost-stop-id="${arrival}"]`);
+  const inputs = card.getByRole('spinbutton');
+  await expect(inputs).toHaveCount(3);
+  await expect(card.getByRole('spinbutton', { name: 'Quota fissa per sito (CHF)' })).toBeVisible();
+
+  for (const width of [1680, 720]) {
+    await test.step(`Align the three cost inputs at ${width}px`, async () => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.evaluate(async () => { await document.fonts.ready; });
+      const boxes = await inputs.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().toJSON()));
+      const tops = boxes.map(box => box.top);
+      expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1);
+      expect(boxes[0].right).toBeLessThan(boxes[1].left);
+      expect(boxes[1].right).toBeLessThan(boxes[2].left);
+    });
+  }
 });

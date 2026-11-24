@@ -395,6 +395,12 @@
 .station-cost-card { border: 1px solid var(--border-color, #ddd); border-radius: .5rem; padding: 1rem; margin-top: 1rem; }
 .station-cost-card[hidden] { display:none; }
 .station-cost-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(10rem,1fr)); gap:1rem; margin-top:.75rem; }
+/* Keep inputs aligned below labels that wrap onto different numbers of lines. */
+.station-cost-fields > label {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
 .station-cost-fields input { width:100%; min-width:9ch; box-sizing:border-box; }
 .add-simulation [data-role="bus-pack-cost"] { display:inline-block; padding:.5rem 0; }
 

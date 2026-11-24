@@ -1755,6 +1755,16 @@
 .depot-stay { border: 1px solid var(--border-color, #ccd5d3); border-radius: .6rem; margin: 1rem 0; padding: .8rem; min-width: 0; }
 .depot-stay legend { font-weight: 600; padding-inline: .35rem; }
 .depot-stay-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin-block: .75rem; }
+@media (width > 640px) {
+  .depot-stay-fields > div {
+    display: grid;
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+    align-items: start;
+  }
+}
 .depot-stay-fields label, .depot-stay-add label { display: block; margin-bottom: .35rem; }
 .depot-stay-fields input, .depot-stay-fields select, .depot-stay-add select { width: 100%; min-width: 0; box-sizing: border-box; }
 .depot-stay-time select { margin-top: .4rem; }
