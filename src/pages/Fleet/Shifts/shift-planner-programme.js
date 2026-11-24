@@ -12,8 +12,7 @@ export const plannerTime = (seconds) => {
 
 export const plannerInputTime = (value) => {
   const seconds = typeof value === "number" ? value : plannerTimeSeconds(value);
-  const canonical = plannerTime(seconds);
-  return canonical.endsWith(":00") ? canonical.slice(0, -3) : canonical;
+  return plannerTime(seconds).slice(0, -3);
 };
 
 export const plannerDisplayTime = (value) => {
@@ -94,7 +93,8 @@ export const evaluatePlannerStep = (step, previous, { trips, depots, depotId }, 
     errors.push("missing_location");
   }
   if (previous.time === null || transferDeparture === null || transferArrival === null) {
-    errors.push("time_format");
+    const arrival = kind === "service" ? step.transfer_arrival : step.arrival;
+    errors.push(previous.time !== null && (step.transfer_departure === "" || arrival === "") ? "time_required" : "time_format");
   } else if (transferDeparture < previous.time || (first && transferDeparture !== previous.time)) {
     errors.push(first ? "start_departure" : "departure_conflict");
   } else if (transferArrival < transferDeparture) {
@@ -112,8 +112,9 @@ export const evaluatePlannerStep = (step, previous, { trips, depots, depotId }, 
       (transferArrival !== null && transferArrival > serviceDeparture))) {
     errors.push("service_conflict");
   }
-  if (kind === "stay" && (stayDeparture === null || (transferArrival !== null && stayDeparture < transferArrival))) {
-    errors.push("stay_conflict");
+  if (kind === "stay") {
+    if (stayDeparture === null) errors.push(step.departure ? "time_format" : "time_required");
+    else if (transferArrival !== null && stayDeparture < transferArrival) errors.push("stay_conflict");
   }
 
   const next = kind === "service" ? { ...tripStop(trip, "to"), time: serviceArrival }

@@ -32,6 +32,90 @@ const programmeFixture = (request) => {
   return plannerApi(request);
 };
 
+test("enters clocks in minutes and rounds road travel time across midnight", async ({ page, composer }) => {
+  const earlyArrival = plannerCatalog.map(trip => trip.id === "night-a" ? { ...trip, arrival_time: "23:57:00" } : trip);
+  await composer({ application: true, entry: "shifts", depots: [
+    { id: "depot", user_id: "user", name: "Main depot", stop_id: "depot-stop" },
+    { id: "second", user_id: "user", name: "Second depot", stop_id: "second-stop" },
+    { id: "nearby", user_id: "user", name: "Nearby depot", stop_id: "nearby-stop" },
+  ], respond: (request) => {
+    if (request.path.endsWith("/shift-planner/catalog")) return { json: earlyArrival };
+    if (request.path.endsWith("/shift-planner/route") && request.url.searchParams.get("from_stop_id") === "b1") {
+      const seconds = { "depot-stop": 390, "second-stop": 389.9, "nearby-stop": 10 };
+      return { json: { duration_seconds: seconds[request.url.searchParams.get("to_stop_id")] } };
+    }
+    return plannerApi(request);
+  } });
+  await plannerAction(page, "add-shift").click();
+  await plannerField(page, "weekday").selectOption("monday");
+  await plannerField(page, "depot").selectOption("depot");
+  const start = plannerField(page, "start-time");
+  await start.pressSequentially("0500");
+  await expect(start).toHaveValue("05:00");
+  await plannerField(page, "line").selectOption("line");
+  await plannerTrip(page, "night-a").click();
+  await expect(role(page, "draft")).toBeVisible();
+  await expect(role(page, "catalog")).toBeHidden();
+  await expect(plannerField(page, "line")).toBeHidden();
+  await expect(plannerAction(page, "choose-stay")).toBeHidden();
+  await expect(role(page, "review")).toBeHidden();
+  await expect(start).toBeDisabled();
+  await plannerAction(page, "cancel-step").click();
+  await expect(plannerTrip(page, "night-a")).toBeFocused();
+  await expect(plannerField(page, "line")).toHaveValue("line");
+  await expect(activity(page, 0)).toHaveCount(0);
+  await plannerTrip(page, "night-a").click();
+  await plannerAction(page, "confirm-step").click();
+  await plannerAction(page, "choose-stay").click();
+  await expect(role(page, "activity-choices")).toBeHidden();
+  await expect(activity(page, 0).locator('[data-action="remove-step"]')).toBeHidden();
+  const arrival = plannerField(page, "transfer-arrival");
+  const departure = plannerField(page, "stay-departure");
+  const conflict = role(page, "draft").locator('[data-role="step-conflict"]');
+  await expect(arrival).toHaveValue("24:04");
+  await expect(conflict).toHaveCount(0);
+  await expect(plannerAction(page, "confirm-step")).toBeDisabled();
+  await departure.fill("2403");
+  await expect(conflict).toContainText("before arrival");
+  await departure.fill("");
+  await expect(conflict).toHaveCount(0);
+  await plannerField(page, "stay-depot").selectOption("second");
+  await expect(arrival).toHaveValue("24:03");
+  await plannerField(page, "stay-depot").selectOption("nearby");
+  await expect(arrival).toHaveValue("23:58");
+  await arrival.fill("2405");
+  await plannerField(page, "transfer-departure").fill("2358");
+  await expect(arrival).toHaveValue("24:05");
+  await departure.fill("2460");
+  await expect(conflict).toContainText("HH:MM");
+  await departure.fill("2510");
+  await expect(departure).toHaveValue("25:10");
+  await plannerAction(page, "confirm-step").click();
+  await expect(activity(page, 1)).toContainText("00:05 (+1)–01:10 (+1)");
+});
+
+test("shows minute clocks and preserves untouched seconds on reopening a saved programme", async ({ page, composer }) => {
+  const programme = { ...storedProgramme.programme, start_time: "23:45:12", steps: [
+    { ...savedSteps[0], transfer_departure: "23:45:12", transfer_arrival: "23:50:18" },
+    savedSteps[1], { ...savedSteps[2], arrival: "24:50:43" },
+  ] };
+  const state = await composer({ application: true, entry: "shifts", respond: request =>
+    request.path.endsWith("/programmes/sequential") && request.method === "GET"
+      ? { json: { ...storedProgramme, programme } } : programmeFixture(request) });
+  await rowAction(page.locator('[data-id="sequential"]'), "edit").click();
+  await expect(plannerField(page, "start-time")).toHaveValue("23:45");
+  await activity(page, 0).locator('[data-action="edit-step"]').click();
+  await expect(plannerField(page, "transfer-departure")).toHaveValue("23:45");
+  await expect(plannerField(page, "transfer-arrival")).toHaveValue("23:50");
+  await plannerAction(page, "confirm-step").click();
+  await activity(page, 2).locator('[data-action="edit-step"]').click();
+  await expect(plannerField(page, "transfer-arrival")).toHaveValue("24:50");
+  await plannerAction(page, "confirm-step").click();
+  await plannerAction(page, "save").click();
+  await expect(page.locator("section.shifts")).toBeVisible();
+  expect(state.writes[0].body.programme).toEqual(programme);
+});
+
 test("creates one sequential programme across midnight and retries with the same request ID", async ({ page, composer }) => {
   let requests = 0;
   const state = await composer({ application: true, entry: "shifts", depots: [
@@ -68,14 +152,12 @@ test("creates one sequential programme across midnight and retries with the same
   await expect(role(page, "catalog").locator("[data-trip-id]").first()).toHaveAttribute("data-trip-id", "night-other");
   await plannerField(page, "include-other-termini").uncheck();
 
-  await plannerTrip(page, "night-b").click();
-  await expect(plannerField(page, "transfer-departure")).toHaveValue("24:15");
-  await expect(plannerField(page, "transfer-arrival")).toHaveValue("24:15");
+  const sisterPlatform = role(page, "catalog").locator('[data-trip-id="night-b"]');
+  await expect(sisterPlatform.locator("td.actions button")).toHaveText(["Add"]);
+  await sisterPlatform.locator('[data-action="add-direct-trip"]').click();
+  await expect(role(page, "draft")).toBeHidden();
+  await expect(activity(page, 1).locator('[data-action="edit-step"]')).toHaveCount(0);
   expect(state.reads.some((href) => href.includes("from_stop_id=b1&to_stop_id=b2"))).toBe(false);
-  await plannerField(page, "force-transfer").check();
-  await expect(role(page, "draft").locator('[data-role="step-conflict"]')).toContainText("positive travel time");
-  await plannerField(page, "force-transfer").uncheck();
-  await role(page, "catalog").locator('[data-trip-id="night-b"] [data-action="add-direct-trip"]').click();
 
   await plannerAction(page, "choose-stay").click();
   await expect(plannerField(page, "stay-depot").locator('option[value="charging"]')).toHaveText("Charging terminus");
@@ -171,12 +253,7 @@ test("reopens the saved sequence, marks an insertion conflict and undoes the ins
   await expect(activity(page, 1)).toContainText("00:15 (+1)–00:35 (+1)");
   await expect(activity(page, 2)).toHaveAttribute("data-kind", "return");
   await expect(plannerField(page, "weekday")).toHaveValue("monday");
-  await activity(page, 1).locator('[data-action="edit-step"]').click();
-  await expect(plannerField(page, "include-other-termini")).not.toBeChecked();
-  await expect(plannerTrip(page, "night-b")).toBeVisible();
-  await expect(plannerTrip(page, "night-other")).toHaveCount(0);
-  await plannerField(page, "include-other-termini").check();
-  await expect(plannerTrip(page, "night-other")).toBeVisible();
+  await expect(activity(page, 1).locator('[data-action="edit-step"]')).toHaveCount(0);
   await activity(page, 1).locator('[data-action="insert-before"]').click();
   await expect(plannerField(page, "include-other-termini")).not.toBeChecked();
   await expect(plannerTrip(page, "night-b")).toHaveCount(0);
@@ -193,7 +270,7 @@ test("reopens the saved sequence, marks an insertion conflict and undoes the ins
   });
   releaseEstimate();
   await (await estimated).finished();
-  await expect(arrival).toHaveValue("24:15");
+  await expect(arrival).toHaveValue("");
   await page.keyboard.insertText("24:20");
   await expect(arrival).toHaveValue("24:20");
   await expect(role(page, "draft-notice")).toContainText("15 min");
@@ -233,31 +310,68 @@ test("duplicates the complete persisted programme from the list", async ({ page,
 });
 
 
-test("allows an explicit timed transfer within the same station despite a short driving window", async ({ page, composer }) => {
+test("adds a same-stop service at GTFS times and preserves an older platform transfer on reopening", async ({ page, composer }) => {
+  const firstTrip = plannerCatalog.find(({ id }) => id === "night-a");
+  const legacyTrip = { ...plannerCatalog.find(({ id }) => id === "night-c"), arrival_time: "24:25:21" };
+  const directTrip = {
+    id: "night-loop", route_id: "line", line: "1",
+    from_stop_id: "last", to_stop_id: "last", from_name: "Last terminus", to_name: "Last terminus",
+    first_arrival: "24:25:29", departure_time: "24:26:37", arrival_time: "24:30:42",
+  };
+  const legacyStep = {
+    kind: "service", trip_id: legacyTrip.id, transfer_departure: "24:15:12", transfer_arrival: "24:16:35", force_transfer: true,
+  };
+  const directStep = {
+    kind: "service", trip_id: directTrip.id, transfer_departure: "24:25:21", transfer_arrival: "24:25:29",
+  };
+  const returnStep = { kind: "return", transfer_departure: "24:30:42", arrival: "24:50:00" };
+  const trips = [firstTrip, legacyTrip, directTrip];
+  let existing = {
+    ...storedProgramme,
+    trips,
+    programme: { ...storedProgramme.programme, steps: [savedSteps[0], legacyStep, returnStep] },
+  };
   const state = await composer({ application: true, entry: "shifts", respond: (request) => {
-    if (request.method === "POST" && request.path.endsWith("/shift-planner/programmes")) return { json: { id: "new" } };
-    return plannerApi(request);
+    if (request.path.endsWith("/shift-planner/catalog")) return { json: trips };
+    if (request.path.endsWith("/shift-planner/programmes/sequential")) {
+      if (request.method === "PUT") existing = { ...existing, programme: request.request.postDataJSON().programme };
+      return { json: existing };
+    }
+    return programmeFixture(request);
   } });
-  await plannerAction(page, "add-shift").click();
-  await startPlanner(page);
-  await plannerTrip(page, "night-a").click();
+  const editProgramme = rowAction(page.locator('[data-id="sequential"]'), "edit");
+  await editProgramme.click();
+  await expect(activity(page, 1)).toContainText("Transfer 00:15 (+1)–00:16 (+1)");
+  await activity(page, 1).locator('[data-action="edit-step"]').click();
+  await expect(plannerField(page, "transfer-departure")).toHaveValue("24:15");
+  await expect(plannerField(page, "transfer-arrival")).toHaveValue("24:16");
+  await expect(plannerField(page, "force-transfer")).toHaveCount(0);
+  await expect(role(page, "draft-notice")).toContainText("Available transfer time 1 min");
   await plannerAction(page, "confirm-step").click();
-  await plannerTrip(page, "night-c").click();
-  await plannerField(page, "force-transfer").check();
-  await plannerField(page, "transfer-arrival").fill("24:16");
-  await expect(role(page, "draft").locator('[data-role="step-warning"]')).toContainText("1 min");
-  await plannerAction(page, "confirm-step").click();
-  await plannerAction(page, "choose-return").click();
-  await expect(plannerField(page, "transfer-arrival")).toHaveValue("24:40");
-  await plannerAction(page, "confirm-step").click();
-  await plannerField(page, "name").fill("Forced transfer");
-  await plannerField(page, "bus").selectOption("bus");
+
+  await activity(page, 2).locator('[data-action="insert-before"]').click();
+  await plannerField(page, "line").selectOption("line");
+  const sameStop = role(page, "catalog").locator('[data-trip-id="night-loop"]');
+  await expect(sameStop.locator("td.actions button")).toHaveText(["Add"]);
+  await sameStop.locator('[data-action="add-direct-trip"]').click();
+  await expect(role(page, "draft")).toBeHidden();
+  await expect(activity(page, 2).locator('[data-action="edit-step"]')).toHaveCount(0);
+  await expect(activity(page, 2).locator('[data-action="insert-before"]')).toBeVisible();
+  await expect(activity(page, 2).locator('[data-action="remove-step"]')).toBeVisible();
+  expect(state.reads.some((href) => href.includes("from_stop_id=last&to_stop_id=last"))).toBe(false);
   await plannerAction(page, "save").click();
   await expect(page.locator("section.shifts")).toBeVisible();
-  expect(state.writes).toHaveLength(1);
-  expect(state.writes[0].body.programme.steps[1]).toEqual({
-    kind: "service", trip_id: "night-c", transfer_departure: "24:15:00", transfer_arrival: "24:16:00", force_transfer: true,
-  });
+  const expectedSteps = [savedSteps[0], legacyStep, directStep, returnStep];
+  expect(state.writes[0].body.programme.steps).toEqual(expectedSteps);
+
+  await editProgramme.click();
+  await expect(activity(page, 1)).toContainText("Transfer 00:15 (+1)–00:16 (+1)");
+  await expect(activity(page, 2)).toContainText("00:26 (+1)–00:30 (+1)");
+  await expect(activity(page, 2).locator('[data-action="edit-step"]')).toHaveCount(0);
+  await plannerAction(page, "save").click();
+  await expect(page.locator("section.shifts")).toBeVisible();
+  expect(state.writes).toHaveLength(2);
+  expect(state.writes[1].body.programme.steps).toEqual(expectedSteps);
 });
 
 test("opens an elevation profile without adding a trip and reuses it in the programme", async ({ page, composer }) => {

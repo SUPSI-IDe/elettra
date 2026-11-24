@@ -25,6 +25,18 @@ const items = (data) => Array.isArray(data) ? data : data?.items ?? data?.result
 const canStartAtDepot = (depot) => !depot?.features?.type || depot.features.type === "depot";
 const pairKey = (pair) => pair ? JSON.stringify([pair.from, pair.to]) : "";
 
+function formatClockEntry(input) {
+  const raw = input.value;
+  let formatted = raw;
+  if (/^\d{4}$/.test(raw)) formatted = raw.slice(0, 2) + ":" + raw.slice(2);
+  else if (/^\d:\d{2}$/.test(raw)) formatted = "0" + raw;
+  if (formatted === raw) return;
+  const caret = input.selectionStart;
+  input.value = formatted;
+  const offset = raw.includes(":") || caret > 2 ? 1 : 0;
+  input.setSelectionRange(caret + offset, caret + offset);
+}
+
 const replaceOptions = (select, placeholder, options) => {
   const selected = select.value;
   select.replaceChildren(
@@ -69,6 +81,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   let routesGeneration = 0;
   let cursor = null;
   let draft = null;
+  let catalogScrollTop = 0;
   let autoArrival = false;
   let ready = false;
   let saving = false;
@@ -79,7 +92,10 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   const dataset = () => datasets.find((entry) => datasetKey(entry) === field("dataset").value);
   const start = () => {
     const depotId = canStartAtDepot(depots.get(setup.depotId)) ? setup.depotId : "";
-    return getPlannerStart(depotId, field("start-time").value, depots);
+    const shown = field("start-time").value;
+    // Keep the precise departure of a saved programme until the operator edits it.
+    const startTime = shown === plannerInputTime(setup.startTime) ? setup.startTime : shown;
+    return getPlannerStart(depotId, startTime, depots);
   };
   const context = () => ({ trips, depots, depotId: setup.depotId });
   const results = () => evaluatePlannerProgramme(steps, start(), context());
@@ -154,13 +170,14 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   const renderCatalogueWarnings = (key) => {
     role("catalog").querySelectorAll("[data-trip-id]").forEach((row) => {
       const result = candidateResults.get(row.dataset.tripId);
-      if (result?.route && (!key || pairKey(result.route) === key)) {
+      if (result && (!key || pairKey(result.route) === key)) {
         row.querySelector('[data-role="candidate-notice"]').innerHTML = stepNotice(result, estimateFor(result.route));
       }
     });
   };
 
   const renderCatalog = () => {
+    if (draft) return;
     const element = role("catalog");
     const planned = canPlan();
     const current = previous();
@@ -199,7 +216,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
         return { trip, direct, result };
       });
     const emptyMessage = fromTerminus && !includeOtherTermini.checked ? "no_terminus_candidates" : "no_candidates";
-    element.innerHTML = candidates.length ? renderPlannerCandidates(candidates, draft?.trip_id)
+    element.innerHTML = candidates.length ? renderPlannerCandidates(candidates)
       : `<p>${html(label(emptyMessage, { place: current.name || "—", time: plannerDisplayTime(current.time) }))}</p>`;
     syncPreview("catalog");
     renderCatalogueWarnings();
@@ -237,7 +254,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   const renderDraft = () => {
     const element = role("draft");
     element.hidden = !draft;
-    element.innerHTML = draft ? renderPlannerDraft(draft, draftResult(), previous(), depots, insertion()) : "";
+    element.innerHTML = draft ? renderPlannerDraft(draft, draftResult(), depots, insertion()) : "";
     renderDraftNotice();
   };
 
@@ -257,10 +274,17 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
       });
     }
     role("next-activity").hidden = !planned;
-    field("weekday").disabled = Boolean(steps.length);
-    field("dataset").disabled = Boolean(steps.length) || !datasets.length;
-    field("depot").disabled = !field("weekday").value;
-    field("start-time").disabled = !field("weekday").value;
+    const editing = Boolean(draft);
+    section.classList.toggle("planner-editing-activity", editing);
+    role("activity-choices").hidden = editing;
+    role("review").hidden = editing;
+    action("back-to-end").hidden = editing;
+    action("undo").hidden = editing;
+    action("close").disabled = editing;
+    field("weekday").disabled = editing || Boolean(steps.length);
+    field("dataset").disabled = editing || Boolean(steps.length) || !datasets.length;
+    field("depot").disabled = editing || !field("weekday").value;
+    field("start-time").disabled = editing || !field("weekday").value;
     field("line").disabled = !planned || !routes.length;
     action("choose-return").disabled = !hasService() ||
       (cursor && !(cursor.replace && cursor.index === steps.length - 1));
@@ -279,10 +303,15 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
     const result = draftResult();
     const estimate = estimateFor(result.route);
     const departure = plannerTimeSeconds(draft.transfer_departure);
-    if (departure === null) return;
-    draft.arrival = plannerInputTime(departure + (estimate?.seconds ?? 0));
+    let arrival = null;
+    if (departure !== null) {
+      if (!result.route) arrival = departure;
+      else if (estimate?.status === "ready") arrival = Math.ceil(departure / 60) * 60 + estimate.seconds;
+    }
+    draft.arrival = plannerTime(arrival);
     const input = field("transfer-arrival");
-    if (input && input.value !== draft.arrival) input.value = draft.arrival;
+    const shown = plannerInputTime(arrival);
+    if (input && input.value !== shown) input.value = shown;
   };
 
   const startQueuedEstimates = () => {
@@ -308,7 +337,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
         (data) => {
           const seconds = data?.duration_seconds;
           handle(Number.isFinite(seconds) && seconds >= 0
-            ? { status: "ready", seconds: Math.ceil(seconds) }
+            ? { status: "ready", seconds: Math.max(pair.from === pair.to ? 0 : 1, Math.round(seconds / 60)) * 60 }
             : { status: "unavailable" });
         },
         () => handle({ status: "unavailable" }),
@@ -419,9 +448,12 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   };
 
   const editDraft = (next, { keepTimes = false } = {}) => {
+    catalogScrollTop = role("catalog").querySelector(".planner-catalog-scroll")?.scrollTop ?? 0;
+    closePreview();
     const current = previous();
     autoArrival = !keepTimes && next.kind !== "service";
-    const departure = plannerInputTime(current.time);
+    const departure = !keepTimes && next.kind !== "service" && insertion().index > 0
+      ? plannerTime(Math.ceil(current.time / 60) * 60) : plannerTime(current.time);
     if (keepTimes) {
       draft = { ...next };
       if (insertion().index === 0) draft.transfer_departure = departure;
@@ -431,7 +463,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
       if (next.kind !== "service") draft.arrival = departure;
     }
     const { route, transferArrival } = draftResult();
-    if (draft.kind === "service") draft.transfer_arrival ??= plannerInputTime(transferArrival);
+    if (draft.kind === "service") draft.transfer_arrival ??= plannerTime(transferArrival);
     requestEstimate(route, { priority: true });
     updateAutoArrival();
     render({ includeDraft: true });
@@ -458,6 +490,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   };
 
   const handleActivityAction = (name, index) => {
+    if (name === "edit-step" && steps[index].kind === "service" && results()[index].direct) return;
     if (name === "remove-step") {
       recordChange();
       steps = steps.filter((_, position) => position !== index);
@@ -466,10 +499,12 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
     }
     closeDraft();
     cursor = { index, replace: name === "edit-step" };
+    const step = steps[index];
+    const line = trips.get(step.trip_id)?.route_id;
+    if ((cursor.replace || !field("line").value) && line && routes.some(route => route.id === line)) {
+      field("line").value = line;
+    }
     if (cursor.replace) {
-      const step = steps[index];
-      const line = trips.get(step.trip_id)?.route_id;
-      if (line && routes.some((route) => route.id === line)) field("line").value = line;
       editDraft(step, { keepTimes: true });
     } else {
       render({ includeDraft: true });
@@ -482,6 +517,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
     const button = event.target.closest("button[data-action]");
     if (!button || button.disabled) return;
     const { action: name } = button.dataset;
+    if (draft && !["confirm-step", "cancel-step", "retry-estimate"].includes(name)) return;
     if (name === "close" || name === "cancel") {
       if (!saving) triggerPartialLoad("shifts");
       return;
@@ -497,9 +533,11 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
       return;
     }
     switch (name) {
-      case "select-trip":
-        editDraft({ kind: "service", trip_id: button.closest("[data-trip-id]").dataset.tripId });
+      case "select-trip": {
+        const tripId = button.closest("[data-trip-id]").dataset.tripId;
+        if (candidateResults.get(tripId)?.direct === false) editDraft({ kind: "service", trip_id: tripId });
         break;
+      }
       case "add-direct-trip": {
         const result = candidateResults.get(button.closest("[data-trip-id]").dataset.tripId);
         if (result?.direct && !result.errors.length) commitStep(result.step, result);
@@ -525,7 +563,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
         if (!snapshot) break;
         ({ steps, depotId: setup.depotId, startTime: setup.startTime } = snapshot);
         field("depot").value = setup.depotId;
-        field("start-time").value = setup.startTime;
+        field("start-time").value = plannerInputTime(setup.startTime) || setup.startTime;
         field("start-time").setCustomValidity("");
         finishChange();
         break;
@@ -533,12 +571,22 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
       case "back-to-end":
         finishChange();
         break;
-      case "cancel-step":
+      case "cancel-step": {
+        const { kind, trip_id: tripId } = draft;
+        const editedIndex = cursor?.replace ? cursor.index : null;
         closeDraft();
         if (cursor?.replace) cursor = null;
         render({ includeDraft: true });
-        section.querySelector("#planner-next-heading")?.focus();
+        const scroll = role("catalog").querySelector(".planner-catalog-scroll");
+        if (scroll) scroll.scrollTop = catalogScrollTop;
+        const opener = editedIndex !== null
+          ? role("programme").querySelector(`[data-step-index="${editedIndex}"] [data-action="edit-step"]`)
+          : kind === "service"
+            ? role("catalog").querySelector(`[data-trip-id="${CSS.escape(tripId)}"] [data-action="select-trip"]`)
+            : action(kind === "stay" ? "choose-stay" : "choose-return");
+        (opener ?? section.querySelector("#planner-next-heading")).focus();
         break;
+      }
       case "retry-catalog":
         void loadCatalog();
         break;
@@ -553,7 +601,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
 
   const handleChange = (event) => {
     const { field: name } = event.target.dataset;
-    const { value, checked } = event.target;
+    const { value } = event.target;
     if (name === "depot" || name === "start-time") {
       if (steps.length) recordChange();
       if (name === "depot") setup.depotId = value;
@@ -562,9 +610,15 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
         field(name).value = setup.startTime;
         event.target.setCustomValidity(value && plannerTimeSeconds(value) === null ? label("time_format") : "");
         if (value && plannerTimeSeconds(value) === null) event.target.reportValidity();
+        // Input already refreshed the list. Replacing its buttons during blur can swallow the pending click.
+        if (!draft) {
+          action("undo").disabled = !history.length;
+          requestProgrammeEstimates();
+          return;
+        }
       }
       if (draft) {
-        if (insertion().index === 0) draft.transfer_departure = plannerInputTime(start().time);
+        if (insertion().index === 0) draft.transfer_departure = plannerTime(start().time);
         requestEstimate(draftResult().route, { priority: true });
         updateAutoArrival();
       }
@@ -581,20 +635,18 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
       void loadCatalog();
     } else if (name === "include-other-termini") {
       renderCatalog();
-    } else if (draft && (name === "stay-depot" || name === "force-transfer")) {
-      if (name === "stay-depot") draft.depot_id = value;
-      else draft.force_transfer = checked;
+    } else if (draft && name === "stay-depot") {
+      draft.depot_id = value;
       requestEstimate(draftResult().route, { priority: true });
       updateAutoArrival();
-      if (name === "stay-depot") {
-        section.querySelector("#planner-draft-heading").textContent = activityTitle(draftResult());
-      }
+      section.querySelector("#planner-draft-heading").textContent = activityTitle(draftResult());
       renderDraftNotice();
     }
   };
 
   const handleInput = (event) => {
     const { field: name } = event.target.dataset;
+    if (event.target.hasAttribute("data-planner-clock") && !event.isComposing) formatClockEntry(event.target);
     const { value } = event.target;
     if (name === "start-time" && !draft) {
       render();
@@ -714,7 +766,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
       if (existing) {
         const programme = existing.programme;
         setup.depotId = programme.depot_id;
-        setup.startTime = plannerInputTime(programme.start_time);
+        setup.startTime = programme.start_time;
         field("name").value = existing.name;
         if (!Array.from(field("bus").options).some((option) => option.value === existing.bus_id)) {
           field("bus").add(new Option(existing.bus_id, existing.bus_id));
@@ -722,7 +774,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
         field("bus").value = existing.bus_id;
         field("weekday").value = programme.weekday;
         field("depot").value = setup.depotId;
-        field("start-time").value = setup.startTime;
+        field("start-time").value = plannerInputTime(setup.startTime);
         steps = programme.steps;
         revision = existing.revision;
         items(existing.trips).forEach((trip) => trips.set(trip.id, trip));

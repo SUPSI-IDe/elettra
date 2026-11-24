@@ -1,11 +1,11 @@
 import { getCurrentLang, t } from "../../../i18n";
 import { textContent as html } from "../../../ui-helpers.js";
-import { isDirectConnection, plannerDisplayTime } from "./shift-planner-programme.js";
+import { plannerDisplayTime, plannerInputTime } from "./shift-planner-programme.js";
 
 export const label = (key, params) => t(`shift_planner.${key}`, params);
 
 const duration = (seconds) => new Intl.NumberFormat(getCurrentLang(), {
-  style: "unit", unit: "minute", unitDisplay: "short", maximumFractionDigits: 1,
+  style: "unit", unit: "minute", unitDisplay: "short", maximumFractionDigits: 0,
 }).format(seconds / 60);
 
 export const activityTitle = ({ step, trip, target }) => {
@@ -24,8 +24,9 @@ const previewToggle = (title, buttonClass = "") => `
   </button>`;
 
 export const stepNotice = (result, estimate, { draft = false } = {}) => {
-  if (result.errors.length) {
-    return `<p data-role="step-conflict">${result.errors.map((key) => html(label(key))).join(" ")}</p>`;
+  const errors = result.errors.filter(key => !draft || key !== "time_required");
+  if (errors.length) {
+    return `<p data-role="step-conflict">${[...new Set(errors)].map((key) => html(label(key))).join(" ")}</p>`;
   }
   if (!result.route) return "";
   if (!estimate || estimate.status === "loading" || estimate.status === "queued") {
@@ -38,7 +39,7 @@ export const stepNotice = (result, estimate, { draft = false } = {}) => {
   const estimated = duration(estimate.seconds);
   if (result.availableSeconds !== null && result.availableSeconds < estimate.seconds) {
     return `<p data-role="step-warning">${html(label("route_warning", {
-      available: duration(result.availableSeconds), estimated,
+      available: duration(60 * Math.floor(result.availableSeconds / 60)), estimated,
     }))}</p>`;
   }
   return draft ? `<p>${html(label("estimated", { time: estimated }))}</p>` : "";
@@ -61,7 +62,7 @@ export const renderPlannerSteps = (results, cursor, estimateFor) => {
       ${stepNotice(result, estimateFor(result.route))}
       <div class="planner-row-actions">
         ${step.kind === "service" && trip ? previewToggle(label("trip_profile"), "list-secondary-action") : ""}
-        <button type="button" class="list-secondary-action" data-action="edit-step">${html(t("common.edit"))}</button>
+        ${step.kind !== "service" || !direct ? `<button type="button" class="list-secondary-action" data-action="edit-step">${html(t("common.edit"))}</button>` : ""}
         <button type="button" class="list-secondary-action" data-action="insert-before">${html(label("insert_before"))}</button>
         <button type="button" class="list-danger-action" data-action="remove-step">${html(label("remove"))}</button>
       </div>
@@ -69,7 +70,7 @@ export const renderPlannerSteps = (results, cursor, estimateFor) => {
   }).join("")}</ol>`;
 };
 
-export const renderPlannerCandidates = (candidates, activeTripId) => `
+export const renderPlannerCandidates = (candidates) => `
   <div class="table-scroll-wrap planner-catalog-scroll">
     <table class="table-standard planner-catalog-table">
       <caption class="sr-only">${html(t("shifts.scheduled_trips_caption"))}</caption>
@@ -82,9 +83,7 @@ export const renderPlannerCandidates = (candidates, activeTripId) => `
         </tr>
       </thead>
       <tbody>${candidates.map(({ trip, direct, result }) => {
-        const addDirect = direct && !result.errors.length;
         const route = [trip.from_name, trip.to_name].filter(Boolean).join(" – ") || label("trip");
-        const selected = `aria-pressed="${trip.id === activeTripId}"`;
         return `<tr class="planner-candidate" data-trip-id="${html(trip.id)}">
           <td class="planner-time">${html(plannerDisplayTime(trip.departure_time))}</td>
           <td class="planner-time">${html(plannerDisplayTime(trip.arrival_time))}</td>
@@ -94,8 +93,7 @@ export const renderPlannerCandidates = (candidates, activeTripId) => `
             <div data-role="candidate-notice"></div>
           </td>
           <td class="actions">
-            <button type="button" data-action="${addDirect ? "add-direct-trip" : "select-trip"}"${addDirect ? "" : ` ${selected}`}>${html(t("shifts.add_trip"))}</button>
-            ${addDirect ? `<button type="button" data-action="select-trip" ${selected}>${html(label("configure_times"))}</button>` : ""}
+            <button type="button" data-action="${direct ? "add-direct-trip" : "select-trip"}"${direct && result.errors.length ? " disabled" : ""}>${html(t("shifts.add_trip"))}</button>
           </td>
         </tr>`;
       }).join("")}</tbody>
@@ -105,10 +103,10 @@ export const renderPlannerCandidates = (candidates, activeTripId) => `
 const localTimeField = (field, key, value, readonly = false) => `
   <label for="planner-${field}">
     <span>${html(label(key))}</span>
-    <input id="planner-${field}" type="text" required autocomplete="off" placeholder="HH:MM" data-field="${field}" value="${html(value)}"${readonly ? " readonly" : ""} />
+    <input id="planner-${field}" type="text" data-planner-clock inputmode="numeric" maxlength="5" pattern="[0-9]{2}:[0-5][0-9]" required autocomplete="off" placeholder="HH:MM" data-field="${field}" value="${html(plannerInputTime(value) || value)}"${readonly ? " readonly" : ""} />
   </label>`;
 
-export const renderPlannerDraft = (draft, result, previous, depots, cursor) => {
+export const renderPlannerDraft = (draft, result, depots, cursor) => {
   const { kind } = draft;
   const stayOptions = Array.from(depots.values(), (depot) => `<option value="${html(depot.id)}"${depot.id === draft.depot_id ? " selected" : ""}>${html(depot.name ?? depot.label ?? depot.id)}</option>`).join("");
   return `<h3 id="planner-draft-heading" tabindex="-1">${html(activityTitle(result))}</h3>
@@ -122,11 +120,6 @@ export const renderPlannerDraft = (draft, result, previous, depots, cursor) => {
       ${localTimeField("transfer-arrival", kind === "service" ? "arrive_terminus" : "arrive_depot", kind === "service" ? draft.transfer_arrival : draft.arrival)}
       ${kind === "stay" ? localTimeField("stay-departure", "leave_depot", draft.departure) : ""}
     </div>
-    ${kind === "service" && previous.stopId !== result.target.stopId && isDirectConnection(previous, result.target) ? `
-      <label class="planner-force-transfer">
-        <input type="checkbox" data-field="force-transfer"${draft.force_transfer ? " checked" : ""} />
-        <span>${html(label("force_transfer"))}</span>
-      </label>` : ""}
     <div data-role="draft-notice" aria-live="polite"></div>
     <div class="planner-row-actions">
       <button type="button" class="list-primary-action" data-action="confirm-step">${html(label(cursor.replace ? "update_activity" : "add_activity"))}</button>

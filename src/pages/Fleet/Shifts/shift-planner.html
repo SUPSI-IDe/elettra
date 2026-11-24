@@ -30,7 +30,7 @@
                 </label>
                 <label for="planner-start-time">
                   <span data-i18n="shift_planner.start_time">Depot departure</span>
-                  <input id="planner-start-time" data-field="start-time" type="text" placeholder="HH:MM" autocomplete="off" aria-describedby="planner-time-help" required />
+                  <input id="planner-start-time" data-field="start-time" type="text" data-planner-clock inputmode="numeric" maxlength="5" pattern="[0-9]{2}:[0-5][0-9]" placeholder="HH:MM" autocomplete="off" aria-describedby="planner-time-help" required />
                 </label>
               </div>
               <div id="planner-dataset-summary" data-role="dataset-summary"></div>
@@ -47,22 +47,24 @@
                 <button type="button" class="list-secondary-action" data-action="back-to-end" data-i18n="shift_planner.back_to_end">Back to programme end</button>
               </div>
               <div data-role="next-activity" hidden>
-                <div class="planner-row-actions">
-                  <button type="button" class="list-secondary-action" data-action="choose-stay" data-i18n="shift_planner.add_stay">Add depot stay</button>
-                  <button type="button" class="list-secondary-action" data-action="choose-return" data-i18n="shift_planner.close">Plan return to depot</button>
-                </div>
                 <section class="planner-draft" data-role="draft" aria-labelledby="planner-draft-heading" hidden></section>
-                <div class="planner-field-grid planner-line-filters">
-                  <label for="planner-line">
-                    <span data-i18n="shifts.filter_line">Line</span>
-                    <select id="planner-line" data-field="line"></select>
+                <div data-role="activity-choices">
+                  <div class="planner-row-actions">
+                    <button type="button" class="list-secondary-action" data-action="choose-stay" data-i18n="shift_planner.add_stay">Add depot stay</button>
+                    <button type="button" class="list-secondary-action" data-action="choose-return" data-i18n="shift_planner.close">Plan return to depot</button>
+                  </div>
+                  <div class="planner-field-grid planner-line-filters">
+                    <label for="planner-line">
+                      <span data-i18n="shifts.filter_line">Line</span>
+                      <select id="planner-line" data-field="line"></select>
+                    </label>
+                  </div>
+                  <label class="planner-terminus-filter" data-role="terminus-filter" hidden>
+                    <input type="checkbox" data-field="include-other-termini">
+                    <span data-i18n="shift_planner.include_other_termini">Include other termini</span>
                   </label>
+                  <div data-role="catalog"></div>
                 </div>
-                <label class="planner-terminus-filter" data-role="terminus-filter" hidden>
-                  <input type="checkbox" data-field="include-other-termini">
-                  <span data-i18n="shift_planner.include_other_termini">Include other termini</span>
-                </label>
-                <div data-role="catalog"></div>
               </div>
             </section>
           </div>
@@ -74,7 +76,7 @@
             <div data-role="programme"></div>
           </section>
         </div>
-        <section class="panel-card planner-card planner-save" aria-labelledby="planner-save-heading">
+        <section class="panel-card planner-card planner-save" data-role="review" aria-labelledby="planner-save-heading">
           <h2 id="planner-save-heading" class="card-title" data-i18n="shifts.composer_review">Review &amp; save</h2>
           <div class="planner-field-grid">
             <label for="planner-name">

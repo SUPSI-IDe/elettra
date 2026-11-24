@@ -13,7 +13,7 @@ export const plannerApi = ({ path }) => {
 
 export const plannerField = (page, name) => page.locator(`[data-field="${name}"]`);
 export const plannerAction = (page, name) => page.locator(`[data-action="${name}"]`);
-export const plannerTrip = (page, id) => page.locator(`[data-role="catalog"] [data-trip-id="${id}"] [data-action="select-trip"]`);
+export const plannerTrip = (page, id) => page.locator(`[data-role="catalog"] [data-trip-id="${id}"] :is([data-action="select-trip"], [data-action="add-direct-trip"])`);
 
 export const startPlanner = async (page) => {
   await plannerField(page, "weekday").selectOption("monday");

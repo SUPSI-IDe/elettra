@@ -83,7 +83,7 @@
   overflow-wrap: anywhere;
 }
 
-.shift-planner :is(.planner-force-transfer, .planner-terminus-filter) {
+.shift-planner .planner-terminus-filter {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -93,7 +93,7 @@
   font-weight: 500;
 }
 
-.shift-planner :is(.planner-force-transfer, .planner-terminus-filter) input[type="checkbox"] {
+.shift-planner .planner-terminus-filter input[type="checkbox"] {
   flex: none;
   inline-size: 1rem;
   block-size: 1rem;
@@ -233,6 +233,7 @@
   color: var(--color-text-muted);
 }
 
+.shift-planner.planner-editing-activity [data-role="programme"] .planner-row-actions,
 .shift-planner .planner-fields [hidden] {
   display: none;
 }
