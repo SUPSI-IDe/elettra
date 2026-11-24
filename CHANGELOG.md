@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.0-rc.1] - 2026-11-24
+
+- Build vehicle blocks one activity at a time, from the starting depot through GTFS trips, empty transfers and depot stays to the return. Plan in whole minutes, including after midnight, and edit or insert activities in the saved sequence.
+- Find departures from the bus’s current terminus and add direct trips in one click. Expand the list for trips requiring an empty transfer, and compare timetable variants in aligned, scrollable stop-time previews.
+- Choose a service day for feasibility studies and select vehicle blocks that run on that day within the selected GTFS edition. Pair with backend 1.9.0-rc.1.
+
 ## [1.3.0] - 2026-11-24
 
 - Set vehicle prices by bus length and select LFP or NMC battery defaults. The bus form shows nominal capacity limits and the price per kWh and preserves manual pack price and mass.

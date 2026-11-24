@@ -1,7 +1,7 @@
 # Feasibility Evaluation
 
-> Last updated: 2026-11-23
-> Interface baseline: Frontend v1.3.0
+> Last updated: 2026-11-24
+> Interface baseline: Frontend v1.4.0-rc.1
 
 A feasibility evaluation tests whether the selected vehicle blocks can be
 operated with the configured bus, battery, charging, and environmental inputs.
@@ -14,11 +14,13 @@ together.
 
 Open **Simulations → Feasibility evaluation** and select **New**.
 
-### 1. Name and GTFS timetable
+### 1. Name, GTFS timetable and service day
 
-Enter a descriptive name and select one GTFS timetable edition. The vehicle
-block table then shows only compatible records. Changing the edition clears the
-current selection, and historical blocks that mix editions are excluded.
+Enter a descriptive name, select one GTFS timetable edition and choose a
+service day. The table lists vehicle blocks that run on that day in the
+selected edition. Changing the edition clears the current selection. Changing
+the day removes selected blocks that do not run on the new day. Blocks with
+mixed editions, incomplete calendars or no common weekday are excluded.
 
 ### 2. Vehicle blocks and bus model
 
