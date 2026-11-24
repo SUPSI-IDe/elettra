@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0] - 2026-11-24
+
+- Build and edit vehicle blocks activity by activity, find trips from the current terminus, and select a service day for feasibility studies.
+- Calculate typical-day energy uncertainty with independent Monte Carlo sampling for each trip and scale each day's interval by its annual occurrence count.
+- Restore fleet cost and emissions charts when returning to General, show charging stop names in infeasible results, and use localized copy names when duplicating items.
+- Pair with backend 1.9.0.
+
 ## [1.4.0-rc.2] - 2026-11-24
 
 - Restore the fleet cost and emissions charts when returning to General from a vehicle block.
