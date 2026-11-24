@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0] - 2026-11-24
+
+- Set vehicle prices by bus length and select LFP or NMC battery defaults. The bus form shows nominal capacity limits and the price per kWh and preserves manual pack price and mass.
+- Use project-horizon TCO in annual dashboards and exports, and keep annual charts and economic controls stable while assumptions change.
+- Plan intermediate stays at custom stops, edit saved vehicle blocks and export feasibility results for Mean and Aggregate Q95 designs.
+- Align battery, intermediate-stay and charging-infrastructure inputs when labels wrap. Pair with backend 1.8.0.
+
 ## [1.3.0-rc.3] - 2026-11-24
 
 - Show minimum and maximum nominal battery capacity and the current price per kWh in the bus model form. Usable capacity is set in the feasibility study.
