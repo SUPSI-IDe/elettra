@@ -158,7 +158,7 @@
             <div class="bus-model-panel-header">
               <h3 class="card-title" data-i18n="buses.section_battery_system">Battery system</h3>
             </div>
-            <div class="bus-model-grid">
+            <div class="bus-model-grid bus-model-grid--battery">
               <div class="form-group bus-model-field--full">
                 <label for="battery_chemistry" data-i18n="buses.battery_chemistry">Battery chemistry</label>
                 <select id="battery_chemistry" name="battery_chemistry"><option selected>LFP</option><option>NMC</option></select>
@@ -204,16 +204,18 @@
                   <label for="battery_pack_cost_chf" data-i18n="buses.field_battery_pack_cost">Battery pack cost (CHF) <span class="required-mark" aria-hidden="true">*</span></label>
                   <a class="vehicle-category-info" data-role="battery-cost-info" href="https://www.infras.ch/media/filer_public/79/e5/79e599d9-0dae-491e-ac2b-19f07385834a/4166a_technologiestudie_elektrobusse_vov_schlussbericht.pdf#page=25" target="_blank" rel="noopener noreferrer">i</a>
                 </div>
-                <input
-                  type="number"
-                  id="battery_pack_cost_chf"
-                  name="battery_pack_cost_chf"
-                  required
-                  min="0"
-                  step="any"
-                  autocomplete="off"
-                />
-                <button type="button" class="restore-bus-estimate" data-restore-field="battery_pack_cost_chf" data-i18n="buses.restore_estimate" hidden>Restore estimate</button>
+                <div class="battery-estimate-control">
+                  <input
+                    type="number"
+                    id="battery_pack_cost_chf"
+                    name="battery_pack_cost_chf"
+                    required
+                    min="0"
+                    step="any"
+                    autocomplete="off"
+                  />
+                  <button type="button" class="restore-bus-estimate" data-restore-field="battery_pack_cost_chf" data-i18n="buses.restore_estimate" hidden>Restore estimate</button>
+                </div>
               </div>
               <div class="battery-summary bus-model-field--full">
                 <div class="battery-summary__values">
@@ -249,18 +251,20 @@
                   <label for="battery_pack_weight_kg" data-i18n="buses.field_battery_pack_weight">Battery pack weight (kg) <span class="required-mark" aria-hidden="true">*</span></label>
                   <button type="button" class="vehicle-category-info" data-role="pack-weight-info">i</button>
                 </div>
-                <input
-                  type="number"
-                  id="battery_pack_weight_kg"
-                  name="battery_pack_weight_kg"
-                  required
-                  min="0.001"
-                  step="any"
-                  autocomplete="off"
-                />
-                <button type="button" class="restore-bus-estimate" data-restore-field="battery_pack_weight_kg" data-i18n="buses.restore_estimate" hidden>Restore estimate</button>
+                <div class="battery-estimate-control">
+                  <input
+                    type="number"
+                    id="battery_pack_weight_kg"
+                    name="battery_pack_weight_kg"
+                    required
+                    min="0.001"
+                    step="any"
+                    autocomplete="off"
+                  />
+                  <button type="button" class="restore-bus-estimate" data-restore-field="battery_pack_weight_kg" data-i18n="buses.restore_estimate" hidden>Restore estimate</button>
+                </div>
               </div>
-              <div class="form-group bus-model-field--compact">
+              <div class="form-group">
                 <label for="battery_pack_lifetime" data-i18n="buses.field_battery_pack_lifetime">Battery pack lifetime (years) <span class="required-mark" aria-hidden="true">*</span></label>
                 <input
                   type="number"

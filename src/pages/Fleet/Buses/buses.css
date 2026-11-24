@@ -118,6 +118,22 @@
   grid-column: 1 / -1;
 }
 
+/* Fields on the same visual row share label and control tracks as labels wrap. */
+.add-bus-model .bus-model-grid--battery > .form-group {
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  row-gap: var(--space-2xs);
+}
+
+.add-bus-model .battery-estimate-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
 .add-bus-model .battery-summary {
   padding: var(--space-md);
   border-radius: var(--radius-lg);

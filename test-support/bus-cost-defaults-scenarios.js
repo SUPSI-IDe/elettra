@@ -198,6 +198,79 @@ export function defineBusCostDefaultsTests() {
     check(state);
   });
 
+  test('aligns battery inputs when Italian labels wrap', async ({ page }, testInfo) => {
+    const isMobile = testInfo.project.use.isMobile;
+    // The half-width battery panel fits four columns here while its longest labels still wrap.
+    if (!isMobile) await page.setViewportSize({ width: 2292, height: 900 });
+
+    const state = await setup(page);
+    await page.goto('./#add-bus-model');
+    const panel = page.locator('.bus-model-panel').filter({
+      has: page.getByRole('heading', { name: 'Sistema batteria', exact: true }),
+    });
+    await expect(panel).toBeVisible();
+    if (!isMobile) {
+      // Exercise wrapped labels even on runners with narrower system fonts.
+      await page.addStyleTag({ content:
+        'label[for="battery_pack_size_kwh"], label[for="max_charging_power_kw"] { max-inline-size: 18ch; }',
+      });
+    }
+    await page.locator('#bus_length_m').fill('12');
+    await page.locator('#battery_pack_size_kwh').fill('40');
+    await expect(panel.locator('#battery_pack_cost_chf')).toHaveValue('13200');
+    await expect(panel.locator('#battery_pack_weight_kg')).toHaveValue('274');
+
+    const rows = [
+      ['min_battery_packs', 'max_battery_packs', 'battery_pack_size_kwh', 'battery_pack_cost_chf'],
+      ['max_charging_power_kw', 'battery_pack_weight_kg', 'battery_pack_lifetime'],
+    ];
+    const expectInputLayout = async () => {
+      const geometry = await panel.evaluate(async (panel, rows) => {
+        await document.fonts.ready;
+        return rows.map(row => row.map(field => {
+          const input = panel.querySelector(`#${field}`);
+          const { top, bottom, left, right } = input.getBoundingClientRect();
+          const labelText = document.createRange();
+          labelText.selectNodeContents(input.labels[0]);
+          const wraps = new Set(Array.from(labelText.getClientRects(), rect => rect.top)).size > 1;
+          return { field, top, bottom, left, right, wraps };
+        }));
+      }, rows);
+
+      if (isMobile) {
+        const inputs = geometry.flat();
+        for (const [index, input] of inputs.entries()) {
+          expect(Math.abs(input.left - inputs[0].left), input.field).toBeLessThan(1);
+          if (index > 0) expect(input.top, input.field).toBeGreaterThan(inputs[index - 1].bottom);
+        }
+        return;
+      }
+
+      for (const row of geometry) {
+        expect(row.some(input => input.wraps), 'at least one label wraps in the row').toBe(true);
+        for (const [index, input] of row.entries()) {
+          expect(Math.abs(input.top - row[0].top), input.field).toBeLessThan(1);
+          expect(Math.abs(input.bottom - row[0].bottom), input.field).toBeLessThan(1);
+          if (index > 0) expect(input.left, input.field).toBeGreaterThan(row[index - 1].right);
+        }
+      }
+    };
+
+    await test.step('with estimated values', async () => {
+      await expect(restore(page, 'battery_pack_cost_chf')).toBeHidden();
+      await expect(restore(page, 'battery_pack_weight_kg')).toBeHidden();
+      await expectInputLayout();
+    });
+    await test.step('with manual values and restore controls', async () => {
+      await panel.locator('#battery_pack_cost_chf').fill('13000');
+      await panel.locator('#battery_pack_weight_kg').fill('270');
+      await expect(restore(page, 'battery_pack_cost_chf')).toBeVisible();
+      await expect(restore(page, 'battery_pack_weight_kg')).toBeVisible();
+      await expectInputLayout();
+    });
+    check(state);
+  });
+
   test('duplicating preserves saved manual prices and pack mass', async ({ page }) => {
     const state = await setup(page);
     await page.goto('./#buses');
