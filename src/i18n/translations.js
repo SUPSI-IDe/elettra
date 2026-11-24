@@ -1611,6 +1611,7 @@ export const translations = {
 
     // Trip Preview
     "trip_preview.loading_map": "Loading map...",
+    "trip_preview.elevation_profile": "Elevation profile",
     "trip_preview.loading_elevation": "Loading elevation...",
     "trip_preview.no_route_data": "No route data available",
     "trip_preview.failed_map_library": "Failed to load map library",
@@ -3964,6 +3965,7 @@ export const translations = {
 
     // Trip Preview
     "trip_preview.loading_map": "Karte wird geladen...",
+    "trip_preview.elevation_profile": "Höhenprofil",
     "trip_preview.loading_elevation": "Höhenprofil wird geladen...",
     "trip_preview.no_route_data": "Keine Routendaten verfügbar",
     "trip_preview.failed_map_library": "Kartenbibliothek konnte nicht geladen werden",
@@ -6317,6 +6319,7 @@ export const translations = {
 
     // Trip Preview
     "trip_preview.loading_map": "Chargement de la carte...",
+    "trip_preview.elevation_profile": "Profil altimétrique",
     "trip_preview.loading_elevation": "Chargement de l'altitude...",
     "trip_preview.no_route_data": "Aucune donnée d'itinéraire disponible",
     "trip_preview.failed_map_library": "Échec du chargement de la bibliothèque de cartes",
@@ -8670,6 +8673,7 @@ export const translations = {
 
     // Trip Preview
     "trip_preview.loading_map": "Caricamento mappa...",
+    "trip_preview.elevation_profile": "Profilo altimetrico",
     "trip_preview.loading_elevation": "Caricamento altimetria...",
     "trip_preview.no_route_data": "Nessun dato di percorso disponibile",
     "trip_preview.failed_map_library": "Impossibile caricare la libreria mappe",

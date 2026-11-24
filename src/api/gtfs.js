@@ -302,7 +302,7 @@ export const fetchStopsByTripId = async (tripId) => {
 const GTFS_ELEVATION_PATH = `${API_ROOT}/api/v1/gtfs/elevation-profile/by-trip/`;
 const GTFS_VARIANTS_PATH = `${API_ROOT}/api/v1/gtfs/variants/`;
 
-export const fetchElevationByTripId = async (tripId) => {
+export const fetchElevationByTripId = async (tripId, { signal } = {}) => {
   if (!tripId) {
     throw new Error("Missing tripId");
   }
@@ -312,6 +312,7 @@ export const fetchElevationByTripId = async (tripId) => {
     {
       method: "GET",
       headers,
+      signal,
     }
   );
   const payload = await response.json().catch(() => null);

@@ -21,7 +21,7 @@ import {
   updateShift,
 } from "../../../api";
 import { resolveUserId, resolveAgencyId } from "../../../api/session";
-import { showTripPreview, hideTripPreview } from "./trip-preview";
+import { showTripPreview, hideTripPreview, clearPreviewCache } from "./trip-preview";
 import { renderTimeline } from "./shift-timeline";
 import { triggerPartialLoad } from "../../../events";
 import { invalidateShiftDistanceCache } from "../../../utils/shift-distance";
@@ -2170,6 +2170,7 @@ export const initializeShiftForm = async (root = document, options = {}) => {
     cleanupHandlers.push(() => {
       scheduledTripsBody.removeEventListener("mouseover", handleTripMouseOver);
       scheduledTripsBody.removeEventListener("mouseout", handleTripMouseOut);
+      clearPreviewCache();
       clearTimeout(hoverCheckTimeout);
     });
   }

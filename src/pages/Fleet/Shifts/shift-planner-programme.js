@@ -49,8 +49,9 @@ const defaultTripArrival = (trip, earliest) => {
     ? scheduledArrival : publicDeparture;
 };
 
-export const selectPlannerTrips = (catalog, previous, usedIds, order = "departure") => {
+export const selectPlannerTrips = (catalog, previous, usedIds, { includeOtherTermini = false } = {}) => {
   if (previous?.time == null) return [];
+  const onlyDirect = previous.kind === "terminus" && !includeOtherTermini;
   return catalog
     .filter((trip) => {
       const departure = plannerTimeSeconds(trip.departure_time);
@@ -59,13 +60,11 @@ export const selectPlannerTrips = (catalog, previous, usedIds, order = "departur
         departure >= previous.time && arrival >= departure;
     })
     .map((trip) => ({ trip, direct: isDirectConnection(previous, tripStop(trip, "from")) }))
-    .sort((left, right) => {
-      const byConnection = order === "direct" ? Number(right.direct) - Number(left.direct) : 0;
-      return byConnection ||
-        plannerTimeSeconds(left.trip.departure_time) - plannerTimeSeconds(right.trip.departure_time) ||
-        plannerTimeSeconds(left.trip.arrival_time) - plannerTimeSeconds(right.trip.arrival_time) ||
-        left.trip.id.localeCompare(right.trip.id);
-    });
+    .filter(({ direct }) => !onlyDirect || direct)
+    .sort((left, right) =>
+      plannerTimeSeconds(left.trip.departure_time) - plannerTimeSeconds(right.trip.departure_time) ||
+      plannerTimeSeconds(left.trip.arrival_time) - plannerTimeSeconds(right.trip.arrival_time) ||
+      left.trip.id.localeCompare(right.trip.id));
 };
 
 export const getPlannerStart = (depotId, startTime, depots) => ({

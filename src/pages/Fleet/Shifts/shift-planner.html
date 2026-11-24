@@ -13,8 +13,8 @@
       <fieldset class="planner-fields" data-role="editor" disabled>
         <div class="planner-grid">
           <div class="planner-column">
-            <section class="planner-card" aria-labelledby="planner-setup-heading">
-              <h2 id="planner-setup-heading" data-i18n="shifts.composer_setup">Set up</h2>
+            <section class="panel-card planner-card" aria-labelledby="planner-setup-heading">
+              <h2 id="planner-setup-heading" class="card-title" data-i18n="shifts.composer_setup">Set up</h2>
               <div class="planner-field-grid">
                 <label for="planner-weekday">
                   <span data-i18n="shift_planner.weekday">Service day</span>
@@ -36,20 +36,20 @@
               <div id="planner-dataset-summary" data-role="dataset-summary"></div>
               <small id="planner-time-help" data-i18n="shift_planner.time_help">Use service-day times. For example, 25:10 is 01:10 the next day.</small>
             </section>
-            <section class="planner-card" aria-labelledby="planner-next-heading">
-              <h2 id="planner-next-heading" tabindex="-1" data-i18n="shift_planner.next_trip">Next activity</h2>
+            <section class="panel-card planner-card" aria-labelledby="planner-next-heading">
+              <h2 id="planner-next-heading" class="card-title" tabindex="-1" data-i18n="shift_planner.next_trip">Next activity</h2>
               <div aria-live="polite" class="planner-state">
                 <strong data-i18n="shift_planner.current">Current vehicle state</strong>
                 <p data-role="current-state"></p>
               </div>
               <div class="planner-row-actions" data-role="position" hidden>
                 <p data-role="position-text"></p>
-                <button type="button" data-action="back-to-end" data-i18n="shift_planner.back_to_end">Back to programme end</button>
+                <button type="button" class="list-secondary-action" data-action="back-to-end" data-i18n="shift_planner.back_to_end">Back to programme end</button>
               </div>
               <div data-role="next-activity" hidden>
                 <div class="planner-row-actions">
-                  <button type="button" data-action="choose-stay" data-i18n="shift_planner.add_stay">Add depot stay</button>
-                  <button type="button" data-action="choose-return" data-i18n="shift_planner.close">Plan return to depot</button>
+                  <button type="button" class="list-secondary-action" data-action="choose-stay" data-i18n="shift_planner.add_stay">Add depot stay</button>
+                  <button type="button" class="list-secondary-action" data-action="choose-return" data-i18n="shift_planner.close">Plan return to depot</button>
                 </div>
                 <section class="planner-draft" data-role="draft" aria-labelledby="planner-draft-heading" hidden></section>
                 <div class="planner-field-grid planner-line-filters">
@@ -57,28 +57,25 @@
                     <span data-i18n="shifts.filter_line">Line</span>
                     <select id="planner-line" data-field="line"></select>
                   </label>
-                  <label for="planner-order">
-                    <span data-i18n="shift_planner.order">Sort trips</span>
-                    <select id="planner-order" data-field="order">
-                      <option value="departure" data-i18n="shift_planner.order_departure">By departure time</option>
-                      <option value="direct" data-i18n="shift_planner.order_direct">Direct connections first</option>
-                    </select>
-                  </label>
                 </div>
+                <label class="planner-terminus-filter" data-role="terminus-filter" hidden>
+                  <input type="checkbox" data-field="include-other-termini">
+                  <span data-i18n="shift_planner.include_other_termini">Include other termini</span>
+                </label>
                 <div data-role="catalog"></div>
               </div>
             </section>
           </div>
-          <section class="planner-card" aria-labelledby="planner-programme-heading">
+          <section class="panel-card planner-card" aria-labelledby="planner-programme-heading">
             <div class="planner-card-header">
-              <h2 id="planner-programme-heading" data-i18n="shifts.composer_programme">Your working day</h2>
-              <button type="button" data-action="undo" data-i18n="shifts.composer_undo" disabled>Undo last change</button>
+              <h2 id="planner-programme-heading" class="card-title" data-i18n="shifts.composer_programme">Your working day</h2>
+              <button type="button" class="list-secondary-action" data-action="undo" data-i18n="shifts.composer_undo" disabled>Undo last change</button>
             </div>
             <div data-role="programme"></div>
           </section>
         </div>
-        <section class="planner-card planner-save" aria-labelledby="planner-save-heading">
-          <h2 id="planner-save-heading" data-i18n="shifts.composer_review">Review &amp; save</h2>
+        <section class="panel-card planner-card planner-save" aria-labelledby="planner-save-heading">
+          <h2 id="planner-save-heading" class="card-title" data-i18n="shifts.composer_review">Review &amp; save</h2>
           <div class="planner-field-grid">
             <label for="planner-name">
               <span data-i18n="shifts.field_shift_name">Vehicle block name</span>

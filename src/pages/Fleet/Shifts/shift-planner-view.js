@@ -18,6 +18,11 @@ export const activityTitle = ({ step, trip, target }) => {
 
 export const tripTime = (trip) => [trip.departure_time, trip.arrival_time].map(plannerDisplayTime).join("–");
 
+const previewToggle = (title, buttonClass = "") => `
+  <button type="button" class="planner-preview-toggle ${buttonClass}" data-action="preview-trip" title="${html(label("trip_profile"))}" aria-expanded="false">
+    <span>${html(title)}</span>
+  </button>`;
+
 export const stepNotice = (result, estimate, { draft = false } = {}) => {
   if (result.errors.length) {
     return `<p data-role="step-conflict">${result.errors.map((key) => html(label(key))).join(" ")}</p>`;
@@ -28,7 +33,7 @@ export const stepNotice = (result, estimate, { draft = false } = {}) => {
   }
   if (estimate.status === "unavailable") {
     return `<p data-role="step-warning">${html(label("route_unavailable"))}${draft ? `
-      <button type="button" data-action="retry-estimate">${html(label("retry"))}</button>` : ""}</p>`;
+      <button type="button" class="list-secondary-action" data-action="retry-estimate">${html(label("retry"))}</button>` : ""}</p>`;
   }
   const estimated = duration(estimate.seconds);
   if (result.availableSeconds !== null && result.availableSeconds < estimate.seconds) {
@@ -55,27 +60,47 @@ export const renderPlannerSteps = (results, cursor, estimateFor) => {
       <p><span class="planner-time">${html(publicTime)}</span>${connection ? ` · ${html(connection)}` : ""}</p>
       ${stepNotice(result, estimateFor(result.route))}
       <div class="planner-row-actions">
-        <button type="button" data-action="edit-step">${html(t("common.edit"))}</button>
-        <button type="button" data-action="insert-before">${html(label("insert_before"))}</button>
-        <button type="button" data-action="remove-step">${html(label("remove"))}</button>
+        ${step.kind === "service" && trip ? previewToggle(label("trip_profile"), "list-secondary-action") : ""}
+        <button type="button" class="list-secondary-action" data-action="edit-step">${html(t("common.edit"))}</button>
+        <button type="button" class="list-secondary-action" data-action="insert-before">${html(label("insert_before"))}</button>
+        <button type="button" class="list-danger-action" data-action="remove-step">${html(label("remove"))}</button>
       </div>
     </li>`;
   }).join("")}</ol>`;
 };
 
 export const renderPlannerCandidates = (candidates, activeTripId) => `
-  <ul class="planner-list planner-list--catalog">${candidates.map(({ trip, direct, result }) => `
-    <li class="planner-candidate" data-trip-id="${html(trip.id)}">
-      <div>
-        <p><strong class="planner-time">${html(tripTime(trip))}</strong> · ${html([trip.from_name, trip.to_name].filter(Boolean).join(" → "))}</p>
-        <small>${html(label(direct ? "direct_connection" : "transfer_needed"))}</small>
-        <div data-role="candidate-notice"></div>
-      </div>
-      <div class="planner-row-actions">
-        ${direct && !result.errors.length ? `<button type="button" data-action="add-direct-trip" class="action-positive">${html(label("add_direct"))}</button>` : ""}
-        <button type="button" data-action="select-trip" aria-pressed="${trip.id === activeTripId}">${html(label("choose_trip"))}</button>
-      </div>
-    </li>`).join("")}</ul>`;
+  <div class="table-scroll-wrap planner-catalog-scroll">
+    <table class="table-standard planner-catalog-table">
+      <caption class="sr-only">${html(t("shifts.scheduled_trips_caption"))}</caption>
+      <thead>
+        <tr>
+          <th scope="col" class="planner-time">${html(t("shifts.col_start"))}</th>
+          <th scope="col" class="planner-time">${html(t("shifts.col_end"))}</th>
+          <th scope="col">${html(t("shifts.col_from_to"))}</th>
+          <th scope="col" class="actions"><span class="sr-only">${html(t("common.actions"))}</span></th>
+        </tr>
+      </thead>
+      <tbody>${candidates.map(({ trip, direct, result }) => {
+        const addDirect = direct && !result.errors.length;
+        const route = [trip.from_name, trip.to_name].filter(Boolean).join(" – ") || label("trip");
+        const selected = `aria-pressed="${trip.id === activeTripId}"`;
+        return `<tr class="planner-candidate" data-trip-id="${html(trip.id)}">
+          <td class="planner-time">${html(plannerDisplayTime(trip.departure_time))}</td>
+          <td class="planner-time">${html(plannerDisplayTime(trip.arrival_time))}</td>
+          <td>
+            ${previewToggle(route)}
+            <small>${html(label(direct ? "direct_connection" : "transfer_needed"))}</small>
+            <div data-role="candidate-notice"></div>
+          </td>
+          <td class="actions">
+            <button type="button" data-action="${addDirect ? "add-direct-trip" : "select-trip"}"${addDirect ? "" : ` ${selected}`}>${html(t("shifts.add_trip"))}</button>
+            ${addDirect ? `<button type="button" data-action="select-trip" ${selected}>${html(label("configure_times"))}</button>` : ""}
+          </td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table>
+  </div>`;
 
 const localTimeField = (field, key, value, readonly = false) => `
   <label for="planner-${field}">
@@ -104,7 +129,7 @@ export const renderPlannerDraft = (draft, result, previous, depots, cursor) => {
       </label>` : ""}
     <div data-role="draft-notice" aria-live="polite"></div>
     <div class="planner-row-actions">
-      <button type="button" class="action-positive" data-action="confirm-step">${html(label(cursor.replace ? "update_activity" : "add_activity"))}</button>
-      <button type="button" data-action="cancel-step">${html(t("common.cancel"))}</button>
+      <button type="button" class="list-primary-action" data-action="confirm-step">${html(label(cursor.replace ? "update_activity" : "add_activity"))}</button>
+      <button type="button" class="list-secondary-action" data-action="cancel-step">${html(t("common.cancel"))}</button>
     </div>`;
 };

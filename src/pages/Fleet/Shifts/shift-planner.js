@@ -1,4 +1,5 @@
 import "./shift-planner.css";
+import { mountTripPreview } from "./trip-preview.js";
 import {
   fetchAllBuses, fetchAllBusModels, fetchAllDepots, fetchAllRoutes, fetchGtfsDatasets,
   fetchRoutesByAgency, fetchTripById,
@@ -52,13 +53,17 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   const estimates = new Map();
   const estimateQueue = [];
   const candidateResults = new Map();
+  const previewCache = new Map();
+  let preview = null;
   const catalogs = new Map();
   const history = [];
   let datasets = [];
   let routes = [];
   let steps = [];
   let catalog = [];
+  let catalogKey = "";
   let catalogStatus = "";
+  let terminusFilterContext = "";
   let activeEstimates = 0;
   let catalogRequest = null;
   let routesGeneration = 0;
@@ -79,6 +84,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   const context = () => ({ trips, depots, depotId: setup.depotId });
   const results = () => evaluatePlannerProgramme(steps, start(), context());
   const insertion = () => cursor ?? { index: steps.length, replace: false };
+  const selectedCatalogKey = () => `${field("weekday").value}/${field("line").value}`;
   const previous = () => {
     const index = insertion().index;
     return index ? results()[index - 1].next : start();
@@ -89,6 +95,55 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
     start().stopId && start().time !== null && previous().stopId && previous().time !== null &&
     (!closed() || cursor);
   const estimateFor = (pair) => estimates.get(pairKey(pair));
+
+  const closePreview = () => {
+    if (!preview) return;
+    preview.dispose();
+    preview.host.remove();
+    preview.button.setAttribute("aria-expanded", "false");
+    preview.button.removeAttribute("aria-controls");
+    preview = null;
+  };
+
+  // Reattach the same map when a catalogue or its programme is redrawn.
+  const attachPreview = (button) => {
+    preview.button = button;
+    button.setAttribute("aria-controls", preview.host.id);
+    button.setAttribute("aria-expanded", "true");
+    if (preview.scope === "catalog") button.closest("tr").after(preview.host);
+    else button.closest("[data-step-index]").append(preview.host);
+  };
+
+  const syncPreview = (scope) => {
+    if (preview?.scope !== scope) return;
+    const row = scope === "catalog"
+      ? role(scope).querySelector(`tr[data-trip-id="${CSS.escape(preview.tripId)}"]`)
+      : role(scope).querySelector(`[data-step-index="${steps.findIndex(step => step.trip_id === preview.tripId)}"]`);
+    const button = row?.querySelector('[data-action="preview-trip"]');
+    if (button) attachPreview(button);
+    else closePreview();
+  };
+
+  const togglePreview = (button) => {
+    const candidate = button.closest("tr[data-trip-id]");
+    const tripId = candidate?.dataset.tripId ?? steps[Number(button.closest("[data-step-index]")?.dataset.stepIndex)]?.trip_id;
+    const scope = candidate ? "catalog" : "programme";
+    const alreadyOpen = preview?.scope === scope && preview.tripId === tripId;
+    closePreview();
+    if (alreadyOpen || !tripId) return;
+    const host = document.createElement(candidate ? "tr" : "div");
+    host.id = "planner-trip-profile";
+    let content = host;
+    if (candidate) {
+      host.className = "trip-preview-row";
+      content = host.insertCell();
+      content.colSpan = candidate.cells.length;
+      content.className = "trip-preview-cell";
+    }
+    preview = { scope, tripId, host, button };
+    attachPreview(button);
+    preview.dispose = mountTripPreview(content, tripId, previewCache);
+  };
 
   const renderFeedback = () => {
     const element = role("feedback");
@@ -107,31 +162,46 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
 
   const renderCatalog = () => {
     const element = role("catalog");
+    const planned = canPlan();
+    const current = previous();
+    const hasLine = Boolean(field("line").value);
+    const fromTerminus = planned && hasLine && current.kind === "terminus";
+    const includeOtherTermini = field("include-other-termini");
+    const { index, replace } = insertion();
+    const filterContext = fromTerminus
+      ? JSON.stringify([selectedCatalogKey(), index, replace, current.stopId, current.parent, current.time]) : "";
+    if (filterContext !== terminusFilterContext) {
+      includeOtherTermini.checked = false;
+      terminusFilterContext = filterContext;
+    }
+    role("terminus-filter").hidden = !fromTerminus;
     candidateResults.clear();
-    if (!canPlan()) {
+    if (preview?.scope === "catalog" && (!planned || !hasLine || catalogStatus || catalogKey !== selectedCatalogKey())) closePreview();
+    if (!planned) {
       element.replaceChildren();
       return;
     }
-    if (!field("line").value || catalogStatus === "loading") {
-      element.innerHTML = `<p>${html(field("line").value ? t("common.loading") : label("choose_line_prompt"))}</p>`;
+    if (!hasLine || catalogStatus === "loading" || catalogKey !== selectedCatalogKey()) {
+      element.innerHTML = `<p>${html(hasLine ? t("common.loading") : label("choose_line_prompt"))}</p>`;
       return;
     }
     if (catalogStatus === "error") {
       element.innerHTML = `<p>${html(label("catalog_error"))}
-        <button type="button" data-action="retry-catalog">${html(label("retry"))}</button></p>`;
+        <button type="button" class="list-secondary-action" data-action="retry-catalog">${html(label("retry"))}</button></p>`;
       return;
     }
     const used = new Set(steps.filter((_, i) => !cursor?.replace || cursor.index !== i).map((step) => step.trip_id));
-    const current = previous();
-    const candidates = selectPlannerTrips(catalog, current, used, field("order").value)
+    const candidates = selectPlannerTrips(catalog, current, used, { includeOtherTermini: includeOtherTermini.checked })
       .map(({ trip, direct }) => {
         const result = evaluatePlannerStep({ kind: "service", trip_id: trip.id }, current, context(), insertion().index === 0);
         candidateResults.set(trip.id, result);
         if (!result.errors.length) requestEstimate(result.route);
         return { trip, direct, result };
       });
+    const emptyMessage = fromTerminus && !includeOtherTermini.checked ? "no_terminus_candidates" : "no_candidates";
     element.innerHTML = candidates.length ? renderPlannerCandidates(candidates, draft?.trip_id)
-      : `<p>${html(label("no_candidates", { time: plannerDisplayTime(current.time) }))}</p>`;
+      : `<p>${html(label(emptyMessage, { place: current.name || "—", time: plannerDisplayTime(current.time) }))}</p>`;
+    syncPreview("catalog");
     renderCatalogueWarnings();
   };
 
@@ -147,6 +217,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   const renderProgramme = () => {
     const checked = results();
     role("programme").innerHTML = renderPlannerSteps(checked, cursor, estimateFor);
+    syncPreview("programme");
     const problem = saveProblem(checked);
     role("save-status").textContent = saving ? t(shiftId ? "shifts.saving_shift" : "shifts.creating_shift")
       : problem ? label(problem) : "";
@@ -210,7 +281,8 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
     const departure = plannerTimeSeconds(draft.transfer_departure);
     if (departure === null) return;
     draft.arrival = plannerInputTime(departure + (estimate?.seconds ?? 0));
-    if (field("transfer-arrival")) field("transfer-arrival").value = draft.arrival;
+    const input = field("transfer-arrival");
+    if (input && input.value !== draft.arrival) input.value = draft.arrival;
   };
 
   const startQueuedEstimates = () => {
@@ -224,7 +296,8 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
         if (signal.aborted) return;
         estimates.set(key, outcome);
         if (draft && pairKey(draftResult().route) === key) {
-          updateAutoArrival();
+          // Keep the selection and caret intact if the estimate arrives during an edit.
+          if (document.activeElement !== field("transfer-arrival")) updateAutoArrival();
           renderDraftNotice();
         }
         renderCatalogueWarnings(key);
@@ -275,7 +348,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
       renderCatalog();
       return;
     }
-    const key = `${weekday}/${routeId}`;
+    const key = catalogKey = selectedCatalogKey();
     if (catalogs.has(key)) {
       catalog = catalogs.get(key);
       renderCatalog();
@@ -320,6 +393,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
     catalogRequest?.abort();
     routes = [];
     catalog = [];
+    catalogKey = "";
     catalogStatus = "";
     renderRoutes();
     render();
@@ -413,6 +487,10 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
       return;
     }
     if (!ready || saving) return;
+    if (name === "preview-trip") {
+      togglePreview(button);
+      return;
+    }
     const row = button.closest("[data-step-index]");
     if (row) {
       handleActivityAction(name, Number(row.dataset.stepIndex));
@@ -501,7 +579,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
       void loadRoutes();
     } else if (name === "line") {
       void loadCatalog();
-    } else if (name === "order") {
+    } else if (name === "include-other-termini") {
       renderCatalog();
     } else if (draft && (name === "stay-depot" || name === "force-transfer")) {
       if (name === "stay-depot") draft.depot_id = value;
@@ -667,12 +745,19 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   const options = { signal };
   section.addEventListener("click", handleClick, options);
   form.addEventListener("input", handleInput, options);
+  form.addEventListener("focusout", (event) => {
+    if (event.target.dataset.field === "transfer-arrival" && autoArrival) {
+      updateAutoArrival();
+      renderDraftNotice();
+    }
+  }, options);
   form.addEventListener("change", handleChange, options);
   form.addEventListener("submit", save, options);
   document.addEventListener(I18N_CHANGE_EVENT, changeLanguage, options);
   void initialize();
 
   return () => {
+    closePreview();
     lifetime.abort();
     catalogRequest?.abort();
   };

@@ -49,6 +49,7 @@ test("creates one sequential programme across midnight and retries with the same
   await expect(plannerField(page, "line")).toBeHidden();
   await startPlanner(page);
   await expect(plannerField(page, "depot").locator('option[value="charging"]')).toHaveCount(0);
+  await expect(plannerField(page, "include-other-termini")).toBeHidden();
   await expect(role(page, "current-state")).toContainText("Main depot from 23:45");
   await expect(plannerTrip(page, "too-early")).toHaveCount(0);
   await expect(role(page, "catalog").locator("[data-trip-id]").first()).toHaveAttribute("data-trip-id", "night-a");
@@ -59,9 +60,13 @@ test("creates one sequential programme across midnight and retries with the same
   await plannerAction(page, "confirm-step").click();
   await expect(role(page, "current-state")).toContainText("Station platform 1 from 00:15 (+1)");
   expect(state.reads.filter((href) => href.includes("from_stop_id=depot-stop&to_stop_id=a"))).toHaveLength(1);
-  await expect(role(page, "catalog").locator("[data-trip-id]").first()).toHaveAttribute("data-trip-id", "night-other");
-  await plannerField(page, "order").selectOption("direct");
+  await expect(plannerField(page, "include-other-termini")).not.toBeChecked();
+  await expect(plannerTrip(page, "night-other")).toHaveCount(0);
   await expect(role(page, "catalog").locator("[data-trip-id]").first()).toHaveAttribute("data-trip-id", "night-b");
+  await expect(plannerTrip(page, "night-c")).toBeVisible();
+  await plannerField(page, "include-other-termini").check();
+  await expect(role(page, "catalog").locator("[data-trip-id]").first()).toHaveAttribute("data-trip-id", "night-other");
+  await plannerField(page, "include-other-termini").uncheck();
 
   await plannerTrip(page, "night-b").click();
   await expect(plannerField(page, "transfer-departure")).toHaveValue("24:15");
@@ -109,17 +114,89 @@ test("creates one sequential programme across midnight and retries with the same
   });
 });
 
+test("scopes a new line to the current terminus and offers the whole line after a special stop", async ({ page, composer }) => {
+  const [otherTrip] = plannerCatalog;
+  const otherLine = [
+    { ...otherTrip, id: "other-line-early", route_id: "line-2", departure_time: "24:20:00", arrival_time: "24:30:00" },
+    { ...otherTrip, id: "other-line-late", route_id: "line-2", departure_time: "24:40:00", arrival_time: "25:00:00" },
+  ];
+  const state = await composer({ application: true, entry: "shifts", depots: [
+    { id: "depot", user_id: "user", name: "Main depot", stop_id: "depot-stop" },
+    { id: "charging", user_id: "user", name: "Charging terminus", stop_id: "charging-stop", features: { type: "charging" } },
+  ], respond: (request) => {
+    if (request.path.endsWith("/shift-planner/catalog") && request.url.searchParams.get("route_id") === "line-2") {
+      return { json: otherLine };
+    }
+    return plannerApi(request);
+  } });
+  const includeOtherTermini = plannerField(page, "include-other-termini");
+  await plannerAction(page, "add-shift").click();
+  await startPlanner(page);
+  await plannerTrip(page, "night-a").click();
+  await plannerAction(page, "confirm-step").click();
+  await includeOtherTermini.check();
+  await plannerField(page, "line").selectOption("line-2");
+  await expect(role(page, "catalog")).toContainText("Station platform 1");
+  await expect(role(page, "catalog")).toContainText("Include other termini");
+  await expect(includeOtherTermini).not.toBeChecked();
+  await expect(plannerTrip(page, "other-line-early")).toHaveCount(0);
+  expect(state.reads.some((href) => href.includes("from_stop_id=b1&to_stop_id=other"))).toBe(false);
+
+  await includeOtherTermini.check();
+  await expect(plannerTrip(page, "other-line-early")).toBeVisible();
+  await expect(role(page, "catalog").locator('[data-trip-id="other-line-early"] [data-role="step-warning"]')).toContainText("5 min");
+  expect(state.reads.filter((href) => href.includes("from_stop_id=b1&to_stop_id=other"))).toHaveLength(1);
+
+  await plannerAction(page, "choose-stay").click();
+  await plannerField(page, "stay-depot").selectOption("charging");
+  await expect(plannerField(page, "transfer-arrival")).toHaveValue("24:30");
+  await plannerField(page, "stay-departure").fill("24:35");
+  await plannerAction(page, "confirm-step").click();
+  await expect(role(page, "current-state")).toContainText("Charging terminus from 00:35 (+1)");
+  await expect(includeOtherTermini).toBeHidden();
+  await expect(plannerTrip(page, "other-line-early")).toHaveCount(0);
+  await expect(plannerTrip(page, "other-line-late")).toBeVisible();
+});
+
 test("reopens the saved sequence, marks an insertion conflict and undoes the insertion", async ({ page, composer }) => {
-  const state = await composer({ application: true, entry: "shifts", respond: programmeFixture });
+  let releaseEstimate;
+  const depotEstimate = new Promise(resolve => { releaseEstimate = resolve; });
+  const state = await composer({ application: true, entry: "shifts", respond: async (request) => {
+    if (request.path.endsWith("/shift-planner/route") && request.url.searchParams.get("from_stop_id") === "b1"
+      && request.url.searchParams.get("to_stop_id") === "depot-stop") await depotEstimate;
+    return programmeFixture(request);
+  } });
   const row = page.locator('[data-id="sequential"]');
   await rowAction(row, "edit").click();
   await expect(activity(page, 1)).toContainText("00:15 (+1)–00:35 (+1)");
   await expect(activity(page, 2)).toHaveAttribute("data-kind", "return");
   await expect(plannerField(page, "weekday")).toHaveValue("monday");
+  await activity(page, 1).locator('[data-action="edit-step"]').click();
+  await expect(plannerField(page, "include-other-termini")).not.toBeChecked();
+  await expect(plannerTrip(page, "night-b")).toBeVisible();
+  await expect(plannerTrip(page, "night-other")).toHaveCount(0);
+  await plannerField(page, "include-other-termini").check();
+  await expect(plannerTrip(page, "night-other")).toBeVisible();
   await activity(page, 1).locator('[data-action="insert-before"]').click();
+  await expect(plannerField(page, "include-other-termini")).not.toBeChecked();
+  await expect(plannerTrip(page, "night-b")).toHaveCount(0);
+  await expect(plannerTrip(page, "night-c")).toBeVisible();
+  await expect(plannerTrip(page, "night-other")).toHaveCount(0);
   await plannerAction(page, "choose-stay").click();
-  await plannerField(page, "transfer-arrival").fill("24:20");
   await plannerField(page, "stay-departure").fill("24:25");
+  const arrival = plannerField(page, "transfer-arrival");
+  await arrival.press("ControlOrMeta+a");
+  const estimated = page.waitForResponse(response => {
+    const requested = new URL(response.url());
+    return requested.pathname.endsWith("/shift-planner/route") && requested.searchParams.get("from_stop_id") === "b1"
+      && requested.searchParams.get("to_stop_id") === "depot-stop";
+  });
+  releaseEstimate();
+  await (await estimated).finished();
+  await expect(arrival).toHaveValue("24:15");
+  await page.keyboard.insertText("24:20");
+  await expect(arrival).toHaveValue("24:20");
+  await expect(role(page, "draft-notice")).toContainText("15 min");
   await plannerAction(page, "confirm-step").click();
 
   await expect(activity(page, 2)).toContainText("Station platform 2");
@@ -181,4 +258,68 @@ test("allows an explicit timed transfer within the same station despite a short 
   expect(state.writes[0].body.programme.steps[1]).toEqual({
     kind: "service", trip_id: "night-c", transfer_departure: "24:15:00", transfer_arrival: "24:16:00", force_transfer: true,
   });
+});
+
+test("opens an elevation profile without adding a trip and reuses it in the programme", async ({ page, composer }) => {
+  const profileReads = [];
+  const points = [
+    { latitude: 46, longitude: 8.95, altitude_m: 285, cumulative_distance_m: 0 },
+    { latitude: 46.01, longitude: 8.96, altitude_m: 340, cumulative_distance_m: 1040 },
+  ];
+  // The geometry and elevation come from the API regardless of the tile provider.
+  await page.route("https://tile.openstreetmap.org/**", route => route.abort());
+  const state = await composer({ application: true, entry: "shifts", respond: (request) => {
+    if (request.path.includes("/elevation-profile/by-trip/")) {
+      profileReads.push(request.path.split("/").at(-1));
+      return { json: { records: points } };
+    }
+    return plannerApi(request);
+  } });
+  await plannerAction(page, "add-shift").click();
+  await startPlanner(page);
+  const row = role(page, "catalog").locator('tr[data-trip-id="night-a"]');
+  const toggle = row.locator('[data-action="preview-trip"]');
+  await toggle.focus();
+  await toggle.press("Enter");
+  const preview = page.locator("#planner-trip-profile");
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(preview.getByRole("img", { name: "Elevation profile" })).toBeVisible();
+  await expect(preview.locator(".leaflet-overlay-pane path").first()).toBeVisible();
+  await expect(preview.locator("svg.elevation-chart-inline")).toContainText("340");
+  const textPixels = await preview.locator(".elevation-chart-inline text").first().evaluate(node =>
+    parseFloat(getComputedStyle(node).fontSize) * node.getScreenCTM().a);
+  expect(textPixels).toBeGreaterThanOrEqual(11);
+  await expect(role(page, "programme").locator("[data-step-index]")).toHaveCount(0);
+  await toggle.press("Enter");
+  await expect(preview).toHaveCount(0);
+  await plannerTrip(page, "night-a").click();
+  await plannerAction(page, "confirm-step").click();
+  await activity(page, 0).locator('[data-action="preview-trip"]').click();
+  await expect(activity(page, 0).getByRole("img", { name: "Elevation profile" })).toBeVisible();
+  expect(profileReads).toEqual(["night-a"]);
+  expect(state.writes).toEqual([]);
+});
+
+test("keeps a failed profile retryable and closes it when the candidate disappears", async ({ page, composer }) => {
+  let attempts = 0;
+  await page.route("https://tile.openstreetmap.org/**", route => route.abort());
+  await composer({ application: true, entry: "shifts", respond: (request) => {
+    if (request.path.endsWith("/elevation-profile/by-trip/night-a")) {
+      if (++attempts === 1) return { status: 503, json: { detail: "Temporary failure" } };
+      return { json: { records: [{ altitude_m: 319, cumulative_distance_m: 0 }] } };
+    }
+    return plannerApi(request);
+  } });
+  await plannerAction(page, "add-shift").click();
+  await startPlanner(page);
+  const toggle = role(page, "catalog").locator('tr[data-trip-id="night-a"] [data-action="preview-trip"]');
+  await toggle.click();
+  await expect(role(page, "elevation")).toContainText("Failed to load elevation");
+  await toggle.click();
+  await toggle.click();
+  await expect(role(page, "elevation").getByRole("img")).toContainText("319");
+  await expect(role(page, "map")).toHaveText("No route data available");
+  await plannerField(page, "line").selectOption("");
+  await expect(page.locator("#planner-trip-profile")).toHaveCount(0);
+  expect(attempts).toBe(2);
 });

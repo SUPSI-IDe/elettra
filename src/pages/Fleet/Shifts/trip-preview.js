@@ -1,7 +1,7 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-import { fetchElevationByTripId, fetchStopsByTripId } from "../../../api";
+import { fetchElevationByTripId } from "../../../api";
 import {
   buildCartoVoyagerTileUrl,
   getCartoApiKey,
@@ -11,373 +11,241 @@ import { t } from "../../../i18n";
 const previewMessage = (key, type = "empty") =>
   `<div class="trip-preview-inline__${type}">${t(key)}</div>`;
 
-// Cache to avoid refetching the same trip data
-const previewCache = new Map();
-
-let currentPreviewRow = null;
-let currentTripId = null;
-let hideTimeout = null;
-let mapInstance = null;
-let polylineLayer = null;
-let markersLayer = null;
-let isHoveringPreview = false;
-
-// Create the preview row content that will be inserted below the trip row
-const createPreviewContent = () => {
-  const content = document.createElement("td");
-  content.colSpan = 100; // Span all columns
-  content.className = "trip-preview-cell";
-  content.innerHTML = `
-    <div class="trip-preview-inline">
-      <div class="trip-preview-inline__content">
-        <div class="trip-preview-inline__map" data-role="map">
-          <div class="trip-preview-inline__loading">${t("trip_preview.loading_map")}</div>
-        </div>
-        <div class="trip-preview-inline__elevation" data-role="elevation">
-          <div class="trip-preview-inline__loading">${t("trip_preview.loading_elevation")}</div>
-        </div>
+const previewMarkup = () => `
+  <div class="trip-preview-inline">
+    <div class="trip-preview-inline__content">
+      <div class="trip-preview-inline__map" data-role="map">
+        ${previewMessage("trip_preview.loading_map", "loading")}
+      </div>
+      <div class="trip-preview-inline__elevation" data-role="elevation" aria-live="polite">
+        ${previewMessage("trip_preview.loading_elevation", "loading")}
       </div>
     </div>
-  `;
-  return content;
-};
+  </div>`;
 
-// Map uses coordinates from elevation profile (which has detailed lat/lng for the route)
-const renderMap = async (container, elevationData, stops) => {
-  // Extract coordinates from elevation profile records
-  const records = elevationData?.records || elevationData;
-  const coordinates = Array.isArray(records) 
-    ? records
-        .filter(r => r.latitude && r.longitude)
-        .map(r => [parseFloat(r.latitude), parseFloat(r.longitude)])
-    : [];
-  
-  if (coordinates.length === 0) {
+const numeric = (value) => value != null && value !== "" && Number.isFinite(Number(value));
+
+function observePreviewSize(element, paint, signal) {
+  let frame;
+  const observer = new ResizeObserver(([entry]) => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      if (!signal.aborted) paint(entry.contentRect.width);
+    });
+  });
+  observer.observe(element);
+  signal.addEventListener("abort", () => {
+    observer.disconnect();
+    cancelAnimationFrame(frame);
+  }, { once: true });
+}
+
+const renderMap = (container, records, signal) => {
+  const coordinates = records.filter((r) => numeric(r.latitude) && numeric(r.longitude))
+    .map((r) => [Number(r.latitude), Number(r.longitude)]);
+  if (!coordinates.length) {
     container.innerHTML = previewMessage("trip_preview.no_route_data");
     return;
   }
-  
-  console.log(`[TripPreview] Rendering map with ${coordinates.length} coordinates`);
-  
-  // Clean up existing map if any
-  if (mapInstance) {
-    try {
-      mapInstance.remove();
-    } catch (e) {
-      // Ignore errors when removing
-    }
-    mapInstance = null;
-  }
-  
-  // Create map container div
+
   container.innerHTML = '<div class="trip-preview-map-container"></div>';
-  const mapDiv = container.querySelector(".trip-preview-map-container");
-  mapDiv.style.width = "100%";
-  mapDiv.style.height = "180px";
-  
-  try {
-    // Create new map instance
-    mapInstance = L.map(mapDiv, {
-      zoomControl: false,
-      attributionControl: false,
-    });
-    
-    // CARTO requires an API key for raster basemap requests.
-    L.tileLayer(buildCartoVoyagerTileUrl(await getCartoApiKey()), {
-      maxZoom: 19,
-    }).addTo(mapInstance);
-    
-    // Add polyline for the route
-    polylineLayer = L.polyline(coordinates, {
-      color: "#2563eb",
-      weight: 3,
-      opacity: 0.9,
-    }).addTo(mapInstance);
-    
-    // Add markers for start and end
-    markersLayer = L.layerGroup().addTo(mapInstance);
-    
-    // Start marker (green)
-    L.circleMarker(coordinates[0], {
-      radius: 8,
-      fillColor: "#10b981",
-      color: "#065f46",
-      weight: 2,
-      fillOpacity: 1,
-    }).addTo(markersLayer);
-    
-    // End marker (red)
-    L.circleMarker(coordinates[coordinates.length - 1], {
-      radius: 8,
-      fillColor: "var(--color-danger)",
-      color: "#7f1d1d",
-      weight: 2,
-      fillOpacity: 1,
-    }).addTo(markersLayer);
-    
-    // Fit bounds with a small delay to ensure container is sized
-    setTimeout(() => {
-      if (mapInstance && polylineLayer) {
-        mapInstance.invalidateSize();
-        mapInstance.fitBounds(polylineLayer.getBounds(), { padding: [20, 20] });
-      }
-    }, 100);
-    
-    console.log("[TripPreview] Map rendered successfully");
-  } catch (e) {
-    console.error("[TripPreview] Error rendering map:", e);
-    container.innerHTML = previewMessage("trip_preview.failed_render_map");
-  }
+  const map = L.map(container.firstElementChild, { zoomControl: false, scrollWheelZoom: false });
+  const line = L.polyline(coordinates, { color: "#2563eb", weight: 3, opacity: 0.9 }).addTo(map);
+  const marker = (position, fillColor, color) =>
+    L.circleMarker(position, { radius: 7, fillColor, color, weight: 2, fillOpacity: 1 }).addTo(map);
+  marker(coordinates[0], "#10b981", "#065f46");
+  marker(coordinates.at(-1), "#dc2626", "#7f1d1d");
+  const fit = () => {
+    if (signal.aborted) return;
+    map.invalidateSize();
+    map.fitBounds(line.getBounds(), { padding: [18, 18], maxZoom: 17, animate: false });
+  };
+  fit();
+  observePreviewSize(container, fit, signal);
+  signal.addEventListener("abort", () => map.remove(), { once: true });
+
+  getCartoApiKey().then((key) => {
+    if (signal.aborted) return;
+    const osm = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+    const url = key ? buildCartoVoyagerTileUrl(key) : "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+    const attribution = key ? osm + ' &copy; <a href="https://carto.com/attributions">CARTO</a>' : osm;
+    L.tileLayer(url, { maxZoom: 19, attribution }).addTo(map);
+  });
 };
 
-const renderElevation = (container, elevationData) => {
-  // Handle both { records: [...] } and flat array formats
-  const records = elevationData?.records || elevationData;
-  
-  if (!records || !Array.isArray(records) || records.length === 0) {
+const renderElevation = (container, records, signal) => {
+  const points = records.map((record) => ({
+    distance: record.cumulative_distance_m ?? record.distance ?? record.cumulative_distance,
+    elevation: record.altitude_m ?? record.elevation ?? record.altitude,
+  })).filter(({ distance, elevation }) => numeric(distance) && numeric(elevation))
+    .map(({ distance, elevation }) => ({ distance: Number(distance), elevation: Number(elevation) }));
+
+  if (!points.length) {
     container.innerHTML = previewMessage("trip_preview.no_elevation_data");
     return;
   }
-  
+
   // Create SVG elevation chart
-  const W = 400;
-  const H = 120;
-  const padLeft = 40;
+  const H = 136;
   const padRight = 15;
   const padTop = 15;
-  const padBottom = 28;
-  const innerWidth = W - padLeft - padRight;
+  const padBottom = 44;
   const innerHeight = H - padTop - padBottom;
-  
-  // Extract distances and elevations from records
-  const points = records.map((r, i) => ({
-    distance: r.cumulative_distance_m ?? r.distance ?? r.cumulative_distance ?? i * 100,
-    elevation: r.altitude_m ?? r.elevation ?? r.altitude ?? 0,
-  }));
-  
-  const minAlt = Math.min(...points.map(p => p.elevation));
-  const maxAlt = Math.max(...points.map(p => p.elevation));
-  const maxX = Math.max(...points.map(p => p.distance));
-  
-  // Scale functions
-  const scaleX = (d) => padLeft + (d / (maxX || 1)) * innerWidth;
-  const scaleY = (alt) => padTop + innerHeight - ((alt - minAlt) / ((maxAlt - minAlt) || 1)) * innerHeight;
-  
-  // Create path
-  const pathD = points.map((p, i) => 
-    `${i === 0 ? 'M' : 'L'}${scaleX(p.distance).toFixed(1)},${scaleY(p.elevation).toFixed(1)}`
-  ).join(' ');
-  
-  // Create area fill path
-  const areaD = pathD + ` L${scaleX(maxX).toFixed(1)},${H - padBottom} L${padLeft},${H - padBottom} Z`;
-  
-  // X-axis ticks
-  const numXTicks = 4;
-  const xTicks = [];
-  for (let i = 0; i <= numXTicks; i++) xTicks.push((maxX / numXTicks) * i);
-  
-  // Y-axis ticks
-  const numYTicks = 3;
-  const yTicks = [];
-  for (let i = 0; i <= numYTicks; i++) yTicks.push(minAlt + ((maxAlt - minAlt) / numYTicks) * i);
-  
-  container.innerHTML = `
-    <svg viewBox="0 0 ${W} ${H}" class="elevation-chart-inline" preserveAspectRatio="xMidYMid meet">
-      <!-- Grid lines -->
-      ${yTicks.map(y => `
-        <line x1="${padLeft}" y1="${scaleY(y)}" x2="${W - padRight}" y2="${scaleY(y)}" stroke="#e5e7eb" stroke-dasharray="2,2" />
-      `).join('')}
-      
-      <!-- Axes -->
-      <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${H - padBottom}" stroke="#d1d5db" />
-      <line x1="${padLeft}" y1="${H - padBottom}" x2="${W - padRight}" y2="${H - padBottom}" stroke="#d1d5db" />
-      
-      <!-- Area fill -->
-      <path d="${areaD}" fill="rgba(5, 150, 105, 0.1)" />
-      
-      <!-- Elevation line -->
-      <path d="${pathD}" stroke="#059669" stroke-width="2" fill="none" />
-      
-      <!-- X-axis ticks and labels -->
-      ${xTicks.map(x => `
-        <line x1="${scaleX(x)}" y1="${H - padBottom}" x2="${scaleX(x)}" y2="${H - padBottom + 4}" stroke="#9ca3af" />
-        <text x="${scaleX(x)}" y="${H - padBottom + 16}" text-anchor="middle" font-size="10" fill="#6b7280">${(x / 1000).toFixed(1)}</text>
-      `).join('')}
-      <text x="${W - padRight}" y="${H - 8}" text-anchor="end" font-size="10" fill="#9ca3af">km</text>
-      
-      <!-- Y-axis ticks and labels -->
-      ${yTicks.map(y => `
-        <line x1="${padLeft - 4}" y1="${scaleY(y)}" x2="${padLeft}" y2="${scaleY(y)}" stroke="#9ca3af" />
-        <text x="${padLeft - 8}" y="${scaleY(y) + 3}" text-anchor="end" font-size="10" fill="#6b7280">${Math.round(y)}</text>
-      `).join('')}
-      <text x="12" y="${padTop + innerHeight / 2}" text-anchor="middle" font-size="10" fill="#9ca3af" transform="rotate(-90 12 ${padTop + innerHeight / 2})">m</text>
-    </svg>
-  `;
+
+  let minAlt = points[0].elevation;
+  let maxAlt = minAlt;
+  let maxX = 0;
+  for (const point of points) {
+    minAlt = Math.min(minAlt, point.elevation);
+    maxAlt = Math.max(maxAlt, point.elevation);
+    maxX = Math.max(maxX, point.distance);
+  }
+  const digits = Math.max(String(Math.round(minAlt)).length, String(Math.round(maxAlt)).length);
+  const padLeft = 25 + 7 * digits;
+
+  // Size the coordinate system to the actual column, so the axis labels keep
+  // their font size in both the wide table and the compact programme panel.
+  let paintedWidth = 0;
+  const draw = (width) => {
+    const W = Math.min(400, Math.floor(width));
+    if (signal.aborted || W <= padLeft + padRight || W === paintedWidth) return;
+    paintedWidth = W;
+    const innerWidth = W - padLeft - padRight;
+    // Scale functions
+    const scaleX = (d) => padLeft + (d / (maxX || 1)) * innerWidth;
+    const scaleY = (alt) => maxAlt === minAlt ? padTop + innerHeight / 2
+      : padTop + innerHeight - (alt - minAlt) / (maxAlt - minAlt) * innerHeight;
+
+    // Create path
+    const pathD = points.map((p, i) =>
+      `${i === 0 ? 'M' : 'L'}${scaleX(p.distance).toFixed(1)},${scaleY(p.elevation).toFixed(1)}`
+    ).join(' ');
+
+    // Create area fill path
+    const areaD = pathD + ` L${scaleX(maxX).toFixed(1)},${H - padBottom} L${padLeft},${H - padBottom} Z`;
+
+    // X-axis ticks
+    const numXTicks = W < 250 ? 3 : 4;
+    const xTicks = [];
+    for (let i = 0; i <= (maxX ? numXTicks : 0); i++) xTicks.push((maxX / numXTicks) * i);
+
+    // Y-axis ticks
+    const numYTicks = 3;
+    const yTicks = [];
+    for (let i = 0; i <= (maxAlt === minAlt ? 0 : numYTicks); i++) yTicks.push(minAlt + ((maxAlt - minAlt) / numYTicks) * i);
+
+    container.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t("trip_preview.elevation_profile")}" class="elevation-chart-inline" preserveAspectRatio="xMidYMid meet">
+        <!-- Grid lines -->
+        ${yTicks.map(y => `
+          <line x1="${padLeft}" y1="${scaleY(y)}" x2="${W - padRight}" y2="${scaleY(y)}" stroke="#e5e7eb" stroke-dasharray="2,2" />
+        `).join('')}
+
+        <!-- Axes -->
+        <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${H - padBottom}" stroke="#d1d5db" />
+        <line x1="${padLeft}" y1="${H - padBottom}" x2="${W - padRight}" y2="${H - padBottom}" stroke="#d1d5db" />
+
+        <!-- Area fill -->
+        <path d="${areaD}" fill="rgba(5, 150, 105, 0.1)" />
+
+        <!-- Elevation line -->
+        <path d="${pathD}" stroke="#059669" stroke-width="2" fill="none" />
+
+        <!-- X-axis ticks and labels -->
+        ${xTicks.map(x => `
+          <line x1="${scaleX(x)}" y1="${H - padBottom}" x2="${scaleX(x)}" y2="${H - padBottom + 4}" stroke="#9ca3af" />
+          <text x="${scaleX(x)}" y="${H - padBottom + 16}" text-anchor="middle" font-size="12" fill="#6b7280">${(x / 1000).toFixed(1)}</text>
+        `).join('')}
+        <text x="${W - padRight}" y="${H - 8}" text-anchor="end" font-size="12" fill="#9ca3af">km</text>
+
+        <!-- Y-axis ticks and labels -->
+        ${yTicks.map(y => `
+          <line x1="${padLeft - 4}" y1="${scaleY(y)}" x2="${padLeft}" y2="${scaleY(y)}" stroke="#9ca3af" />
+          <text x="${padLeft - 8}" y="${scaleY(y) + 3}" text-anchor="end" font-size="12" fill="#6b7280">${Math.round(y)}</text>
+        `).join('')}
+        <text x="12" y="${padTop + innerHeight / 2}" text-anchor="middle" font-size="12" fill="#9ca3af" transform="rotate(-90 12 ${padTop + innerHeight / 2})">m</text>
+      </svg>
+    `;
+  };
+  observePreviewSize(container, draw, signal);
 };
 
-// Get the database UUID (id field) - this is what the API expects
-const getTripDbId = (trip) => {
-  if (typeof trip === "string") {
-    return trip;
-  }
-  // The API uses the database UUID (id field), not the GTFS trip_id
-  return trip?.id || trip?.trip?.id || trip?.pk || trip?.trip_pk || null;
-};
+// The catalogue and saved programme share the same elevation records and map renderer.
+export function mountTripPreview(container, tripId, cache, { cacheEmpty = false } = {}) {
+  const controller = new AbortController();
+  const { signal } = controller;
+  container.innerHTML = previewMarkup();
+  const chart = container.querySelector('[data-role="elevation"]');
+  const map = container.querySelector('[data-role="map"]');
 
-const loadTripPreview = async (trip, routeId, previewRow) => {
-  const mapContainer = previewRow.querySelector('[data-role="map"]');
-  const elevationContainer = previewRow.querySelector('[data-role="elevation"]');
-  
-  const tripDbId = getTripDbId(trip);
-  
-  if (!tripDbId) {
-    console.warn("[TripPreview] No trip database ID found", trip);
-    mapContainer.innerHTML = previewMessage("trip_preview.no_trip_id");
-    elevationContainer.innerHTML = previewMessage("trip_preview.no_trip_id");
-    return;
-  }
-  
-  console.log(`[TripPreview] Loading preview for trip DB ID: ${tripDbId}`);
-  
-  // Check cache
-  if (previewCache.has(tripDbId)) {
-    const cached = previewCache.get(tripDbId);
-    await renderMap(mapContainer, cached.elevation, cached.stops);
-    renderElevation(elevationContainer, cached.elevation);
-    return;
-  }
-  
-  // Show loading state
-  mapContainer.innerHTML = previewMessage("trip_preview.loading_map", "loading");
-  elevationContainer.innerHTML = previewMessage("trip_preview.loading_elevation", "loading");
-  
-  try {
-    let stops = [];
-    let elevation = null;
-    
-    // Fetch stops
+  async function load() {
     try {
-      console.log(`[TripPreview] Fetching stops for trip: ${tripDbId}`);
-      stops = await fetchStopsByTripId(tripDbId);
-      console.log(`[TripPreview] Loaded ${stops?.length || 0} stops`);
-    } catch (e) {
-      console.warn(`[TripPreview] Failed to load stops:`, e.message);
-    }
-    
-    // Fetch elevation profile (this also contains the route coordinates for the map)
-    try {
-      console.log(`[TripPreview] Fetching elevation for trip: ${tripDbId}`);
-      elevation = await fetchElevationByTripId(tripDbId);
-      const recordCount = elevation?.records?.length || (Array.isArray(elevation) ? elevation.length : 0);
-      console.log(`[TripPreview] Loaded elevation with ${recordCount} points`);
-    } catch (e) {
-      console.warn(`[TripPreview] Failed to load elevation:`, e.message);
-    }
-    
-    // Cache the results
-    previewCache.set(tripDbId, { stops, elevation });
-    
-    // Only render if this trip is still the current one
-    if (currentTripId === tripDbId && currentPreviewRow) {
-      // Map uses elevation profile coordinates (more detailed than stops)
-      await renderMap(mapContainer, elevation, stops);
-      renderElevation(elevationContainer, elevation);
-    }
-  } catch (error) {
-    console.error("[TripPreview] Failed to load trip preview:", error);
-    if (currentTripId === tripDbId && currentPreviewRow) {
-      mapContainer.innerHTML = previewMessage("trip_preview.failed_map");
-      elevationContainer.innerHTML = previewMessage("trip_preview.failed_elevation");
-    }
-  }
-};
-
-const removePreviewRow = () => {
-  if (currentPreviewRow) {
-    // Clean up map instance before removing
-    if (mapInstance) {
-      try {
-        mapInstance.remove();
-      } catch (e) {
-        // Ignore errors when removing
+      let records = cache.get(tripId);
+      if (!records) {
+        const payload = await fetchElevationByTripId(tripId, { signal });
+        if (signal.aborted) return;
+        records = payload?.records ?? payload;
+        if (!Array.isArray(records)) throw new Error("Invalid elevation records");
+        if (records.length || cacheEmpty) {
+          if (cache.size >= 12) cache.delete(cache.keys().next().value);
+          cache.set(tripId, records);
+        }
       }
-      mapInstance = null;
+      renderElevation(chart, records, signal);
+      try {
+        renderMap(map, records, signal);
+      } catch {
+        map.innerHTML = previewMessage("trip_preview.failed_render_map");
+      }
+    } catch {
+      if (signal.aborted) return;
+      chart.innerHTML = previewMessage("trip_preview.failed_elevation");
+      map.innerHTML = previewMessage("trip_preview.failed_map");
     }
-    
-    currentPreviewRow.remove();
-    currentPreviewRow = null;
   }
-  currentTripId = null;
-};
+  void load();
+  return () => controller.abort();
+}
 
-const scheduleHide = () => {
+const previewCache = new Map();
+let currentRow;
+let closePreview;
+let hideTimeout;
+
+function removePreviewRow() {
   clearTimeout(hideTimeout);
-  hideTimeout = setTimeout(() => {
-    if (!isHoveringPreview) {
-      removePreviewRow();
-    }
-  }, 300);
-};
+  closePreview?.();
+  closePreview = null;
+  currentRow?.remove();
+  currentRow = null;
+}
 
-export const showTripPreview = (trip, routeId, anchorElement) => {
-  if (!trip || !anchorElement) {
-    console.warn("[TripPreview] showTripPreview called without trip or anchorElement");
-    return;
-  }
-  
-  const tripDbId = getTripDbId(trip);
-  
-  // If same trip is already shown, don't recreate
-  if (currentTripId === tripDbId && currentPreviewRow) {
-    clearTimeout(hideTimeout);
-    return;
-  }
-  
-  // Remove any existing preview row
+export const showTripPreview = (trip, _routeId, anchor) => {
+  const id = typeof trip === "string" ? trip : trip?.id ?? trip?.trip?.id ?? trip?.pk ?? trip?.trip_pk;
+  if (!id || !anchor) return;
+  clearTimeout(hideTimeout);
+  if (currentRow?.previousElementSibling === anchor && currentRow.dataset.previewId === id) return;
   removePreviewRow();
-  
-  clearTimeout(hideTimeout);
-  currentTripId = tripDbId;
-  
-  // Create new preview row
-  const previewRow = document.createElement("tr");
-  previewRow.className = "trip-preview-row";
-  previewRow.appendChild(createPreviewContent());
-  
-  // Insert after the anchor row
-  anchorElement.insertAdjacentElement("afterend", previewRow);
-  currentPreviewRow = previewRow;
-  
-  // Add hover handlers to the preview row
-  previewRow.addEventListener("mouseenter", () => {
-    isHoveringPreview = true;
-    clearTimeout(hideTimeout);
-  });
-  
-  previewRow.addEventListener("mouseleave", () => {
-    isHoveringPreview = false;
-    scheduleHide();
-  });
-  
-  // Load the preview data
-  loadTripPreview(trip, routeId, previewRow);
-  
-  // Debug logging
-  console.log("[TripPreview] Trip object:", {
-    id: trip.id,
-    trip_id: trip.trip_id,
-    pk: trip.pk,
-    tripId: trip.tripId,
-    trip_pk: trip.trip_pk,
-  });
-  console.log(`[TripPreview] Using trip DB ID for API calls: ${tripDbId}`);
+  const row = document.createElement("tr");
+  row.className = "trip-preview-row";
+  row.dataset.previewId = id;
+  const cell = row.insertCell();
+  cell.colSpan = anchor.cells.length;
+  cell.className = "trip-preview-cell";
+  anchor.after(row);
+  currentRow = row;
+  // Hover can fire again when a translated table is redrawn without a pointer action.
+  closePreview = mountTripPreview(cell, id, previewCache, { cacheEmpty: true });
+  row.addEventListener("mouseenter", () => clearTimeout(hideTimeout));
+  row.addEventListener("mouseleave", hideTripPreview);
 };
 
 export const hideTripPreview = () => {
-  isHoveringPreview = false;
-  scheduleHide();
+  clearTimeout(hideTimeout);
+  hideTimeout = setTimeout(removePreviewRow, 300);
 };
 
 export const clearPreviewCache = () => {
+  removePreviewRow();
   previewCache.clear();
 };
