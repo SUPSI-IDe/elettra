@@ -10,19 +10,33 @@ export const appendCopyNameSuffix = (name, suffix, existingNames = []) => {
   // "Copy shop", "Route_12" and "Report_copy_notes".
   const tail = new RegExp(`(?:_(?:${labels})(?:_(\\d+))?|\\s+\\((?:${labels})(?:_(\\d+))?\\)|^(?:${labels})_(\\d+))$`, 'i');
   const parse = value => {
-    let base = String(value ?? '').trim(), number = 0n, match;
+    let base = String(value ?? '').trim();
+    let tokens = 0;
+    let legacyOrdinal = 0n;
+    let ordinal = null;
+    let match;
     while ((match = tail.exec(base))) {
-      number += BigInt(match[1] || match[2] || match[3] || '1');
+      const number = match[1] ?? match[2] ?? match[3];
+      ordinal = number === undefined ? 0n : BigInt(number);
+      legacyOrdinal += number === undefined ? 1n : ordinal;
+      tokens++;
       base = base.slice(0, match.index).trimEnd();
     }
-    return { base, number };
+    // Stacked suffixes from older versions retain their inferred ordinal.
+    return { base, ordinal: tokens > 1 ? legacyOrdinal : ordinal };
   };
   const source = parse(original);
-  const family = source.base.normalize('NFC').toLowerCase();
-  let last = source.number;
+  const normalizeBase = base => base.normalize('NFC').toLowerCase();
+  const family = normalizeBase(source.base);
+  const occupied = new Set();
+  if (source.ordinal !== null) occupied.add(source.ordinal);
   for (const value of existingNames) {
     const item = parse(value);
-    if (item.base.normalize('NFC').toLowerCase() === family && item.number > last) last = item.number;
+    if (item.ordinal !== null && normalizeBase(item.base) === family) {
+      occupied.add(item.ordinal);
+    }
   }
-  return `${source.base ? `${source.base}_` : ''}${label}_${last + 1n}`;
+  let ordinal = 0n;
+  while (occupied.has(ordinal)) ordinal++;
+  return `${source.base}_${label}${ordinal === 0n ? '' : `_${ordinal}`}`;
 };

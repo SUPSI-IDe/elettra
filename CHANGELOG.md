@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Restore the fleet cost and emissions charts when returning to General from a vehicle block.
+- Calculate typical-day energy uncertainty by sampling each trip independently across vehicle blocks. Scale each typical day's interval by its number of occurrences for annual contributions.
+- Show the charging stop name in raw feasibility data even when an infeasible design contains only the stop ID. Use the saved name when available.
+- Name the first duplicate with the localized copy suffix. Add a number only when that name is taken.
+
 ## [1.4.0-rc.1] - 2026-11-24
 
 - Build vehicle blocks one activity at a time, from the starting depot through GTFS trips, empty transfers and depot stays to the return. Plan in whole minutes, including after midnight, and edit or insert activities in the saved sequence.

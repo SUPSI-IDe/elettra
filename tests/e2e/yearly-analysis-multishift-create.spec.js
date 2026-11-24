@@ -29,10 +29,15 @@ const completedPrediction = (id, shiftId, temperature, energy, distance) => ({
     consumption_per_km_kwh: energy / distance,
     drivetrain_per_km_kwh: energy * 0.75 / distance,
     auxiliary_per_km_kwh: energy * 0.25 / distance,
-    quantiles: {
-      q05: energy * 0.9,
-      q50: energy,
-      q95: energy * 1.1,
+    energy_uncertainty: {
+      method: "independent-trip-q95-conditional-v1",
+      daily_kwh: { q05: energy * 0.9, q50: energy - 1, q95: energy * 1.1 },
+      scenario_daily_kwh: temperature === -5
+        ? { q05: 190, q50: 197, q95: 210 }
+        : { q05: 138, q50: 147, q95: 160 },
+      scenario_prediction_run_ids: temperature === -5
+        ? ["cold-evening", "cold-morning"]
+        : ["warm-evening", "warm-morning"],
     },
   },
 });
@@ -347,6 +352,9 @@ test(`annual forecast in one request: ${failure ? "failure" : "success"}`, async
   });
   expect(results.scenarioResults.map(({ kpis }) => kpis.totalEnergyKwh)).toEqual([200, 150]);
   expect(results.scenarioResults[0].predRunIds).toEqual(["cold-morning", "cold-evening"]);
+  expect(results.scenarioResults[0].kpis.quantiles).toEqual({ q05: 190, q50: 197, q95: 210 });
+  expect(results.scenarioResults[0].kpis.energyUncertainty.method).toBe("independent-trip-q95-conditional-v1");
+  expect(results.shiftResults[0].scenarioResults[0].kpis.quantiles.q50).toBe(119);
   expect(results.yearlyTotals.totalEnergyKwh).toBe(200 * 100 + 150 * 265);
   expect(results.yearlyTotals.distanceKm).toBe(36_500);
   expect(results.nominalDailyDistanceKm).toBe(100);

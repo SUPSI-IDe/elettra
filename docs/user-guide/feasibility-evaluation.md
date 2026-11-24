@@ -158,10 +158,9 @@ interpret a pending or failed execution as a technical verdict.
 ## Duplicate an evaluation safely
 
 From the evaluation list, choose **Duplicate** on the source row; row selection
-is not required. The proposed name uses `_copy_1`, `_copy_2`, and so on, in the
-interface language. Copying a copy continues the original name family's
-numbering, using the highest existing copy number across all list pages.
-The name remains editable.
+is not required. ELETTRA checks all list pages for the first available suffix
+in the original name family: `_copy`, `_copy_1`, `_copy_2`, and so on. The name
+remains editable and the suffix follows the interface language.
 The form restores, where available:
 
 - GTFS edition, vehicle blocks, and bus model;

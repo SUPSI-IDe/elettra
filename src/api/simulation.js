@@ -1121,6 +1121,16 @@ export const fetchYearlyAnalysis = async (id) => {
   return payload;
 };
 
+export const fetchYearlyEnergyUncertainty = async (id, predictionRunId, { signal } = {}) => {
+  const query = new URLSearchParams({ prediction_run_id: predictionRunId });
+  const response = await fetch(
+    `${YEARLY_ANALYSIS_PATH}/${encodeURIComponent(id)}/energy-uncertainty?${query}`,
+    { method: "GET", headers: authHeaders(), signal },
+  );
+  if (!response.ok) throw new Error("Yearly energy uncertainty is unavailable.");
+  return response.json();
+};
+
 export const updateYearlyAnalysis = async (id, data = {}) => {
   if (!id) throw new Error("Missing yearly analysis ID.");
   const headers = {

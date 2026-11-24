@@ -80,9 +80,9 @@ dependent work before changing or deleting it.
 ## Duplicate reusable records
 
 Choose **Duplicate** on a model or custom-stop row to open an editable copy.
-The proposed name uses the next number in the original name family, including
-when copying a copy: `Line A_copy_1`, `Line A_copy_2`, and so on. If copy 4
-already exists on another list page, the next proposal is `Line A_copy_5`.
+The proposed name uses the first available suffix in the original name family,
+including when copying a copy. The sequence starts with `Line A_copy`, followed
+by `Line A_copy_1`, `Line A_copy_2`, and so on. ELETTRA checks all list pages.
 The suffix follows the interface language: `_copy`, `_Kopie`, `_copie` or
 `_copia`. The proposed name remains editable.
 

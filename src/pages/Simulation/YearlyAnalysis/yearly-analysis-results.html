@@ -135,6 +135,9 @@
           </div>
         </div>
 
+        <p class="ya-sizing-note" data-role="ya-energy-uncertainty-note" data-i18n="yearly_analysis.energy_uncertainty_method" hidden>Daily prediction ranges are sampled trip by trip. In kWh/year, each typical-day range is multiplied by the number of days in its weather cluster.</p>
+        <p class="ya-sizing-note" data-role="ya-energy-uncertainty-availability" data-i18n="yearly_analysis.energy_uncertainty_unavailable" hidden>Prediction ranges are unavailable for one or more temperature scenarios. Point estimates are still shown.</p>
+
         <details class="ya-more-information ya-surface-disclosure result-card">
           <summary class="ya-more-information__toggle" data-i18n="yearly_analysis.view_detailed_results">
             View detailed yearly results
@@ -144,7 +147,6 @@
             <div data-role="ya-detail-scenarios"></div>
             <div data-role="ya-detail-battery"></div>
             <div data-role="ya-detail-yearly-summary"></div>
-            <div data-role="ya-detail-yearly-uncertainty"></div>
           </div>
         </details>
       </section>

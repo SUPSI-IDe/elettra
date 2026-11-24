@@ -309,7 +309,7 @@ test("duplicates the complete persisted programme from the list", async ({ page,
   expect(state.writes).toEqual([{
     path: "/api/v1/user/shift-planner/programmes", method: "POST",
     body: {
-      name: "Night_copy_1", bus_id: "bus", gtfs_dataset: edition,
+      name: "Night_copy", bus_id: "bus", gtfs_dataset: edition,
       request_id: expect.stringMatching(/^[a-f0-9-]{36}$/), copy_from: "sequential", programme: storedProgramme.programme,
     },
   }]);

@@ -35,7 +35,7 @@ const LANGUAGES = {
     yearlyTerms: ["Review Costs and Emissions for the fleet", "annual DC energy"],
     releaseTerms: {
       start: ["Home", "user guide"],
-      fleet: ["9 to 13 m", "17 to 19 m", "LFP", "NMC", "Restore estimate", "_copy_1"],
+      fleet: ["9 to 13 m", "17 to 19 m", "LFP", "NMC", "Restore estimate", "Line A_copy, Line A_copy_1"],
       shifts: ["GTFS", "complete server-side list", "Space-time", "Map", "whole-day programme", "Intermediate stays", "Apply to block", "Cancel"],
       feasibility: ["one GTFS edition", "Duplicate", "1 plug", "N blocks", "150 × N"],
       results: ["Configured SOC window", "initial physical-maximum reference", "Export the complete feasibility evaluation", "Check export availability"],
@@ -50,7 +50,7 @@ const LANGUAGES = {
     yearlyTerms: ["Kosten und Emissionen der Flotte prüfen", "jährlichen DC-Energie"],
     releaseTerms: {
       start: ["Startseite", "Benutzerhandbuch"],
-      fleet: ["9 bis 13 m", "17 bis 19 m", "LFP", "NMC", "Schätzwert wiederherstellen", "_Kopie_1"],
+      fleet: ["9 bis 13 m", "17 bis 19 m", "LFP", "NMC", "Schätzwert wiederherstellen", "Linie A_Kopie, Linie A_Kopie_1"],
       shifts: ["GTFS", "vollständige serverseitige Liste", "Raum-Zeit", "Karte", "Tagesprogramm", "Zwischenaufenthalte", "In Umlauf übernehmen", "Abbrechen"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "1 Ladepunkt", "N Umläufe", "150 × N"],
       results: ["Konfiguriertes SOC-Fenster", "physischen Maximum", "Die vollständige Machbarkeitsbewertung exportieren", "Verfügbarkeit des Exports prüfen"],
@@ -65,7 +65,7 @@ const LANGUAGES = {
     yearlyTerms: ["Examiner les Coûts et les Émissions de la flotte", "énergie DC annuelle"],
     releaseTerms: {
       start: ["Accueil", "guide"],
-      fleet: ["9 à 13 m", "17 à 19 m", "LFP", "NMC", "Rétablir l’estimation", "_copie_1"],
+      fleet: ["9 à 13 m", "17 à 19 m", "LFP", "NMC", "Rétablir l’estimation", "Ligne A_copie, Ligne A_copie_1"],
       shifts: ["GTFS", "liste complète côté serveur", "Espace-temps", "Carte", "programme existant complet", "Pauses intermédiaires", "Appliquer au service", "Annuler"],
       feasibility: ["édition GTFS", "Dupliquer", "1 prise", "N services", "150 × N"],
       results: ["Fenêtre SOC configurée", "maximum physique", "Exporter l’évaluation de faisabilité complète", "Vérifier la disponibilité de l’export"],
@@ -80,7 +80,7 @@ const LANGUAGES = {
     yearlyTerms: ["Esaminare Costi ed Emissioni della flotta", "energia DC annuale"],
     releaseTerms: {
       start: ["Home", "guida utente"],
-      fleet: ["9 a 13 m", "17 a 19 m", "LFP", "NMC", "Ripristina stima", "_copia_1"],
+      fleet: ["9 a 13 m", "17 a 19 m", "LFP", "NMC", "Ripristina stima", "Linea A_copia, Linea A_copia_1"],
       shifts: ["GTFS", "elenco completo sul server", "Spazio-tempo", "Mappa", "intera giornata", "Soste intermedie", "Applica al turno", "Annulla"],
       feasibility: ["una sola edizione GTFS", "Duplica", "1 presa", "N turni", "150 × N"],
       results: ["Intervallo SOC configurato", "massimo fisico", "Esportare la valutazione di fattibilità completa", "Verificare la disponibilità dell’esportazione"],

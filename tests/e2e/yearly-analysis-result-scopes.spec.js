@@ -316,6 +316,7 @@ const mountResults = async (
     hvacPayload = null,
     lcaResponse = null,
     saveAnalysis = null,
+    energyUncertainty = null,
   } = {},
 ) => {
   const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
@@ -335,6 +336,11 @@ const mountResults = async (
     const path = url.pathname;
     if (path.endsWith("/version")) {
       await route.fulfill({ json: { version: "yearly-results-test" } });
+    } else if (path.endsWith(`/yearly-analysis/${analysis.id}/energy-uncertainty`)) {
+      const predictionRunId = url.searchParams.get("prediction_run_id");
+      const payload = await energyUncertainty?.(predictionRunId);
+      if (payload) await route.fulfill({ json: payload });
+      else await route.fulfill({ status: 409, json: { detail: "Original distribution unavailable" } });
     } else if (path.endsWith(`/yearly-analysis/${analysis.id}/lca`)) {
       const shiftId = url.searchParams.get("shift_id");
       const annualKmRaw = url.searchParams.get("annual_km");
@@ -1214,6 +1220,51 @@ test("current fleet-dashboard analyses retain the General JSON export", async ({
   await expect(downloadButton).toBeVisible();
 });
 
+test("current fleet dashboard restores Costs and Emissions charts after visiting shifts", async ({ page }) => {
+  const analysis = currentFleetAnalysis("fleet-dashboard-scope-navigation");
+  await mountResults(page, analysis, { lcaResponse: (url, original) => currentFleetLca(url, original, analysis) });
+
+  const general = page.getByRole("tab", { name: "General", exact: true });
+  const costs = page.getByRole("tab", { name: "Costs", exact: true });
+  const emissions = page.getByRole("tab", { name: "Emissions", exact: true });
+  const dashboard = page.locator('[data-role="annual-fleet-dashboard"]');
+  const shiftSummary = page.locator('[data-role="ya-shift-yearly-summary"]');
+  const phaseChart = page.locator('[data-annual-lca] [data-role="ya-lca-phases"]');
+  const expectCostsCharts = async () => {
+    await expect(page.locator("[data-cost-opex] svg")).toBeVisible();
+    await expect(page.locator("[data-cost-cumulative] svg")).toBeVisible();
+  };
+  const expectEmissionsChart = async () => {
+    await expect(phaseChart.locator(".ya-lca-phase-bar__label")).toHaveText([
+      /^ELETTRA: .+ t CO₂-eq$/,
+      /^Diesel: .+ t CO₂-eq$/,
+    ]);
+    await expect(phaseChart.locator(".ya-lca-phase-bar__segment:visible").first()).toBeVisible();
+  };
+
+  await expect(general).toHaveAttribute("aria-selected", "true");
+  await expect(dashboard).toBeVisible();
+  await expectCostsCharts();
+  await emissions.click();
+  await expectEmissionsChart();
+
+  await page.getByRole("tab", { name: "Morning service", exact: true }).click();
+  await expect(shiftSummary).toBeVisible();
+  await expect(dashboard).toBeHidden();
+  await general.click();
+  await expectEmissionsChart();
+  await costs.click();
+  await expectCostsCharts();
+
+  await page.getByRole("tab", { name: "Evening service", exact: true }).click();
+  await expect(shiftSummary).toBeVisible();
+  await expect(dashboard).toBeHidden();
+  await general.click();
+  await expectCostsCharts();
+  await emissions.click();
+  await expectEmissionsChart();
+});
+
 test("General, shifts, controls and export share one set of yearly economic assumptions", async ({ page }) => {
   const conflictingBackendCosts = {
     assumptions: {
@@ -1588,6 +1639,8 @@ test("historical single-shift results expose General and the configured shift", 
   await expect(page.locator('[data-panel="costs"]')).toBeHidden();
   await expect(page.locator('[data-panel="emissions"]')).toBeHidden();
   await expect(page.locator("#yearly-result-scope-content")).toContainText("Historical cold");
+  await expect(page.locator('[data-role="ya-energy-uncertainty-availability"]')).toBeVisible();
+  await expect(page.locator('[data-role="ya-eff-chart-1-legend"]')).not.toContainText("Q05-Q95");
 
   await resultViewTabs.getByText("Costs", { exact: true }).click();
   await expect(page.locator('[data-panel="efficiency"]')).toBeHidden();
@@ -1601,11 +1654,55 @@ test("historical single-shift results expose General and the configured shift", 
 
   await page.getByRole("tab", { name: "General" }).click();
   const exported = (await downloadAllResults(page)).exported;
+  expect(exported.shifts[0].efficiency.scenarios[0].energyUncertainty).toBeUndefined();
+  expect(exported.shifts[0].efficiency.scenarios[0].yearlyUncertainty).toBeUndefined();
   expect(exported.general.costs.operatingReconciliation).toMatchObject({
     status: "consistent",
     shiftCount: 1,
     issue: null,
   });
+});
+
+test("historical bands replay once per cluster and stay bound to downloaded shifts", async ({ page }) => {
+  const legacy = structuredClone(multishiftAnalysis);
+  legacy.id = "legacy-uncertainty";
+  const cold = (scope, index, energy, distance) => ({
+    ...scenario(`cold-${index}`, `Cold cluster ${index}`, energy, distance),
+    occurrences: index === 1 ? 100 : 265,
+    ...(scope === "general" ? { predRunIds: [`morning-${index}`, `evening-${index}`] }
+      : { predRunId: `${scope}-${index}` }),
+  });
+  legacy.features.results.scenarioResults = [1, 2].map(index => cold("general", index, 150, 100));
+  legacy.features.results.shiftResults.forEach((shift, position) => {
+    shift.scenarioResults = [1, 2].map(index => cold(shift.shiftId, index, [100, 50][position], [60, 40][position]));
+  });
+  const requests = [];
+  const method = "independent-trip-q95-conditional-v1";
+  const mc = (daily_kwh) => ({
+    method, daily_kwh, scenario_daily_kwh: { q05: 135, q50: 153, q95: 166 },
+    scenario_prediction_run_ids: ["evening-1", "morning-1"],
+    seed: 17, samples: 100000, scenario_seed: 21, scenario_samples: 200000,
+  });
+  await mountResults(page, legacy, { energyUncertainty: (runId) => {
+    requests.push(runId);
+    return runId === "morning-1" ? { by_prediction_run: {
+      "evening-1": mc({ q05: 43, q50: 52, q95: 55 }),
+      "morning-1": mc({ q05: 88, q50: 102, q95: 115 }),
+    } } : null;
+  } });
+
+  await page.getByRole("tab", { name: "Morning service" }).click();
+  await expect(page.locator('[data-role="ya-energy-uncertainty-note"]')).toBeVisible();
+  await expect(page.locator('[data-role="ya-energy-uncertainty-availability"]')).toBeVisible();
+  await expect(page.locator('[data-role="ya-eff-chart-1-legend"]')).toContainText("Q05-Q95");
+  await page.getByRole("tab", { name: "General" }).click();
+  const { exported } = await downloadAllResults(page);
+  expect(requests.sort()).toEqual(["morning-1", "morning-2"]);
+  const [general, unavailable] = exported.general.efficiency.scenarios;
+  expect(general.energyUncertainty).toMatchObject({ method, seed: 21, samples: 200000 });
+  expect(general.yearlyUncertainty).toEqual({ q05: 13500, q50: 15300, q95: 16600 });
+  expect(unavailable.yearlyUncertainty).toBeUndefined();
+  expect(exported.shifts.map(shift => shift.efficiency.scenarios[0].energyUncertainty.daily_kwh.q50)).toEqual([102, 52]);
 });
 
 test("historical General recovers its physical configuration from the source feasibility", async ({ page }) => {

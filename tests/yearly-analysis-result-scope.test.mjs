@@ -349,6 +349,8 @@ test("general and per-shift annual result labels exist in every supported locale
     "yearly_analysis.result_view_selector",
     "yearly_analysis.annual_overview",
     "yearly_analysis.annual_efficiency",
+    "yearly_analysis.energy_uncertainty_method",
+    "yearly_analysis.energy_uncertainty_unavailable",
     "yearly_analysis.annual_costs",
     "yearly_analysis.annual_emissions",
     "yearly_analysis.annual_assumption_title",

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   YEARLY_ANALYSIS_SCHEMA_VERSION,
+  YEARLY_ENERGY_UNCERTAINTY_METHOD,
   aggregatePredictionKpis,
   backfillYearlyShiftResults,
   buildFixedYearlyConfiguration,
@@ -12,7 +13,11 @@ import {
   computeYearlyTotals,
   extractPredictionOnlyKpis,
   normalizeYearlyScenarios,
+  hydrateYearlyEnergyUncertainty,
 } from "../src/utils/yearly-analysis-model.js";
+import {
+  buildAnnualContribution, buildEfficiencyByTemp, enrichAllScenarios,
+} from "../src/pages/Simulation/YearlyAnalysis/yearly-analysis-helpers.js";
 
 const battery = (shiftName, optimizedPacks, requiredPacks = optimizedPacks) => ({
   shift_name: shiftName,
@@ -81,6 +86,7 @@ const prediction = ({
   auxiliary = energy * 0.25,
   quantiles = null,
   perKmQuantiles = null,
+  energyUncertainty = null,
   components = {},
 } = {}) => ({
   id,
@@ -97,11 +103,19 @@ const prediction = ({
     drivetrain_per_km_kwh: drivetrain / distance,
     auxiliary_per_km_kwh: auxiliary / distance,
     ...(quantiles ? { quantiles } : {}),
+    ...(energyUncertainty ? { energy_uncertainty: energyUncertainty } : {}),
     ...(perKmQuantiles
       ? { consumption_per_km_kwh_quantiles: perKmQuantiles }
       : {}),
     ...components,
   },
+});
+
+const uncertainty = (daily_kwh, scenario_daily_kwh = daily_kwh, scenario_prediction_run_ids = []) => ({
+  method: YEARLY_ENERGY_UNCERTAINTY_METHOD,
+  daily_kwh,
+  scenario_daily_kwh,
+  scenario_prediction_run_ids,
 });
 
 test("freezes the common worst-case battery, SOC window, infrastructure and shift plans", () => {
@@ -273,6 +287,7 @@ test("extracts nullable prediction KPIs, provenance, quantiles and energy compon
     distance: 60,
     quantiles: { q05: 100, q50: 120, q95: 140 },
     perKmQuantiles: { q05: 1.7, q50: 2, q95: 2.3 },
+    energyUncertainty: uncertainty({ q05: 95, q50: 116, q95: 125 }, undefined, ["p1"]),
     components: {
       total_mechanical_greybox_kwh: 70,
       total_hvac_electrical_kwh: 20,
@@ -281,7 +296,11 @@ test("extracts nullable prediction KPIs, provenance, quantiles and energy compon
 
   assert.equal(kpis.totalEnergyKwh, 120);
   assert.equal(kpis.energyPerKm, 2);
-  assert.deepEqual(kpis.quantiles, { q05: 100, q50: 120, q95: 140 });
+  assert.deepEqual(kpis.quantiles, { q05: 95, q50: 116, q95: 125 });
+  assert.deepEqual(kpis.drivetrainQuantiles, { q05: 65, q50: 86, q95: 95 });
+  assert.equal(kpis.consumptionPerKmQuantiles.q50, 116 / 60);
+  assert.equal(kpis.drivetrainPerKmQuantiles.q95, 95 / 60);
+  assert.equal(kpis.energyUncertainty.method, YEARLY_ENERGY_UNCERTAINTY_METHOD);
   assert.equal(kpis.predictionStack, "vecto-g2");
   assert.equal(kpis.modelRelease, "vecto-release-1");
   assert.deepEqual(kpis.energyComponents, {
@@ -296,7 +315,12 @@ test("extracts nullable prediction KPIs, provenance, quantiles and energy compon
   } });
   assert.equal(malformed.totalEnergyKwh, null);
   assert.equal(malformed.distanceKm, null);
-  assert.deepEqual(malformed.quantiles, { q05: null, q50: 10, q95: null });
+  assert.equal(malformed.quantiles, null);
+  const regenerative = extractPredictionOnlyKpis(prediction({
+    id: "regen", energy: 1, distance: 2,
+    energyUncertainty: uncertainty({ q05: -1, q50: 0.5, q95: 3 }, undefined, ["regen"]),
+  }));
+  assert.equal(regenerative.consumptionPerKmQuantiles.q05, -0.5);
 });
 
 test("maps out-of-order predictions by shift ID and never by array order", () => {
@@ -382,7 +406,8 @@ test("expands a cluster API failure to every expected shift", () => {
   assert.equal(outcome.aggregateResult.kpis, null);
 });
 
-test("sums complete shift KPIs and derives general per-kilometre quantiles", () => {
+test("sums shift means and uses the shared prediction for the complete scenario", () => {
+  const shared = { q05: 170, q50: 196, q95: 230 };
   const first = extractPredictionOnlyKpis(prediction({
     id: "a",
     shiftId: "a",
@@ -390,7 +415,10 @@ test("sums complete shift KPIs and derives general per-kilometre quantiles", () 
     distance: 100,
     drivetrain: 90,
     auxiliary: 30,
-    quantiles: { q05: 90, q50: 110, q95: 130 },
+    energyUncertainty: {
+      ...uncertainty({ q05: 90, q50: 110, q95: 130 }, shared, ["a", "b"]),
+      seed: 1, samples: 500_000, scenario_seed: 2, scenario_samples: 100_000,
+    },
     components: { total_hvac_electrical_kwh: 20 },
   }));
   const second = extractPredictionOnlyKpis(prediction({
@@ -400,23 +428,35 @@ test("sums complete shift KPIs and derives general per-kilometre quantiles", () 
     distance: 50,
     drivetrain: 60,
     auxiliary: 20,
-    quantiles: { q05: 45, q50: 55, q95: 65 },
+    energyUncertainty: uncertainty({ q05: 45, q50: 55, q95: 65 }, shared, ["b", "a"]),
     components: { total_hvac_electrical_kwh: 10 },
   }));
 
-  const aggregate = aggregatePredictionKpis([first, second]);
+  const aggregate = aggregatePredictionKpis([first, second], ["a", "b"]);
 
   assert.equal(aggregate.totalEnergyKwh, 200);
   assert.equal(aggregate.drivetrainEnergyKwh, 150);
   assert.equal(aggregate.auxiliaryEnergyKwh, 50);
   assert.equal(aggregate.distanceKm, 150);
   assert.equal(aggregate.energyPerKm, 200 / 150);
-  assert.deepEqual(aggregate.quantiles, { q05: 135, q50: 165, q95: 195 });
+  assert.deepEqual(aggregate.quantiles, shared);
+  assert.equal(aggregate.energyUncertainty.seed, 2);
+  assert.equal(aggregate.energyUncertainty.samples, 100_000);
   assert.deepEqual(aggregate.consumptionPerKmQuantiles, {
-    q05: 0.9,
-    q50: 1.1,
-    q95: 1.3,
+    q05: 170 / 150,
+    q50: 196 / 150,
+    q95: 230 / 150,
   });
+  assert.equal(aggregatePredictionKpis([first, second], ["a", "c"]).quantiles, null);
+  assert.equal(aggregatePredictionKpis([first, second], ["a", "a"]).quantiles, null);
+
+  const enriched = enrichAllScenarios([{ kpis: aggregate, occurrences: 17 }]);
+  assert.equal(buildEfficiencyByTemp(enriched)[0].efficiency, 196 / 150);
+  assert.equal(buildEfficiencyByTemp(enriched)[0].q50, 196 / 150);
+  assert.deepEqual(
+    [buildAnnualContribution(enriched)[0].dailyQ95, buildAnnualContribution(enriched)[0].yearlyQ95],
+    [230, 230 * 17],
+  );
   assert.deepEqual(aggregate.energyComponents, { hvacElectricalKwh: 30 });
   assert.equal(aggregate.predictionStack, "vecto-g2");
 });
@@ -441,7 +481,7 @@ test("does not create partial aggregate values when a shift omits a KPI", () => 
   assert.equal(aggregate.energyPerKm, null);
 });
 
-test("weights per-kilometre quantiles by distance when absolute quantiles are absent", () => {
+test("excludes older per-kilometre percentiles from shift and aggregate ranges", () => {
   const first = extractPredictionOnlyKpis(prediction({
     id: "a",
     shiftId: "a",
@@ -457,10 +497,8 @@ test("weights per-kilometre quantiles by distance when absolute quantiles are ab
     perKmQuantiles: { q05: 1.6, q50: 2, q95: 2.4 },
   }));
 
-  assert.deepEqual(
-    aggregatePredictionKpis([first, second]).consumptionPerKmQuantiles,
-    { q05: 1.0666666666666667, q50: 4 / 3, q95: 1.6 },
-  );
+  assert.equal(first.consumptionPerKmQuantiles, null);
+  assert.equal(aggregatePredictionKpis([first, second], ["a", "b"]).consumptionPerKmQuantiles, null);
 });
 
 test("builds complete general and per-shift annual totals across every cluster", () => {
@@ -714,6 +752,65 @@ test("treats failed historical prediction rows as unavailable data", () => {
   assert.equal(hydrated.results.shiftResults[0].status, "failed");
   assert.equal(hydrated.results.shiftResults[1].status, "failed");
   assert.match(hydrated.results.shiftResults[0].scenarioResults[0].error, /unavailable/);
+});
+
+test("replays distinct historical cohorts by saved run IDs despite identical temperatures", async () => {
+  const row = (scenarioId, predRunIds) => ({
+    scenarioId, predRunIds, temperature: -5, occurrences: 1,
+    kpis: { totalEnergyKwh: 151, distanceKm: 100, quantiles: { q05: 1, q50: 2, q95: 3 } },
+  });
+  const legacy = {
+    config: { shift_ids: ["a", "b"] },
+    results: {
+      scenarioResults: [row("first", ["a1", "b1"]), row("second", ["a2", "b2"])],
+      shiftResults: ["a", "b"].map((shiftId) => ({
+        shiftId, scenarioResults: [row("first", [shiftId + 1]), row("second", [shiftId + 2])],
+      })),
+    },
+  };
+  const before = structuredClone(legacy);
+  const requests = [];
+  const load = async (id) => {
+    requests.push(id);
+    if (id === "a2") throw new Error("Cannot replay historical inputs");
+    return { by_prediction_run: {
+      a1: uncertainty({ q05: 90, q50: 103, q95: 110 }, { q05: 145, q50: 154, q95: 170 }, ["a1", "b1"]),
+      b1: uncertainty({ q05: 48, q50: 51, q95: 55 }, { q05: 145, q50: 154, q95: 170 }, ["a1", "b1"]),
+    } };
+  };
+
+  const result = await hydrateYearlyEnergyUncertainty(legacy, [], load);
+  assert.deepEqual(requests.sort(), ["a1", "a2"]);
+  assert.deepEqual(result.results.scenarioResults.map((entry) => entry.kpis.quantiles?.q50 ?? null), [154, null]);
+  assert.deepEqual(result.results.shiftResults.map((shift) =>
+    shift.scenarioResults.map((entry) => entry.kpis.quantiles?.q50 ?? null),
+  ), [[103, null], [51, null]]);
+  assert.equal(result.results.scenarioResults[1].kpis.totalEnergyKwh, 151);
+  assert.deepEqual(legacy, before);
+});
+
+test("uses a saved or fresh Monte Carlo result without making a replay request", async () => {
+  const mc = uncertainty({ q05: 90, q50: 101, q95: 110 }, undefined, ["run"]);
+  const legacy = {
+    config: { shift_ids: ["a"] },
+    results: { scenarioResults: [{ temperature: -5, kpis: { totalEnergyKwh: 100 } }] },
+  };
+  const run = {
+    ...prediction({ id: "run", shiftId: "a", energy: 100, distance: 80, energyUncertainty: mc }),
+    external_temp_celsius: -5,
+  };
+  let requests = 0;
+  const load = async () => { requests++; };
+  const attached = await hydrateYearlyEnergyUncertainty(legacy, [run], load);
+  assert.deepEqual(attached.results.scenarioResults[0].kpis.energyUncertainty, mc);
+  const saved = await hydrateYearlyEnergyUncertainty(attached, [], load);
+  assert.deepEqual(saved.results.scenarioResults[0].kpis.energyUncertainty, mc);
+  assert.equal(requests, 0);
+
+  legacy.results.scenarioResults.push(structuredClone(legacy.results.scenarioResults[0]));
+  const ambiguous = await hydrateYearlyEnergyUncertainty(legacy, [run], load);
+  assert.ok(ambiguous.results.scenarioResults.every((entry) => entry.kpis.quantiles === null));
+  assert.equal(requests, 0);
 });
 
 test("strict yearly totals reject a missing KPI without discarding complete metrics", () => {

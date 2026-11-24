@@ -357,13 +357,24 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
         <button type="button" data-autosave-retry hidden>${label('retry')}</button>
       </div></details></form>`;
   };
+  const mountLayout = () => {
+    if (root.querySelector('[data-annual-header]')) return;
+    // The shift view clears the overview DOM. A new layout needs both charts
+    // drawn again, even when all calculation inputs and results are unchanged.
+    displayedCosts = null;
+    lastLcaView = null;
+    root.innerHTML = `<section class="result-card annual-fleet-card" data-role="annual-fleet-dashboard" data-annual-header></section>
+      <div class="annual-result-tabs" role="tablist" aria-label="${label('title')}"><button type="button" role="tab" id="annual-cost-tab" aria-controls="annual-cost-panel" data-annual-tab="costs">${label('costsTab')}</button><button type="button" role="tab" id="annual-emissions-tab" aria-controls="annual-emissions-panel" data-annual-tab="emissions">${label('emissionsTab')}</button></div>
+      <section id="annual-cost-panel" role="tabpanel" aria-labelledby="annual-cost-tab" class="annual-cost-panel"><div data-annual-financial><section class="result-card annual-fleet-card annual-cost-results-card"><h2 class="annual-cost-heading">${label('costs')}<small data-tco-progress role="status"></small><button type="button" data-tco-retry hidden>${label('retryTco')}</button></h2><div data-annual-financial-summary></div></section><div data-annual-controls></div><section class="result-card annual-fleet-card annual-cost-detail-card"><div data-annual-financial-detail></div></section></div></section>
+      <section id="annual-emissions-panel" role="tabpanel" aria-labelledby="annual-emissions-tab" class="annual-emissions-panel"><div data-emissions-controls-parking hidden><div data-emissions-controls></div></div><p class="helper-text">${label('emissionsNote')}</p><div data-annual-lca></div></section>`;
+  };
   const paint = (keepControls = false) => {
+    if (!root?.querySelector('[data-annual-header]')) return;
     // A details toggle event is queued asynchronously. Read the outgoing DOM
     // before rendering or moving the shared form, even if that event is pending.
-    const previousPanel = root?.querySelector('[data-tco-assumptions]');
+    const previousPanel = root.querySelector('[data-tco-assumptions]');
     if (previousPanel?.dataset.assumptionsTab === 'emissions') emissionsAssumptionsOpen = previousPanel.open;
     else if (previousPanel) costAssumptionsOpen = previousPanel.open;
-    if (!root) return;
     requestQuote();
     const assessment = getAssessment({ scope });
     const { fleet: current, group, scopedFleet: local, divisor, infrastructureShare: share } = assessment;
@@ -403,10 +414,6 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
         hint: hasClimate ? `${label('diesel')} [t/${label('year')}] ${n(climate.diesel_comparator_total / 1e6, 2)}` : '',
       }),
     ].join('');
-    if (!root.querySelector('[data-annual-header]')) root.innerHTML = `<section class="result-card annual-fleet-card" data-role="annual-fleet-dashboard" data-annual-header></section>
-      <div class="annual-result-tabs" role="tablist" aria-label="${label('title')}"><button type="button" role="tab" id="annual-cost-tab" aria-controls="annual-cost-panel" data-annual-tab="costs">${label('costsTab')}</button><button type="button" role="tab" id="annual-emissions-tab" aria-controls="annual-emissions-panel" data-annual-tab="emissions">${label('emissionsTab')}</button></div>
-      <section id="annual-cost-panel" role="tabpanel" aria-labelledby="annual-cost-tab" class="annual-cost-panel"><div data-annual-financial><section class="result-card annual-fleet-card annual-cost-results-card"><h2 class="annual-cost-heading">${label('costs')}<small data-tco-progress role="status"></small><button type="button" data-tco-retry hidden>${label('retryTco')}</button></h2><div data-annual-financial-summary></div></section><div data-annual-controls></div><section class="result-card annual-fleet-card annual-cost-detail-card"><div data-annual-financial-detail></div></section></div></section>
-      <section id="annual-emissions-panel" role="tabpanel" aria-labelledby="annual-emissions-tab" class="annual-emissions-panel"><div data-emissions-controls-parking hidden><div data-emissions-controls></div></div><p class="helper-text">${label('emissionsNote')}</p><div data-annual-lca></div></section>`;
     const options = [`<option value="fleet"${scope === 'fleet' ? ' selected' : ''}>${label('fleet')} · ${current.count} ${label('buses')}</option>`, ...current.groups.map(g => `<option value="${e(g.id)}"${scope === g.id ? ' selected' : ''}>${label('representative')} · ${e(g.modelName ?? '')} · ${g.packs} ${label('packs')} (${g.count} ${label(g.count === 1 ? 'bus' : 'buses')})</option>`)].join('');
     root.querySelector('[data-annual-header]').innerHTML = `<div class="annual-fleet-heading annual-fleet-heading--summary"><h2>${label('title')}</h2><label class="annual-fleet-scope">${label('representative')} / ${label('fleet')}<select data-tco-scope>${options}</select></label></div>
       ${current.issues.map(issue => `<p class="annual-fleet-warning">${label(issue)}</p>`).join('')}
@@ -584,6 +591,7 @@ export function createYearlyFleetDashboard({ features, model, predictionRuns, on
     async flushAssumptions() { await autosave.flush(); return !autosave.unsaved; },
     mount(el, state) {
       if (root !== el) { unbind(); root = el; root.addEventListener('input', onInput); root.addEventListener('change', onChange); root.addEventListener('click', onClick); root.addEventListener('submit', onSubmit); root.addEventListener('toggle', onToggle, true); unbindMaintenanceTooltip = bindInfoTooltips(root, '.annual-maintenance-info'); window.addEventListener('beforeunload', beforeUnload); }
+      mountLayout();
       acceptEmissions(state); paint(true);
     },
     update(state) { acceptEmissions(state); paint(true); },

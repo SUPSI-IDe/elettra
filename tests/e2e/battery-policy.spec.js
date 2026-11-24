@@ -239,7 +239,7 @@ test('duplicating a historical evaluation preserves SOH 100% and explicit zero t
     layover_reduction_minutes: 0 } });
   await page.goto('./#simulation-runs');
   await page.locator('[data-row-action="duplicate"]').click();
-  await expect(page.locator('#simulation-name')).toHaveValue(/_copy_1$/);
+  await expect(page.locator('#simulation-name')).toHaveValue(/_copy$/);
   await expect(page.locator('#var-state-of-health')).toHaveValue('100');
   await expect(page.locator('#var-battery-policy')).toHaveValue('residual_soc');
   await expect(page.locator('#var-session-connection-minutes')).toBeVisible();

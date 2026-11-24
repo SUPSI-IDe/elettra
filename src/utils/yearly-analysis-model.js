@@ -14,6 +14,7 @@ export const ADDITIVE_KPIS = [
 
 const ADDITIVE_KPI_KEYS = ADDITIVE_KPIS.map(({ key }) => key);
 const QUANTILE_KEYS = ["q05", "q50", "q95"];
+export const YEARLY_ENERGY_UNCERTAINTY_METHOD = "independent-trip-q95-conditional-v1";
 const ENERGY_COMPONENT_KEYS = Object.freeze({
   mechanicalGreyboxKwh: "total_mechanical_greybox_kwh",
   qrfResidualKwh: "total_qrf_residual_kwh",
@@ -60,22 +61,76 @@ const readName = (namesById, shiftId) => {
   return isRecord(namesById) ? text(namesById[shiftId]) : "";
 };
 
-const copyQuantiles = (value) => {
+const readCompleteQuantiles = (value) => {
   if (!isRecord(value)) return null;
-  const normalized = Object.fromEntries(
-    QUANTILE_KEYS.map((key) => [key, toFiniteNumber(value[key])]),
-  );
-  return Object.values(normalized).some((entry) => entry !== null)
-    ? normalized
-    : null;
+  const [q05, q50, q95] = QUANTILE_KEYS.map((key) => toFiniteNumber(value[key]));
+  return q05 !== null && q50 !== null && q95 !== null
+    && q05 <= q50 && q50 <= q95 ? { q05, q50, q95 } : null;
 };
 
-const readQuantiles = (summary, candidateKeys) => {
-  for (const key of candidateKeys) {
-    const quantiles = copyQuantiles(summary?.[key]);
-    if (quantiles) return quantiles;
+const normalizeUncertainty = (value) => {
+  if (value?.method !== YEARLY_ENERGY_UNCERTAINTY_METHOD) return null;
+  const daily = readCompleteQuantiles(value.daily_kwh);
+  const scenario = readCompleteQuantiles(value.scenario_daily_kwh);
+  const ids = uniqueTexts(value.scenario_prediction_run_ids);
+  const validScenario = scenario && ids.length > 0 && ids.length === value.scenario_prediction_run_ids.length;
+  const provenance = Object.fromEntries(["samples", "seed", "scenario_samples", "scenario_seed"]
+    .filter((key) => Number.isSafeInteger(value[key]) && value[key] >= 0)
+    .map((key) => [key, value[key]]));
+  return {
+    method: YEARLY_ENERGY_UNCERTAINTY_METHOD,
+    daily_kwh: daily,
+    scenario_daily_kwh: validScenario ? scenario : null,
+    scenario_prediction_run_ids: validScenario ? ids : [],
+    ...provenance,
+  };
+};
+
+const sameIds = (left, right) => left.length === right.length && left.every((id) => right.includes(id));
+
+const selectYearlyUncertainty = (value, runIds) => {
+  const uncertainty = normalizeUncertainty(value);
+  if (!uncertainty || !runIds.length) return null;
+  const { daily_kwh: daily, scenario_daily_kwh: scenario, scenario_prediction_run_ids: ids } = uncertainty;
+  if (runIds.length === 1) {
+    return daily && (!ids.length || ids.includes(runIds[0])) ? uncertainty : null;
   }
-  return null;
+  if (!scenario || !sameIds(runIds, ids)) return null;
+  const { samples: _samples, seed: _seed, ...scenarioUncertainty } = uncertainty;
+  return {
+    ...scenarioUncertainty,
+    daily_kwh: scenario,
+    ...(uncertainty.scenario_samples != null ? { samples: uncertainty.scenario_samples } : {}),
+    ...(uncertainty.scenario_seed != null ? { seed: uncertainty.scenario_seed } : {}),
+  };
+};
+
+const selectSharedUncertainty = (sources, runIds) => {
+  const matches = sources.map((source) => selectYearlyUncertainty(source, runIds)).filter(Boolean);
+  const first = matches[0];
+  return first && matches.every((match) => QUANTILE_KEYS.every(
+    (key) => match.daily_kwh[key] === first.daily_kwh[key],
+  )) ? first : null;
+};
+
+const transformQuantiles = (quantiles, transform) => quantiles
+  ? Object.fromEntries(QUANTILE_KEYS.map((key) => [key, transform(quantiles[key])]))
+  : null;
+
+const applyYearlyUncertainty = (kpis, uncertainty) => {
+  const { energyUncertainty: _storedUncertainty, ...clean } = kpis;
+  const quantiles = uncertainty?.daily_kwh ?? null;
+  const aux = toFiniteNumber(kpis.auxiliaryEnergyKwh);
+  const distance = toFiniteNumber(kpis.distanceKm);
+  const drivetrainQuantiles = aux === null ? null : transformQuantiles(quantiles, (value) => value - aux);
+  return {
+    ...clean,
+    quantiles,
+    drivetrainQuantiles,
+    consumptionPerKmQuantiles: distance > 0 ? transformQuantiles(quantiles, (value) => value / distance) : null,
+    drivetrainPerKmQuantiles: distance > 0 ? transformQuantiles(drivetrainQuantiles, (value) => value / distance) : null,
+    ...(uncertainty ? { energyUncertainty: uncertainty } : {}),
+  };
 };
 
 const statusForRows = (rows) => {
@@ -93,41 +148,6 @@ const sumCompleteValues = (records, reader) => {
   return values.every((value) => value !== null)
     ? values.reduce((sum, value) => sum + value, 0)
     : null;
-};
-
-const aggregateQuantiles = (kpisList, key) => {
-  const result = {};
-  for (const quantile of QUANTILE_KEYS) {
-    result[quantile] = sumCompleteValues(
-      kpisList,
-      (kpis) => toFiniteNumber(kpis?.[key]?.[quantile]),
-    );
-  }
-  return Object.values(result).some((value) => value !== null) ? result : null;
-};
-
-const divideQuantiles = (quantiles, denominator) => {
-  if (!quantiles || denominator === null || denominator <= 0) return null;
-  return Object.fromEntries(
-    QUANTILE_KEYS.map((key) => [
-      key,
-      quantiles[key] === null ? null : quantiles[key] / denominator,
-    ]),
-  );
-};
-
-const aggregatePerDistanceQuantiles = (kpisList, key, totalDistanceKm) => {
-  if (totalDistanceKm === null || totalDistanceKm <= 0) return null;
-  const result = {};
-  for (const quantile of QUANTILE_KEYS) {
-    const weighted = sumCompleteValues(kpisList, (kpis) => {
-      const value = toFiniteNumber(kpis?.[key]?.[quantile]);
-      const distance = toFiniteNumber(kpis?.distanceKm);
-      return value !== null && distance !== null ? value * distance : null;
-    });
-    result[quantile] = weighted === null ? null : weighted / totalDistanceKm;
-  }
-  return Object.values(result).some((value) => value !== null) ? result : null;
 };
 
 const aggregateEnergyComponents = (kpisList) => {
@@ -388,7 +408,7 @@ export const extractPredictionOnlyKpis = (predictionRun = {}) => {
       .filter(([, value]) => value !== null),
   );
 
-  return {
+  return applyYearlyUncertainty({
     feasible: null,
     solverStatus: "prediction-only",
     totalEnergyKwh: toFiniteNumber(summary.total_consumption_kwh),
@@ -398,29 +418,15 @@ export const extractPredictionOnlyKpis = (predictionRun = {}) => {
     energyPerKm: toFiniteNumber(summary.consumption_per_km_kwh),
     auxiliaryPerKmKwh: toFiniteNumber(summary.auxiliary_per_km_kwh),
     drivetrainPerKmKwh: toFiniteNumber(summary.drivetrain_per_km_kwh),
-    quantiles: readQuantiles(summary, [
-      "quantiles",
-      "total_quantiles",
-      "consumption_quantiles",
-    ]),
-    drivetrainQuantiles: readQuantiles(summary, ["drivetrain_quantiles"]),
-    consumptionPerKmQuantiles: readQuantiles(summary, [
-      "consumption_per_km_kwh_quantiles",
-      "total_consumption_per_km_kwh_quantiles",
-      "total_per_km_kwh_quantiles",
-    ]),
-    drivetrainPerKmQuantiles: readQuantiles(summary, [
-      "drivetrain_per_km_kwh_quantiles",
-    ]),
     predictionStack: text(predictionRun?.prediction_stack) || null,
     modelRelease: text(predictionRun?.model_name) || null,
     auxiliaryEstimatorRelease:
       text(predictionRun?.auxiliary_estimator_release) || null,
     ...(Object.keys(energyComponents).length ? { energyComponents } : {}),
-  };
+  }, selectYearlyUncertainty(summary.energy_uncertainty, uniqueTexts([predictionRun.id])));
 };
 
-export const aggregatePredictionKpis = (kpisList = []) => {
+export const aggregatePredictionKpis = (kpisList = [], predictionRunIds = []) => {
   if (!Array.isArray(kpisList) || !kpisList.length || kpisList.some((kpis) => !kpis)) {
     return null;
   }
@@ -432,11 +438,10 @@ export const aggregatePredictionKpis = (kpisList = []) => {
     ]),
   );
   const distanceKm = totals.distanceKm;
-  const quantiles = aggregateQuantiles(kpisList, "quantiles");
-  const drivetrainQuantiles = aggregateQuantiles(
-    kpisList,
-    "drivetrainQuantiles",
-  );
+  const runIds = uniqueTexts(predictionRunIds);
+  const uncertainty = runIds.length === kpisList.length
+    ? selectSharedUncertainty(kpisList.map((kpis) => kpis.energyUncertainty), runIds)
+    : null;
   const energyComponents = aggregateEnergyComponents(kpisList);
   const feasibleValues = kpisList.map((kpis) => kpis.feasible);
   const feasible = feasibleValues.some((value) => value === false)
@@ -445,7 +450,7 @@ export const aggregatePredictionKpis = (kpisList = []) => {
       ? true
       : null;
 
-  return {
+  return applyYearlyUncertainty({
     feasible,
     solverStatus: commonValue(kpisList, "solverStatus") ?? "prediction-only",
     ...totals,
@@ -461,22 +466,6 @@ export const aggregatePredictionKpis = (kpisList = []) => {
       totals.drivetrainEnergyKwh !== null && distanceKm !== null && distanceKm > 0
         ? totals.drivetrainEnergyKwh / distanceKm
         : null,
-    quantiles,
-    drivetrainQuantiles,
-    consumptionPerKmQuantiles:
-      divideQuantiles(quantiles, distanceKm) ??
-      aggregatePerDistanceQuantiles(
-        kpisList,
-        "consumptionPerKmQuantiles",
-        distanceKm,
-      ),
-    drivetrainPerKmQuantiles:
-      divideQuantiles(drivetrainQuantiles, distanceKm) ??
-      aggregatePerDistanceQuantiles(
-        kpisList,
-        "drivetrainPerKmQuantiles",
-        distanceKm,
-      ),
     predictionStack: commonValue(kpisList, "predictionStack"),
     modelRelease: commonValue(kpisList, "modelRelease"),
     auxiliaryEstimatorRelease: commonValue(
@@ -486,7 +475,7 @@ export const aggregatePredictionKpis = (kpisList = []) => {
     ...(energyComponents
       ? { energyComponents }
       : {}),
-  };
+  }, uncertainty);
 };
 
 /**
@@ -554,7 +543,7 @@ export const buildYearlyScenarioOutcome = ({
     ...normalizedScenario,
     kpis: aggregateError
       ? null
-      : aggregatePredictionKpis(shiftResults.map((result) => result.kpis)),
+      : aggregatePredictionKpis(shiftResults.map((result) => result.kpis), predRunIds),
     predRunId: predRunIds.length === 1 ? predRunIds[0] : null,
     predRunIds,
     error: aggregateError,
@@ -778,6 +767,171 @@ const sameTemperature = (left, right) => {
   return a !== null && b !== null && Math.abs(a - b) <= 0.001;
 };
 
+const scenarioRows = (value) => Array.isArray(value) ? value : [];
+
+const rowPredictionIds = (row) => uniqueTexts([
+  ...scenarioRows(row?.predRunIds), row?.predRunId,
+]);
+
+const usablePredictionRun = (run) => isRecord(run?.summary)
+  && !["failed", "cancelled", "canceled"].includes(text(run?.status).toLowerCase());
+
+const legacyScenarioRuns = (row, rows, descriptors, runs) => {
+  const runIds = rowPredictionIds(row);
+  if (runIds.length) return runs.filter((run) => runIds.includes(text(run.id)));
+  const scenarioId = text(row.scenarioId);
+  const exact = scenarioId ? runs.filter((run) =>
+    text(run.contextual_parameters?.yearly_scenario_id) === scenarioId,
+  ) : [];
+  if (exact.length) return exact;
+  if ([rows, descriptors].some((scenarios) =>
+    scenarios.filter((scenario) => sameTemperature(scenario?.temperature, row.temperature)).length > 1,
+  )) return [];
+  return runs.filter((run) => sameTemperature(predictionRunTemperature(run), row.temperature));
+};
+
+const mapScenarioResults = (features, mapper) => {
+  if (!isRecord(features?.results)) return features;
+  const { results } = features;
+  const mapRows = (rows, shiftId = null) => rows.map((row) => mapper(row, rows, shiftId));
+  return {
+    ...features,
+    results: {
+      ...results,
+      ...(Array.isArray(results.scenarioResults)
+        ? { scenarioResults: mapRows(results.scenarioResults) } : {}),
+      ...(Array.isArray(results.shiftResults) ? {
+        shiftResults: results.shiftResults.map((shift) => ({
+          ...shift,
+          ...(Array.isArray(shift.scenarioResults)
+            ? { scenarioResults: mapRows(shift.scenarioResults, shift.shiftId) } : {}),
+        })),
+      } : {}),
+    },
+  };
+};
+
+const validRowIds = (row, shiftId, expectedShifts) => {
+  const runIds = rowPredictionIds(row);
+  const expectedCount = shiftId ? 1 : expectedShifts.length;
+  return expectedCount && runIds.length !== expectedCount ? [] : runIds;
+};
+
+/** Remove legacy percentile sums from the view model and from technical exports. */
+export const sanitizeYearlyEnergyUncertainty = (features) => {
+  const expectedShifts = configuredYearlyShiftIds(features);
+  return mapScenarioResults(features, (row, _rows, shiftId) => {
+    if (!row?.kpis) return row;
+    const runIds = validRowIds(row, shiftId, expectedShifts);
+    return { ...row, kpis: applyYearlyUncertainty(row.kpis,
+      row.error ? null : selectYearlyUncertainty(row.kpis.energyUncertainty, runIds),
+    ) };
+  });
+};
+
+/**
+ * Resolve historical intervals for the actual prediction IDs behind each row.
+ * Matching by temperature is limited to legacy rows without saved IDs and
+ * requires a unique cluster and at most one usable prediction per block.
+ */
+export const hydrateYearlyEnergyUncertainty = async (
+  features, predictionRuns = [], loadUncertainty = async () => null,
+) => {
+  const runs = scenarioRows(predictionRuns).filter(usablePredictionRun);
+  const runsById = new Map(runs.map((run) => [text(run.id), run]));
+  const shiftIds = configuredYearlyShiftIds(features);
+  const general = scenarioRows(features?.results?.scenarioResults);
+  const descriptors = scenarioRows(features?.scenarios);
+  const withIds = mapScenarioResults(features, (row, rows, shiftId) => {
+    if (!row?.kpis || row.error || rowPredictionIds(row).length) return row;
+    let matches = legacyScenarioRuns(row, rows, descriptors, runs);
+    if (shiftId) {
+      const matchingGeneral = general.filter((scenario) =>
+        text(row.scenarioId) && text(row.scenarioId) === text(scenario.scenarioId),
+      );
+      if (matchingGeneral.length === 1 && rowPredictionIds(matchingGeneral[0]).length) {
+        matches = rowPredictionIds(matchingGeneral[0]).map((id) => runsById.get(id)).filter(Boolean);
+      }
+      matches = matches.filter((run) => {
+        const ids = resolvePredictionRunShiftIds(run);
+        return ids.length === 1 && ids[0] === shiftId
+          || ids.length === 0 && shiftIds.length === 1;
+      });
+      const predictionRunId = matches.length === 1 && text(matches[0].id);
+      return predictionRunId ? { ...row, predRunId: predictionRunId } : row;
+    }
+
+    // Require all configured blocks and exclude repeated runs for a block.
+    if (!shiftIds.length) return row;
+    const outcome = buildYearlyScenarioOutcome({ scenario: row, shiftIds, predictionRuns: matches });
+    const ids = outcome.aggregateResult.predRunIds;
+    if (outcome.aggregateResult.error || ids.length !== shiftIds.length) return row;
+    return { ...row, predRunId: ids.length === 1 ? ids[0] : null, predRunIds: ids };
+  });
+
+  const applySources = (source, loaded = new Map()) => mapScenarioResults(source, (row, _rows, shiftId) => {
+    if (!row?.kpis || row.error) return row;
+    const ids = validRowIds(row, shiftId, shiftIds);
+    const uncertainty = selectYearlyUncertainty(row.kpis.energyUncertainty, ids)
+      ?? selectSharedUncertainty(ids.flatMap((id) => [
+        runsById.get(id)?.summary?.energy_uncertainty, loaded.get(id),
+      ]), ids);
+    return { ...row, kpis: applyYearlyUncertainty(row.kpis, uncertainty) };
+  });
+
+  const withSavedUncertainty = applySources(withIds);
+  const groupIdsByMember = new Map();
+  const shiftRowsByScenario = new Map();
+  for (const shift of scenarioRows(withSavedUncertainty?.results?.shiftResults)) {
+    for (const row of scenarioRows(shift.scenarioResults)) {
+      const id = text(row.scenarioId);
+      if (!id) continue;
+      const rows = shiftRowsByScenario.get(id) ?? [];
+      rows.push(row);
+      shiftRowsByScenario.set(id, rows);
+    }
+  }
+  for (const rows of shiftRowsByScenario.values()) {
+    const ids = uniqueTexts(rows.flatMap(rowPredictionIds));
+    if (ids.length === rows.length) ids.forEach((id) => groupIdsByMember.set(id, ids));
+  }
+  for (const row of scenarioRows(withSavedUncertainty?.results?.scenarioResults)) {
+    const ids = validRowIds(row, null, shiftIds);
+    ids.forEach((id) => groupIdsByMember.set(id, ids));
+  }
+
+  const pending = new Map();
+  mapScenarioResults(withSavedUncertainty, (row, _rows, shiftId) => {
+    if (!row?.kpis || row.error || row.kpis.energyUncertainty) return row;
+    const ids = validRowIds(row, shiftId, shiftIds);
+    if (ids.length) {
+      const group = groupIdsByMember.get(ids[0]) ?? ids;
+      pending.set(JSON.stringify([...group].sort()), group);
+    }
+    return row;
+  });
+  const requests = [...pending.values()];
+  if (!requests.length) return withSavedUncertainty;
+  const loaded = new Map();
+  const loadNext = async () => {
+    while (requests.length) {
+      const group = requests.shift();
+      try {
+        const response = await loadUncertainty(group[0]);
+        const byRunId = response?.by_prediction_run;
+        if (!isRecord(byRunId) || !Object.hasOwn(byRunId, group[0])) continue;
+        for (const id of group) {
+          if (Object.hasOwn(byRunId, id)) loaded.set(id, byRunId[id]);
+        }
+      } catch {
+        // Historical records may lack enough inputs to replay the interval.
+      }
+    }
+  };
+  await Promise.all([loadNext(), loadNext()]);
+  return applySources(withSavedUncertainty, loaded);
+};
+
 const statusForLegacyRows = (rows = []) => {
   if (!rows.length) return "failed";
   const completed = rows.filter((row) => !row?.error && row?.kpis).length;
@@ -843,13 +997,12 @@ export const backfillYearlyShiftResults = (
     ? predictionRuns.filter((run) => run && typeof run === "object")
     : [];
   const outcomes = scenarios.map((scenario) => {
-    const matchingRuns = runs.filter((run) =>
-      sameTemperature(predictionRunTemperature(run), scenario.temperature),
-    );
-    const usableRuns = matchingRuns.filter((run) =>
-      isRecord(run?.summary) &&
-      !["failed", "cancelled", "canceled"].includes(text(run?.status).toLowerCase()),
-    );
+    const sameId = generalScenarioResults.filter((row) => text(row.scenarioId) === scenario.scenarioId);
+    const sameTemp = generalScenarioResults.filter((row) => sameTemperature(row.temperature, scenario.temperature));
+    const savedRows = sameId.length ? sameId : sameTemp;
+    const row = savedRows.length === 1 ? savedRows[0] : scenario;
+    const usableRuns = legacyScenarioRuns(row, scenarios, generalScenarioResults, runs)
+      .filter(usablePredictionRun);
     return buildYearlyScenarioOutcome({
       scenario,
       shiftIds,

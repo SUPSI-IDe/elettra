@@ -41,7 +41,8 @@ import {
   fetchShiftYearlyDistance,
   screenShiftIds,
 } from "../../../api/shifts";
-import { fetchStopsByTripId } from "../../../api/gtfs";
+import { fetchGtfsStopById, fetchStopsByTripId } from "../../../api/gtfs";
+import { isUUID } from "../shared/stop-helpers";
 import {
   fetchShiftYearlyImpact,
   fetchLcaVehicles,
@@ -794,12 +795,9 @@ const buildChargingStationRows = (optimizationRun = {}) => {
       const inputStation = inputByStopId.get(stopId) ?? null;
       const installedStation = installedByStopId.get(stopId) ?? null;
       const slotCosts = resolveStationSlotCosts(installedStation, inputStation);
-      const stopName = firstText(
-        installedStation?.stop_name,
-        inputStation?.stop_name,
-        inputStation?.name,
-        stopId
-      );
+      const savedNames = [installedStation?.stop_name, inputStation?.stop_name, inputStation?.name];
+      const stopName = savedNames.map((name) => firstText(name))
+        .find((name) => name && name.toLowerCase() !== stopId.toLowerCase()) || stopId;
 
       return {
         stopId,
@@ -902,7 +900,7 @@ const renderChargingInfrastructure = (container, optimizationRun = null, options
     return;
   }
 
-  const rows = buildChargingStationRows(optimizationRun);
+  const rows = options.rows ?? buildChargingStationRows(optimizationRun);
   if (!rows.length) {
     container.innerHTML =
       `<p class="efficiency-chart-empty">${textContent(
@@ -9054,6 +9052,29 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   let loadedPredictionRuns = [];
   const loadedDesigns = new Map();
   let disposed = false;
+  const stationNameRequests = new Map();
+  const chargingInfo = section.querySelector('[data-role="charging-info"]');
+
+  const renderStationNames = async (run) => {
+    if (!chargingInfo || disposed) return;
+    const rows = buildChargingStationRows(run);
+    renderChargingInfrastructure(chargingInfo, run, { rows });
+    const missing = rows.filter(({ stopName, stopId }) => stopName === stopId && isUUID(stopId));
+    if (!missing.length) return;
+
+    await Promise.all(missing.map(async (row) => {
+      if (!stationNameRequests.has(row.stopId)) {
+        const request = fetchGtfsStopById(row.stopId)
+          .then((stop) => firstText(stop?.stop_name))
+          .catch(() => "");
+        stationNameRequests.set(row.stopId, request);
+      }
+      row.stopName = await stationNameRequests.get(row.stopId) || row.stopId;
+    }));
+    if (disposed || loadedOptimizationRun !== run) return;
+    rows.sort((a, b) => a.stopName.localeCompare(b.stopName));
+    renderChargingInfrastructure(chargingInfo, run, { rows });
+  };
   let exportBusy = false;
   let exportController = null;
   const exportButton = section.querySelector('[data-action="download-feasibility-json"]');
@@ -9640,7 +9661,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
   }
   renderGeneralInfo();
   renderBusInfo();
-  renderChargingInfrastructure(section.querySelector('[data-role="charging-info"]'), null, {
+  renderChargingInfrastructure(chargingInfo, null, {
     loading: true,
   });
 
@@ -10056,7 +10077,7 @@ export const initializeSimulationResults = (root = document, options = {}) => {
     efficiencyState.optimizationRun = design.run;
     efficiencyState.predictionRuns = design.predictionRuns;
     renderPageTitle();
-    renderChargingInfrastructure(section.querySelector('[data-role="charging-info"]'), design.run);
+    void renderStationNames(design.run);
     renderPairedBasisSwitch(control, design.run, switchOptimizationRun);
     // The visible result updates synchronously; secondary cost/emission requests
     // retain their existing generation guard and never navigate the page.
@@ -10130,11 +10151,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
           busModelErr
         );
       }
-      renderChargingInfrastructure(
-        section.querySelector('[data-role="charging-info"]'),
-        optimizationRun
-      );
       loadedOptimizationRun = optimizationRun;
+      void renderStationNames(optimizationRun);
       options.simulationName = resolveSimulationName(optimizationRun, options);
       renderPageTitle();
       const predRunIds = !evaluationFailed && Array.isArray(optimizationRun?.prediction_run_ids)
@@ -10203,7 +10221,8 @@ export const initializeSimulationResults = (root = document, options = {}) => {
       costState.optimizationRun = optimizationRun;
       await refreshShiftScopedData();
     } catch (err) {
-      renderChargingInfrastructure(section.querySelector('[data-role="charging-info"]'));
+      loadedOptimizationRun = null;
+      renderChargingInfrastructure(chargingInfo);
       costState.status = "error";
       costState.annualization = null;
       costState.costInputs = null;

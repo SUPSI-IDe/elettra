@@ -31,9 +31,11 @@ Open **Simulations → Yearly analyses** and select **New**.
 6. Confirm and start the analysis.
 
 Each weather scenario is applied to every selected vehicle block. Annual totals
-weight scenario energy by its occurrence. Q05–Q95 values describe prediction
-spread for the scenario-weighted estimate; they do not resize the design or
-replace the feasibility verdict.
+weight scenario energy by its occurrence. For each typical day, ELETTRA samples
+the trips individually to estimate the Q05–Q95 prediction range. The
+contribution in kWh/year multiplies that typical-day range by the number of
+days in the weather cluster. The feasibility verdict and battery sizing come
+from the linked feasibility evaluation.
 
 If the occurrences do not cover the intended year, the form reports the
 mismatch. Resolve that boundary before interpreting annual values.
@@ -46,10 +48,9 @@ Choose **Duplicate** on the source row to open a new-analysis form with the
 source feasibility evaluation and occupancy already selected. Review the
 inherited inputs before starting the new calculation.
 
-The editable proposed name uses `_copy_1`, `_copy_2`, and so on, localized to
-the interface language. Copying a copy continues the original name family's
-numbering rather than repeating the suffix. The next number follows the
-highest existing copy number across all list pages.
+The editable proposed name uses the first available suffix in the original
+name family: `_copy`, `_copy_1`, `_copy_2`, and so on. ELETTRA checks all list
+pages and uses the suffix for the interface language.
 
 ---
 
@@ -163,8 +164,7 @@ It includes:
 - specific consumption by representative temperature with uncertainty;
 - annual energy contribution by temperature scenario;
 - a yearly/daily energy-unit toggle where available;
-- expandable scenario, battery, critical-condition, and annual uncertainty
-  details.
+- expandable scenario, battery, and critical-condition details.
 
 Cold scenarios can have high consumption but contribute according to their
 recorded annual occurrence. Read scenario intensity together with its weight.

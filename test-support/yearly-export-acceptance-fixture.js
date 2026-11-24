@@ -10,11 +10,18 @@ export function annualExportFixture({ uniform = false, heating = 'default', rate
     capacity: !uniform && index === 2 ? 600 : 400,
     busCost: 400000, packCost: 10000, batteryCost: !uniform && index === 2 ? 120000 : 80000,
   }));
-  const scenario = (energy, distance) => ({ scenarioId: 'mild', label: 'Mild', temperature: 0, occurrences: 365,
+  const scenarioRunIds = rows.map(row => `prediction-${row.id}`);
+  const scenarioRange = { q05: 278, q50: 302, q95: 326 };
+  const scenario = (energy, distance, index = null) => ({ scenarioId: 'mild', label: 'Mild', temperature: 0, occurrences: 365,
+    ...(index === null ? { predRunIds: scenarioRunIds } : { predRunId: scenarioRunIds[index] }),
     kpis: { totalEnergyKwh: energy, distanceKm: distance, drivetrainEnergyKwh: energy * .75,
       auxiliaryEnergyKwh: energy * .25, energyPerKm: energy / distance,
-      quantiles: { q05: energy * .9, q50: energy, q95: energy * 1.1 },
-      consumptionPerKmQuantiles: { q05: energy * .9 / distance, q50: energy / distance, q95: energy * 1.1 / distance },
+      energyUncertainty: {
+        method: 'independent-trip-q95-conditional-v1',
+        daily_kwh: index === null ? scenarioRange : { q05: energy * .9, q50: energy, q95: energy * 1.1 },
+        scenario_daily_kwh: scenarioRange,
+        scenario_prediction_run_ids: scenarioRunIds,
+      },
     } });
   const totals = (energy, distance) => ({ totalEnergyKwh: energy * 365, distanceKm: distance * 365,
     drivetrainEnergyKwh: energy * .75 * 365, auxiliaryEnergyKwh: energy * .25 * 365 });
@@ -45,7 +52,7 @@ export function annualExportFixture({ uniform = false, heating = 'default', rate
       yearlyTotals: totals(300, 200), scenarioResults: [scenario(300, 200)],
       shiftResults: rows.map((row, index) => ({ shiftId: row.id, shiftName: row.name, status: 'completed',
         yearlyTotals: totals([100, 50, 150][index], [60, 40, 100][index]),
-        scenarioResults: [scenario([100, 50, 150][index], [60, 40, 100][index])] })),
+        scenarioResults: [scenario([100, 50, 150][index], [60, 40, 100][index], index)] })),
     },
   } };
   // Repricing the current catalogue must not change the frozen investment.

@@ -1,5 +1,6 @@
 import { CHARGING_ENERGY_POLICY, GRID_TO_BUS_EFFICIENCY } from './charging-energy.js';
 import { buildYearlyResultScopes, getFixedYearlyShift } from './yearly-analysis-result-scope.js';
+import { sanitizeYearlyEnergyUncertainty, YEARLY_ENERGY_UNCERTAINTY_METHOD } from './yearly-analysis-model.js';
 import { YEARLY_ASSESSMENT_METHOD } from './yearly-analysis-assessment.js';
 
 export const YEARLY_EXPORT_SCHEMA_VERSION = 4;
@@ -69,7 +70,7 @@ const environmentResult = environment => {
  * Absolute group totals and representative-bus quantities have separate scopes.
  */
 export function buildYearlyExportDocument({
-  features = {},
+  features: savedFeatures = {},
   analysisId = '',
   analysisName = null,
   assessment,
@@ -78,6 +79,7 @@ export function buildYearlyExportDocument({
   exportedAt = new Date().toISOString(),
 }) {
   if (assessment.scope.kind !== 'fleet') throw new Error('The complete annual export requires a fleet assessment');
+  const features = sanitizeYearlyEnergyUncertainty(savedFeatures);
   const snapshots = new Map(groupAssessments.map(snapshot => [snapshot.scope.groupId, snapshot]));
   const config = features.config ?? {};
   const fixed = config.fixedConfiguration ?? {};
@@ -112,6 +114,10 @@ export function buildYearlyExportDocument({
     };
   });
   const technicalById = new Map((features.results?.shiftResults ?? []).map(result => [result.shiftId, result]));
+  const energyUncertaintyAvailable = [
+    ...(features.results?.scenarioResults ?? []),
+    ...[...technicalById.values()].flatMap(shift => shift.scenarioResults ?? []),
+  ].some(row => row?.kpis?.energyUncertainty);
   const assessedById = new Map(assessment.fleet.rows.map(member => [member.id, member]));
   const baselineById = new Map(assessment.baseline.rows.map(member => [member.id, member]));
   const shifts = buildYearlyResultScopes(features).filter(scope => scope.kind === 'shift').map(scope => {
@@ -149,6 +155,12 @@ export function buildYearlyExportDocument({
       chargingEnergy: CHARGING_ENERGY_POLICY,
       gridToBusEfficiency: GRID_TO_BUS_EFFICIENCY,
       environment: assessment.environment.rawLca?.methodology_version ?? null,
+      ...(energyUncertaintyAvailable ? {
+        energyUncertainty: {
+          method: YEARLY_ENERGY_UNCERTAINTY_METHOD,
+          yearlyScaling: 'typical-day-times-cluster-occurrences',
+        },
+      } : {}),
     },
     provenance: {
       sourceOptimizationRunId: fixed.sourceOptimizationRunId ?? features.results?.baseOptimizationRunId ?? null,

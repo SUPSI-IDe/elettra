@@ -21,7 +21,7 @@ const source = {
 
 export function defineNumberedCopyTests() {
   for (const section of sections) {
-    test(`${section.slug}: a copy of a copy uses the next family ordinal across pages`, async ({ page }) => {
+    test(`${section.slug}: a copy of a copy uses the first free family ordinal across pages`, async ({ page }) => {
       const errors = [], unexpected = [], writes = [], listReads = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.addInitScript(() => {
@@ -39,8 +39,11 @@ export function defineNumberedCopyTests() {
         else if (path.endsWith(section.collection)) {
           listReads.push(url.href);
           const skip = Number(url.searchParams.get('skip') || 0), limit = Number(url.searchParams.get('limit') || 20);
-          const items = skip ? [{ ...source, id: 'sibling', name: 'Family_copy_4' }] : [source];
-          json = { items, count: 1, total: 2, skip, limit, has_next: skip === 0, has_previous: skip > 0 };
+          const items = skip ? [
+            { ...source, id: 'first-copy', name: 'Family (copy)' },
+            { ...source, id: 'later-copy', name: 'Family_copy_4' },
+          ] : [source];
+          json = { items, count: items.length, total: 3, skip, limit, has_next: skip === 0, has_previous: skip > 0 };
         } else if (path.endsWith(`${section.collection}source`)) json = source;
         else if (path.endsWith('/buses/bus')) json = { id: 'bus', user_id: 'user', bus_model_id: 'model' };
         else if (path.endsWith('/bus-models/model')) json = { id: 'model', user_id: 'user', name: 'Bus' };
@@ -66,11 +69,11 @@ export function defineNumberedCopyTests() {
       });
       await duplicate.click();
       if (section.target) {
-        await expect.poll(() => page.evaluate(key => window.copyPrefill?.[key]?.name, section.key)).toBe('Family_copia_5');
+        await expect.poll(() => page.evaluate(key => window.copyPrefill?.[key]?.name, section.key)).toBe('Family_copia_2');
         expect(await page.evaluate(() => window.copyPrefill.slug)).toBe(section.target);
       } else {
         await expect.poll(() => writes.length).toBe(1);
-        expect(writes[0].name).toBe('Family_copia_5');
+        expect(writes[0].name).toBe('Family_copia_2');
         expect(writes[0].trip_ids).toEqual(['trip']);
       }
       expect(listReads.some(value => new URL(value).searchParams.get('skip') === '1')).toBe(true);

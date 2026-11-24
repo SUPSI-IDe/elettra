@@ -18,9 +18,6 @@ export const sortByTemperature = (scenarios) =>
 export const hasQuantiles = (q) =>
   q != null && (q.q05 != null || q.q50 != null || q.q95 != null);
 
-export const medianOrFallback = (quantiles, scalar) =>
-  fin(quantiles?.q50) ?? fin(scalar);
-
 export const formatUncertainty = (q, decimals = 1) => {
   if (!hasQuantiles(q)) return null;
   const q50 = fin(q.q50);
@@ -43,7 +40,8 @@ export const enrichScenario = (sr) => {
   const drvKwh = fin(k.drivetrainEnergyKwh);
   const auxKwh = fin(k.auxiliaryEnergyKwh);
   const distKm = fin(k.distanceKm);
-  const epk = fin(k.energyPerKm);
+  const perKm = (value) => value !== null && distKm > 0 ? value / distKm : null;
+  const epk = fin(k.energyPerKm) ?? perKm(totalKwh);
 
   const yearlyTotal = totalKwh != null ? totalKwh * occ : null;
   const yearlyDrv = drvKwh != null ? drvKwh * occ : null;
@@ -67,11 +65,12 @@ export const enrichScenario = (sr) => {
       yearlyQ05,
       yearlyQ50,
       yearlyQ95,
-      efficiencyMedian: medianOrFallback(epkQ, epk),
+      efficiency: epk,
+      efficiencyMedian: fin(epkQ?.q50) ?? epk,
       efficiencyQ05: fin(epkQ?.q05),
       efficiencyQ95: fin(epkQ?.q95),
-      auxiliaryPerKm: fin(k.auxiliaryPerKmKwh),
-      drivetrainPerKm: fin(k.drivetrainPerKmKwh),
+      auxiliaryPerKm: fin(k.auxiliaryPerKmKwh) ?? perKm(auxKwh),
+      drivetrainPerKm: fin(k.drivetrainPerKmKwh) ?? perKm(drvKwh),
       drvPerKmQ05: fin(k.drivetrainPerKmQuantiles?.q05),
       drvPerKmQ50: fin(k.drivetrainPerKmQuantiles?.q50),
       drvPerKmQ95: fin(k.drivetrainPerKmQuantiles?.q95),
@@ -149,6 +148,7 @@ export const buildEfficiencyByTemp = (enriched) =>
       occurrences: s.occurrences,
       distanceKm: fin(s.kpis?.distanceKm),
       efficiency: s.derived.efficiencyMedian,
+      q50: fin(s.kpis?.consumptionPerKmQuantiles?.q50),
       q05: s.derived.efficiencyQ05,
       q95: s.derived.efficiencyQ95,
       auxPerKm: s.derived.auxiliaryPerKm,

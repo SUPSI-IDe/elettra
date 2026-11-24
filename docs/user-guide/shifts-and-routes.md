@@ -120,8 +120,8 @@ It supports sorting, pagination, and these actions:
 - **Duplicate** copies that row's trips, bus model, and recorded GTFS edition
   into a new editable record, including intermediate stays. For a sequential
   block, it also copies the service day and complete programme. The proposed name
-  uses `_copy_1`, `_copy_2`, and so on. Copying a copy continues the original
-  name family's numbering across all list pages instead of repeating `_copy`.
+  uses the first available suffix across all list pages: `_copy`, `_copy_1`,
+  `_copy_2`, and so on. Copying a copy uses the original name family.
   The suffix follows the interface language and the name remains editable.
 - The row **Delete** icon removes one block after confirmation. Select multiple
   checkboxes and use the top **Delete** button to remove several blocks together.

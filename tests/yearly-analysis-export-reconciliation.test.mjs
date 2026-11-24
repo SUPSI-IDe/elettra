@@ -44,3 +44,25 @@ for (const uniform of [true, false]) for (const heating of ['default', 'diesel']
     assert.equal(edited.general.economics.electric.operating.find(item => item.key === 'infraMaintenance').annual, 3600);
   });
 }
+
+
+test('exported annual scenarios retain only bound Monte Carlo provenance', () => {
+  const { analysis, busModel } = annualExportFixture();
+  const rows = analysis.features.results;
+  const legacyShift = rows.shiftResults[0].scenarioResults[0].kpis;
+  delete legacyShift.energyUncertainty;
+  legacyShift.quantiles = { q05: 90, q50: 100, q95: 110 };
+
+  const document = documentFor(analysis, busModel.specs);
+  const method = 'independent-trip-q95-conditional-v1';
+  assert.deepEqual(document.methodology.energyUncertainty, {
+    method, yearlyScaling: 'typical-day-times-cluster-occurrences',
+  });
+  const general = document.technicalBaseline.results.scenarioResults[0];
+  assert.deepEqual(general.kpis.quantiles, { q05: 278, q50: 302, q95: 326 });
+  assert.deepEqual(general.kpis.energyUncertainty.scenario_prediction_run_ids, general.predRunIds);
+  assert.equal(document.shifts[0].technicalResults.scenarioResults[0].kpis.quantiles, null);
+  assert.equal(document.shifts[0].technicalResults.scenarioResults[0].kpis.totalEnergyKwh, 100);
+  assert.equal(document.shifts[1].technicalResults.scenarioResults[0].kpis.energyUncertainty.method, method);
+  assert.deepEqual(legacyShift.quantiles, { q05: 90, q50: 100, q95: 110 });
+});

@@ -147,6 +147,6 @@ test("a yearly analysis can be renamed from its list row", async ({ page }) => {
 
   await row.getByRole("button", { name: "Duplicate: Renamed yearly analysis" }).click();
   await expect(page.locator("#ya-analysis-name")).toHaveValue(
-    "Renamed yearly analysis_copy_1"
+    "Renamed yearly analysis_copy"
   );
 });

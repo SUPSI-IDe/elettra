@@ -145,7 +145,7 @@ export const defineShiftRowActionTests = () => {
     } finally { gate.resolve(); }
     await expect(row(page, 'copy')).toBeVisible();
     expect(state.writes[0].body).toMatchObject({ bus_id: 'bus-2', trip_ids: ['second-out', 'second-service', 'second-return'] });
-    expect(state.writes[0].body.name).toBe(`Beta duty${translations.en['common.copy_name_suffix']}_1`);
+    expect(state.writes[0].body.name).toBe(`Beta duty${translations.en['common.copy_name_suffix']}`);
     await expect(row(page, 'copy').locator('[data-role="gtfs-metadata"]')).toContainText('2025');
     await expect(row(page, 'first').locator('input')).toBeChecked();
   });

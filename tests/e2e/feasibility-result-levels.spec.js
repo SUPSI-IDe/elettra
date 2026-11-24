@@ -44,6 +44,7 @@ const prediction = (id, shiftId, packs, consumption) => ({
 });
 
 const mountResults = async (page, {
+  runId = "level-test",
   shiftIds = ["morning", "evening"],
   shiftNames: shiftNameOverrides = {},
   resultShiftNames: resultShiftNameOverrides = {},
@@ -84,6 +85,7 @@ const mountResults = async (page, {
   language = "en",
   gtfsProvenance,
   currentGtfs = [],
+  gtfsStopNames = {},
   initializerOptions = {},
 } = {}) => {
   const requestedApiPaths = [];
@@ -170,10 +172,10 @@ const mountResults = async (page, {
       return;
     }
 
-    if (path.endsWith("/api/v1/simulation/optimization-runs/level-test")) {
+    if (path.endsWith(`/api/v1/simulation/optimization-runs/${runId}`)) {
       await route.fulfill({
         json: {
-          id: "level-test",
+          id: runId,
           name: "Multi-shift feasibility",
           mode,
           status: runStatus,
@@ -254,6 +256,14 @@ const mountResults = async (page, {
       await route.fulfill({json:shiftIds.map(id=>({id,name:shiftNames[id],gtfs_datasets:currentGtfs}))});
       return;
     }
+    const gtfsStopMatch = path.match(/\/api\/v1\/gtfs\/gtfs-stops\/([^/]+)$/);
+    if (gtfsStopMatch && route.request().method() === "GET") {
+      const id = decodeURIComponent(gtfsStopMatch[1]);
+      if (Object.hasOwn(gtfsStopNames, id)) {
+        await route.fulfill({ json: { id, stop_name: gtfsStopNames[id] } });
+        return;
+      }
+    }
     const shiftInfoMatch = path.match(/\/api\/v1\/user\/shifts\/([^/]+)\/info$/);
     if (shiftInfoMatch) {
       const shiftId = decodeURIComponent(shiftInfoMatch[1]);
@@ -283,7 +293,7 @@ const mountResults = async (page, {
   });
 
   await page.goto("./");
-  await page.evaluate(async (options) => {
+  await page.evaluate(async ({ runId, options }) => {
     const template = await fetch(
       "/elettra/src/pages/Simulation/Runs/simulation-results.html",
     ).then((response) => response.text());
@@ -292,10 +302,10 @@ const mountResults = async (page, {
       "/elettra/src/pages/Simulation/Runs/simulation-results.js"
     );
     window.__cleanupSimulationResults = initializeSimulationResults(document, {
-      runId: "level-test",
+      runId,
       ...options,
     });
-  }, initializerOptions);
+  }, { runId, options: initializerOptions });
   return requestedApiPaths;
 };
 
@@ -1567,6 +1577,113 @@ test('raw feasibility data are accessible from the header in both scopes', async
   await expect(overlay).toBeVisible();
   await overlay.locator('[data-action="close-sim-data"]').first().click();
   await expect(overlay).toBeHidden();
+});
+
+const rimessaStopId = "68c9dcba-c504-47be-82c2-b13bcdd3e07f";
+const rimessaStopPath = `/api/v1/gtfs/gtfs-stops/${rimessaStopId}`;
+const rimessaStation = {
+  stop_id: rimessaStopId,
+  num_slots: 1,
+  max_power_per_slot_kw: 150,
+};
+
+for (const status of [200, 404]) {
+  test(`raw feasibility shows an infeasible study's configured charging station after a GTFS ${status}`, async ({ page }) => {
+    const response = page.waitForResponse((result) =>
+      result.request().method() === "GET" && new URL(result.url()).pathname === rimessaStopPath,
+    );
+    const paths = await mountResults(page, {
+      runId: "40501",
+      mode: "joint",
+      solverStatus: "infeasible",
+      electrificationFeasible: false,
+      chargingStations: [rimessaStation],
+      installedChargers: {},
+      gtfsStopNames: status === 200 ? { [rimessaStopId]: "TPL Rimessa 1" } : {},
+    });
+
+    const stopResponse = await response;
+    expect(stopResponse.status()).toBe(status);
+    await stopResponse.finished();
+    await expect(page.locator('[data-role="feasibility-overall-status"]')).toHaveClass(
+      /feasibility-overall-status--infeasible/,
+    );
+    await page.getByRole("button", { name: "View raw feasibility data" }).click();
+    const charging = page.locator('[data-role="sim-data-overlay"] [data-role="charging-info"]');
+    await expect(charging.locator("tbody tr")).toHaveCount(1);
+    await expect(charging.getByRole("cell").nth(0)).toHaveText(
+      status === 200 ? "TPL Rimessa 1" : rimessaStopId,
+    );
+    await expect(charging.getByRole("cell").nth(1)).toHaveText("1");
+    await expect(charging.getByRole("cell").nth(2)).toHaveText("150");
+    await expect(charging.getByRole("cell").nth(0)).toBeVisible();
+    expect(paths.filter((path) => path === rimessaStopPath)).toHaveLength(1);
+  });
+}
+
+test("raw feasibility prefers the installed and input station names saved with a feasible design", async ({ page }) => {
+  const otherStopId = "ca4e5e4b-f80d-4fe6-a0c2-56a20a4fb8b2";
+  const paths = await mountResults(page, {
+    mode: "joint",
+    chargingStations: [
+      { ...rimessaStation, stop_name: "Original depot name" },
+      { ...rimessaStation, stop_id: otherStopId, stop_name: "Saved input name" },
+    ],
+    installedChargers: {
+      [rimessaStopId]: { stop_name: "Saved installed name", num_slots: 1 },
+      [otherStopId]: { stop_name: otherStopId, num_slots: 1 },
+    },
+    gtfsStopNames: { [rimessaStopId]: "Current stop name", [otherStopId]: "Another current stop name" },
+  });
+
+  await expect(page.locator('[data-role="feasibility-overall-status"]')).toHaveText(
+    "All vehicle blocks are feasible",
+  );
+  await page.getByRole("button", { name: "View raw feasibility data" }).click();
+  const charging = page.locator('[data-role="sim-data-overlay"] [data-role="charging-info"]');
+  await expect(charging.getByRole("cell", { name: "Saved installed name", exact: true })).toBeVisible();
+  await expect(charging.getByRole("cell", { name: "Saved input name", exact: true })).toBeVisible();
+  expect(paths.filter((path) =>
+    [rimessaStopPath, `/api/v1/gtfs/gtfs-stops/${otherStopId}`].includes(path),
+  )).toEqual([]);
+});
+
+test("raw feasibility reuses a GTFS stop lookup when a paired design shares the station", async ({ page }) => {
+  const paths = await mountResults(page, {
+    mode: "joint",
+    consumptionBasis: "mean",
+    basisRunIds: { mean: "level-test", aggregate_q95: "paired-q95" },
+    chargingStations: [rimessaStation],
+    installedChargers: {},
+    gtfsStopNames: { [rimessaStopId]: "TPL Rimessa 1" },
+  });
+  const paired = await page.evaluate(async () =>
+    (await fetch("/api/v1/simulation/optimization-runs/level-test")).json(),
+  );
+  paired.id = "paired-q95";
+  paired.input_params.consumption_basis = "aggregate_q95";
+  paired.input_params.charging_stations[0].num_slots = 2;
+  await page.route("**/optimization-runs/paired-q95", (route) => route.fulfill({ json: paired }));
+  await page.route("**/optimization-runs/level-test/basis/aggregate_q95", (route) =>
+    route.fulfill({ json: { optimization_run_id: paired.id, status: "completed" } }),
+  );
+
+  const rawData = page.getByRole("button", { name: "View raw feasibility data" });
+  const overlay = page.locator('[data-role="sim-data-overlay"]');
+  const cells = overlay.locator('[data-role="charging-info"]').getByRole("cell");
+  await rawData.click();
+  await expect(cells.nth(0)).toHaveText("TPL Rimessa 1");
+  await expect(cells.nth(1)).toHaveText("1");
+  await overlay.locator('[data-action="close-sim-data"]').first().click();
+
+  const basis = page.locator('[data-role="paired-basis-switch"]').getByRole("combobox");
+  await basis.selectOption("aggregate_q95");
+  await expect(basis).toBeEnabled();
+  await expect(basis).toHaveValue("aggregate_q95");
+  await rawData.click();
+  await expect(cells.nth(0)).toHaveText("TPL Rimessa 1");
+  await expect(cells.nth(1)).toHaveText("2");
+  expect(paths.filter((path) => path === rimessaStopPath)).toHaveLength(1);
 });
 
 const aggregateAnalysis = () => ({
