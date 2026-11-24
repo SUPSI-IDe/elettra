@@ -55,7 +55,8 @@ export const selectPlannerTrips = (catalog, previous, usedIds, { includeOtherTer
     .filter((trip) => {
       const departure = plannerTimeSeconds(trip.departure_time);
       const arrival = plannerTimeSeconds(trip.arrival_time);
-      return !usedIds.has(trip.id) && departure !== null && arrival !== null &&
+      const used = usedIds.has(trip.id) || trip.equivalent_trip_ids?.some(id => usedIds.has(id));
+      return !used && departure !== null && arrival !== null &&
         departure >= previous.time && arrival >= departure;
     })
     .map((trip) => ({ trip, direct: isDirectConnection(previous, tripStop(trip, "from")) }))

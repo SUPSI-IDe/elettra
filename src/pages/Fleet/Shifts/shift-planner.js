@@ -49,6 +49,31 @@ const replaceOptions = (select, placeholder, options) => {
 
 const withApiError = (key, error) => [t(key), error?.message].filter(Boolean).join(" ");
 
+function trackCatalogPreview(row, preview) {
+  const scroll = row.closest(".planner-catalog-scroll");
+  const heading = row.closest("table").tHead;
+  const property = "--planner-catalog-preview-top";
+  const update = () => {
+    const viewportTop = scroll.getBoundingClientRect().top + scroll.clientTop;
+    const headingBottom = heading.getBoundingClientRect().bottom;
+    const rowHeight = row.getBoundingClientRect().height;
+    // Chrome constrains a sticky table row to the whole table, even across row groups.
+    const lastRowTop = preview.getBoundingClientRect().bottom - rowHeight;
+    row.style.setProperty(property, `${Math.min(headingBottom, lastRowTop) - viewportTop}px`);
+    scroll.style.setProperty("--planner-stops-heading-top", `${headingBottom + rowHeight - viewportTop}px`);
+  };
+  const resize = new ResizeObserver(update);
+  for (const element of [scroll, heading, row, preview]) resize.observe(element);
+  scroll.addEventListener("scroll", update, { passive: true });
+  update();
+  return () => {
+    scroll.removeEventListener("scroll", update);
+    resize.disconnect();
+    row.style.removeProperty(property);
+    scroll.style.removeProperty("--planner-stops-heading-top");
+  };
+}
+
 export const initializeShiftPlanner = (root, { shiftId } = {}) => {
   const section = root.querySelector("section.shift-planner");
   if (!section) return null;
@@ -114,6 +139,7 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
 
   const closePreview = () => {
     if (!preview) return;
+    preview.detachLayout?.();
     preview.dispose();
     preview.host.remove();
     preview.button.setAttribute("aria-expanded", "false");
@@ -126,8 +152,15 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
     preview.button = button;
     button.setAttribute("aria-controls", preview.host.id);
     button.setAttribute("aria-expanded", "true");
-    if (preview.scope === "catalog") button.closest("tr").after(preview.host);
-    else button.closest("[data-step-index]").append(preview.host);
+    if (preview.scope === "catalog") {
+      const row = button.closest("tr");
+      if (row.nextElementSibling === preview.host) return;
+      preview.detachLayout?.();
+      row.after(preview.host);
+      preview.detachLayout = trackCatalogPreview(row, preview.host);
+    } else {
+      button.closest("[data-step-index]").append(preview.host);
+    }
   };
 
   const syncPreview = (scope) => {
@@ -155,10 +188,14 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
       content = host.insertCell();
       content.colSpan = candidate.cells.length;
       content.className = "trip-preview-cell";
+    } else {
+      host.tabIndex = 0;
+      host.setAttribute("role", "region");
+      host.setAttribute("aria-label", label("trip_profile"));
     }
     preview = { scope, tripId, host, button };
     attachPreview(button);
-    preview.dispose = mountTripPreview(content, tripId, previewCache);
+    preview.dispose = mountTripPreview(content, tripId, previewCache, { scrollStops: false });
   };
 
   const renderFeedback = () => {
@@ -724,7 +761,12 @@ export const initializeShiftPlanner = (root, { shiftId } = {}) => {
     await Promise.all([...routeIds].map(async (routeId) => {
       const data = await fetchPlannerCatalog(routeId, weekDay, { signal }).catch(() => []);
       if (signal.aborted) return;
-      items(data).forEach((trip) => trips.set(trip.id, trip));
+      items(data).forEach((trip) => {
+        trips.set(trip.id, trip);
+        for (const alias of trip.equivalent_trip_ids ?? []) {
+          if (!trips.has(alias)) trips.set(alias, { ...trip, id: alias });
+        }
+      });
     }));
   };
 

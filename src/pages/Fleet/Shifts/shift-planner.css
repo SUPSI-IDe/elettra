@@ -117,9 +117,36 @@
   overflow-y: auto;
 }
 
+.shift-planner .planner-catalog-scroll:has(.trip-preview-row),
+.shift-planner .planner-step #planner-trip-profile {
+  max-block-size: min(26rem, 65dvh);
+}
+
+.shift-planner .planner-step #planner-trip-profile {
+  overflow: auto;
+  border-radius: var(--radius-md);
+}
+
+.shift-planner .planner-catalog-scroll:has(.trip-preview-row) {
+  scroll-padding-block-start: var(--planner-stops-heading-top);
+}
+
 .shift-planner .planner-catalog-table {
   table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
   --table-cell-padding-inline: var(--space-sm);
+}
+
+.shift-planner .planner-catalog-table > thead {
+  z-index: 3;
+}
+
+.shift-planner .planner-catalog-table > tbody > .planner-candidate:has(+ .trip-preview-row) {
+  position: sticky;
+  inset-block-start: var(--planner-catalog-preview-top);
+  z-index: 2;
+  background: var(--color-surface);
 }
 
 .shift-planner .planner-catalog-table th.planner-time {
@@ -134,6 +161,14 @@
   vertical-align: top;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.shift-planner .planner-catalog-table > tbody > .trip-preview-row > .trip-preview-cell {
+  overflow: visible;
+}
+
+.shift-planner .planner-candidate > td.planner-time {
+  overflow-wrap: normal;
 }
 
 .shift-planner .planner-catalog-table .actions button {
@@ -175,8 +210,8 @@
 
 .shift-planner .planner-catalog-table .planner-preview-toggle {
   max-width: 100%;
-  padding-inline: 0;
-  border-color: transparent;
+  padding: 0;
+  border: 0;
   background: transparent;
   color: var(--color-brand-primary);
   font-weight: 600;
@@ -186,6 +221,29 @@
 
 .shift-planner .planner-catalog-table .planner-preview-toggle:is(:hover, :focus-visible, [aria-expanded="true"]) span {
   text-decoration: underline;
+}
+
+.shift-planner .trip-preview-inline__content {
+  gap: 0;
+}
+
+.shift-planner .trip-preview-stops-scroll {
+  max-block-size: none;
+  overflow: visible;
+}
+
+.shift-planner .planner-catalog-table .trip-preview-stops-table thead {
+  inset-block-start: var(--planner-stops-heading-top);
+}
+
+.shift-planner .planner-catalog-table .trip-preview-stops-table thead th {
+  position: static;
+}
+
+.shift-planner .trip-preview-stops-table thead th:nth-child(n + 2),
+.shift-planner .trip-preview-stops-table tbody td {
+  text-align: end;
+  white-space: nowrap;
 }
 
 .shift-planner .planner-candidate small {

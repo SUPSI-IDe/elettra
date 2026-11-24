@@ -1,12 +1,14 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-import { fetchElevationByTripId } from "../../../api";
+import { fetchElevationByTripId, fetchStopsByTripId } from "../../../api";
 import {
   buildCartoVoyagerTileUrl,
   getCartoApiKey,
 } from "../../../config/carto.js";
 import { t } from "../../../i18n";
+import { escapeHtml as html } from "../../../utils/html.js";
+import { plannerInputTime } from "./shift-planner-programme.js";
 
 const previewMessage = (key, type = "empty") =>
   `<div class="trip-preview-inline__${type}">${t(key)}</div>`;
@@ -20,6 +22,9 @@ const previewMarkup = () => `
       <div class="trip-preview-inline__elevation" data-role="elevation" aria-live="polite">
         ${previewMessage("trip_preview.loading_elevation", "loading")}
       </div>
+    </div>
+    <div class="trip-preview-inline__stops" data-role="stops" aria-live="polite">
+      ${previewMessage("trip_preview.loading_stops", "loading")}
     </div>
   </div>`;
 
@@ -40,37 +45,125 @@ function observePreviewSize(element, paint, signal) {
   }, { once: true });
 }
 
-const renderMap = (container, records, signal) => {
-  const coordinates = records.filter((r) => numeric(r.latitude) && numeric(r.longitude))
-    .map((r) => [Number(r.latitude), Number(r.longitude)]);
-  if (!coordinates.length) {
-    container.innerHTML = previewMessage("trip_preview.no_route_data");
+const stopPosition = ({ stop_lat: lat, stop_lon: lon }) =>
+  numeric(lat) && numeric(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180
+    ? [Number(lat), Number(lon)] : null;
+
+const formatStop = (stop) => ({
+  name: stop.stop_name?.trim() || "—",
+  arrival: plannerInputTime(stop.arrival_time) || "—",
+  departure: plannerInputTime(stop.departure_time) || "—",
+  position: stopPosition(stop),
+});
+
+const renderStops = (container, stops, { canLocate, scrollStops }) => {
+  if (!stops.length) {
+    container.innerHTML = previewMessage("trip_preview.no_stops");
     return;
   }
+  const title = html(t("trip_preview.stops"));
+  container.innerHTML = `
+    <div class="trip-preview-stops-scroll"${scrollStops ? ` role="region" aria-label="${title}" tabindex="0"` : ""}>
+      <table class="trip-preview-stops-table">
+        <caption>${title}</caption>
+        <thead><tr>
+          <th scope="col">${html(t("trip_preview.stop"))}</th>
+          <th scope="col">${html(t("trip_preview.arrival"))}</th>
+          <th scope="col">${html(t("trip_preview.departure"))}</th>
+        </tr></thead>
+        <tbody>${stops.map((stop, index) => `
+          <tr>
+            <th scope="row">${canLocate && stop.position
+              ? `<button type="button" class="trip-preview-stop-location" data-stop-index="${index}" title="${html(t("trip_preview.show_stop_on_map"))}">${html(stop.name)}</button>`
+              : html(stop.name)}</th>
+            <td>${html(stop.arrival)}</td>
+            <td>${html(stop.departure)}</td>
+          </tr>`).join("")}</tbody>
+      </table>
+    </div>`;
+};
+
+const stopPopup = (stops) => `<div class="trip-preview-stop-popup">${stops.map((stop) => `
+  <div><strong>${html(stop.name)}</strong>
+    <span>${html(t("trip_preview.arrival"))} ${html(stop.arrival)} · ${html(t("trip_preview.departure"))} ${html(stop.departure)}</span>
+  </div>`).join("")}</div>`;
+
+const createPreviewMap = (container, signal) => {
 
   container.innerHTML = '<div class="trip-preview-map-container"></div>';
-  const map = L.map(container.firstElementChild, { zoomControl: false, scrollWheelZoom: false });
-  const line = L.polyline(coordinates, { color: "#2563eb", weight: 3, opacity: 0.9 }).addTo(map);
-  const marker = (position, fillColor, color) =>
-    L.circleMarker(position, { radius: 7, fillColor, color, weight: 2, fillOpacity: 1 }).addTo(map);
-  marker(coordinates[0], "#10b981", "#065f46");
-  marker(coordinates.at(-1), "#dc2626", "#7f1d1d");
+  const map = L.map(container.firstElementChild, {
+    zoomControl: false,
+    scrollWheelZoom: false,
+    dragging: !window.matchMedia("(pointer: coarse)").matches,
+  });
+  signal.addEventListener("abort", () => map.remove(), { once: true });
+  const layers = L.featureGroup().addTo(map);
+  const markers = new Map();
   const fit = () => {
     if (signal.aborted) return;
     map.invalidateSize();
-    map.fitBounds(line.getBounds(), { padding: [18, 18], maxZoom: 17, animate: false });
+    const bounds = layers.getBounds();
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [18, 18], maxZoom: 17, animate: false });
   };
-  fit();
   observePreviewSize(container, fit, signal);
-  signal.addEventListener("abort", () => map.remove(), { once: true });
+
+  const addRoute = (coordinates) => {
+    L.polyline(coordinates, { color: "#2563eb", weight: 3, opacity: 0.9 }).addTo(layers);
+    const endpoint = (position, fillColor, color) =>
+      L.circleMarker(position, { radius: 7, fillColor, color, weight: 2, fillOpacity: 1, interactive: false }).addTo(layers);
+    endpoint(coordinates[0], "#10b981", "#065f46");
+    endpoint(coordinates.at(-1), "#dc2626", "#7f1d1d");
+    fit();
+  };
+
+  const addStops = (stops) => {
+    const groups = new Map();
+    for (const stop of stops) {
+      if (!stop.position) continue;
+      const key = stop.position.join(",");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(stop);
+    }
+    const icon = L.divIcon({
+      className: "trip-preview-stop-marker", iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -8],
+    });
+    for (const group of groups.values()) {
+      const marker = L.marker(group[0].position, { icon });
+      marker.on("add", () => {
+        const element = marker.getElement();
+        element.setAttribute("aria-label", group.map((stop) => stop.name).join(", "));
+        element.classList.toggle("is-origin", group.includes(stops[0]));
+        element.classList.toggle("is-destination", group.includes(stops.at(-1)));
+      });
+      marker.bindPopup(() => stopPopup(group), { maxHeight: 85 });
+      marker.addTo(layers);
+      group.forEach((stop) => markers.set(stop, marker));
+    }
+    fit();
+  };
 
   getCartoApiKey().then((key) => {
     if (signal.aborted) return;
-    const osm = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-    const url = key ? buildCartoVoyagerTileUrl(key) : "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-    const attribution = key ? osm + ' &copy; <a href="https://carto.com/attributions">CARTO</a>' : osm;
-    L.tileLayer(url, { maxZoom: 19, attribution }).addTo(map);
+    if (!key) {
+      map.attributionControl.addAttribution(html(t("trip_preview.no_basemap")));
+      return;
+    }
+    L.tileLayer(buildCartoVoyagerTileUrl(key), {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    }).addTo(map);
   });
+  return {
+    addRoute,
+    addStops,
+    openStop(stop) {
+      const marker = markers.get(stop);
+      if (!marker) return;
+      container.scrollIntoView({ block: "nearest", inline: "nearest" });
+      marker.getElement()?.focus({ preventScroll: true });
+      marker.openPopup();
+    },
+  };
 };
 
 const renderElevation = (container, records, signal) => {
@@ -170,40 +263,97 @@ const renderElevation = (container, records, signal) => {
   observePreviewSize(container, draw, signal);
 };
 
-// The catalogue and saved programme share the same elevation records and map renderer.
-export function mountTripPreview(container, tripId, cache, { cacheEmpty = false } = {}) {
+const stopsCaches = new WeakMap();
+
+const loadPreviewRecords = async (cache, tripId, fetchRecords, { signal, cacheEmpty }) => {
+  if (cache.has(tripId)) return cache.get(tripId);
+  const records = await fetchRecords(tripId, { signal });
+  if (!Array.isArray(records)) throw new Error("Invalid trip preview records");
+  if (!signal.aborted && (records.length || cacheEmpty)) {
+    if (cache.size >= 12) cache.delete(cache.keys().next().value);
+    cache.set(tripId, records);
+  }
+  return records;
+};
+
+export function mountTripPreview(container, tripId, cache, { cacheEmpty = false, scrollStops = true } = {}) {
   const controller = new AbortController();
   const { signal } = controller;
   container.innerHTML = previewMarkup();
   const chart = container.querySelector('[data-role="elevation"]');
-  const map = container.querySelector('[data-role="map"]');
+  const mapContainer = container.querySelector('[data-role="map"]');
+  const timetable = container.querySelector('[data-role="stops"]');
+  if (!stopsCaches.has(cache)) stopsCaches.set(cache, new Map());
+  const stopsCache = stopsCaches.get(cache);
+  const requestOptions = { signal, cacheEmpty };
+  let map;
+  let mapFailed = false;
+  let elevationFailed = false;
+  let elevationDone = false;
+  let stopsDone = false;
+  let stops = [];
+  timetable.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-stop-index]");
+    if (button) map?.openStop(stops[Number(button.dataset.stopIndex)]);
+  }, { signal });
 
-  async function load() {
+  const updateMap = ({ coordinates = [], newStops = [] } = {}) => {
+    if (mapFailed) return;
     try {
-      let records = cache.get(tripId);
-      if (!records) {
-        const payload = await fetchElevationByTripId(tripId, { signal });
-        if (signal.aborted) return;
-        records = payload?.records ?? payload;
-        if (!Array.isArray(records)) throw new Error("Invalid elevation records");
-        if (records.length || cacheEmpty) {
-          if (cache.size >= 12) cache.delete(cache.keys().next().value);
-          cache.set(tripId, records);
-        }
-      }
-      renderElevation(chart, records, signal);
-      try {
-        renderMap(map, records, signal);
-      } catch {
-        map.innerHTML = previewMessage("trip_preview.failed_render_map");
+      const hasStopPositions = newStops.some((stop) => stop.position);
+      if (coordinates.length || hasStopPositions) {
+        map ??= createPreviewMap(mapContainer, signal);
+        if (coordinates.length) map.addRoute(coordinates);
+        if (hasStopPositions) map.addStops(newStops);
+      } else if (!map && elevationDone && stopsDone) {
+        mapContainer.innerHTML = previewMessage(elevationFailed ? "trip_preview.failed_map" : "trip_preview.no_route_data");
       }
     } catch {
+      mapFailed = true;
+      map = null;
+      mapContainer.innerHTML = previewMessage("trip_preview.failed_render_map");
+    }
+  };
+
+  async function loadElevation() {
+    let coordinates = [];
+    try {
+      const records = await loadPreviewRecords(cache, tripId, async (id, options) => {
+        const payload = await fetchElevationByTripId(id, options);
+        return payload?.records ?? payload;
+      }, requestOptions);
       if (signal.aborted) return;
+      coordinates = records.filter((r) => numeric(r.latitude) && numeric(r.longitude))
+        .map((r) => [Number(r.latitude), Number(r.longitude)]);
+      renderElevation(chart, records, signal);
+    } catch {
+      if (signal.aborted) return;
+      elevationFailed = true;
       chart.innerHTML = previewMessage("trip_preview.failed_elevation");
-      map.innerHTML = previewMessage("trip_preview.failed_map");
+    }
+    elevationDone = true;
+    updateMap({ coordinates });
+  }
+
+  async function loadStops() {
+    try {
+      const records = await loadPreviewRecords(stopsCache, tripId, fetchStopsByTripId, requestOptions);
+      if (signal.aborted) return;
+      // The by-trip endpoint already returns stop-time rows in stop_sequence order.
+      stops = records.map(formatStop);
+      stopsDone = true;
+      updateMap({ newStops: stops });
+      renderStops(timetable, stops, { canLocate: Boolean(map), scrollStops });
+    } catch {
+      if (signal.aborted) return;
+      stopsDone = true;
+      timetable.innerHTML = previewMessage("trip_preview.failed_stops");
+      updateMap();
     }
   }
-  void load();
+
+  void loadElevation();
+  void loadStops();
   return () => controller.abort();
 }
 
@@ -248,4 +398,5 @@ export const hideTripPreview = () => {
 export const clearPreviewCache = () => {
   removePreviewRow();
   previewCache.clear();
+  stopsCaches.delete(previewCache);
 };

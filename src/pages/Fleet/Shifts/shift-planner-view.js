@@ -70,8 +70,47 @@ export const renderPlannerSteps = (results, cursor, estimateFor) => {
   }).join("")}</ol>`;
 };
 
-export const renderPlannerCandidates = (candidates) => `
-  <div class="table-scroll-wrap planner-catalog-scroll">
+const describeCandidateVariants = (rows) => {
+  const groups = new Map();
+  for (const row of rows) {
+    const key = JSON.stringify([row.route, row.departure, row.arrival]);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const counts = new Map();
+    const descriptions = group.map(({ trip }) => {
+      const number = String(trip.trip_short_name ?? "").trim();
+      const stops = trip.stop_count;
+      const count = Number.isInteger(stops) && stops >= 0
+        ? label(stops === 1 ? "trip_stop_count_one" : "trip_stop_count_other", { count: stops }) : "";
+      const description = [number && `${label("trip_number")} ${number}`, count].filter(Boolean).join(" · ");
+      counts.set(description, (counts.get(description) ?? 0) + 1);
+      return { number, count, description };
+    });
+
+    group.forEach((row, index) => {
+      const { number, count, description } = descriptions[index];
+      const variant = label("trip_variant", { number: index + 1 });
+      row.detail = !number ? [variant, count].filter(Boolean).join(" · ")
+        : counts.get(description) > 1 ? `${description} · ${variant}` : description;
+    });
+  }
+};
+
+export const renderPlannerCandidates = (candidates) => {
+  const rows = candidates.map(({ trip, direct, result }) => ({
+    trip, direct, result,
+    route: [trip.from_name, trip.to_name].filter(Boolean).join(" – ") || label("trip"),
+    departure: plannerDisplayTime(trip.departure_time),
+    arrival: plannerDisplayTime(trip.arrival_time),
+  }));
+  describeCandidateVariants(rows);
+
+  return `
+  <div class="table-scroll-wrap planner-catalog-scroll" role="region" aria-label="${html(t("shifts.scheduled_trips_caption"))}" tabindex="0">
     <table class="table-standard planner-catalog-table">
       <caption class="sr-only">${html(t("shifts.scheduled_trips_caption"))}</caption>
       <thead>
@@ -82,23 +121,22 @@ export const renderPlannerCandidates = (candidates) => `
           <th scope="col" class="actions"><span class="sr-only">${html(t("common.actions"))}</span></th>
         </tr>
       </thead>
-      <tbody>${candidates.map(({ trip, direct, result }) => {
-        const route = [trip.from_name, trip.to_name].filter(Boolean).join(" – ") || label("trip");
-        return `<tr class="planner-candidate" data-trip-id="${html(trip.id)}">
-          <td class="planner-time">${html(plannerDisplayTime(trip.departure_time))}</td>
-          <td class="planner-time">${html(plannerDisplayTime(trip.arrival_time))}</td>
+      <tbody>${rows.map(({ trip, direct, result, route, departure, arrival, detail }) => `
+        <tr class="planner-candidate" data-trip-id="${html(trip.id)}">
+          <td class="planner-time">${html(departure)}</td>
+          <td class="planner-time">${html(arrival)}</td>
           <td>
-            ${previewToggle(route)}
+            ${previewToggle(route)}${detail ? `<small data-role="candidate-variant">${html(detail)}</small>` : ""}
             <small>${html(label(direct ? "direct_connection" : "transfer_needed"))}</small>
             <div data-role="candidate-notice"></div>
           </td>
           <td class="actions">
             <button type="button" data-action="${direct ? "add-direct-trip" : "select-trip"}"${direct && result.errors.length ? " disabled" : ""}>${html(t("shifts.add_trip"))}</button>
           </td>
-        </tr>`;
-      }).join("")}</tbody>
+        </tr>`).join("")}</tbody>
     </table>
   </div>`;
+};
 
 const localTimeField = (field, key, value, readonly = false) => `
   <label for="planner-${field}">

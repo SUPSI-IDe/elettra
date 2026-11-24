@@ -219,7 +219,8 @@ test("scopes a new line to the current terminus and offers the whole line after 
   await includeOtherTermini.check();
   await plannerField(page, "line").selectOption("line-2");
   await expect(role(page, "catalog")).toContainText("Station platform 1");
-  await expect(role(page, "catalog")).toContainText("Include other termini");
+  await expect(includeOtherTermini).toHaveAccessibleName("Include trips that require driving empty");
+  await expect(role(page, "catalog")).toContainText("include trips that require driving empty");
   await expect(includeOtherTermini).not.toBeChecked();
   await expect(plannerTrip(page, "other-line-early")).toHaveCount(0);
   expect(state.reads.some((href) => href.includes("from_stop_id=b1&to_stop_id=other"))).toBe(false);
@@ -244,6 +245,10 @@ test("reopens the saved sequence, marks an insertion conflict and undoes the ins
   let releaseEstimate;
   const depotEstimate = new Promise(resolve => { releaseEstimate = resolve; });
   const state = await composer({ application: true, entry: "shifts", respond: async (request) => {
+    if (request.path.endsWith("/shift-planner/catalog")) {
+      return { json: plannerCatalog.map(trip => trip.id === "night-b"
+        ? { ...trip, id: "night-b-representative", equivalent_trip_ids: ["night-b"] } : trip) };
+    }
     if (request.path.endsWith("/shift-planner/route") && request.url.searchParams.get("from_stop_id") === "b1"
       && request.url.searchParams.get("to_stop_id") === "depot-stop") await depotEstimate;
     return programmeFixture(request);
@@ -257,6 +262,7 @@ test("reopens the saved sequence, marks an insertion conflict and undoes the ins
   await activity(page, 1).locator('[data-action="insert-before"]').click();
   await expect(plannerField(page, "include-other-termini")).not.toBeChecked();
   await expect(plannerTrip(page, "night-b")).toHaveCount(0);
+  await expect(plannerTrip(page, "night-b-representative")).toHaveCount(0);
   await expect(plannerTrip(page, "night-c")).toBeVisible();
   await expect(plannerTrip(page, "night-other")).toHaveCount(0);
   await plannerAction(page, "choose-stay").click();
@@ -376,13 +382,28 @@ test("adds a same-stop service at GTFS times and preserves an older platform tra
 
 test("opens an elevation profile without adding a trip and reuses it in the programme", async ({ page, composer }) => {
   const profileReads = [];
+  const stopReads = [];
+  const stops = [
+    { stop_name: "Town", departure_time: "23:55:00", stop_lat: 46, stop_lon: 8.95 },
+    { stop_name: "Market", arrival_time: "24:02:30", departure_time: "24:04:00", stop_lat: 46.005, stop_lon: 8.955 },
+    { stop_name: "Station", arrival_time: "24:15:00", stop_lat: 46.01, stop_lon: 8.96 },
+  ];
   const points = [
     { latitude: 46, longitude: 8.95, altitude_m: 285, cumulative_distance_m: 0 },
     { latitude: 46.01, longitude: 8.96, altitude_m: 340, cumulative_distance_m: 1040 },
   ];
-  // The geometry and elevation come from the API regardless of the tile provider.
-  await page.route("https://tile.openstreetmap.org/**", route => route.abort());
+  await page.route("**/runtime-config.json", route => route.fulfill({ json: { CARTO_API_KEY: "test-key" } }));
+  let requestedVoyager = false;
+  await page.route("https://basemaps.cartocdn.com/**", route => {
+    const url = new URL(route.request().url());
+    if (url.pathname.startsWith("/rastertiles/voyager/") && url.searchParams.get("key") === "test-key") requestedVoyager = true;
+    return route.fulfill({ status: 204 });
+  });
   const state = await composer({ application: true, entry: "shifts", respond: (request) => {
+    if (request.path.includes("/gtfs-stops/by-trip/")) {
+      stopReads.push(request.path.split("/").at(-1));
+      return { json: stops };
+    }
     if (request.path.includes("/elevation-profile/by-trip/")) {
       profileReads.push(request.path.split("/").at(-1));
       return { json: { records: points } };
@@ -399,7 +420,23 @@ test("opens an elevation profile without adding a trip and reuses it in the prog
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(preview.getByRole("img", { name: "Elevation profile" })).toBeVisible();
   await expect(preview.locator(".leaflet-overlay-pane path").first()).toBeVisible();
+  await expect.poll(() => requestedVoyager).toBe(true);
+  await expect(preview.locator(".trip-preview-stop-marker.is-origin")).toHaveAttribute("aria-label", "Town");
+  await expect(preview.locator(".trip-preview-stop-marker.is-destination")).toHaveAttribute("aria-label", "Station");
   await expect(preview.locator("svg.elevation-chart-inline")).toContainText("340");
+  const timetable = preview.locator('[data-role="stops"] table');
+  await expect(timetable.getByRole("columnheader")).toHaveText(["Stop", "Arrival", "Departure"]);
+  const calls = timetable.locator("tbody tr");
+  await expect(calls).toHaveCount(3);
+  await expect(calls.nth(0).locator("td").last()).toHaveText("23:55");
+  await expect(calls.nth(0)).toContainText("—");
+  await expect(calls.nth(1)).toContainText("24:02");
+  await expect(calls.nth(1)).toContainText("24:04");
+  await expect(calls.nth(2)).toContainText("24:15");
+  await expect(calls.nth(2)).toContainText("—");
+  await calls.nth(1).getByRole("button", { name: /Market/ }).click();
+  await expect(preview.locator(".trip-preview-stop-popup")).toContainText("Market");
+  await expect(preview.locator(".trip-preview-stop-popup")).toContainText("24:04");
   const textPixels = await preview.locator(".elevation-chart-inline text").first().evaluate(node =>
     parseFloat(getComputedStyle(node).fontSize) * node.getScreenCTM().a);
   expect(textPixels).toBeGreaterThanOrEqual(11);
@@ -410,13 +447,53 @@ test("opens an elevation profile without adding a trip and reuses it in the prog
   await plannerAction(page, "confirm-step").click();
   await activity(page, 0).locator('[data-action="preview-trip"]').click();
   await expect(activity(page, 0).getByRole("img", { name: "Elevation profile" })).toBeVisible();
+  await expect(activity(page, 0).locator('[data-role="stops"]')).toContainText("Market");
   expect(profileReads).toEqual(["night-a"]);
+  expect(stopReads).toEqual(["night-a"]);
   expect(state.writes).toEqual([]);
+});
+
+test("keeps the selected trip visible only while scrolling through its own stops", async ({ page, composer }) => {
+  const first = plannerCatalog.find(trip => trip.id === "night-a");
+  const following = Array.from({ length: 20 }, (_, i) => ({
+    ...first, id: `later-${i}`, departure_time: "24:20:00", arrival_time: "24:40:00",
+  }));
+  const stops = Array.from({ length: 30 }, (_, i) => ({
+    stop_name: `Stop ${i + 1}`, arrival_time: "24:00:00", departure_time: "24:01:00",
+  }));
+  await composer({ application: true, entry: "shifts", respond: request => {
+    if (request.path.endsWith("/shift-planner/catalog")) return { json: [first, ...following] };
+    if (request.path.includes("/gtfs-stops/by-trip/")) return { json: stops };
+    if (request.path.includes("/elevation-profile/by-trip/")) return { json: { records: [] } };
+    return plannerApi(request);
+  } });
+  await plannerAction(page, "add-shift").click();
+  await startPlanner(page);
+  const catalog = page.locator(".planner-catalog-scroll");
+  const row = catalog.locator('tr[data-trip-id="night-a"]');
+  await row.locator('[data-action="preview-trip"]').press("Enter");
+  const lastStop = catalog.getByRole("rowheader", { name: "Stop 30", exact: true });
+  await expect(lastStop).toBeAttached();
+  await catalog.evaluate(node => { node.scrollTop = node.clientHeight; });
+  const heading = catalog.locator(".planner-catalog-table > thead");
+  const topGap = async () => {
+    const [header, trip] = await Promise.all([heading.boundingBox(), row.boundingBox()]);
+    return Math.abs(header.y + header.height - trip.y);
+  };
+  await expect.poll(topGap).toBeLessThan(2);
+  await lastStop.scrollIntoViewIfNeeded();
+  await expect(lastStop).toBeInViewport();
+  await expect.poll(topGap).toBeLessThan(2);
+  await catalog.evaluate(node => { node.scrollTop = node.scrollHeight; });
+  await expect.poll(async () => {
+    const [header, trip] = await Promise.all([heading.boundingBox(), row.boundingBox()]);
+    return trip.y + trip.height <= header.y + header.height + 1;
+  }).toBe(true);
 });
 
 test("keeps a failed profile retryable and closes it when the candidate disappears", async ({ page, composer }) => {
   let attempts = 0;
-  await page.route("https://tile.openstreetmap.org/**", route => route.abort());
+  await page.route("**/runtime-config.json", route => route.fulfill({ json: { CARTO_API_KEY: "" } }));
   await composer({ application: true, entry: "shifts", respond: (request) => {
     if (request.path.endsWith("/elevation-profile/by-trip/night-a")) {
       if (++attempts === 1) return { status: 503, json: { detail: "Temporary failure" } };
@@ -429,11 +506,98 @@ test("keeps a failed profile retryable and closes it when the candidate disappea
   const toggle = role(page, "catalog").locator('tr[data-trip-id="night-a"] [data-action="preview-trip"]');
   await toggle.click();
   await expect(role(page, "elevation")).toContainText("Failed to load elevation");
+  await expect(role(page, "stops").getByRole("table")).toBeVisible();
   await toggle.click();
   await toggle.click();
   await expect(role(page, "elevation").getByRole("img")).toContainText("319");
-  await expect(role(page, "map")).toHaveText("No route data available");
+  await expect(role(page, "stops").getByRole("table")).toBeVisible();
   await plannerField(page, "line").selectOption("");
   await expect(page.locator("#planner-trip-profile")).toHaveCount(0);
   expect(attempts).toBe(2);
+});
+
+test("keeps the route visible when stop times fail and retries the timetable on reopening", async ({ page, composer }) => {
+  let stopRequests = 0;
+  let elevationRequests = 0;
+  await page.route("**/runtime-config.json", route => route.fulfill({ json: { CARTO_API_KEY: "" } }));
+  await composer({ application: true, entry: "shifts", respond: request => {
+    if (request.path.endsWith("/gtfs-stops/by-trip/night-a")) {
+      stopRequests += 1;
+      if (stopRequests === 1) return { status: 503, json: { detail: "Unavailable" } };
+      return { json: [{ stop_name: "Town", departure_time: "23:55:00" }] };
+    }
+    if (request.path.endsWith("/elevation-profile/by-trip/night-a")) {
+      elevationRequests += 1;
+      return { json: { records: [
+        { latitude: 46, longitude: 9, altitude_m: 310, cumulative_distance_m: 0 },
+        { latitude: 46.02, longitude: 9.01, altitude_m: 319, cumulative_distance_m: 1500 },
+      ] } };
+    }
+    return plannerApi(request);
+  } });
+  await plannerAction(page, "add-shift").click();
+  await startPlanner(page);
+  const trigger = role(page, "catalog").locator('[data-trip-id="night-a"] [data-action="preview-trip"]');
+  await trigger.click();
+  await expect(role(page, "elevation").getByRole("img")).toBeVisible();
+  await expect(role(page, "map").locator(".leaflet-overlay-pane path").first()).toBeVisible();
+  await expect(role(page, "map")).toContainText("Basemap unavailable");
+  await expect(role(page, "stops")).toContainText(/failed|unavailable|could not/i);
+  await trigger.click();
+  await trigger.click();
+  await expect(role(page, "stops").getByRole("table")).toContainText("Town");
+  expect([elevationRequests, stopRequests]).toEqual([1, 2]);
+});
+
+test("distinguishes only visible trips with matching termini and displayed times", async ({ page, composer }) => {
+  const direct = {
+    ...plannerCatalog.find(({ id }) => id === "night-b"),
+    trip_short_name: "1001", stop_count: 10, equivalent_trip_ids: ["same-service"],
+  };
+  const transfer = {
+    ...direct, id: "different-service", from_stop_id: "other", from_parent: null,
+    departure_time: "24:15:10", arrival_time: "24:35:10", equivalent_trip_ids: [],
+  };
+  const unnamed = {
+    ...transfer, id: "unnamed-service", departure_time: "24:15:20", trip_short_name: null, stop_count: 1,
+  };
+  const numbered = { ...transfer, id: "numbered-service", departure_time: "24:15:30", trip_short_name: "1002", stop_count: 8 };
+  const differentTime = { ...transfer, id: "different-time", arrival_time: "24:36:00" };
+  const trips = [...plannerCatalog.filter(({ id }) => id !== direct.id), direct, transfer, unnamed, numbered, differentTime];
+  await composer({ application: true, entry: "shifts", respond: (request) => {
+    if (request.path.endsWith("/shift-planner/catalog")) return { json: trips };
+    return plannerApi(request);
+  } });
+
+  const variant = (id) => role(page, "catalog").locator(`[data-trip-id="${id}"] [data-role="candidate-variant"]`);
+  await plannerAction(page, "add-shift").click();
+  await startPlanner(page);
+  await plannerTrip(page, "night-a").click();
+  await plannerAction(page, "confirm-step").click();
+
+  await expect(plannerTrip(page, direct.id)).toBeVisible();
+  await expect(plannerTrip(page, transfer.id)).toHaveCount(0);
+  await expect(variant(direct.id)).toHaveCount(0);
+
+  const includeOtherTermini = plannerField(page, "include-other-termini");
+  await includeOtherTermini.check();
+  await expect(variant(direct.id)).toHaveText("Trip 1001 · 10 stops · Variant 1");
+  await expect(variant(transfer.id)).toHaveText("Trip 1001 · 10 stops · Variant 2");
+  await expect(variant(unnamed.id)).toHaveText("Variant 3 · 1 stop");
+  await expect(variant(numbered.id)).toHaveText("Trip 1002 · 8 stops");
+  await expect(plannerTrip(page, differentTime.id)).toBeVisible();
+  await expect(variant(differentTime.id)).toHaveCount(0);
+
+  for (const [language, tripLabel, fallback] of [
+    ["it", "Corsa 1001 · 10 fermate · Variante 1", "Variante 3 · 1 fermata"],
+    ["fr", "Course 1001 · 10 arrêts · Variante 1", "Variante 3 · 1 arrêt"],
+    ["de", "Fahrt 1001 · 10 Haltestellen · Variante 1", "Variante 3 · 1 Haltestelle"],
+  ]) {
+    await page.locator(".language-select").selectOption(language);
+    await expect(variant(direct.id)).toHaveText(tripLabel);
+    await expect(variant(unnamed.id)).toHaveText(fallback);
+  }
+
+  await includeOtherTermini.uncheck();
+  await expect(variant(direct.id)).toHaveCount(0);
 });

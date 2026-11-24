@@ -276,7 +276,7 @@ export const fetchRouteById = async (routeId) => {
   return payload;
 };
 
-export const fetchStopsByTripId = async (tripId) => {
+export const fetchStopsByTripId = async (tripId, { signal } = {}) => {
   if (!tripId) {
     throw new Error("Missing tripId");
   }
@@ -286,6 +286,7 @@ export const fetchStopsByTripId = async (tripId) => {
     {
       method: "GET",
       headers,
+      signal,
     }
   );
   const payload = await response.json().catch(() => null);
