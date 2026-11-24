@@ -20,6 +20,7 @@ import { resolveUserId } from "../../../api/session";
 import { triggerPartialLoad } from "../../../events";
 import { writeFlash, addOwnedBus } from "../../../store";
 import { toggleFormDisabled, updateFeedback } from "../../../ui-helpers";
+import { formatNumber } from "../../../utils/number-format";
 import { I18N_CHANGE_EVENT, t } from "../../../i18n";
 import {
   BUS_MODEL_SPEC_FIELDS,
@@ -229,12 +230,31 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
     updateTooltips();
   };
 
+  const updateBatterySummary = () => {
+    const fields = form.elements;
+    // valueAsNumber preserves the distinction between an empty price and zero.
+    const read = input => input.validity.valid ? input.valueAsNumber : NaN;
+    const size = read(fields.battery_pack_size_kwh);
+    const min = read(fields.min_battery_packs);
+    const max = read(fields.max_battery_packs);
+    const price = read(fields.battery_pack_cost_chf);
+    const show = (output, value, unit, decimals) => {
+      const text = Number.isFinite(value) ? `${formatNumber(value, decimals)} ${unit}` : "—";
+      if (output.value !== text) output.value = text;
+    };
+    const reversed = min > max;
+    show(fields.battery_capacity_min, reversed ? NaN : min * size, "kWh", 3);
+    show(fields.battery_capacity_max, reversed ? NaN : max * size, "kWh", 3);
+    show(fields.battery_price_per_kwh, price / size, "CHF/kWh", 2);
+  };
+
   const estimate = () => estimateBusSpecs(pricing,
     selectedVehicleCategory && Number(busLengthInput.value),
     Number(form.elements.battery_pack_size_kwh.value), chemistryInput.value);
   const updateEstimates = (fields = ESTIMATED_SPEC_FIELDS) => {
     if (!pricing) {
       for (const field of fields) pendingEstimates.add(field);
+      updateBatterySummary();
       return;
     }
     const values = estimate();
@@ -243,8 +263,10 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       const restore = form.querySelector('[data-restore-field="' + field + '"]');
       restore.hidden = suggested.has(field) || values[field] == null;
     }
+    updateBatterySummary();
   };
   updateCategory();
+  updateBatterySummary();
   const initialChemistry = chemistryInput.value;
   const initialSuggested = [...suggested].sort().join(",");
   const initialSpecFormState = captureBusModelSpecFormState(
@@ -264,10 +286,14 @@ export const initializeAddBusModel = async (root = document, options = {}) => {
       form.querySelector('[data-restore-field="' + field + '"]').hidden =
         suggested.has(field) || current[field] == null;
     }
+    updateBatterySummary();
   }).catch(() => {
     updateFeedback(feedback, t("buses.unable_to_load_defaults"), "error");
   });
 
+  for (const field of ["min_battery_packs", "max_battery_packs", "battery_pack_cost_chf"]) {
+    listen(form.elements[field], "input", updateBatterySummary);
+  }
   listen(busLengthInput, "input", () => {
     updateCategory(true);
     updateEstimates();

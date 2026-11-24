@@ -159,7 +159,7 @@
               <h3 class="card-title" data-i18n="buses.section_battery_system">Battery system</h3>
             </div>
             <div class="bus-model-grid">
-              <div class="form-group">
+              <div class="form-group bus-model-field--full">
                 <label for="battery_chemistry" data-i18n="buses.battery_chemistry">Battery chemistry</label>
                 <select id="battery_chemistry" name="battery_chemistry"><option selected>LFP</option><option>NMC</option></select>
               </div>
@@ -214,6 +214,23 @@
                   autocomplete="off"
                 />
                 <button type="button" class="restore-bus-estimate" data-restore-field="battery_pack_cost_chf" data-i18n="buses.restore_estimate" hidden>Restore estimate</button>
+              </div>
+              <div class="battery-summary bus-model-field--full">
+                <div class="battery-summary__values">
+                  <div>
+                    <label for="battery_capacity_min" data-i18n="buses.battery_capacity_min">Minimum capacity</label>
+                    <output id="battery_capacity_min" for="min_battery_packs battery_pack_size_kwh" data-battery-summary="min">—</output>
+                  </div>
+                  <div>
+                    <label for="battery_capacity_max" data-i18n="buses.battery_capacity_max">Maximum capacity</label>
+                    <output id="battery_capacity_max" for="max_battery_packs battery_pack_size_kwh" data-battery-summary="max">—</output>
+                  </div>
+                  <div>
+                    <label for="battery_price_per_kwh" data-i18n="buses.battery_price_per_kwh">Price per kWh</label>
+                    <output id="battery_price_per_kwh" for="battery_pack_cost_chf battery_pack_size_kwh" data-battery-summary="price">—</output>
+                  </div>
+                </div>
+                <p data-i18n="buses.nominal_capacity_note">Capacities are nominal. Usable capacity is set in the feasibility study.</p>
               </div>
               <div class="form-group">
                 <label for="max_charging_power_kw" data-i18n="buses.field_max_charging_power">Max charging power (kW) <span class="required-mark" aria-hidden="true">*</span></label>

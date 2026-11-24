@@ -21,6 +21,7 @@ const model = { id: 'model', user_id: 'user', name: 'Existing bus', specs: {
 } };
 async function setup(page, storedModel = model) {
   const state = { unexpected: [], errors: [], writes: [] };
+  let currentModel = storedModel;
   page.on('pageerror', error => state.errors.push(error.message));
   await page.addInitScript(() => {
     localStorage.setItem('access_token', 'test');
@@ -30,14 +31,18 @@ async function setup(page, storedModel = model) {
   await page.route('**/auth/me', route => route.fulfill({ json: { id: 'user', company_id: 'company', role: 'analyst' } }));
   await page.route('**/api/v1/**', route => {
     const request = route.request(), path = new URL(request.url()).pathname, method = request.method();
-    if (method !== 'GET') state.writes.push({ path, body: request.postDataJSON() });
+    const body = method === 'GET' ? undefined : request.postDataJSON();
+    if (method !== 'GET') state.writes.push({ path, body });
     let json;
     if (path.endsWith('/version')) json = { version: 'test' };
     else if (path.endsWith('/agency/agencies/company')) json = { id: 'company', gtfs_agency_id: 'agency' };
     else if (path.endsWith('/economic/defaults')) json = defaults;
     else if (path.endsWith('/environmental/vehicles')) json = [];
-    else if (path.endsWith('/bus-models/')) json = method === 'GET' ? [storedModel] : { ...storedModel, id: 'new-model' };
-    else if (path.endsWith('/bus-models/model')) json = storedModel;
+    else if (path.endsWith('/bus-models/')) json = method === 'GET' ? [currentModel] : { ...currentModel, id: 'new-model' };
+    else if (path.endsWith('/bus-models/model')) {
+      if (method === 'PUT') currentModel = { ...currentModel, ...body };
+      json = currentModel;
+    }
     else if (path.endsWith('/buses/')) json = method === 'GET' ? [] : { id: 'new-bus' };
     else { state.unexpected.push(`${method} ${path}`); return route.fulfill({ status: 500, json: { detail: 'Missing mock' } }); }
     return route.fulfill({ json });
@@ -50,6 +55,11 @@ const check = state => {
 };
 const restore = (page, field) => page.locator(`[data-restore-field="${field}"]`);
 const submit = (page) => page.locator('section.add-bus-model button[type="submit"]');
+const expectBatterySummary = async (page, values) => {
+  for (const [field, value] of Object.entries(values)) {
+    await expect(page.locator(`[data-battery-summary="${field}"]`)).toHaveText(value);
+  }
+};
 
 export function defineBusCostDefaultsTests() {
   test('uses the actual length and chemistry to estimate costs and pack mass', async ({ page }) => {
@@ -61,8 +71,13 @@ export function defineBusCostDefaultsTests() {
     const bodyPrice = page.locator('#cost');
     const packPrice = page.locator('#battery_pack_cost_chf');
     const packWeight = page.locator('#battery_pack_weight_kg');
+    const packSize = page.locator('#battery_pack_size_kwh');
+    const minPacks = page.locator('#min_battery_packs');
+    const maxPacks = page.locator('#max_battery_packs');
 
     await expect(category).toBeDisabled();
+    await expect(page.locator('[data-battery-summary="min"]')).toBeVisible();
+    await expectBatterySummary(page, { min: '—', max: '—', price: '—' });
     const lengthInfo = page.locator('[data-role="length-info"]');
     await expect(lengthInfo).toHaveAttribute(
       'data-tooltip', 'Tra 13 e 17 m manca un profilo di climatizzazione VECTO.',
@@ -71,6 +86,7 @@ export function defineBusCostDefaultsTests() {
     await length.fill('19');
     await expect(category).toHaveValue('articulated_electric_bus_18m');
     await expect(bodyPrice).toHaveValue('583333.33');
+    await expectBatterySummary(page, { min: '480 kWh', max: '640 kWh', price: '330 CHF/kWh' });
 
     await page.locator('#name').fill('Length and chemistry test');
     await length.fill('15');
@@ -82,15 +98,39 @@ export function defineBusCostDefaultsTests() {
     await length.fill('10.75');
     await expect(category).toHaveValue('standard_electric_bus_12_13m');
     await expect(bodyPrice).toHaveValue('471250');
-    await page.locator('#battery_pack_size_kwh').fill('40');
+    await packSize.fill('40');
     await expect(packPrice).toHaveValue('13200');
     await expect(packWeight).toHaveValue('274');
+    await expectBatterySummary(page, { min: '280 kWh', max: '440 kWh', price: '330 CHF/kWh' });
+
+    await minPacks.fill('0');
+    await expectBatterySummary(page, { min: '—', max: '440 kWh', price: '330 CHF/kWh' });
+    await minPacks.fill('8');
+    await maxPacks.fill('');
+    await expectBatterySummary(page, { min: '320 kWh', max: '—', price: '330 CHF/kWh' });
+    await maxPacks.fill('12');
+    await expectBatterySummary(page, { max: '480 kWh' });
+    await maxPacks.fill('7');
+    await expectBatterySummary(page, { min: '—', max: '—', price: '330 CHF/kWh' });
+    await maxPacks.fill('12');
+
+    for (const invalidSize of ['0', '']) {
+      await packSize.fill(invalidSize);
+      await expectBatterySummary(page, { min: '—', max: '—', price: '—' });
+    }
+    await packSize.fill('40');
 
     await bodyPrice.fill('500000');
+    await packPrice.fill('');
+    await expectBatterySummary(page, { price: '—' });
+    await packPrice.fill('0');
+    await expectBatterySummary(page, { price: '0 CHF/kWh' });
     await packPrice.fill('9000');
+    await expectBatterySummary(page, { price: '225 CHF/kWh' });
     await chemistry.selectOption('NMC');
     await expect(packPrice).toHaveValue('9000');
     await expect(packWeight).toHaveValue('205.13');
+    await expectBatterySummary(page, { price: '225 CHF/kWh' });
 
     await length.fill('11');
     await expect(bodyPrice).toHaveValue('500000');
@@ -100,11 +140,13 @@ export function defineBusCostDefaultsTests() {
     await expect(packPrice).toHaveValue('9000');
     await restore(page, 'battery_pack_cost_chf').click();
     await expect(packPrice).toHaveValue('18000');
+    await expectBatterySummary(page, { price: '450 CHF/kWh' });
 
     await packWeight.fill('222');
-    await page.locator('#battery_pack_size_kwh').fill('42');
+    await packSize.fill('42');
     await expect(packPrice).toHaveValue('18900');
     await expect(packWeight).toHaveValue('222');
+    await expectBatterySummary(page, { min: '336 kWh', max: '504 kWh', price: '450 CHF/kWh' });
     await restore(page, 'battery_pack_weight_kg').click();
     await expect(packWeight).toHaveValue('215.38');
 
@@ -114,6 +156,7 @@ export function defineBusCostDefaultsTests() {
     const saved = state.writes.find(write => write.path.endsWith('/bus-models/')).body.specs;
     expect(saved).toMatchObject({
       bus_length_m: 10.75, battery_chemistry: 'NMC', cost: 471250,
+      min_battery_packs: 8, max_battery_packs: 12, battery_pack_size_kwh: 42,
       battery_pack_cost_chf: 18900, battery_pack_weight_kg: 223,
     });
     expect([...saved.suggested_spec_fields].sort()).toEqual(['battery_pack_cost_chf', 'cost']);
@@ -123,29 +166,35 @@ export function defineBusCostDefaultsTests() {
   test('editing keeps saved manual values through assumption and language changes', async ({ page }) => {
     const state = await setup(page);
     await page.goto('./#buses');
-    await page.locator('.bus-models [data-row-action="edit"]').click();
+    const edit = page.locator('.bus-models [data-row-action="edit"]');
+    await edit.click();
     await expect(page.locator('#cost')).toHaveValue('620000');
     await expect(page.locator('#battery_pack_cost_chf')).toHaveValue('7200');
+    await expectBatterySummary(page, { min: '280 kWh', max: '440 kWh', price: '180 CHF/kWh' });
     await page.locator('#bus_length_m').fill('12.5');
     await page.locator('#battery_chemistry').selectOption('LFP');
     await page.locator('#battery_pack_size_kwh').fill('45');
     await expect(page.locator('#cost')).toHaveValue('620000');
     await expect(page.locator('#battery_pack_cost_chf')).toHaveValue('7200');
     await expect(page.locator('#battery_pack_weight_kg')).toHaveValue('274');
+    await expectBatterySummary(page, { min: '315 kWh', max: '495 kWh', price: '160 CHF/kWh' });
 
     await page.locator('#cost').fill('550000');
-    await page.locator('#battery_pack_cost_chf').fill('9000');
-    for (const lang of ['en', 'de', 'fr', 'it']) {
+    await page.locator('#battery_pack_cost_chf').fill('9022.5');
+    for (const [lang, priceLabel] of Object.entries({ en: 'Price per kWh', de: 'Preis pro kWh', fr: 'Prix par kWh', it: 'Prezzo per kWh' })) {
       await page.locator('.language-select').selectOption(lang);
       await expect(page.locator('#cost')).toHaveValue('550000');
-      await expect(page.locator('#battery_pack_cost_chf')).toHaveValue('9000');
+      await expect(page.locator('#battery_pack_cost_chf')).toHaveValue('9022.5');
+      await expect(page.getByLabel(priceLabel, { exact: true })).toHaveText('200.5 CHF/kWh');
     }
     await submit(page).click();
     await expect.poll(() => state.writes.length).toBe(1);
     expect(state.writes[0].body.specs).toMatchObject({
       bus_length_m: 12.5, battery_chemistry: 'LFP', cost: 550000,
-      battery_pack_cost_chf: 9000, battery_pack_weight_kg: 274,
+      battery_pack_cost_chf: 9022.5, battery_pack_weight_kg: 274,
     });
+    await edit.click();
+    await expectBatterySummary(page, { min: '315 kWh', max: '495 kWh', price: '200.5 CHF/kWh' });
     check(state);
   });
 
@@ -166,10 +215,12 @@ export function defineBusCostDefaultsTests() {
     });
     await page.goto('./#buses');
     await page.locator('.bus-models [data-row-action="edit"]').click();
+    await expectBatterySummary(page, { price: '180 CHF/kWh' });
     await page.locator('#battery_chemistry').selectOption('NMC');
     await expect(page.locator('#cost')).toHaveValue('620000');
     await expect(page.locator('#battery_pack_cost_chf')).toHaveValue('18000');
     await expect(page.locator('#battery_pack_weight_kg')).toHaveValue('274');
+    await expectBatterySummary(page, { price: '450 CHF/kWh' });
     check(state);
   });
 }

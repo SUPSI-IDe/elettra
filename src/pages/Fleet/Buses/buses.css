@@ -118,6 +118,34 @@
   grid-column: 1 / -1;
 }
 
+.add-bus-model .battery-summary {
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+}
+
+.add-bus-model .battery-summary__values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  gap: var(--space-sm);
+}
+
+.add-bus-model .battery-summary label,
+.add-bus-model .battery-summary p {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.add-bus-model .battery-summary output {
+  display: block;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.add-bus-model .battery-summary p {
+  margin: var(--space-sm) 0 0;
+}
+
 .add-bus-model .bus-model-field--compact {
   justify-self: start;
   width: min(100%, 15.5rem);
