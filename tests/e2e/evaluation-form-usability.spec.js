@@ -3,7 +3,7 @@ import {test, expect} from '@playwright/test';
 test('filtered bulk selection preserves other selections and the form reveals relevant controls', async ({page}) => {
   const depot = '11111111-1111-4111-8111-111111111111';
   const model = {id:'model', user_id:'user', name:'TPL model', specs:{min_battery_packs:10,max_battery_packs:16,battery_pack_size_kwh:50}};
-  const shifts = ['40501','40502','40701'].map(name => ({id:name,name,bus_id:'bus',
+  const shifts = ['40501','40502','40701'].map(name => ({id:name,name,bus_id:'bus',compatible_weekdays:['monday'],
     structure:[{trip_id:'trip-'+name,sequence_number:1,trip_type:'auxiliary'}]}));
   await page.addInitScript(() => {localStorage.setItem('access_token','test');localStorage.setItem('elettra_lang','en');});
   await page.route('**/auth/me',route => route.fulfill({json:{id:'user',email:'local@example.invalid'}}));
@@ -20,6 +20,7 @@ test('filtered bulk selection preserves other selections and the form reveals re
     return route.fulfill({json:data});
   });
   await page.goto('./#add-simulation');
+  await page.locator('#simulation-service-weekday').selectOption('monday');
   const all = page.getByRole('checkbox',{name:'Select all filtered vehicle blocks',exact:true});
   const rows = page.locator('.shift-table tbody input[type="checkbox"]');
   const filter = page.locator('#sim-shift-filter');

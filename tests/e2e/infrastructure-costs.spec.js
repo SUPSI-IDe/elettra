@@ -5,7 +5,7 @@ const arrival='22222222-2222-4222-8222-222222222222';
 
 async function openFeasibilityWithCosts(page, language = 'en') {
   const model={id:'model',user_id:'user',name:'Test bus',specs:{min_battery_packs:10,max_battery_packs:16,battery_pack_size_kwh:50,battery_pack_cost_chf:6000}};
-  const shifts=['one','two'].map(id=>({id,name:id,bus_id:'bus',structure:[{trip_id:'trip-'+id,sequence_number:1,trip_type:'auxiliary'}]}));
+  const shifts=['one','two'].map(id=>({id,name:id,bus_id:'bus',compatible_weekdays:['monday'],structure:[{trip_id:'trip-'+id,sequence_number:1,trip_type:'auxiliary'}]}));
   const predictions=shifts.map(shift=>({id:'prediction-'+shift.id,shift_id:shift.id,status:'completed',contextual_parameters:{num_battery_packs:16}}));
   let submitted;
   await page.addInitScript(lang=>{localStorage.setItem('access_token','test');localStorage.setItem('elettra_lang',lang);}, language);
@@ -29,6 +29,7 @@ async function openFeasibilityWithCosts(page, language = 'en') {
     return route.fulfill({json:data});
   });
   await page.goto('./#add-simulation');
+  await page.locator('#simulation-service-weekday').selectOption('monday');
   return () => submitted;
 }
 

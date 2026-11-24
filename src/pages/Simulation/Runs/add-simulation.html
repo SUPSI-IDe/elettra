@@ -73,6 +73,24 @@
               <p data-role="gtfs-mixed-warning" class="form-feedback" hidden></p>
             </div>
 
+            <div class="form-group">
+              <label for="simulation-service-weekday">
+                <span data-i18n="simulation.service_day">Service day</span>
+                <span class="required-mark">*</span>
+              </label>
+              <select id="simulation-service-weekday" name="service_weekday" aria-describedby="simulation-copy-weekday-help" required disabled>
+                <option value="" data-i18n="simulation.select_day" disabled selected>Select a day</option>
+                <option value="monday" data-i18n="simulation.day_monday">Monday</option>
+                <option value="tuesday" data-i18n="simulation.day_tuesday">Tuesday</option>
+                <option value="wednesday" data-i18n="simulation.day_wednesday">Wednesday</option>
+                <option value="thursday" data-i18n="simulation.day_thursday">Thursday</option>
+                <option value="friday" data-i18n="simulation.day_friday">Friday</option>
+                <option value="saturday" data-i18n="simulation.day_saturday">Saturday</option>
+                <option value="sunday" data-i18n="simulation.day_sunday">Sunday</option>
+              </select>
+              <p id="simulation-copy-weekday-help" class="helper-text" hidden></p>
+            </div>
+
             <div class="form-group shift-selection">
               <label for="sim-shift-filter">
                 <span data-i18n="simulation.field_shifts">Vehicle block</span>
@@ -120,6 +138,7 @@
                   <tbody data-role="shift-selection-body"></tbody>
                 </table>
               </div>
+              <p data-role="unverified-weekdays" class="helper-text" aria-live="polite" hidden></p>
             </div>
           </div>
         </section>

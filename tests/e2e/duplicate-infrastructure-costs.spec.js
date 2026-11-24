@@ -20,7 +20,9 @@ const models = {
 const forecast = { model_name: 'saved-model-release', prediction_stack: 'vecto-g2',
   external_temp_celsius: -8.25, occupancy_percent: 35, auxiliary_heating_type: 'diesel', quantiles: [0.05, 0.25, 0.5, 0.95] };
 
-async function fixture(page, { mode = 'joint', variant = 'custom', basis = 'mean', missing, mixedForecast = false } = {}) {
+async function fixture(page, {
+  mode = 'joint', variant = 'custom', basis = 'mean', missing, mixedForecast = false, weekdaysByShift = {},
+} = {}) {
   const legacy = variant === 'legacy';
   const stations = [depot, pantograph].map((stop_id, i) => ({
     stop_id, ...(legacy && mode !== 'battery_only' ? {} : { num_slots: i + 2 }),
@@ -50,7 +52,9 @@ async function fixture(page, { mode = 'joint', variant = 'custom', basis = 'mean
     min_battery_packs: 10, max_battery_packs: 16, battery_pack_size_kwh: 50,
     battery_pack_cost_chf: 6000, battery_pack_weight_kg: 300, empty_weight_kg: 18000, max_passengers: 100, bus_length_m: 18,
   } };
-  const shifts = ['shift', 'shift2', 'unused'].map(id => ({ id, name: id, bus_id: 'bus', structure: [] }));
+  const shifts = ['shift', 'shift2', 'unused'].map(id => ({
+    id, name: id, bus_id: 'bus', structure: [], compatible_weekdays: weekdaysByShift[id] ?? ['monday'],
+  }));
   let saved = { id: 'saved', name: 'Saved evaluation', mode, status: 'completed', bus_model_id: 'model',
     created_at: '2026-01-01T12:00:00Z', input_params: structuredClone(original),
     results: { battery_results: { shift: { reference_packs: 14 }, shift2: { reference_packs: 14 } } } };
@@ -124,6 +128,7 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
         const f = await fixture(page, { mode, variant, basis });
         for (let copy = 1; copy <= 2; copy++) {
           await f.open();
+          await expect(page.locator('#simulation-service-weekday')).toHaveValue('monday');
           await expect(page.locator('#var-optimization-mode')).toHaveValue(mode);
           await expect(page.locator('#var-bus-model-override')).toHaveValue('model');
           await expect(page.locator('#var-external-temp')).toHaveValue('-8.25');
@@ -147,7 +152,7 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
           const { prediction_params, ...expected } = f.original;
           // Historical assumptions remain explicit; new policy fields preserve the historical behavior. Mean/Q95 are recalculated as a pair.
           expect(f.submissions.at(-1)).toEqual({ battery_soc_policy: 'residual_soc', allowed_min_soc: .1, allowed_max_soc: .95, layover_reduction_minutes: 0,
-            ...expected, name: `Copy ${copy}`, consumption_basis: 'mean',
+            ...expected, name: `Copy ${copy}`, consumption_basis: 'mean', service_weekday: 'monday',
             prediction_run_ids: [`copy-${copy}-shift`, `copy-${copy}-shift2`],
             reference_prediction_run_ids: { shift: `copy-${copy}-shift`, shift2: `copy-${copy}-shift2` } });
           expect(f.predictions.at(-1)).toEqual({ ...forecast, shift_ids: ['shift', 'shift2'], bus_model_id: 'model',
@@ -159,6 +164,42 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
     }
   }
 }
+
+test('a legacy copy with several common weekdays asks once and keeps its source', async ({ page }) => {
+  test.setTimeout(60_000);
+  const f = await fixture(page, { weekdaysByShift: {
+    shift: ['monday', 'tuesday', 'wednesday'], shift2: ['monday', 'tuesday', 'saturday'],
+  } });
+  const days = page.locator('#simulation-service-weekday');
+  const selected = page.locator('.shift-table tbody tr:has(input:checked)');
+  await f.open();
+  await expect(days).toBeEnabled();
+  await expect(days).toHaveValue('');
+  await expect(page.locator('#simulation-copy-weekday-help')).toHaveText('Choose a service day common to the original vehicle blocks.');
+  await expect(days.locator('option:not([disabled])')).toHaveText(['Monday', 'Tuesday']);
+  await page.getByRole('button', { name: 'Start evaluation', exact: true }).click();
+  await expect(days).toBeFocused();
+  await expect(f.predictions).toHaveLength(0);
+
+  await days.selectOption('tuesday');
+  await expect(selected.locator('td:nth-child(2)')).toHaveText(['shift', 'shift2']);
+  await f.submit();
+  await expect.poll(() => f.submissions.length).toBe(1);
+  await f.repeat();
+  await f.open();
+  await expect(days).toHaveValue('tuesday');
+  await expect(selected.locator('td:nth-child(2)')).toHaveText(['shift', 'shift2']);
+  await f.submit();
+  await expect.poll(() => f.submissions.length).toBe(2);
+
+  for (const request of f.submissions) {
+    expect(request).toMatchObject({
+      service_weekday: 'tuesday', shift_ids: f.original.shift_ids, bus_model_id: f.original.bus_model_id,
+      charging_stations: f.stations, min_soc: f.original.min_soc, max_soc: f.original.max_soc,
+    });
+  }
+  for (const request of f.predictions) expect(request).toMatchObject(forecast);
+});
 
 test('editing a displayed near-zero cost to zero saves the explicit edit', async ({ page }) => {
   const f = await fixture(page, { variant: 'tiny' }); await f.open();

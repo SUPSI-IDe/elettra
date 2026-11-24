@@ -15,7 +15,7 @@ for (const { mode, entry, outcome } of scenarios) {
         min_battery_packs: 10, max_battery_packs: 16, battery_pack_size_kwh: 50,
         battery_pack_weight_kg: 300, battery_pack_cost_chf: 6000, bus_length_m: 18, empty_weight_kg: 18000, max_passengers: 100,
       }};
-      const shift = { id: "shift", name: "Test duty", bus_id: "bus", trip_count: 1, structure: [] };
+      const shift = { id: "shift", name: "Test duty", bus_id: "bus", trip_count: 1, structure: [], compatible_weekdays: ["monday"] };
       const runs = [];
       const submitted = [];
       const predictions = [];
@@ -30,7 +30,7 @@ for (const { mode, entry, outcome } of scenarios) {
           electrification_feasible: true,
           input_params: { mode, shift_ids: ["shift"], bus_model_id: "model", consumption_basis: basis,
             evaluate_both_bases: !historical, min_soc: .2, max_soc: .9, battery_cost_per_kwh: 300,
-            ...(historical ? {} : { basis_run_ids: ids }), charging_stations: [] },
+            ...(historical ? {} : { basis_run_ids: ids, service_weekday: "monday" }), charging_stations: [] },
           results: { electrification_feasible: true, forecast_verification: {status: "verified"},
             installed_chargers: {}, battery_results: {shift: {shift_name: "Test duty", reference_packs: 16,
               base_packs: 10, optimized_packs: packs, required_total_packs: packs, max_physical_packs: 16,
@@ -112,6 +112,9 @@ for (const { mode, entry, outcome } of scenarios) {
       await expect(page.getByText("Mean and Q95", {exact: true})).toBeVisible();
       await expect(page.getByLabel("Optimize for", {exact: true})).toHaveCount(0);
       await page.locator("#simulation-name").fill("Paired local regression");
+      const weekdays = page.locator("#simulation-service-weekday");
+      if (entry === "duplicate") await expect(weekdays).toHaveValue("monday");
+      else await weekdays.selectOption("monday");
       await page.getByRole("checkbox", {name: "Select vehicle block", exact: true}).check();
       await page.locator("#var-optimization-mode").selectOption(mode);
       await page.locator("#var-bus-model-override").selectOption("model");
@@ -152,6 +155,7 @@ for (const { mode, entry, outcome } of scenarios) {
       await expect.poll(() => submitted.length).toBe(1);
       expect(submitted[0].evaluate_both_bases).toBe(true);
       expect(submitted[0].lock_entire_dwell).toBe(true);
+      expect(submitted[0].service_weekday).toBe("monday");
       if (delayedQ95) {
         await expect.poll(() => q95Polls).toBeGreaterThan(0);
         await expect(page).toHaveURL(/#add-simulation/);
@@ -182,6 +186,7 @@ for (const { mode, entry, outcome } of scenarios) {
       await expect(page.getByRole("heading", {level: 1})).toContainText("Paired mean");
       const switcher = page.locator('[data-role="paired-basis-switch"] [data-role="aggregate-basis"]');
       await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText('Mean-based demand scenario');
+      await expect(page.locator('[data-role="feasibility-service-day"]')).toHaveText('Service day · Monday');
       await expect(page.locator('.feasibility-level__scenario-mode [data-role="feasibility-overall-status"]')).toHaveCount(1);
       if (outcome === "q95-infeasible") {
         const mixedText = "Feasible for Mean, not feasible for Q95";

@@ -22,7 +22,7 @@ const model = { id: 'model', user_id: 'user', name: '500 kWh bus', specs: {
 const gtfsDataset = { gtfs_year: 2026, gtfs_file_date: '2026-10-01',
   valid_from: '2026-01-01', valid_to: '2026-12-31' };
 const shift = { id: 'shift', name: 'Battery policy block', bus_id: 'bus', structure: [],
-  gtfs_datasets: [gtfsDataset] };
+  gtfs_datasets: [gtfsDataset], compatible_weekdays: ['monday'] };
 const prediction = { id: 'prediction', shift_id: 'shift', bus_model_id: 'model', status: 'completed',
   model_name: 'saved-model', prediction_stack: 'vecto-g2', external_temp_celsius: -5,
   occupancy_percent: 100, auxiliary_heating_type: 'default',
@@ -91,6 +91,7 @@ async function fixture(page, { input = {}, result = false, hvacUnavailable = fal
 
 async function openNew(page) {
   await page.goto('./#add-simulation');
+  await page.locator('#simulation-service-weekday').selectOption('monday');
   await page.locator('#simulation-name').fill('Battery policy browser regression');
   await page.getByRole('checkbox', { name: 'Select vehicle block', exact: true }).check();
   await page.locator('#var-optimization-mode').selectOption('battery_only');

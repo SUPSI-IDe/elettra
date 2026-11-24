@@ -5,8 +5,12 @@ const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === '1';
 const old={gtfs_year:2026,gtfs_file_date:'2025-09-27',valid_from:'2025-12-14',valid_to:'2026-12-12'};
 const early={gtfs_year:2027,gtfs_file_date:'2026-08-22',valid_from:'2026-12-13',valid_to:'2027-12-11'};
 const latest={...early,gtfs_file_date:'2026-11-04'};
-const duty=(id,datasets)=>({id,name:id,bus_id:'bus',gtfs_datasets:datasets,daily_distance_km:1,yearly_distance_km:365});
-const shifts=[duty('old-a',[old]),duty('old-b',[old]),duty('early',[early]),duty('latest',[latest]),duty('aux',[]),duty('mixed',[old,latest])];
+const duty=(id,datasets,weekdays=['monday'])=>({id,name:id,bus_id:'bus',gtfs_datasets:datasets,
+  compatible_weekdays:weekdays,daily_distance_km:1,yearly_distance_km:365});
+const shifts=[{...duty('old-a',[old],['monday','tuesday']),pending_elevation_profiles:3},
+  {...duty('old-b',[old]),pending_elevation_profiles:0},duty('early',[early]),duty('latest',[latest]),
+  {...duty('saturday',[latest],['saturday']),planner_version:1,service_weekday:'saturday'},
+  duty('unknown',[latest],null),duty('conflict',[latest],[]),duty('aux',[]),duty('mixed',[old,latest])];
 const model={id:'model',user_id:'user',name:'Model',specs:{min_battery_packs:2,max_battery_packs:8,battery_pack_size_kwh:50}};
 
 async function setup(page,{prefill=null,empty=false}={}) {
@@ -45,6 +49,7 @@ test('year and file filter selection, search and select-all; changing edition cl
   const requests=await setup(page);
   const select=page.locator('#simulation-gtfs-dataset'),rows=page.locator('.shift-table tbody tr[data-id]');
   await expect(select).toHaveValue('2027|2026-11-04');
+  await page.locator('#simulation-service-weekday').selectOption('monday');
   await expect(rows).toHaveCount(1);await expect(rows.first()).toHaveAttribute('data-id','latest');
   await expect(rows.locator('[data-role="gtfs-metadata"]')).toHaveCount(0);
   await expect(page.locator('[data-role="gtfs-mixed-warning"]')).toBeVisible();
@@ -74,10 +79,77 @@ test('year and file filter selection, search and select-all; changing edition cl
   await select.selectOption('none');await expect(rows).toHaveCount(1);await expect(rows.first()).toHaveAttribute('data-id','aux');
 });
 
+test('pending elevation is readable below its vehicle block name and leaves selection available', async ({page}) => {
+  await setup(page);
+  await page.locator('#simulation-gtfs-dataset').selectOption('2026|2025-09-27');
+  await page.locator('#simulation-service-weekday').selectOption('monday');
+  const pending = page.locator('tr[data-id="old-a"]');
+  const ready = page.locator('tr[data-id="old-b"]');
+  const notice = pending.locator('[data-role="pending-elevation"]');
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveText('Elevation profiles in progress: 3');
+  await expect(ready).toBeVisible();
+  await expect(ready.locator('[data-role="pending-elevation"]')).toHaveCount(0);
+
+  const verticalGap = await notice.evaluate((element) => {
+    const name = document.createRange();
+    name.selectNode(element.previousSibling);
+    return element.getBoundingClientRect().top - name.getBoundingClientRect().bottom;
+  });
+  expect(verticalGap).toBeGreaterThanOrEqual(0);
+
+  await pending.getByRole('checkbox').check();
+  await expect(pending.getByRole('checkbox')).toBeChecked();
+});
+
 test('duplicating a single-edition evaluation opens its original version',async({page})=>{
   await setup(page,{prefill:{shiftIds:['old-a','old-b'],name:'Copy',busModelId:'model'}});
   await expect(page.locator('#simulation-gtfs-dataset')).toHaveValue('2026|2025-09-27');
+  await expect(page.locator('#simulation-service-weekday')).toHaveValue('monday');
   await expect(page.locator('.shift-table tbody input:checked')).toHaveCount(2);
+});
+
+test('service day limits new blocks and removes stale selections', async ({page}) => {
+  await setup(page);
+  const days = page.locator('#simulation-service-weekday');
+  const rows = page.locator('.shift-table tbody tr[data-id]');
+  await expect(page.getByText('Select a service day to see compatible vehicle blocks.')).toBeVisible();
+  await expect(page.locator('[data-role="unverified-weekdays"]')).toContainText('calendar is incomplete or has no common weekday · 2');
+  await expect(rows).toHaveCount(0);
+  await page.locator('#simulation-name').fill('Weekday validation');
+  await page.getByRole('button', {name:'Start evaluation',exact:true}).click();
+  await expect(days).toBeFocused();
+  await expect(days).toHaveAttribute('aria-invalid', 'true');
+  await days.selectOption('monday');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toHaveAttribute('data-id','latest');
+  await rows.first().getByRole('checkbox').check();
+  await days.selectOption('saturday');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toHaveAttribute('data-id','saturday');
+  await expect(rows.first().getByRole('checkbox')).not.toBeChecked();
+  await days.selectOption('monday');
+  await expect(rows.first().getByRole('checkbox')).not.toBeChecked();
+});
+
+test('copy keeps its recorded service day', async ({page}) => {
+  await setup(page, { prefill: {
+    name: 'Copy', shiftIds: ['old-a'], busModelId: 'model', inputParams: { service_weekday: 'tuesday' },
+  } });
+  const days = page.locator('#simulation-service-weekday');
+  await expect(days).toHaveValue('tuesday');
+  await expect(page.locator('.shift-table tbody input:checked')).toHaveCount(1);
+});
+
+test('copy requires a service day review after an incompatible source change', async ({page}) => {
+  await setup(page, { prefill: {
+    name: 'Copy', shiftIds: ['old-b'], busModelId: 'model', inputParams: { service_weekday: 'tuesday' },
+  } });
+  const days = page.locator('#simulation-service-weekday');
+  await expect(days).toHaveValue('');
+  await expect(page.locator('[data-role="feedback"]')).toContainText('Review the service day');
+  await days.selectOption('monday');
+  await expect(page.locator('.shift-table tbody input:checked')).toHaveCount(1);
 });
 
 test('a historical mixed evaluation cannot silently preselect hidden blocks',async({page})=>{

@@ -12,6 +12,7 @@ import { resultBatteryPolicy } from '../../../utils/battery-policy';
 import { renderBatteryAssumptions } from './battery-assumptions';
 import { mountHvacAssumptions } from "../shared/hvac-assumptions.js";
 import { mountAnalysisGtfs } from "../../../utils/analysis-gtfs.js";
+import { studyWeekdaySummary } from "../../../utils/feasibility-weekdays.js";
 import "../shared/results-information-bar.css";
 import { formatNumber, formatChf } from "../../../utils/number-format";
 import { infrastructureCostHtml } from './infrastructure-costs';
@@ -6320,6 +6321,7 @@ const buildFeasibilityGeneralLevelHtml = (
         </div>
         <div class="feasibility-level__header-meta">
           <div class="feasibility-level__scenario-mode">
+          <span data-role="feasibility-service-day">${textContent(studyWeekdaySummary(inputParams, t))}</span>
           <span data-role="feasibility-demand-basis">${textContent(resolveFeasibilityDemandBasis(inputParams) === FEASIBILITY_DEMAND_BASIS.AGGREGATE_Q95
             ? t('simulation.feasibility_basis_q95') : feasibilityDemandBasisLabel(inputParams))}</span>
           <span

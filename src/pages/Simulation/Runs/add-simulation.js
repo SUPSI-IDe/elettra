@@ -5,6 +5,7 @@ import { datasetKey, datasetLabel, dateLabel, shiftDatasetKey,
 import "../evaluation-dialogs.css";
 import { formatChf } from "../../../utils/number-format";
 import { retainedEvaluationSettings } from '../../../utils/evaluation-duplication';
+import { compatibleWeekdays, copiedStudyWeekday, runsOnWeekday } from '../../../utils/feasibility-weekdays.js';
 import { defaultCostModel, renderCostCards, readCostModel, syncCostCards } from './infrastructure-costs';
 import { t, getCurrentLang, I18N_CHANGE_EVENT } from "../../../i18n";
 import "./add-simulation.css";
@@ -165,16 +166,20 @@ const updateSortHeaders = (table, sortState) => {
   });
 };
 
-export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } = {}) => {
+export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set(), emptyMessage = t("simulation.no_shifts_in_table") } = {}) => {
   if (!tbody) return;
   if (!shifts.length) {
-    tbody.innerHTML = `<tr><td colspan="5">${textContent(t("simulation.no_shifts_in_table") || "No vehicle blocks found.")}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5">${textContent(emptyMessage)}</td></tr>`;
     return;
   }
 
   tbody.innerHTML = shifts
     .map((shift) => {
       const shiftId = text(shift?.id);
+      const pending = Number(shift.pending_elevation_profiles) || 0;
+      const profileNotice = pending > 0
+        ? `<small class="helper-text" data-role="pending-elevation">${textContent(t("simulation.pending_elevation", { count: pending }))}</small>`
+        : "";
       const busModelName = text(shift._resolved_bus_model ?? "—");
       const dailyDistanceLabel = text(
         shift._resolved_daily_distance_label ?? formatShiftDistanceValue(null)
@@ -189,7 +194,7 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } 
               selectedIds.has(shiftId) ? "checked" : ""
             } />
           </td>
-          <td>${textContent(shift?.name ?? "")}</td>
+          <td>${textContent(shift?.name ?? "")}${profileNotice}</td>
           <td>${textContent(busModelName)}</td>
           <td class="distance" data-role="shift-distance">${textContent(dailyDistanceLabel)}</td>
           <td class="distance" data-role="shift-yearly-distance">${textContent(yearlyDistanceLabel)}</td>
@@ -398,6 +403,10 @@ export const initializeAddSimulation = async (
   const gtfsSelect = section.querySelector("#simulation-gtfs-dataset");
   const gtfsSummary = section.querySelector("#simulation-gtfs-summary");
   const gtfsMixedWarning = section.querySelector('[data-role="gtfs-mixed-warning"]');
+  const weekdaySelect = section.querySelector("#simulation-service-weekday");
+  const copiedWeekdayHelp = section.querySelector("#simulation-copy-weekday-help");
+  const unverifiedWeekdays = section.querySelector('[data-role="unverified-weekdays"]');
+  let copiedWeekdays = [];
   let selectedGtfsKey = "";
   let gtfsCatalog = [];
   const selectFilteredShifts = section.querySelector('[data-role="select-filtered-shifts"]');
@@ -1091,6 +1100,7 @@ export const initializeAddSimulation = async (
       if (options.prefill) {
         await applyPrefill(options.prefill);
       }
+      weekdaySelect.disabled = false;
     } catch (error) {
       console.error("Failed to load form data", error);
       if (gtfsSelect) gtfsSelect.disabled = true;
@@ -1132,10 +1142,12 @@ export const initializeAddSimulation = async (
     )
       .map((id) => text(id).trim())
       .filter(Boolean);
+    let reviewWeekday = false;
 
     if (normalizedShiftIds.length && shiftTbody) {
-      if (normalizedShiftIds.some(id => !allShifts.some(shift => text(shift.id) === id))) duplicationError = true;
-      const keys = new Set(allShifts.filter(shift => normalizedShiftIds.includes(text(shift.id))).map(shiftDatasetKey));
+      const copiedShifts = allShifts.filter(shift => normalizedShiftIds.includes(text(shift.id)));
+      if (copiedShifts.length !== new Set(normalizedShiftIds).size) duplicationError = true;
+      const keys = new Set(copiedShifts.map(shiftDatasetKey));
       if (keys.size > 1 || keys.has(MIXED_GTFS_DATASETS)) {
         duplicationError = true;
         duplicationErrorMessage = t('gtfs.analysis_mixed_copy');
@@ -1146,6 +1158,10 @@ export const initializeAddSimulation = async (
         selectedGtfsKey = [...keys][0];
         renderGtfsOptions();
       }
+      const weekday = copiedStudyWeekday(copiedShifts, inputParams.service_weekday);
+      weekdaySelect.value = weekday.day;
+      if (!weekday.day) copiedWeekdays = weekday.common;
+      reviewWeekday = weekday.review;
       selectedShiftIds = new Set(normalizedShiftIds);
       renderCurrentView();
 
@@ -1224,6 +1240,7 @@ export const initializeAddSimulation = async (
     }
     updateBatteryPreview();
     if (duplicationError) setFeedback(section, t('simulation.duplicate_inputs_missing'));
+    else if (reviewWeekday) setFeedback(section, t('simulation.service_day_copy_review'));
   }
 
   // ── Shift filter ─────────────────────────────────────────────────
@@ -1247,9 +1264,13 @@ export const initializeAddSimulation = async (
     gtfsMixedWarning.textContent = t('gtfs.analysis_mixed_excluded');
   }
 
+  function shiftsInSelectedDataset() {
+    return allShifts.filter(shift => shiftDatasetKey(shift) === selectedGtfsKey);
+  }
+
   function filteredShifts() {
     const query = (shiftFilter?.value ?? "").toLowerCase().trim();
-    const editionShifts = allShifts.filter(shift => shiftDatasetKey(shift) === selectedGtfsKey);
+    const editionShifts = shiftsInSelectedDataset().filter(shift => runsOnWeekday(shift, weekdaySelect.value));
     return query
       ? editionShifts.filter(
           (s) =>
@@ -1261,6 +1282,7 @@ export const initializeAddSimulation = async (
 
   const handleGtfsChange = () => {
     selectedGtfsKey = gtfsSelect.value;
+    copiedWeekdays = [];
     selectedShiftIds.clear();
     stopsTbody.replaceChildren();
     costCards.replaceChildren();
@@ -1272,8 +1294,33 @@ export const initializeAddSimulation = async (
   };
   gtfsSelect?.addEventListener('change', handleGtfsChange);
   cleanupHandlers.push(() => gtfsSelect?.removeEventListener('change', handleGtfsChange));
-  document.addEventListener(I18N_CHANGE_EVENT, renderGtfsOptions);
-  cleanupHandlers.push(() => document.removeEventListener(I18N_CHANGE_EVENT, renderGtfsOptions));
+
+  const handleWeekdayChange = () => {
+    const previousCount = selectedShiftIds.size;
+    const ids = new Set(shiftsInSelectedDataset()
+      .filter(shift => runsOnWeekday(shift, weekdaySelect.value))
+      .map(shift => text(shift.id)));
+    selectedShiftIds = new Set([...selectedShiftIds].filter(id => ids.has(id)));
+    copiedWeekdays = [];
+    renderCurrentView();
+    if (previousCount !== selectedShiftIds.size) {
+      refreshBusModelOverride();
+      void rebuildStopsTable();
+    }
+    if (!duplicationError) {
+      const feedback = previousCount === selectedShiftIds.size ? "" : t("simulation.service_day_selection_changed");
+      setFeedback(section, feedback);
+    }
+  };
+  weekdaySelect.addEventListener('change', handleWeekdayChange);
+  cleanupHandlers.push(() => weekdaySelect.removeEventListener('change', handleWeekdayChange));
+
+  const renderLocalizedShiftView = () => {
+    renderGtfsOptions();
+    renderCurrentView();
+  };
+  document.addEventListener(I18N_CHANGE_EVENT, renderLocalizedShiftView);
+  cleanupHandlers.push(() => document.removeEventListener(I18N_CHANGE_EVENT, renderLocalizedShiftView));
 
   function syncFilteredSelection() {
     if (!selectFilteredShifts) return;
@@ -1285,8 +1332,21 @@ export const initializeAddSimulation = async (
   }
 
   function renderCurrentView() {
+    for (const option of weekdaySelect.options) {
+      if (option.value) option.disabled = !!copiedWeekdays.length && !copiedWeekdays.includes(option.value);
+    }
+    copiedWeekdayHelp.hidden = !copiedWeekdays.length;
+    copiedWeekdayHelp.textContent = copiedWeekdays.length ? t("simulation.service_day_copy_choose") : "";
+    const editionShifts = shiftsInSelectedDataset();
+    const unknownCount = editionShifts.filter(shift => !compatibleWeekdays(shift)?.length).length;
+    unverifiedWeekdays.hidden = !unknownCount;
+    unverifiedWeekdays.textContent = unknownCount ? t("simulation.service_day_unknown_blocks", { count: unknownCount }) : "";
+    const emptyMessage = editionShifts.length && !weekdaySelect.value
+      ? t("simulation.service_day_select_first")
+      : t("simulation.no_shifts_in_table");
     renderShiftRows(shiftTbody, sortShifts(filteredShifts(), sortState), {
       selectedIds: selectedShiftIds,
+      emptyMessage,
     });
     updateSortHeaders(shiftTable, sortState);
     syncFilteredSelection();
@@ -1492,13 +1552,18 @@ export const initializeAddSimulation = async (
 
     clearFieldProblem();
     const selectedShiftIds = getSelectedShiftIds();
+    const serviceWeekday = weekdaySelect.value;
     const optimizationMode = text(formData.get('optimization_mode') ?? '').trim();
     const busModelId = text(formData.get('bus_model_id') ?? '').trim();
     const problems = new Map();
     if (!name) problems.set(nameInput, t('simulation.name_required'));
+    if (!serviceWeekday) problems.set(weekdaySelect, t('simulation.day_required'));
     if (!selectedShiftIds.length) problems.set(shiftFilter, t('simulation.shift_required'));
     if (allShifts.some(shift => selectedShiftIds.includes(text(shift.id)) && shiftDatasetKey(shift) !== selectedGtfsKey)) {
       problems.set(gtfsSelect, t('gtfs.analysis_one_dataset'));
+    }
+    if (serviceWeekday && allShifts.some(shift => selectedShiftIds.includes(text(shift.id)) && !runsOnWeekday(shift, serviceWeekday))) {
+      problems.set(weekdaySelect, t('simulation.service_day_copy_review'));
     }
     if (!busModelId) problems.set(busModelOverride, t('simulation.bus_model_required'));
     if (!optimizationMode) problems.set(modeSelect, t('simulation.mode_required'));
@@ -1548,6 +1613,7 @@ export const initializeAddSimulation = async (
       depot_peak_shaving: section.querySelector('#var-daily-cycle').checked && section.querySelector('#var-depot-peak-shaving').checked,
       lock_entire_dwell: true,
       shift_ids: selectedShiftIds,
+      service_weekday: serviceWeekday,
       bus_model_id: busModelId,
       prediction_params: predictionParams,
       auxiliary_heating_type: heatingType,

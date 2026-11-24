@@ -4,7 +4,7 @@ test('depot plugs use arrival endpoints and site power remains independent',asyn
   const departure='11111111-1111-4111-8111-111111111111';
   const arrival='22222222-2222-4222-8222-222222222222';
   const model={id:'model',user_id:'user',name:'Test bus',specs:{min_battery_packs:10,max_battery_packs:16,battery_pack_size_kwh:50}};
-  const shifts=['one','two'].map(id=>({id,name:id,bus_id:'bus',structure:[{trip_id:'trip-'+id,sequence_number:1,trip_type:'auxiliary'}]}));
+  const shifts=['one','two'].map(id=>({id,name:id,bus_id:'bus',compatible_weekdays:['monday'],structure:[{trip_id:'trip-'+id,sequence_number:1,trip_type:'auxiliary'}]}));
   const predictions=shifts.map(shift=>({id:'prediction-'+shift.id,shift_id:shift.id,status:'completed',contextual_parameters:{num_battery_packs:16}}));
   let submitted;
   await page.addInitScript(()=>{localStorage.setItem('access_token','test');localStorage.setItem('elettra_lang','en');});
@@ -28,6 +28,7 @@ test('depot plugs use arrival endpoints and site power remains independent',asyn
     return route.fulfill({json:data});
   });
   await page.goto('./#add-simulation');
+  await page.locator('#simulation-service-weekday').selectOption('monday');
   await page.locator('#simulation-name').fill('Daily cycle');
   const boxes=page.getByRole('checkbox',{name:'Select vehicle block',exact:true});
   await boxes.nth(0).check();await boxes.nth(1).check();

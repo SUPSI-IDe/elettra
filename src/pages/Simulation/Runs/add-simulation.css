@@ -211,6 +211,12 @@
   padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
 }
 
+.add-simulation .shift-table [data-role="pending-elevation"] {
+  display: block;
+  margin-top: var(--space-2xs);
+  font-size: var(--font-size-sm);
+}
+
 .add-simulation .shift-table th.checkbox,
 .add-simulation .shift-table td.checkbox {
   width: 2rem;

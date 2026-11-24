@@ -1,0 +1,169 @@
+.shift-planner .planner-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.shift-planner .planner-grid,
+.shift-planner .planner-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.shift-planner .planner-grid {
+  align-items: start;
+}
+
+.shift-planner .planner-column {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.shift-planner .planner-card {
+  min-width: 0;
+  padding: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-dim);
+  border-radius: var(--radius-xl);
+}
+
+.shift-planner .planner-save {
+  margin-top: 1rem;
+}
+
+.shift-planner h2 {
+  font-size: var(--font-size-heading-sm);
+  margin: 0 0 .75rem;
+}
+
+.shift-planner h3 {
+  font-size: var(--font-size-lg);
+  margin: 0 0 .5rem;
+}
+
+.shift-planner .planner-field-grid label {
+  display: grid;
+  align-content: start;
+  gap: .3rem;
+  min-width: 0;
+}
+
+.shift-planner .planner-field-grid :is(input, select) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.shift-planner .planner-card-header,
+.shift-planner .planner-row-actions,
+.shift-planner .planner-candidate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+}
+
+.shift-planner .planner-card-header,
+.shift-planner .planner-candidate {
+  justify-content: space-between;
+}
+
+.shift-planner .planner-card-header h2,
+.shift-planner .planner-row-actions p,
+.shift-planner .planner-state p,
+.shift-planner .planner-step p,
+.shift-planner .planner-candidate p {
+  margin: 0;
+}
+
+.shift-planner .planner-state,
+.shift-planner .planner-draft {
+  margin: .75rem 0;
+  padding: .75rem;
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  overflow-wrap: anywhere;
+}
+
+.shift-planner .planner-draft label.planner-force-transfer {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-block: .6rem;
+}
+
+.shift-planner .planner-line-filters {
+  margin-top: .75rem;
+}
+
+.shift-planner .planner-list {
+  list-style-type: none;
+  margin: .75rem 0 0;
+  padding: 0;
+}
+
+.shift-planner .planner-list--catalog {
+  max-height: 26rem;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.shift-planner :is(.planner-candidate, .planner-step) {
+  padding: .65rem 0;
+  border-bottom: 1px solid var(--color-border-dim);
+  overflow-wrap: anywhere;
+}
+
+.shift-planner .planner-step {
+  padding-inline: .5rem;
+  border-inline-start: 3px solid transparent;
+}
+
+.shift-planner .planner-step[data-conflict="true"] {
+  border-inline-start-color: var(--color-danger);
+}
+
+.shift-planner .planner-step[aria-current="true"] {
+  background: var(--color-background);
+}
+
+.shift-planner .planner-step .planner-row-actions {
+  margin-top: .4rem;
+}
+
+.shift-planner [data-role="step-warning"] {
+  color: var(--color-warning-text);
+}
+
+.shift-planner [data-role="step-conflict"] {
+  color: var(--color-danger);
+}
+
+.shift-planner :is(.planner-time, time) {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.shift-planner small {
+  color: var(--color-text-muted);
+}
+
+.shift-planner .planner-fields [hidden] {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .shift-planner .planner-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .shift-planner .planner-field-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: .65rem;
+  }
+}

@@ -1,5 +1,6 @@
 import { initializeAddBusModel } from "./pages/Fleet/Buses/add-bus-model";
 import { initializeShiftForm } from "./pages/Fleet/Shifts/shift-form";
+import { initializeShiftPlanner } from "./pages/Fleet/Shifts/shift-planner";
 import { initializeAddCustomStop } from "./pages/Fleet/Custom Stops/add-custom-stop";
 import { initializeBuses } from "./pages/Fleet/Buses/buses";
 import { initializeCustomStops } from "./pages/Fleet/Custom Stops/custom-stops";
@@ -40,6 +41,7 @@ const SHELL_SECTION_BY_SLUG = {
   "add-custom-stop": "custom-stops",
   shifts: "shifts",
   "shift-form": "shifts",
+  "shift-planner": "shifts",
   "visualize-shift": "shifts",
   "simulation-runs": "simulation-runs",
   "add-simulation": "simulation-runs",
@@ -231,6 +233,9 @@ export const initializeNavigation = (root = document) => {
       case "shift-form":
         cleanup = await initializeShiftForm(target, options);
         break;
+      case "shift-planner":
+        cleanup = initializeShiftPlanner(target, options);
+        break;
       case "add-custom-stop":
         cleanup = initializeAddCustomStop(target, options);
         break;
@@ -420,7 +425,7 @@ export const initializeNavigation = (root = document) => {
   document.addEventListener(I18N_CHANGE_EVENT, () => {
     // These editors translate their dynamic state in place. Reloading their
     // partial would discard an unsaved programme or edited vehicle prices.
-    if (root.querySelector('form.shift-composer, form[data-form="add-bus-model"]')) return;
+    if (root.querySelector('form.shift-composer, form[data-form="shift-planner"], form[data-form="add-bus-model"]')) return;
     if (!currentRoute.slug) {
       return;
     }

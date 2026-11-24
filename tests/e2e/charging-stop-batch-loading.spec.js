@@ -18,6 +18,7 @@ test("the feasibility form batches stop candidates and reuses them across mode c
     id,
     name: id,
     bus_id: "bus",
+    compatible_weekdays: ["monday"],
     distance_km: 10,
     yearly_distance_km: 2000,
   }));
@@ -70,6 +71,7 @@ test("the feasibility form batches stop candidates and reuses them across mode c
   });
 
   await page.goto("./#add-simulation");
+  await page.locator('#simulation-service-weekday').selectOption('monday');
   const boxes = page.getByRole("checkbox", {
     name: "Select vehicle block",
     exact: true,
@@ -123,6 +125,7 @@ test("the feasibility form aborts an obsolete batch and ignores its result", asy
     id,
     name: id,
     bus_id: "bus",
+    compatible_weekdays: ["monday"],
     distance_km: 10,
     yearly_distance_km: 2000,
   }));
@@ -182,6 +185,7 @@ test("the feasibility form aborts an obsolete batch and ignores its result", asy
   });
 
   await page.goto("./#add-simulation");
+  await page.locator('#simulation-service-weekday').selectOption('monday');
   const boxes = page.getByRole("checkbox", {
     name: "Select vehicle block",
     exact: true,

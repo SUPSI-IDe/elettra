@@ -33,6 +33,8 @@ import {
   resolveShiftDailyDistanceKm,
 } from "../../../utils/shift-distance";
 import { buildDuplicateShiftPayload } from "./shift-utils";
+import { appendCopyNameSuffix } from "../../../utils/copy-name.js";
+import { fetchPlannerProgramme, newPlannerRequestId, savePlannerProgramme } from "../../../api/shift-planner.js";
 
 const text = (value) =>
   value === null || value === undefined ? "" : String(value);
@@ -335,7 +337,7 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set() } 
       const isSelected = selectedIds.has(rowId);
 
       return `
-                <tr data-id="${textContent(rowId)}" data-name="${textContent(rowName)}" data-bus="${textContent(rowBus)}">
+                <tr data-id="${textContent(rowId)}" data-name="${textContent(rowName)}" data-bus="${textContent(rowBus)}" data-planner-version="${textContent(shift.planner_version)}">
                     <td class="checkbox"><input type="checkbox" aria-label="${textContent(t("shifts.select_shift"))}" ${
                       isSelected ? "checked" : ""
                     }></td>
@@ -897,7 +899,7 @@ export const initializeShifts = async (root = document, options = {}) => {
   });
 
   const handleAddClick = () => {
-    triggerPartialLoad("shift-form");
+    triggerPartialLoad("shift-planner");
   };
   if (addButton) {
     addButton.addEventListener("click", handleAddClick);
@@ -969,23 +971,34 @@ export const initializeShifts = async (root = document, options = {}) => {
     }
 
     const action = button.dataset.rowAction;
+    const hasProgramme = row.dataset.plannerVersion === "1";
     if (action === "details") {
       triggerPartialLoad("visualize-shift", { shiftId: id });
     } else if (action === "edit") {
-      triggerPartialLoad("shift-form", { mode: "edit", shiftId: id });
+      triggerPartialLoad(hasProgramme ? "shift-planner" : "shift-form", { mode: "edit", shiftId: id });
     } else if (action === "delete") {
       await deleteShifts([id], button);
     } else if (action === "duplicate") {
       button.disabled = true;
       setFlashMessage(section, "");
       try {
-        const [shift, existing] = await Promise.all([fetchShiftById(id), fetchAllShifts({ userId: await resolveUserId() })]);
-        const { name, busId, tripIds } = buildDuplicateShiftPayload(shift, {
-          copySuffix: t("common.copy_name_suffix"),
-          existingNames: existing.map(item => item.name),
-          untitledLabel: t("shifts.untitled_shift"),
-        });
-        await createShift({ name, busId, tripIds });
+        const [shift, existing] = await Promise.all([
+          hasProgramme ? fetchPlannerProgramme(id) : fetchShiftById(id),
+          fetchAllShifts({ userId: await resolveUserId() }),
+        ]);
+        const copySuffix = t("common.copy_name_suffix");
+        const existingNames = existing.map((item) => item.name);
+        const untitledLabel = t("shifts.untitled_shift");
+        if (hasProgramme) {
+          const { bus_id, gtfs_dataset, programme } = shift;
+          const name = appendCopyNameSuffix(shift.name?.trim() || untitledLabel, copySuffix, existingNames);
+          await savePlannerProgramme({
+            name, bus_id, gtfs_dataset, programme, copy_from: id, request_id: newPlannerRequestId(),
+          });
+        } else {
+          const { name, busId, tripIds } = buildDuplicateShiftPayload(shift, { copySuffix, existingNames, untitledLabel });
+          await createShift({ name, busId, tripIds });
+        }
         await loadShifts({ preserveSelection: true });
         setFlashMessage(section, t("shifts.duplicated"));
       } catch (error) {

@@ -21,10 +21,11 @@ async function setup(page, { lang = 'en', models = [modelA, modelB], details, mo
       const id = path.split('/').at(-1);
       data = details ? await details(id) : models.find(model => model.id === id);
     } else if (path.endsWith('/buses/')) data = [{ id: 'bus', user_id: 'user', bus_model_id: 'model-a' }];
-    else if (path.endsWith('/shifts/')) data = [{ id: 'shift', name: '40502', bus_id: 'bus', distance_km: 180, yearly_distance_km: 60000 }];
+    else if (path.endsWith('/shifts/')) data = [{ id: 'shift', name: '40502', bus_id: 'bus', compatible_weekdays: ['monday'], distance_km: 180, yearly_distance_km: 60000 }];
     return route.fulfill({ json: data });
   });
   await page.goto('./#add-simulation');
+  await page.locator('#simulation-service-weekday').selectOption('monday');
   await page.locator('.shift-table tbody input[type="checkbox"]').check();
   await page.locator('#simulation-name').fill('Pack limits test');
   if (mode) await page.locator('#var-optimization-mode').selectOption(mode);

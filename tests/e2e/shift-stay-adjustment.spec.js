@@ -16,8 +16,7 @@ const editStay = async (page, arrival, departure) => {
 };
 
 test('creation uses the same automatic adjustment and saves every service period in order', async ({ page, composer }) => {
-  const state = await composer(adjustmentOptions({ edit: false, application: true, entry: 'shifts' }));
-  await page.locator('[data-action="add-shift"]').click();
+  const state = await composer(adjustmentOptions({ edit: false, application: true, entry: 'shift-form' }));
   await configure(page, { start: '08:00', end: '16:00', depotId: shift00000.depots.find(stop => stop.name === 'TPL Rimessa 1').id });
   await page.locator('[data-action="add-all-trips"]').click();
   await expect(rows(page)).toHaveCount(19);
@@ -55,11 +54,10 @@ test('creation uses the same automatic adjustment and saves every service period
 });
 
 test('creation builds the next period after entering a stay before choosing its trips', async ({ page, composer }) => {
-  const state = await composer(adjustmentOptions({ edit: false, application: true, entry: 'shifts',
+  const state = await composer(adjustmentOptions({ edit: false, application: true, entry: 'shift-form',
     respond: ({ path }) => path.includes('/gtfs-trips/by-route/') ? { json: path.includes('line-2')
       ? shift00000Trips.slice(11).map(trip => ({ ...trip, route_id: 'line-2' })) : shift00000Trips.slice(0, 11) } : undefined,
   }));
-  await page.locator('[data-action="add-shift"]').click();
   await configure(page, { start: '08:00', end: '16:00', depotId: shift00000.depots.find(stop => stop.name === 'TPL Rimessa 1').id });
   await page.locator('[data-action="add-all-trips"]').click();
   await expect(rows(page)).toHaveCount(11);

@@ -6,6 +6,7 @@ test("the feasibility form loads only visible distances until distance sorting r
     id: `shift-${String(index).padStart(3, "0")}`,
     name: `Shift ${String(index + 1).padStart(3, "0")}`,
     bus_id: "bus",
+    compatible_weekdays: ["monday"],
     ...(index === 0
       ? { daily_distance_km: 1, yearly_distance_km: 365 }
       : {}),
@@ -60,6 +61,7 @@ test("the feasibility form loads only visible distances until distance sorting r
   });
 
   await page.goto("./#add-simulation");
+  await page.locator('#simulation-service-weekday').selectOption('monday');
   await expect(page.locator('.shift-table tbody tr[data-id]')).toHaveCount(shiftCount);
   await expect.poll(() => distanceRequests.length).toBeGreaterThan(0);
   await page.waitForTimeout(250);
