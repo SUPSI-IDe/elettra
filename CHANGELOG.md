@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## [1.4.0-rc.2] - 2026-11-24
 
 - Restore the fleet cost and emissions charts when returning to General from a vehicle block.
-- Calculate typical-day energy uncertainty by sampling each trip independently across vehicle blocks. Scale each typical day's interval by its number of occurrences for annual contributions.
+- Calculate typical-day energy uncertainty by sampling each trip independently across vehicle blocks. Scale each typical day's interval by its number of occurrences for annual contributions. Pair with backend 1.9.0-rc.2.
 - Show the charging stop name in raw feasibility data even when an infeasible design contains only the stop ID. Use the saved name when available.
 - Name the first duplicate with the localized copy suffix. Add a number only when that name is taken.
 
