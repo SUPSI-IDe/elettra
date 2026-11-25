@@ -1,8 +1,5 @@
 # Feasibility Evaluation
 
-> Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.3
-
 A feasibility evaluation tests whether the selected vehicle blocks can be
 operated with the configured bus, battery, charging, and environmental inputs.
 New evaluations calculate a **Mean** design and an **Aggregate Q95** design
@@ -204,3 +201,9 @@ records.
 
 - [Feasibility Results](simulation-results.md) — Read the technical verdict and each vehicle block
 - [Yearly Analysis](yearly-analysis.md) — Assess a verified design over a representative year
+
+---
+
+> Reference versions: Frontend v1.4.4-rc.4 · Backend v1.9.0-rc.2
+>
+> Last updated: 2026-11-25

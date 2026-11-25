@@ -1,8 +1,5 @@
 # Yearly Analysis
 
-> Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.3
-
 A yearly analysis keeps the bus, battery, and charging design selected by a
 completed feasibility evaluation fixed and applies it to representative
 temperature scenarios. It does not resize the battery, redesign charging, or
@@ -237,3 +234,9 @@ fields, units and version differences.
 
 - [Comparison and Export](comparison-and-export.md) — Compare two saved yearly analyses
 - [Feasibility Results](simulation-results.md) — Return to the fixed technical design
+
+---
+
+> Reference versions: Frontend v1.4.4-rc.4 · Backend v1.9.0-rc.2
+>
+> Last updated: 2026-11-25

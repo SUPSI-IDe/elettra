@@ -1,8 +1,5 @@
 # Fleet Management
 
-> Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.3
-
 The Fleet area contains reusable inputs for analyses: **Buses**, **Custom
 Stops**, and **Vehicle blocks**. The current interface works with bus models;
 it does not require a separate user-facing record for every physical bus.
@@ -126,3 +123,9 @@ stable evaluation-level selection.
 
 - [Vehicle Blocks and Routes](shifts-and-routes.md) — Build complete daily duties
 - [Feasibility Evaluation](feasibility-evaluation.md) — Evaluate the selected service
+
+---
+
+> Reference versions: Frontend v1.4.4-rc.4 · Backend v1.9.0-rc.2
+>
+> Last updated: 2026-11-25

@@ -1,9 +1,12 @@
 import { useCaseSections } from "./use-cases.js";
 
-export const GUIDE_BASELINE_VERSION = "1.4.4-rc.3";
+export const GUIDE_BASELINE_VERSION = "1.4.4-rc.4";
+export const GUIDE_BACKEND_BASELINE_VERSION = "1.9.0-rc.2";
 export const GUIDE_UPDATED_AT = "25 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
+
+const referenceVersions = `Frontend v${GUIDE_BASELINE_VERSION} · Backend v${GUIDE_BACKEND_BASELINE_VERSION}`;
 
 const publicApiLinks = [
   { href: "https://elettra.supsi.ch/docs", label: "Swagger UI (/docs)" },
@@ -170,16 +173,15 @@ export const guideContent = {
     ui: {
       documentTitle: "ELETTRA user guide",
       backToApp: "Back to ELETTRA",
-      languageLabel: "Language",
-      languageAriaLabel: "Guide language",
+      languageAriaLabel: "Select language",
       print: "Print guide",
       contents: "Guide contents",
       eyebrow: "User documentation",
       title: "ELETTRA user guide",
       introduction:
         "A concise, task-oriented guide to preparing a bus service, checking technical feasibility and interpreting yearly energy, cost and environmental results.",
-      baselineLabel: "Interface baseline",
-      baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
+      baselineLabel: "Reference versions",
+      baselineValue: referenceVersions,
       updatedLabel: "Guide updated",
       updatedValue: GUIDE_UPDATED_AT,
       footer:
@@ -187,7 +189,6 @@ export const guideContent = {
       skipLink: "Skip to the guide",
       sidebarAriaLabel: "Guide contents",
       brandAriaLabel: "ELETTRA user guide",
-      screenshotNote: "Screenshots follow the selected guide language.",
       openImage: "Open full-size screenshot",
     },
     sections: [
@@ -498,16 +499,15 @@ export const guideContent = {
     ui: {
       documentTitle: "ELETTRA-Benutzerhandbuch",
       backToApp: "Zurück zu ELETTRA",
-      languageLabel: "Sprache",
-      languageAriaLabel: "Sprache des Handbuchs",
+      languageAriaLabel: "Sprache auswählen",
       print: "Handbuch drucken",
       contents: "Inhalt des Handbuchs",
       eyebrow: "Benutzerdokumentation",
       title: "ELETTRA-Benutzerhandbuch",
       introduction:
         "Ein kompaktes, aufgabenorientiertes Handbuch zur Vorbereitung eines Busbetriebs, zur Prüfung der technischen Machbarkeit und zur Interpretation der jährlichen Energie-, Kosten- und Umweltergebnisse.",
-      baselineLabel: "Stand der Benutzeroberfläche",
-      baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
+      baselineLabel: "Referenzversionen",
+      baselineValue: referenceVersions,
       updatedLabel: "Handbuch aktualisiert",
       updatedValue: "25. November 2026",
       footer:
@@ -515,7 +515,6 @@ export const guideContent = {
       skipLink: "Zum Handbuch springen",
       sidebarAriaLabel: "Inhalt des Handbuchs",
       brandAriaLabel: "ELETTRA-Benutzerhandbuch",
-      screenshotNote: "Die Bildschirmfotos folgen der gewählten Sprache der Anleitung.",
       openImage: "Screenshot in voller Grösse öffnen",
     },
     sections: [
@@ -695,16 +694,15 @@ export const guideContent = {
     ui: {
       documentTitle: "Guide d’utilisation ELETTRA",
       backToApp: "Retour à ELETTRA",
-      languageLabel: "Langue",
-      languageAriaLabel: "Langue du guide",
+      languageAriaLabel: "Sélectionner la langue",
       print: "Imprimer le guide",
       contents: "Sommaire du guide",
       eyebrow: "Documentation utilisateur",
       title: "Guide d’utilisation ELETTRA",
       introduction:
         "Un guide concis et orienté vers les tâches pour préparer un service voiture, vérifier sa faisabilité technique et interpréter les résultats annuels d’énergie, de coûts et d’environnement.",
-      baselineLabel: "Version de référence de l’interface",
-      baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
+      baselineLabel: "Versions de référence",
+      baselineValue: referenceVersions,
       updatedLabel: "Guide mis à jour",
       updatedValue: "25 novembre 2026",
       footer:
@@ -712,7 +710,6 @@ export const guideContent = {
       skipLink: "Accéder au guide",
       sidebarAriaLabel: "Sommaire du guide",
       brandAriaLabel: "Guide d’utilisation ELETTRA",
-      screenshotNote: "Les captures d’écran suivent la langue choisie pour le guide.",
       openImage: "Ouvrir la capture en taille réelle",
     },
     sections: [
@@ -878,16 +875,15 @@ export const guideContent = {
     ui: {
       documentTitle: "Guida utente ELETTRA",
       backToApp: "Torna a ELETTRA",
-      languageLabel: "Lingua",
-      languageAriaLabel: "Lingua della guida",
+      languageAriaLabel: "Seleziona lingua",
       print: "Stampa la guida",
       contents: "Indice della guida",
       eyebrow: "Documentazione utente",
       title: "Guida utente ELETTRA",
       introduction:
         "Una guida concisa e orientata alle attività per preparare un servizio di autobus, verificarne la fattibilità tecnica e interpretare i risultati annuali energetici, economici e ambientali.",
-      baselineLabel: "Versione di riferimento dell’interfaccia",
-      baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
+      baselineLabel: "Versioni di riferimento",
+      baselineValue: referenceVersions,
       updatedLabel: "Guida aggiornata",
       updatedValue: "25 novembre 2026",
       footer:
@@ -895,7 +891,6 @@ export const guideContent = {
       skipLink: "Vai alla guida",
       sidebarAriaLabel: "Indice della guida",
       brandAriaLabel: "Guida utente ELETTRA",
-      screenshotNote: "Le schermate seguono la lingua selezionata per la guida.",
       openImage: "Apri la schermata a dimensione intera",
     },
     sections: [

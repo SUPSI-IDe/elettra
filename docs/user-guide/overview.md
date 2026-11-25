@@ -1,8 +1,5 @@
 # User Guide: Overview
 
-> Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.3
-
 ELETTRA supports preliminary planning for battery-electric bus services. It
 connects fleet and timetable data to a technical feasibility gate, then uses a
 verified design for yearly energy, cost, and environmental assessment.
@@ -117,9 +114,8 @@ are excluded from new evaluations.
 ## Languages and access
 
 The interface and online guide are available in English, German, French, and
-Italian. Changing the guide language also changes the screenshots, including
-the full-size view. Stop and depot names in the example vehicle block retain
-their local names. The browser remembers the selected language.
+Italian. The globe menu uses the language codes EN, DE, FR and IT. The browser
+remembers the selected language. Stop and depot names retain their local names.
 
 The landing page, sign-in, registration, About page, and online user guide are
 public. Fleet data and analyses require an authenticated account. Data exposed
@@ -146,3 +142,9 @@ weather, occupancy, heating, battery, state-of-charge, charging, economic, and
 environmental assumptions. Record important sources and dates outside ELETTRA,
 compare like with like, and treat missing or partial data as a limitation rather
 than as zero impact.
+
+---
+
+> Reference versions: Frontend v1.4.4-rc.4 · Backend v1.9.0-rc.2
+>
+> Last updated: 2026-11-25

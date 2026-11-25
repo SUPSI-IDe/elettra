@@ -1,8 +1,5 @@
 # Comparison and Export
 
-> Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.3
-
 The **Analysis comparison** page compares two saved yearly analyses in the
 **General** scope using their configuration summaries and aggregate annual
 results. Use the source analysis to inspect a named vehicle block or choose a
@@ -123,3 +120,9 @@ for the complete workflow and the distinction from yearly exports.
 
 - [Yearly Analysis](yearly-analysis.md) — Review the source analyses and their scopes
 - [Overview](overview.md) — Return to the end-to-end workflow
+
+---
+
+> Reference versions: Frontend v1.4.4-rc.4 · Backend v1.9.0-rc.2
+>
+> Last updated: 2026-11-25

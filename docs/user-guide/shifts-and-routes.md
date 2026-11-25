@@ -1,8 +1,5 @@
 # Vehicle Blocks and Routes
 
-> Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.3
-
 A vehicle block is the ordered service assigned to one bus over a day. It joins
 scheduled GTFS trips to the movements required before, between, and after them.
 Vehicle blocks are the service inputs selected by feasibility evaluations.
@@ -161,3 +158,9 @@ which vehicle and battery assumptions apply.
 
 - [Feasibility Evaluation](feasibility-evaluation.md) — Select compatible blocks and configure the technical gate
 - [Fleet Management](fleet-management.md) — Review bus models and custom locations
+
+---
+
+> Reference versions: Frontend v1.4.4-rc.4 · Backend v1.9.0-rc.2
+>
+> Last updated: 2026-11-25

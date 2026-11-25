@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { guideContent } from "../../guide/content.js";
+import {
+  GUIDE_BACKEND_BASELINE_VERSION,
+  GUIDE_BASELINE_VERSION,
+  guideContent,
+} from "../../guide/content.js";
 
 // Assert anchor destinations without racing smooth-scroll animations between clicks.
 test.use({ reducedMotion: "reduce" });
@@ -213,6 +217,106 @@ test("both guide return links resolve to the landing page for visitors", async (
     await link.click();
     await expectLandingGuideLink(page);
   }
+});
+
+test("the guide uses the application language selector and keeps its header controls accessible", async ({ page }) => {
+  const selectorAppearance = (selector) => selector.evaluate((select) => {
+    const group = select.parentElement;
+    const icon = group.querySelector("svg");
+    const styles = (element, properties) => {
+      const computed = getComputedStyle(element);
+      return properties.map((property) => computed.getPropertyValue(property));
+    };
+    const dimensions = (element) => {
+      const { width, height } = element.getBoundingClientRect();
+      return { width, height };
+    };
+
+    return {
+      options: Array.from(select.options, ({ value, text }) => [value, text]),
+      selectSize: dimensions(select),
+      selectStyles: styles(select, [
+        "background-color", "border-top-color", "border-top-style", "border-top-width",
+        "border-top-left-radius", "color", "cursor", "font-family", "font-size", "line-height",
+        "padding-top", "padding-left",
+      ]),
+      groupStyles: styles(group, ["display", "align-items", "column-gap"]),
+      iconSize: dimensions(icon),
+      iconStyles: styles(icon, ["color", "fill", "stroke", "stroke-width"]),
+      iconViewBox: icon.getAttribute("viewBox"),
+      iconCircle: ["cx", "cy", "r"].map((attribute) => icon.querySelector("circle").getAttribute(attribute)),
+      iconPath: icon.querySelector("path").getAttribute("d"),
+    };
+  });
+
+  await page.goto("./#landing");
+  await expectLandingGuideLink(page);
+  const appSelector = page.getByRole("combobox", { name: "Select language", exact: true });
+  await expect(appSelector).toBeInViewport({ ratio: 1 });
+  const appAppearance = await selectorAppearance(appSelector);
+  expect(appAppearance.options).toEqual([["en", "EN"], ["de", "DE"], ["fr", "FR"], ["it", "IT"]]);
+  expect(appAppearance.selectSize).toEqual({ width: 56, height: 32 });
+  expect(appAppearance.iconSize).toEqual({ width: 16, height: 16 });
+
+  await page.getByRole("link", { name: "User guide", exact: true }).click();
+  const header = page.locator(".guide-header");
+  const guideSelector = header.getByRole("combobox", { name: "Select language", exact: true });
+  await expect(guideSelector).toBeInViewport({ ratio: 1 });
+  await expect(guideSelector).toBeEnabled();
+  await expect(guideSelector).toHaveValue("en");
+  await expect(header.locator(".language-icon")).toHaveAttribute("aria-hidden", "true");
+  expect(await selectorAppearance(guideSelector)).toEqual(appAppearance);
+
+  const back = header.getByRole("link", { name: /Back to ELETTRA$/ });
+  const print = header.getByRole("button", { name: "Print guide", exact: true });
+  await back.focus();
+  await page.keyboard.press("Tab");
+  await expect(guideSelector).toBeFocused();
+  await expect(guideSelector).not.toHaveCSS("box-shadow", "none");
+  await page.keyboard.press("Tab");
+  await expect(print).toBeFocused();
+
+  await page.setViewportSize({ width: 320, height: 720 });
+  await guideSelector.selectOption("de");
+  for (const control of [
+    header.getByRole("link", { name: /Zurück zu ELETTRA$/ }),
+    header.getByRole("combobox", { name: "Sprache auswählen", exact: true }),
+    header.getByRole("button", { name: "Handbuch drucken", exact: true }),
+  ]) {
+    await expect(control).toBeInViewport({ ratio: 1 });
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
+
+test("reference versions and the localized update date appear only in the guide footer, including print", async ({ page }) => {
+  await page.goto("./guide/");
+  const versions = `Frontend v${GUIDE_BASELINE_VERSION} · Backend v${GUIDE_BACKEND_BASELINE_VERSION}`;
+  const footerMetadata = page.locator("footer dl.guide-meta");
+  await expect(page.locator(".guide-meta")).toHaveCount(1);
+  await expect(page.locator('header .guide-screenshot-note, .guide-hero .guide-screenshot-note, [data-guide-ui="screenshotNote"]')).toHaveCount(0);
+
+  for (const [language, date] of Object.entries({
+    en: "25 November 2026",
+    de: "25. November 2026",
+    fr: "25 novembre 2026",
+    it: "25 novembre 2026",
+  })) {
+    await page.locator("#guide-language").selectOption(language);
+    await expect(footerMetadata.locator("dt")).toHaveText([
+      guideContent[language].ui.baselineLabel,
+      guideContent[language].ui.updatedLabel,
+    ]);
+    await expect(footerMetadata.locator("dd")).toHaveText([versions, date]);
+    for (const value of [versions, date]) {
+      await expect(page.getByText(value, { exact: true })).toHaveCount(1);
+      await expect(footerMetadata.getByText(value, { exact: true })).toBeVisible();
+    }
+  }
+
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".guide-header")).toBeHidden();
+  await expect(footerMetadata.getByText(versions, { exact: true })).toBeVisible();
+  await expect(footerMetadata.getByText("25 novembre 2026", { exact: true })).toBeVisible();
 });
 
 

@@ -1,3 +1,5 @@
+@import "../src/language-selector.css";
+
 :root {
   color-scheme: light;
   --guide-brand: #0f3c3c;
@@ -93,12 +95,6 @@ a:hover {
   gap: 0.65rem;
 }
 
-.guide-header-actions label {
-  color: var(--guide-muted);
-  font-size: 0.875rem;
-}
-
-.guide-header-actions select,
 .guide-print-button {
   min-height: 2.5rem;
   padding: 0.45rem 0.75rem;
@@ -222,36 +218,6 @@ a:hover {
   margin: 1rem 0 0;
   color: var(--guide-muted);
   font-size: 1.05rem;
-}
-
-.guide-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem 2rem;
-  margin: 1.5rem 0 0;
-}
-
-.guide-meta div {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.guide-meta dt {
-  color: var(--guide-muted);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.guide-meta dd {
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.guide-screenshot-note {
-  margin: 0.8rem 0 0;
-  color: var(--guide-muted);
-  font-size: 0.85rem;
 }
 
 #guide-sections {
@@ -396,6 +362,30 @@ a:hover {
   padding: 1.5rem 0 0;
   border-top: 1px solid var(--guide-border);
   color: var(--guide-muted);
+  font-size: 0.9rem;
+}
+
+.guide-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  margin: 1.5rem 0 0;
+}
+
+.guide-meta div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.guide-meta dt {
+  color: var(--guide-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guide-meta dd {
+  margin: 0;
   font-size: 0.9rem;
 }
 
@@ -659,10 +649,6 @@ a:hover {
     flex-wrap: wrap;
   }
 
-  .guide-header-actions select {
-    flex: 1;
-  }
-
   .guide-main {
     padding: 1rem;
   }
@@ -706,6 +692,7 @@ a:hover {
   .guide-section,
   .guide-item,
   .guide-note,
+  .guide-footer,
   .guide-figure {
     break-inside: avoid;
   }

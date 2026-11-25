@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   GUIDE_BASELINE_VERSION,
+  GUIDE_BACKEND_BASELINE_VERSION,
   GUIDE_UPDATED_AT,
   SUPPORTED_GUIDE_LANGUAGES,
   guideContent,
@@ -331,7 +332,10 @@ test("the guide prepares depots before composing trips and preserves verified-re
 test("Markdown chapters share the published guide baseline and document the three-step editor", async () => {
   for (const chapter of ['overview','fleet-management','shifts-and-routes','feasibility-evaluation','simulation-results','yearly-analysis','comparison-and-export']) {
     const text = await readProjectFile(`docs/user-guide/${chapter}.md`);
-    assert.ok(text.includes(`Interface baseline: Frontend v${GUIDE_BASELINE_VERSION}`), `${chapter} baseline is stale`);
+    assert.ok(
+      text.trimEnd().endsWith(`> Reference versions: Frontend v${GUIDE_BASELINE_VERSION} · Backend v${GUIDE_BACKEND_BASELINE_VERSION}\n>\n> Last updated: ${new Date(GUIDE_UPDATED_AT + " UTC").toISOString().slice(0, 10)}`),
+      `${chapter} should end with the guide’s reference versions and update date`,
+    );
   }
   const shifts = await readProjectFile('docs/user-guide/shifts-and-routes.md');
   assert.deepEqual([...shifts.matchAll(/^### \d\. (.+)$/gm)].map(match => match[1]), ['Set up the block','Compose the day','Review and save']);

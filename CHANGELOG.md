@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.4-rc.4] - 2026-11-25
+
+- Use the application’s globe and compact language selector in the public guide. Remove the screenshot-language notice.
+- Show the reference frontend and backend versions and the guide update date in the footer, including in print.
+
 ## [1.4.4-rc.3] - 2026-11-25
 
 - Show all guide screenshots in the selected guide language (English, German, French or Italian), including the full-size images. Keep the same stop names across the four versions of the example vehicle block.

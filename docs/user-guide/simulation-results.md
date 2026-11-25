@@ -1,8 +1,5 @@
 # Feasibility Results
 
-> Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.3
-
 The feasibility result page is the technical gate between service preparation
 and yearly assessment. Read the overall verdict first, then inspect every
 vehicle block and the complete Mean/Q95 design before creating a yearly
@@ -331,3 +328,9 @@ scenario as an annual average.
 
 - [Yearly Analysis](yearly-analysis.md) — Reuse the verified design across annual weather scenarios
 - [Feasibility Evaluation](feasibility-evaluation.md) — Revise assumptions and run a new evaluation
+
+---
+
+> Reference versions: Frontend v1.4.4-rc.4 · Backend v1.9.0-rc.2
+>
+> Last updated: 2026-11-25
