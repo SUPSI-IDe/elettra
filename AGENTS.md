@@ -45,12 +45,13 @@ the appropriate complete suites.
 
 ## Test CPU budget
 
-Run tests on at most eight logical CPU cores, including all child processes
+On local machines and shared servers, run tests on at most eight logical CPU cores, including all child processes
 (browser workers and the Vite test server). On Linux, launch test commands with
 `taskset --cpu-list 0-7` when those CPUs are allowed; otherwise choose up to eight
 CPUs from the process's allowed CPU list. Child processes inherit that affinity.
 Keep the configured worker count at eight or fewer; a worker limit alone does
-not enforce the CPU budget. Preserve lower worker counts when appropriate.
+not enforce the CPU budget. GitHub-hosted runners are isolated VMs.
+Split the suite across runners while keeping each runner within its own CPU budget. Preserve lower worker counts when appropriate.
 
 ## Agent skills
 
