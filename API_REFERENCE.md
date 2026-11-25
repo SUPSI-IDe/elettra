@@ -1,7 +1,8 @@
 # API Reference
 
-**Base URL**: `http://isaac-elettra.dacd.supsi.ch:8002`
-**Documentation**: [Swagger UI](http://isaac-elettra.dacd.supsi.ch:8002/docs)
+Public service base URL: `https://elettra.supsi.ch`
+
+[Swagger UI](https://elettra.supsi.ch/docs) · [OpenAPI schema](https://elettra.supsi.ch/openapi.json)
 
 ## Authentication (`/auth`)
 *   `POST /auth/register`: Register a new user.

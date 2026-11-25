@@ -3,6 +3,7 @@
 ## [1.4.4-rc.3] - 2026-11-25
 
 - Show all guide screenshots in the selected guide language (English, German, French or Italian), including the full-size images. Keep the same stop names across the four versions of the example vehicle block.
+- Link the public Swagger UI and OpenAPI schema from Getting started in all four guide languages.
 - Illustrate a current feasibility design with its Monte Carlo demand histogram and verified SOC trajectory. Add a worked Mean/Q95 example, clarify the annual results and exports, and illustrate how to read comparison A/B. Localize the bus category in the feasibility form.
 
 ## [1.4.4-rc.2] - 2026-11-25

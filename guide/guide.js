@@ -229,7 +229,16 @@ const renderSection = (section, ui, sections) => {
     if (item.id) entry.id = item.id;
     entry.append(createTextElement("h3", "", item.title));
     entry.append(createTextElement("p", "", item.text));
-    if (item.link) entry.append(createSectionLink(item.link.id, item.link.label));
+    if (item.links?.length) {
+      const links = document.createElement("p");
+      links.className = "guide-item-links";
+      for (const { href, label } of item.links) {
+        const link = createTextElement("a", "", label);
+        link.href = href;
+        links.append(link);
+      }
+      entry.append(links);
+    }
     if (item.figures?.length) entry.append(renderFigures(item.figures, ui));
     list.append(entry);
   });

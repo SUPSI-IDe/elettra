@@ -417,7 +417,7 @@ docker compose --profile prod build --no-cache
 ### Getting Help
 
 - Check the [API Reference](./API_REFERENCE.md) for backend endpoints
-- Backend Swagger documentation: http://isaac-elettra.dacd.supsi.ch:8002/docs
+- The deployed frontend exposes Swagger UI at `/docs` and the OpenAPI schema at `/openapi.json`. [Public Swagger UI](https://elettra.supsi.ch/docs) · [Public OpenAPI schema](https://elettra.supsi.ch/openapi.json)
 
 ---
 

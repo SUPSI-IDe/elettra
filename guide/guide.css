@@ -330,6 +330,12 @@ a:hover {
   color: var(--guide-muted);
 }
 
+.guide-item-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
 .guide-figure-grid {
   display: grid;
   gap: 1rem;

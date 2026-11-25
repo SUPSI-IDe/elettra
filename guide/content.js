@@ -5,6 +5,11 @@ export const GUIDE_UPDATED_AT = "25 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
+const publicApiLinks = [
+  { href: "https://elettra.supsi.ch/docs", label: "Swagger UI (/docs)" },
+  { href: "https://elettra.supsi.ch/openapi.json", label: "OpenAPI (/openapi.json)" },
+];
+
 const GUIDE_FIGURES = {
   shiftPlanner: {
     name: "shift-planner",
@@ -205,6 +210,12 @@ export const guideContent = {
             title: "Use the main navigation",
             text: "Home explains the planning workflow and links to all six working sections. Fleet contains Buses, Custom Stops and Vehicle blocks. Simulations contains Feasibility evaluation, Yearly analyses and Analysis comparison; the user guide remains at the bottom of the sidebar. Each Home card opens a tool. Its separate Read the guide link opens that tool’s chapter in a new tab.",
           },
+          {
+            id: "api-docs",
+            title: "Explore the public API documentation",
+            text: "Open /docs on the ELETTRA server to browse endpoints, parameters and responses in Swagger UI. The OpenAPI schema is available at /openapi.json. You can read both without signing in. Protected operations require an authorised account. The links below open the public ELETTRA service.",
+            links: publicApiLinks,
+          },
         ],
         figures: getGuideFigures("en", "shell"),
         note: {
@@ -237,7 +248,7 @@ export const guideContent = {
           },
           {
             title: "Check the technical gate",
-            text: "In General, switch between the Mean and Q95 designs. Open the same vehicle block in each to compare pack count, charging and the lowest SOC reached.", link: { id: "mean-q95", label: "How to read Mean and Q95" },
+            text: "In General, switch between the Mean and Q95 designs. Open the same vehicle block in each to compare pack count, charging and the lowest SOC reached.", links: [{ href: "#mean-q95", label: "How to read Mean and Q95" }],
           },
           {
             title: "Create, compare and export yearly analyses",
@@ -527,6 +538,12 @@ export const guideContent = {
             title: "Hauptnavigation verwenden",
             text: "Die Startseite erklärt den Planungsablauf und verlinkt alle sechs Arbeitsbereiche. Unter Flotte finden Sie Busse, Individuelle Haltestellen und Fahrzeugumläufe, unter Simulationen Machbarkeitsbewertung, Jahresanalysen und Analysenvergleich; das Benutzerhandbuch bleibt unten in der Seitenleiste erreichbar. Jede Kachel öffnet den Arbeitsbereich. Über Handbuch lesen gelangen Sie in einem neuen Tab direkt zum passenden Kapitel.",
           },
+          {
+            id: "api-docs",
+            title: "Die öffentliche API-Dokumentation öffnen",
+            text: "Unter /docs auf dem ELETTRA-Server finden Sie in Swagger UI die Endpunkte, Parameter und Antworten. Das OpenAPI-Schema steht unter /openapi.json bereit. Beides ist ohne Anmeldung lesbar. Für geschützte Aufrufe benötigen Sie ein berechtigtes Konto. Die Links führen zum öffentlichen ELETTRA-Dienst.",
+            links: publicApiLinks,
+          },
         ],
         figures: getGuideFigures("de", "shell"),
         note: {
@@ -545,7 +562,7 @@ export const guideContent = {
           { title: "Erforderliche benutzerdefinierte Haltestellen erstellen", text: "Erfassen Sie Depots, Ladeorte oder Knoten, die nicht durch reguläre ÖV-Haltestellen abgebildet werden." },
           { title: "Fahrzeugumlauf aufbauen", text: "Wählen Sie Fahrplanfahrten, Start- und Rückkehrort und prüfen Sie den geordneten Fahrzeugumlauf einschliesslich Leerfahrten." },
           { title: "Machbarkeitsbewertung durchführen", text: "Wählen Sie einen oder mehrere Fahrzeugumläufe, den Optimierungsmodus sowie Betriebs- und Ladeannahmen." },
-          { title: "Technischen Entscheidungspunkt prüfen", text: "Wechseln Sie unter Allgemein zwischen Mittelwert und Q95. Öffnen Sie jeweils denselben Fahrzeugumlauf und vergleichen Sie Packanzahl, Ladevorgänge und den tiefsten erreichten SOC.", link: { id: "mean-q95", label: "Mittelwert und Q95 verstehen" } },
+          { title: "Technischen Entscheidungspunkt prüfen", text: "Wechseln Sie unter Allgemein zwischen Mittelwert und Q95. Öffnen Sie jeweils denselben Fahrzeugumlauf und vergleichen Sie Packanzahl, Ladevorgänge und den tiefsten erreichten SOC.", links: [{ href: "#mean-q95", label: "Mittelwert und Q95 verstehen" }] },
           { title: "Jahresanalysen erstellen, vergleichen und exportieren", text: "Bewerten Sie das machbare Design unter repräsentativen Temperaturen, prüfen Sie Jahresindikatoren und vergleichen Sie gespeicherte Alternativen." },
         ],
       },
@@ -708,6 +725,12 @@ export const guideContent = {
           { title: "Choisir la langue de l’interface", text: "Utilisez le sélecteur de langue dans l’en-tête de l’application. L’anglais, l’allemand, le français et l’italien sont disponibles; la préférence est conservée dans le navigateur." },
           { title: "Se connecter ou créer un compte", text: "À l’inscription, choisissez l’entreprise de transport dans la liste de suggestions. Une fois le compte créé, connectez-vous pour accéder à l’accueil. Lors de l’inscription, l’aperçu CARTO utilise la dernière édition GTFS disponible et affiche toutes les lignes représentables avec leur numéro pour aider à confirmer l’entreprise. La carte est indicative et les tracés sont simplifiés; elle ne constitue pas une référence détaillée du réseau." },
           { title: "Utiliser la navigation principale", text: "Accueil explique le flux de planification et donne accès aux six sections de travail. Flotte contient Bus, Arrêts personnalisés et Services voiture; Simulations contient Évaluation de faisabilité, Analyses annuelles et Comparaison d'analyses. Le guide reste accessible au bas de la barre latérale. Chaque carte ouvre un outil. Son lien Lire le guide ouvre le chapitre correspondant dans un nouvel onglet." },
+          {
+            id: "api-docs",
+            title: "Consulter la documentation publique de l’API",
+            text: "Sur le serveur ELETTRA, ouvrez /docs pour consulter les points d’accès, les paramètres et les réponses dans Swagger UI. Le schéma OpenAPI est disponible sous /openapi.json. Les deux sont consultables sans connexion. Les opérations protégées nécessitent un compte autorisé. Les liens ci-dessous ouvrent le service public ELETTRA.",
+            links: publicApiLinks,
+          },
         ],
         figures: getGuideFigures("fr", "shell"),
         note: { title: "Périmètre de l’évaluation", text: "ELETTRA est un outil de planification et de préfaisabilité. Un résultat faisable dépend des hypothèses retenues pour le service voiture, le véhicule, la météo, l’occupation, la batterie et la recharge; il ne constitue pas une certification opérationnelle." },
@@ -722,7 +745,7 @@ export const guideContent = {
           { title: "Créer les arrêts personnalisés nécessaires", text: "Ajoutez les dépôts, points de recharge ou pôles qui ne figurent pas parmi les arrêts planifiés du réseau." },
           { title: "Construire un service voiture", text: "Sélectionnez les courses planifiées, définissez les lieux de départ et de retour et vérifiez le service voiture ordonné avec les mouvements auxiliaires." },
           { title: "Lancer une évaluation de faisabilité", text: "Sélectionnez un ou plusieurs services voiture, choisissez le mode d’optimisation et définissez les hypothèses d’exploitation et de recharge." },
-          { title: "Vérifier la décision technique", text: "Dans Général, passez de Moyenne à Q95. Ouvrez le même service voiture dans les deux configurations pour comparer le nombre de packs, les recharges et le SOC minimal atteint.", link: { id: "mean-q95", label: "Interpréter la moyenne et le Q95" } },
+          { title: "Vérifier la décision technique", text: "Dans Général, passez de Moyenne à Q95. Ouvrez le même service voiture dans les deux configurations pour comparer le nombre de packs, les recharges et le SOC minimal atteint.", links: [{ href: "#mean-q95", label: "Interpréter la moyenne et le Q95" }] },
           { title: "Créer, comparer et exporter les analyses annuelles", text: "Réutilisez le design faisable avec des températures représentatives, examinez les indicateurs annuels et comparez les variantes enregistrées." },
         ],
       },
@@ -885,6 +908,12 @@ export const guideContent = {
           { title: "Scegliere la lingua dell’interfaccia", text: "Usare il selettore della lingua nell’intestazione dell’applicazione. Sono disponibili inglese, tedesco, francese e italiano; la preferenza viene memorizzata nel browser." },
           { title: "Accedere o creare un account", text: "Durante la registrazione scegli l’azienda di trasporto dall’elenco dei suggerimenti. Una volta creato l’account, accedi per aprire la Home. Durante la registrazione, l’anteprima CARTO usa l’ultima edizione GTFS disponibile e mostra tutte le linee disegnabili con il relativo numero per aiutare a confermare l’azienda. La mappa è indicativa e i percorsi sono semplificati: non va utilizzata come riferimento dettagliato della rete." },
           { title: "Usare la navigazione principale", text: "Home spiega il flusso di pianificazione e collega direttamente le sei sezioni operative. Flotta contiene Autobus, Fermate personalizzate e Turni macchina; Simulazioni contiene Valutazione di fattibilità, Analisi annuali e Confronto analisi. La guida utente resta disponibile in fondo alla barra laterale. Ogni scheda della Home apre uno strumento. Il collegamento Leggi la guida apre direttamente il relativo capitolo in una nuova scheda." },
+          {
+            id: "api-docs",
+            title: "Consultare la documentazione pubblica dell’API",
+            text: "Apri /docs sul server ELETTRA per consultare gli endpoint, i parametri e le risposte in Swagger UI. Lo schema OpenAPI è disponibile su /openapi.json. Entrambi sono consultabili senza accedere. Per eseguire operazioni protette serve un account autorizzato. I collegamenti portano al servizio pubblico ELETTRA.",
+            links: publicApiLinks,
+          },
         ],
         figures: getGuideFigures("it", "shell"),
         note: { title: "Perimetro della valutazione", text: "ELETTRA è uno strumento di pianificazione e prefattibilità. Un risultato fattibile dipende dalle ipotesi selezionate per servizio, veicolo, meteo, occupazione, batteria e ricarica; non costituisce una certificazione operativa." },
@@ -899,7 +928,7 @@ export const guideContent = {
           { title: "Creare le fermate personalizzate necessarie", text: "Aggiungere depositi, punti di ricarica o nodi non rappresentati dalle fermate del trasporto pubblico programmate." },
           { title: "Costruire un turno macchina", text: "Selezionare le corse programmate, definire le località di partenza e ritorno e verificare il servizio ordinato e gli spostamenti ausiliari." },
           { title: "Eseguire una valutazione di fattibilità", text: "Selezionare uno o più turni macchina, scegliere la modalità di ottimizzazione e impostare le ipotesi operative e di ricarica." },
-          { title: "Verificare il controllo tecnico", text: "In Generale passa da Media a Q95. Apri lo stesso turno macchina nei due dimensionamenti e confronta i pacchi scelti, le ricariche e il SOC minimo raggiunto.", link: { id: "mean-q95", label: "Come leggere Media e Q95" } },
+          { title: "Verificare il controllo tecnico", text: "In Generale passa da Media a Q95. Apri lo stesso turno macchina nei due dimensionamenti e confronta i pacchi scelti, le ricariche e il SOC minimo raggiunto.", links: [{ href: "#mean-q95", label: "Come leggere Media e Q95" }] },
           { title: "Creare, confrontare ed esportare le analisi annuali", text: "Riutilizzare il progetto fattibile con temperature rappresentative, esaminare gli indicatori annuali e confrontare le alternative salvate." },
         ],
       },

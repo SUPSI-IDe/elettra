@@ -127,6 +127,18 @@ in the workspace is scoped by the authenticated backend context.
 
 ---
 
+## Public API documentation
+
+Open `/docs` at the root of the ELETTRA server to browse endpoints, request
+parameters and responses in Swagger UI. The same server publishes the
+machine-readable schema at `/openapi.json`. Both documents are public.
+Protected API operations require an authorised account.
+
+[Public ELETTRA Swagger UI](https://elettra.supsi.ch/docs) ·
+[OpenAPI schema](https://elettra.supsi.ch/openapi.json)
+
+---
+
 ## Interpretation boundary
 
 A result is conditional on the selected service, timetable edition, vehicle,

@@ -298,6 +298,9 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await expect(
       page.getByRole("heading", { level: 1, name: labels.guideTitle })
     ).toBeVisible();
+    const apiGuide = page.locator("#start #api-docs");
+    await expect(apiGuide.getByRole("link", { name: "Swagger UI (/docs)" })).toHaveAttribute("href", "https://elettra.supsi.ch/docs");
+    await expect(apiGuide.getByRole("link", { name: "OpenAPI (/openapi.json)" })).toHaveAttribute("href", "https://elettra.supsi.ch/openapi.json");
     for (const term of labels.resultTerms) {
       await expect(page.locator("section#results")).toContainText(term);
     }
