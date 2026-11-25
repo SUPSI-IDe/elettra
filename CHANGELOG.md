@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.4.1] - 2026-11-25
+
+- Serve Swagger UI at `/docs` and the backend’s OpenAPI schema at `/openapi.json` through the frontend proxy. Compatible with backend 1.9.0.
+
 ## [1.4.1-rc.1] - 2026-11-25
 
 - Serve Swagger UI at `/docs` and the backend’s OpenAPI schema at `/openapi.json` through the frontend proxy.
