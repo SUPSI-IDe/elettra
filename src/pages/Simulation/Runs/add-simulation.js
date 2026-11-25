@@ -28,6 +28,7 @@ import {
   textContent,
   toText,
   resolveBusModelDisplayName,
+  resolveBusModelLabelI18nKey,
 } from "../../../ui-helpers";
 import {
   extractShiftDistanceKm,
@@ -81,6 +82,11 @@ const compareShiftsByName = (left, right) => {
   return shiftNameCollator.compare(text(left?.id), text(right?.id));
 };
 
+const localizedShiftBusModel = (shift, fallback = "") =>
+  shift?._resolved_bus_model_i18n_key
+    ? t(shift._resolved_bus_model_i18n_key)
+    : text(shift?._resolved_bus_model ?? fallback);
+
 const compareShiftTexts = (left, right) =>
   shiftNameCollator.compare(text(left).trim(), text(right).trim());
 
@@ -114,8 +120,8 @@ const sortShifts = (shifts = [], sortState = DEFAULT_SHIFT_SORT) => {
     switch (sortState.key) {
       case "bus_model":
         comparison = compareShiftTexts(
-          left?._resolved_bus_model,
-          right?._resolved_bus_model
+          localizedShiftBusModel(left),
+          localizedShiftBusModel(right)
         );
         break;
       case "distance": {
@@ -180,7 +186,7 @@ export const renderShiftRows = (tbody, shifts = [], { selectedIds = new Set(), e
       const profileNotice = pending > 0
         ? `<small class="helper-text" data-role="pending-elevation">${textContent(t("simulation.pending_elevation", { count: pending }))}</small>`
         : "";
-      const busModelName = text(shift._resolved_bus_model ?? "—");
+      const busModelName = localizedShiftBusModel(shift, "—");
       const dailyDistanceLabel = text(
         shift._resolved_daily_distance_label ?? formatShiftDistanceValue(null)
       );
@@ -1034,23 +1040,17 @@ export const initializeAddSimulation = async (
           ? models.filter((m) => text(m?.user_id) === currentUserId)
           : (models ?? []);
 
-      const modelsById = Object.fromEntries(
-        userModels.filter((m) => m?.id).map((m) => [text(m.id), m])
+      const modelLabelsById = new Map(
+        userModels.filter((model) => model?.id).map((model) => [
+          text(model.id),
+          { name: resolveBusModelDisplayName(model), key: resolveBusModelLabelI18nKey(model) },
+        ])
       );
 
       const busToModelIdMap = new Map(
         userBuses
           .filter((b) => b?.id)
           .map((bus) => [text(bus.id), text(bus?.bus_model_id ?? "")])
-      );
-
-      const busModelMap = new Map(
-        userBuses
-          .filter((b) => b?.id)
-          .map((bus) => {
-            const modelId = text(bus?.bus_model_id ?? "");
-            return [text(bus.id), resolveBusModelDisplayName(modelsById[modelId])];
-          })
       );
 
       allShifts = (Array.isArray(shifts) ? shifts : [])
@@ -1066,18 +1066,15 @@ export const initializeAddSimulation = async (
           );
           const resolvedModelId =
             directModelId || busToModelIdMap.get(busId) || "";
-          const modelFromBus = busModelMap.get(busId) || "";
-          const modelFromDirect = resolveBusModelDisplayName(
-            modelsById[resolvedModelId]
-          );
-          const busModelName =
-            modelFromBus || modelFromDirect || shift?.bus_model_name || "";
+          const modelFromBus = modelLabelsById.get(busToModelIdMap.get(busId));
+          const displayedModel = modelFromBus?.name ? modelFromBus : modelLabelsById.get(resolvedModelId);
           const dailyDistanceKm = extractShiftDistanceKm(shift);
           const yearlyDistanceKm = extractShiftYearlyDistanceKm(shift);
 
           return {
             ...shift,
-            _resolved_bus_model: busModelName,
+            _resolved_bus_model: displayedModel?.name || shift?.bus_model_name || "",
+            _resolved_bus_model_i18n_key: displayedModel?.key,
             _resolved_bus_model_id: resolvedModelId,
             _resolved_daily_distance_km: dailyDistanceKm,
             _resolved_daily_distance_label: formatShiftDistanceValue(
@@ -1275,7 +1272,7 @@ export const initializeAddSimulation = async (
       ? editionShifts.filter(
           (s) =>
             text(s?.name).toLowerCase().includes(query) ||
-            text(s?._resolved_bus_model).toLowerCase().includes(query)
+            localizedShiftBusModel(s).toLowerCase().includes(query)
         )
       : editionShifts;
   }

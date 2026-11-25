@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { translations } from '../../src/i18n/translations.js';
 const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === '1';
 const lcaFixture = JSON.parse(readFileSync(new URL('../fixtures/grid94-lca.json', import.meta.url), 'utf8')).base;
 
@@ -205,12 +206,12 @@ test('representative and fleet views reconcile investment and TCO, assumptions a
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('different battery groups retain duties and consumption; sliders restore diesel charts, LCA and export', async ({ page }) => {
+const mountTwoBatteryGroups = async (page, { lang = 'en', example } = {}) => {
+  await page.addInitScript(lang => localStorage.setItem('elettra_lang', lang), lang);
   await page.route('**/api/v1/**', route => route.fulfill({ json: {} }));
   await page.goto('./');
-  await page.evaluate(async template => {
+  await page.evaluate(async ({ template, example }) => {
     await import('/elettra/src/style.css');
-    localStorage.setItem('elettra_lang', 'en');
     document.body.innerHTML = '<main id="test-annual"></main>';
     const { createYearlyFleetDashboard } = await import('/elettra/src/pages/Simulation/YearlyAnalysis/yearly-fleet-dashboard.js');
     const features = {
@@ -220,12 +221,12 @@ test('different battery groups retain duties and consumption; sliders restore di
           { id: 'long', modelName: 'TPL_18m', packs: 14, capacity: 700, busCost: 800000, batteryCost: 84000 },
           { id: 'short', modelName: 'TPL_18m', packs: 10, capacity: 500, busCost: 800000, batteryCost: 60000 },
         ] },
-        infrastructure: { dataAvailable: true, stations: [{ selected: true, stopName: 'Depot', installationCostChf: 400000,
+        infrastructure: { dataAvailable: true, stations: [{ selected: true, stopName: example?.depot ?? 'Depot', installationCostChf: 400000,
           costBreakdown: { chargers_cost_chf: 110000, site_fixed_cost_chf: 250000, site_power_cost_chf: 40000 } }] },
       } },
       results: { yearlyTotals: { distanceKm: 100000, totalEnergyKwh: 160000 }, shiftResults: [
-        { shiftId: 'long', status: 'completed', yearlyTotals: { distanceKm: 80000, totalEnergyKwh: 144000 } },
-        { shiftId: 'short', status: 'completed', yearlyTotals: { distanceKm: 20000, totalEnergyKwh: 16000 } },
+        { shiftId: 'long', shiftName: example?.long, status: 'completed', yearlyTotals: { distanceKm: 80000, totalEnergyKwh: 144000 } },
+        { shiftId: 'short', shiftName: example?.short, status: 'completed', yearlyTotals: { distanceKm: 20000, totalEnergyKwh: 16000 } },
       ] },
     };
     const makeLca = (values = {}) => {
@@ -276,7 +277,57 @@ test('different battery groups retain duties and consumption; sliders restore di
     // The page loader mutates its state object while starting another request.
     // That must not silently mutate the dashboard's accepted assessment.
     incomingState.status = 'error'; incomingState.rawLca = null;
-  }, lcaFixture);
+  }, { template: lcaFixture, example });
+};
+
+const yearlyGuideExample = {
+  en: { long: 'Block 501', short: 'Block 502', depot: 'Depot', investment: 'Annualized investment', tab: 'Emissions' },
+  de: { long: 'Umlauf 501', short: 'Umlauf 502', depot: 'Depot', investment: 'Annualisierte Investition', tab: 'Emissionen' },
+  fr: { long: 'Service 501', short: 'Service 502', depot: 'Dépôt', investment: 'Investissement annualisé', tab: 'Émissions' },
+  it: { long: 'Turno 501', short: 'Turno 502', depot: 'Deposito', investment: 'Investimento annualizzato', tab: 'Emissioni' },
+};
+
+for (const [lang, example] of Object.entries(yearlyGuideExample)) {
+  test(`capture the yearly guide screenshots in ${lang}`, async ({ page }, testInfo) => {
+    test.skip(!updateGuideScreenshots || testInfo.project.name !== 'chromium',
+      'Guide screenshots are generated on demand with desktop Chromium');
+    await page.setViewportSize({ width: 1440, height: 1160 });
+    await mountTwoBatteryGroups(page, { lang, example });
+    await expect(page.locator('html')).toHaveAttribute('lang', lang);
+    const financialSummary = page.locator('[data-annual-financial-summary]');
+    const annualCost = financialSummary.locator('[data-cost-annual]');
+    await expect(annualCost.getByText(example.investment, { exact: true })).toBeVisible();
+    await expect(annualCost.locator('rect[fill="#76559a"]')).toHaveCount(2);
+    await expect(financialSummary.locator('[data-cost-cumulative] svg')).toBeVisible();
+    await page.mouse.move(0, 0);
+    await financialSummary.screenshot({
+      path: `guide/images/${lang}/yearly-efficiency.png`,
+      animations: 'disabled',
+    });
+
+    const emissionsTab = page.getByRole('tab', { name: example.tab, exact: true });
+    await emissionsTab.click();
+    await expect(emissionsTab).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[data-role="ya-lca-phases"] h3'))
+      .toHaveText(translations[lang]['yearly_analysis.lca_phases']);
+    await expect(page.locator('.ya-lca-phase-bar__label')).toHaveCount(2);
+    await expect(page.locator('[data-tco-assumptions][data-assumptions-tab="emissions"] > summary')).toBeVisible();
+    await expect(page.locator('[data-outcome="efficiency"]')).toContainText(example.short);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.mouse.move(0, 0);
+    const overview = page.locator('[data-role="ya-lca-overview"]');
+    await expect(overview).toBeInViewport({ ratio: 1 });
+    const { y, height } = await overview.boundingBox();
+    await page.screenshot({
+      path: `guide/images/${lang}/yearly-emissions.png`,
+      animations: 'disabled',
+      clip: { x: 0, y: 0, width: 1440, height: Math.ceil(y + height + 8) },
+    });
+  });
+}
+
+test('different battery groups retain duties and consumption; sliders restore diesel charts, LCA and export', async ({ page }) => {
+  await mountTwoBatteryGroups(page);
   expect(await page.evaluate(() => {
     const snapshot = window.dashboard.getExportState();
     return { status: snapshot.assessment.environment.status,
@@ -301,18 +352,6 @@ test('different battery groups retain duties and consumption; sliders restore di
     diesel: '2.475 CHF/km',
     difference: '-0.424 CHF/km',
   });
-  if (updateGuideScreenshots) {
-    await page.setViewportSize({ width: 1440, height: 1020 });
-    await page.evaluate(() => window.scrollTo(0, 0));
-    const financialSummary = page.locator('[data-annual-financial-summary]');
-    await expect(financialSummary).toContainText('Annualized investment');
-    await financialSummary.screenshot({ path: 'guide/images/yearly-efficiency.png' });
-    await page.getByRole('tab', { name: 'Emissions', exact: true }).click();
-    await expect(page.locator('[data-role="ya-lca-phases"]')).toBeVisible();
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({ path: 'guide/images/yearly-emissions.png' });
-    await page.getByRole('tab', { name: 'Costs', exact: true }).click();
-  }
   await page.locator('[data-tco-assumptions] > summary').click();
   await expect(page.locator('[data-tco-assumptions]')).toHaveAttribute('open', '');
   await expect(page.getByRole('slider')).toHaveCount(7);

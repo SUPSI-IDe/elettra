@@ -1,3 +1,4 @@
+import { translations } from "../../src/i18n/translations.js";
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
@@ -296,7 +297,7 @@ test("General configuration remains explicit for fixed and historical analyses",
   });
 });
 
-test("the annual comparison UI stays on General and exports that scope", async ({ page }) => {
+async function mockComparisonApi(page, a = analysisA, b = analysisB, model = busModel) {
   const requests = [];
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
@@ -305,8 +306,8 @@ test("the annual comparison UI stays on General and exports that scope", async (
     if (path.endsWith("/yearly-analysis/")) {
       await route.fulfill({ json: {
         items: [
-          { id: "a", name: analysisA.name, created_at: analysisA.created_at },
-          { id: "b", name: analysisB.name, created_at: analysisB.created_at },
+          { id: "a", name: a.name, created_at: a.created_at },
+          { id: "b", name: b.name, created_at: b.created_at },
         ],
         total: 2,
         skip: 0,
@@ -320,15 +321,20 @@ test("the annual comparison UI stays on General and exports that scope", async (
     } else if (path.endsWith("/yearly-analysis/a/lca") || path.endsWith("/yearly-analysis/b/lca")) {
       await route.fulfill({ json: lcaFixture });
     } else if (path.endsWith("/yearly-analysis/a")) {
-      await route.fulfill({ json: analysisA });
+      await route.fulfill({ json: a });
     } else if (path.endsWith("/yearly-analysis/b")) {
-      await route.fulfill({ json: analysisB });
+      await route.fulfill({ json: b });
     } else if (path.endsWith("/user/bus-models/bus-1")) {
-      await route.fulfill({ json: busModel });
+      await route.fulfill({ json: model });
     } else {
       await route.fulfill({ json: [] });
     }
   });
+  return requests;
+}
+
+test("the annual comparison UI stays on General and exports that scope", async ({ page }) => {
+  const requests = await mockComparisonApi(page);
   await page.goto("./");
   await page.evaluate(async ({ source }) => {
     localStorage.setItem("access_token", "fixture-token");
@@ -415,3 +421,55 @@ test("the annual comparison UI stays on General and exports that scope", async (
   expect(requests.some((url) => url.includes("prediction-runs"))).toBe(false);
   expect(requests.some((url) => url.includes("shift_id"))).toBe(false);
 });
+
+for (const [lang, locale] of Object.entries({ en: "en-GB", de: "de-CH", fr: "fr-CH", it: "it-CH" })) {
+  test.describe(`guide comparison · ${lang}`, () => {
+    test.use({ locale });
+    test(`captures the guide comparison in ${lang}`, async ({ page }, info) => {
+      test.skip(process.env.UPDATE_GUIDE_SCREENSHOTS !== "1" || info.project.name !== "chromium");
+      const strings = translations[lang];
+      const records = [analysisA, analysisB].map(source => {
+        const record = structuredClone(source);
+        const { fixedConfiguration } = record.features.config;
+        const station = fixedConfiguration.infrastructure.stations[0];
+        record.name = `${fixedConfiguration.battery.nominalKwh} kWh · ${station.slots} × ${station.powerPerSlotKw} kW`;
+        record.features.meta.busModelName = "E-12";
+        const blocks = [{ shiftId: "101", shiftName: "101" }, { shiftId: "102", shiftName: "102" }];
+        fixedConfiguration.shifts = blocks;
+        fixedConfiguration.shiftIds = record.features.config.shift_ids = blocks.map(row => row.shiftId);
+        fixedConfiguration.fleet.vehicleCountByShift = { "101": 1, "102": 1 };
+        record.features.meta.shifts = blocks;
+        record.features.meta.shiftNames = blocks.map(row => row.shiftName);
+        record.features.results.shiftResults.forEach((row, i) => Object.assign(row, blocks[i]));
+        return record;
+      });
+      await page.setViewportSize({ width: 1550, height: 1250 });
+      await page.addInitScript(lang => {
+        localStorage.setItem("elettra_lang", lang);
+        localStorage.setItem("access_token", "fixture-token");
+      }, lang);
+      await page.route("**/auth/me", route => route.fulfill({ json: { id: "guide", full_name: "Demo" } }));
+      await mockComparisonApi(page, ...records, { ...busModel, name: "E-12" });
+      await page.goto("./#analysis-comparison");
+      const section = page.locator(".analysis-comparison");
+      await expect(section.locator("h1")).toHaveText(strings["analysisComparison.title"]);
+      await section.locator('[data-role="select-a"]').selectOption("a");
+      await section.locator('[data-role="select-b"]').selectOption("b");
+      const compat = section.locator('[data-role="compatibility"]');
+      await expect(compat.getByRole("heading")).toHaveText(strings["analysisComparison.compatibility"]);
+      await expect(compat.locator(".badge")).toHaveText(strings["analysisComparison.compatible"]);
+      await expect(section.locator('[data-role="diff-note"]')).toHaveText(strings["analysisComparison.differenceDefinition"]);
+      await expect(compat).toContainText("101");
+      await page.evaluate(() => document.fonts.ready);
+      await section.locator('[data-role="select-b"]').blur();
+      const header = await section.locator("header").boundingBox();
+      const end = await compat.boundingBox();
+      await page.mouse.move(0, 0);
+      await page.screenshot({
+        path: `guide/images/${lang}/annual-comparison.png`,
+        clip: { x: header.x, y: header.y, width: header.width, height: Math.ceil(end.y + end.height - header.y + 8) },
+        animations: "disabled",
+      });
+    });
+  });
+}

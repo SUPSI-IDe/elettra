@@ -1,7 +1,7 @@
 # User Guide: Overview
 
 > Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.2
+> Interface baseline: Frontend v1.4.4-rc.3
 
 ELETTRA supports preliminary planning for battery-electric bus services. It
 connects fleet and timetable data to a technical feasibility gate, then uses a
@@ -26,6 +26,9 @@ sections remain available in the sidebar:
 | **Simulations** | Feasibility evaluation | Test the selected service under battery and charging constraints |
 | **Simulations** | Yearly analyses | Apply a verified design to representative annual weather scenarios |
 | **Simulations** | Analysis comparison | Compare two saved yearly analyses and export their differences |
+
+Each Home card offers two actions. Select the card to open the tool, or **Read the
+guide** to open its instructions in a new tab.
 
 The public user guide is linked from the landing page, Home, and the bottom of
 the authenticated sidebar. It opens in a separate tab.
@@ -56,8 +59,10 @@ Comparison and export
 4. Create a feasibility evaluation. Select the GTFS edition and service day,
    then select compatible vehicle blocks. Choose the optimization mode and
    operating assumptions.
-5. Check the technical verdict before interpreting secondary indicators. A
-   completed calculation can still be physically infeasible.
+5. In **General**, switch between **Mean** and **Q95** and open the same block
+   in each design. Compare the pack count, planned charging and lowest SOC.
+   A completed calculation can still be physically infeasible.
+   [Read how to interpret Mean and Q95](simulation-results.md#compare-the-mean-and-q95-designs).
 6. Create a yearly analysis from a feasible evaluation eligible for yearly
    analysis with a recorded battery-pack count. The battery and charging design
    selected in feasibility carry through to the annual calculation.
@@ -112,7 +117,9 @@ are excluded from new evaluations.
 ## Languages and access
 
 The interface and online guide are available in English, German, French, and
-Italian. The language choice is retained in the browser.
+Italian. Changing the guide language also changes the screenshots, including
+the full-size view. Stop and depot names in the example vehicle block retain
+their local names. The browser remembers the selected language.
 
 The landing page, sign-in, registration, About page, and online user guide are
 public. Fleet data and analyses require an authenticated account. Data exposed

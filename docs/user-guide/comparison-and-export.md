@@ -1,40 +1,45 @@
 # Comparison and Export
 
 > Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.2
+> Interface baseline: Frontend v1.4.4-rc.3
 
 The **Analysis comparison** page compares two saved yearly analyses in the
 **General** scope using their configuration summaries and aggregate annual
-results.
+results. Use the source analysis to inspect a named vehicle block or choose a
+representative bus.
 
 ---
 
 ## Start a comparison
 
 Open **Simulations → Analysis comparison** and choose **Analysis A** and
-**Analysis B**. The page loads the common configuration and aggregate annual
-results of both analyses.
+**Analysis B** from the saved yearly analyses available to your account.
+Both selections are required to display the comparison. An analysis can
+appear in the list even if some results are incomplete.
 
-Differences are reported as:
-
-```text
-Analysis B − Analysis A
-```
-
-A positive difference means that B is larger than A for that metric.
+The absolute difference is **Analysis B − Analysis A**. A positive result
+means B is larger than A. The relative difference divides that result by A and
+expresses it as a percentage. An absolute difference requires both values, and
+a relative difference also requires a non-zero A.
 
 ---
 
 ## Compatibility summary
 
 The **Compatible** badge requires the same non-empty set of vehicle blocks
-and the same optimization mode. The summary displays common vehicle blocks,
-the number of blocks in each analysis, and the annual distances.
+and the same optimization mode. The comparison uses block IDs where available
+and can fall back to recorded block names for historical analyses. If one
+criterion differs but the analyses share a block, block count or mode, the
+page shows **Partially comparable**. Otherwise it shows **Not directly
+comparable**. The badge is advisory and the metrics remain available when data
+exist.
 
-Before interpreting differences, check the annual distance, GTFS edition,
-economic assumptions and other inputs that could account for the change.
-Attribute a difference to a single decision only when the other relevant
-assumptions are consistent.
+The summary shows common blocks, block counts and the simulated annual
+distances. The JSON records a separate distance-basis check, which accepts
+a difference of up to 5% of the larger distance. Before attributing a
+difference to a single decision, check the underlying vehicle blocks, GTFS
+edition, weather and activity, inherited feasibility design, and cost and
+emissions assumptions.
 
 ---
 
@@ -43,13 +48,20 @@ assumptions are consistent.
 | Section | Contents |
 |---|---|
 | **Overview** | Executive indicators and high-level differences |
-| **Efficiency** | Aggregate annual energy, distance, and efficiency context |
-| **Cost** | Annual and lifecycle economic indicators, subject to compatible assumptions |
+| **Efficiency** | Simulated annual distance and energy, drivetrain and auxiliary energy, specific consumption and battery information |
+| **Cost** | Annual electric and diesel costs, energy, annualized investment, maintenance, CHF/km and annual savings |
 | **Emissions** | Aggregate environmental indicators and completeness metadata |
 | **Details / Export** | Combined table of efficiency, cost and emissions metrics, with CSV and JSON actions |
 
-Each yearly analysis can contain an internal electric/diesel assessment. The
-A and B columns refer to the selected yearly analyses.
+The A and B columns refer to the chosen yearly analyses. Each source can also
+contain an internal electric-versus-diesel assessment. Comparison uses saved
+simulation totals for distance and energy, the annual cost endpoint and its
+standard assumptions or the local cost fallback, and the fleet environmental
+endpoint. The latter can read saved physical LCA assumptions. To compare scenarios
+with edited tariffs or annual mileage, use **Download all results (JSON)** from
+each source analysis and compare the same fields and scopes. Those source
+exports preserve the effective edited assessment, including the project-cost
+cash flows.
 
 ---
 
@@ -75,10 +87,10 @@ environmental results alongside their data and scope completeness indicators.
   charging configuration, scenario counts, distance, section statuses, and
   available energy, cost and emissions summaries.
 
-For the complete JSON of a single yearly analysis, open that analysis, select
-**General**, and choose **Download all results (JSON)** beside **Close**. See
-[Yearly Analysis](yearly-analysis.md#export) for the
-contents of the yearly analysis export.
+For vehicle-block technical results, detailed project economics, and the
+assumptions of a single yearly analysis, open that analysis, select **General**,
+and choose **Download all results (JSON)** beside **Close**. The contents are
+described in the [Yearly Analysis export guide](yearly-analysis.md#export).
 
 ---
 

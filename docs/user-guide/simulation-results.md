@@ -1,7 +1,7 @@
 # Feasibility Results
 
 > Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.2
+> Interface baseline: Frontend v1.4.4-rc.3
 
 The feasibility result page is the technical gate between service preparation
 and yearly assessment. Read the overall verdict first, then inspect every
@@ -15,15 +15,32 @@ analysis.
 The page header provides four independent contexts:
 
 1. **Result scope** — **General** or one named vehicle block.
-2. **Consumption basis** — **Mean** or **Q95** for paired evaluations.
+2. **Show optimized result** — **Mean** or **Q95** for paired evaluations.
 3. **GTFS provenance** — the timetable edition recorded when the evaluation
    was created.
 4. **Operating assumptions** — compact SOH, Technical times and HVAC cards
    open the corresponding saved battery, timing and auxiliary-energy assumptions.
 
-Changing Mean/Q95 opens the complete optimized design for that profile,
-including its battery, charger configuration, and charging schedule. It does
-not merely change a demand line on an otherwise fixed result.
+## Compare the Mean and Q95 designs
+
+Start in **General**. In **Show optimized result** beside the scope tabs,
+select **Mean**, then **Q95**. Compare the verdict, battery sizes and shared
+charging resources of the two designs. Open a vehicle block to compare
+its operating margin and charging plan. The selected tab stays open when you
+switch between available results. Each choice loads its saved, complete design
+and requires no new calculation.
+
+Mean uses expected trip consumption under the evaluation assumptions. Q95
+uses a representative profile at the 95th percentile of simulated total
+consumption over the block. Where demand falls in the block and when and how
+fast the bus can charge determine its minimum SOC. Use the SOC trajectory
+to check the selected design. The 95% refers to modeled consumption totals
+and any simulated completion percentage is conditional on the selected plan
+and model.
+
+If the requested result is pending, failed or unavailable, the selector keeps
+the current design and displays a message. The design shown still belongs to
+the active profile. Return to the evaluation list to check its status.
 
 Historical single-basis evaluations retain their original semantics. When an
 alternative design was never calculated, the interface may expose an explicit
@@ -60,9 +77,10 @@ Keep these states separate:
 | State | Interpretation |
 |---|---|
 | **Feasible** | Optimization completed, the physical pack limit is respected, and the selected design passed complete-forecast verification |
-| **Infeasible** | Optimization completed but the proposed service/design failed a technical constraint, such as exceeding the physical battery limit |
-| **Not determined** | The calculation stopped before a feasibility verdict could be produced |
-| **Pending/failed execution** | No final technical conclusion is available |
+| **Infeasible** | The completed calculation established that the design violates a constraint under the tested assumptions, such as the physical pack limit, charger access or depot power |
+| **Not determined** | The calculation produced no technical verdict. A source-data or configuration validation problem may have blocked one or more vehicle blocks |
+| **Pending or running** | The calculation is still in progress |
+| **Failed, unverified or unavailable** | There is no verified verdict to use for that profile. A calculation may have failed or timed out, or the result may be unavailable |
 
 A successful solver execution alone does not certify feasibility. Conversely,
 a block marked not evaluated because another block failed is not automatically
@@ -73,9 +91,10 @@ selected block. The block view identifies the reason, any blocking vehicle
 block, and translated **How to resolve** guidance. Correct the indicated source
 data or configuration and run a separately named evaluation.
 
-An orange outcome means **feasible with Mean but infeasible with Q95**.
-The technical verdict and numeric data availability are independent: an
-infeasible Q95 result may contain consumption values or lack them.
+An orange **paired feasibility verdict** means that one profile is feasible and
+the other is infeasible. Read the label to identify which design passed.
+An incomplete pair has a separate outcome. Numeric availability is separate:
+an infeasible Q95 result may contain consumption values or lack them.
 
 The demand scenario, optimization mode and outcome share the fleet header.
 Explanations for **Fleet evaluation**, **Batteries and bus investment**,
@@ -142,15 +161,16 @@ including when another block makes the overall evaluation infeasible.
 
 ## Inspect every vehicle block
 
-For a physically verified vehicle block, the summary reports:
+For a physically verified vehicle block, **Vehicle block operational summary**
+reports:
 
 - active Mean or Q95 total consumption;
 - active specific consumption in kWh/km;
-- required and selected battery packs;
-- nominal and usable battery capacity;
-- physical pack limit and battery margin;
 - minimum and maximum SOC actually reached;
 - charged energy and number of charging sessions.
+
+Use **Battery and energy margin** for selected packs, the installable maximum,
+nominal and usable capacities, and the available margin when recorded.
 
 **Configured SOC window** identifies the limits entered in the evaluation.
 **Minimum SOC reached** and **Maximum SOC reached** are trajectory outcomes.
@@ -178,11 +198,31 @@ consumption minus charged energy.
 
 ---
 
-## Visual analysis and forecasts
+## Consumption histogram and SOC trajectory
 
-The visual analysis shows the relationship between energy consumption,
-available battery energy, planned charging, and SOC coverage. Read it together
-with the verdict and pack limit rather than as an independent feasibility test.
+Open a vehicle block and choose **Mean** or **Q95** in **Show optimized result**.
+In **Battery and energy margin**, **Energy consumed during the vehicle block**
+counts sampled trip sequences by their total consumption in kWh. It uses
+predictions for the selected battery mass. Charged energy stays separate from
+the histogram. The vertical marker shows the active design's Mean or Q95
+consumption.
+
+In **SOC along the vehicle block · selected optimized design**, check the curve
+against the horizontal minimum and maximum limits and use the summary to read
+the SOC actually reached. The chart indicates the verified optimizer SOC where
+available. Between departure and arrival it draws a linear approximation of
+trip consumption and preserves the timing of stops and planned charging.
+In **Method and sampling precision**, you can see the sample count and the
+Monte Carlo interval for the estimated Q95. That interval describes sampling
+precision. In the SOC chart's information tooltip, **Simulated vehicle block
+completion** is a separate estimate of the share of sampled trajectories that
+respected the SOC limits with this plan, when the estimate is available.
+
+In the illustrated Q95 design, the histogram counts 200,000 simulated
+sequences. The selected 14 packs of 50 kWh provide 700 kWh nominal and
+490 kWh usable between 20% and 90% SOC at SOH 100%. A 62.5 kWh depot charge
+helps the bus meet 539.2 kWh of demand. The SOC ranges from 153.3 to
+630.0 kWh. The minimum is 13.3 kWh above the lower limit of 140 kWh.
 
 In **More information**, the energy-forecast table identifies the role of every
 forecast used in sizing. The forecast for the selected and verified battery is
@@ -198,7 +238,7 @@ are supporting distribution information.
 
 ## Charging plan
 
-For Charging and Joint evaluations, inspect each session’s location and time,
+When a charging plan is available, inspect each session’s location and time,
 including the day offset when it continues into the next day. Its card shows
 three metrics: **Planned stop**, **Available for charging** and **Energy charged**.
 The **Charging details** tooltip contains connection/disconnection time, terminal
@@ -209,9 +249,13 @@ terminal delay allowance; actual charging may use less time. With full-stop
 connection, these times describe the planned stop. Historical freely connected
 sessions may describe only the connected interval.
 
-Battery-only evaluations may show fixed charging already supplied by the
-configuration, or no charging plan. A partial or unavailable plan is reported
-as such rather than filled with invented sessions.
+Battery-only evaluations can schedule charging within the fixed infrastructure.
+The plan may have no sessions or be partially unavailable. If a complete daily
+cycle was requested, **Daily cycle and depot charging** shows in-service and
+overnight energy separately, and the block view compares departure SOC with
+the target. In an infeasible result, open the **Identified constraints** tooltip
+beside the verdict or block status for the available depot diagnostic. Depot peak shaving, when verified, changes
+the depot power profile within the selected design.
 
 Distinguish available charging time, active charging time, connected time and
 available time without charging. The default technical time is 1 minute total

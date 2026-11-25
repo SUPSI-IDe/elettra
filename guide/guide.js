@@ -226,8 +226,10 @@ const renderSection = (section, ui, sections) => {
   section.items.forEach((item) => {
     const entry = document.createElement("li");
     entry.className = "guide-item";
+    if (item.id) entry.id = item.id;
     entry.append(createTextElement("h3", "", item.title));
     entry.append(createTextElement("p", "", item.text));
+    if (item.link) entry.append(createSectionLink(item.link.id, item.link.label));
     if (item.figures?.length) entry.append(renderFigures(item.figures, ui));
     list.append(entry);
   });

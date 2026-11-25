@@ -218,11 +218,12 @@ for (const lang of ["en", "it", "de", "fr"]) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
       expect(await page.locator(".home-page").evaluate(el => el.scrollWidth > el.clientWidth)).toBe(false);
     }
-    if (updateGuideScreenshots && lang === "it" && testInfo.project.name === "chromium") {
+    if (updateGuideScreenshots && testInfo.project.name === "chromium") {
+      await expect(page.locator("html")).toHaveAttribute("lang", lang);
       await page.setViewportSize({ width: 1440, height: 1230 });
       await page.mouse.move(0, 0);
       await page.locator(".home-page").screenshot({
-        path: "guide/images/application-shell.png",
+        path: `guide/images/${lang}/application-shell.png`,
         animations: "disabled",
       });
     }

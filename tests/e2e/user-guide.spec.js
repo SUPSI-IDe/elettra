@@ -13,6 +13,10 @@ test.beforeEach(async ({ page }) => {
   }));
 });
 
+const figureCount = guideContent.en.sections.flatMap(({ figures = [], items }) =>
+  [...figures, ...items.flatMap(item => item.figures ?? [])]
+).length;
+
 const GUIDE_SECTIONS = [
   "use-cases",
   "start",
@@ -32,11 +36,11 @@ const LANGUAGES = {
     guideTitle: "ELETTRA user guide",
     backLink: "Back to ELETTRA",
     resultTerms: ["Start with General", "Check every vehicle block tab"],
-    yearlyTerms: ["Review Costs and Emissions for the fleet", "annual DC energy"],
+    yearlyTerms: ["Review Costs and Emissions for the fleet", "physical bus count"],
     releaseTerms: {
       start: ["Home", "user guide"],
-      fleet: ["9 to 13 m", "17 to 19 m", "LFP", "NMC", "Restore estimate", "Line A_copy, Line A_copy_1"],
-      shifts: ["GTFS", "complete server-side list", "Space-time", "Map", "whole-day programme", "Intermediate stays", "Apply to block", "Cancel"],
+      fleet: ["9–13 m", "17–19 m", "LFP", "NMC", "Restore estimate", "Details opens a read-only view", "Line A_copy, Line A_copy_1"],
+      shifts: ["GTFS", "complete server-side list", "Space-time", "Map", "Duplicate saves a copy immediately", "Use Edit on the saved copy", "Manage intermediate stays", "Apply to block or Cancel"],
       feasibility: ["one GTFS edition", "Duplicate", "1 plug", "N blocks", "150 × N"],
       results: ["Configured SOC window", "initial physical-maximum reference", "Export the complete feasibility evaluation", "Check export availability"],
       yearly: ["recorded provenance", "complete fleet", "schema 4", "schema 3", "Check the save status before closing", "previous response", "Retry"],
@@ -47,11 +51,11 @@ const LANGUAGES = {
     guideTitle: "ELETTRA-Benutzerhandbuch",
     backLink: "Zurück zu ELETTRA",
     resultTerms: ["Mit Allgemein beginnen", "Jeden Fahrzeugumlauf prüfen"],
-    yearlyTerms: ["Kosten und Emissionen der Flotte prüfen", "jährlichen DC-Energie"],
+    yearlyTerms: ["Kosten und Emissionen der Flotte prüfen", "Anzahl physischer Busse"],
     releaseTerms: {
       start: ["Startseite", "Benutzerhandbuch"],
-      fleet: ["9 bis 13 m", "17 bis 19 m", "LFP", "NMC", "Schätzwert wiederherstellen", "Linie A_Kopie, Linie A_Kopie_1"],
-      shifts: ["GTFS", "vollständige serverseitige Liste", "Weg-Zeit", "Karte", "Tagesprogramm", "Zwischenaufenthalte", "In Umlauf übernehmen", "Abbrechen"],
+      fleet: ["9–13 m", "17–19 m", "LFP", "NMC", "Schätzwert wiederherstellen", "Details öffnet eine schreibgeschützte Ansicht", "Linie A_Kopie, Linie A_Kopie_1"],
+      shifts: ["GTFS", "vollständige serverseitige Liste", "Weg-Zeit", "Karte", "Duplizieren speichert sofort eine Kopie", "Bearbeiten in der Zeile der Kopie", "Zwischenaufenthalte bearbeiten", "In Umlauf übernehmen oder Abbrechen"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "1 Ladepunkt", "N Umläufe", "150 × N"],
       results: ["Konfiguriertes SOC-Fenster", "physischen Maximum", "Die vollständige Machbarkeitsbewertung exportieren", "Verfügbarkeit des Exports prüfen"],
       yearly: ["aufgezeichnete Herkunft", "gesamte Flotte", "Schema 4", "Schema 3", "Speicherstatus vor dem Schliessen prüfen", "frühere Antwort", "Erneut versuchen"],
@@ -62,11 +66,11 @@ const LANGUAGES = {
     guideTitle: "Guide d’utilisation ELETTRA",
     backLink: "Retour à ELETTRA",
     resultTerms: ["Commencer par Général", "Vérifier chaque service"],
-    yearlyTerms: ["Examiner les Coûts et les Émissions de la flotte", "énergie DC annuelle"],
+    yearlyTerms: ["Examiner les Coûts et les Émissions de la flotte", "nombre de bus physiques"],
     releaseTerms: {
       start: ["Accueil", "guide"],
-      fleet: ["9 à 13 m", "17 à 19 m", "LFP", "NMC", "Rétablir l’estimation", "Ligne A_copie, Ligne A_copie_1"],
-      shifts: ["GTFS", "liste complète côté serveur", "Espace-temps", "Carte", "programme existant complet", "Pauses intermédiaires", "Appliquer au service", "Annuler"],
+      fleet: ["9 à 13 m", "17 à 19 m", "LFP", "NMC", "Rétablir l’estimation", "Détails ouvre une vue en lecture seule", "Ligne A_copie, Ligne A_copie_1"],
+      shifts: ["GTFS", "liste complète côté serveur", "Espace-temps", "Carte", "Dupliquer enregistre immédiatement une copie", "Modifier sur la copie enregistrée", "Gérer les pauses intermédiaires", "Appliquer au service ou Annuler"],
       feasibility: ["édition GTFS", "Dupliquer", "1 prise", "N services", "150 × N"],
       results: ["Fenêtre SOC configurée", "maximum physique", "Exporter l’évaluation de faisabilité complète", "Vérifier la disponibilité de l’export"],
       yearly: ["provenance enregistrée", "flotte complète", "schéma 4", "schéma 3", "Vérifier l’état de sauvegarde avant de fermer", "réponse précédente", "Réessayer"],
@@ -77,11 +81,11 @@ const LANGUAGES = {
     guideTitle: "Guida utente ELETTRA",
     backLink: "Torna a ELETTRA",
     resultTerms: ["Iniziare da Generale", "Controllare ogni turno"],
-    yearlyTerms: ["Esaminare Costi ed Emissioni della flotta", "energia DC annuale"],
+    yearlyTerms: ["Esaminare Costi ed Emissioni della flotta", "numero di bus fisici"],
     releaseTerms: {
       start: ["Home", "guida utente"],
-      fleet: ["9 a 13 m", "17 a 19 m", "LFP", "NMC", "Ripristina stima", "Linea A_copia, Linea A_copia_1"],
-      shifts: ["GTFS", "elenco completo sul server", "Spazio-tempo", "Mappa", "intera giornata", "Soste intermedie", "Applica al turno", "Annulla"],
+      fleet: ["9–13 m", "17–19 m", "LFP", "NMC", "Ripristina stima", "Dettagli apre una vista in sola lettura", "Linea A_copia, Linea A_copia_1"],
+      shifts: ["GTFS", "elenco completo sul server", "Spazio-tempo", "Mappa", "Duplica salva subito una copia", "Modifica sulla copia salvata", "Gestisci soste intermedie", "Applica al turno o Annulla"],
       feasibility: ["una sola edizione GTFS", "Duplica", "1 presa", "N turni", "150 × N"],
       results: ["Intervallo SOC configurato", "massimo fisico", "Esportare la valutazione di fattibilità completa", "Verificare la disponibilità dell’esportazione"],
       yearly: ["provenienza registrata", "flotta completa", "schema 4", "schema 3", "Controllare lo stato del salvataggio prima di chiudere", "risposte precedenti", "Riprova"],
@@ -346,11 +350,41 @@ test("switching languages preserves the active use-case anchor and updates its d
 });
 
 
+test("the workflow opens Mean and Q95 guidance in the selected language", async ({ page }) => {
+  await page.goto("./guide/#workflow");
+  await page.locator('#workflow a[href="#mean-q95"]').click();
+  for (const lang of ["de", "fr", "it", "en"]) {
+    await page.locator("#guide-language").selectOption(lang);
+    const results = guideContent[lang].sections.find(section => section.id === "results");
+    const item = results.items.find(item => item.id === "mean-q95");
+    const heading = page.locator("#results #mean-q95").getByRole("heading", { level: 3, name: item.title, exact: true });
+    await expect(heading).toBeInViewport();
+    await expect(page).toHaveURL(/#mean-q95$/);
+  }
+});
+
+test("each guide language has its own screenshots and matching full-size links", async ({ page }) => {
+  await page.goto("./guide/#shifts");
+  const visited = new Set();
+  for (const language of ["en", "de", "fr", "it"]) {
+    await page.locator("#guide-language").selectOption(language);
+    const images = page.locator(".guide-figure img");
+    await expect(images).toHaveCount(figureCount);
+    const sources = await images.evaluateAll(elements => elements.map(img => [img.src, img.closest("a").href]));
+    for (const [src, fullSize] of sources) {
+      expect(fullSize).toBe(src);
+      expect(visited.has(src)).toBe(false);
+      visited.add(src);
+    }
+  }
+  expect(visited.size).toBe(figureCount * Object.keys(LANGUAGES).length);
+});
+
 test("the guide screenshots load and the guide fits the viewport", async ({ page }) => {
   await page.goto("./guide/");
 
-  await expect(page.locator(".guide-figure img")).toHaveCount(12);
-  await expect(page.locator(".guide-figure figcaption")).toHaveCount(12);
+  await expect(page.locator(".guide-figure img")).toHaveCount(figureCount);
+  await expect(page.locator(".guide-figure figcaption")).toHaveCount(figureCount);
   for (const image of await page.locator(".guide-figure img").all()) {
     await image.scrollIntoViewIfNeeded();
     await expect.poll(() =>
@@ -365,10 +399,10 @@ test("the guide screenshots load and the guide fits the viewport", async ({ page
 });
 
 for (const [language, labels] of Object.entries({
-  en: {battery:'Read infeasible battery estimates',q95:'Understand orange outcomes and unavailable Q95',help:'Find contextual help'},
-  de: {battery:'Batterieschätzungen bei Nichtmachbarkeit lesen',q95:'Orange Ergebnisse und fehlendes Q95 verstehen',help:'Kontexthilfe finden'},
-  fr: {battery:'Lire les estimations de batterie non faisables',q95:'Comprendre les résultats orange et le Q95 absent',help:'Trouver les explications contextuelles'},
-  it: {battery:'Leggere le stime di batteria nei casi non fattibili',q95:'Interpretare l’arancione e i dati Q95 mancanti',help:'Trovare le spiegazioni contestuali'},
+  en: {battery:'Read infeasible battery estimates',status:'Distinguish infeasible, failed and unavailable',q95:'Interpret missing Q95 consumption',help:'Find contextual help'},
+  de: {battery:'Batterieschätzungen bei Nichtmachbarkeit lesen',status:'Nicht machbar, fehlgeschlagen und nicht verfügbar unterscheiden',q95:'Fehlenden Q95-Verbrauch einordnen',help:'Kontexthilfe finden'},
+  fr: {battery:'Lire les estimations de batterie non faisables',status:'Distinguer non-faisabilité, échec et résultat indisponible',q95:'Interpréter une consommation Q95 absente',help:'Trouver les explications contextuelles'},
+  it: {battery:'Leggere le stime di batteria nei casi non fattibili',status:'Distinguere non fattibilità, calcolo non riuscito e dato indisponibile',q95:'Interpretare il consumo Q95 mancante',help:'Trovare le spiegazioni contestuali'},
 })) {
   test(`diagnostic guidance, Q95 availability and new screenshots are readable in ${language}`, async ({page}) => {
     const errors=[];

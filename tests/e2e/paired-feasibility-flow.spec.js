@@ -1,12 +1,16 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { translations } from "../../src/i18n/translations.js";
+import {
+  feasibilityGuideImage, feasibilityGuideLabels, guideCaptureEnabled, guideLocales,
+} from "../../test-support/feasibility-guide-screenshots.js";
 
-const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === "1";
+// Computed with the staging backend's trip Monte Carlo and battery optimizer for
+// a synthetic ten-trip duty with one 25-minute charging opportunity at the depot.
+const guideDesigns = JSON.parse(readFileSync(new URL("../../test-support/fixtures/guide-feasibility-results.json", import.meta.url), "utf8"));
+
 const dataset = {
   gtfs_year: 2026, gtfs_file_date: "2025-09-27", valid_from: "2025-12-14", valid_to: "2026-12-12",
-};
-const demoDepot = {
-  stop_id: "11111111-1111-4111-8111-111111111111", stop_name: "Demo depot", num_slots: 1,
-  max_power_per_slot_kw: 150, max_total_power_kw: 150,
 };
 
 const scenarios = ["battery_only", "charging_only", "joint"].flatMap(mode =>
@@ -15,33 +19,44 @@ const scenarios = ["battery_only", "charging_only", "joint"].flatMap(mode =>
   { mode: "battery_only", entry: "new", outcome: "mean-failed" },
   { mode: "battery_only", entry: "new", outcome: "both-failed" },
   ...["battery_only", "charging_only", "joint"].map(mode => ({mode, entry: "new", outcome: "q95-infeasible"})),
+  ...guideLocales.map(guideLanguage => ({ mode: "battery_only", entry: "new", outcome: "success", guideLanguage })),
 ]);
 
-for (const { mode, entry, outcome } of scenarios) {
-    test(`${entry} ${mode} ${outcome}: confirm once and automatically open the completed evaluation`, async ({ page }) => {
+for (const { mode, entry, outcome, guideLanguage } of scenarios) {
+    const title = guideLanguage
+      ? `captures feasibility form and fleet results for the guide in ${guideLanguage}`
+      : `${entry} ${mode} ${outcome}: confirm once and automatically open the completed evaluation`;
+    test(title, async ({ page }, testInfo) => {
+      if (guideLanguage) test.skip(!guideCaptureEnabled(testInfo), "Guide screenshots are generated on demand with desktop Chromium");
+      const language = guideLanguage ?? "en";
+      const labels = feasibilityGuideLabels[language];
+      const strings = translations[language];
+      const demoDepot = {
+        stop_id: "11111111-1111-4111-8111-111111111111", stop_name: guideLanguage ? "Deposito Nord" : labels.depot, num_slots: 1,
+        max_power_per_slot_kw: 150, max_total_power_kw: 150,
+      };
       const guideScenario = mode === "battery_only" && entry === "new" && outcome === "success";
-      const captureGuide = updateGuideScreenshots && guideScenario && !test.info().project.use.isMobile;
       const ids = { mean: "paired-mean", aggregate_q95: "paired-q95" };
-      const model = { id: "model", user_id: "user", name: guideScenario ? "Demo electric bus · 18 m" : "Local test bus", specs: {
+      const model = { id: "model", user_id: "user", name: guideScenario ? labels.bus : "Local test bus", specs: {
         min_battery_packs: 10, max_battery_packs: 16, battery_pack_size_kwh: 50,
         battery_pack_weight_kg: 300, battery_pack_cost_chf: 6000, bus_length_m: 18, empty_weight_kg: 18000, max_passengers: 100,
       }};
       const shift = {
-        id: "shift", name: guideScenario ? "Demo morning duty" : "Test duty", bus_id: "bus",
-        trip_count: 1, structure: [], compatible_weekdays: ["monday"],
+        id: "shift", name: guideScenario ? labels.duty : "Test duty", bus_id: "bus",
+        trip_count: guideLanguage ? 10 : 1, structure: [], compatible_weekdays: ["monday"],
         ...(guideScenario ? { gtfs_datasets: [dataset], daily_distance_km: 190, yearly_distance_km: 49_400 } : {}),
       };
       const runs = [];
       const submitted = [];
       const predictions = [];
-      const delayedQ95 = mode === "battery_only" && entry === "new" && outcome === "success";
+      const delayedQ95 = guideScenario && !guideLanguage;
       let q95Ready = !delayedQ95;
       let q95Polls = 0;
       let q95Phase = "sizing";
       const result = (basis, historical = false) => {
         const packs = basis === "aggregate_q95" || mode === "charging_only" ? 14 : 13;
         const record = { id: historical ? "historical" : ids[basis], name: historical ? "Historical evaluation"
-          : guideScenario ? "Demo weekday service" : `Paired ${basis}`,
+          : guideScenario ? labels.pairedEvaluation : `Paired ${basis}`,
           mode, status: outcome === "both-failed" || (outcome === "mean-failed" && basis === "mean") ? "failed" : "completed", bus_model_id: "model", created_at: "2026-01-01T12:00:00Z", prediction_run_ids: [],
           electrification_feasible: true,
           input_params: { mode, shift_ids: ["shift"], bus_model_id: "model", consumption_basis: basis,
@@ -58,6 +73,11 @@ for (const { mode, entry, outcome } of scenarios) {
             per_bus_summary: [{shift_id: "shift", shift_name: shift.name, total_charged_kwh: 0,
               num_charging_sessions: 0, charging_sessions: [], min_soc_kwh: 150, max_soc_kwh: packs * 50 * .9}],
           }};
+        if (guideLanguage) {
+          const { consumption_analysis, per_bus_summary } = guideDesigns[basis];
+          record.results.consumption_analysis = consumption_analysis;
+          record.results.per_bus_summary = per_bus_summary.map(row => ({ ...row, shift_name: shift.name, bus_model_name: labels.bus }));
+        }
         if (outcome === "q95-infeasible") {
           record.basis_summaries = {
             mean: {status:"completed",verification_status:"verified",electrification_feasible:true},
@@ -81,10 +101,10 @@ for (const { mode, entry, outcome } of scenarios) {
         return record;
       };
       if (entry === "duplicate") runs.push(result("aggregate_q95", true));
-      await page.addInitScript(() => {
+      await page.addInitScript(selectedLanguage => {
         localStorage.setItem("access_token", "local-browser-test");
-        localStorage.setItem("elettra_lang", "en");
-      });
+        localStorage.setItem("elettra_lang", selectedLanguage);
+      }, language);
       await page.route("**/auth/me", route => route.fulfill({json: {id: "user", full_name: "Local test", email: "local@example.invalid"}}));
       await page.route("**/api/v1/**", async route => {
         const request = route.request();
@@ -127,22 +147,22 @@ for (const { mode, entry, outcome } of scenarios) {
         await route.fulfill({json: data});
       });
       page.on("dialog", dialog => { throw new Error(`Unexpected browser dialog: ${dialog.message()}`); });
-      if (captureGuide) await page.setViewportSize({ width: 1740, height: 1600 });
+      if (guideLanguage) await page.setViewportSize({ width: 1740, height: 1600 });
       await page.goto("./#simulation-runs");
       if (entry === "duplicate") {
         await page.getByRole("checkbox", {name: "Select run", exact: true}).check();
         await page.locator('[data-row-action="duplicate"]').click();
       } else {
-        await page.getByRole("button", {name: "New", exact: true}).click();
+        await page.getByRole("button", {name: strings["simulation.new_list_action"], exact: true}).click();
       }
-      await expect(page.getByText("Mean and Q95", {exact: true})).toBeVisible();
+      await expect(page.getByText(strings["simulation.aggregate_both"], {exact: true})).toBeVisible();
       await expect(page.getByLabel("Optimize for", {exact: true})).toHaveCount(0);
-      const evaluationName = guideScenario ? "Demo weekday service" : "Paired local regression";
+      const evaluationName = guideScenario ? labels.pairedEvaluation : "Paired local regression";
       await page.locator("#simulation-name").fill(evaluationName);
       const weekdays = page.locator("#simulation-service-weekday");
       if (entry === "duplicate") await expect(weekdays).toHaveValue("monday");
       else await weekdays.selectOption("monday");
-      await page.getByRole("checkbox", {name: "Select vehicle block", exact: true}).check();
+      await page.getByRole("checkbox", {name: strings["simulation.select_shift"], exact: true}).check();
       await page.locator("#var-optimization-mode").selectOption(mode);
       await page.locator("#var-bus-model-override").selectOption("model");
       if (mode === "charging_only") await page.locator('[name="fixed_battery_packs"]').fill("14");
@@ -152,9 +172,21 @@ for (const { mode, entry, outcome } of scenarios) {
         await page.locator("#var-usable-capacity").fill("70");
         await expect(page.locator('[data-role="battery-preview"]')).toContainText("560 kWh");
         const form = page.locator(".add-simulation");
-        await form.getByRole("checkbox", { name: "Select stop", exact: true }).check();
-        if (captureGuide) {
-          await expect(form.getByText("Demo depot", { exact: true })).toBeVisible();
+        await form.getByRole("checkbox", { name: strings["simulation.select_stop"], exact: true }).check();
+        if (guideLanguage) {
+          await expect(page.locator("html")).toHaveAttribute("lang", language);
+          await expect(form.getByRole("heading", { level: 1 })).toHaveText(strings["simulation.make_simulation"]);
+          await expect(form.getByText(demoDepot.stop_name, { exact: true })).toBeVisible();
+          await expect(form.getByText(labels.duty, { exact: true })).toBeVisible();
+          await expect(form.locator('.shift-table [data-id="shift"]')).toContainText(
+            strings["buses.vehicle_category_articulated_18m"],
+          );
+          await expect(form.locator("#var-bus-model-override option:checked")).toHaveText(labels.bus);
+          await page.evaluate(() => document.fonts.ready);
+          const table = form.locator(".shift-table-wrapper");
+          expect(await table.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+          const depot = form.locator(".stops-table .stop-name");
+          expect(await depot.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
           await form.locator("main").evaluate(main => { main.scrollTop = 0; });
           await page.locator("#var-usable-capacity").blur();
           await page.mouse.move(0, 0);
@@ -163,15 +195,15 @@ for (const { mode, entry, outcome } of scenarios) {
           const { x, y, width } = await form.boundingBox();
           const footer = await form.locator(".evaluation-form-footer").boundingBox();
           await page.screenshot({
-            path: "guide/images/feasibility-form.png",
+            path: feasibilityGuideImage(language, "feasibility-form"),
             clip: { x, y, width, height: Math.ceil(footer.y + footer.height - y + 24) },
             animations: "disabled",
           });
         }
       }
-      const start = page.getByRole("button", {name: "Start evaluation", exact: true});
+      const start = page.getByRole("button", {name: strings["simulation.run"], exact: true});
       await start.click();
-      const confirmation = page.getByRole("dialog", {name: "Start this evaluation?"});
+      const confirmation = page.getByRole("dialog", {name: strings["simulation.run_confirm"]});
       await expect(confirmation).toBeVisible();
       await expect(confirmation.getByText(evaluationName, {exact: true})).toBeVisible();
       await expect(confirmation.locator('[data-role="evaluation-confirm-count"]')).toHaveText("1");
@@ -191,7 +223,7 @@ for (const { mode, entry, outcome } of scenarios) {
         expect(predictions).toHaveLength(0);
         await start.click();
       }
-      await confirmation.getByRole("button", {name: "Start evaluation", exact: true}).click();
+      await confirmation.getByRole("button", {name: strings["simulation.run"], exact: true}).click();
       if (delayedQ95) {
         const progress = page.getByRole("dialog", {name: "Evaluation in progress"});
         await expect(progress).toBeVisible();
@@ -240,8 +272,10 @@ for (const { mode, entry, outcome } of scenarios) {
       }
       await expect(page.getByRole("heading", {level: 1})).toContainText(guideScenario ? evaluationName : "Paired mean");
       const switcher = page.locator('[data-role="paired-basis-switch"] [data-role="aggregate-basis"]');
-      await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText('Mean-based demand scenario');
-      await expect(page.locator('[data-role="feasibility-service-day"]')).toHaveText('Service day · Monday');
+      await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText(strings["simulation.feasibility_basis_mean"]);
+      await expect(page.locator('[data-role="feasibility-service-day"]')).toHaveText(
+        strings["simulation.service_day_result"].replace("{day}", strings["simulation.day_monday"]),
+      );
       await expect(page.locator('.feasibility-level__scenario-mode [data-role="feasibility-overall-status"]')).toHaveCount(1);
       if (outcome === "q95-infeasible") {
         const mixedText = "Feasible for Mean, not feasible for Q95";
@@ -280,36 +314,58 @@ for (const { mode, entry, outcome } of scenarios) {
         return;
       }
       await switcher.selectOption("aggregate_q95");
-      await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText('Q95-based demand scenario');
+      await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText(strings["simulation.feasibility_basis_q95"]);
       await expect(page.getByRole("heading", {level: 1})).toContainText(guideScenario ? evaluationName : "Paired aggregate_q95");
       const batteryRow = page.locator('[data-role="feasibility-fleet-battery"] tbody tr[data-shift-id="shift"]');
       await expect(batteryRow.locator('td').nth(0)).toHaveText('14');
       await expect(batteryRow.locator('td').nth(1)).toHaveText('700');
-      await expect(page.getByRole("button", {name: "Run new optimization", exact: true})).toHaveCount(0);
+      await expect(page.getByRole("button", {name: strings["simulation.aggregate_calculate"], exact: true})).toHaveCount(0);
       if (guideScenario) {
         await expect(switcher).toHaveValue("aggregate_q95");
-        await expect(page.getByRole("tab", { name: "General", exact: true })).toHaveAttribute("aria-selected", "true");
-        await expect(page.getByRole("button", { name: "Download all results (JSON)" })).toBeEnabled();
+        await expect(page.getByRole("tab", { name: strings["simulation.feasibility_scope_general"], exact: true })).toHaveAttribute("aria-selected", "true");
+        await expect(page.getByRole("button", { name: strings["simulation.results_download_json"] })).toBeEnabled();
         await expect(page.locator('[data-role="feasibility-active-locations"]')).toHaveText("1");
         await expect(page.locator('[data-role="analysis-gtfs"]')).toContainText("2026");
-        if (captureGuide) {
-          await page.setViewportSize({ width: 1360, height: 1130 });
+        if (guideLanguage) {
+          await page.setViewportSize({ width: 1360, height: 1220 });
+          await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+            `${strings["simulation.results_page_title"]} - ${evaluationName}`,
+          );
+          await expect(page.locator('[data-role="feasibility-overall-status"]')).toHaveText(strings["simulation.feasibility_all_shifts_feasible"]);
+          await expect(batteryRow).toContainText(labels.duty);
+          await page.evaluate(() => document.fonts.ready);
           await switcher.blur();
           await page.mouse.move(0, 0);
           const results = page.locator(".simulation-results-page");
           const { x, y, width } = await results.boundingBox();
-          const close = results.getByRole("button", { name: "Close", exact: true });
+          const close = results.getByRole("button", { name: strings["common.close"], exact: true });
           await expect(close).toBeInViewport();
           const footer = await close.boundingBox();
           await page.screenshot({
-            path: "guide/images/feasibility-efficiency.png",
+            path: feasibilityGuideImage(language, "feasibility-efficiency"),
             clip: { x, y, width, height: Math.ceil(footer.y + footer.height - y + 24) },
             animations: "disabled",
           });
+          await page.getByRole("tab", { name: labels.duty, exact: true }).click();
+          const battery = page.locator('[data-role="aggregate-energy"]');
+          await expect(battery).toHaveAttribute("data-status", "available");
+          await expect(battery.locator('[data-role="aggregate-usable-capacity"]')).toContainText("490");
+          const histogram = battery.locator('[data-role="energy-distribution"]');
+          await expect(histogram).toHaveAttribute("data-packs", "14");
+          await expect(histogram.locator('[data-role="energy-distribution-bin"]')).toHaveCount(60);
+          const marker = histogram.locator('[data-role="energy-distribution-marker"]');
+          await expect(marker).toHaveAttribute("data-basis", "aggregate_q95");
+          await expect(marker).toHaveAttribute("data-value", "539.2");
+          await expect(battery.locator('.aggregate-soc--verified').first()).toBeVisible();
+          await expect(battery.locator('.aggregate-warning')).toHaveCount(0);
+          await expect(page.locator('[data-role="feasibility-shift-visual-analysis"]')).toHaveCount(0);
+          await page.mouse.move(0, 0);
+          await battery.screenshot({ path: feasibilityGuideImage(language, "feasibility-sizing"), animations: "disabled" });
+          await page.getByRole("tab", { name: strings["simulation.feasibility_scope_general"], exact: true }).click();
         }
       }
       await switcher.selectOption("mean");
-      await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText('Mean-based demand scenario');
+      await expect(page.locator('[data-role="feasibility-demand-basis"]')).toHaveText(strings["simulation.feasibility_basis_mean"]);
       await expect(page.getByRole("heading", {level: 1})).toContainText(guideScenario ? evaluationName : "Paired mean");
       expect(submitted).toHaveLength(1);
     });

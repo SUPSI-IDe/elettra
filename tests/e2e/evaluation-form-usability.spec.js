@@ -80,3 +80,56 @@ test('filtered bulk selection preserves other selections and the form reveals re
   await all.uncheck();
   await expect(stops).toBeHidden();
 });
+
+test('localizes the vehicle block model category while retaining custom names and depot identity', async ({ page }) => {
+  const depotId = '11111111-1111-4111-8111-111111111111';
+  const models = [
+    { id: 'category', user_id: 'user', name: 'Articulated demo', specs: { bus_length_m: 18 } },
+    { id: 'custom', user_id: 'user', name: 'TPL custom model', specs: {} },
+  ];
+  const buses = models.map(model => ({ id: model.id, user_id: 'user', bus_model_id: model.id }));
+  const shifts = buses.map(bus => ({ id: bus.id, name: bus.id, bus_id: bus.id, compatible_weekdays: ['monday'] }));
+  await page.addInitScript(() => {
+    localStorage.setItem('access_token', 'test');
+    localStorage.setItem('elettra_lang', 'en');
+  });
+  await page.route('**/auth/me', route => route.fulfill({ json: { id: 'user', email: 'local@example.invalid' } }));
+  await page.route('**/api/v1/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    let data = [];
+    if (path.endsWith('/version')) data = { version: 'test' };
+    else if (path.endsWith('/bus-models/')) data = models;
+    else if (path.endsWith('/buses/')) data = buses;
+    else if (path.endsWith('/shifts/')) data = shifts;
+    else if (path.endsWith('/simulation/charging-stops/candidates')) data = [{
+      stop_id: depotId, stop_name: 'Deposito Nord', is_depot: true, is_custom: true, depot_bus_count: 1,
+    }];
+    return route.fulfill({ json: data });
+  });
+  await page.goto('./#add-simulation');
+  await page.locator('#simulation-service-weekday').selectOption('monday');
+  const category = page.locator('.shift-table tr[data-id="category"]');
+  const custom = page.locator('.shift-table tr[data-id="custom"]');
+  await expect(category).toContainText('Articulated electric bus — 18 m');
+  await expect(custom).toContainText('TPL custom model');
+  await category.getByRole('checkbox').check();
+  await page.locator('#var-optimization-mode').selectOption('battery_only');
+  const stop = page.locator(`tr[data-stop-id="${depotId}"]`);
+  await expect(stop.locator('.stop-name')).toHaveText('Deposito Nord');
+
+  const refreshedShifts = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/shifts/'));
+  await page.evaluate(async () => {
+    const { setLanguage } = await import('/elettra/src/i18n/index.js');
+    setLanguage('fr');
+  });
+  await refreshedShifts;
+  await page.locator('#simulation-service-weekday').selectOption('monday');
+  await expect(category).toContainText('Bus électrique articulé — 18 m');
+  await expect(custom).toContainText('TPL custom model');
+  await category.getByRole('checkbox').check();
+  await page.locator('#var-optimization-mode').selectOption('battery_only');
+  await expect(stop.locator('.stop-name')).toHaveText('Deposito Nord');
+  await page.locator('#sim-shift-filter').fill('électrique articulé');
+  await expect(category).toBeVisible();
+  await expect(custom).toHaveCount(0);
+});

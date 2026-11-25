@@ -315,6 +315,10 @@ a:hover {
   overflow-wrap: anywhere;
 }
 
+.guide-item[id] {
+  scroll-margin-top: 5.25rem;
+}
+
 .guide-item h3 {
   margin: 0;
   color: var(--guide-brand-dark);
@@ -633,6 +637,7 @@ a:hover {
   }
 
   .guide-section,
+  .guide-item[id],
   .guide-use-case,
   .guide-flow {
     scroll-margin-top: 9rem;

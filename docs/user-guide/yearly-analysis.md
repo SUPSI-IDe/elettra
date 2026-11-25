@@ -1,7 +1,7 @@
 # Yearly Analysis
 
 > Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.2
+> Interface baseline: Frontend v1.4.4-rc.3
 
 A yearly analysis keeps the bus, battery, and charging design selected by a
 completed feasibility evaluation fixed and applies it to representative
@@ -21,22 +21,26 @@ The current result page separates two questions:
 
 Open **Simulations → Yearly analyses** and select **New**.
 
-1. Enter a descriptive analysis name.
-2. Select a feasible evaluation that is eligible for yearly analysis and has
-   a recorded battery-pack count.
-3. Review the inherited vehicle blocks, optimization mode, sizing temperature,
-   selected packs, and capacity.
-4. Set the average passenger occupancy for the annual predictions.
-5. Review the representative temperatures, their day counts and the weather
-   reference. The temperature scenarios and day counts are read-only.
-6. Confirm and start the analysis.
-
-Each weather scenario is applied to every selected vehicle block. The
-feasibility verdict and battery sizing come from the linked feasibility
-evaluation.
-
-The form displays a warning when the total number of days is positive and
-differs from 365. A total of zero prevents the analysis from starting.
+1. Enter a **Name** and select a completed, feasible, eligible evaluation in
+   **Simulation**. It must have a recorded battery-pack count. When both Mean
+   and Aggregate Q95 are eligible, select the intended saved variant.
+2. Review the inherited vehicle blocks, optimization mode, sizing temperature,
+   pack counts and capacities. A multi-block evaluation can carry different
+   batteries for different blocks.
+3. Set **Average passengers on board (%)** for the annual forecasts. The form
+   proposes the source evaluation’s occupancy if it is one of the available
+   options and otherwise selects 50%.
+4. Review the automatically selected weather reference depot and the
+   read-only **Temperature scenarios**. ELETTRA uses the vehicle blocks’
+   arrival depots to establish the weather reference when available. Each row
+   shows a representative
+   daytime temperature (05:00–24:00) and its occurrences in days/year.
+   A total other than 365 produces a warning. A total of zero prevents
+   the analysis from starting.
+5. Click **Run yearly analysis**, check the block count, scenario count and
+   reference depot, then select **Start analysis**. ELETTRA applies each
+   scenario to all the vehicle blocks in the evaluation, keeping each block’s
+   battery and charging design. The results open automatically when finished.
 
 ---
 
@@ -90,15 +94,16 @@ The **Annual fleet assessment** starts with a compact six-metric summary:
 - minimum/maximum average vehicle-block efficiency, electric TCO, and climate
   impact.
 
-Efficiency **Min** and **Max** appear on separate lines, each with its vehicle
-block name; values remain vertically centred beside the label. Long vehicle
-block lists wrap within cells in the annual-analysis list without hiding
-names or widening the table.
+Efficiency **Min** and **Max** identify the blocks with the lowest and highest
+average bus-side consumption in kWh/km. For a group with one block, the summary
+shows that block’s value.
 
-Use **Representative bus / Fleet** to switch between the complete fleet and a
-group sharing the same bus model and battery size. Vehicle blocks remain in the
-group assigned by feasibility; changing the display scope does not reassign
-them.
+Use **Representative bus / Fleet** to switch between the whole fleet and the
+per-bus results of a group sharing the same bus model and battery size. In the
+fleet scope, the group table shows the number of physical buses, annual distance
+per bus and distance-weighted consumption for each configuration. Vehicle blocks
+retain their feasibility assignments. The current assessment uses 94% charging
+efficiency to convert bus-side DC energy to purchased grid electricity.
 
 ### Costs
 
@@ -111,15 +116,24 @@ amount. The cumulative chart on the right shows when costs and the final
 residual-value credit occur. Dividing a bar total by the annual distance for
 the same scope gives the TCO in CHF/km.
 
-**Edit economic assumptions** is an expandable card below the charts. Changes
-are saved automatically in the yearly analysis and reused by Costs and
-Emissions. They update the displayed assessment but do not rerun feasibility or
-alter the selected technical design.
+Bus and battery investment follows the physical buses in scope. Shared
+charging infrastructure counts once for the fleet, with an equal share per
+physical bus. The electric and diesel designs use the same mileage, analysis
+horizon and discount rate. The comparison excludes drivers and diesel refuelling
+infrastructure. Break-even is the first year after which discounted electric
+costs stay below diesel costs through the selected horizon. The result flags a
+crossing due only to the final residual value.
 
-Inside this card, **Additional economic parameters** contains maintenance,
-the assessment horizon, discount rate, diesel purchase price and component
-lifetimes. **Calculation method and boundaries** is a separate explanatory
-disclosure covering TCO, time horizon, residual values and assessment limits.
+Open **Edit economic assumptions** below the charts to change electricity price
+(CHF/kWh of purchased grid electricity), diesel price (CHF/l), diesel consumption
+(l/km), electric and diesel bus maintenance (CHF/km), and annual mileage
+(km per bus) for each battery group. **Additional economic parameters** contains
+charging infrastructure maintenance, analysis horizon and component lifetimes
+(years), discount rate (%), and diesel purchase price (CHF/bus).
+**Calculation method and boundaries** explains how TCO treats those inputs and
+the residual values. Changes save automatically. Costs and Emissions share the
+mileage and physical assumptions relevant to both views, while the linked
+technical design and simulated block results retain their original inputs.
 
 For charging infrastructure maintenance, select either an editable percentage
 of charging investment per year or a fixed amount in CHF/year. The default
@@ -157,28 +171,30 @@ kept missing: affected reductions are omitted instead of treating it as zero.
 
 ## Vehicle-block efficiency
 
-Select a named vehicle block. Below the HVAC and GTFS information cards, a compact
-white summary reports annual energy, simulated distance, and average
-efficiency. The efficiency content is shown directly, without another
-single-item tab.
+Select a named vehicle block to see its original simulated annual energy,
+distance and average consumption, followed by its temperature charts and
+expandable scenario, battery and critical-condition details. The
+specific-consumption chart shows kWh/km. Use **kWh/year** or **kWh/day** on
+the energy-contribution chart to switch between the cluster’s weighted annual
+contribution and the consumption of one representative day. In the eight-cluster
+guide example, the block uses 245 kWh/day at −4 °C. That cluster represents 40
+days, so its point estimate contributes 9,800 kWh/year. Its daily Q05–Q95 range
+is 221.4–268.4 kWh/day. The chart uses the underlying values to show a weighted
+range of 8,857–10,735 kWh/year.
 
-It includes:
+For each temperature scenario, ELETTRA draws sampled consumption independently
+for each trip, including trips across different blocks, and sums the trips in
+scope before taking the quantiles. Q50 is the median and Q05–Q95 is the central
+90% of the modelled consumption for that representative day. In kWh/km, the
+sampled total is divided by the corresponding distance. In kWh/year, the same
+scenario quantiles scale by the cluster’s day count. The weighted range applies
+to that scenario’s contribution. The annual total is presented as a point
+estimate, and scenarios without quantiles still show their point estimates.
 
-- specific consumption by representative temperature with uncertainty;
-- annual energy contribution by temperature scenario;
-- a yearly/daily energy-unit toggle where available;
-- expandable scenario, battery, and critical-condition details.
-
-For each representative day, ELETTRA uses Monte Carlo sampling to draw each
-trip’s consumption independently, including trips in different vehicle blocks.
-For kWh/km, divide the sampled total by the distance for the same scope. For
-kWh/year, multiply the representative day’s contribution by the number of days
-in its weather cluster. Q05–Q95 describes the central 90% of the modeled
-consumption for that representative day and its weighted contribution.
-
-Historical analyses that do not contain the current frozen investment/activity
-structure can use the legacy result layout or show General only. ELETTRA does
-not invent unavailable per-block values from an aggregate total.
+Historical analyses can use a legacy layout with Costs and Emissions on
+individual block tabs. Historical block cost reports can allocate shared
+infrastructure by annual DC energy. An older analysis with aggregate-only
+results may show only General.
 
 ---
 
@@ -186,15 +202,20 @@ not invent unavailable per-block values from an aggregate total.
 
 **Download all results (JSON)** appears in General, next to the close action.
 The export contains General and a separate entry for every available vehicle
-block, including assumptions, provenance, scope, and allocation metadata where
-available.
+block. It retains the frozen configuration, source feasibility evaluation,
+recorded GTFS and weather references, and the saved scenario energy and
+distance, uncertainty and forecast identifiers where available. The separate
+HVAC download provides the complete HVAC reproduction inputs.
 
 For analyses with the current fleet investment snapshot, the file uses JSON
 schema 4 and includes fleet totals, representative groups and the effective
 economic assumptions. Simulated technical activity is kept separate from edited
 annual mileage. Environmental results identify their scope and availability;
-previous responses retained during an update are labelled separately. Historical
-analyses without that investment snapshot retain schema 3.
+previous responses retained during an update are labelled separately. Use the
+group’s fleet contribution to add group values to a fleet total and the
+representative-bus entry to read values per bus. Vehicle blocks point to their
+group for environmental results. Historical analyses without the investment
+snapshot retain schema 3.
 
 The complete JSON always contains fleet totals and all representative groups,
 even when a single representative bus is selected. The separate download in

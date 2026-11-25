@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
-
-const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === "1";
+import { translations } from "../../src/i18n/translations.js";
+import {
+  feasibilityGuideImage, feasibilityGuideLabels, guideCaptureEnabled, guideLocales,
+} from "../../test-support/feasibility-guide-screenshots.js";
 
 const battery = (shiftName, packs, overrides = {}) => ({
   shift_name: shiftName,
@@ -45,6 +47,7 @@ const prediction = (id, shiftId, packs, consumption) => ({
 
 const mountResults = async (page, {
   runId = "level-test",
+  guideLabels,
   shiftIds = ["morning", "evening"],
   shiftNames: shiftNameOverrides = {},
   resultShiftNames: resultShiftNameOverrides = {},
@@ -53,7 +56,7 @@ const mountResults = async (page, {
   mode = "battery_only",
   chargingStations = [{
     stop_id: "depot",
-    stop_name: "Depot",
+    stop_name: guideLabels?.chargingDepot ?? "Depot",
     num_slots: 2,
     max_power_per_slot_kw: 150,
   }],
@@ -94,8 +97,8 @@ const mountResults = async (page, {
     localStorage.setItem("elettra_lang", selectedLanguage);
   }, language);
   const shiftNames = {
-    morning: "Morning service",
-    evening: "Evening service",
+    morning: guideLabels?.morning ?? "Morning service",
+    evening: guideLabels?.evening ?? "Evening service",
     ...shiftNameOverrides,
   };
   const resultShiftNames = {
@@ -124,7 +127,7 @@ const mountResults = async (page, {
         end_minute: 90,
         duration_minutes: 30,
         station_stop_id: "depot",
-        station_name: "Depot",
+        station_name: guideLabels?.chargingDepot ?? "Depot",
         energy_kwh: 60,
       },
       {
@@ -132,7 +135,7 @@ const mountResults = async (page, {
         end_minute: 730,
         duration_minutes: 10,
         station_stop_id: "depot",
-        station_name: "Depot",
+        station_name: guideLabels?.chargingDepot ?? "Depot",
         energy_kwh: 20,
       },
     ],
@@ -142,7 +145,7 @@ const mountResults = async (page, {
         end_minute: 10,
         duration_minutes: 20,
         station_stop_id: "depot",
-        station_name: "Depot",
+        station_name: guideLabels?.chargingDepot ?? "Depot",
         energy_kwh: 50,
       },
       {
@@ -150,7 +153,7 @@ const mountResults = async (page, {
         end_minute: 1530,
         duration_minutes: 30,
         station_stop_id: "depot",
-        station_name: "Depot",
+        station_name: guideLabels?.chargingDepot ?? "Depot",
         energy_kwh: 60,
       },
       {
@@ -158,7 +161,7 @@ const mountResults = async (page, {
         end_minute: 1615,
         duration_minutes: 15,
         station_stop_id: "depot",
-        station_name: "Depot",
+        station_name: guideLabels?.chargingDepot ?? "Depot",
         energy_kwh: 30,
       },
     ],
@@ -177,7 +180,7 @@ const mountResults = async (page, {
       await route.fulfill({
         json: {
           id: runId,
-          name: "Multi-shift feasibility",
+          name: guideLabels?.multiShiftEvaluation ?? "Multi-shift feasibility",
           mode,
           status: runStatus,
           input_params: {
@@ -295,11 +298,15 @@ const mountResults = async (page, {
   });
 
   await page.goto("./");
-  await page.evaluate(async ({ runId, options }) => {
+  await page.evaluate(async ({ runId, options, guideLanguage }) => {
     const template = await fetch(
       "/elettra/src/pages/Simulation/Runs/simulation-results.html",
     ).then((response) => response.text());
     document.body.innerHTML = template;
+    if (guideLanguage) {
+      const { applyTranslations } = await import("/elettra/src/i18n/index.js");
+      applyTranslations(guideLanguage);
+    }
     const { initializeSimulationResults } = await import(
       "/elettra/src/pages/Simulation/Runs/simulation-results.js"
     );
@@ -307,7 +314,7 @@ const mountResults = async (page, {
       runId,
       ...options,
     });
-  }, { runId, options: initializerOptions });
+  }, { runId, options: initializerOptions, guideLanguage: guideLabels ? language : null });
   return requestedApiPaths;
 };
 
@@ -617,31 +624,34 @@ test("shows one selected row when initial and selected use the same forecast", a
   ).toContainText('Selected');
 });
 
+const resultGuideDataset = {
+  gtfs_year: 2027,
+  gtfs_file_date: "2026-11-04",
+  valid_from: "2026-12-13",
+  valid_to: "2027-12-11",
+};
+
+const sizingResultOptions = {
+  gtfsProvenance: {
+    version: 1,
+    source: "recorded",
+    shifts: { morning: [resultGuideDataset], evening: [resultGuideDataset] },
+  },
+  currentGtfs: [resultGuideDataset],
+  serviceWeekday: "monday",
+  forecastVerification: { status: "verified" },
+  predictionOverrides: {
+    "prediction-morning": prediction("prediction-morning", "morning", 8, 315),
+    "prediction-evening": prediction("prediction-evening", "evening", 12, 550),
+  },
+  perBusSummaryOverrides: {
+    morning: { max_soc_kwh: 360 },
+    evening: { min_soc_kwh: 130, max_soc_kwh: 540 },
+  },
+};
+
 test("separates the common result from one selected shift without an aggregate option", async ({ page }) => {
-  const dataset = {
-    gtfs_year: 2027,
-    gtfs_file_date: "2026-11-04",
-    valid_from: "2026-12-13",
-    valid_to: "2027-12-11",
-  };
-  await mountResults(page, {
-    gtfsProvenance: {
-      version: 1,
-      source: "recorded",
-      shifts: { morning: [dataset], evening: [dataset] },
-    },
-    currentGtfs: [dataset],
-    serviceWeekday: "monday",
-    forecastVerification: { status: "verified" },
-    predictionOverrides: {
-      "prediction-morning": prediction("prediction-morning", "morning", 8, 315),
-      "prediction-evening": prediction("prediction-evening", "evening", 12, 550),
-    },
-    perBusSummaryOverrides: {
-      morning: { max_soc_kwh: 360 },
-      evening: { min_soc_kwh: 130, max_soc_kwh: 540 },
-    },
-  });
+  await mountResults(page, sizingResultOptions);
 
   const general = page.locator('[data-role="feasibility-general-level"]');
   const shiftDetail = page.locator('[data-role="feasibility-shift-level"]');
@@ -888,23 +898,6 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(visualAnalysis.locator(".efficiency-adequacy-panel")).toHaveCount(0);
   await expect(energyAdequacy.locator(".efficiency-adequacy-panel")).toHaveCount(1);
   await expect(shiftDetail).not.toContainText("Sensitivity / Feasibility Insight");
-
-  if (updateGuideScreenshots && !test.info().project.use.isMobile) {
-    await page.setViewportSize({ width: 1400, height: 2330 });
-    await chargingPlan.locator(":scope > summary").blur();
-    await page.locator(".results-main").evaluate(main => { main.scrollTop = 0; });
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.mouse.move(0, 0);
-    await expect(shiftSummary).toBeInViewport();
-    await expect(visualAnalysis).toBeInViewport();
-    await expect(chargingPlan).toBeInViewport();
-    const planBounds = await chargingPlan.boundingBox();
-    await page.screenshot({
-      path: "guide/images/feasibility-sizing.png",
-      clip: { x: 0, y: 0, width: 1400, height: Math.ceil(planBounds.y + planBounds.height + 24) },
-      animations: "disabled",
-    });
-  }
 
   const shiftSectionOrder = await shiftDetail
     .locator(".feasibility-level__content > *")
@@ -2741,6 +2734,63 @@ test('charging cards distinguish available time from active time and keep detail
   await expect(tooltip).toBeHidden();
 });
 
+function uniformInfeasibleResultOptions(mode, consumptionBasis, source, shiftName = "Old saved name") {
+  const critical = battery(shiftName, 8, {
+    required_total_packs: 10, max_physical_packs: 8, max_physical_kwh: 400,
+    physical_feasible: false, excess_packs: 2,
+    feasibility_status: "infeasible_requires_excess_packs",
+  });
+  return {
+    mode, consumptionBasis, fixedBatteryPacks: 8, electrificationFeasible: false,
+    serviceWeekday: "monday",
+    gtfsProvenance: {
+      version: 1, source: "recorded",
+      shifts: { morning: [resultGuideDataset], evening: [resultGuideDataset] },
+    },
+    solverStatus: source === "result" ? "optimal" : "infeasible",
+    forecastVerification: { status: source === "result" ? "physical_limits_exceeded" : "infeasible" },
+    includeBatteryResults: source === "result", includePerBusSummary: source === "result",
+    batteryResultOverrides: { evening: critical }, dailyCycle: { status: "unverified" },
+    infeasibilityDiagnostics: source === "diagnostic" ? {
+      status: "available", forecast_verification: { status: "physical_limits_exceeded" },
+      battery_results: { evening: critical }, reasons: [],
+    } : undefined,
+  };
+}
+
+for (const language of guideLocales) {
+  const guideLabels = feasibilityGuideLabels[language];
+  const strings = translations[language];
+
+  test(`captures infeasible evaluation for the guide in ${language}`, async ({ page }, testInfo) => {
+    test.skip(!guideCaptureEnabled(testInfo), "Guide screenshots are generated on demand with desktop Chromium");
+    await page.setViewportSize({ width: 1100, height: 670 });
+    await mountResults(page, {
+      ...uniformInfeasibleResultOptions("joint", "mean", "diagnostic", guideLabels.evening),
+      guideLabels, language,
+    });
+    await expect(page.locator("html")).toHaveAttribute("lang", language);
+    await expect(page.locator('[data-role="results-page-title"]')).toHaveText(
+      `${strings["simulation.results_page_title"]} - ${guideLabels.multiShiftEvaluation}`,
+    );
+    const general = page.locator('[data-role="feasibility-general-level"]');
+    await expect(general).toContainText(strings["simulation.feasibility_infeasible_general_subtitle"]);
+    await expect(general.getByRole("heading", { name: strings["simulation.feasibility_critical_shifts"] })).toBeVisible();
+    await expect(general.locator('[data-role="feasibility-service-day"]')).toHaveText(
+      strings["simulation.service_day_result"].replace("{day}", strings["simulation.day_monday"]),
+    );
+    const row = general.locator('[data-role="feasibility-critical-shifts"] tbody tr');
+    await expect(row.getByRole("button", { name: guideLabels.evening })).toBeVisible();
+    await expect(row.locator("td")).toHaveText(["8", "8", "10", "+2"]);
+    const download = page.getByRole("button", { name: strings["simulation.results_download_json"] });
+    await expect(download).toBeEnabled();
+    await expect(download).toBeInViewport();
+    await page.evaluate(() => document.fonts.ready);
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: feasibilityGuideImage(language, "feasibility-infeasible"), animations: "disabled" });
+  });
+}
+
 // The same physical shortfall can be returned directly (412) or in a
 // daytime-only diagnostic after an infeasible daily cycle (405).
 for (const mode of ['battery_only', 'charging_only', 'joint']) {
@@ -2749,27 +2799,7 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
       test(`uniform infeasible ${mode} ${consumptionBasis} ${source}: General table opens one battery`, async ({ page }) => {
         const warnings = [];
         page.on('pageerror', error => warnings.push(error.message));
-        const critical = battery('Old saved name', 8, {
-          required_total_packs: 10, max_physical_packs: 8, max_physical_kwh: 400,
-          physical_feasible: false, excess_packs: 2,
-          feasibility_status: 'infeasible_requires_excess_packs',
-        });
-        const dataset = {
-          gtfs_year: 2027, gtfs_file_date: '2026-11-04', valid_from: '2026-12-13', valid_to: '2027-12-11',
-        };
-        await mountResults(page, {
-          mode, consumptionBasis, fixedBatteryPacks: 8, electrificationFeasible: false,
-          serviceWeekday: 'monday',
-          gtfsProvenance: { version: 1, source: 'recorded', shifts: { morning: [dataset], evening: [dataset] } },
-          solverStatus: source === 'result' ? 'optimal' : 'infeasible',
-          forecastVerification: {status: source === 'result' ? 'physical_limits_exceeded' : 'infeasible'},
-          includeBatteryResults: source === 'result', includePerBusSummary: source === 'result',
-          batteryResultOverrides: {evening: critical}, dailyCycle: {status: 'unverified'},
-          infeasibilityDiagnostics: source === 'diagnostic' ? {
-            status: 'available', forecast_verification: {status: 'physical_limits_exceeded'},
-            battery_results: {evening: critical}, reasons: [],
-          } : undefined,
-        });
+        await mountResults(page, uniformInfeasibleResultOptions(mode, consumptionBasis, source));
         const general = page.locator('[data-role="feasibility-general-level"]');
         const row = general.locator('[data-role="feasibility-critical-shifts"] tbody tr');
         await expect(row).toHaveCount(1);
@@ -2789,16 +2819,6 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
         await expect(general).not.toContainText('CHF');
         if (mode === 'joint' && consumptionBasis === 'mean') {
           await page.screenshot({path: test.info().outputPath(`uniform-${source}-general.png`), fullPage: true});
-        }
-        if (updateGuideScreenshots && !test.info().project.use.isMobile && mode === 'joint' && consumptionBasis === 'mean' && source === 'diagnostic') {
-          await page.setViewportSize({ width: 1100, height: 650 });
-          await expect(page.locator('[data-role="feasibility-service-day"]')).toHaveText('Service day · Monday');
-          const download = page.getByRole('button', { name: 'Download all results (JSON)' });
-          await expect(download).toBeEnabled();
-          await expect(download).toBeInViewport();
-          await constraints.locator('..').blur();
-          await page.mouse.move(0, 0);
-          await page.screenshot({ path: 'guide/images/feasibility-infeasible.png', animations: 'disabled' });
         }
         await row.getByRole('button', {name: 'Evening service', exact: true}).click();
         await expect(scopeSelector(page).getByRole('tab', {name: 'Evening service', exact: true})).toHaveAttribute('aria-selected', 'true');
