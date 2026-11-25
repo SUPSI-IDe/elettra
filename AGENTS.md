@@ -45,12 +45,15 @@ the appropriate complete suites.
 
 ## Test CPU budget
 
-Run tests on at most eight logical CPU cores, including all child processes
+On local machines and shared servers, run tests on at most eight logical CPU cores, including all child processes
 (browser workers and the Vite test server). On Linux, launch test commands with
 `taskset --cpu-list 0-7` when those CPUs are allowed; otherwise choose up to eight
 CPUs from the process's allowed CPU list. Child processes inherit that affinity.
 Keep the configured worker count at eight or fewer; a worker limit alone does
-not enforce the CPU budget. Preserve lower worker counts when appropriate.
+not enforce the CPU budget. GitHub-hosted runners are isolated VMs.
+Use 16 GitHub-hosted shards for the complete frontend browser suite and a separate
+parallel job for unit tests, the production build and bundle smoke tests. Each
+runner stays within its own CPU budget. Publishing requires all checks to pass. Preserve lower worker counts when appropriate.
 
 ## Agent skills
 

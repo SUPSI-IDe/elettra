@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'fix/**'
+      - 'ci/**'
     tags:
       - 'v*.*.*'
 
@@ -11,47 +12,50 @@ env:
   IMAGE_NAME: ghcr.io/supsi-ide/elettra
 
 jobs:
-  verify:
-    name: Verify (shard ${{ matrix.shard }}/2)
+  browser:
+    name: Browser (${{ matrix.shard }}/${{ strategy.job-total }})
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Set up Node
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Select up to four CPUs per shard
-        run: |
-          cpus=$(python3 -c 'import os; print(",".join(map(str, sorted(os.sched_getaffinity(0))[:4])))')
-          echo "TEST_CPUS=$cpus" >> "$GITHUB_ENV"
-      - name: Test
-        if: matrix.shard == 1
-        run: taskset -c "$TEST_CPUS" npm test
-      - name: Install browser test runtime
-        run: npx playwright install --with-deps chromium
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
       - name: Browser tests
-        run: taskset -c "$TEST_CPUS" npm run test:e2e -- --shard=${{ matrix.shard }}/2
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+
+  verify:
+    name: Unit tests and production bundle
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - run: npm test
       - name: Build
-        if: matrix.shard == 2
         env:
           VITE_API_ROOT: ""
         run: npm run build
+      - run: npx playwright install --with-deps chromium
       - name: Production bundle smoke test
-        if: matrix.shard == 2
-        run: taskset -c "$TEST_CPUS" npm run test:dist
+        run: npm run test:dist
 
   publish-image:
-    needs: verify
+    if: startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/fix/')
+    needs: [browser, verify]
     runs-on: ubuntu-latest
     permissions:
       contents: read
