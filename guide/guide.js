@@ -328,3 +328,4 @@ window.addEventListener("scroll", () => {
 }, { passive: true });
 
 renderGuide(getSavedLanguage());
+languageSelect.disabled = false;
