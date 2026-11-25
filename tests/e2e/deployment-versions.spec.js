@@ -32,6 +32,15 @@ test("the version lookup starts while session validation is waiting", async ({ p
   await expect(page.locator('[data-role="backend-version"]')).toHaveText("v1.2.3");
 });
 
+test("About identifies AMSA in each language", async ({ page }) => {
+  await page.route("**/api/v1/version", (route) => route.fulfill({ json: { version: "1.9.0" } }));
+  await page.goto("./#about");
+  for (const language of ["en", "de", "fr", "it"]) {
+    await page.locator(".language-select").selectOption(language);
+    await expect(page.locator('[data-i18n="about.partner_amsa"]')).toHaveText("Autolinea Mendrisiense SA");
+  }
+});
+
 test("About shows the loaded frontend and the version returned by the backend", async ({ page }) => {
   await page.route("**/api/v1/version", (route) =>
     route.fulfill({ json: { version: "9.8.7-test" } }));
