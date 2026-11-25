@@ -51,7 +51,7 @@ const LANGUAGES = {
     releaseTerms: {
       start: ["Startseite", "Benutzerhandbuch"],
       fleet: ["9 bis 13 m", "17 bis 19 m", "LFP", "NMC", "Schätzwert wiederherstellen", "Linie A_Kopie, Linie A_Kopie_1"],
-      shifts: ["GTFS", "vollständige serverseitige Liste", "Raum-Zeit", "Karte", "Tagesprogramm", "Zwischenaufenthalte", "In Umlauf übernehmen", "Abbrechen"],
+      shifts: ["GTFS", "vollständige serverseitige Liste", "Weg-Zeit", "Karte", "Tagesprogramm", "Zwischenaufenthalte", "In Umlauf übernehmen", "Abbrechen"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "1 Ladepunkt", "N Umläufe", "150 × N"],
       results: ["Konfiguriertes SOC-Fenster", "physischen Maximum", "Die vollständige Machbarkeitsbewertung exportieren", "Verfügbarkeit des Exports prüfen"],
       yearly: ["aufgezeichnete Herkunft", "gesamte Flotte", "Schema 4", "Schema 3", "Speicherstatus vor dem Schliessen prüfen", "frühere Antwort", "Erneut versuchen"],
