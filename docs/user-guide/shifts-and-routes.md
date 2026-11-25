@@ -1,7 +1,7 @@
 # Vehicle Blocks and Routes
 
 > Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.1
+> Interface baseline: Frontend v1.4.4-rc.2
 
 A vehicle block is the ordered service assigned to one bus over a day. It joins
 scheduled GTFS trips to the movements required before, between, and after them.

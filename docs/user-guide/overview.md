@@ -1,7 +1,7 @@
 # User Guide: Overview
 
 > Last updated: 2026-11-25
-> Interface baseline: Frontend v1.4.4-rc.1
+> Interface baseline: Frontend v1.4.4-rc.2
 
 ELETTRA supports preliminary planning for battery-electric bus services. It
 connects fleet and timetable data to a technical feasibility gate, then uses a

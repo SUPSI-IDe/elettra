@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.4-rc.2] - 2026-11-25
+
+- Illustrate a multi-hour vehicle block with repeated outward and return trips on two routes, the change of line and the depot movements.
+- Include the four-language guide and screenshot updates from 1.4.4-rc.1.
+
 ## [1.4.4-rc.1] - 2026-11-25
 
 - Update the four-language user guide with the sequential vehicle-block planner, route colours, bus battery estimates, service-day selection, paired feasibility results and equivalent annual costs.

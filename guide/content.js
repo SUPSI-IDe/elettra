@@ -1,6 +1,6 @@
 import { useCaseSections } from "./use-cases.js";
 
-export const GUIDE_BASELINE_VERSION = "1.4.4-rc.1";
+export const GUIDE_BASELINE_VERSION = "1.4.4-rc.2";
 export const GUIDE_UPDATED_AT = "25 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
@@ -87,10 +87,10 @@ const GUIDE_FIGURES = {
     width: 2800,
     height: 2210,
     captions: {
-      en: "Lines 1 and 2 share a space-time diagram. Each line has its own colour. Dashed segments show non-revenue movements.",
-      de: "Die Linien 1 und 2 sind im selben Raum-Zeit-Diagramm dargestellt. Jede Linie hat eine eigene Farbe. Gestrichelte Abschnitte zeigen Leerfahrten.",
-      fr: "Les lignes 1 et 2 figurent sur le même diagramme espace-temps. Chaque ligne a sa couleur. Les pointillés indiquent les trajets hors ligne.",
-      it: "Le linee 1 e 2 compaiono nello stesso diagramma spazio-tempo. Ogni linea ha un colore. I tratti tratteggiati indicano le corse fuori linea.",
+      en: "Example vehicle block, 05:50–14:00. The bus runs six trips on line 1 (blue) and four on line 2 (mauve), changing lines at Stazione. The two dashed segments connect the depot.",
+      de: "Beispielumlauf von 05:50 bis 14:00 Uhr. Der Bus fährt sechsmal auf Linie 1 (blau) und viermal auf Linie 2 (violett). An der Haltestelle Stazione wechselt er die Linie. Die beiden gestrichelten Abschnitte zeigen die Aus- und Einfahrt zum Depot.",
+      fr: "Exemple de service voiture de 05:50 à 14:00. Le bus effectue six courses sur la ligne 1 (bleu) et quatre sur la ligne 2 (mauve). Il change de ligne à Stazione. Les deux trajets en pointillés relient le dépôt.",
+      it: "Turno di esempio dalle 05:50 alle 14:00. Il bus effettua sei corse sulla linea 1 (blu) e quattro sulla linea 2 (malva), con cambio di linea a Stazione. I due tratti tratteggiati indicano l’uscita e il rientro in deposito.",
     },
   },
   feasibilityForm: {

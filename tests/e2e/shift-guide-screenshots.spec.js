@@ -66,7 +66,7 @@ function movement(id, tripId, stops, route = null) {
     departure_time: stops[0][1],
     arrival_time: stops.at(-1)[1],
     status: route ? "gtfs" : "depot",
-    ...(route && { route_id: "line", route_label: route, route_short_name: route }),
+    ...(route && { route_id: route === "1" ? "line" : `line-${route}`, route_label: route, route_short_name: route }),
     stop_times: stops.map(([stop_name, time], index) => ({
       id: stop_name.toLowerCase().replaceAll(" ", "-"),
       stop_name,
@@ -78,30 +78,67 @@ function movement(id, tripId, stops, route = null) {
   };
 }
 
-const singleRouteMovements = [
-  movement("out", "depot-start", [["Deposito Nord", "23:45:00"], ["Borgo", "23:50:00"]]),
-  movement("trip-a", "gtfs-night-a", [["Borgo", "23:55:00"], ["Municipio", "24:06:00"], ["Stazione", "24:15:00"]], "1"),
-  movement("trip-b", "gtfs-night-b", [["Stazione", "24:15:00"], ["Piazza", "24:26:00"], ["Capolinea Lago", "24:35:00"]], "1"),
-  movement("back", "depot-end", [["Capolinea Lago", "24:35:00"], ["Deposito Nord", "24:50:00"]]),
-];
+const terminalRoutes = {
+  "1": { stops: ["Borgo", "Municipio", "Stazione"], km: 7.5 },
+  "2": { stops: ["Stazione", "Piazza", "Capolinea Lago"], km: 8.5 },
+};
 
-const movements = singleRouteMovements.map(trip => trip.id === "trip-b"
-  ? { ...trip, route_id: "line-2", route_label: "2", route_short_name: "2" }
-  : trip);
+const stopCoordinates = {
+  "Deposito Nord": [46.064, 8.958],
+  Borgo: [46.042, 8.954],
+  Municipio: [46.025, 8.956],
+  Stazione: [45.992, 8.939],
+  Piazza: [45.966, 8.934],
+  "Capolinea Lago": [45.939, 8.909],
+};
+
+function corridorMovement(id, stops, clocks, km, route) {
+  const trip = movement(id, `demo-${id}`, stops.map((stop, index) => [stop, `${clocks[index]}:00`]), route);
+  return {
+    ...trip,
+    distance_km: km,
+    stop_times: trip.stop_times.map(stop => ({
+      ...stop,
+      stop_lat: stopCoordinates[stop.stop_name][0],
+      stop_lon: stopCoordinates[stop.stop_name][1],
+    })),
+  };
+}
+
+function serviceMovement(number, route, direction, clocks) {
+  const { stops, km } = terminalRoutes[route];
+  return corridorMovement(`service-${number}`, direction === "outbound" ? stops : stops.toReversed(), clocks, km, route);
+}
+
+const movements = [
+  corridorMovement("out", ["Deposito Nord", "Borgo"], ["05:50", "06:00"], 3),
+  serviceMovement(1, "1", "outbound", ["06:10", "06:24", "06:40"]),
+  serviceMovement(2, "1", "inbound", ["06:52", "07:08", "07:22"]),
+  serviceMovement(3, "1", "outbound", ["07:34", "07:48", "08:04"]),
+  serviceMovement(4, "2", "outbound", ["08:30", "08:46", "09:02"]),
+  serviceMovement(5, "2", "inbound", ["09:14", "09:30", "09:46"]),
+  serviceMovement(6, "2", "outbound", ["09:58", "10:14", "10:30"]),
+  serviceMovement(7, "2", "inbound", ["10:42", "10:58", "11:14"]),
+  serviceMovement(8, "1", "inbound", ["11:50", "12:06", "12:20"]),
+  serviceMovement(9, "1", "outbound", ["12:32", "12:46", "13:02"]),
+  serviceMovement(10, "1", "inbound", ["13:14", "13:30", "13:44"]),
+  corridorMovement("back", ["Borgo", "Deposito Nord"], ["13:50", "14:00"], 3),
+];
+const serviceTrips = movements.filter(trip => trip.status === "gtfs");
 
 test("captures the multiline space-time diagram in Italian", async ({ page, composer }) => {
   await page.setViewportSize({ width: 1640, height: 1200 });
   const row = {
     id: "demo",
-    name: "Servizio serale su due linee",
+    name: "Servizio diurno su due linee",
     bus_id: "bus",
     bus_model_name: "Autobus elettrico 12 m",
     start_depot: { name: "Deposito Nord" },
     end_depot: { name: "Deposito Nord" },
-    trip_count: 2,
-    start_time: "23:45:00",
-    end_time: "24:50:00",
-    daily_distance_km: 24.8,
+    trip_count: serviceTrips.length,
+    start_time: movements[0].departure_time,
+    end_time: movements.at(-1).arrival_time,
+    daily_distance_km: movements.reduce((sum, trip) => sum + trip.distance_km, 0),
     planner_version: 1,
     service_weekday: "monday",
     gtfs_datasets: [dataset],
@@ -134,10 +171,20 @@ test("captures the multiline space-time diagram in Italian", async ({ page, comp
   await expect(diagram.locator(".shift-space-time__route-key")).toHaveText(["Linea 1", "Linea 2"]);
   await expect(diagram.locator(".shift-space-time__depot-line")).toHaveCount(2);
   await expect(diagram.locator(".shift-space-time__depot-key")).toHaveText("Corsa fuori linea");
-  await expect(diagram.locator(".shift-space-time__trip")).toHaveCount(2);
-  await expect.poll(() => diagram.locator('[data-role="space-time-trip"]').evaluateAll(nodes =>
-    nodes.map(node => [node.getAttribute("data-route-id"), node.querySelector("path").getAttribute("stroke")])
-  )).toEqual([["line", "#4e79a7"], ["line-2", "#b07aa1"]]);
+  await expect(diagram.locator(".shift-space-time__trip")).toHaveCount(10);
+  for (const [route, count, color] of [["line", 6, "#4e79a7"], ["line-2", 4, "#b07aa1"]]) {
+    const strokes = diagram.locator(`[data-route-id="${route}"] > path`);
+    await expect(strokes).toHaveCount(count);
+    for (const stroke of await strokes.all()) {
+      await expect(stroke).toHaveAttribute("stroke", color);
+    }
+  }
+  const scroll = diagram.locator(".shift-space-time__scroll");
+  await expect.poll(() => scroll.evaluate(el => el.scrollWidth - el.clientWidth)).toBe(0);
+  for (const [previous, next] of movements.slice(1).map((trip, index) => [movements[index], trip])) {
+    expect(previous.end_stop_name).toBe(next.start_stop_name);
+    expect(previous.arrival_time < next.departure_time).toBe(true);
+  }
   await page.evaluate(() => document.fonts.ready);
   await page.mouse.move(0, 0);
   await page.locator(".visualize-shift").screenshot({ path: `${output}/shift-visualisation.png`, animations: "disabled" });
