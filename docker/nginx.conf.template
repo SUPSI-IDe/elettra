@@ -61,6 +61,12 @@ server {
         return 301 /elettra/;
     }
 
+    # FastAPI's Swagger UI loads the schema and OAuth callback from the same origin.
+    location ~ "^/(docs(/oauth2-redirect)?|openapi[.]json)${ESC}" {
+        proxy_pass ${API_BACKEND_URL};
+        proxy_set_header Host ${ESC}http_host;
+    }
+
     # Proxy authentication requests to backend
     location /auth {
         proxy_pass ${API_BACKEND_URL};
