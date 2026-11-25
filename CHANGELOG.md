@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.4.3] - 2026-11-25
+
+- Correct the AMSA partner name to Autolinea Mendrisiense SA on the About page in all four languages.
+
 ## [1.4.2] - 2026-11-25
 
 - Show total equivalent annual cost for electric and diesel buses, with annualized investment alongside operating costs.
