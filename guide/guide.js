@@ -226,8 +226,20 @@ const renderSection = (section, ui, sections) => {
   section.items.forEach((item) => {
     const entry = document.createElement("li");
     entry.className = "guide-item";
+    if (item.id) entry.id = item.id;
     entry.append(createTextElement("h3", "", item.title));
     entry.append(createTextElement("p", "", item.text));
+    if (item.links?.length) {
+      const links = document.createElement("p");
+      links.className = "guide-item-links";
+      for (const { href, label } of item.links) {
+        const link = createTextElement("a", "", label);
+        link.href = href;
+        links.append(link);
+      }
+      entry.append(links);
+    }
+    if (item.figures?.length) entry.append(renderFigures(item.figures, ui));
     list.append(entry);
   });
 
@@ -316,3 +328,4 @@ window.addEventListener("scroll", () => {
 }, { passive: true });
 
 renderGuide(getSavedLanguage());
+languageSelect.disabled = false;

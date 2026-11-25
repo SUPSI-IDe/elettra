@@ -6,8 +6,9 @@ This document catalogs all backend API endpoints consumed by the ELETTRA fronten
 
 **Important**: The backend is a separate service (not in this repository). This reference is derived from the frontend's API client code and the root-level `API_REFERENCE.md`. The backend's Swagger/OpenAPI documentation at `/docs` remains the authoritative source of truth for request/response schemas.
 
-**Base URL**: `http://isaac-elettra.dacd.supsi.ch:8002`
-**Swagger UI**: <http://isaac-elettra.dacd.supsi.ch:8002/docs>
+Public service base URL: `https://elettra.supsi.ch`
+
+[Swagger UI](https://elettra.supsi.ch/docs) · [OpenAPI schema](https://elettra.supsi.ch/openapi.json)
 
 ---
 

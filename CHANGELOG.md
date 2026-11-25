@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.4.4] - 2026-11-25
+
+- Update the user guide in English, German, French and Italian, with screenshots of the vehicle-block planner, feasibility results and yearly analysis.
+- Explain Mean and Q95 design choices, the Monte Carlo intervals for typical days, and how annualized investment enters the total equivalent annual cost.
+- Link Swagger UI and the OpenAPI schema, use the application language selector in the guide, and list the reference frontend and backend versions in the footer.
+- Localize bus categories in the feasibility form.
+
+## [1.4.4-rc.4] - 2026-11-25
+
+- Use the application’s globe and compact language selector in the public guide. Remove the screenshot-language notice.
+- Show the reference frontend and backend versions and the guide update date in the footer, including in print.
+
+## [1.4.4-rc.3] - 2026-11-25
+
+- Show all guide screenshots in the selected guide language (English, German, French or Italian), including the full-size images. Keep the same stop names across the four versions of the example vehicle block.
+- Link the public Swagger UI and OpenAPI schema from Getting started in all four guide languages.
+- Illustrate a current feasibility design with its Monte Carlo demand histogram and verified SOC trajectory. Add a worked Mean/Q95 example, clarify the annual results and exports, and illustrate how to read comparison A/B. Localize the bus category in the feasibility form.
+
+## [1.4.4-rc.2] - 2026-11-25
+
+- Illustrate a multi-hour vehicle block with repeated outward and return trips on two routes, the change of line and the depot movements.
+- Include the four-language guide and screenshot updates from 1.4.4-rc.1.
+
+## [1.4.4-rc.1] - 2026-11-25
+
+- Update the four-language user guide with the sequential vehicle-block planner, route colours, bus battery estimates, service-day selection, paired feasibility results and equivalent annual costs.
+- Clarify how typical-day prediction intervals are calculated, which feasibility results can start a yearly analysis, and what the comparison and its exports cover.
+
 ## [1.4.3] - 2026-11-25
 
 - Correct the AMSA partner name to Autolinea Mendrisiense SA on the About page in all four languages.

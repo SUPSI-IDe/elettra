@@ -1,8 +1,5 @@
 # Feasibility Evaluation
 
-> Last updated: 2026-11-24
-> Interface baseline: Frontend v1.4.3
-
 A feasibility evaluation tests whether the selected vehicle blocks can be
 operated with the configured bus, battery, charging, and environmental inputs.
 New evaluations calculate a **Mean** design and an **Aggregate Q95** design
@@ -25,16 +22,17 @@ mixed editions, incomplete calendars or no common weekday are excluded.
 ### 2. Vehicle blocks and bus model
 
 Select one or more vehicle blocks. Search and sorting operate on the available
-compatible set. The bus-model choice follows the selected blocks and remains
-stable while other form inputs are changed; review it explicitly whenever the
-selected blocks change.
+compatible set. In **Bus model override**, check the single bus model that the
+evaluation will use for the selected blocks. The form proposes a model from the
+selected blocks and keeps the choice while you edit other inputs. Review the
+model whenever you change the block selection.
 
 ### 3. Optimization mode
 
 | Mode | Fixed input | Optimized decision | Typical use |
 |---|---|---|---|
-| **Battery only** (`battery_only`) | Charging configuration | Battery pack count | Fleet expansion with existing chargers |
-| **Charging** (`charging_only`) | Installed battery pack count | Charging locations, power, and plugs within configured candidates | Charging-infrastructure expansion |
+| **Battery only** (`battery_only`) | Charging configuration | Battery pack count and planned charging within the installed limits | Fleet expansion with existing chargers |
+| **Charging** (`charging_only`) | Installed battery pack count | Charging locations and plugs within the configured power limits, plus their schedule | Charging-infrastructure expansion |
 | **Joint** (`joint`) | User constraints and candidates | Battery and charging configuration together | Initial electrification investment |
 
 Charging mode requires a fixed pack count within the selected bus model's
@@ -126,16 +124,28 @@ propagate delays or add energy demand. Changing it requires a new optimization.
 
 ---
 
-## Mean and Aggregate Q95
+## How to use Mean and Aggregate Q95
 
-Both profiles receive a complete design: battery, charging infrastructure, and
-charging schedule. Switching profiles on the results page does not start a new
-calculation.
+In the **Bus model and optimization mode** card, **Mean and Q95** is an
+explanation of what the form calculates. One **Start evaluation** submits both
+designs with the same selected blocks, operating assumptions and limits. After
+the results open, use **Show optimized result** beside the scope tabs to switch
+between the saved **Mean** and **Q95** designs.
 
-Aggregate Q95 is derived from independently sampled trip occurrences and
-aggregated over the complete vehicle block; it is not the sum of each trip's
-individual Q95. It is a conservative consumption profile, not a statement that
-SOC feasibility is guaranteed with 95% probability.
+Use **Mean** to see the design sized for expected consumption under the chosen
+conditions. Use **Q95** to see what changes when sizing for a representative
+high-consumption profile. Compare the verdict, selected packs, charging
+infrastructure and plan in [Feasibility Results](simulation-results.md#compare-the-mean-and-q95-designs).
+
+For each Monte Carlo sample, ELETTRA draws consumption independently for each
+trip occurrence, including repeated trips, and sums those draws over the
+vehicle block. Aggregate Q95 is the 95th percentile of the simulated block
+totals. Roughly 95% of those totals are at or below this value. The calculation
+uses a representative sequence of trip consumptions whose total matches that
+percentile. Timing, charger access and the SOC limits also determine whether
+the vehicle block can operate. The percentile describes energy demand under
+the model assumptions. A sum of individual trip percentiles would answer a
+different question.
 
 For each chosen design, ELETTRA recomputes the complete forecast at the selected
 battery mass and verifies the fixed design. A successful solver state and a
@@ -145,9 +155,12 @@ physically valid, forecast-verified design are separate conditions.
 
 ## Starting and monitoring the evaluation
 
-The confirmation dialog summarizes the number of vehicle blocks and the
-optimization mode. Progress is reported for consumption estimates, Mean, and
-Q95, and the result opens after both calculations finish.
+Select **Start evaluation** and confirm the number of vehicle blocks and the
+optimization mode. The progress dialog tracks consumption estimates, Mean and
+Q95 separately. After both calculations finish, ELETTRA opens Mean if it
+completed, or Q95 if Mean failed and Q95 completed. Completed infeasible results
+can open with diagnostics. If both calculations fail, the list displays the
+failure count.
 
 Run time depends on the number and complexity of vehicle blocks, forecast
 preparation, sampling, battery-mass refinement, and optimization mode. Do not
@@ -188,3 +201,9 @@ records.
 
 - [Feasibility Results](simulation-results.md) — Read the technical verdict and each vehicle block
 - [Yearly Analysis](yearly-analysis.md) — Assess a verified design over a representative year
+
+---
+
+> Reference versions: Frontend v1.4.4 · Backend v1.9.0
+>
+> Last updated: 2026-11-25

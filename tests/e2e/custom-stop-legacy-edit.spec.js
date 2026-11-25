@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
+import { translations } from "../../src/i18n/translations.js";
 
 const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === "1";
+const exampleDepotName = {
+  en: "Example depot",
+  de: "Beispieldepot",
+  fr: "Dépôt de démonstration",
+  it: "Deposito di esempio",
+};
 
 const legacyStop = {
   id: "ec4f5f7f-1772-4312-bbcf-11c355c6e71c",
@@ -19,12 +26,12 @@ const fulfillJson = (route, body, status = 200) =>
     body: JSON.stringify(body),
   });
 
-const installSession = async (page) => {
-  await page.addInitScript(() => {
+const installSession = async (page, lang = "it") => {
+  await page.addInitScript((lang) => {
     localStorage.setItem("access_token", "custom-stop-edit-token");
     localStorage.setItem("cache.currentUser.id", "user-1");
-    localStorage.setItem("elettra_lang", "it");
-  });
+    localStorage.setItem("elettra_lang", lang);
+  }, lang);
   await page.route("**/auth/me", (route) =>
     fulfillJson(route, { id: "user-1", email: "custom-stop@example.test" })
   );
@@ -51,10 +58,10 @@ const openEditForm = async (page) => {
   await expect(page.locator("section.add-custom-stop")).toBeVisible();
 };
 
-test("an address search positions a custom stop while keeping the map picker available", async ({
-  page,
-}) => {
-  await installSession(page);
+async function verifyAddressSearch(page, { lang = "it", captureGuide = false } = {}) {
+  const dict = translations[lang];
+  if (captureGuide) await page.setViewportSize({ width: 1600, height: 1180 });
+  await installSession(page, lang);
   let reverseRequests = 0;
   let releaseInitialReverse;
   const initialReverseGate = new Promise((resolve) => {
@@ -104,7 +111,7 @@ test("an address search positions a custom stop while keeping the map picker ava
 
   await expect(page.locator("section.add-custom-stop")).toBeVisible();
   await expect(positioning).toBeVisible();
-  await expect(positioning).toContainText("Posizionamento in corso");
+  await expect(positioning).toContainText(dict["custom_stops.positioning_title"]);
   await expect(address).toHaveValue("");
   await expect(city).toHaveValue("");
   await expect(address).toHaveAttribute("readonly", "");
@@ -116,7 +123,7 @@ test("an address search positions a custom stop while keeping the map picker ava
   await expect(city).toHaveValue("Bellinzona");
   await expect(address).toBeEditable();
   await expect(city).toBeEditable();
-  await expect(searchButton).toHaveText("Cerca sulla mappa");
+  await expect(searchButton).toHaveText(dict["custom_stops.address_search_action"]);
   await expect(page.locator("#custom-stop-latitude")).not.toHaveValue("");
 
   await address.fill("Via Cantonale 10");
@@ -132,21 +139,49 @@ test("an address search positions a custom stop while keeping the map picker ava
   await expect(city).toHaveValue("Lugano");
   await expect(page.locator("#custom-stop-latitude")).toHaveValue("46.003677");
   await expect(page.locator("#custom-stop-longitude")).toHaveValue("8.951052");
-  await expect(searchFeedback).toHaveText("Posizione aggiornata sulla mappa.");
+  await expect(searchFeedback).toHaveText(dict["custom_stops.address_search_success"]);
   await expect(searchFeedback).toHaveAttribute("data-tone", "success");
   await page.waitForTimeout(600);
   expect(reverseRequests).toBe(1);
+
+  if (captureGuide) {
+    await expect(page.locator("html")).toHaveAttribute("lang", lang);
+    await expect(page.locator("section.add-custom-stop h1")).toHaveText(dict["custom_stops.add_custom_stop"]);
+    await page.locator("#custom-stop-name").fill(exampleDepotName[lang]);
+    await page.selectOption("#custom-stop-type", "depot");
+    await page.locator("#custom-stop-type").blur();
+    await expect.poll(() => page.locator(".leaflet-tile").evaluateAll(tiles =>
+      tiles.length > 0 && tiles.every(tile => tile.complete && tile.naturalWidth > 0)
+    ), { timeout: 15000 }).toBe(true);
+    await page.mouse.move(0, 0);
+    await page.locator("section.add-custom-stop").screenshot({
+      path: `guide/images/${lang}/custom-stop.png`,
+      animations: "disabled",
+    });
+  }
 
   await address.fill("Indirizzo inesistente");
   await address.press("Enter");
   await expect.poll(() => searchQueries.length).toBe(2);
   await expect(searchFeedback).toHaveText(
-    "Nessun indirizzo corrispondente trovato. Aggiungi la città o controlla l'indirizzo."
+    dict["custom_stops.address_search_no_results"]
   );
   await expect(searchFeedback).toHaveAttribute("data-tone", "error");
   await expect(page.locator("#custom-stop-latitude")).toHaveValue("46.003677");
   await expect(page.locator("#custom-stop-longitude")).toHaveValue("8.951052");
+}
+
+test("an address search positions a custom stop while keeping the map picker available", async ({ page }) => {
+  await verifyAddressSearch(page);
 });
+
+for (const lang of Object.keys(exampleDepotName)) {
+  test(`capture the custom stop guide screenshot in ${lang}`, async ({ page }, testInfo) => {
+    test.skip(!updateGuideScreenshots || testInfo.project.name !== "chromium",
+      "Guide screenshots are generated on demand with desktop Chromium");
+    await verifyAddressSearch(page, { lang, captureGuide: true });
+  });
+}
 
 test("legacy stop recovers its missing city and can be assigned a type", async ({
   page,
@@ -167,11 +202,6 @@ test("legacy stop recovers its missing city and can be assigned a type", async (
   await expect(page.locator("#custom-stop-city")).toBeEditable();
 
   await page.selectOption("#custom-stop-type", "depot");
-  if (updateGuideScreenshots) {
-    await page.setViewportSize({ width: 1760, height: 1080 });
-    await page.waitForTimeout(500);
-    await page.screenshot({ path: "guide/images/custom-stop.png" });
-  }
   await page.locator('button[type="submit"]').click();
 
   await expect.poll(getUpdateBody).not.toBeNull();

@@ -21,13 +21,18 @@
       </a>
 
       <div class="guide-header-actions">
-        <label for="guide-language" data-guide-ui="languageLabel">Language</label>
-        <select id="guide-language" aria-label="Guide language">
-          <option value="en">English</option>
-          <option value="de">Deutsch</option>
-          <option value="fr">Français</option>
-          <option value="it">Italiano</option>
-        </select>
+        <div class="language-section">
+          <svg aria-hidden="true" class="language-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <select id="guide-language" class="language-select" disabled aria-label="Select language">
+            <option value="en">EN</option>
+            <option value="de">DE</option>
+            <option value="fr">FR</option>
+            <option value="it">IT</option>
+          </select>
+        </div>
         <button type="button" class="guide-print-button" data-action="print" data-guide-ui="print">
           Print guide
         </button>
@@ -49,17 +54,6 @@
           <p class="guide-eyebrow" data-guide-ui="eyebrow">User documentation</p>
           <h1 id="guide-title" data-guide-ui="title">ELETTRA user guide</h1>
           <p class="guide-introduction" data-guide-ui="introduction"></p>
-          <dl class="guide-meta">
-            <div>
-              <dt data-guide-ui="baselineLabel">Interface baseline</dt>
-              <dd data-guide-ui="baselineValue"></dd>
-            </div>
-            <div>
-              <dt data-guide-ui="updatedLabel">Guide updated</dt>
-              <dd data-guide-ui="updatedValue"></dd>
-            </div>
-          </dl>
-          <p class="guide-screenshot-note" data-guide-ui="screenshotNote"></p>
         </section>
 
         <div id="guide-sections"></div>
@@ -67,6 +61,16 @@
         <footer class="guide-footer">
           <p data-guide-ui="footer"></p>
           <a href="../" data-guide-ui="backToApp">Back to ELETTRA</a>
+          <dl class="guide-meta">
+            <div>
+              <dt data-guide-ui="baselineLabel">Reference versions</dt>
+              <dd data-guide-ui="baselineValue"></dd>
+            </div>
+            <div>
+              <dt data-guide-ui="updatedLabel">Guide updated</dt>
+              <dd data-guide-ui="updatedValue"></dd>
+            </div>
+          </dl>
         </footer>
       </main>
     </div>

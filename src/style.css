@@ -1,3 +1,5 @@
+@import "./language-selector.css";
+
 :root {
   --color-brand-primary: #0f3c3c;
   --color-brand-primary-hover: #092525;
@@ -409,44 +411,6 @@ body {
   outline: 2px solid var(--color-sidebar-text);
   outline-offset: -4px;
   box-shadow: none;
-}
-
-/* ==========================================================================
-   Language Selector Section
-   ========================================================================== */
-
-.language-section {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2xs);
-}
-
-.language-icon {
-  color: var(--dark-gray);
-  flex-shrink: 0;
-}
-
-.language-select {
-  height: 2rem;
-  width: 3.5rem;
-  padding: 0.2rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-medium);
-  background-color: var(--color-surface);
-  font-size: var(--font-size-sm);
-  color: var(--text-main);
-  cursor: pointer;
-  transition: border-color 0.2s ease;
-}
-
-.language-select:hover {
-  border-color: var(--dark-gray);
-}
-
-.language-select:focus-visible {
-  outline: 2px solid transparent;
-  border-color: var(--brand-teal-light);
-  box-shadow: var(--shadow-focus-ring);
 }
 
 /* ==========================================================================

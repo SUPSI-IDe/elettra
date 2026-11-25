@@ -1,6 +1,8 @@
 import { fixtureProjectTco } from '../../test-support/project-tco-response.js';
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { translations } from "../../src/i18n/translations.js";
+import { buildYearlyAnalysisResults, buildYearlyScenarioOutcome } from "../../src/utils/yearly-analysis-model.js";
 
 const updateGuideScreenshots = process.env.UPDATE_GUIDE_SCREENSHOTS === "1";
 
@@ -317,6 +319,7 @@ const mountResults = async (
     lcaResponse = null,
     saveAnalysis = null,
     energyUncertainty = null,
+    appLanguage = null,
   } = {},
 ) => {
   const configuredShiftCount = analysis.features?.config?.shift_ids?.length ?? 0;
@@ -388,6 +391,18 @@ const mountResults = async (
       await route.fulfill({ json: [] });
     }
   });
+  if (appLanguage) {
+    await page.addInitScript(lang => {
+      localStorage.setItem("access_token", "fixture-token");
+      localStorage.setItem("elettra_lang", lang);
+    }, appLanguage);
+    await page.goto("./#home");
+    await expect(page.locator(".home-page")).toBeVisible();
+    await page.evaluate(analysisId => document.dispatchEvent(new CustomEvent("partial:request", {
+      detail: { slug: "yearly-analysis-results", analysisId },
+    })), analysis.id);
+    return;
+  }
   await page.goto("./");
   await page.evaluate(async ({ source, analysisId }) => {
     localStorage.setItem("access_token", "fixture-token");
@@ -1109,6 +1124,124 @@ const currentFleetAnalysis = (id = 'fleet-dashboard-export') => {
   analysis.features.config.weather_reference = { weather_temperature_series_id: 'saved-weather-series' };
   return analysis;
 };
+
+// These representative-day bounds use the rc.2 backend's scenario_intervals
+// sampler with synthetic empirical trip supports and a fixed seed.
+const temperatureFixture = JSON.parse(readFileSync(
+  new URL("../../test-support/fixtures/guide-yearly-temperature.json", import.meta.url), "utf8",
+));
+const temperatureExample = {
+  en: { name: "Yearly energy assessment", morning: "Block 501", evening: "Block 502", clusters: ["Cold", "Cool", "Temperate 1", "Temperate 2", "Temperate 3", "Mild", "Warm", "Hot"] },
+  de: { name: "Jahresenergieanalyse", morning: "Umlauf 501", evening: "Umlauf 502", clusters: ["Kalt", "Kühl", "Gemässigt 1", "Gemässigt 2", "Gemässigt 3", "Mild", "Warm", "Heiss"] },
+  fr: { name: "Bilan énergétique annuel", morning: "Service 501", evening: "Service 502", clusters: ["Froid", "Frais", "Tempéré 1", "Tempéré 2", "Tempéré 3", "Doux", "Chaud", "Très chaud"] },
+  it: { name: "Bilancio energetico annuale", morning: "Turno 501", evening: "Turno 502", clusters: ["Freddo", "Fresco", "Temperato 1", "Temperato 2", "Temperato 3", "Mite", "Caldo", "Molto caldo"] },
+};
+
+for (const [lang, example] of Object.entries(temperatureExample)) {
+  test(`capture the yearly block temperature and prediction ranges in ${lang}`, async ({ page }, testInfo) => {
+    test.skip(!updateGuideScreenshots || testInfo.project.name !== "chromium",
+      "Guide screenshots are generated on demand with desktop Chromium");
+    const analysis = currentFleetAnalysis("guide-yearly-temperature");
+    analysis.name = example.name;
+    const { features } = analysis;
+    const configuration = features.config.fixedConfiguration;
+    const timetable = { gtfs_year: 2027, gtfs_file_date: "2026-11-04", valid_from: "2026-12-13", valid_to: "2027-12-11" };
+    features.gtfs_provenance = {
+      version: 1,
+      source: "recorded",
+      shifts: { morning: [timetable], evening: [timetable] },
+    };
+    for (const shift of configuration.shifts) {
+      shift.shiftName = example[shift.shiftId];
+    }
+    for (const row of configuration.investment.rows) {
+      row.name = example[row.id];
+      row.modelName = "E12";
+    }
+    configuration.battery.sizingShiftNames = [example.evening];
+    features.meta.shiftNames = configuration.shifts.map(shift => shift.shiftName);
+    const scenarios = temperatureFixture.scenarios.map(({ scenario }, i) => ({ ...scenario, label: example.clusters[i] }));
+    expect(scenarios).toHaveLength(8);
+    expect(scenarios.reduce((days, scenario) => days + scenario.occurrences, 0)).toBe(365);
+    features.scenarios = scenarios;
+    features.results = buildYearlyAnalysisResults({
+      scenarios,
+      outcomes: temperatureFixture.scenarios.map(({ predictionRuns }, i) => buildYearlyScenarioOutcome({
+        scenario: scenarios[i], shiftIds: configuration.shiftIds, predictionRuns,
+      })),
+      fixedConfiguration: configuration,
+      nominalDailyDistanceKmByShiftId: temperatureFixture.distances,
+    });
+
+    const hvacRuns = temperatureFixture.scenarios.flatMap(({ scenario, predictionRuns }) =>
+      predictionRuns.map(run => ({
+        run_id: run.id,
+        temperature_c: scenario.temperature,
+        assumptions: {
+          policy_id: "annual-pvgis-local-cap10-v1",
+          solar_used: true,
+          agency_timezone: "Europe/Zurich",
+          ghi_trip_weighted_mean_wm2: Math.round(125 + 6 * scenario.temperature),
+          cluster_occurrences: scenario.occurrences,
+        },
+        components: {
+          total_hvac_in_trip_electrical_kwh: run.summary.total_auxiliary_kwh * 0.60 - 5,
+          total_hvac_terminal_electrical_kwh: 5,
+        },
+      })),
+    );
+    await page.setViewportSize({ width: 1700, height: 1260 });
+    await mountResults(page, analysis, { appLanguage: lang, hvacPayload: { runs: hvacRuns } });
+    await expect(page.locator("html")).toHaveAttribute("lang", lang);
+    await expect(page.locator('[data-role="annual-fleet-dashboard"]')).toBeVisible();
+    await page.getByRole("tab", { name: example.morning, exact: true }).click();
+    const chart = page.locator('[data-role="ya-eff-chart-2"]');
+    const legend = page.locator('[data-role="ya-eff-chart-2-legend"]');
+    await expect(legend).toContainText(translations[lang]["yearly_analysis.q05_q95_range"]);
+    await expect(chart.locator('rect[fill="#6fbeec"]')).toHaveCount(8);
+    await expect(page.locator('[data-role="analysis-gtfs"] summary')).toContainText("2027");
+    await expect(page.locator('.hvac-assumptions__body')).toContainText(translations[lang]["hvac.annual_note"]);
+    const daily = page.getByRole("button", { name: translations[lang]["yearly_analysis.energy_unit_day"], exact: true });
+    const yearly = page.getByRole("button", { name: translations[lang]["yearly_analysis.energy_unit_year"], exact: true });
+    const coldBar = chart.locator('rect[fill="#6fbeec"]').first();
+    const coldKpis = features.results.shiftResults[0].scenarioResults[0].kpis;
+    const coldRange = coldKpis.energyUncertainty.daily_kwh;
+    const coldDays = scenarios[0].occurrences;
+    await expect(yearly).toHaveAttribute("aria-pressed", "true");
+    await daily.click();
+    await expect(daily).toHaveAttribute("aria-pressed", "true");
+    await coldBar.hover();
+    await expect(chart).toContainText(`245.0 ${translations[lang]["yearly_analysis.energy_unit_day"]}`);
+    await expect(chart).toContainText(coldRange.q05.toFixed(1));
+    await expect(chart).toContainText(coldRange.q95.toFixed(1));
+
+    await yearly.click();
+    await expect(yearly).toHaveAttribute("aria-pressed", "true");
+    await coldBar.hover();
+    const formatted = value => new RegExp(String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, "['’]"));
+    await expect(chart).toContainText(formatted(245 * coldDays));
+    await expect(chart).toContainText(formatted(coldRange.q05 * coldDays));
+    await expect(chart).toContainText(formatted(coldRange.q95 * coldDays));
+
+    await yearly.blur();
+    await page.mouse.move(0, 0);
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      document.querySelector(".ya-results-main").scrollTop = 0;
+    });
+    const pageSection = page.locator("section.yearly-analysis-results");
+    const methodNote = page.locator('[data-role="ya-energy-uncertainty-note"]');
+    await expect(methodNote).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('[data-role="ya-energy-uncertainty-availability"]')).toBeHidden();
+    const { x, y, width } = await pageSection.boundingBox();
+    const note = await methodNote.boundingBox();
+    await page.screenshot({
+      path: `guide/images/${lang}/yearly-temperature.png`,
+      animations: "disabled",
+      clip: { x, y, width, height: Math.ceil(note.y + note.height + 12 - y) },
+    });
+  });
+}
 
 const currentFleetLca = (url, original, analysis) => {
   const saved = analysis.features.assessment_assumptions?.tco ?? {};

@@ -1,0 +1,640 @@
+{
+  "distances": {
+    "morning": 132,
+    "evening": 96
+  },
+  "scenarios": [
+    {
+      "scenario": {
+        "scenarioId": "weather-1",
+        "temperature": -4.0,
+        "occurrences": 40
+      },
+      "predictionRuns": [
+        {
+          "id": "guide-1-morning",
+          "shift_id": "morning",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": -4.0,
+          "summary": {
+            "total_consumption_kwh": 245,
+            "total_drivetrain_kwh": 162,
+            "total_auxiliary_kwh": 83,
+            "total_distance_km": 132,
+            "consumption_per_km_kwh": 1.856060606060606,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 221.434692,
+                "q50": 245.051926,
+                "q95": 268.381807
+              },
+              "scenario_daily_kwh": {
+                "q05": 419.465847,
+                "q50": 449.916587,
+                "q95": 480.533329
+              },
+              "scenario_prediction_run_ids": [
+                "guide-1-evening",
+                "guide-1-morning"
+              ],
+              "samples": 100000,
+              "seed": 2707842151,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        },
+        {
+          "id": "guide-1-evening",
+          "shift_id": "evening",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": -4.0,
+          "summary": {
+            "total_consumption_kwh": 205,
+            "total_drivetrain_kwh": 132,
+            "total_auxiliary_kwh": 73,
+            "total_distance_km": 96,
+            "consumption_per_km_kwh": 2.1354166666666665,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 185.549283,
+                "q50": 205.049735,
+                "q95": 224.264129
+              },
+              "scenario_daily_kwh": {
+                "q05": 419.465847,
+                "q50": 449.916587,
+                "q95": 480.533329
+              },
+              "scenario_prediction_run_ids": [
+                "guide-1-evening",
+                "guide-1-morning"
+              ],
+              "samples": 100000,
+              "seed": 37611146,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "scenarioId": "weather-2",
+        "temperature": -1.0,
+        "occurrences": 30
+      },
+      "predictionRuns": [
+        {
+          "id": "guide-2-morning",
+          "shift_id": "morning",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": -1.0,
+          "summary": {
+            "total_consumption_kwh": 236,
+            "total_drivetrain_kwh": 161,
+            "total_auxiliary_kwh": 75,
+            "total_distance_km": 132,
+            "consumption_per_km_kwh": 1.7878787878787878,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 213.625993,
+                "q50": 236.075288,
+                "q95": 258.250942
+              },
+              "scenario_daily_kwh": {
+                "q05": 400.079789,
+                "q50": 428.950365,
+                "q95": 458.141619
+              },
+              "scenario_prediction_run_ids": [
+                "guide-2-evening",
+                "guide-2-morning"
+              ],
+              "samples": 100000,
+              "seed": 2707842151,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        },
+        {
+          "id": "guide-2-evening",
+          "shift_id": "evening",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": -1.0,
+          "summary": {
+            "total_consumption_kwh": 193,
+            "total_drivetrain_kwh": 128,
+            "total_auxiliary_kwh": 65,
+            "total_distance_km": 96,
+            "consumption_per_km_kwh": 2.0104166666666665,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 174.673051,
+                "q50": 193.01989,
+                "q95": 211.198433
+              },
+              "scenario_daily_kwh": {
+                "q05": 400.079789,
+                "q50": 428.950365,
+                "q95": 458.141619
+              },
+              "scenario_prediction_run_ids": [
+                "guide-2-evening",
+                "guide-2-morning"
+              ],
+              "samples": 100000,
+              "seed": 37611146,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "scenarioId": "weather-3",
+        "temperature": 3.0,
+        "occurrences": 50
+      },
+      "predictionRuns": [
+        {
+          "id": "guide-3-morning",
+          "shift_id": "morning",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 3.0,
+          "summary": {
+            "total_consumption_kwh": 225,
+            "total_drivetrain_kwh": 157,
+            "total_auxiliary_kwh": 68,
+            "total_distance_km": 132,
+            "consumption_per_km_kwh": 1.7045454545454546,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 203.690357,
+                "q50": 225.000245,
+                "q95": 246.329234
+              },
+              "scenario_daily_kwh": {
+                "q05": 378.602444,
+                "q50": 405.925282,
+                "q95": 433.325701
+              },
+              "scenario_prediction_run_ids": [
+                "guide-3-evening",
+                "guide-3-morning"
+              ],
+              "samples": 100000,
+              "seed": 2707842151,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        },
+        {
+          "id": "guide-3-evening",
+          "shift_id": "evening",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 3.0,
+          "summary": {
+            "total_consumption_kwh": 181,
+            "total_drivetrain_kwh": 124,
+            "total_auxiliary_kwh": 57,
+            "total_distance_km": 96,
+            "consumption_per_km_kwh": 1.8854166666666667,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 163.903628,
+                "q50": 180.996558,
+                "q95": 198.011416
+              },
+              "scenario_daily_kwh": {
+                "q05": 378.602444,
+                "q50": 405.925282,
+                "q95": 433.325701
+              },
+              "scenario_prediction_run_ids": [
+                "guide-3-evening",
+                "guide-3-morning"
+              ],
+              "samples": 100000,
+              "seed": 37611146,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "scenarioId": "weather-4",
+        "temperature": 8.0,
+        "occurrences": 65
+      },
+      "predictionRuns": [
+        {
+          "id": "guide-4-morning",
+          "shift_id": "morning",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 8.0,
+          "summary": {
+            "total_consumption_kwh": 215,
+            "total_drivetrain_kwh": 156,
+            "total_auxiliary_kwh": 59,
+            "total_distance_km": 132,
+            "consumption_per_km_kwh": 1.628787878787879,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 194.749938,
+                "q50": 215.053284,
+                "q95": 235.085498
+              },
+              "scenario_daily_kwh": {
+                "q05": 359.315103,
+                "q50": 384.911675,
+                "q95": 410.787731
+              },
+              "scenario_prediction_run_ids": [
+                "guide-4-evening",
+                "guide-4-morning"
+              ],
+              "samples": 100000,
+              "seed": 2707842151,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        },
+        {
+          "id": "guide-4-evening",
+          "shift_id": "evening",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 8.0,
+          "summary": {
+            "total_consumption_kwh": 170,
+            "total_drivetrain_kwh": 122,
+            "total_auxiliary_kwh": 48,
+            "total_distance_km": 96,
+            "consumption_per_km_kwh": 1.7708333333333333,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 154.104334,
+                "q50": 170.027577,
+                "q95": 185.813895
+              },
+              "scenario_daily_kwh": {
+                "q05": 359.315103,
+                "q50": 384.911675,
+                "q95": 410.787731
+              },
+              "scenario_prediction_run_ids": [
+                "guide-4-evening",
+                "guide-4-morning"
+              ],
+              "samples": 100000,
+              "seed": 37611146,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "scenarioId": "weather-5",
+        "temperature": 12.0,
+        "occurrences": 60
+      },
+      "predictionRuns": [
+        {
+          "id": "guide-5-morning",
+          "shift_id": "morning",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 12.0,
+          "summary": {
+            "total_consumption_kwh": 207,
+            "total_drivetrain_kwh": 157,
+            "total_auxiliary_kwh": 50,
+            "total_distance_km": 132,
+            "consumption_per_km_kwh": 1.5681818181818181,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 187.417064,
+                "q50": 207.015322,
+                "q95": 226.525382
+              },
+              "scenario_daily_kwh": {
+                "q05": 344.229081,
+                "q50": 368.965974,
+                "q95": 393.814052
+              },
+              "scenario_prediction_run_ids": [
+                "guide-5-evening",
+                "guide-5-morning"
+              ],
+              "samples": 100000,
+              "seed": 2707842151,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        },
+        {
+          "id": "guide-5-evening",
+          "shift_id": "evening",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 12.0,
+          "summary": {
+            "total_consumption_kwh": 162,
+            "total_drivetrain_kwh": 122,
+            "total_auxiliary_kwh": 40,
+            "total_distance_km": 96,
+            "consumption_per_km_kwh": 1.6875,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 146.988234,
+                "q50": 162.043739,
+                "q95": 177.062921
+              },
+              "scenario_daily_kwh": {
+                "q05": 344.229081,
+                "q50": 368.965974,
+                "q95": 393.814052
+              },
+              "scenario_prediction_run_ids": [
+                "guide-5-evening",
+                "guide-5-morning"
+              ],
+              "samples": 100000,
+              "seed": 37611146,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "scenarioId": "weather-6",
+        "temperature": 16.0,
+        "occurrences": 50
+      },
+      "predictionRuns": [
+        {
+          "id": "guide-6-morning",
+          "shift_id": "morning",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 16.0,
+          "summary": {
+            "total_consumption_kwh": 200,
+            "total_drivetrain_kwh": 156,
+            "total_auxiliary_kwh": 44,
+            "total_distance_km": 132,
+            "consumption_per_km_kwh": 1.5151515151515151,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 181.053096,
+                "q50": 200.017514,
+                "q95": 218.862199
+              },
+              "scenario_daily_kwh": {
+                "q05": 331.095209,
+                "q50": 354.939206,
+                "q95": 378.84303
+              },
+              "scenario_prediction_run_ids": [
+                "guide-6-evening",
+                "guide-6-morning"
+              ],
+              "samples": 100000,
+              "seed": 2707842151,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        },
+        {
+          "id": "guide-6-evening",
+          "shift_id": "evening",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 16.0,
+          "summary": {
+            "total_consumption_kwh": 155,
+            "total_drivetrain_kwh": 120,
+            "total_auxiliary_kwh": 35,
+            "total_distance_km": 96,
+            "consumption_per_km_kwh": 1.6145833333333333,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 140.488323,
+                "q50": 154.995681,
+                "q95": 169.459682
+              },
+              "scenario_daily_kwh": {
+                "q05": 331.095209,
+                "q50": 354.939206,
+                "q95": 378.84303
+              },
+              "scenario_prediction_run_ids": [
+                "guide-6-evening",
+                "guide-6-morning"
+              ],
+              "samples": 100000,
+              "seed": 37611146,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "scenarioId": "weather-7",
+        "temperature": 20.0,
+        "occurrences": 45
+      },
+      "predictionRuns": [
+        {
+          "id": "guide-7-morning",
+          "shift_id": "morning",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 20.0,
+          "summary": {
+            "total_consumption_kwh": 201,
+            "total_drivetrain_kwh": 156,
+            "total_auxiliary_kwh": 45,
+            "total_distance_km": 132,
+            "consumption_per_km_kwh": 1.5227272727272727,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 181.794087,
+                "q50": 201.035622,
+                "q95": 220.130025
+              },
+              "scenario_daily_kwh": {
+                "q05": 330.865239,
+                "q50": 354.890377,
+                "q95": 379.132248
+              },
+              "scenario_prediction_run_ids": [
+                "guide-7-evening",
+                "guide-7-morning"
+              ],
+              "samples": 100000,
+              "seed": 2707842151,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        },
+        {
+          "id": "guide-7-evening",
+          "shift_id": "evening",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 20.0,
+          "summary": {
+            "total_consumption_kwh": 154,
+            "total_drivetrain_kwh": 118,
+            "total_auxiliary_kwh": 36,
+            "total_distance_km": 96,
+            "consumption_per_km_kwh": 1.6041666666666667,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 139.35841,
+                "q50": 154.011277,
+                "q95": 168.585457
+              },
+              "scenario_daily_kwh": {
+                "q05": 330.865239,
+                "q50": 354.890377,
+                "q95": 379.132248
+              },
+              "scenario_prediction_run_ids": [
+                "guide-7-evening",
+                "guide-7-morning"
+              ],
+              "samples": 100000,
+              "seed": 37611146,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "scenarioId": "weather-8",
+        "temperature": 25.0,
+        "occurrences": 25
+      },
+      "predictionRuns": [
+        {
+          "id": "guide-8-morning",
+          "shift_id": "morning",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 25.0,
+          "summary": {
+            "total_consumption_kwh": 208,
+            "total_drivetrain_kwh": 154,
+            "total_auxiliary_kwh": 54,
+            "total_distance_km": 132,
+            "consumption_per_km_kwh": 1.5757575757575757,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 188.329268,
+                "q50": 207.9961,
+                "q95": 227.679587
+              },
+              "scenario_daily_kwh": {
+                "q05": 344.072128,
+                "q50": 368.935199,
+                "q95": 393.924375
+              },
+              "scenario_prediction_run_ids": [
+                "guide-8-evening",
+                "guide-8-morning"
+              ],
+              "samples": 100000,
+              "seed": 2707842151,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        },
+        {
+          "id": "guide-8-evening",
+          "shift_id": "evening",
+          "bus_model_id": "bus-1",
+          "status": "completed",
+          "external_temp_celsius": 25.0,
+          "summary": {
+            "total_consumption_kwh": 161,
+            "total_drivetrain_kwh": 116,
+            "total_auxiliary_kwh": 45,
+            "total_distance_km": 96,
+            "consumption_per_km_kwh": 1.6770833333333333,
+            "energy_uncertainty": {
+              "method": "independent-trip-q95-conditional-v1",
+              "daily_kwh": {
+                "q05": 145.909199,
+                "q50": 161.032688,
+                "q95": 176.023906
+              },
+              "scenario_daily_kwh": {
+                "q05": 344.072128,
+                "q50": 368.935199,
+                "q95": 393.924375
+              },
+              "scenario_prediction_run_ids": [
+                "guide-8-evening",
+                "guide-8-morning"
+              ],
+              "samples": 100000,
+              "seed": 37611146,
+              "scenario_samples": 100000,
+              "scenario_seed": 159466012
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

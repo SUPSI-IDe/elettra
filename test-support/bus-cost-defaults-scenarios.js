@@ -1,4 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { translations } from '../src/i18n/translations.js';
+
+const exampleBusModel = {
+  en: '12 m urban bus',
+  de: 'Stadtbus 12 m',
+  fr: 'Bus urbain 12 m',
+  it: 'Autobus urbano 12 m',
+};
 const defaults = {
   bus_body_price_points: [
     { length_m: 9, cost_chf: 360000 },
@@ -19,15 +27,15 @@ const model = { id: 'model', user_id: 'user', name: 'Existing bus', specs: {
   battery_pack_weight_kg: 274, battery_pack_lifetime: 8, max_charging_power_kw: 450, bus_lifetime: 12,
   cost: 620000, battery_pack_cost_chf: 7200,
 } };
-async function setup(page, storedModel = model) {
+async function setup(page, storedModel = model, lang = 'it') {
   const state = { unexpected: [], errors: [], writes: [] };
   let currentModel = storedModel;
   page.on('pageerror', error => state.errors.push(error.message));
-  await page.addInitScript(() => {
+  await page.addInitScript((lang) => {
     localStorage.setItem('access_token', 'test');
-    localStorage.setItem('elettra_lang', 'it');
+    localStorage.setItem('elettra_lang', lang);
     localStorage.setItem('elettra.usageNotice.dismissed.v1', 'true');
-  });
+  }, lang);
   await page.route('**/auth/me', route => route.fulfill({ json: { id: 'user', company_id: 'company', role: 'analyst' } }));
   await page.route('**/api/v1/**', route => {
     const request = route.request(), path = new URL(request.url()).pathname, method = request.method();
@@ -61,7 +69,34 @@ const expectBatterySummary = async (page, values) => {
   }
 };
 
-export function defineBusCostDefaultsTests() {
+export function defineBusCostDefaultsTests({ guideScreenshots = false } = {}) {
+  if (guideScreenshots) {
+    for (const [lang, name] of Object.entries(exampleBusModel)) {
+      test(`capture the bus model guide screenshot in ${lang}`, async ({ page }, testInfo) => {
+        test.skip(process.env.UPDATE_GUIDE_SCREENSHOTS !== '1' || testInfo.project.name !== 'chromium',
+          'Guide screenshots are generated on demand with desktop Chromium');
+        await page.setViewportSize({ width: 1500, height: 1500 });
+        const state = await setup(page, model, lang);
+        await page.goto('./#add-bus-model');
+        await page.locator('#bus_length_m').fill('12');
+        await page.locator('#name').fill(name);
+        await page.locator('#name').blur();
+        await expect(page.locator('html')).toHaveAttribute('lang', lang);
+        const form = page.locator('section.add-bus-model');
+        await expect(form.locator('h1')).toHaveText(translations[lang]['buses.add_model']);
+        await expect(form.locator('[data-i18n="buses.section_battery_system"]'))
+          .toHaveText(translations[lang]['buses.section_battery_system']);
+        await expectBatterySummary(page, { min: '280 kWh', max: '440 kWh', price: '330 CHF/kWh' });
+        await page.mouse.move(0, 0);
+        await form.screenshot({
+          path: `guide/images/${lang}/bus-model-battery.png`,
+          animations: 'disabled',
+        });
+        check(state);
+      });
+    }
+  }
+
   test('uses the actual length and chemistry to estimate costs and pack mass', async ({ page }) => {
     const state = await setup(page);
     await page.goto('./#add-bus-model');

@@ -14,6 +14,9 @@ export function registerGuideLayoutTests(test, expect) {
       const gate = new Promise(resolve => { release = resolve; });
       let delayedImages = 0;
       await page.route(/\.png(?:\?.*)?$/, async route => {
+        // Vite also serves JavaScript URL modules for PNGs. The guide needs
+        // those modules to render before the image bodies are released.
+        if (route.request().resourceType() !== 'image') return route.fallback();
         const response = await route.fetch();
         delayedImages++;
         await gate;

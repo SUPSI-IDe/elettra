@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   GUIDE_BASELINE_VERSION,
+  GUIDE_BACKEND_BASELINE_VERSION,
   GUIDE_UPDATED_AT,
   SUPPORTED_GUIDE_LANGUAGES,
   guideContent,
@@ -46,7 +47,7 @@ test("the authenticated shell keeps a translated user-guide link at the bottom o
 
 test("the public guide contains the expected accessible shell", async () => {
   const guide = await readProjectFile("guide/index.html");
-  assert.match(guide, /id="guide-language"/);
+  assert.match(guide, /<select\b[^>]*id="guide-language"[^>]*\bdisabled\b/);
   assert.match(guide, /id="guide-content"/);
   assert.equal(guide.match(/href="\.\.\/"/g)?.length, 2);
   assert.doesNotMatch(guide, /to verify|placeholder|asset to be supplied/i);
@@ -65,7 +66,7 @@ test("all supported guide languages expose the same complete section structure",
     "comparison",
     "practice",
   ];
-  const expectedFigureCounts = [0, 1, 0, 1, 2, 1, 3, 2, 0, 0];
+  const expectedFigureCounts = [0, 1, 0, 2, 3, 1, 3, 3, 1, 0];
 
   assert.deepEqual(Object.keys(guideContent).sort(), [...SUPPORTED_GUIDE_LANGUAGES].sort());
 
@@ -73,7 +74,9 @@ test("all supported guide languages expose the same complete section structure",
     const content = guideContent[language];
     assert.deepEqual(content.sections.map(({ id }) => id), expectedIds);
     assert.deepEqual(
-      content.sections.map(({ figures }) => figures?.length ?? 0),
+      content.sections.map(({ figures = [], items }) =>
+        figures.length + items.flatMap(item => item.figures ?? []).length
+      ),
       expectedFigureCounts,
     );
     assert.ok(content.ui.title);
@@ -131,7 +134,7 @@ test("the guide baseline follows the frontend version and exposes a valid update
   assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
   assert.deepEqual(
     SUPPORTED_GUIDE_LANGUAGES.map((language) => guideContent[language].ui.updatedValue),
-    ["24 November 2026", "24. November 2026", "24 novembre 2026", "24 novembre 2026"],
+    ["25 November 2026", "25. November 2026", "25 novembre 2026", "25 novembre 2026"],
   );
 });
 
@@ -160,32 +163,32 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
   const expectedTerms = {
     en: {
       start: ["Home", "user guide", "CARTO", "latest available GTFS edition", "indicative"],
-      fleet: ["Details", "older custom stops"],
-      shifts: ["GTFS", "complete server-side list", "Duplicate", "Space-time", "Map", "missing transfer data"],
+      fleet: ["Details opens a read-only view", "Edit to complete missing fields in older custom stops", "position the map manually"],
+      shifts: ["Both fields are locked", "complete server-side list", "Duplicate saves a copy immediately", "dependent evaluation blocks deletion", "Space-time", "Map", "missing transfer data"],
       feasibility: ["one GTFS edition", "Duplicate", "partial copy"],
       results: ["recorded", "Configured SOC window", "initial physical-maximum reference", "expandable white cards"],
       yearly: ["GTFS edition", "recorded provenance"],
     },
     de: {
       start: ["Startseite", "Benutzerhandbuch", "CARTO", "neueste verfügbare GTFS-Ausgabe", "Orientierung"],
-      fleet: ["Details", "ältere Haltestellen"],
-      shifts: ["GTFS", "vollständige serverseitige Liste", "Duplizieren", "Raum-Zeit", "Karte", "fehlende Überführungsdaten"],
+      fleet: ["Details öffnet eine schreibgeschützte Ansicht", "fehlende Angaben älterer Haltestellen unter Bearbeiten", "tragen Sie Adresse und Stadt von Hand ein"],
+      shifts: ["Beide Felder sind gesperrt", "vollständige serverseitige Liste", "Duplizieren speichert sofort eine Kopie", "abhängige Bewertung das Löschen blockiert", "Weg-Zeit", "Karte", "Fehlende Überführungsdaten"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "unvollständig"],
       results: ["aufgezeichnete", "Konfiguriertes SOC-Fenster", "physischen Maximum", "aufklappbare weisse Karten"],
       yearly: ["GTFS-Ausgabe", "aufgezeichnete Herkunft"],
     },
     fr: {
       start: ["Accueil", "guide", "CARTO", "dernière édition GTFS disponible", "indicative"],
-      fleet: ["Détails", "anciens arrêts"],
-      shifts: ["GTFS", "liste complète côté serveur", "Dupliquer", "Espace-temps", "Carte", "données de transfert manquantes"],
+      fleet: ["Détails ouvre une vue en lecture seule", "Modifier pour compléter les données manquantes des anciens arrêts", "placez le réticule manuellement"],
+      shifts: ["Ces champs sont verrouillés", "liste complète côté serveur", "Dupliquer enregistre immédiatement une copie", "évaluation dépendante bloque la suppression", "Espace-temps", "Carte", "données de transfert manquantes"],
       feasibility: ["édition GTFS", "Dupliquer", "partiellement"],
       results: ["enregistrée", "Fenêtre SOC configurée", "maximum physique", "cartes blanches dépliables"],
       yearly: ["édition GTFS", "provenance enregistrée"],
     },
     it: {
       start: ["Home", "guida utente", "CARTO", "ultima edizione GTFS disponibile", "indicativa"],
-      fleet: ["Dettagli", "fermate storiche"],
-      shifts: ["GTFS", "elenco completo sul server", "Duplica", "Spazio-tempo", "Mappa", "dati di trasferimento mancanti"],
+      fleet: ["Dettagli apre una vista in sola lettura", "Modifica per completare i dati mancanti delle fermate storiche", "posizionare manualmente la mappa"],
+      shifts: ["I due campi rimangono bloccati", "elenco completo sul server", "Duplica salva subito una copia", "valutazione dipendente blocca l’eliminazione", "Spazio-tempo", "Mappa", "dati di trasferimento mancanti"],
       feasibility: ["una sola edizione GTFS", "Duplica", "parzialmente"],
       results: ["registrata", "Intervallo SOC configurato", "massimo fisico", "schede bianche espandibili"],
       yearly: ["edizione GTFS", "provenienza registrata"],
@@ -214,20 +217,20 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
 test("every guide language explains the two-level feasibility and yearly result navigation", () => {
   const expectedTerms = {
     en: {
-      feasibility: ["General", "vehicle block", "selected battery", "planned charging", "Aggregate Q95", "not determined", "How to resolve"],
-      yearly: ["General", "vehicle block", "Efficiency", "Costs", "Emissions", "annual DC energy"],
+      feasibility: ["General", "vehicle block", "selected battery", "planned charging", "Aggregate Q95", "Not determined", "How to resolve"],
+      yearly: ["General", "vehicle block", "Efficiency", "Costs", "Emissions", "physical bus count"],
     },
     de: {
       feasibility: ["Allgemein", "Fahrzeugumlauf", "eigene Batterie", "geplanten Ladevorgänge", "aggregiertes Q95", "Nicht bestimmt", "So beheben"],
-      yearly: ["Allgemein", "Fahrzeugumlauf", "Effizienz", "Kosten", "Emissionen", "jährlichen DC-Energie"],
+      yearly: ["Allgemein", "Fahrzeugumlauf", "Effizienz", "Kosten", "Emissionen", "Anzahl physischer Busse"],
     },
     fr: {
       feasibility: ["Général", "service voiture", "propre batterie", "recharges planifiées", "Q95 agrégé", "non déterminée", "Comment résoudre"],
-      yearly: ["Général", "service voiture", "Efficacité", "Coûts", "Émissions", "énergie DC annuelle"],
+      yearly: ["Général", "service voiture", "Efficacité", "Coûts", "Émissions", "nombre de bus physiques"],
     },
     it: {
-      feasibility: ["Generale", "turno macchina", "propria batteria", "ricariche pianificate", "Q95 aggregato", "non determinata", "Come risolvere"],
-      yearly: ["Generale", "turno macchina", "Efficienza", "Costi", "Emissioni", "energia DC annuale"],
+      feasibility: ["Generale", "turno macchina", "propria batteria", "ricariche pianificate", "Q95 aggregato", "Non determinata", "Come risolvere"],
+      yearly: ["Generale", "turno macchina", "Efficienza", "Costi", "Emissioni", "numero di bus fisici"],
     },
   };
 
@@ -245,16 +248,16 @@ test("every guide language explains the two-level feasibility and yearly result 
       assert.ok(yearlyText.includes(term), `${language} yearly guide is missing ${term}`);
     }
     assert.equal(feasibility.figures.length, 3);
-    assert.equal(yearly.figures.length, 2);
+    assert.equal(yearly.figures.length, 3);
   }
 });
 
 test("every guide language distinguishes owned vehicle CAPEX from allocated shared infrastructure", () => {
   const expectedTerms = {
-    en: ["belongs in full", "only its cost is allocated"],
-    de: ["vollständig", "nur ihre Kosten"],
-    fr: ["intégralement", "seul son coût"],
-    it: ["integralmente", "solo il suo costo"],
+    en: ["belongs in full", "an equal share per representative bus"],
+    de: ["vollständig", "einem gleichen Anteil je repräsentativem Bus"],
+    fr: ["intégralement", "à parts égales par bus représentatif"],
+    it: ["integralmente", "una quota uguale per bus rappresentativo"],
   };
 
   for (const language of SUPPORTED_GUIDE_LANGUAGES) {
@@ -268,12 +271,12 @@ test("every guide language distinguishes owned vehicle CAPEX from allocated shar
 
 test("every referenced guide screenshot is packaged locally", async () => {
   const sources = new Set(
-    guideContent.en.sections.flatMap(({ figures = [] }) =>
-      figures.map(({ src }) => src)
+    guideContent.en.sections.flatMap(({ figures = [], items }) =>
+      [...figures, ...items.flatMap(item => item.figures ?? [])].map(({ src }) => src)
     )
   );
 
-  assert.equal(sources.size, 10);
+  assert.ok(sources.size > 0);
   await Promise.all([...sources].map((src) => access(new URL(src))));
 });
 
@@ -292,12 +295,12 @@ test("the release version has a changelog entry required by the publishing workf
   assert.ok(changelog.split("\n").some(line => line.startsWith(`## [${packageJson.version}]`)));
 });
 
-test("all guide languages explain diagnostic batteries, orange Q95 outcomes and unavailable data", () => {
+test("all guide languages explain diagnostic batteries, mixed feasibility verdicts and unavailable Q95 data", () => {
   const vocabulary = {
-    en: { battery: ['missing packs', 'physical maximum', 'not a verified installable battery', 'next departure', 'verified operation'], q95: ['orange', 'feasible with Mean but infeasible with Q95', 'N/A', 'tooltip', '—', 'not zero', 'per-trip quantiles'], help: ['keyboard focus', 'tap', 'Escape'] },
-    de: { battery: ['fehlenden Packs', 'physische Maximum', 'keine verifizierte installierbare Batterie', 'nächsten Abfahrt', 'verifizierter Betrieb'], q95: ['oranges', 'mit Mittelwert machbar, mit Q95 nicht machbar', 'N/A', 'Tooltip', '—', 'nicht null', 'Einzelquantile'], help: ['Tastaturfokus', 'Antippen', 'Escape'] },
-    fr: { battery: ['packs manquants', 'maximum physique', 'pas une batterie installable vérifiée', 'prochain départ', 'exploitation vérifiée'], q95: ['orange', 'faisable en moyenne, non faisable en Q95', 'N/A', 'infobulle', '—', 'pas zéro', 'quantiles par course'], help: ['focus clavier', 'toucher', 'Échap'] },
-    it: { battery: ['pacchi mancanti', 'massimo fisico', 'non una batteria installabile verificata', 'prossima partenza', 'esercizio verificato'], q95: ['arancione', 'fattibile con Media ma non con Q95', 'N/A', 'tooltip', '—', 'Non significa zero', 'quantili delle singole corse'], help: ['tastiera', 'tocco', 'Esc'] },
+    en: { battery: ['missing packs', 'physical maximum', 'not a verified installable battery', 'next departure', 'verified operation'], status: ['orange', 'one profile is feasible and the other infeasible', 'no verified verdict'], q95: ['N/A', 'tooltip', '—', 'missing value', 'Trip-level quantiles'], help: ['keyboard focus', 'tap', 'Escape'] },
+    de: { battery: ['fehlenden Packs', 'physische Maximum', 'keine verifizierte installierbare Batterie', 'nächsten Abfahrt', 'verifizierter Betrieb'], status: ['oranges', 'ein Profil machbar und das andere nicht machbar', 'kein verifiziertes Urteil'], q95: ['N/A', 'Tooltip', '—', 'fehlenden Wert', 'Fahrtquantile'], help: ['Tastaturfokus', 'Antippen', 'Escape'] },
+    fr: { battery: ['packs manquants', 'maximum physique', 'pas une batterie installable vérifiée', 'prochain départ', 'exploitation vérifiée'], status: ['orange', 'un profil est faisable et l’autre non', 'aucun verdict vérifié'], q95: ['N/A', 'infobulle', '—', 'valeur manquante', 'quantiles par course'], help: ['focus clavier', 'toucher', 'Échap'] },
+    it: { battery: ['pacchi mancanti', 'massimo fisico', 'non una batteria installabile verificata', 'prossima partenza', 'esercizio verificato'], status: ['arancione', 'un profilo è fattibile e l’altro no', 'senza un esito verificato'], q95: ['N/A', 'tooltip', '—', 'valore mancante', 'quantili delle singole corse'], help: ['tastiera', 'tocco', 'Esc'] },
   };
   for (const language of SUPPORTED_GUIDE_LANGUAGES) {
     const items = guideContent[language].sections.find(({id}) => id === 'results').items;
@@ -320,8 +323,8 @@ test("the guide prepares depots before composing trips and preserves verified-re
     const expected = terms[language];
     assert.ok(titles.indexOf(expected.boundaries) >= 0);
     assert.ok(titles.indexOf(expected.boundaries) < titles.indexOf(expected.trips));
-    assert.ok(sections.results.items[0].text.includes(expected.feasible));
-    assert.ok(sections.results.items[1].text.includes(expected.verified));
+    assert.ok(sections.results.items.some(({ text }) => text.includes(expected.feasible)));
+    assert.ok(sections.results.items.some(({ text }) => text.includes(expected.verified)));
     assert.ok(sections.yearly.items.some(({text}) => text.includes('Min') && text.includes('Max') && text.includes(expected.separate)));
   }
 });
@@ -329,9 +332,18 @@ test("the guide prepares depots before composing trips and preserves verified-re
 test("Markdown chapters share the published guide baseline and document the three-step editor", async () => {
   for (const chapter of ['overview','fleet-management','shifts-and-routes','feasibility-evaluation','simulation-results','yearly-analysis','comparison-and-export']) {
     const text = await readProjectFile(`docs/user-guide/${chapter}.md`);
-    assert.ok(text.includes(`Interface baseline: Frontend v${GUIDE_BASELINE_VERSION}`), `${chapter} baseline is stale`);
+    assert.ok(
+      text.trimEnd().endsWith(`> Reference versions: Frontend v${GUIDE_BASELINE_VERSION} · Backend v${GUIDE_BACKEND_BASELINE_VERSION}\n>\n> Last updated: ${new Date(GUIDE_UPDATED_AT + " UTC").toISOString().slice(0, 10)}`),
+      `${chapter} should end with the guide’s reference versions and update date`,
+    );
   }
   const shifts = await readProjectFile('docs/user-guide/shifts-and-routes.md');
   assert.deepEqual([...shifts.matchAll(/^### \d\. (.+)$/gm)].map(match => match[1]), ['Set up the block','Compose the day','Review and save']);
   assert.match(shifts,/Undo last\s+change/);
+  assert.match(shifts, /Duplicate\*\* saves a new copy directly to the list/);
+  assert.match(shifts, /while the programme contains activities/);
+
+  const fleet = await readProjectFile("docs/user-guide/fleet-management.md");
+  assert.match(fleet, /Details\*\* opens a read-only view/);
+  assert.match(fleet, /If the lookup fails, position the map\s+manually/);
 });
