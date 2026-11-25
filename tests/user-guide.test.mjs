@@ -171,7 +171,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     de: {
       start: ["Startseite", "Benutzerhandbuch", "CARTO", "neueste verfügbare GTFS-Ausgabe", "Orientierung"],
       fleet: ["Details", "ältere Haltestellen"],
-      shifts: ["GTFS", "vollständige serverseitige Liste", "Duplizieren", "Raum-Zeit", "Karte", "fehlende Überführungsdaten"],
+      shifts: ["GTFS", "vollständige serverseitige Liste", "Duplizieren", "Weg-Zeit", "Karte", "fehlende Überführungsdaten"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "unvollständig"],
       results: ["aufgezeichnete", "Konfiguriertes SOC-Fenster", "physischen Maximum", "aufklappbare weisse Karten"],
       yearly: ["GTFS-Ausgabe", "aufgezeichnete Herkunft"],
