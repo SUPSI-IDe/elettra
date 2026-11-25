@@ -1231,7 +1231,7 @@ test("current fleet dashboard restores Costs and Emissions charts after visiting
   const shiftSummary = page.locator('[data-role="ya-shift-yearly-summary"]');
   const phaseChart = page.locator('[data-annual-lca] [data-role="ya-lca-phases"]');
   const expectCostsCharts = async () => {
-    await expect(page.locator("[data-cost-opex] svg")).toBeVisible();
+    await expect(page.locator("[data-cost-annual] svg")).toBeVisible();
     await expect(page.locator("[data-cost-cumulative] svg")).toBeVisible();
   };
   const expectEmissionsChart = async () => {
