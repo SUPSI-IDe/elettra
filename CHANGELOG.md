@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.4] - 2026-11-25
+
+- Update the user guide in English, German, French and Italian, with screenshots of the vehicle-block planner, feasibility results and yearly analysis.
+- Explain Mean and Q95 design choices, the Monte Carlo intervals for typical days, and how annualized investment enters the total equivalent annual cost.
+- Link Swagger UI and the OpenAPI schema, use the application language selector in the guide, and list the reference frontend and backend versions in the footer.
+- Localize bus categories in the feasibility form.
+
 ## [1.4.4-rc.4] - 2026-11-25
 
 - Use the application’s globe and compact language selector in the public guide. Remove the screenshot-language notice.
