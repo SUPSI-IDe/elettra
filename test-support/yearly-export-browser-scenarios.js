@@ -103,6 +103,19 @@ export function registerYearlyExportAcceptance(test, expect) {
         expect(await displayedNumber(page.locator('[data-role="fleet-tco"]'))).toBeCloseTo(expected.economics.electric.perKm, 3);
         expect(await displayedNumber(page.locator('[data-role="diesel-tco"]'))).toBeCloseTo(expected.economics.diesel.perKm, 3);
         expect(await displayedNumber(page.locator('[data-summary="distance"] strong'))).toBe(Math.round(expected.activity.distanceKm));
+        const annualChart = page.getByRole('img', { name: 'Total equivalent annual cost', exact: true });
+        await expect(annualChart).toBeVisible();
+        const totals = annualChart.locator('.annual-chart-total');
+        const capital = annualChart.locator('rect > title').filter({ hasText: 'Annualized investment' });
+        await expect(capital).toHaveCount(2);
+        for (const [i, design] of [expected.economics.electric, expected.economics.diesel].entries()) {
+          const barTotal = await displayedNumber(totals.nth(i));
+          expect(barTotal).toBe(Math.round(design.annualEquivalent));
+          expect(barTotal / expected.activity.distanceKm).toBeCloseTo(design.perKm, 3);
+          const capitalAnnual = (design.initial + design.discountedReplacements - design.discountedResidual) / design.annuityFactor;
+          const capitalText = (await capital.nth(i).textContent()).match(/CHF ([\d']+) \//);
+          expect(Number(capitalText[1].replaceAll("'", ''))).toBe(Math.round(capitalAnnual));
+        }
         const investment = page.locator('.annual-cost-comparison tbody tr').filter({ hasText: 'Initial investment' });
         expect(await displayedNumber(investment.locator('td').first())).toBe(Math.round(expected.economics.electric.initial));
         await page.getByRole('tab', { name: 'Emissions', exact: true }).click();

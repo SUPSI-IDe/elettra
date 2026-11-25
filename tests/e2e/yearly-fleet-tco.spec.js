@@ -100,7 +100,7 @@ test('representative and fleet views reconcile investment and TCO, assumptions a
       : element.hasAttribute('data-annual-controls') ? 'assumptions'
         : element.querySelector('[data-annual-financial-detail]') ? 'details' : 'unknown'
   ))).toEqual(['results', 'assumptions', 'details']);
-  await expect(page.locator('.annual-cost-results-card [data-cost-opex] svg')).toBeVisible();
+  await expect(page.locator('.annual-cost-results-card [data-cost-annual] svg')).toBeVisible();
   await expect(page.locator('.annual-cost-results-card [data-cost-cumulative] svg')).toBeVisible();
   await expect(page.locator('.annual-cost-results-card [data-tco-assumptions]')).toHaveCount(0);
   await expect(page.locator('[data-annual-controls] > [data-tco-form] > details.result-card')).toHaveCount(1);
@@ -155,7 +155,7 @@ test('representative and fleet views reconcile investment and TCO, assumptions a
   await page.getByText('Charging infrastructure by location', { exact: true }).click();
   await expect(page.getByRole('row', { name: "Depot CHF 110'000 CHF 250'000 CHF 40'000 CHF 400'000" })).toBeVisible();
   await expect(page.locator('.annual-cost-summary-grid .result-metric__label').nth(1)).toContainText('[CHF/km]');
-  await expect(page.locator('[data-cost-opex] svg')).toBeVisible();
+  await expect(page.locator('[data-cost-annual] svg')).toBeVisible();
   await expect(page.locator('[data-cost-cumulative] svg')).toBeVisible();
   await assumptionsPanel.locator(':scope > summary').click();
   await expect(assumptionsPanel).toHaveAttribute('open', '');
@@ -518,10 +518,10 @@ test('dragging the electricity price keeps the controls and costs in place while
 
   const tco = page.locator('[data-role="fleet-tco"]');
   const headerTco = page.locator('[data-outcome="electric-tco"] .annual-outcome__value');
-  const opexChart = page.locator('[data-cost-opex] svg');
+  const annualCostChart = page.locator('[data-cost-annual] svg');
   const cumulativeChart = page.locator('[data-cost-cumulative] svg');
   await expect(tco).toHaveText('2.934');
-  await expect(opexChart).toBeVisible();
+  await expect(annualCostChart).toBeVisible();
   await expect(cumulativeChart).toBeVisible();
   const initial = await page.evaluate(() => window.dashboard.getExportState().assessment);
 
@@ -566,7 +566,7 @@ test('dragging the electricity price keeps the controls and costs in place while
   expect.soft(await readPosition(), 'range, form and document position while waiting').toEqual(before);
   await expect.soft(tco).toHaveText('2.934', { timeout: 1000 });
   await expect.soft(headerTco).toHaveText('2.934', { timeout: 1000 });
-  await expect.soft(opexChart).toBeVisible({ timeout: 1000 });
+  await expect.soft(annualCostChart).toBeVisible({ timeout: 1000 });
   await expect.soft(cumulativeChart).toBeVisible({ timeout: 1000 });
 
   const pending = await page.evaluate(() => {
@@ -585,7 +585,7 @@ test('dragging the electricity price keeps the controls and costs in place while
   expect(exported.assumptions.energyPrice).toBe(energyPrice);
   expect(exported.economics.electric.annualEquivalent).toBeCloseTo(initial.economics.electric.annualEquivalent + addedElectricityCost, 5);
   await expect.poll(async () => Number(await tco.textContent())).toBeCloseTo(exported.economics.electric.perKm, 3);
-  await expect(opexChart).toBeVisible();
+  await expect(annualCostChart).toBeVisible();
   await expect(cumulativeChart).toBeVisible();
   expect(await readPosition(), 'range, form and document position after the projection').toEqual(before);
 });

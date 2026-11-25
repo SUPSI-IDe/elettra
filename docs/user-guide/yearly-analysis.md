@@ -1,7 +1,7 @@
 # Yearly Analysis
 
 > Last updated: 2026-11-23
-> Interface baseline: Frontend v1.4.1
+> Interface baseline: Frontend v1.4.2
 
 A yearly analysis keeps the bus, battery, and charging design selected by a
 completed feasibility evaluation fixed and applies it to representative
@@ -104,9 +104,12 @@ them.
 
 ### Costs
 
-The Costs view shows a compact electric/diesel TCO row, annual operating-cost
-and cumulative discounted-cost charts, break-even, and detailed investment and
-operating tables.
+The Costs view shows a compact electric/diesel TCO row, a cumulative discounted-cost chart with break-even,
+and detailed investment and operating tables. The **Total equivalent annual cost**
+bars combine energy, maintenance and annualized investment. The investment
+includes purchases and replacements, less the terminal residual value, at the
+selected discount rate. Dividing a bar total by the annual distance for the
+same scope gives the TCO in CHF/km.
 
 **Edit economic assumptions** is an expandable card below the charts. Changes
 are saved automatically in the yearly analysis and reused by Costs and

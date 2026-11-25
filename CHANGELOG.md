@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.2] - 2026-11-25
+
+- Show total equivalent annual cost for electric and diesel buses, with annualized investment alongside operating costs.
+- Run the browser suite across two GitHub-hosted runners before publishing the frontend image.
+
 ## [1.4.1] - 2026-11-25
 
 - Serve Swagger UI at `/docs` and the backend’s OpenAPI schema at `/openapi.json` through the frontend proxy. Compatible with backend 1.9.0.
