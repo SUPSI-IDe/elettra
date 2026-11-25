@@ -51,7 +51,9 @@ On local machines and shared servers, run tests on at most eight logical CPU cor
 CPUs from the process's allowed CPU list. Child processes inherit that affinity.
 Keep the configured worker count at eight or fewer; a worker limit alone does
 not enforce the CPU budget. GitHub-hosted runners are isolated VMs.
-Split the suite across runners while keeping each runner within its own CPU budget. Preserve lower worker counts when appropriate.
+Use 16 GitHub-hosted shards for the complete frontend browser suite and a separate
+parallel job for unit tests, the production build and bundle smoke tests. Each
+runner stays within its own CPU budget. Publishing requires all checks to pass. Preserve lower worker counts when appropriate.
 
 ## Agent skills
 
