@@ -53,7 +53,9 @@ const openEditForm = async (page) => {
 
 test("an address search positions a custom stop while keeping the map picker available", async ({
   page,
-}) => {
+}, testInfo) => {
+  const captureGuide = updateGuideScreenshots && testInfo.project.name === "chromium";
+  if (captureGuide) await page.setViewportSize({ width: 1600, height: 1180 });
   await installSession(page);
   let reverseRequests = 0;
   let releaseInitialReverse;
@@ -137,6 +139,20 @@ test("an address search positions a custom stop while keeping the map picker ava
   await page.waitForTimeout(600);
   expect(reverseRequests).toBe(1);
 
+  if (captureGuide) {
+    await page.locator("#custom-stop-name").fill("Deposito di esempio");
+    await page.selectOption("#custom-stop-type", "depot");
+    await page.locator("#custom-stop-type").blur();
+    await expect.poll(() => page.locator(".leaflet-tile").evaluateAll(tiles =>
+      tiles.length > 0 && tiles.every(tile => tile.complete && tile.naturalWidth > 0)
+    ), { timeout: 15000 }).toBe(true);
+    await page.mouse.move(0, 0);
+    await page.locator("section.add-custom-stop").screenshot({
+      path: "guide/images/custom-stop.png",
+      animations: "disabled",
+    });
+  }
+
   await address.fill("Indirizzo inesistente");
   await address.press("Enter");
   await expect.poll(() => searchQueries.length).toBe(2);
@@ -167,11 +183,6 @@ test("legacy stop recovers its missing city and can be assigned a type", async (
   await expect(page.locator("#custom-stop-city")).toBeEditable();
 
   await page.selectOption("#custom-stop-type", "depot");
-  if (updateGuideScreenshots) {
-    await page.setViewportSize({ width: 1760, height: 1080 });
-    await page.waitForTimeout(500);
-    await page.screenshot({ path: "guide/images/custom-stop.png" });
-  }
   await page.locator('button[type="submit"]').click();
 
   await expect.poll(getUpdateBody).not.toBeNull();

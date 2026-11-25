@@ -1,7 +1,7 @@
 # User Guide: Overview
 
-> Last updated: 2026-11-20
-> Interface baseline: Frontend v1.4.3
+> Last updated: 2026-11-25
+> Interface baseline: Frontend v1.4.4-rc.1
 
 ELETTRA supports preliminary planning for battery-electric bus services. It
 connects fleet and timetable data to a technical feasibility gate, then uses a
@@ -20,7 +20,7 @@ sections remain available in the sidebar:
 
 | Sidebar group | Page | Purpose |
 |---|---|---|
-| **Fleet** | Bus Models | Define vehicle, battery, charging, cost, and lifetime parameters |
+| **Fleet** | Buses | Define vehicle, battery, charging, cost, and lifetime parameters |
 | **Fleet** | Custom Stops | Add depots, charging locations, and hubs not present in the timetable |
 | **Fleet** | Vehicle blocks | Combine scheduled trips and auxiliary journeys into a complete daily duty |
 | **Simulations** | Feasibility evaluation | Test the selected service under battery and charging constraints |
@@ -48,17 +48,19 @@ Yearly fleet assessment and vehicle-block efficiency
 Comparison and export
 ```
 
-1. Create a bus model and replace representative defaults with operator or
-   manufacturer data when available.
+1. Open **Fleet → Buses** and select **Add Bus Model**. Enter the actual
+   vehicle length and use operator or manufacturer data when available.
 2. Add the custom depots, charging locations, or hubs required by the service.
 3. Build each vehicle block from one selected GTFS timetable edition, including
    its start, return, and auxiliary movements.
-4. Create a feasibility evaluation from vehicle blocks that belong to the same
-   GTFS edition. Choose the optimization mode and operating assumptions.
+4. Create a feasibility evaluation. Select the GTFS edition and service day,
+   then select compatible vehicle blocks. Choose the optimization mode and
+   operating assumptions.
 5. Check the technical verdict before interpreting secondary indicators. A
    completed calculation can still be physically infeasible.
-6. Create a yearly analysis only from an eligible, completed feasibility
-   evaluation. The selected battery and charging design remain fixed.
+6. Create a yearly analysis from a feasible evaluation eligible for yearly
+   analysis with a recorded battery-pack count. The battery and charging design
+   selected in feasibility carry through to the annual calculation.
 7. Compare saved yearly analyses whose service scope and assumptions are
    sufficiently consistent.
 

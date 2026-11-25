@@ -213,16 +213,18 @@ for (const lang of ["en", "it", "de", "fr"]) {
     const screenshot = testInfo.outputPath(`home-${lang}.png`);
     await page.screenshot({ path: screenshot, fullPage: true });
     await testInfo.attach("Home layout", { path: screenshot, contentType: "image/png" });
-    if (updateGuideScreenshots && lang === "en") {
-      await page.screenshot({
-        path: "guide/images/application-shell.png",
-        fullPage: true,
-      });
-    }
     for (const width of [1440, 820, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
       expect(await page.locator(".home-page").evaluate(el => el.scrollWidth > el.clientWidth)).toBe(false);
+    }
+    if (updateGuideScreenshots && lang === "it" && testInfo.project.name === "chromium") {
+      await page.setViewportSize({ width: 1440, height: 1230 });
+      await page.mouse.move(0, 0);
+      await page.locator(".home-page").screenshot({
+        path: "guide/images/application-shell.png",
+        animations: "disabled",
+      });
     }
   });
 }

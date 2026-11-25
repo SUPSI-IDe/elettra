@@ -1,7 +1,7 @@
 # Yearly Analysis
 
-> Last updated: 2026-11-23
-> Interface baseline: Frontend v1.4.3
+> Last updated: 2026-11-25
+> Interface baseline: Frontend v1.4.4-rc.1
 
 A yearly analysis keeps the bus, battery, and charging design selected by a
 completed feasibility evaluation fixed and applies it to representative
@@ -22,23 +22,21 @@ The current result page separates two questions:
 Open **Simulations → Yearly analyses** and select **New**.
 
 1. Enter a descriptive analysis name.
-2. Select an eligible, completed feasibility evaluation.
+2. Select a feasible evaluation that is eligible for yearly analysis and has
+   a recorded battery-pack count.
 3. Review the inherited vehicle blocks, optimization mode, sizing temperature,
    selected packs, and capacity.
 4. Set the average passenger occupancy for the annual predictions.
-5. Review the representative temperatures, annual occurrences, and weather
-   reference.
+5. Review the representative temperatures, their day counts and the weather
+   reference. The temperature scenarios and day counts are read-only.
 6. Confirm and start the analysis.
 
-Each weather scenario is applied to every selected vehicle block. Annual totals
-weight scenario energy by its occurrence. For each typical day, ELETTRA samples
-the trips individually to estimate the Q05–Q95 prediction range. The
-contribution in kWh/year multiplies that typical-day range by the number of
-days in the weather cluster. The feasibility verdict and battery sizing come
-from the linked feasibility evaluation.
+Each weather scenario is applied to every selected vehicle block. The
+feasibility verdict and battery sizing come from the linked feasibility
+evaluation.
 
-If the occurrences do not cover the intended year, the form reports the
-mismatch. Resolve that boundary before interpreting annual values.
+The form displays a warning when the total number of days is positive and
+differs from 365. A total of zero prevents the analysis from starting.
 
 ---
 
@@ -106,10 +104,12 @@ them.
 
 The Costs view shows a compact electric/diesel TCO row, a cumulative discounted-cost chart with break-even,
 and detailed investment and operating tables. The **Total equivalent annual cost**
-bars combine energy, maintenance and annualized investment. The investment
-includes purchases and replacements, less the terminal residual value, at the
-selected discount rate. Dividing a bar total by the annual distance for the
-same scope gives the TCO in CHF/km.
+bars combine energy, maintenance and annualized investment. The purple
+segment shows purchases and replacements, net of the residual value at the end
+of the analysis period, discounted and converted to an equivalent annual
+amount. The cumulative chart on the right shows when costs and the final
+residual-value credit occur. Dividing a bar total by the annual distance for
+the same scope gives the TCO in CHF/km.
 
 **Edit economic assumptions** is an expandable card below the charts. Changes
 are saved automatically in the yearly analysis and reused by Costs and
@@ -169,8 +169,12 @@ It includes:
 - a yearly/daily energy-unit toggle where available;
 - expandable scenario, battery, and critical-condition details.
 
-Cold scenarios can have high consumption but contribute according to their
-recorded annual occurrence. Read scenario intensity together with its weight.
+For each representative day, ELETTRA uses Monte Carlo sampling to draw each
+trip’s consumption independently, including trips in different vehicle blocks.
+For kWh/km, divide the sampled total by the distance for the same scope. For
+kWh/year, multiply the representative day’s contribution by the number of days
+in its weather cluster. Q05–Q95 describes the central 90% of the modeled
+consumption for that representative day and its weighted contribution.
 
 Historical analyses that do not contain the current frozen investment/activity
 structure can use the legacy result layout or show General only. ELETTRA does

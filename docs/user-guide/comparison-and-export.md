@@ -1,11 +1,11 @@
 # Comparison and Export
 
-> Last updated: 2026-11-20
-> Interface baseline: Frontend v1.4.3
+> Last updated: 2026-11-25
+> Interface baseline: Frontend v1.4.4-rc.1
 
-The Analysis comparison page compares **two saved yearly analyses** side by
-side. It does not compare two feasibility runs directly, and it is not limited
-to an electric-versus-diesel chart.
+The **Analysis comparison** page compares two saved yearly analyses in the
+**General** scope using their configuration summaries and aggregate annual
+results.
 
 ---
 
@@ -21,30 +21,20 @@ Differences are reported as:
 Analysis B − Analysis A
 ```
 
-A positive difference therefore means that B is larger than A for that metric;
-whether that is beneficial depends on the metric.
+A positive difference means that B is larger than A for that metric.
 
 ---
 
 ## Compatibility summary
 
-The compatibility section identifies whether the analyses can be interpreted
-as a direct comparison. Review differences in:
+The **Compatible** badge requires the same non-empty set of vehicle blocks
+and the same optimization mode. The summary displays common vehicle blocks,
+the number of blocks in each analysis, and the annual distances.
 
-- vehicle-block set and service scope;
-- bus and battery configuration;
-- GTFS provenance;
-- annual distance and temperature scenarios;
-- occupancy, heating, and other operating assumptions;
-- optimization mode and charging infrastructure;
-- environmental data and methodology completeness.
-
-A comparison can still render when inputs differ, but its deltas should not be
-treated as the effect of one decision unless the other boundaries are held
-consistent.
-
-The page compares the **General** scope. Individual vehicle-block results are
-not paired or compared on this page.
+Before interpreting differences, check the annual distance, GTFS edition,
+economic assumptions and other inputs that could account for the change.
+Attribute a difference to a single decision only when the other relevant
+assumptions are consistent.
 
 ---
 
@@ -56,37 +46,39 @@ not paired or compared on this page.
 | **Efficiency** | Aggregate annual energy, distance, and efficiency context |
 | **Cost** | Annual and lifecycle economic indicators, subject to compatible assumptions |
 | **Emissions** | Aggregate environmental indicators and completeness metadata |
-| **Details / Export** | Input details, provenance, compatibility information, and export controls |
+| **Details / Export** | Combined table of efficiency, cost and emissions metrics, with CSV and JSON actions |
 
 Each yearly analysis can contain an internal electric/diesel assessment. The
-Analysis comparison page compares the saved yearly scenarios A and B; keep
-those two comparison levels distinct.
+A and B columns refer to the selected yearly analyses.
 
 ---
 
 ## Environmental limitations
 
-Environmental deltas are shown only when the required inputs are sufficiently
-complete. Exports preserve data-completeness, scope-completeness, fuel-profile,
-and factor-methodology metadata.
-
-If required diesel-heater consumption is missing, the affected reduction is
-omitted instead of treating the missing contribution as zero. The current
-yearly boundary is partial and must not be described as a complete absolute LCA.
+Environmental differences require values for both analyses. If diesel-heater
+consumption is required and missing, the affected reduction is omitted. Read
+environmental results alongside their data and scope completeness indicators.
 
 ---
 
 ## Export options
 
-The current comparison interface provides dedicated exports:
+- **Export CSV** in **Details / Export** downloads `analysis-comparison.csv`.
+  Each row includes the General scope, category, metric and unit, A/B values,
+  the absolute and relative differences, and A/B statuses for data and scope
+  completeness. Missing values appear as blank cells.
+- **Export JSON** in **Details / Export** and **Download JSON** below the
+  comparison both download `analysis-comparison.json`. It contains the
+  General scope, the difference definition, the comparison models for A and B,
+  the compatibility checks and the same metric rows. The models contain
+  identifying information, vehicle-block references, battery and aggregate
+  charging configuration, scenario counts, distance, section statuses, and
+  available energy, cost and emissions summaries.
 
-- **Export CSV** in **Details / Export** for tabular comparison data;
-- **Export JSON** in **Details / Export** for structured comparison data;
-- **Download JSON** below the comparison for the complete structured payload.
-
-The exports include the comparison values and supporting scope/provenance data
-available to the page. Review compatibility warnings before using a delta in a
-decision record.
+For the complete JSON of a single yearly analysis, open that analysis, select
+**General**, and choose **Download all results (JSON)** beside **Close**. See
+[Yearly Analysis](yearly-analysis.md#export) for the
+contents of the yearly analysis export.
 
 ---
 

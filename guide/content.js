@@ -1,7 +1,7 @@
 import { useCaseSections } from "./use-cases.js";
 
-export const GUIDE_BASELINE_VERSION = "1.4.3";
-export const GUIDE_UPDATED_AT = "24 November 2026";
+export const GUIDE_BASELINE_VERSION = "1.4.4-rc.1";
+export const GUIDE_UPDATED_AT = "25 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -15,10 +15,32 @@ const yearlyEfficiencyImage = new URL("./images/yearly-efficiency.png", import.m
 const yearlyEmissionsImage = new URL("./images/yearly-emissions.png", import.meta.url).href;
 
 const GUIDE_FIGURES = {
+  shiftPlanner: {
+    src: new URL("./images/shift-planner.png", import.meta.url).href,
+    width: 2240,
+    height: 2594,
+    captions: {
+      en: "After you add a trip, the planner suggests departures from the current terminus. Select the transfer option to include trips starting elsewhere.",
+      de: "Nach einer Fahrt schlägt der Planer Abfahrten ab der aktuellen Endhaltestelle vor. Aktivieren Sie die Option für Leerfahrten, um Abfahrten ab anderen Haltestellen einzubeziehen.",
+      fr: "Après l’ajout d’une course, le planificateur propose les départs du terminus actuel. Activez l’option de transfert à vide pour inclure les départs d’autres arrêts.",
+      it: "Dopo una corsa, il planner propone le partenze dal capolinea attuale. Attivare l’opzione per i trasferimenti a vuoto per includere partenze da altre fermate.",
+    },
+  },
+  busBattery: {
+    src: new URL("./images/bus-model-battery.png", import.meta.url).href,
+    width: 1260,
+    height: 1351,
+    captions: {
+      en: "The bus model shows battery chemistry, minimum and maximum nominal capacity, and the price per kWh. Usable capacity is set in the feasibility study.",
+      de: "Im Busmodell stehen die Batteriechemie, die minimale und maximale Nennkapazität und der Preis pro kWh. Die nutzbare Kapazität wird in der Machbarkeitsbewertung festgelegt.",
+      fr: "La fiche du bus indique la chimie de la batterie, les capacités nominales minimale et maximale et le prix par kWh. La capacité utilisable se règle dans l’étude de faisabilité.",
+      it: "La scheda del bus mostra la chimica, la capacità nominale minima e massima e il prezzo per kWh. La capacità utilizzabile si imposta nella fattibilità.",
+    },
+  },
   shiftComposer: {
     src: new URL("./images/shift-composer.png", import.meta.url).href,
-    width: 1280,
-    height: 1000,
+    width: 2520,
+    height: 1888,
     captions: {
       en: "The original vehicle-block editor, available when editing older records.",
       de: "Der ursprüngliche Fahrzeugumlauf-Editor zum Bearbeiten älterer Einträge.",
@@ -29,7 +51,7 @@ const GUIDE_FIGURES = {
   infeasibility: {
     src: new URL("./images/feasibility-infeasible.png", import.meta.url).href,
     width: 1100,
-    height: 800,
+    height: 650,
     captions: {
       en: "An infeasible fleet result: selected packs, physical maximum, estimated requirement and missing packs. Open a vehicle block for its diagnostic battery graphic; explanations are in the information tooltips.",
       de: "Nicht machbares Flottenergebnis: gewählte Packs, physisches Maximum, geschätzter Bedarf und fehlende Packs. Öffnen Sie einen Umlauf für die diagnostische Batteriegrafik; Erklärungen stehen in den Informationstooltips.",
@@ -40,63 +62,63 @@ const GUIDE_FIGURES = {
 
   shell: {
     src: applicationShellImage,
-    width: 1440,
-    height: 1100,
+    width: 1200,
+    height: 1040,
     captions: {
-      en: "Authenticated Home with direct links to the six planning sections. Home, Fleet, Simulations and the user guide remain available from the sidebar.",
-      de: "Authentifizierte Startseite mit direkten Links zu den sechs Planungsbereichen. Startseite, Flotte, Simulationen und Benutzerhandbuch bleiben über die Seitenleiste erreichbar.",
-      fr: "Accueil authentifié avec des liens directs vers les six sections de planification. Accueil, Flotte, Simulations et le guide restent accessibles dans la barre latérale.",
-      it: "Home autenticata con collegamenti diretti alle sei sezioni di pianificazione. Home, Flotta, Simulazioni e guida utente restano disponibili nella barra laterale.",
+      en: "The six Home cards open the fleet and simulation tools.",
+      de: "Die sechs Kacheln auf der Startseite führen zu den Flotten- und Simulationswerkzeugen.",
+      fr: "Les six cartes de l’accueil donnent accès aux outils de flotte et de simulation.",
+      it: "Le sei schede della Home aprono gli strumenti di flotta e simulazione.",
     },
   },
   customStop: {
     src: customStopImage,
-    width: 1760,
-    height: 1080,
+    width: 1360,
+    height: 998,
     captions: {
-      en: "Editing a legacy custom stop: recovered location fields remain editable and a current stop type can be assigned before saving.",
-      de: "Bearbeitung einer älteren benutzerdefinierten Haltestelle: wiederhergestellte Ortsfelder bleiben editierbar und vor dem Speichern kann ein aktueller Typ zugewiesen werden.",
-      fr: "Modification d’un ancien arrêt personnalisé: les champs de lieu récupérés restent modifiables et un type actuel peut être attribué avant l’enregistrement.",
-      it: "Modifica di una fermata personalizzata storica: i campi recuperati restano modificabili e prima del salvataggio si può assegnare un tipo attuale.",
+      en: "Edit the address and choose Search on map to locate the stop. Check the position before saving.",
+      de: "Bearbeiten Sie die Adresse und wählen Sie die Kartensuche. Prüfen Sie die Position vor dem Speichern.",
+      fr: "Modifiez l’adresse et lancez la recherche sur la carte. Vérifiez la position avant d’enregistrer.",
+      it: "Modificare l’indirizzo e selezionare «Cerca sulla mappa». Verificare la posizione prima di salvare la fermata.",
     },
   },
   shift: {
     src: shiftVisualisationImage,
-    width: 2075,
-    height: 1050,
+    width: 2800,
+    height: 2210,
     captions: {
-      en: "Vehicle block visualisation with general information and the default space-time diagram. The toggle also opens a trip-by-trip map; depot connections are included in both views.",
-      de: "Visualisierung eines Fahrzeugumlaufs mit allgemeinen Informationen und dem standardmässigen Raum-Zeit-Diagramm. Über den Umschalter lässt sich auch eine Karte für jede einzelne Fahrt öffnen; Depotverbindungen sind in beiden Ansichten enthalten.",
-      fr: "Visualisation d’un service voiture avec ses informations générales et le diagramme espace-temps affiché par défaut. Le sélecteur ouvre aussi une carte course par course; les liaisons au dépôt figurent dans les deux vues.",
-      it: "Visualizzazione di un turno macchina con informazioni generali e diagramma spazio-tempo predefinito. Il selettore apre anche la mappa corsa per corsa; i collegamenti al deposito sono inclusi in entrambe le viste.",
+      en: "Lines 1 and 2 share a space-time diagram. Each line has its own colour. Dashed segments show non-revenue movements.",
+      de: "Die Linien 1 und 2 sind im selben Raum-Zeit-Diagramm dargestellt. Jede Linie hat eine eigene Farbe. Gestrichelte Abschnitte zeigen Leerfahrten.",
+      fr: "Les lignes 1 et 2 figurent sur le même diagramme espace-temps. Chaque ligne a sa couleur. Les pointillés indiquent les trajets hors ligne.",
+      it: "Le linee 1 e 2 compaiono nello stesso diagramma spazio-tempo. Ogni linea ha un colore. I tratti tratteggiati indicano le corse fuori linea.",
     },
   },
   feasibilityForm: {
     src: feasibilityFormImage,
-    width: 1440,
-    height: 1000,
+    width: 1500,
+    height: 1467,
     captions: {
-      en: "Feasibility form with the selected GTFS timetable, compatible vehicle blocks and the environmental, state-of-charge and optimisation assumptions.",
-      de: "Machbarkeitsformular mit gewähltem GTFS-Fahrplan, kompatiblen Fahrzeugumläufen sowie Umwelt-, Ladezustands- und Optimierungsannahmen.",
-      fr: "Formulaire de faisabilité avec l’horaire GTFS choisi, les services voiture compatibles et les hypothèses d’environnement, d’état de charge et d’optimisation.",
-      it: "Modulo di fattibilità con orario GTFS selezionato, turni macchina compatibili e ipotesi ambientali, di stato di carica e ottimizzazione.",
+      en: "Choose the GTFS timetable and service day to see eligible vehicle blocks. The battery settings show state of health (SOH), usable capacity and its reference basis.",
+      de: "Wählen Sie GTFS-Fahrplan und Verkehrstag, um die verfügbaren Fahrzeugumläufe zu sehen. Die Batterieeinstellungen zeigen den Gesundheitszustand (SOH), die nutzbare Kapazität und ihre Bezugsgrösse.",
+      fr: "Choisissez l’horaire GTFS et le jour de service pour afficher les services voiture disponibles. Les paramètres de batterie indiquent l’état de santé (SOH), la capacité utilisable et sa base de référence.",
+      it: "Scegliere l’orario GTFS e il giorno di servizio per vedere i turni disponibili. Le impostazioni della batteria mostrano lo stato di salute (SOH), la capacità utilizzabile e la sua base di riferimento.",
     },
   },
   feasibilityEfficiency: {
     src: feasibilityEfficiencyImage,
-    width: 1000,
-    height: 850,
+    width: 1120,
+    height: 1017,
     captions: {
-      en: "General feasibility view with compact recorded GTFS provenance, battery configurations and investment for the fleet, shared charging infrastructure, and direct raw-data access in the header.",
-      de: "Allgemeine Machbarkeitsansicht mit kompakter aufgezeichneter GTFS-Herkunft, Batteriekonfigurationen und Investitionen der Flotte, geteilter Ladeinfrastruktur und direktem Rohdatenzugriff im Kopf.",
-      fr: "Vue Général de la faisabilité avec provenance GTFS enregistrée compacte, batteries et investissements de la flotte, infrastructure partagée et accès direct aux données brutes dans l’en-tête.",
-      it: "Vista Generale della fattibilità con provenienza GTFS registrata e compatta, batterie e investimenti della flotta, infrastruttura condivisa e accesso diretto ai dati grezzi nell’intestazione.",
+      en: "General shows the selected service day and the results for the active demand profile. Here Q95 is selected. The complete JSON download is next to Close.",
+      de: "Allgemein zeigt den gewählten Verkehrstag und die Ergebnisse für das aktive Verbrauchsprofil. Hier ist Q95 ausgewählt. Neben Schliessen lässt sich das vollständige JSON herunterladen.",
+      fr: "La vue Général indique le jour de service et les résultats du profil de consommation actif. Ici, Q95 est sélectionné. Le téléchargement JSON complet se trouve à côté de Fermer.",
+      it: "La vista Generale indica il giorno di servizio e i risultati del profilo di consumo attivo. Qui è selezionato Q95. Il download del JSON completo è accanto a Chiudi.",
     },
   },
   feasibilitySizing: {
     src: feasibilitySizingImage,
-    width: 1900,
-    height: 1000,
+    width: 1400,
+    height: 2206,
     captions: {
       en: "A vehicle-block result with active Mean/Q95 consumption, reached SOC values, visual energy analysis and expandable charging details.",
       de: "Ergebnis eines Fahrzeugumlaufs mit aktivem Mittelwert-/Q95-Verbrauch, erreichten SOC-Werten, visueller Energieanalyse und aufklappbaren Ladedetails.",
@@ -106,13 +128,13 @@ const GUIDE_FIGURES = {
   },
   yearlyEfficiency: {
     src: yearlyEfficiencyImage,
-    width: 1440,
-    height: 1020,
+    width: 1382,
+    height: 592,
     captions: {
-      en: "General yearly-analysis scope with the compact fleet summary and Costs view for the fleet or a representative bus group.",
-      de: "Allgemeiner Bereich der Jahresanalyse mit kompakter Flottenübersicht und Kostenansicht für die Flotte oder eine repräsentative Busgruppe.",
-      fr: "Périmètre Général de l’analyse annuelle avec le résumé compact et la vue Coûts de la flotte ou d’un groupe de bus représentatif.",
-      it: "Ambito Generale dell’analisi annuale con riepilogo compatto e vista Costi della flotta o di un gruppo di bus rappresentativo.",
+      en: "Equivalent annual cost includes operating costs and annualized investment (purple). Purchases and replacements are discounted, with a credit for the final residual value. The cumulative chart shows when those cash flows occur.",
+      de: "Die jährlichen Äquivalenzkosten umfassen Betriebskosten und annualisierte Investitionen (violett). Anschaffungen und Ersatzinvestitionen werden abgezinst, der Restwert am Ende wird gutgeschrieben. Das kumulierte Diagramm zeigt den Zeitpunkt der Zahlungen.",
+      fr: "Le coût annuel équivalent comprend les frais d’exploitation et l’investissement annualisé (violet). Les achats et les remplacements sont actualisés, avec déduction de la valeur résiduelle finale. Le graphique cumulé montre à quel moment ces flux interviennent.",
+      it: "Il costo annuo equivalente comprende i costi operativi e l’investimento annualizzato (viola). Gli acquisti e le sostituzioni sono attualizzati, con un credito per il valore residuo finale. Il grafico cumulato mostra quando avvengono questi flussi.",
     },
   },
   yearlyEmissions: {
@@ -178,7 +200,7 @@ export const guideContent = {
           },
           {
             title: "Use the main navigation",
-            text: "Home explains the planning workflow and links to all six working sections. Fleet contains Bus Models, Custom Stops and Vehicle blocks. Simulations contains Feasibility evaluation, Yearly analyses and Analysis comparison; the user guide remains at the bottom of the sidebar.",
+            text: "Home explains the planning workflow and links to all six working sections. Fleet contains Buses, Custom Stops and Vehicle blocks. Simulations contains Feasibility evaluation, Yearly analyses and Analysis comparison; the user guide remains at the bottom of the sidebar.",
           },
         ],
         figures: getGuideFigures("en", "shell"),
@@ -196,7 +218,7 @@ export const guideContent = {
         items: [
           {
             title: "Create a bus model",
-            text: "Describe the candidate bus, including its vehicle category, capacity, mass, battery-pack limits, charging power, costs and lifetimes.",
+            text: "Describe the candidate bus, including its actual length, passenger capacity, mass, battery-pack limits, charging power, costs and lifetimes.",
           },
           {
             title: "Create required custom stops",
@@ -228,7 +250,7 @@ export const guideContent = {
         items: [
           {
             title: "Bus models",
-            text: "Open Fleet → Bus Models and select Add Bus Model. Enter a vehicle length from 9 to 13 m or from 17 to 19 m and select the battery chemistry (LFP or NMC). Review the required technical and economic fields before saving. Defaults remain editable and should be replaced when operator or manufacturer data are available.",
+            text: "Open Fleet → Buses and select Add Bus Model. Enter the actual vehicle length, from 9 to 13 m or from 17 to 19 m and select the battery chemistry (LFP or NMC). Review the required technical and economic fields before saving. Defaults remain editable and should be replaced when operator or manufacturer data are available.",
           },
           { title: "Vehicle and battery estimates", text: "The vehicle price excludes batteries and is estimated from tender prices by vehicle length, with extrapolation from 18 to 19 m. The price and mass per battery pack are estimated from its capacity and chemistry. Prices are in CHF excluding VAT. You can enter your own values or use Restore estimate to apply the current estimate again." },
           {
@@ -237,11 +259,11 @@ export const guideContent = {
           },
           {
             title: "Custom stops",
-            text: "Open Fleet → Custom Stops and select the stop type. Search for an address on the map, or position the crosshair by moving the map; the coordinates are updated automatically. The Details action opens a consistent read-only dialog; Edit also supports older custom stops whose saved data predate the current form. Use clear names that distinguish depots, charging locations and hubs.",
+            text: "Open Fleet → Custom Stops and select the stop type. Enter an address and select Search on map, or drag the map to position the crosshair. The coordinates update automatically. The Details action opens a consistent read-only dialog; Edit also supports older custom stops whose saved data predate the current form. Use clear names that distinguish depots, charging locations and hubs.",
           },
           { title: "Duplicate models and custom stops", text: "Use Duplicate on the relevant row to open an editable copy. Names progress within the original name family: Line A_copy, Line A_copy_1, Line A_copy_2, and so on, including when copying a copy. ELETTRA uses the first available suffix across all list pages. The same rule applies to vehicle blocks, feasibility evaluations and yearly analyses. The proposed name remains editable." },
         ],
-        figures: getGuideFigures("en", "customStop"),
+        figures: getGuideFigures("en", "busBattery", "customStop"),
         note: {
           title: "Before editing or deleting",
           text: "Reusable records may be referenced by vehicle blocks or analyses. Review dependent work before changing a record that has already been used.",
@@ -256,22 +278,22 @@ export const guideContent = {
           { title: "Open Fleet → Vehicle blocks and create a vehicle block", text: "Select Add vehicle block to open the sequential planner." },
           { title: "Choose the GTFS timetable", text: "Select a service day and timetable edition in Set up. New blocks initially use the newest available edition. Both the day and edition are saved with the programme." },
           { title: "Define the vehicle block boundaries", text: "Select the starting depot and departure time. Enter service-day times in HH:MM, for example 25:10 for 01:10 the next day." },
-          { title: "Filter and add scheduled trips", text: "Choose a line under Next activity. After a trip, the planner suggests departures from the current terminus. Select Include trips that require driving empty to see other departures. Open the stop-time preview to compare variants." },
+          { title: "Filter and add scheduled trips", figures: getGuideFigures("en", "shiftPlanner"), text: "Choose a line under Next activity. After a trip, the planner suggests departures from the current terminus. Select Include trips that require driving empty to see other departures. Open the stop-time preview to compare variants." },
           { title: "Confirm transfers and add trips", text: "Add a trip marked Direct connection in one click. For a trip requiring an empty transfer, check the estimated driving time and suggested transfer times, then select Add activity. The published GTFS departure stays fixed." },
           { title: "Add an intermediate stay", text: "Select Add depot stay, choose a custom stop, and set the arrival and departure times. Add another service trip or stay as needed." },
           { title: "Plan the return, review and save", text: "Use Plan return to depot to finish at the starting depot. Check Your working day, resolve any conflicts, and enter the name and bus model in Review & save. The programme must include at least one service trip." },
           { title: "Edit the complete saved programme", text: "Choose Edit to reopen the whole-day programme. Edit or remove an activity, or use Insert before to add one before an existing activity. Undo last change restores the preceding programme." },
-          { title: "Edit older vehicle blocks", text: "Older blocks open in the original editor. Use Build the day to adjust trips and Manage intermediate stays to change stays. Check the preview in Intermediate stays and choose Apply to block or Cancel. Finish with Review & save." },
+          { title: "Edit older vehicle blocks", figures: getGuideFigures("en", "shiftComposer"), text: "Older blocks open in the original editor. Use Build the day to adjust trips and Manage intermediate stays to change stays. Check the preview in Intermediate stays and choose Apply to block or Cancel. Finish with Review & save." },
           {
             title: "Find or duplicate saved vehicle blocks",
             text: "Search checks the complete server-side list before pagination, so a match remains discoverable beyond the current page. Each row has Visualize, Edit, Duplicate and Delete icons. Duplicate copies that block’s trips, bus model and recorded GTFS edition. Select multiple rows and use Delete at the top for batch deletion. The proposed name uses _copy, _copy_1, _copy_2, etc.; copying a copy continues the original family’s numbering instead of stacking suffixes.",
           },
           {
             title: "Visualise a saved vehicle block",
-            text: "Open Visualise/Details to review the general information and the complete movement chain. Space-time is the default view: time runs horizontally, stops vertically, multi-line work is separated by route, and depot connections are dashed. Switch to Map to inspect one movement at a time, including its stops and times, with First, Previous, Next and Last. A warning identifies discontinuities caused by missing transfer data rather than drawing an invented connection.",
+            text: "Select Visualize vehicle block to review the general information and the complete movement chain. Space-time is the default view. Time runs horizontally and stops are shown vertically. All lines in the vehicle block appear in one diagram, with a consistent colour for each line. Dashed segments indicate non-revenue movements. Switch to Map to inspect one movement at a time, including its stops and times, with First, Previous, Next and Last. A warning identifies discontinuities caused by missing transfer data rather than drawing an invented connection.",
           },
         ],
-        figures: getGuideFigures("en", "shiftComposer", "shift"),
+        figures: getGuideFigures("en", "shift"),
         note: {
           title: "Why the complete vehicle block matters",
           text: "Depot and transfer movements consume energy even when they do not carry passengers. Omitting them can make the technical assessment too optimistic.",
@@ -365,7 +387,7 @@ export const guideContent = {
         items: [
           {
             title: "Create an analysis from an eligible evaluation",
-            text: "Open Simulations → Yearly analyses, create a new analysis and select the completed feasibility evaluation that defines the vehicle, vehicle blocks, battery, charging design and GTFS edition. The annual result preserves that recorded provenance rather than silently following later changes to a block.",
+            text: "Open Simulations → Yearly analyses, create a new analysis and select a feasible evaluation eligible for yearly analysis that has a recorded battery-pack count. The evaluation defines the vehicle, vehicle blocks, battery, charging design and GTFS edition. The annual result preserves that recorded provenance rather than silently following later changes to a block.",
           },
           {
             title: "Manage and duplicate saved yearly analyses",
@@ -373,7 +395,7 @@ export const guideContent = {
           },
           {
             title: "Review the inherited inputs",
-            text: "Check the selected evaluation, operating assumptions, representative temperatures and their occurrences before starting. Temperature scenarios change consumption estimates; they do not resize the battery, change the charging infrastructure or repeat the feasibility decision.",
+            text: "Check the selected evaluation and operating assumptions. The representative temperatures and their day counts are read-only. The form warns if their positive total differs from 365 days. Temperature scenarios change consumption estimates while the feasible battery and charging design stay fixed.",
           },
           {
             title: "Start with General",
@@ -381,12 +403,13 @@ export const guideContent = {
           },
           {
             title: "Review Costs and Emissions for the fleet",
-            text: "Costs combines a compact TCO row, total equivalent annual cost (operating costs plus annualized investment) and cumulative discounted costs, break-even and detailed tables. Bus and battery CAPEX belongs in full to the physical vehicles in scope; shared charging infrastructure is counted once for the fleet and only its cost is allocated to representative bus groups by annual DC energy. Emissions shows lifecycle-phase bars and environmental indicators. Their expandable assumption controls sit below the charts, share automatically saved values and never rerun feasibility.",
+            text: "Costs combines a compact TCO row, total equivalent annual cost (operating costs plus annualized investment) and cumulative discounted costs, break-even and detailed tables. The purple part of each bar is the annual equivalent of discounted purchases and replacements, net of the discounted residual value at the end of the analysis period. The chart on the right shows when cash flows occur. Bus and battery CAPEX belongs in full to the physical vehicles in scope; shared charging infrastructure is counted once for the fleet and only its cost is allocated to representative bus groups by annual DC energy. Emissions shows lifecycle-phase bars and environmental indicators. Their expandable assumption controls sit below the charts, share automatically saved values and never rerun feasibility.",
           },
           {
             title: "Select a vehicle block",
             text: "A compact white row below the HVAC and GTFS information cards reports yearly energy, simulated distance and average efficiency. The Efficiency view then shows temperature-dependent consumption, uncertainty and occurrence-weighted energy directly, without a redundant single-item tab.",
           },
+          { title: "Read the Q05–Q95 consumption range", text: "For each representative day, Monte Carlo sampling draws each trip’s consumption independently, including trips in different vehicle blocks. For kWh/km, divide the sampled total by the distance covered by that same scope. For kWh/year, weight the representative day’s contribution by its number of occurrences. Q05–Q95 spans the central 90% of modeled values for the representative day and its weighted contribution." },
           {
             title: "Check weather and HVAC provenance",
             text: "The compact GTFS and HVAC disclosures identify the saved timetable and auxiliary-energy policy. Yearly HVAC uses hourly PVGIS GHI in the local GTFS timezone and reports trip and terminal energy; the traceability section and JSON actions expose the assumptions and complete reproduction inputs.",
@@ -424,15 +447,15 @@ export const guideContent = {
         items: [
           {
             title: "Select two yearly analyses",
-            text: "Open Simulations → Analysis comparison and choose Analysis A and Analysis B. The compatibility summary identifies whether the cases can be compared directly.",
+            text: "Open Simulations → Analysis comparison and select Analysis A and Analysis B. Compatible means that the two analyses have the same vehicle-block set and optimisation mode.",
           },
           {
             title: "Compare consistent indicators",
-            text: "Review the same Overview, Efficiency, Cost and Emissions categories for both analyses. When vehicle block sets or assumptions differ, interpret aggregate differences with care.",
+            text: "Review Overview, Efficiency, Cost and Emissions for General. Differences are calculated as Analysis B − Analysis A. Check annual distance, the GTFS edition and economic assumptions before interpreting the differences.",
           },
           {
             title: "Export evidence",
-            text: "Use the Details / Export area to export comparison data as CSV or JSON.",
+            text: "In Details / Export, choose Export CSV for the A/B metrics, differences and completeness statuses, or Export JSON for the structured comparison. For the complete results of a single yearly analysis, open it and choose Download all results (JSON) in General.",
           },
         ],
         note: {
@@ -482,7 +505,7 @@ export const guideContent = {
       baselineLabel: "Stand der Benutzeroberfläche",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Handbuch aktualisiert",
-      updatedValue: "24. November 2026",
+      updatedValue: "25. November 2026",
       footer:
         "ELETTRA unterstützt Vorstudien. Endgültige Fahrzeug-, Lade-, Netz- und Infrastrukturentscheidungen müssen durch eine detaillierte Fachplanung bestätigt werden.",
       skipLink: "Zum Handbuch springen",
@@ -509,7 +532,7 @@ export const guideContent = {
           },
           {
             title: "Hauptnavigation verwenden",
-            text: "Die Startseite erklärt den Planungsablauf und verlinkt alle sechs Arbeitsbereiche. Unter Flotte finden Sie Busmodelle, benutzerdefinierte Haltestellen und Fahrzeugumläufe, unter Simulationen Machbarkeitsbewertung, Jahresanalysen und Analysenvergleich; das Benutzerhandbuch bleibt unten in der Seitenleiste erreichbar.",
+            text: "Die Startseite erklärt den Planungsablauf und verlinkt alle sechs Arbeitsbereiche. Unter Flotte finden Sie Busse, Individuelle Haltestellen und Fahrzeugumläufe, unter Simulationen Machbarkeitsbewertung, Jahresanalysen und Analysenvergleich; das Benutzerhandbuch bleibt unten in der Seitenleiste erreichbar.",
           },
         ],
         figures: getGuideFigures("de", "shell"),
@@ -525,7 +548,7 @@ export const guideContent = {
           "Führen Sie die Schritte der Reihe nach aus, damit jede Analyse auf einer nachvollziehbaren Fahrzeug-, Betriebs- und Szenariogrundlage beruht.",
         ordered: true,
         items: [
-          { title: "Busmodell erstellen", text: "Beschreiben Sie den vorgesehenen Bus mit Fahrzeugkategorie, Kapazität, Masse, Batteriegrenzen, Ladeleistung, Kosten und Lebensdauern." },
+          { title: "Busmodell erstellen", text: "Beschreiben Sie den vorgesehenen Bus mit tatsächlicher Fahrzeuglänge, Fahrgastkapazität, Masse, Batteriegrenzen, Ladeleistung, Kosten und Lebensdauern." },
           { title: "Erforderliche benutzerdefinierte Haltestellen erstellen", text: "Erfassen Sie Depots, Ladeorte oder Knoten, die nicht durch reguläre ÖV-Haltestellen abgebildet werden." },
           { title: "Fahrzeugumlauf aufbauen", text: "Wählen Sie Fahrplanfahrten, Start- und Rückkehrort und prüfen Sie den geordneten Fahrzeugumlauf einschliesslich Leerfahrten." },
           { title: "Machbarkeitsbewertung durchführen", text: "Wählen Sie einen oder mehrere Fahrzeugumläufe, den Optimierungsmodus sowie Betriebs- und Ladeannahmen." },
@@ -538,13 +561,13 @@ export const guideContent = {
         title: "3. Busmodelle und benutzerdefinierte Haltestellen",
         intro: "Wiederverwendbare Fahrzeug- und Ortsdaten liefern die technischen Eingaben für Fahrzeugumläufe und Bewertungen.",
         items: [
-          { title: "Busmodelle", text: "Öffnen Sie Flotte → Busmodelle und wählen Sie Busmodell hinzufügen. Geben Sie eine Fahrzeuglänge von 9 bis 13 m oder von 17 bis 19 m ein und wählen Sie die Batteriechemie (LFP oder NMC). Prüfen Sie vor dem Speichern alle technischen und wirtschaftlichen Pflichtfelder. Ersetzen Sie Standardwerte durch Betreiber- oder Herstellerdaten, wenn diese verfügbar sind." },
+          { title: "Busmodelle", text: "Öffnen Sie Flotte → Busse und wählen Sie Busmodell hinzufügen. Geben Sie die tatsächliche Fahrzeuglänge von 9 bis 13 m oder von 17 bis 19 m ein und wählen Sie die Batteriechemie (LFP oder NMC). Prüfen Sie vor dem Speichern alle technischen und wirtschaftlichen Pflichtfelder. Ersetzen Sie Standardwerte durch Betreiber- oder Herstellerdaten, wenn diese verfügbar sind." },
           { title: "Schätzwerte für Fahrzeug und Batterie", text: "Der Fahrzeugpreis ohne Batterien wird anhand von Ausschreibungspreisen nach Fahrzeuglänge geschätzt und von 18 bis 19 m extrapoliert. Preis und Masse pro Batteriepack werden anhand der Kapazität und Batteriechemie geschätzt. Die Preise sind in CHF exkl. MWST angegeben. Sie können eigene Werte eingeben oder mit «Schätzwert wiederherstellen» erneut den aktuellen Schätzwert übernehmen." },
           { title: "Batteriegrenzen", text: "Minimale und maximale Packzahl, Packkapazität und Packmasse definieren die zulässigen Batteriekonfigurationen. Die maximale Ladeleistung begrenzt die vom Fahrzeug aufnehmbare Leistung. Das Formular zeigt den Bereich der Nennkapazität und den aktuellen Packpreis pro kWh. Die nutzbare Kapazität wird in der Machbarkeitsstudie festgelegt." },
-          { title: "Benutzerdefinierte Haltestellen", text: "Öffnen Sie Flotte → Benutzerdefinierte Haltestellen und wählen Sie den Typ. Geben Sie Adresse oder Koordinaten ein oder setzen Sie den Punkt auf der Karte. Details öffnet einen einheitlichen schreibgeschützten Dialog; Bearbeiten unterstützt auch ältere Haltestellen, deren gespeicherte Daten dem aktuellen Formular vorausgehen. Verwenden Sie eindeutige Namen für Depots, Ladeorte und Knoten." },
+          { title: "Benutzerdefinierte Haltestellen", text: "Öffnen Sie Flotte → Individuelle Haltestellen und wählen Sie den Typ. Geben Sie eine Adresse ein und wählen Sie Auf Karte suchen oder verschieben Sie die Karte, um das Fadenkreuz zu positionieren. Die Koordinaten werden automatisch aktualisiert. Details öffnet einen einheitlichen schreibgeschützten Dialog; Bearbeiten unterstützt auch ältere Haltestellen, deren gespeicherte Daten dem aktuellen Formular vorausgehen. Verwenden Sie eindeutige Namen für Depots, Ladeorte und Knoten." },
           { title: "Modelle und individuelle Haltestellen duplizieren", text: "Duplizieren in der jeweiligen Zeile öffnet eine editierbare Kopie. Namen werden innerhalb der ursprünglichen Namensfamilie fortlaufend vergeben: Linie A_Kopie, Linie A_Kopie_1, Linie A_Kopie_2 usw., auch beim Kopieren einer Kopie. ELETTRA verwendet die erste freie Endung über alle Listenseiten hinweg. Dieselbe Regel gilt für Fahrzeugumläufe, Machbarkeitsbewertungen und Jahresanalysen. Der vorgeschlagene Name bleibt editierbar." },
         ],
-        figures: getGuideFigures("de", "customStop"),
+        figures: getGuideFigures("de", "busBattery", "customStop"),
         note: { title: "Vor Bearbeiten oder Löschen", text: "Wiederverwendbare Datensätze können von Fahrzeugumläufen oder Analysen referenziert werden. Prüfen Sie abhängige Arbeiten, bevor Sie einen bereits verwendeten Datensatz ändern." },
       },
       {
@@ -556,16 +579,16 @@ export const guideContent = {
           { title: "Flotte → Fahrzeugumläufe öffnen und Fahrzeugumlauf erstellen", text: "Wählen Sie Fahrzeugumlauf hinzufügen, um den sequenziellen Planer zu öffnen." },
           { title: "GTFS-Fahrplan wählen", text: "Wählen Sie unter Einrichten den Verkehrstag und die GTFS-Ausgabe. Neue Umläufe verwenden zunächst die neueste verfügbare Ausgabe. Verkehrstag und Ausgabe werden mit dem Programm gespeichert." },
           { title: "Grenzen des Fahrzeugumlaufs festlegen", text: "Wählen Sie Startdepot und Abfahrtszeit. Geben Sie Verkehrszeiten als HH:MM ein, zum Beispiel 25:10 für 01:10 am Folgetag." },
-          { title: "Fahrplanfahrten filtern und hinzufügen", text: "Wählen Sie unter Nächste Aktivität eine Linie. Nach einer Fahrt schlägt der Planer Abfahrten vom aktuellen Endhalt vor. Mit Fahrten mit vorheriger Leerfahrt einbeziehen sehen Sie weitere Abfahrten. Vergleichen Sie Varianten in der Haltestellenvorschau." },
+          { title: "Fahrplanfahrten filtern und hinzufügen", figures: getGuideFigures("de", "shiftPlanner"), text: "Wählen Sie unter Nächste Aktivität eine Linie. Nach einer Fahrt schlägt der Planer Abfahrten vom aktuellen Endhalt vor. Mit Fahrten mit vorheriger Leerfahrt einbeziehen sehen Sie weitere Abfahrten. Vergleichen Sie Varianten in der Haltestellenvorschau." },
           { title: "Überführungen bestätigen und Fahrten hinzufügen", text: "Fügen Sie einen Direkten Anschluss mit einem Klick hinzu. Prüfen Sie bei einer Leerfahrt die geschätzte Fahrzeit und die vorgeschlagenen Zeiten und wählen Sie Aktivität hinzufügen. Die GTFS-Abfahrtszeit bleibt fest." },
           { title: "Zwischenaufenthalt hinzufügen", text: "Wählen Sie Depotaufenthalt hinzufügen, eine individuelle Haltestelle sowie Ankunft und Abfahrt. Fügen Sie anschliessend bei Bedarf weitere Fahrten oder Aufenthalte hinzu." },
           { title: "Rückkehr planen, prüfen und speichern", text: "Schliessen Sie den Umlauf mit Rückkehr zum Depot planen am Startdepot ab. Prüfen Sie Ihr Tagesprogramm, beheben Sie Konflikte und geben Sie unter Prüfen & speichern Name und Busmodell ein. Der Umlauf benötigt mindestens eine Linienfahrt." },
           { title: "Das vollständige gespeicherte Programm bearbeiten", text: "Bearbeiten öffnet das gespeicherte Tagesprogramm. Bearbeiten oder entfernen Sie eine Aktivität oder nutzen Sie Davor einfügen. Letzte Änderung rückgängig stellt das vorherige Programm wieder her." },
-          { title: "Ältere Fahrzeugumläufe bearbeiten", text: "Ältere Umläufe öffnen sich im ursprünglichen Editor. Bearbeiten Sie Fahrten unter Tag zusammenstellen und Aufenthalte unter Zwischenaufenthalte bearbeiten. Prüfen Sie die Vorschau unter Zwischenaufenthalte und wählen Sie In Umlauf übernehmen oder Abbrechen. Speichern Sie unter Prüfen & speichern." },
+          { title: "Ältere Fahrzeugumläufe bearbeiten", figures: getGuideFigures("de", "shiftComposer"), text: "Ältere Umläufe öffnen sich im ursprünglichen Editor. Bearbeiten Sie Fahrten unter Tag zusammenstellen und Aufenthalte unter Zwischenaufenthalte bearbeiten. Prüfen Sie die Vorschau unter Zwischenaufenthalte und wählen Sie In Umlauf übernehmen oder Abbrechen. Speichern Sie unter Prüfen & speichern." },
           { title: "Gespeicherte Fahrzeugumläufe finden oder duplizieren", text: "Die Suche prüft die vollständige serverseitige Liste vor der Seitennummerierung, sodass Treffer auch ausserhalb der aktuellen Seite gefunden werden. Jede Zeile bietet Symbole zum Visualisieren, Bearbeiten, Duplizieren und Löschen. Duplizieren übernimmt Fahrten, Busmodell und gespeicherte GTFS-Ausgabe dieses Umlaufs. Zum gemeinsamen Löschen mehrerer Umläufe wählen Sie die Zeilen aus und verwenden Löschen oberhalb der Tabelle. Der vorgeschlagene Name endet auf _Kopie, _Kopie_1, _Kopie_2 usw.; eine Kopie einer Kopie setzt die Nummerierung der ursprünglichen Familie fort, ohne Endungen anzuhängen." },
-          { title: "Gespeicherten Fahrzeugumlauf visualisieren", text: "Öffnen Sie Visualisieren/Details, um die allgemeinen Informationen und die vollständige Bewegungskette zu prüfen. Raum-Zeit ist die Standardansicht: Die Zeit verläuft horizontal, die Haltestellen vertikal, Mehrlinien-Umläufe werden nach Linie getrennt und Depotverbindungen gestrichelt dargestellt. Wechseln Sie zu Karte, um jede Bewegung mit Haltestellen und Zeiten einzeln über Erste, Vorherige, Nächste und Letzte zu prüfen. Ein Hinweis kennzeichnet Unterbrechungen durch fehlende Überführungsdaten, statt eine Verbindung zu erfinden." },
+          { title: "Gespeicherten Fahrzeugumlauf visualisieren", text: "Wählen Sie Fahrzeugumlauf visualisieren, um die allgemeinen Informationen und die vollständige Bewegungskette zu prüfen. Weg-Zeit ist die Standardansicht. Die Zeit verläuft horizontal, die Haltestellen stehen auf der vertikalen Achse. Alle Linien des Umlaufs erscheinen im selben Diagramm und jede Linie hat eine eigene Farbe. Gestrichelte Abschnitte kennzeichnen Leerfahrten. Wechseln Sie zu Karte, um jede Bewegung mit Haltestellen und Zeiten einzeln über Erste, Vorherige, Nächste und Letzte zu prüfen. Ein Hinweis kennzeichnet Unterbrechungen durch fehlende Überführungsdaten, statt eine Verbindung zu erfinden." },
         ],
-        figures: getGuideFigures("de", "shiftComposer", "shift"),
+        figures: getGuideFigures("de", "shift"),
         note: { title: "Warum der vollständige Fahrzeugumlauf wichtig ist", text: "Depot- und Überführungsfahrten benötigen Energie, auch wenn keine Fahrgäste befördert werden. Ihr Weglassen kann die Bewertung zu optimistisch machen." },
       },
       {
@@ -613,12 +636,13 @@ export const guideContent = {
         intro: "Die Jahresanalyse hält die machbare Bus- und Ladeauslegung fest. Allgemein bewertet die Flotte oder eine repräsentative Busgruppe; jeder Fahrzeugumlauf zeigt seine eigene Jahreseffizienz.",
         ordered: true,
         items: [
-          { title: "Analyse aus einer geeigneten Bewertung erstellen", text: "Öffnen Sie Simulationen → Jahresanalysen, erstellen Sie eine Analyse und wählen Sie die abgeschlossene Machbarkeitsbewertung, die Fahrzeug, Fahrzeugumläufe, Batterie, Laden und GTFS-Ausgabe festlegt. Das Jahresergebnis bewahrt diese aufgezeichnete Herkunft, statt späteren Änderungen eines Umlaufs still zu folgen." },
+          { title: "Analyse aus einer geeigneten Bewertung erstellen", text: "Öffnen Sie Simulationen → Jahresanalysen, erstellen Sie eine Analyse und wählen Sie eine machbare, für die Jahresanalyse geeignete Bewertung mit gespeicherter Anzahl Batteriepakete. Diese Bewertung legt Fahrzeug, Fahrzeugumläufe, Batterie, Ladeinfrastruktur und GTFS-Ausgabe fest. Das Jahresergebnis bewahrt diese aufgezeichnete Herkunft, statt späteren Änderungen eines Umlaufs still zu folgen." },
           { title: "Gespeicherte Jahresanalysen verwalten und duplizieren", text: "Am rechten Ende jeder Zeile stehen die Symbole Details anzeigen, Umbenennen, Duplizieren und Löschen. Duplizieren öffnet ein neues Analyseformular mit der übernommenen Machbarkeitsbewertung und Belegung und schlägt einen editierbaren Namen mit den Endungen _Kopie, _Kopie_1, _Kopie_2 usw. ohne wiederholte Endung vor; prüfen Sie die übernommenen Eingaben vor dem Start. Löschen Sie eine Analyse über das Zeilensymbol oder mehrere ausgewählte Analysen über die obere Aktion Löschen." },
-          { title: "Übernommene Eingaben prüfen", text: "Prüfen Sie Bewertung, Betriebsannahmen, repräsentative Temperaturen und deren Häufigkeiten vor dem Start. Temperaturszenarien verändern Verbrauchsschätzungen; sie dimensionieren die Batterie nicht neu, ändern die Ladeinfrastruktur nicht und wiederholen die Machbarkeitsentscheidung nicht." },
+          { title: "Übernommene Eingaben prüfen", text: "Prüfen Sie die gewählte Bewertung und die Betriebsannahmen. Repräsentative Temperaturen und die jeweilige Anzahl Tage werden schreibgeschützt angezeigt. Das Formular warnt bei einer positiven Summe, die von 365 Tagen abweicht. Die Temperaturszenarien beeinflussen die Verbrauchsschätzung bei unveränderter Batterie- und Ladekonfiguration." },
           { title: "Mit Allgemein beginnen", text: "Die kompakte jährliche Flottenanalyse zeigt Distanz, Bus- und Netzenergie, minimale/maximale Umlaufeffizienz, Elektro-TCO und Klimawirkung. Mit Repräsentativer Bus / Flotte prüfen Sie die gesamte Flotte oder eine Gruppe mit gleichem Modell und gleicher Batteriegrösse; die Zuweisungen aus der Machbarkeit bleiben unverändert. Min und Max stehen in getrennten Zeilen mit dem jeweiligen Umlaufnamen. Lange Umlauflisten umbrechen innerhalb der Zellen, ohne Namen auszublenden." },
-          { title: "Kosten und Emissionen der Flotte prüfen", text: "Kosten kombiniert eine kompakte TCO-Zeile, jährliche äquivalente Gesamtkosten (Betriebskosten und annualisierte Investition) und kumulierte diskontierte Kosten, Kostengleichheit und Detailtabellen. Bus- und Batterie-CAPEX gehören vollständig zu den physischen Fahrzeugen im gewählten Bereich; die gemeinsame Ladeinfrastruktur wird einmal für die Flotte gezählt und nur ihre Kosten werden repräsentativen Busgruppen auf Basis der jährlichen DC-Energie zugeordnet. Emissionen zeigt Balken nach Lebenszyklusphase und Umweltindikatoren. Die aufklappbaren Annahmen stehen unter den Diagrammen, verwenden automatisch gespeicherte gemeinsame Werte und starten die Machbarkeit nie neu." },
+          { title: "Kosten und Emissionen der Flotte prüfen", text: "Kosten kombiniert eine kompakte TCO-Zeile, jährliche äquivalente Gesamtkosten (Betriebskosten und annualisierte Investition) und kumulierte diskontierte Kosten, Kostengleichheit und Detailtabellen. Der violette Anteil zeigt den jährlichen Gegenwert der diskontierten Anschaffungen und Ersatzbeschaffungen abzüglich des diskontierten Restwerts am Ende des Betrachtungszeitraums. Das rechte Diagramm zeigt, wann die Zahlungen anfallen. Bus- und Batterie-CAPEX gehören vollständig zu den physischen Fahrzeugen im gewählten Bereich; die gemeinsame Ladeinfrastruktur wird einmal für die Flotte gezählt und nur ihre Kosten werden repräsentativen Busgruppen auf Basis der jährlichen DC-Energie zugeordnet. Emissionen zeigt Balken nach Lebenszyklusphase und Umweltindikatoren. Die aufklappbaren Annahmen stehen unter den Diagrammen, verwenden automatisch gespeicherte gemeinsame Werte und starten die Machbarkeit nie neu." },
           { title: "Einen Fahrzeugumlauf auswählen", text: "Unter den HVAC- und GTFS-Informationskarten zeigt eine kompakte weisse Zeile Jahresenergie, simulierte Distanz und mittlere Effizienz. Danach erscheint Effizienz mit temperaturabhängigem Verbrauch, Unsicherheit und häufigkeitsgewichteter Energie direkt, ohne überflüssige Registerkarte mit nur einem Eintrag." },
+          { title: "Die Verbrauchsspanne Q05–Q95 lesen", text: "Für jeden repräsentativen Tag zieht die Monte-Carlo-Simulation den Verbrauch jeder Fahrt unabhängig, auch über verschiedene Fahrzeugumläufe hinweg. Für kWh/km wird der simulierte Gesamtverbrauch durch die Fahrleistung desselben Auswertungsbereichs geteilt. Für kWh/Jahr wird der Beitrag des repräsentativen Tages mit seiner Häufigkeit gewichtet. Q05–Q95 umfasst die mittleren 90 % der modellierten Werte für den repräsentativen Tag und seinen gewichteten Beitrag." },
           { title: "Wetter- und HVAC-Herkunft prüfen", text: "Die kompakten GTFS- und HVAC-Angaben nennen Fahrplan und gespeicherte Nebenverbrauchspolitik. Die Jahresanalyse verwendet stündliche PVGIS-GHI in der lokalen GTFS-Zeitzone und weist HVAC-Energie während Fahrt und Endaufenthalt aus; Nachvollziehbarkeit und JSON-Aktionen liefern Annahmen und vollständige Reproduktionseingaben." },
           { title: "Konfiguration prüfen und unter Allgemein exportieren", text: "Konfigurationsdaten anzeigen öffnet die festgeschriebene Auslegung. Alle Ergebnisse herunterladen (JSON) steht nur unter Allgemein neben Schliessen zur Verfügung. Die Datei enthält immer die gesamte Flotte, alle repräsentativen Busgruppen und die verfügbaren Fahrzeugumläufe, auch wenn ein einzelner repräsentativer Bus ausgewählt ist. Sie bewahrt die wirksamen wirtschaftlichen Annahmen und trennt ursprünglich simulierte Aktivität von geänderten Jahresfahrleistungen. Analysen mit festgeschriebenen Flotteninvestitionen verwenden Schema 4; ältere Analysen ohne diesen Datensatz behalten Schema 3." },
           { title: "Speicherstatus vor dem Schliessen prüfen", text: "Die vollständige JSON-Datei beschreibt die aktuelle Bewertung und zeigt, ob ihre Annahmen gespeichert sind. Ausstehende oder fehlgeschlagene Speichervorgänge bleiben in der Datei erkennbar. Schliessen wartet auf das Speichern; ein Speicherfehler oder eine ungültige Eingabe lässt die Seite offen. Korrigieren Sie den Wert oder wiederholen Sie das Speichern, bevor Sie die Analyse erneut öffnen." },
@@ -635,9 +659,9 @@ export const guideContent = {
         title: "8. Analysen vergleichen und exportieren",
         intro: "Ein Vergleich ist besonders aussagekräftig, wenn sich die Alternativen in einer klar benannten Entscheidung oder Annahme unterscheiden.",
         items: [
-          { title: "Zwei Jahresanalysen auswählen", text: "Öffnen Sie Simulationen → Analysenvergleich und wählen Sie Analyse A und B. Die Kompatibilitätsübersicht zeigt, ob ein direkter Vergleich möglich ist." },
-          { title: "Konsistente Indikatoren vergleichen", text: "Prüfen Sie für beide Analysen Übersicht, Effizienz, Kosten und Emissionen. Bei unterschiedlichen Fahrzeugumläufen oder Annahmen sind aggregierte Unterschiede vorsichtig zu interpretieren." },
-          { title: "Nachweise exportieren", text: "Im Bereich Details / Export können Vergleichsdaten als CSV oder JSON exportiert werden." },
+          { title: "Zwei Jahresanalysen auswählen", text: "Öffnen Sie Simulationen → Analysenvergleich und wählen Sie Analyse A und Analyse B. Kompatibel bedeutet, dass beide Analysen dieselben Fahrzeugumläufe und denselben Optimierungsmodus verwenden." },
+          { title: "Konsistente Indikatoren vergleichen", text: "Prüfen Sie Übersicht, Effizienz, Kosten und Emissionen im Bereich Allgemein. Differenzen werden als Analyse B − Analyse A berechnet. Prüfen Sie Jahresfahrleistung, GTFS-Ausgabe und wirtschaftliche Annahmen, bevor Sie die Differenzen interpretieren." },
+          { title: "Nachweise exportieren", text: "Wählen Sie unter Details / Export die Aktion CSV exportieren für A/B-Metriken, Differenzen und Angaben zur Vollständigkeit oder JSON exportieren für den strukturierten Vergleich. Für die vollständigen Ergebnisse einer einzelnen Jahresanalyse öffnen Sie diese und wählen Sie unter Allgemein Alle Ergebnisse herunterladen (JSON)." },
         ],
         note: { title: "Szenarien eindeutig benennen", text: "Nehmen Sie den wichtigsten Unterschied in den Namen auf, beispielsweise Fahrzeug, Heizung, Belegung oder Ladestrategie." },
       },
@@ -670,7 +694,7 @@ export const guideContent = {
       baselineLabel: "Version de référence de l’interface",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guide mis à jour",
-      updatedValue: "24 novembre 2026",
+      updatedValue: "25 novembre 2026",
       footer:
         "ELETTRA soutient les études de préfaisabilité. Les décisions finales relatives aux véhicules, à la recharge, au réseau et aux infrastructures doivent être confirmées par des études d’ingénierie détaillées.",
       skipLink: "Accéder au guide",
@@ -688,7 +712,7 @@ export const guideContent = {
         items: [
           { title: "Choisir la langue de l’interface", text: "Utilisez le sélecteur de langue dans l’en-tête de l’application. L’anglais, l’allemand, le français et l’italien sont disponibles; la préférence est conservée dans le navigateur." },
           { title: "Se connecter ou créer un compte", text: "Ouvrez ELETTRA avec le lien ci-dessus. Connectez-vous avec un compte existant ou créez-en un et sélectionnez l’entreprise de transport appropriée lorsque cela est demandé. Lors de l’inscription, l’aperçu CARTO utilise la dernière édition GTFS disponible et affiche toutes les lignes représentables avec leur numéro pour aider à confirmer l’entreprise. La carte est indicative et les tracés sont simplifiés; elle ne constitue pas une référence détaillée du réseau." },
-          { title: "Utiliser la navigation principale", text: "Accueil explique le flux de planification et donne accès aux six sections de travail. Flotte contient Modèles de bus, Arrêts personnalisés et Services voiture; Simulations contient Évaluation de faisabilité, Analyses annuelles et Comparaison d’analyses. Le guide reste accessible au bas de la barre latérale." },
+          { title: "Utiliser la navigation principale", text: "Accueil explique le flux de planification et donne accès aux six sections de travail. Flotte contient Bus, Arrêts personnalisés et Services voiture; Simulations contient Évaluation de faisabilité, Analyses annuelles et Comparaison d'analyses. Le guide reste accessible au bas de la barre latérale." },
         ],
         figures: getGuideFigures("fr", "shell"),
         note: { title: "Périmètre de l’évaluation", text: "ELETTRA est un outil de planification et de préfaisabilité. Un résultat faisable dépend des hypothèses retenues pour le service voiture, le véhicule, la météo, l’occupation, la batterie et la recharge; il ne constitue pas une certification opérationnelle." },
@@ -699,7 +723,7 @@ export const guideContent = {
         intro: "Suivez les étapes dans l’ordre afin que chaque analyse repose sur un véhicule, un service voiture et un scénario traçables.",
         ordered: true,
         items: [
-          { title: "Créer un modèle de bus", text: "Décrivez le bus candidat: catégorie, capacité, masse, limites de batterie, puissance de recharge, coûts et durées de vie." },
+          { title: "Créer un modèle de bus", text: "Décrivez le bus candidat en indiquant sa longueur réelle, sa capacité en passagers, sa masse, limites de batterie, puissance de recharge, coûts et durées de vie." },
           { title: "Créer les arrêts personnalisés nécessaires", text: "Ajoutez les dépôts, points de recharge ou pôles qui ne figurent pas parmi les arrêts planifiés du réseau." },
           { title: "Construire un service voiture", text: "Sélectionnez les courses planifiées, définissez les lieux de départ et de retour et vérifiez le service voiture ordonné avec les mouvements auxiliaires." },
           { title: "Lancer une évaluation de faisabilité", text: "Sélectionnez un ou plusieurs services voiture, choisissez le mode d’optimisation et définissez les hypothèses d’exploitation et de recharge." },
@@ -712,13 +736,13 @@ export const guideContent = {
         title: "3. Modèles de bus et arrêts personnalisés",
         intro: "Les données réutilisables sur les véhicules et les lieux alimentent les services voiture et les évaluations.",
         items: [
-          { title: "Modèles de bus", text: "Ouvrez Flotte → Modèles de bus et sélectionnez Ajouter un modèle de bus. Saisissez une longueur de 9 à 13 m ou de 17 à 19 m et sélectionnez la chimie de la batterie (LFP ou NMC). Vérifiez les champs techniques et économiques requis avant d’enregistrer. Remplacez les valeurs par défaut lorsque des données d’opérateur ou de constructeur sont disponibles." },
+          { title: "Modèles de bus", text: "Ouvrez Flotte → Bus et sélectionnez Ajouter un modèle de bus. Saisissez la longueur réelle, de 9 à 13 m ou de 17 à 19 m et sélectionnez la chimie de la batterie (LFP ou NMC). Vérifiez les champs techniques et économiques requis avant d’enregistrer. Remplacez les valeurs par défaut lorsque des données d’opérateur ou de constructeur sont disponibles." },
           { title: "Estimations pour le véhicule et la batterie", text: "Le prix du véhicule hors batterie est estimé à partir de prix d’appels d’offres selon la longueur du véhicule, avec extrapolation de 18 à 19 m. Le prix et la masse par pack sont estimés à partir de sa capacité et de sa chimie. Les prix sont exprimés en CHF hors TVA. Vous pouvez saisir vos propres valeurs ou utiliser « Rétablir l’estimation » pour appliquer de nouveau l’estimation actuelle." },
           { title: "Limites de batterie", text: "Les nombres minimal et maximal de packs, leur capacité et leur masse définissent les configurations utilisables par le calcul. La puissance maximale de recharge limite la puissance acceptée par le véhicule. Le formulaire affiche la plage de capacité nominale et le prix actuel du pack par kWh. La capacité utilisable est définie dans l’étude de faisabilité." },
-          { title: "Arrêts personnalisés", text: "Ouvrez Flotte → Arrêts personnalisés et choisissez le type. Saisissez une adresse ou des coordonnées, ou placez le point sur la carte. Détails ouvre un dialogue cohérent en lecture seule; Modifier prend aussi en charge les anciens arrêts dont les données précèdent le formulaire actuel. Utilisez des noms clairs pour les dépôts, points de recharge et pôles." },
+          { title: "Arrêts personnalisés", text: "Ouvrez Flotte → Arrêts personnalisés et choisissez le type. Saisissez une adresse et sélectionnez Rechercher sur la carte, ou déplacez la carte pour positionner le réticule. Les coordonnées se mettent à jour automatiquement. Détails ouvre un dialogue cohérent en lecture seule; Modifier prend aussi en charge les anciens arrêts dont les données précèdent le formulaire actuel. Utilisez des noms clairs pour les dépôts, points de recharge et pôles." },
           { title: "Dupliquer les modèles et arrêts personnalisés", text: "Utilisez Dupliquer sur la ligne concernée pour ouvrir une copie modifiable. Les noms progressent dans la famille du nom initial : Ligne A_copie, Ligne A_copie_1, Ligne A_copie_2, etc., même en copiant une copie. ELETTRA utilise le premier suffixe disponible, toutes pages de la liste comprises. La même règle s’applique aux services voiture, évaluations de faisabilité et analyses annuelles. Le nom proposé reste modifiable." },
         ],
-        figures: getGuideFigures("fr", "customStop"),
+        figures: getGuideFigures("fr", "busBattery", "customStop"),
         note: { title: "Avant de modifier ou supprimer", text: "Les données réutilisables peuvent être référencées par des services voiture ou des analyses. Vérifiez les travaux dépendants avant de modifier une donnée déjà utilisée." },
       },
       {
@@ -730,16 +754,16 @@ export const guideContent = {
           { title: "Ouvrir Flotte → Services voiture et créer un service voiture", text: "Choisissez Ajouter un service voiture pour ouvrir le planificateur séquentiel." },
           { title: "Choisir l’horaire GTFS", text: "Dans Configurer, choisissez le jour de service et l’édition GTFS. La dernière édition disponible est présélectionnée. Le jour et l’édition sont enregistrés avec le programme." },
           { title: "Définir les limites du service voiture", text: "Choisissez le dépôt de départ et l’heure de sortie. Saisissez les heures de service au format HH:MM, par exemple 25:10 pour 01:10 le lendemain." },
-          { title: "Filtrer et ajouter les courses planifiées", text: "Choisissez une ligne sous Activité suivante. Après une course, le planificateur propose les départs du terminus actuel. Sélectionnez Inclure les courses nécessitant un trajet à vide pour afficher d’autres départs. L’aperçu des arrêts permet de comparer les variantes." },
+          { title: "Filtrer et ajouter les courses planifiées", figures: getGuideFigures("fr", "shiftPlanner"), text: "Choisissez une ligne sous Activité suivante. Après une course, le planificateur propose les départs du terminus actuel. Sélectionnez Inclure les courses nécessitant un trajet à vide pour afficher d’autres départs. L’aperçu des arrêts permet de comparer les variantes." },
           { title: "Confirmer les transferts et ajouter les courses", text: "Ajoutez en un clic une course marquée Enchaînement direct. Pour une course nécessitant un trajet à vide, vérifiez la durée estimée et les horaires proposés, puis choisissez Ajouter l’activité. L’heure de départ GTFS reste fixe." },
           { title: "Ajouter une pause intermédiaire", text: "Choisissez Ajouter une pause au dépôt, puis un arrêt personnalisé et ses heures d’arrivée et de départ. Ajoutez d’autres courses ou pauses selon les besoins." },
           { title: "Planifier le retour, vérifier et enregistrer", text: "Choisissez Planifier le retour au dépôt pour terminer au dépôt de départ. Contrôlez Votre journée de service, corrigez les conflits et saisissez le nom et le modèle du bus dans Vérifier et enregistrer. Le programme doit comprendre au moins une course commerciale." },
           { title: "Modifier le programme enregistré complet", text: "Modifier rouvre le programme existant complet. Modifiez ou retirez une activité, ou utilisez Insérer avant pour en ajouter une. Annuler la dernière modification restaure le programme précédent." },
-          { title: "Modifier des services voiture antérieurs", text: "Les anciens services s’ouvrent dans l’éditeur d’origine. Ajustez les courses dans Composer la journée et les pauses via Gérer les pauses intermédiaires. Dans Pauses intermédiaires, vérifiez l’aperçu puis choisissez Appliquer au service ou Annuler. Terminez avec Vérifier et enregistrer." },
+          { title: "Modifier des services voiture antérieurs", figures: getGuideFigures("fr", "shiftComposer"), text: "Les anciens services s’ouvrent dans l’éditeur d’origine. Ajustez les courses dans Composer la journée et les pauses via Gérer les pauses intermédiaires. Dans Pauses intermédiaires, vérifiez l’aperçu puis choisissez Appliquer au service ou Annuler. Terminez avec Vérifier et enregistrer." },
           { title: "Rechercher ou dupliquer les services enregistrés", text: "La recherche interroge la liste complète côté serveur avant la pagination, afin de retrouver une correspondance au-delà de la page courante. Chaque ligne propose les icônes Visualiser, Modifier, Dupliquer et Supprimer. Dupliquer reprend les courses, le modèle de bus et l’édition GTFS du service choisi. Pour supprimer plusieurs services ensemble, sélectionnez leurs lignes puis utilisez Supprimer au-dessus du tableau. Le nom proposé utilise _copie, _copie_1, _copie_2, etc. ; copier une copie poursuit la numérotation de la famille d’origine sans empiler les suffixes." },
-          { title: "Visualiser un service voiture enregistré", text: "Ouvrez Visualiser/Détails pour contrôler les informations générales et la chaîne complète des mouvements. Espace-temps est la vue par défaut: le temps est horizontal, les arrêts verticaux, les services multiligne sont séparés par ligne et les liaisons au dépôt sont en pointillés. Passez à Carte pour examiner chaque mouvement, ses arrêts et ses horaires avec Première, Précédente, Suivante et Dernière. Un avertissement signale les discontinuités dues à des données de transfert manquantes au lieu d’inventer une liaison." },
+          { title: "Visualiser un service voiture enregistré", text: "Sélectionnez Visualiser le service voiture pour contrôler les informations générales et la chaîne complète des mouvements. Espace-temps est la vue par défaut. Le temps se lit à l’horizontale et les arrêts à la verticale. Toutes les lignes du service voiture figurent dans un seul diagramme et chaque ligne a sa propre couleur. Les segments en pointillés indiquent les trajets hors service commercial. Passez à Carte pour examiner chaque mouvement, ses arrêts et ses horaires avec Première, Précédente, Suivante et Dernière. Un avertissement signale les discontinuités dues à des données de transfert manquantes au lieu d’inventer une liaison." },
         ],
-        figures: getGuideFigures("fr", "shiftComposer", "shift"),
+        figures: getGuideFigures("fr", "shift"),
         note: { title: "Pourquoi la mission complète est importante", text: "Les déplacements depuis le dépôt et les transferts consomment de l’énergie même sans passagers. Les omettre peut rendre l’évaluation trop optimiste." },
       },
       {
@@ -787,12 +811,13 @@ export const guideContent = {
         intro: "L’analyse annuelle conserve le dimensionnement faisable du bus et de la recharge. Général évalue la flotte ou un groupe de bus représentatif; chaque service voiture présente sa propre efficacité annuelle.",
         ordered: true,
         items: [
-          { title: "Créer une analyse à partir d’une évaluation admissible", text: "Ouvrez Simulations → Analyses annuelles, créez une analyse et sélectionnez l’évaluation terminée qui définit véhicule, services voiture, batterie, recharge et édition GTFS. Le résultat annuel conserve cette provenance enregistrée au lieu de suivre silencieusement les modifications ultérieures d’un service." },
+          { title: "Créer une analyse à partir d’une évaluation admissible", text: "Ouvrez Simulations → Analyses annuelles, créez une analyse et sélectionnez une évaluation faisable et admissible à l’analyse annuelle dont le nombre de packs est enregistré. Cette évaluation définit le véhicule, les services voiture, la batterie, la recharge et l’édition GTFS. Le résultat annuel conserve cette provenance enregistrée au lieu de suivre silencieusement les modifications ultérieures d’un service." },
           { title: "Gérer et dupliquer les analyses annuelles enregistrées", text: "Chaque ligne se termine par les icônes Afficher les détails, Renommer, Dupliquer et Supprimer. Dupliquer ouvre un nouveau formulaire d’analyse prérempli avec l’évaluation de faisabilité source et l’occupation, et propose un nom modifiable se terminant par _copie, _copie_1, _copie_2, etc., sans répéter le suffixe; vérifiez les données héritées avant de lancer le calcul. Supprimez une analyse avec l’icône de la ligne, ou plusieurs analyses sélectionnées avec l’action Supprimer en haut de page." },
-          { title: "Vérifier les données héritées", text: "Contrôlez l’évaluation, les hypothèses d’exploitation, les températures représentatives et leurs occurrences avant le calcul. Les scénarios de température modifient la consommation; ils ne redimensionnent pas la batterie, ne changent pas l’infrastructure et ne répètent pas la décision de faisabilité." },
+          { title: "Vérifier les données héritées", text: "Contrôlez l’évaluation choisie et les hypothèses d’exploitation. Les températures représentatives et leurs nombres de jours sont en lecture seule. Le formulaire signale tout total positif différent de 365 jours. Les scénarios de température influent sur l’estimation de la consommation, avec un dimensionnement de batterie et de recharge fixe." },
           { title: "Commencer par Général", text: "L’analyse annuelle compacte de la flotte présente distance, énergie au bus et au réseau, efficacité minimale/maximale des services, TCO électrique et impact climatique. Bus représentatif / Flotte permet d’examiner la flotte entière ou un groupe partageant modèle et taille de batterie; les affectations de faisabilité ne changent pas. Min et Max occupent deux lignes, avec le nom du service correspondant. Les longues listes de services passent à la ligne dans leur cellule sans masquer les noms." },
-          { title: "Examiner les Coûts et les Émissions de la flotte", text: "Coûts combine une ligne TCO compacte, le coût annuel équivalent total (exploitation et investissement annualisé) et les coûts cumulés actualisés, le seuil de rentabilité et des tableaux détaillés. Les CAPEX des bus et batteries appartiennent intégralement aux véhicules physiques du périmètre; l’infrastructure partagée est comptée une fois pour la flotte et seul son coût est attribué aux groupes représentatifs selon l’énergie DC annuelle. Émissions montre les barres par phase du cycle de vie et les indicateurs environnementaux. Les hypothèses dépliables sont sous les graphiques, partagent des valeurs enregistrées automatiquement et ne relancent jamais la faisabilité." },
+          { title: "Examiner les Coûts et les Émissions de la flotte", text: "Coûts combine une ligne TCO compacte, le coût annuel équivalent total (exploitation et investissement annualisé) et les coûts cumulés actualisés, le seuil de rentabilité et des tableaux détaillés. La part violette indique l’équivalent annuel des achats et des remplacements actualisés, déduction faite de la valeur résiduelle actualisée en fin de période. Le graphique de droite indique à quel moment les flux de trésorerie interviennent. Les CAPEX des bus et batteries appartiennent intégralement aux véhicules physiques du périmètre; l’infrastructure partagée est comptée une fois pour la flotte et seul son coût est attribué aux groupes représentatifs selon l’énergie DC annuelle. Émissions montre les barres par phase du cycle de vie et les indicateurs environnementaux. Les hypothèses dépliables sont sous les graphiques, partagent des valeurs enregistrées automatiquement et ne relancent jamais la faisabilité." },
           { title: "Sélectionner un service voiture", text: "Une ligne blanche compacte, sous les volets HVAC et GTFS, indique énergie annuelle, distance simulée et efficacité moyenne. Efficacité présente ensuite directement consommation selon la température, incertitude et énergie pondérée, sans onglet redondant à élément unique." },
+          { title: "Lire l’intervalle de consommation Q05–Q95", text: "Pour chaque journée type, le calcul Monte-Carlo échantillonne indépendamment la consommation de chaque course, y compris entre différents services voiture. En kWh/km, la consommation totale échantillonnée est divisée par la distance parcourue sur le même périmètre. En kWh/an, la contribution de la journée type est pondérée par son nombre d’occurrences. Q05–Q95 couvre les 90 % centraux des valeurs modélisées pour la journée type et sa contribution pondérée." },
           { title: "Vérifier la provenance météo et HVAC", text: "Les volets GTFS et HVAC compacts identifient l’horaire et la politique d’auxiliaires enregistrés. L’analyse annuelle utilise le GHI PVGIS horaire dans le fuseau GTFS local et indique l’énergie HVAC en course et au terminus; la traçabilité et les actions JSON donnent les hypothèses et les entrées complètes de reproduction." },
           { title: "Examiner la configuration et exporter depuis Général", text: "Afficher les données de configuration ouvre le dimensionnement figé. Télécharger tous les résultats (JSON) apparaît uniquement dans Général, près de Fermer. Le fichier comprend toujours la flotte complète, tous les groupes de bus représentatifs et les services voiture disponibles, même lorsqu’un seul bus représentatif est sélectionné. Il conserve les hypothèses économiques effectives et distingue l’activité simulée d’origine du kilométrage annuel modifié. Les analyses avec les investissements de flotte figés utilisent le schéma 4; les analyses historiques sans ces données conservent le schéma 3." },
           { title: "Vérifier l’état de sauvegarde avant de fermer", text: "Le JSON complet décrit l’évaluation actuelle et indique si ses hypothèses sont enregistrées. Les sauvegardes en attente ou en échec restent explicites dans le fichier. Fermer attend la sauvegarde; un échec ou une saisie invalide garde la page ouverte pour corriger la valeur ou réessayer la sauvegarde avant de rouvrir l’analyse." },
@@ -809,9 +834,9 @@ export const guideContent = {
         title: "8. Comparer et exporter les analyses",
         intro: "Une comparaison est plus utile lorsque les variantes diffèrent par une décision ou une hypothèse clairement identifiée.",
         items: [
-          { title: "Sélectionner deux analyses annuelles", text: "Ouvrez Simulations → Comparaison d’analyses et choisissez Analyse A et Analyse B. Le résumé de compatibilité indique si la comparaison peut être directe." },
-          { title: "Comparer des indicateurs cohérents", text: "Examinez Aperçu, Efficacité, Coûts et Émissions pour les deux analyses. Si les services voiture ou hypothèses diffèrent, interprétez les écarts agrégés avec prudence." },
-          { title: "Exporter les éléments probants", text: "Utilisez la zone Détails / Export pour exporter les données de comparaison en CSV ou JSON." },
+          { title: "Sélectionner deux analyses annuelles", text: "Ouvrez Simulations → Comparaison d'analyses et sélectionnez Analyse A et Analyse B. Compatible signifie que les deux analyses utilisent les mêmes services voiture et le même mode d’optimisation." },
+          { title: "Comparer des indicateurs cohérents", text: "Consultez Aperçu, Efficacité, Coût et Émissions pour le périmètre Général. Les écarts sont calculés par Analyse B − Analyse A. Vérifiez le kilométrage annuel, l’édition GTFS et les hypothèses économiques avant d’interpréter les écarts." },
+          { title: "Exporter les éléments probants", text: "Dans Détails / Export, choisissez Exporter en CSV pour les indicateurs A/B, les écarts et les états de complétude, ou Exporter en JSON pour la comparaison structurée. Pour obtenir les résultats complets d’une seule analyse annuelle, ouvrez-la et choisissez Télécharger tous les résultats (JSON) dans Général." },
         ],
         note: { title: "Nommer clairement les scénarios", text: "Incluez la principale différence dans le nom enregistré, par exemple le véhicule, le chauffage, l’occupation ou la stratégie de recharge." },
       },
@@ -844,7 +869,7 @@ export const guideContent = {
       baselineLabel: "Versione di riferimento dell’interfaccia",
       baselineValue: `Frontend v${GUIDE_BASELINE_VERSION}`,
       updatedLabel: "Guida aggiornata",
-      updatedValue: "24 novembre 2026",
+      updatedValue: "25 novembre 2026",
       footer:
         "ELETTRA supporta studi di prefattibilità. Le decisioni finali su veicoli, ricarica, rete e infrastrutture devono essere confermate mediante una progettazione tecnica dettagliata.",
       skipLink: "Vai alla guida",
@@ -862,7 +887,7 @@ export const guideContent = {
         items: [
           { title: "Scegliere la lingua dell’interfaccia", text: "Usare il selettore della lingua nell’intestazione dell’applicazione. Sono disponibili inglese, tedesco, francese e italiano; la preferenza viene memorizzata nel browser." },
           { title: "Accedere o creare un account", text: "Aprire ELETTRA dal collegamento qui sopra. Accedere con un account esistente oppure crearne uno e selezionare l’azienda di trasporto appropriata quando richiesto. Durante la registrazione, l’anteprima CARTO usa l’ultima edizione GTFS disponibile e mostra tutte le linee disegnabili con il relativo numero per aiutare a confermare l’azienda. La mappa è indicativa e i percorsi sono semplificati: non va utilizzata come riferimento dettagliato della rete." },
-          { title: "Usare la navigazione principale", text: "Home spiega il flusso di pianificazione e collega direttamente le sei sezioni operative. Flotta contiene Modelli di autobus, Fermate personalizzate e Turni macchina; Simulazioni contiene Valutazione di fattibilità, Analisi annuali e Confronto analisi. La guida utente resta disponibile in fondo alla barra laterale." },
+          { title: "Usare la navigazione principale", text: "Home spiega il flusso di pianificazione e collega direttamente le sei sezioni operative. Flotta contiene Autobus, Fermate personalizzate e Turni macchina; Simulazioni contiene Valutazione di fattibilità, Analisi annuali e Confronto analisi. La guida utente resta disponibile in fondo alla barra laterale." },
         ],
         figures: getGuideFigures("it", "shell"),
         note: { title: "Perimetro della valutazione", text: "ELETTRA è uno strumento di pianificazione e prefattibilità. Un risultato fattibile dipende dalle ipotesi selezionate per servizio, veicolo, meteo, occupazione, batteria e ricarica; non costituisce una certificazione operativa." },
@@ -873,7 +898,7 @@ export const guideContent = {
         intro: "Completare le fasi in sequenza affinché ogni analisi abbia una base tracciabile di veicolo, servizio e scenario.",
         ordered: true,
         items: [
-          { title: "Creare un modello di autobus", text: "Descrivere il veicolo candidato, inclusi categoria, capacità, massa, limiti della batteria, potenza di ricarica, costi e durate di vita." },
+          { title: "Creare un modello di autobus", text: "Descrivere il veicolo candidato, inclusi lunghezza effettiva, capacità passeggeri, massa, limiti della batteria, potenza di ricarica, costi e durate di vita." },
           { title: "Creare le fermate personalizzate necessarie", text: "Aggiungere depositi, punti di ricarica o nodi non rappresentati dalle fermate del trasporto pubblico programmate." },
           { title: "Costruire un turno macchina", text: "Selezionare le corse programmate, definire le località di partenza e ritorno e verificare il servizio ordinato e gli spostamenti ausiliari." },
           { title: "Eseguire una valutazione di fattibilità", text: "Selezionare uno o più turni macchina, scegliere la modalità di ottimizzazione e impostare le ipotesi operative e di ricarica." },
@@ -886,13 +911,13 @@ export const guideContent = {
         title: "3. Modelli di autobus e fermate personalizzate",
         intro: "I dati riutilizzabili di veicoli e località forniscono gli input tecnici per turni macchina e valutazioni.",
         items: [
-          { title: "Modelli di autobus", text: "Aprire Flotta → Modelli di autobus e selezionare Aggiungi modello. Inserire una lunghezza da 9 a 13 m o da 17 a 19 m e scegliere la chimica della batteria (LFP o NMC). Verificare i campi tecnici ed economici obbligatori prima di salvare. Sostituire i valori predefiniti quando sono disponibili dati dell’operatore o del costruttore." },
+          { title: "Modelli di autobus", text: "Aprire Flotta → Autobus → Aggiungi modello autobus. Inserire la lunghezza effettiva, da 9 a 13 m o da 17 a 19 m e scegliere la chimica della batteria (LFP o NMC). Verificare i campi tecnici ed economici obbligatori prima di salvare. Sostituire i valori predefiniti quando sono disponibili dati dell’operatore o del costruttore." },
           { title: "Stime per il veicolo e la batteria", text: "Il prezzo del veicolo senza batterie è stimato a partire dai prezzi di gara in funzione della lunghezza del veicolo, con estrapolazione da 18 a 19 m. Il prezzo e la massa di ogni pacco batteria sono stimati a partire dalla sua capacità e dalla sua chimica. I prezzi sono in CHF, IVA esclusa. È possibile inserire valori propri o usare «Ripristina stima» per riapplicare la stima corrente." },
           { title: "Limiti della batteria", text: "Numero minimo e massimo di pacchi, capacità e massa definiscono le configurazioni utilizzabili dal calcolo. La potenza massima di ricarica limita la potenza accettata dal veicolo. Il modulo mostra la capacità nominale minima e massima e il prezzo corrente del pacco per kWh. La capacità utilizzabile si definisce nello studio di fattibilità." },
-          { title: "Fermate personalizzate", text: "Aprire Flotta → Fermate personalizzate e scegliere il tipo. Cercare un indirizzo sulla mappa oppure posizionare il mirino spostando la mappa; le coordinate vengono aggiornate automaticamente. Dettagli apre una finestra coerente in sola lettura; Modifica supporta anche le fermate storiche salvate prima del modulo attuale. Usare nomi chiari per depositi, punti di ricarica e nodi." },
+          { title: "Fermate personalizzate", text: "Aprire Flotta → Fermate personalizzate e scegliere il tipo. Inserire un indirizzo e selezionare Cerca sulla mappa, oppure spostare la mappa per posizionare il mirino. Le coordinate si aggiornano automaticamente. Dettagli apre una finestra coerente in sola lettura; Modifica supporta anche le fermate storiche salvate prima del modulo attuale. Usare nomi chiari per depositi, punti di ricarica e nodi." },
           { title: "Duplicare modelli e fermate personalizzate", text: "Usare Duplica sulla riga interessata per aprire una copia modificabile. I nomi proseguono nella famiglia del nome originale: Linea A_copia, Linea A_copia_1, Linea A_copia_2 e così via, anche copiando una copia. ELETTRA usa il primo suffisso disponibile considerando tutte le pagine dell’elenco. La stessa regola vale per turni macchina, valutazioni di fattibilità e analisi annuali. Il nome proposto resta modificabile." },
         ],
-        figures: getGuideFigures("it", "customStop"),
+        figures: getGuideFigures("it", "busBattery", "customStop"),
         note: { title: "Prima di modificare o eliminare", text: "I record riutilizzabili possono essere referenziati da turni macchina o analisi. Verificare i lavori dipendenti prima di modificare un record già utilizzato." },
       },
       {
@@ -904,16 +929,16 @@ export const guideContent = {
           { title: "Aprire Flotta → Turni macchina e creare un turno macchina", text: "Selezionare Aggiungi turno macchina per aprire il planner sequenziale." },
           { title: "Scegliere l’orario GTFS", text: "In Imposta il turno, scegliere il giorno di servizio e l’edizione GTFS. La nuova scheda propone l’edizione più recente disponibile. Il giorno e l’edizione vengono salvati con il programma." },
           { title: "Definire i limiti del servizio", text: "Scegliere il deposito e l’ora di partenza. Inserire gli orari del giorno di servizio in formato HH:MM, per esempio 25:10 per l’01:10 del giorno successivo." },
-          { title: "Filtrare e aggiungere le corse programmate", text: "Scegliere una linea in Prossima attività. Dopo una corsa il planner propone le partenze dal capolinea corrente. Selezionare Includi le corse che richiedono un trasferimento a vuoto per vedere altre partenze. Confrontare le varianti nell’anteprima delle fermate e degli orari." },
+          { title: "Filtrare e aggiungere le corse programmate", figures: getGuideFigures("it", "shiftPlanner"), text: "Scegliere una linea in Prossima attività. Dopo una corsa il planner propone le partenze dal capolinea corrente. Selezionare Includi le corse che richiedono un trasferimento a vuoto per vedere altre partenze. Confrontare le varianti nell’anteprima delle fermate e degli orari." },
           { title: "Confermare i trasferimenti e aggiungere le corse", text: "Aggiungere con un clic una corsa contrassegnata come Prosecuzione diretta. Per una corsa che richiede un trasferimento a vuoto, controllare la durata stimata e gli orari proposti, poi selezionare Aggiungi attività. L’ora di partenza GTFS resta fissa." },
           { title: "Aggiungere una sosta intermedia", text: "Selezionare Aggiungi sosta in deposito, scegliere una fermata personalizzata e impostare arrivo e ripartenza. Aggiungere altre corse o soste secondo necessità." },
           { title: "Pianificare il rientro, rivedere e salvare", text: "Selezionare Pianifica rientro in deposito per concludere al deposito di partenza. Controllare La tua giornata di servizio, risolvere eventuali conflitti e inserire nome e modello di autobus in Rivedi e salva. Il programma deve includere almeno una corsa di linea." },
           { title: "Modificare il programma salvato completo", text: "Modifica riapre il programma dell’intera giornata. Modificare o rimuovere un’attività oppure usare Inserisci prima per aggiungerne una. Annulla ultima modifica ripristina il programma precedente." },
-          { title: "Modificare i turni macchina storici", text: "I turni storici si aprono nell’editor precedente. Modificare le corse in Componi la giornata e le soste tramite Gestisci soste intermedie. Controllare l’anteprima in Soste intermedie, poi scegliere Applica al turno o Annulla. Concludere con Rivedi e salva." },
+          { title: "Modificare i turni macchina storici", figures: getGuideFigures("it", "shiftComposer"), text: "I turni storici si aprono nell’editor precedente. Modificare le corse in Componi la giornata e le soste tramite Gestisci soste intermedie. Controllare l’anteprima in Soste intermedie, poi scegliere Applica al turno o Annulla. Concludere con Rivedi e salva." },
           { title: "Cercare o duplicare i turni salvati", text: "La ricerca interroga l’elenco completo sul server prima della paginazione, quindi trova corrispondenze oltre la pagina corrente. Ogni riga offre le icone Visualizza, Modifica, Duplica ed Elimina. Duplica copia corse, modello di autobus ed edizione GTFS del turno scelto. Per eliminare più turni insieme, selezionare le righe e usare Elimina sopra la tabella. Il nome proposto usa _copia, _copia_1, _copia_2 e così via; duplicare una copia continua la numerazione della famiglia originale, senza accumulare suffissi." },
-          { title: "Visualizzare un turno salvato", text: "Aprire Visualizza/Dettagli per controllare le informazioni generali e la catena completa dei movimenti. Spazio-tempo è la vista predefinita: il tempo scorre in orizzontale, le fermate in verticale, i turni multilinea sono separati per linea e i collegamenti al deposito sono tratteggiati. Passare a Mappa per esaminare un movimento alla volta con fermate e orari usando Prima, Precedente, Successiva e Ultima. Un avviso segnala le discontinuità dovute a dati di trasferimento mancanti invece di inventare un collegamento." },
+          { title: "Visualizzare un turno salvato", text: "Selezionare Visualizza turno macchina per controllare le informazioni generali e la catena completa dei movimenti. Spazio-tempo è la vista predefinita. Il tempo scorre in orizzontale e le fermate sono sull’asse verticale. Tutte le linee del turno compaiono nello stesso diagramma. Ogni linea ha un colore. I tratti tratteggiati indicano le corse fuori linea. Passare a Mappa per esaminare un movimento alla volta con fermate e orari usando Prima, Precedente, Successiva e Ultima. Un avviso segnala le discontinuità dovute a dati di trasferimento mancanti invece di inventare un collegamento." },
         ],
-        figures: getGuideFigures("it", "shiftComposer", "shift"),
+        figures: getGuideFigures("it", "shift"),
         note: { title: "Perché il servizio completo è importante", text: "Gli spostamenti da deposito e di trasferimento consumano energia anche senza passeggeri. Ometterli può rendere la valutazione troppo ottimistica." },
       },
       {
@@ -961,12 +986,13 @@ export const guideContent = {
         intro: "L’analisi annuale mantiene fisso il progetto fattibile di autobus e ricarica. Generale valuta la flotta o un gruppo di bus rappresentativo; ogni turno macchina mostra la propria efficienza annuale.",
         ordered: true,
         items: [
-          { title: "Creare un’analisi da una valutazione idonea", text: "Aprire Simulazioni → Analisi annuali, creare una nuova analisi e selezionare la valutazione completata che definisce veicolo, turni macchina, batteria, ricarica ed edizione GTFS. Il risultato annuale conserva questa provenienza registrata invece di seguire in silenzio modifiche successive ai turni." },
+          { title: "Creare un’analisi da una valutazione idonea", text: "Aprire Simulazioni → Analisi annuali, creare una nuova analisi e selezionare una valutazione fattibile e idonea all’analisi annuale, con il numero di pacchi disponibile nei risultati. La valutazione definisce veicolo, turni macchina, batteria, ricarica ed edizione GTFS. Il risultato annuale conserva questa provenienza registrata invece di seguire in silenzio modifiche successive ai turni." },
           { title: "Gestire e duplicare le analisi annuali salvate", text: "Ogni riga termina con le icone Visualizza dettagli, Rinomina, Duplica ed Elimina. Duplica apre un nuovo modulo di analisi precompilato con la valutazione di fattibilità di origine e l’occupazione e propone un nome modificabile con i suffissi _copia, _copia_1, _copia_2, ecc., senza ripetere il suffisso; verificare gli input ereditati prima dell’avvio. Usare l’icona Elimina della riga per una sola analisi oppure selezionare più righe e usare l’azione Elimina in alto per un’eliminazione multipla." },
-          { title: "Verificare gli input ereditati", text: "Controllare la valutazione, le ipotesi operative, le temperature rappresentative e le loro occorrenze prima dell’avvio. Gli scenari di temperatura cambiano le stime di consumo; non ridimensionano la batteria, non modificano l’infrastruttura e non ripetono la decisione di fattibilità." },
+          { title: "Verificare gli input ereditati", text: "Controllare la valutazione scelta e le ipotesi operative. Le temperature rappresentative e il relativo numero di giorni si consultano in sola lettura. Il modulo mostra un avviso se il totale è positivo e diverso da 365 giorni. Gli scenari di temperatura cambiano le stime di consumo a parità di dimensionamento di batteria e ricarica." },
           { title: "Iniziare da Generale", text: "L’Analisi annuale della flotta mostra in modo compatto distanza, energia ai bus e dalla rete, efficienza minima/massima dei turni, TCO elettrico e impatto climatico. Bus rappresentativo / Flotta consente di esaminare la flotta completa o un gruppo con lo stesso modello e la stessa batteria; le assegnazioni della fattibilità non cambiano. Min e Max sono su due righe, ciascuno con il nome del turno corrispondente. Gli elenchi lunghi di turni vanno a capo nelle celle senza nascondere i nomi." },
-          { title: "Esaminare Costi ed Emissioni della flotta", text: "Costi combina una riga TCO compatta, costo annuo equivalente totale (costi operativi più investimento annualizzato) e costi cumulati attualizzati, pareggio e tabelle di dettaglio. I CAPEX di autobus e batterie appartengono integralmente ai veicoli fisici nell’ambito selezionato; l’infrastruttura condivisa è conteggiata una sola volta per la flotta e solo il suo costo viene allocato ai gruppi rappresentativi in base all’energia DC annuale. Emissioni mostra barre per fase del ciclo di vita e indicatori ambientali. Le ipotesi espandibili sono sotto i grafici, condividono valori salvati automaticamente e non rilanciano mai la fattibilità." },
+          { title: "Esaminare Costi ed Emissioni della flotta", text: "Costi combina una riga TCO compatta, costo annuo equivalente totale (costi operativi più investimento annualizzato) e costi cumulati attualizzati, pareggio e tabelle di dettaglio. La quota viola rappresenta l’equivalente annuo di acquisti e sostituzioni attualizzati, al netto del valore residuo finale attualizzato. Il grafico a destra mostra quando avvengono i movimenti di cassa. I CAPEX di autobus e batterie appartengono integralmente ai veicoli fisici nell’ambito selezionato; l’infrastruttura condivisa è conteggiata una sola volta per la flotta e solo il suo costo viene allocato ai gruppi rappresentativi in base all’energia DC annuale. Emissioni mostra barre per fase del ciclo di vita e indicatori ambientali. Le ipotesi espandibili sono sotto i grafici, condividono valori salvati automaticamente e non rilanciano mai la fattibilità." },
           { title: "Selezionare un turno macchina", text: "Una riga bianca compatta sotto i riquadri informativi HVAC e GTFS riporta energia annuale, distanza simulata ed efficienza media. Efficienza mostra quindi direttamente consumo in funzione della temperatura, incertezza ed energia ponderata, senza una tab ridondante con un solo elemento." },
+          { title: "Leggere l’intervallo di consumo Q05–Q95", text: "Per ogni giorno tipo il Monte Carlo campiona in modo indipendente il consumo di ogni corsa, anche fra turni diversi. In kWh/km si divide il consumo totale campionato per i chilometri dello stesso ambito. In kWh/anno il contributo del giorno tipo è ponderato per le sue occorrenze. Q05–Q95 comprende il 90% centrale dei valori modellati per il giorno tipo e il suo contributo ponderato." },
           { title: "Verificare la provenienza meteo e HVAC", text: "I riquadri compatti GTFS e HVAC identificano orario e politica degli ausiliari salvati. L’analisi annuale usa il GHI orario PVGIS nel fuso GTFS locale e riporta energia HVAC in corsa e al capolinea; tracciabilità e azioni JSON espongono ipotesi e input completi di riproduzione." },
           { title: "Esaminare la configurazione ed esportare da Generale", text: "Visualizza dati di configurazione apre il progetto congelato. Scarica tutti i risultati (JSON) compare solo in Generale, vicino a Chiudi. Il file comprende sempre la flotta completa, tutti i gruppi di bus rappresentativi e i turni macchina disponibili, anche quando è selezionato un solo bus rappresentativo. Conserva le ipotesi economiche effettive e distingue l’attività simulata originale dal chilometraggio annuale modificato. Le analisi con investimenti di flotta congelati usano lo schema 4; quelle storiche prive di questo archivio mantengono lo schema 3." },
           { title: "Controllare lo stato del salvataggio prima di chiudere", text: "Il JSON completo descrive la valutazione corrente e indica se le sue ipotesi sono state salvate. Salvataggi in attesa o falliti restano espliciti nel file. Chiudi attende il salvataggio; un errore o un input non valido mantiene aperta la pagina per correggere il valore o riprovare il salvataggio prima di riaprire l’analisi." },
@@ -983,9 +1009,9 @@ export const guideContent = {
         title: "8. Confrontare ed esportare le analisi",
         intro: "Il confronto è più utile quando le alternative differiscono per una decisione o un’ipotesi chiaramente identificata.",
         items: [
-          { title: "Selezionare due analisi annuali", text: "Aprire Simulazioni → Confronto analisi e scegliere Analisi A e Analisi B. Il riepilogo di compatibilità indica se i casi possono essere confrontati direttamente." },
-          { title: "Confrontare indicatori coerenti", text: "Esaminare Panoramica, Efficienza, Costi ed Emissioni per entrambe le analisi. Se turni macchina o ipotesi differiscono, interpretare con cautela le differenze aggregate." },
-          { title: "Esportare le evidenze", text: "Usare Dettagli / Esporta per esportare i dati di confronto in CSV o JSON." },
+          { title: "Selezionare due analisi annuali", text: "Aprire Simulazioni → Confronto analisi e scegliere Analisi A e Analisi B. Compatibile indica che le analisi usano lo stesso insieme di turni macchina e la stessa modalità di ottimizzazione." },
+          { title: "Confrontare indicatori coerenti", text: "Esaminare Panoramica, Efficienza, Costo ed Emissioni per l’ambito Generale. Le differenze sono calcolate come Analisi B − Analisi A. Prima di interpretarle, verificare percorrenza annuale, edizione GTFS e ipotesi economiche." },
+          { title: "Esportare le evidenze", text: "In Dettagli / Export, scegliere Esporta CSV per metriche A/B, differenze e stati di completezza oppure Esporta JSON per il confronto strutturato. Per i risultati completi di una singola analisi annuale, aprirla e scegliere Scarica tutti i risultati (JSON) in Generale." },
         ],
         note: { title: "Nominare chiaramente gli scenari", text: "Includere nel nome salvato la differenza principale, ad esempio veicolo, riscaldamento, occupazione o strategia di ricarica." },
       },

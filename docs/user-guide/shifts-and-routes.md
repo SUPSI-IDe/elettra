@@ -1,7 +1,7 @@
 # Vehicle Blocks and Routes
 
-> Last updated: 2026-11-24
-> Interface baseline: Frontend v1.4.3
+> Last updated: 2026-11-25
+> Interface baseline: Frontend v1.4.4-rc.1
 
 A vehicle block is the ordered service assigned to one bus over a day. It joins
 scheduled GTFS trips to the movements required before, between, and after them.
@@ -84,8 +84,8 @@ The visualization offers two views:
 
 - **Space-time** is selected by default. Time runs horizontally and the ordered
   stops run vertically. Each scheduled trip is plotted with its stop times;
-  dashed segments identify non-revenue movements. Vehicle blocks that serve
-  more than one line use a single diagram with a shared time axis and stop
+  dashed segments and their legend entry identify non-revenue movements.
+  Vehicle blocks that serve more than one line use a single diagram with a shared time axis and stop
   axis. A single-line duty uses blue for all scheduled trips. In a multi-line
   duty, each line has a consistent colour, identified in the legend; shared
   stops occupy one row and each branch retains its exclusive stops. Hover a
@@ -125,7 +125,7 @@ It supports sorting, pagination, and these actions:
   The suffix follows the interface language and the name remains editable.
 - The row **Delete** icon removes one block after confirmation. Select multiple
   checkboxes and use the top **Delete** button to remove several blocks together.
-- **Visualize/Details** shows general information, the default space-time
+- **Visualize vehicle block** shows general information, the default space-time
   diagram, and the trip-by-trip map with depot connections.
 
 Review dependent evaluations and analyses before changing or deleting a block

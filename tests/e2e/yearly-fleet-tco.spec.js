@@ -304,7 +304,9 @@ test('different battery groups retain duties and consumption; sliders restore di
   if (updateGuideScreenshots) {
     await page.setViewportSize({ width: 1440, height: 1020 });
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({ path: 'guide/images/yearly-efficiency.png' });
+    const financialSummary = page.locator('[data-annual-financial-summary]');
+    await expect(financialSummary).toContainText('Annualized investment');
+    await financialSummary.screenshot({ path: 'guide/images/yearly-efficiency.png' });
     await page.getByRole('tab', { name: 'Emissions', exact: true }).click();
     await expect(page.locator('[data-role="ya-lca-phases"]')).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, 0));

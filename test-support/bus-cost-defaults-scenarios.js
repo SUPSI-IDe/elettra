@@ -62,7 +62,9 @@ const expectBatterySummary = async (page, values) => {
 };
 
 export function defineBusCostDefaultsTests() {
-  test('uses the actual length and chemistry to estimate costs and pack mass', async ({ page }) => {
+  test('uses the actual length and chemistry to estimate costs and pack mass', async ({ page }, testInfo) => {
+    const captureGuide = process.env.UPDATE_GUIDE_SCREENSHOTS === '1' && testInfo.project.name === 'chromium';
+    if (captureGuide) await page.setViewportSize({ width: 1500, height: 1500 });
     const state = await setup(page);
     await page.goto('./#add-bus-model');
     const length = page.locator('#bus_length_m');
@@ -83,6 +85,17 @@ export function defineBusCostDefaultsTests() {
       'data-tooltip', 'Tra 13 e 17 m manca un profilo di climatizzazione VECTO.',
     );
     await expect(chemistry).toHaveValue('LFP');
+    if (captureGuide) {
+      await length.fill('12');
+      await page.locator('#name').fill('Autobus urbano 12 m');
+      await page.locator('#name').blur();
+      await expectBatterySummary(page, { min: '280 kWh', max: '440 kWh', price: '330 CHF/kWh' });
+      await page.mouse.move(0, 0);
+      await page.locator('section.add-bus-model').screenshot({
+        path: 'guide/images/bus-model-battery.png',
+        animations: 'disabled',
+      });
+    }
     await length.fill('19');
     await expect(category).toHaveValue('articulated_electric_bus_18m');
     await expect(bodyPrice).toHaveValue('583333.33');

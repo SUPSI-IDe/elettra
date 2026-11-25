@@ -228,6 +228,7 @@ const renderSection = (section, ui, sections) => {
     entry.className = "guide-item";
     entry.append(createTextElement("h3", "", item.title));
     entry.append(createTextElement("p", "", item.text));
+    if (item.figures?.length) entry.append(renderFigures(item.figures, ui));
     list.append(entry);
   });
 

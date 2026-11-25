@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.4-rc.1] - 2026-11-25
+
+- Update the four-language user guide with the sequential vehicle-block planner, route colours, bus battery estimates, service-day selection, paired feasibility results and equivalent annual costs.
+- Clarify how typical-day prediction intervals are calculated, which feasibility results can start a yearly analysis, and what the comparison and its exports cover.
+
 ## [1.4.3] - 2026-11-25
 
 - Correct the AMSA partner name to Autolinea Mendrisiense SA on the About page in all four languages.

@@ -1,9 +1,9 @@
 # Fleet Management
 
-> Last updated: 2026-11-24
-> Interface baseline: Frontend v1.4.3
+> Last updated: 2026-11-25
+> Interface baseline: Frontend v1.4.4-rc.1
 
-The Fleet area contains reusable inputs for analyses: **Bus Models**, **Custom
+The Fleet area contains reusable inputs for analyses: **Buses**, **Custom
 Stops**, and **Vehicle blocks**. The current interface works with bus models;
 it does not require a separate user-facing record for every physical bus.
 
@@ -11,13 +11,13 @@ it does not require a separate user-facing record for every physical bus.
 
 ## Bus models
 
-Open **Fleet → Bus Models** and select **Add Bus Model**. A bus model defines
+Open **Fleet → Buses** and select **Add Bus Model**. A bus model defines
 the technical and economic limits used when ELETTRA sizes a battery or evaluates
 a fixed configuration.
 
 ### Vehicle length and estimates
 
-Enter the vehicle length from 9 to 13 m or from 17 to 19 m. The VECTO climate
+Enter the actual vehicle length, from 9 to 13 m or from 17 to 19 m. The VECTO climate
 control model has no profile for lengths strictly between 13 and 17 m.
 Select the battery chemistry (LFP or NMC).
 

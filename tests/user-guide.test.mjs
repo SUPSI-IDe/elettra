@@ -65,7 +65,7 @@ test("all supported guide languages expose the same complete section structure",
     "comparison",
     "practice",
   ];
-  const expectedFigureCounts = [0, 1, 0, 1, 2, 1, 3, 2, 0, 0];
+  const expectedFigureCounts = [0, 1, 0, 2, 3, 1, 3, 2, 0, 0];
 
   assert.deepEqual(Object.keys(guideContent).sort(), [...SUPPORTED_GUIDE_LANGUAGES].sort());
 
@@ -73,7 +73,9 @@ test("all supported guide languages expose the same complete section structure",
     const content = guideContent[language];
     assert.deepEqual(content.sections.map(({ id }) => id), expectedIds);
     assert.deepEqual(
-      content.sections.map(({ figures }) => figures?.length ?? 0),
+      content.sections.map(({ figures = [], items }) =>
+        figures.length + items.flatMap(item => item.figures ?? []).length
+      ),
       expectedFigureCounts,
     );
     assert.ok(content.ui.title);
@@ -131,7 +133,7 @@ test("the guide baseline follows the frontend version and exposes a valid update
   assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
   assert.deepEqual(
     SUPPORTED_GUIDE_LANGUAGES.map((language) => guideContent[language].ui.updatedValue),
-    ["24 November 2026", "24. November 2026", "24 novembre 2026", "24 novembre 2026"],
+    ["25 November 2026", "25. November 2026", "25 novembre 2026", "25 novembre 2026"],
   );
 });
 
@@ -268,12 +270,12 @@ test("every guide language distinguishes owned vehicle CAPEX from allocated shar
 
 test("every referenced guide screenshot is packaged locally", async () => {
   const sources = new Set(
-    guideContent.en.sections.flatMap(({ figures = [] }) =>
-      figures.map(({ src }) => src)
+    guideContent.en.sections.flatMap(({ figures = [], items }) =>
+      [...figures, ...items.flatMap(item => item.figures ?? [])].map(({ src }) => src)
     )
   );
 
-  assert.equal(sources.size, 10);
+  assert.equal(sources.size, 12);
   await Promise.all([...sources].map((src) => access(new URL(src))));
 });
 

@@ -6,7 +6,9 @@ import { guideContent } from '../guide/content.js';
 test('all guide screenshots reserve their real intrinsic dimensions in every language', async () => {
   const files = new Set();
   for (const [language, content] of Object.entries(guideContent)) {
-    for (const figure of content.sections.flatMap(section => section.figures ?? [])) {
+    for (const figure of content.sections.flatMap(({ figures = [], items }) =>
+      [...figures, ...items.flatMap(item => item.figures ?? [])]
+    )) {
       const png = await readFile(new URL(figure.src));
       assert.equal(png.subarray(1, 4).toString(), 'PNG');
       const actual = { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
@@ -14,5 +16,5 @@ test('all guide screenshots reserve their real intrinsic dimensions in every lan
       files.add(figure.src);
     }
   }
-  assert.equal(files.size, 10);
+  assert.equal(files.size, 12);
 });

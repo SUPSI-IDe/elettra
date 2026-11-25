@@ -349,8 +349,8 @@ test("switching languages preserves the active use-case anchor and updates its d
 test("the guide screenshots load and the guide fits the viewport", async ({ page }) => {
   await page.goto("./guide/");
 
-  await expect(page.locator(".guide-figure img")).toHaveCount(10);
-  await expect(page.locator(".guide-figure figcaption")).toHaveCount(10);
+  await expect(page.locator(".guide-figure img")).toHaveCount(12);
+  await expect(page.locator(".guide-figure figcaption")).toHaveCount(12);
   for (const image of await page.locator(".guide-figure img").all()) {
     await image.scrollIntoViewIfNeeded();
     await expect.poll(() =>
@@ -390,7 +390,7 @@ for (const [language, labels] of Object.entries({
       const image=page.locator(`#${section} img`);
       const sources=await image.evaluateAll(images => images.map(img=>img.src));
       expect(sources.some(src=>src.includes(suffix))).toBe(true);
-      await expect(page.locator(`#${section} img`)).toHaveCount(section==='results'?3:2);
+      await expect(image).toHaveCount(3);
     }
     expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
     await page.setViewportSize({width:320,height:720});

@@ -84,6 +84,7 @@ const mountResults = async (page, {
   dailyCycle,
   language = "en",
   gtfsProvenance,
+  serviceWeekday,
   currentGtfs = [],
   gtfsStopNames = {},
   initializerOptions = {},
@@ -182,6 +183,7 @@ const mountResults = async (page, {
           input_params: {
             shift_ids: shiftIds,
             gtfs_provenance: gtfsProvenance,
+            service_weekday: serviceWeekday,
             mode,
             consumption_basis: consumptionBasis,
             basis_run_ids: basisRunIds,
@@ -629,6 +631,16 @@ test("separates the common result from one selected shift without an aggregate o
       shifts: { morning: [dataset], evening: [dataset] },
     },
     currentGtfs: [dataset],
+    serviceWeekday: "monday",
+    forecastVerification: { status: "verified" },
+    predictionOverrides: {
+      "prediction-morning": prediction("prediction-morning", "morning", 8, 315),
+      "prediction-evening": prediction("prediction-evening", "evening", 12, 550),
+    },
+    perBusSummaryOverrides: {
+      morning: { max_soc_kwh: 360 },
+      evening: { min_soc_kwh: 130, max_soc_kwh: 540 },
+    },
   });
 
   const general = page.locator('[data-role="feasibility-general-level"]');
@@ -750,16 +762,6 @@ test("separates the common result from one selected shift without an aggregate o
     ),
   ).toBe(false);
 
-  if (updateGuideScreenshots) {
-    await page.setViewportSize({ width: 1000, height: 850 });
-    await page.locator(".results-main").evaluate((main) => { main.scrollTop = 0; });
-    await page.keyboard.press('Escape');
-    await page.locator(':focus').evaluateAll(elements => elements.forEach(element => element.blur()));
-    await page.mouse.move(0, 0);
-    await expect(page.locator('[role="tooltip"]:visible')).toHaveCount(0);
-    await page.screenshot({ path: "guide/images/feasibility-efficiency.png" });
-  }
-
   await expect(selector).toBeVisible();
   await expect(selector).toHaveAttribute("role", "tablist");
   await expect(selector.locator('[data-action="select-result-scope"]')).toHaveCount(3);
@@ -790,10 +792,10 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("2");
   await expect(
     shiftSummary.locator('[data-role="feasibility-shift-predicted-consumption"]'),
-  ).toHaveText(/Prediction consumption per vehicle block \(kWh\)\s+350/);
+  ).toHaveText(/Prediction consumption per vehicle block \(kWh\)\s+315/);
   await expect(
     shiftSummary.locator('[data-role="feasibility-shift-predicted-consumption-per-km"]'),
-  ).toHaveText(/Prediction consumption per km \(kWh\/km\)\s+3\.500/);
+  ).toHaveText(/Prediction consumption per km \(kWh\/km\)\s+3\.150/);
   await expect(shiftSummary.locator('.result-metric')).toHaveCount(6);
   await expect(shiftSummary.locator(".feasibility-shift-metrics strong small")).toHaveCount(0);
   const shiftMetricLayout = await shiftSummary
@@ -881,16 +883,27 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(energyAdequacy).toHaveAttribute("data-feasibility", "feasible");
   await expect(energyAdequacy).toContainText("Vehicle block energy adequacy");
   await expect(energyAdequacy).toContainText("Sensitivity drivers");
-  await expect(energyAdequacy).toContainText("350.0 kWh");
+  await expect(energyAdequacy).toContainText("315.0 kWh");
   await expect(energyAdequacy).not.toContainText("550.0 kWh");
   await expect(visualAnalysis.locator(".efficiency-adequacy-panel")).toHaveCount(0);
   await expect(energyAdequacy.locator(".efficiency-adequacy-panel")).toHaveCount(1);
   await expect(shiftDetail).not.toContainText("Sensitivity / Feasibility Insight");
 
-  if (updateGuideScreenshots) {
-    await page.setViewportSize({ width: 1900, height: 1000 });
-    await page.locator(".results-main").evaluate((main) => { main.scrollTop = 0; });
-    await page.screenshot({ path: "guide/images/feasibility-sizing.png" });
+  if (updateGuideScreenshots && !test.info().project.use.isMobile) {
+    await page.setViewportSize({ width: 1400, height: 2330 });
+    await chargingPlan.locator(":scope > summary").blur();
+    await page.locator(".results-main").evaluate(main => { main.scrollTop = 0; });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.mouse.move(0, 0);
+    await expect(shiftSummary).toBeInViewport();
+    await expect(visualAnalysis).toBeInViewport();
+    await expect(chargingPlan).toBeInViewport();
+    const planBounds = await chargingPlan.boundingBox();
+    await page.screenshot({
+      path: "guide/images/feasibility-sizing.png",
+      clip: { x: 0, y: 0, width: 1400, height: Math.ceil(planBounds.y + planBounds.height + 24) },
+      animations: "disabled",
+    });
   }
 
   const shiftSectionOrder = await shiftDetail
@@ -998,7 +1011,7 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(sizingEffect.locator("h3").first()).toHaveText(
     "Sizing effect on energy consumption",
   );
-  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-consumption"]')).toHaveText("350.0");
+  await expect(sizingEffect.locator('[data-role="sizing-effect-decision-consumption"]')).toHaveText("315.0");
   await expect(sizingEffect.locator("svg")).toHaveCount(0);
   const lastMoreInformationSection = await moreInformation
     .locator(".ya-more-information__content > *")
@@ -1013,7 +1026,7 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(shiftSummary.locator('[data-role="feasibility-shift-coverage-status"]')).toHaveText("Largest selected battery");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-required-packs"]')).toHaveCount(0);
   await expect(shiftSummary.locator('[data-role="feasibility-shift-pack-margin"]')).toHaveCount(0);
-  await expect(shiftSummary.locator('[data-role="feasibility-shift-min-soc"]')).toContainText("60.0");
+  await expect(shiftSummary.locator('[data-role="feasibility-shift-min-soc"]')).toContainText("130.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-charged-energy"]')).toContainText("140.0");
   await expect(shiftSummary.locator('[data-role="feasibility-shift-session-count"]')).toContainText("3");
   await expect(chargingPlan.locator('[data-role="feasibility-charging-plan-count"]')).toHaveCount(0);
@@ -1027,7 +1040,7 @@ test("separates the common result from one selected shift without an aggregate o
   await expect(visualAnalysis).toHaveAttribute("data-status", "available");
   await expect(energyAdequacy).toHaveAttribute("data-feasibility", "feasible");
   await expect(energyAdequacy).toContainText("550.0 kWh");
-  await expect(energyAdequacy).not.toContainText("350.0 kWh");
+  await expect(energyAdequacy).not.toContainText("315.0 kWh");
   await expect(moreInformation).toHaveAttribute("open", "");
   await expect(sizingEffect).toBeVisible();
   await expect(sizingEffect.locator('[data-role="sizing-effect-decision-consumption"]')).toHaveText("550.0");
@@ -2741,8 +2754,13 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
           physical_feasible: false, excess_packs: 2,
           feasibility_status: 'infeasible_requires_excess_packs',
         });
+        const dataset = {
+          gtfs_year: 2027, gtfs_file_date: '2026-11-04', valid_from: '2026-12-13', valid_to: '2027-12-11',
+        };
         await mountResults(page, {
           mode, consumptionBasis, fixedBatteryPacks: 8, electrificationFeasible: false,
+          serviceWeekday: 'monday',
+          gtfsProvenance: { version: 1, source: 'recorded', shifts: { morning: [dataset], evening: [dataset] } },
           solverStatus: source === 'result' ? 'optimal' : 'infeasible',
           forecastVerification: {status: source === 'result' ? 'physical_limits_exceeded' : 'infeasible'},
           includeBatteryResults: source === 'result', includePerBusSummary: source === 'result',
@@ -2772,10 +2790,15 @@ for (const mode of ['battery_only', 'charging_only', 'joint']) {
         if (mode === 'joint' && consumptionBasis === 'mean') {
           await page.screenshot({path: test.info().outputPath(`uniform-${source}-general.png`), fullPage: true});
         }
-        if (updateGuideScreenshots && mode === 'joint' && consumptionBasis === 'mean' && source === 'diagnostic') {
-          await page.setViewportSize({width: 1100, height: 800});
+        if (updateGuideScreenshots && !test.info().project.use.isMobile && mode === 'joint' && consumptionBasis === 'mean' && source === 'diagnostic') {
+          await page.setViewportSize({ width: 1100, height: 650 });
+          await expect(page.locator('[data-role="feasibility-service-day"]')).toHaveText('Service day · Monday');
+          const download = page.getByRole('button', { name: 'Download all results (JSON)' });
+          await expect(download).toBeEnabled();
+          await expect(download).toBeInViewport();
+          await constraints.locator('..').blur();
           await page.mouse.move(0, 0);
-          await page.screenshot({path: 'guide/images/feasibility-infeasible.png'});
+          await page.screenshot({ path: 'guide/images/feasibility-infeasible.png', animations: 'disabled' });
         }
         await row.getByRole('button', {name: 'Evening service', exact: true}).click();
         await expect(scopeSelector(page).getByRole('tab', {name: 'Evening service', exact: true})).toHaveAttribute('aria-selected', 'true');

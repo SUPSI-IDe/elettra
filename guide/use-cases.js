@@ -30,7 +30,7 @@ export const useCaseSections = {
         steps: [
           { text: "Configure a candidate bus model with its battery-pack limits and technical parameters. Add any required custom stops or depots.", section: "fleet" },
           { text: "Build the operating vehicle blocks: scheduled trips, departure and arrival locations, depot connections and auxiliary journeys.", section: "shifts" },
-          { text: "Create a feasibility evaluation, select the vehicle blocks and bus model, and choose Battery only (BATTERY_ONLY).", section: "feasibility" },
+          { text: "Create a feasibility evaluation. Choose the GTFS edition and service day, then select compatible vehicle blocks and the bus model. Choose Battery only (BATTERY_ONLY).", section: "feasibility" },
           { text: "Configure the existing charging locations, available plugs and charging power. Define temperature, passenger occupancy, heating technology and the usable state-of-charge (SOC) window.", section: "feasibility" },
           { text: "Run the evaluation and check the technical verdict, battery-pack limits and charging results. If it is not completed, follow the reason and correction guidance for each vehicle block before rerunning it; if it is infeasible, revise the design assumptions.", section: "results" },
           { text: "For a verified feasible design, create a yearly analysis and examine expected energy consumption, operating costs and environmental impacts.", section: "yearly" },
@@ -47,7 +47,7 @@ export const useCaseSections = {
         steps: [
           { text: "Configure or select the existing bus model. In the feasibility form, enter the installed number of battery packs as the fixed configuration and check that it lies within the model’s allowed limits.", section: "fleet" },
           { text: "Define the operating vehicle blocks, including depot connections and auxiliary journeys; add any required custom locations.", section: "shifts" },
-          { text: "Create a feasibility evaluation, select the vehicle blocks and model, and choose Charging (CHARGING).", section: "feasibility" },
+          { text: "Create a feasibility evaluation. Choose the GTFS edition and service day, then select compatible vehicle blocks and the bus model. Choose Charging (CHARGING).", section: "feasibility" },
           { text: "Select relevant charging locations from the service stops and depots. Set availability, power limits, maximum plug counts and applicable installation costs. Define temperature, occupancy, heating technology and usable SOC.", section: "feasibility" },
           { text: "Run the optimisation and review the charging configuration and technical verdict with the fixed battery. If it is not completed, follow the reason and correction guidance for each vehicle block before rerunning it; if it is infeasible, revise the design assumptions.", section: "results" },
           { text: "For a verified feasible design, proceed to yearly analysis of energy consumption, economic indicators and environmental impacts.", section: "yearly" },
@@ -64,7 +64,7 @@ export const useCaseSections = {
         steps: [
           { text: "Configure one or more candidate bus models and any required custom stops or depots. Assess different bus models in separate scenarios.", section: "fleet" },
           { text: "Define the complete operating vehicle blocks for the service to be electrified, including auxiliary journeys.", section: "shifts" },
-          { text: "Create a feasibility evaluation, select the vehicle blocks and candidate model, and choose Joint (JOINT).", section: "feasibility" },
+          { text: "Create a feasibility evaluation. Choose the GTFS edition and service day, then select compatible vehicle blocks and the bus model. Choose Joint (JOINT).", section: "feasibility" },
           { text: "Select candidate depot and opportunity-charging sites from the service locations. Configure charging power, availability, plug limits, infrastructure costs and battery cost assumptions. Define operating conditions and usable SOC.", section: "feasibility" },
           { text: "Run the joint battery and charging optimisation. Review the technical verdict and physical battery limits. If it is not completed, follow the reason and correction guidance for each vehicle block before rerunning it; if it is infeasible, revise the design assumptions.", section: "results" },
           { text: "For a verified feasible design, run yearly analysis and examine annual energy demand, investment and operating costs, and environmental impacts.", section: "yearly" },
@@ -103,7 +103,7 @@ export const useCaseSections = {
         steps: [
           { text: "Konfigurieren Sie ein mögliches Busmodell mit Batteriepackgrenzen und technischen Parametern. Ergänzen Sie bei Bedarf benutzerdefinierte Haltestellen oder Depots.", section: "fleet" },
           { text: "Erstellen Sie die Fahrzeugumläufe mit Fahrplanfahrten, Abfahrts- und Ankunftsorten, Depotverbindungen und Zusatzfahrten.", section: "shifts" },
-          { text: "Erstellen Sie eine Machbarkeitsbewertung, wählen Sie Fahrzeugumläufe und Busmodell sowie den Modus Nur Batterie (BATTERY_ONLY).", section: "feasibility" },
+          { text: "Erstellen Sie eine Machbarkeitsbewertung. Stellen Sie zuerst die GTFS-Ausgabe und den Verkehrstag ein. Wählen Sie danach die passenden Fahrzeugumläufe, das Busmodell und den Modus Nur Batterie (BATTERY_ONLY).", section: "feasibility" },
           { text: "Konfigurieren Sie die vorhandenen Ladeorte, verfügbaren Ladeanschlüsse und Ladeleistungen. Legen Sie Temperatur, Fahrgastbelegung, Heiztechnologie und das nutzbare Ladezustandsfenster (SOC) fest.", section: "feasibility" },
           { text: "Starten Sie die Bewertung und prüfen Sie das technische Urteil, die Batteriepackgrenzen und die Ladeergebnisse. Wird sie nicht abgeschlossen, folgen Sie vor dem erneuten Start dem Grund und den Korrekturhinweisen jedes Fahrzeugumlaufs; ist sie nicht machbar, überarbeiten Sie die Auslegungsannahmen.", section: "results" },
           { text: "Erstellen Sie für eine als machbar geprüfte Auslegung eine Jahresanalyse und untersuchen Sie den erwarteten Energieverbrauch, die Betriebskosten und die Umweltauswirkungen.", section: "yearly" },
@@ -120,7 +120,7 @@ export const useCaseSections = {
         steps: [
           { text: "Konfigurieren oder wählen Sie das bestehende Busmodell. Geben Sie im Machbarkeitsformular die verbaute Anzahl Batteriepakete als feste Konfiguration ein und prüfen Sie, dass sie innerhalb der zulässigen Modellgrenzen liegt.", section: "fleet" },
           { text: "Definieren Sie die Fahrzeugumläufe einschliesslich Depotverbindungen und Zusatzfahrten; ergänzen Sie nötige benutzerdefinierte Standorte.", section: "shifts" },
-          { text: "Erstellen Sie eine Machbarkeitsbewertung, wählen Sie Fahrzeugumläufe und Modell sowie den Modus Laden (CHARGING).", section: "feasibility" },
+          { text: "Erstellen Sie eine Machbarkeitsbewertung. Stellen Sie zuerst die GTFS-Ausgabe und den Verkehrstag ein. Wählen Sie danach die passenden Fahrzeugumläufe, das Busmodell und den Modus Laden (CHARGING).", section: "feasibility" },
           { text: "Wählen Sie relevante Ladeorte aus den Haltestellen und Depots der Fahrzeugumläufe. Legen Sie Verfügbarkeit, Leistungsgrenzen, maximale Anschlusszahlen und Installationskosten fest. Definieren Sie Temperatur, Belegung, Heiztechnologie und nutzbaren SOC.", section: "feasibility" },
           { text: "Starten Sie die Optimierung und prüfen Sie die Ladekonfiguration sowie das technische Urteil bei fester Batterie. Wird sie nicht abgeschlossen, folgen Sie vor dem erneuten Start dem Grund und den Korrekturhinweisen jedes Fahrzeugumlaufs; ist sie nicht machbar, überarbeiten Sie die Auslegungsannahmen.", section: "results" },
           { text: "Untersuchen Sie für eine als machbar geprüfte Auslegung den Energieverbrauch, die wirtschaftlichen Kennzahlen und die Umweltauswirkungen in der Jahresanalyse.", section: "yearly" },
@@ -137,7 +137,7 @@ export const useCaseSections = {
         steps: [
           { text: "Konfigurieren Sie ein oder mehrere mögliche Busmodelle sowie nötige benutzerdefinierte Haltestellen oder Depots. Bewerten Sie verschiedene Busmodelle in separaten Szenarien.", section: "fleet" },
           { text: "Definieren Sie die vollständigen Fahrzeugumläufe für das zu elektrifizierende Verkehrsangebot einschliesslich Zusatzfahrten.", section: "shifts" },
-          { text: "Erstellen Sie eine Machbarkeitsbewertung, wählen Sie Fahrzeugumläufe und Busmodell sowie den Modus Gemeinsam (JOINT).", section: "feasibility" },
+          { text: "Erstellen Sie eine Machbarkeitsbewertung. Stellen Sie zuerst die GTFS-Ausgabe und den Verkehrstag ein. Wählen Sie danach die passenden Fahrzeugumläufe, das Busmodell und den Modus Gemeinsam (JOINT).", section: "feasibility" },
           { text: "Wählen Sie mögliche Depot- und Gelegenheitsladestandorte aus den Betriebsorten. Konfigurieren Sie Ladeleistung, Verfügbarkeit, Anschlussgrenzen, Infrastrukturkosten und Batteriekostenannahmen. Definieren Sie Betriebsbedingungen und nutzbaren SOC.", section: "feasibility" },
           { text: "Starten Sie die gemeinsame Batterie- und Ladeoptimierung und prüfen Sie das technische Urteil sowie die physischen Batteriegrenzen. Wird sie nicht abgeschlossen, folgen Sie vor dem erneuten Start dem Grund und den Korrekturhinweisen jedes Fahrzeugumlaufs; ist sie nicht machbar, überarbeiten Sie die Auslegungsannahmen.", section: "results" },
           { text: "Führen Sie für eine als machbar geprüfte Auslegung die Jahresanalyse durch und untersuchen Sie jährlichen Energiebedarf, Investitions- und Betriebskosten sowie Umweltauswirkungen.", section: "yearly" },
@@ -176,7 +176,7 @@ export const useCaseSections = {
         steps: [
           { text: "Configurez un modèle de bus candidat avec ses limites de packs de batterie et ses paramètres techniques. Ajoutez les arrêts personnalisés ou dépôts nécessaires.", section: "fleet" },
           { text: "Construisez les services voiture : courses à l’horaire, lieux de départ et d’arrivée, liaisons au dépôt et trajets auxiliaires.", section: "shifts" },
-          { text: "Créez une évaluation de faisabilité, sélectionnez les services voiture et le modèle, puis choisissez Batterie uniquement (BATTERY_ONLY).", section: "feasibility" },
+          { text: "Créez une évaluation de faisabilité. Choisissez l’édition GTFS et le jour de circulation, puis sélectionnez les services voiture compatibles et le modèle de bus. Choisissez Batterie uniquement (BATTERY_ONLY).", section: "feasibility" },
           { text: "Configurez les lieux de recharge existants, les prises disponibles et la puissance de recharge. Définissez la température, le taux d’occupation, la technologie de chauffage et la plage d’état de charge (SOC) utilisable.", section: "feasibility" },
           { text: "Lancez l’évaluation et vérifiez le verdict technique, les limites de packs et les résultats de recharge. Si elle n’est pas terminée, suivez le motif et les conseils de correction de chaque service voiture avant de la relancer; si elle est non faisable, révisez les hypothèses de dimensionnement.", section: "results" },
           { text: "Pour une conception dont la faisabilité est vérifiée, créez une analyse annuelle et examinez la consommation d’énergie attendue, les coûts d’exploitation et les impacts environnementaux.", section: "yearly" },
@@ -193,7 +193,7 @@ export const useCaseSections = {
         steps: [
           { text: "Configurez ou sélectionnez le modèle de bus existant. Dans le formulaire de faisabilité, saisissez le nombre de packs installés comme configuration fixe et vérifiez qu’il respecte les limites autorisées du modèle.", section: "fleet" },
           { text: "Définissez les services voiture, y compris les liaisons au dépôt et les trajets auxiliaires ; ajoutez les lieux personnalisés nécessaires.", section: "shifts" },
-          { text: "Créez une évaluation de faisabilité, sélectionnez les services voiture et le modèle, puis choisissez Recharge (CHARGING).", section: "feasibility" },
+          { text: "Créez une évaluation de faisabilité. Choisissez l’édition GTFS et le jour de circulation, puis sélectionnez les services voiture compatibles et le modèle de bus. Choisissez Recharge (CHARGING).", section: "feasibility" },
           { text: "Sélectionnez les lieux de recharge pertinents parmi les arrêts et dépôts des services voiture. Définissez la disponibilité, les limites de puissance, le nombre maximal de prises et les coûts d’installation applicables. Fixez la température, l’occupation, la technologie de chauffage et le SOC utilisable.", section: "feasibility" },
           { text: "Lancez l’optimisation et examinez la configuration de recharge et le verdict technique à batterie fixe. Si elle n’est pas terminée, suivez le motif et les conseils de correction de chaque service voiture avant de la relancer; si elle est non faisable, révisez les hypothèses de dimensionnement.", section: "results" },
           { text: "Pour une conception dont la faisabilité est vérifiée, passez à l’analyse annuelle de la consommation d’énergie, des indicateurs économiques et des impacts environnementaux.", section: "yearly" },
@@ -210,7 +210,7 @@ export const useCaseSections = {
         steps: [
           { text: "Configurez un ou plusieurs modèles de bus candidats ainsi que les arrêts personnalisés ou dépôts nécessaires. Évaluez les différents modèles dans des scénarios distincts.", section: "fleet" },
           { text: "Définissez les services voiture complets à électrifier, y compris les trajets auxiliaires.", section: "shifts" },
-          { text: "Créez une évaluation de faisabilité, sélectionnez les services voiture et le modèle candidat, puis choisissez Conjoint (JOINT).", section: "feasibility" },
+          { text: "Créez une évaluation de faisabilité. Choisissez l’édition GTFS et le jour de circulation, puis sélectionnez les services voiture compatibles et le modèle de bus. Choisissez Conjoint (JOINT).", section: "feasibility" },
           { text: "Sélectionnez les sites candidats de recharge au dépôt et d’opportunité parmi les lieux desservis. Configurez la puissance, la disponibilité, les limites de prises, les coûts d’infrastructure et les hypothèses de coût des batteries. Définissez les conditions d’exploitation et le SOC utilisable.", section: "feasibility" },
           { text: "Lancez l’optimisation conjointe de la batterie et de la recharge. Vérifiez le verdict technique et les limites physiques de batterie. Si elle n’est pas terminée, suivez le motif et les conseils de correction de chaque service voiture avant de la relancer; si elle est non faisable, révisez les hypothèses de dimensionnement.", section: "results" },
           { text: "Pour une conception dont la faisabilité est vérifiée, lancez l’analyse annuelle et examinez la demande d’énergie, les coûts d’investissement et d’exploitation et les impacts environnementaux.", section: "yearly" },
@@ -249,7 +249,7 @@ export const useCaseSections = {
         steps: [
           { text: "Configurate un modello di autobus candidato con i limiti dei pacchi batteria e i parametri tecnici. Aggiungete le fermate personalizzate o i depositi necessari.", section: "fleet" },
           { text: "Costruite i turni macchina: corse di linea, luoghi di partenza e arrivo, collegamenti al deposito e percorsi ausiliari.", section: "shifts" },
-          { text: "Create una valutazione di fattibilità, selezionate turni macchina e modello e scegliete Solo batteria (BATTERY_ONLY).", section: "feasibility" },
+          { text: "Create una valutazione di fattibilità. Impostate prima l’edizione GTFS e il giorno di servizio. Selezionate poi i turni macchina compatibili, il modello di autobus e la modalità Solo batteria (BATTERY_ONLY).", section: "feasibility" },
           { text: "Configurate i luoghi di ricarica esistenti, le prese disponibili e la potenza di ricarica. Definite temperatura, occupazione dei passeggeri, tecnologia di riscaldamento e intervallo utilizzabile dello stato di carica (SOC).", section: "feasibility" },
           { text: "Eseguite la valutazione e controllate l’esito tecnico, i limiti dei pacchi batteria e i risultati della ricarica. Se non viene completata, seguite il motivo e i suggerimenti correttivi di ogni turno macchina prima di rilanciarla; se non è fattibile, rivedete le ipotesi di progetto.", section: "results" },
           { text: "Per una configurazione verificata come fattibile, create un’analisi annuale ed esaminate consumo energetico previsto, costi operativi e impatti ambientali.", section: "yearly" },
@@ -266,7 +266,7 @@ export const useCaseSections = {
         steps: [
           { text: "Configurate o selezionate il modello esistente. Nel modulo di fattibilità inserite il numero di pacchi installati come configurazione fissa e verificate che rientri nei limiti ammessi dal modello.", section: "fleet" },
           { text: "Definite i turni macchina, inclusi collegamenti al deposito e percorsi ausiliari; aggiungete i luoghi personalizzati necessari.", section: "shifts" },
-          { text: "Create una valutazione di fattibilità, selezionate turni macchina e modello e scegliete Ricarica (CHARGING).", section: "feasibility" },
+          { text: "Create una valutazione di fattibilità. Impostate prima l’edizione GTFS e il giorno di servizio. Selezionate poi i turni macchina compatibili, il modello di autobus e la modalità Ricarica (CHARGING).", section: "feasibility" },
           { text: "Selezionate i luoghi di ricarica pertinenti tra le fermate e i depositi dei servizi. Impostate disponibilità, limiti di potenza, numero massimo di prese e costi di installazione applicabili. Definite temperatura, occupazione, tecnologia di riscaldamento e SOC utilizzabile.", section: "feasibility" },
           { text: "Eseguite l’ottimizzazione e controllate la configurazione di ricarica e l’esito tecnico con batteria fissa. Se non viene completata, seguite il motivo e i suggerimenti correttivi di ogni turno macchina prima di rilanciarla; se non è fattibile, rivedete le ipotesi di progetto.", section: "results" },
           { text: "Per una configurazione verificata come fattibile, passate all’analisi annuale di consumi energetici, indicatori economici e impatti ambientali.", section: "yearly" },
@@ -275,7 +275,7 @@ export const useCaseSections = {
         nextSteps: "Confrontate le analisi annuali per luoghi di ricarica o vincoli alternativi, con la stessa batteria installata e un perimetro di valutazione coerente. Esportate i risultati a supporto della pianificazione dell’infrastruttura.",
       },
       {
-        id: "use-case-initial", mode: "JOINT", modeLabel: "Congiunto",
+        id: "use-case-initial", mode: "JOINT", modeLabel: "Congiunta",
         title: "Investimento iniziale di elettrificazione",
         text: "Intendete elettrificare un servizio e dovete valutare combinazioni di capacità della batteria e infrastruttura di ricarica prima di acquistare le attrezzature.",
         question: "Quale combinazione di capacità della batteria e infrastruttura di ricarica consente di elettrificare i servizi selezionati?",
@@ -283,7 +283,7 @@ export const useCaseSections = {
         steps: [
           { text: "Configurate uno o più modelli di autobus candidati e le fermate personalizzate o i depositi necessari. Valutate modelli diversi in scenari separati.", section: "fleet" },
           { text: "Definite i turni macchina completi del servizio da elettrificare, inclusi i percorsi ausiliari.", section: "shifts" },
-          { text: "Create una valutazione di fattibilità, selezionate turni macchina e modello candidato e scegliete Congiunto (JOINT).", section: "feasibility" },
+          { text: "Create una valutazione di fattibilità. Impostate prima l’edizione GTFS e il giorno di servizio. Selezionate poi i turni macchina compatibili, il modello di autobus e la modalità Congiunta (JOINT).", section: "feasibility" },
           { text: "Selezionate i siti candidati per la ricarica in deposito e di opportunità tra i luoghi del servizio. Configurate potenza, disponibilità, limiti delle prese, costi infrastrutturali e ipotesi di costo delle batterie. Definite le condizioni operative e il SOC utilizzabile.", section: "feasibility" },
           { text: "Eseguite l’ottimizzazione congiunta di batteria e ricarica e controllate l’esito tecnico e i limiti fisici della batteria. Se non viene completata, seguite il motivo e i suggerimenti correttivi di ogni turno macchina prima di rilanciarla; se non è fattibile, rivedete le ipotesi di progetto.", section: "results" },
           { text: "Per una configurazione verificata come fattibile, eseguite l’analisi annuale ed esaminate domanda energetica, costi di investimento e operativi e impatti ambientali.", section: "yearly" },
