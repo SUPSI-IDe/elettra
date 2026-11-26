@@ -9,6 +9,8 @@ For your first visit, see [Account and access](#account-and-access).
 2. Choose a feasibility mode. **Battery only** finds the smallest battery for the charging sites you specify. **Charging** finds where plugs are needed for a fixed battery. **Joint** sizes batteries and charging infrastructure together to minimize upfront investment. [Set up the optimization mode](feasibility-evaluation.md#3-optimization-mode).
 3. Run the evaluation and compare the Mean and Q95 designs, including pack count, planned charging and lowest SOC for the same block. If a design is infeasible, revise the inputs and run it again. If the result is **Not determined**, open **General** to check the reported cause. Where a vehicle block is identified, open it and follow **How to resolve**. Only verified feasible designs can proceed to yearly analysis and comparison. [Interpret Mean and Q95](simulation-results.md#compare-the-mean-and-q95-designs).
 
+[Follow a battery-only example](feasibility-evaluation.md#from-depot-charging-to-cost-per-kilometer).
+
 ## Operating guide
 
 1. [Bus models and custom stops](fleet-management.md)
@@ -87,6 +89,6 @@ Protected API operations require an authorized account.
 
 ---
 
-> Reference versions: Frontend v1.4.5-rc.1 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5-rc.2 · Backend v1.9.0
 >
 > Last updated: 2026-11-26

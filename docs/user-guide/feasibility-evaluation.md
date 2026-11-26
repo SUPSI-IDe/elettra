@@ -34,10 +34,11 @@ model whenever you change the block selection.
 | I have chosen the bus and battery. Where should I charge? | The bus model, fixed battery pack count, candidate sites, maximum plug counts, and fixed power per plug | **Charging** | Which sites to use, how many plugs to install at each, and when to charge |
 | Which combination minimizes the upfront investment in batteries and charging plugs? | The bus model, candidate sites, plug limits, power per plug, and battery and charging costs | **Joint** | The battery pack counts, charging sites and plug counts that minimize upfront investment, plus when to charge |
 
-Charging mode requires a fixed pack count within the selected bus model's
-allowed minimum and maximum. Battery-only and Joint can size each vehicle
-individually or use the same battery size for all selected blocks, depending on
-the battery-sizing option.
+**Battery sizing mode** appears in **Battery only** and **Joint**. The default,
+**Individual batteries**, lets ELETTRA select a different pack count for each
+vehicle block. Choose **Same size for all** to require the same pack count and
+battery capacity on every selected bus. In **Charging**, enter a fixed pack
+count within the selected bus model’s minimum and maximum.
 
 For a **Battery only** purchase, compare the packs required for each block in the Mean and Q95 designs. You choose the bus model and manufacturer. Fleet TCO includes the modeled capital cost of every selected charging site with at least one plug, even if its chargers are already installed or unused. The estimate covers charging points, site infrastructure and the grid connection. Consult your accounts for actual past spending.
 
@@ -110,20 +111,23 @@ while N depot plugs correspond to 150 × N kW. Review the plug counts and power
 limits before starting. Duplication preserves saved charging inputs rather
 than replacing them with new-evaluation defaults.
 
-**Verify next-day departure with depot charging** checks whether the same bus
-can recharge between the planned return and the next day’s departure and start
-the same vehicle block at its required departure SOC. The option is enabled by
-default for new evaluations. Include the depot where each block starts and ends
-in the selected charging infrastructure. For example, if a block starts and
-ends at Depot A and pauses at Depot B during the day, select Depot A for the
-next-day check.
+**Verify next-day departure with depot charging** checks whether each bus can
+restore its initial SOC before repeating the same block 24 hours later. Each
+block must start and end at the same registered depot. Include that depot in
+the selected charging infrastructure. For example, if a block starts and ends
+at Depot A and pauses at Depot B during the day, select Depot A for the
+next-day check. ELETTRA uses the transfers already in the block. A connected
+bus occupies the same plug for its full stay, even after charging finishes.
 
-With that check enabled, **Simulate smart charging in the depot** can reduce
-charging peaks while preserving the selected design and daytime charging.
-Advanced infrastructure-cost assumptions are available separately.
+**Simulate smart charging in the depot** requires the next-day departure check.
+With controllable chargers, ELETTRA adjusts the power between return and next
+departure to reduce the depot charging peak. It keeps batteries, chargers,
+plug assignments, the in-service charging plan and the departure SOC fixed.
+Other site loads are outside the simulation.
 
-A connected bus occupies the same plug for its full stop, even after energy
-delivery finishes.
+Both options are enabled by default for new evaluations. To check the next
+departure alone, leave the first option enabled and turn off smart charging.
+Turning off the next-day departure check also disables smart charging.
 
 **Optional charging parameters** is collapsed by default, like the infrastructure
 cost options. Open it to edit **Connecting/disconnecting the bus** (default
@@ -208,6 +212,13 @@ records.
 
 ---
 
+## From depot charging to cost per kilometer
+
+1. In your operator's GTFS timetable, select a Monday block that starts and ends at the same depot. If you build a practice block, use an outward trip and its return. Record the timetable edition, line, departure times and depot so you can repeat the run.
+2. Choose a 12 m bus with 40 kWh packs and **Battery only**. Select only the depot, with one 150 kW plug and a 150 kW site limit. Keep the next-day departure check on. Record the pack limits, temperature, occupancy and battery settings.
+3. Run the evaluation. For the same block, check the Mean and Q95 pack counts. Multiply each count by 40 kWh for the nominal capacity. Inspect the lowest SOC and whether the bus regains its required SOC by the next departure.
+4. Start a yearly analysis for a verified feasible design. Under **General → Costs**, read electric and diesel TCO in CHF/km at the same mileage. If neither profile is feasible, inspect the reported constraint before changing an input and rerunning the evaluation.
+
 ## Next steps
 
 - [Feasibility Results](simulation-results.md) — Read the technical verdict and each vehicle block
@@ -215,6 +226,6 @@ records.
 
 ---
 
-> Reference versions: Frontend v1.4.5-rc.1 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5-rc.2 · Backend v1.9.0
 >
 > Last updated: 2026-11-26

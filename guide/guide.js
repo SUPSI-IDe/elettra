@@ -216,8 +216,18 @@ const renderSection = (section, ui, quickStart) => {
   }
 
   if (section.id === "use-cases") {
-    wrapper.append(renderWorkflowDiagram(section));
+    wrapper.append(renderWorkflowDiagram(section),
+      createSectionLink("battery-only-example", section.exampleLink, "guide-workflow-return"));
     return wrapper;
+  }
+
+  const shortcuts = section.items.filter(item => item.shortcut);
+  if (shortcuts.length) {
+    const nav = document.createElement("nav");
+    nav.className = "guide-chapter-links guide-item-links";
+    nav.setAttribute("aria-labelledby", title.id);
+    for (const { id, shortcut } of shortcuts) nav.append(createSectionLink(id, shortcut));
+    wrapper.append(nav);
   }
 
   const list = document.createElement(section.ordered ? "ol" : "ul");
@@ -251,6 +261,20 @@ const renderSection = (section, ui, quickStart) => {
   });
 
   wrapper.append(list);
+
+  if (section.example) {
+    const { id, title, steps } = section.example;
+    const example = document.createElement("aside");
+    example.id = id;
+    example.className = "guide-item guide-example";
+    const heading = createTextElement("h3", "", title);
+    heading.id = `${id}-title`;
+    example.setAttribute("aria-labelledby", heading.id);
+    const sequence = document.createElement("ol");
+    for (const step of steps) sequence.append(createTextElement("li", "", step));
+    example.append(heading, sequence);
+    wrapper.append(example);
+  }
 
   if (section.figures?.length) {
     wrapper.append(renderFigures(section.figures, ui));

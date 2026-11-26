@@ -311,6 +311,24 @@ a:hover {
   gap: 0.25rem 1rem;
 }
 
+.guide-chapter-links {
+  margin-block: 0.75rem 1rem;
+}
+
+.guide-example {
+  margin-block-start: 1rem;
+}
+
+.guide-example ol {
+  margin: 0.5rem 0 0;
+  padding-inline-start: 1.5rem;
+  color: var(--guide-muted);
+}
+
+.guide-example li + li {
+  margin-block-start: 0.4rem;
+}
+
 .guide-figure-grid {
   display: grid;
   gap: 1rem;
@@ -814,6 +832,7 @@ a:hover {
 @media print {
   .guide-header,
   .guide-sidebar,
+  .guide-chapter-links,
   .skip-link,
   .guide-footer a {
     display: none;

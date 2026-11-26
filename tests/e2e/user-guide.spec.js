@@ -8,6 +8,14 @@ import {
 // Assert anchor destinations without racing smooth-scroll animations between clicks.
 test.use({ reducedMotion: "reduce" });
 
+const expectHeadingBelow = async (heading, stickyBar) => {
+  await expect(heading).toBeInViewport({ ratio: 1 });
+  const barBottom = await stickyBar.evaluate(element => element.getBoundingClientRect().bottom);
+  const { y } = await heading.boundingBox();
+  expect(y).toBeGreaterThanOrEqual(barBottom);
+  return y - barBottom;
+};
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/v1/version", (route) => route.fulfill({
     json: { version: "user-guide-test" },
@@ -335,13 +343,7 @@ test("the phone header uses one row and leaves only section navigation on scroll
 
   const sidebar = page.locator(".guide-sidebar");
   const navigation = sidebar.getByRole("navigation");
-  const expectHeadingBelowNavigation = async (heading) => {
-    await expect(heading).toBeInViewport({ ratio: 1 });
-    const navBottom = await sidebar.evaluate(element => element.getBoundingClientRect().bottom);
-    const { y } = await heading.boundingBox();
-    expect(y).toBeGreaterThanOrEqual(navBottom);
-    return y - navBottom;
-  };
+  const expectHeadingBelowNavigation = heading => expectHeadingBelow(heading, sidebar);
 
   await page.evaluate(() => window.scrollTo(0, 500));
   await expect(header).not.toBeInViewport();
@@ -357,7 +359,7 @@ test("the phone header uses one row and leaves only section navigation on scroll
   const mode = page.locator(`#${id}`);
   await expectHeadingBelowNavigation(mode.getByRole("heading", { level: 4 }));
   expect((await mode.boundingBox()).width).toBeGreaterThanOrEqual(295);
-  await page.locator(".guide-workflow-return").click();
+  await page.locator('.guide-workflow-return[href="#use-cases-workflow"]').click();
   await expect(page).toHaveURL(/#use-cases-workflow$/);
   await expectHeadingBelowNavigation(page.locator("#use-cases-workflow").getByRole("heading", { level: 3 }));
 
@@ -429,6 +431,60 @@ test("a direct guide-section URL can return to the landing page", async ({ page 
 
 
 for (const [language, labels] of Object.entries(LANGUAGES)) {
+  test(`chapter shortcuts and the battery-only example open the right headings in ${language}`, async ({ page }) => {
+    await page.goto("./guide/#use-cases");
+    const languageSelector = page.locator("#guide-language");
+    await languageSelector.selectOption(language);
+
+    const { sections } = guideContent[language];
+    const stickyBar = page.locator(page.viewportSize().width <= 850 ? ".guide-sidebar" : ".guide-header");
+    const shortcuts = {
+      results: ["results-verdict", "demand-soc", "resolve-feasibility"],
+      yearly: ["yearly-start", "yearly-energy-costs", "yearly-assumptions-export"],
+    };
+
+    for (const [id, destinations] of Object.entries(shortcuts)) {
+      const chapter = sections.find(section => section.id === id);
+      const section = page.locator(`#${id}`);
+      const links = section.getByRole("navigation", { name: chapter.title, exact: true }).getByRole("link");
+      await expect(links).toHaveCount(destinations.length);
+      for (const [index, destination] of destinations.entries()) {
+        const item = chapter.items.find(item => item.id === destination);
+        const link = links.nth(index);
+        await expect(link).toHaveAccessibleName(item.shortcut);
+        await expect(link).toHaveAttribute("href", `#${destination}`);
+        await link.click();
+        await expect(page).toHaveURL(new RegExp(`#${destination}$`));
+        const heading = section.locator(`#${destination}`).getByRole("heading", { level: 3, name: item.title, exact: true });
+        await expectHeadingBelow(heading, stickyBar);
+      }
+    }
+
+    const quickStart = sections.find(section => section.id === "use-cases");
+    const exampleLink = page.locator("#use-cases").getByRole("link", { name: quickStart.exampleLink, exact: true });
+    const exampleId = "battery-only-example";
+    const checkExample = async (locale) => {
+      await expect(page).toHaveURL(/#battery-only-example$/);
+      const feasibility = guideContent[locale].sections.find(section => section.id === "feasibility");
+      const { title, steps } = feasibility.example;
+      const heading = page.locator(`#feasibility #${exampleId}`).getByRole("heading", { level: 3, name: title, exact: true });
+      await expectHeadingBelow(heading, stickyBar);
+      await expect(page.locator(`#${exampleId} li`)).toHaveText(steps);
+    };
+
+    await expect(exampleLink).toHaveAttribute("href", `#${exampleId}`);
+    await exampleLink.click();
+    await checkExample(language);
+
+    const locales = Object.keys(LANGUAGES);
+    const nextLanguage = locales[(locales.indexOf(language) + 1) % locales.length];
+    await languageSelector.selectOption(nextLanguage);
+    await checkExample(nextLanguage);
+    await page.reload();
+    await expect(languageSelector).toHaveValue(nextLanguage);
+    await checkExample(nextLanguage);
+  });
+
   test(`Quick Start and chapter navigation work in ${language} on desktop and mobile`, async ({ page }) => {
     await page.goto("./guide/#use-cases");
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.5-rc.2] - 2026-11-26
+
+- Explain individual and uniform battery sizing, the next-day departure check and smart depot charging in all four guide languages.
+- Clarify the economic and environmental scope of charging infrastructure. Add chapter shortcuts and a battery-only exercise from vehicle block selection to yearly cost per kilometer.
+
 ## [1.4.5-rc.1] - 2026-11-26
 
 - Explain the three feasibility planning modes and streamline the guide around the current feasibility and yearly analysis workflows.

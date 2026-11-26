@@ -12,6 +12,8 @@ The current result page separates two questions:
 - each named **vehicle block** shows its own temperature-dependent efficiency
   and annual energy contribution.
 
+[Start the analysis](#create-a-yearly-analysis) · [Read energy, costs and emissions](#general-annual-fleet-assessment) · [Review assumptions](#costs) or [export](#export).
+
 ---
 
 ## Create a yearly analysis
@@ -114,11 +116,13 @@ the same scope gives the TCO in CHF/km.
 
 Bus and battery investment follows the physical buses in scope. Shared
 charging infrastructure counts once for the fleet, with an equal share per
-physical bus. The electric and diesel designs use the same mileage, analysis
-horizon and discount rate. The comparison excludes drivers and diesel refuelling
-infrastructure. Break-even is the first year after which discounted electric
-costs stay below diesel costs through the selected horizon. The result flags a
-crossing due only to the final residual value.
+physical bus. Its investment includes charging points, site works and the grid
+connection. The electric and diesel designs use the same mileage, analysis
+horizon and discount rate. The comparison excludes driver costs, taxes,
+financing fees, depot buildings and diesel refuelling infrastructure.
+Break-even is the first year after which discounted electric costs stay below
+diesel costs through the selected horizon. The result flags a crossing due only
+to the final residual value.
 
 Open **Edit economic assumptions** below the charts to change electricity price
 (CHF/kWh of purchased grid electricity), diesel price (CHF/l), diesel consumption
@@ -136,17 +140,17 @@ of charging investment per year or a fixed amount in CHF/year. The default
 percentage is **2%/year**, with the INFRAS 2026 reference range of **2–5%**.
 A fixed amount of zero excludes infrastructure maintenance.
 
-The percentage applies to the full charging investment, including chargers,
-shared works and connection. Maintenance is counted once per fleet, excluding
-buses and batteries. The tooltip beside the reference explains this modeling
-assumption.
+The percentage applies to the full charging investment. Maintenance of
+charging infrastructure is counted once per fleet. The tooltip beside the
+reference explains this modeling assumption.
 
 ### Emissions
 
 The Emissions view presents climate impact by lifecycle phase, energy boundary,
 environmental indicators, assumptions/provenance, and further information.
-The current model is explicitly partial rather than a complete absolute vehicle
-LCA.
+The lifecycle assessment uses representative Mobitool inventories. For charging
+infrastructure, it uses a generic inventory. Assessing the environmental impact
+of a specific depot requires project data.
 
 **Activity and diesel consumption** is an expandable card below the phase
 charts. There is one mileage control per bus model and battery size, plus the
@@ -227,6 +231,6 @@ fields, units and version differences.
 
 ---
 
-> Reference versions: Frontend v1.4.5-rc.1 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5-rc.2 · Backend v1.9.0
 >
 > Last updated: 2026-11-26

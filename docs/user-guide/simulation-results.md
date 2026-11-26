@@ -5,6 +5,8 @@ and yearly assessment. Read the overall verdict first, then inspect every
 vehicle block and the complete Mean/Q95 design before creating a yearly
 analysis.
 
+[Read the verdict](#read-the-technical-verdict) · [Check battery and SOC](#consumption-histogram-and-soc-trajectory) · [Troubleshoot](#infeasible-configurations) or [export](#export-the-complete-evaluation).
+
 ---
 
 ## Result navigation
@@ -229,11 +231,20 @@ connection, these times describe the planned stop.
 
 Battery-only evaluations can schedule charging within the fixed infrastructure.
 The plan may have no sessions or be partially unavailable. If a complete daily
-cycle was requested, **Daily cycle and depot charging** shows in-service and
-overnight energy separately, and the block view compares departure SOC with
-the target. In an infeasible result, open the **Identified constraints** tooltip
-beside the verdict or block status for the available depot diagnostic. Depot peak shaving, when verified, changes
-the depot power profile within the selected design.
+cycle was verified, **Daily cycle and depot charging** shows energy charged
+during the vehicle block and between return and the next departure separately.
+In the vehicle-block view, compare departure SOC with the target and open
+**Depot charging schedule** for the time, power and energy in each interval. In an
+infeasible result, open the **Identified constraints** tooltip beside the verdict
+or block status for the available depot diagnostic.
+
+If smart charging completed, in **General** expand **Simulated charging peak
+with smart charging** under **Daily cycle and depot charging**. Compare
+**Previous feasible plan** and **With peak shaving** for each depot in kW DC.
+The baseline is the feasible schedule before peak shaving. The two values
+include bus charging at the depot, including any overlapping in-service load.
+If peak shaving did not complete, ELETTRA retains the feasible schedule and
+reports that the daily cycle was verified.
 
 Distinguish available charging time, active charging time, connected time and
 available time without charging. The default technical time is 1 minute total
@@ -309,6 +320,6 @@ scenario as an annual average.
 
 ---
 
-> Reference versions: Frontend v1.4.5-rc.1 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5-rc.2 · Backend v1.9.0
 >
 > Last updated: 2026-11-26
