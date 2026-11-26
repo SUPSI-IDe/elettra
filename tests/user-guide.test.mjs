@@ -160,6 +160,15 @@ test("the SOH examples and the demand and SOC paragraphs are complete in every g
       assert.ok(rows[index].some(cell => cell.includes(usableEnergy)));
     }
 
+    const batteryId = batteryItems[0].id;
+    assert.equal(batteryId, "battery-capacity-soh");
+    const resultsWithExampleLink = sections.results.items.filter(item =>
+      item.links?.some(link => link.href === `#${batteryId}`)
+    );
+    assert.equal(resultsWithExampleLink.length, 1);
+    assert.ok(resultsWithExampleLink[0].paragraphs.some(line => line.includes("/ 100")));
+    assert.doesNotMatch(JSON.stringify(sections.results), /500\s*kWh|18[.,]57/);
+
     const demand = sections.results.items.find(({ id }) => id === "demand-soc");
     assert.ok(demand, `${language} should explain demand and SOC`);
     const { paragraphs } = demand;

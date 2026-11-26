@@ -598,16 +598,9 @@ a:hover {
   color: var(--guide-brand-dark);
 }
 
-.guide-mode-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-}
-
-.guide-mode-header a {
-  font-size: 0.85rem;
+.guide-workflow-return {
+  display: inline-block;
+  margin-top: 0.75rem;
 }
 
 .guide-mode-steps {

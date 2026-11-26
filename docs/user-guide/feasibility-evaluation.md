@@ -63,10 +63,19 @@ usage** appears only for Initial. SOC limits are calculated automatically. A sho
 preview shows the resulting energy; tooltips explain the controls and show the calculated SOC window.
 SOH changes capacity, not the installed packs’ physical mass or cost.
 
-With 500 kWh initially, SOH 70% and usable capacity 50%, **Residual** provides
-175 kWh; **Initial** preserves 250 kWh. Their applied SOC windows are respectively
-40–90% and 18.57–90%. Initial is incompatible when the requested fraction divided
-by SOH exceeds maximum residual usage.
+#### Battery capacity and SOH
+
+At 70% SOH, a battery with 500 kWh of initial capacity has 350 kWh of residual
+capacity. With usable capacity set to 50%, the capacity reference determines
+how much energy is usable.
+
+| Capacity reference | Usable energy | Applied SOC window |
+|---|---:|---:|
+| Residual | 175 kWh | 40–90% |
+| Initial | 250 kWh | 18.57–90% |
+
+Initial is incompatible when the requested usable fraction divided by SOH
+exceeds maximum residual usage.
 
 For fractions U (usable capacity), h (SOH) and M (maximum residual usage), the
 applied window width is U for Residual and U/h for Initial. Residual automatically
@@ -74,8 +83,8 @@ uses M = max(0.85, U). The allowed upper bound is H = max(0.95, M), the lower
 bound L = H − M, and the reference maximum is min(H, max(0.90, L + U)). The
 applied minimum decreases first; only after reaching L does the maximum increase
 up to H. Thus the default preference is 90% and default expansion range 10–95%.
-The API and usable-energy formula remain unchanged:
-initial capacity × SOH × (applied maximum SOC − applied minimum SOC).
+Usable energy equals residual capacity (initial capacity × SOH as a fraction)
+times the applied SOC window width as a fraction.
 
 Applied limits differ from SOC actually reached in the optimized trajectory.
 A minimum below 20% produces a short informational warning without blocking

@@ -161,24 +161,14 @@ reports:
 Use **Battery and energy margin** for selected packs, the installable maximum,
 nominal and usable capacities, and the available margin when recorded.
 
-**Configured SOC window** identifies the limits entered in the evaluation.
+**Configured SOC window** shows the limits applied in the evaluation.
 **Minimum SOC reached** and **Maximum SOC reached** are trajectory outcomes.
-They must not be presented as the same quantity.
 
-SOC percentages refer to **residual capacity**. The battery assumptions show
-initial, residual and usable capacity, SOH, usage policy, applied SOC window,
-technical time and terminal layover reduction. Usable energy is initial kWh ×
-SOH × (applied maximum SOC − applied minimum SOC); physical pack counts remain
-unchanged by this conversion. The forecast and energy tables use the same SOH
-and applied window.
+SOC percentages refer to **residual capacity**.
 
-For an initial 500 kWh battery at SOH 70%, residual capacity is 350 kWh. The
-default residual-capacity policy with SOC 40–90% gives 175 kWh usable. Constant
-initial usable energy with a 40–90% reference preserves 250 kWh and applies
-18.57–90% at SOH 70%. It lowers the minimum towards the allowed 10% before
-raising the preferred maximum of 90% towards the allowed 95%. The informational
-warning concerns an **applied minimum below 20%**, not the minimum reached by
-the trajectory; it does not require confirmation.
+Usable energy (kWh) = residual capacity (kWh) × (configured maximum SOC % − configured minimum SOC %) / 100.
+
+See the [battery capacity and SOH example](feasibility-evaluation.md#battery-capacity-and-soh).
 
 The operational-energy view combines usable battery energy, planned charging,
 and temporal energy drawdown. Required usable energy is derived from the

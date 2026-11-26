@@ -126,11 +126,8 @@ const renderModeInstructions = (modes, quickStart) => {
     option.className = "guide-use-case guide-use-case-tone";
     option.dataset.case = String(index + 1);
     option.id = mode.id;
-    const header = document.createElement("div");
-    header.className = "guide-mode-header";
-    header.append(createTextElement("h4", "", mode.modeLabel),
-      createSectionLink("use-cases-workflow", quickStart.backToWorkflow));
-    option.append(header, createTextElement("h5", "guide-mode-steps", quickStart.stepsLabel));
+    option.append(createTextElement("h4", "", mode.modeLabel),
+      createTextElement("h5", "guide-mode-steps", quickStart.stepsLabel));
     const instructions = document.createElement("ol");
     for (const step of mode.instructions) instructions.append(createTextElement("li", "", step));
     const guidance = document.createElement("dl");
@@ -235,7 +232,10 @@ const renderSection = (section, ui, quickStart) => {
     if (item.text) entry.append(createTextElement("p", "", item.text));
     if (item.table) entry.append(renderComparisonTable(item.table));
     for (const paragraph of item.paragraphs ?? []) entry.append(createTextElement("p", "", paragraph));
-    if (item.modes) entry.append(renderModeInstructions(item.modes, quickStart));
+    if (item.modes) {
+      entry.append(renderModeInstructions(item.modes, quickStart),
+        createSectionLink("use-cases-workflow", quickStart.backToWorkflow, "guide-workflow-return"));
+    }
     if (item.links?.length) {
       const links = document.createElement("p");
       links.className = "guide-item-links";

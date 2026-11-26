@@ -460,6 +460,9 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
       links.filter(link => !document.getElementById(link.hash.slice(1))).map(link => link.hash)
     );
     expect(invalidLinks).toEqual([]);
+    const workflowLink = page.getByRole("link", { name: quickStart.backToWorkflow, exact: true });
+    await expect(workflowLink).toHaveCount(1);
+    await expect(page.locator('.guide-mode-options + a[href="#use-cases-workflow"]')).toHaveText(quickStart.backToWorkflow);
     for (const [index, item] of quickStart.items.entries()) {
       const link = branchLinks.nth(index);
       await expect(link).toHaveAttribute("data-case", String(index + 1));
@@ -481,8 +484,6 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
         quickStart.decisionLabel,
         item.decision,
       ]);
-      const workflowLink = mode.getByRole("link", { name: quickStart.backToWorkflow, exact: true });
-      await expect(workflowLink).toHaveAttribute("href", "#use-cases-workflow");
       await workflowLink.click();
       await expect(page).toHaveURL(/#use-cases-workflow$/);
       await expect(diagramHeading).toBeInViewport();
@@ -510,8 +511,11 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await page.reload();
     await expect(languageSelector).toHaveValue(language);
     await expect(mobileHeading).toBeInViewport();
-    const mobileWorkflowLink = mobileMode.getByRole("link", { name: quickStart.backToWorkflow, exact: true });
-    await mobileWorkflowLink.focus();
+    await page.goto("./guide/#use-cases-workflow");
+    await mobileLink.focus();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+    await expect(workflowLink).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/#use-cases-workflow$/);
     await expect(diagramHeading).toBeInViewport();
@@ -541,6 +545,12 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
       await expect(row.getByRole("rowheader")).toHaveText(expectedRow[0]);
       await expect(row.getByRole("cell")).toHaveText(expectedRow.slice(1));
     }
+    const exampleLink = page.locator('#results a[href="#battery-capacity-soh"]');
+    await expect(exampleLink).toHaveCount(1);
+    await exampleLink.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/#battery-capacity-soh$/);
+    await expect(batteryItem.getByRole("heading", { name: battery.title, exact: true })).toBeInViewport();
     const lastCell = bodyRows.last().getByRole("cell").last();
     await lastCell.scrollIntoViewIfNeeded();
     await expect(lastCell).toBeInViewport();

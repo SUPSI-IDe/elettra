@@ -263,10 +263,11 @@ export const guideContent = {
           { title: "Review the initial number of plugs", text: "New evaluations start with 1 plug per non-depot terminal candidate in Battery only, Charging and Joint modes. Depots instead use the number of selected vehicle blocks returning to each depot: N blocks represent N buses and initially N plugs at that depot. These are editable starting assumptions. Battery only uses the installed plug count; Charging and Joint use it as the maximum allowed. With default powers, one terminal plug has a 450 kW site limit; N depot plugs have a 150 × N kW site limit. Review plug counts and power before starting. Duplicated evaluations preserve their saved configuration." },
           { title: "Verify next-day departure with depot charging", text: "New evaluations enable this check by default. Include the depot where each block starts and ends among the charging sites. ELETTRA checks whether the bus can regain its target state of charge before its next departure. Turn the option off to assess daytime service alone." },
           {
+            id: "battery-capacity-soh",
             title: "Battery capacity and SOH",
             text: "Set SOH (default 70%) and Usable capacity (default 50%). Under Capacity reference, choose Residual or Initial.",
             table: {
-              caption: "Battery example with 500 kWh of initial capacity, 70% SOH and Usable capacity set to 50%",
+              caption: "Battery example with 500 kWh of initial capacity (350 kWh residual at 70% SOH) and Usable capacity set to 50%",
               columns: ["Capacity reference", "Usable energy", "Applied SOC window"],
               rows: [
                 ["Residual", "175 kWh", "40–90%"],
@@ -309,7 +310,9 @@ export const guideContent = {
           },
           {
             title: "Check every vehicle block tab",
-            text: "For a physically verified vehicle block, the summary shows the active Mean or Q95 consumption and specific consumption, plus the minimum and maximum SOC actually reached. These reached values are outcomes, while Configured SOC window identifies the applied limits in the evaluation. Read them with nominal and usable capacity, selected packs, planned charging and the verified trajectory. SOC percentages refer to residual capacity. The battery assumptions show initial, residual and usable capacity and the applied SOC window; usable kWh = initial kWh × SOH × (applied maximum SOC − applied minimum SOC). At 500 kWh and SOH 70%, residual capacity is 350 kWh: SOC 40–90% gives 175 kWh usable, while constant initial usable energy gives 250 kWh at 18.57–90%. A warning concerns only an applied minimum below 20%, distinct from the lowest SOC reached. Forecast and energy tables use the same SOH and applied window.",
+            text: "For a physically verified vehicle block, the summary shows the active Mean or Q95 consumption, specific consumption and the minimum and maximum SOC actually reached. Configured SOC window shows the limits applied in the evaluation. Check the pack count and planned charging alongside the SOC trajectory. SOC percentages refer to residual capacity.",
+            paragraphs: ["Usable energy (kWh) = residual capacity (kWh) × (configured maximum SOC % − configured minimum SOC %) / 100."],
+            links: [{ href: "#battery-capacity-soh", label: "See the battery capacity and SOH example" }],
           },
           {
             id: "demand-soc",
@@ -562,10 +565,11 @@ export const guideContent = {
           { title: "Anfängliche Anzahl der Ladepunkte prüfen", text: "Neue Bewertungen beginnen in Nur Batterie, Laden und Gemeinsam mit 1 Ladepunkt je Endhaltestelle ausserhalb eines Depots. Für Depots gilt stattdessen die Anzahl der ausgewählten Fahrzeugumläufe, die zum jeweiligen Depot zurückkehren: N Umläufe entsprechen N Bussen und zunächst N Ladepunkten in diesem Depot. Diese Ausgangswerte sind editierbar. Nur Batterie verwendet die installierte Anzahl; Laden und Gemeinsam die zulässige Höchstzahl. Bei Standardleistung beträgt die Standortgrenze 450 kW für einen Endhaltestellen-Ladepunkt und 150 × N kW für N Depot-Ladepunkte. Prüfen Sie Anzahl und Leistung vor dem Start. Duplizierte Bewertungen behalten ihre gespeicherte Konfiguration." },
           { title: "Abfahrt am Folgetag mit Depotladung prüfen", text: "Bei neuen Bewertungen ist diese Prüfung standardmässig aktiviert. Wählen Sie für jeden Umlauf das Start- und Rückkehrdepot als Ladestandort aus. ELETTRA prüft, ob der Bus bis zur nächsten Abfahrt den vorgesehenen Ladezustand erreichen kann. Deaktivieren Sie die Option, wenn Sie nur den Tagesbetrieb prüfen möchten." },
           {
+            id: "battery-capacity-soh",
             title: "Batteriekapazität und SOH",
             text: "Stellen Sie den SOH (Standard 70%) und die Nutzbare Kapazität (Standard 50%) ein. Wählen Sie unter Kapazitätsbezug die Option Restkapazität oder Anfangskapazität.",
             table: {
-              caption: "Batteriebeispiel mit 500 kWh Anfangskapazität, 70% SOH und der Einstellung 50% für Nutzbare Kapazität",
+              caption: "Batteriebeispiel mit 500 kWh Anfangskapazität (350 kWh Restkapazität bei 70% SOH) und der Einstellung 50% für Nutzbare Kapazität",
               columns: ["Kapazitätsbezug", "Nutzbare Energie", "Angewendetes SOC-Fenster"],
               rows: [
                 ["Restkapazität", "175 kWh", "40–90%"],
@@ -594,7 +598,12 @@ export const guideContent = {
         items: [
           { id: "mean-q95", title: "Mittelwert und aggregiertes Q95 verwenden", text: "Wechseln Sie in Allgemein über Optimiertes Ergebnis anzeigen neben den Registerkarten zwischen Mittelwert und Q95. Der Mittelwert dimensioniert für den erwarteten Verbrauch unter den gewählten Bedingungen. Q95 dimensioniert für ein repräsentatives Profil mit hohem Verbrauch. Vergleichen Sie Machbarkeitsurteil, Batteriepakete und gemeinsam genutzte Ladepunkte. Öffnen Sie danach in beiden Auslegungen denselben Fahrzeugumlauf und vergleichen Sie Ladeplan, tiefsten erreichten SOC und Abstand zur festgelegten SOC-Untergrenze. Der Wechsel lädt die vollständige gespeicherte Auslegung ohne neue Berechnung und lässt die Registerkarte geöffnet. Bei einem laufenden, fehlgeschlagenen oder nicht verfügbaren Ergebnis bleibt die bisherige Auslegung sichtbar und ein Hinweis erklärt den Grund." },
           { title: "Mit Allgemein beginnen", text: "Bei einem machbaren Design: Allgemein fasst alle analysierten Fahrzeugumläufe und die grösste gewählte Batterie zusammen. Jeder Umlauf behält seine eigene Batterie; alle nehmen an der Dimensionierung teil und teilen die Ladeinfrastruktur. Die kompakte GTFS-Angabe im Kopf zeigt die bei Erstellung aufgezeichnete Ausgabe." },
-          { title: "Jeden Fahrzeugumlauf prüfen", text: "Für einen physisch verifizierten Fahrzeugumlauf: Die Zusammenfassung zeigt den aktiven Mittelwert- oder Q95-Verbrauch, den spezifischen Verbrauch sowie den tatsächlich erreichten minimalen und maximalen SOC. Diese Werte sind Ergebnisse; Konfiguriertes SOC-Fenster bezeichnet die angewendeten Grenzen. Lesen Sie sie zusammen mit Batterie, geplanten Ladevorgängen und verifiziertem SOC-Verlauf. SOC-Prozentwerte beziehen sich auf die Restkapazität. Die Batterieannahmen zeigen Anfangs-, Rest- und nutzbare Kapazität sowie das angewendete SOC-Fenster; nutzbare kWh = anfängliche kWh × SOH × (angewendeter maximaler SOC − angewendeter minimaler SOC). Bei 500 kWh und SOH 70% verbleiben 350 kWh: SOC 40–90% ergibt 175 kWh nutzbare Energie; konstante anfänglich nutzbare Energie ergibt 250 kWh bei 18,57–90%. Der Hinweis betrifft nur einen angewendeten minimalen SOC unter 20%, getrennt vom niedrigsten erreichten SOC. Prognose- und Energietabellen verwenden denselben SOH und dasselbe angewendete Fenster." },
+          {
+            title: "Jeden Fahrzeugumlauf prüfen",
+            text: "Bei einem physisch verifizierten Fahrzeugumlauf zeigt die Zusammenfassung den Verbrauch für das aktive Profil (Mittelwert oder Q95), den spezifischen Verbrauch und den tatsächlich erreichten minimalen und maximalen SOC. Konfiguriertes SOC-Fenster zeigt die bei der Bewertung angewendeten Grenzen. Prüfen Sie die Anzahl Batteriepacks und die geplanten Ladevorgänge zusammen mit dem SOC-Verlauf. Die SOC-Prozentwerte beziehen sich auf die Restkapazität.",
+            paragraphs: ["Nutzbare Energie (kWh) = Restkapazität (kWh) × (konfigurierter maximaler SOC in % − konfigurierter minimaler SOC in %) / 100."],
+            links: [{ href: "#battery-capacity-soh", label: "Beispiel zu Batteriekapazität und SOH ansehen" }],
+          },
           {
             id: "demand-soc",
             title: "Gesamtverbrauch ablesen und SOC-Grenzen prüfen",
@@ -783,10 +792,11 @@ export const guideContent = {
           { title: "Vérifier le nombre initial de prises", text: "Les nouvelles évaluations proposent 1 prise par terminus hors dépôt en Batterie uniquement, Recharge et Conjoint. Pour les dépôts, le nombre initial correspond aux services voiture sélectionnés qui reviennent à chaque dépôt : N services représentent N bus et initialement N prises dans ce dépôt. Ces hypothèses restent modifiables. Batterie uniquement utilise le nombre installé ; Recharge et Conjoint le nombre maximal autorisé. Aux puissances proposées, une prise au terminus donne une limite de site de 450 kW et N prises au dépôt une limite de 150 × N kW. Vérifiez nombres et puissances avant de lancer. Les évaluations dupliquées conservent leur configuration enregistrée." },
           { title: "Vérifier le départ du lendemain avec recharge au dépôt", text: "Cette option est activée par défaut pour une nouvelle évaluation. Pour chaque service voiture, sélectionnez le dépôt de départ et de retour parmi les sites de recharge. ELETTRA vérifie si le bus peut atteindre son état de charge cible avant le prochain départ. Désactivez cette option pour évaluer uniquement le service de la journée." },
           {
+            id: "battery-capacity-soh",
             title: "Capacité de la batterie et SOH",
             text: "Réglez le SOH (70 % par défaut) et la Capacité utilisable (50 % par défaut). Sous Référence de capacité, choisissez Résiduelle ou Initiale.",
             table: {
-              caption: "Exemple avec une capacité initiale de 500 kWh, un SOH de 70 % et le réglage Capacité utilisable à 50 %",
+              caption: "Exemple avec une capacité initiale de 500 kWh (350 kWh résiduels à 70 % de SOH) et le réglage Capacité utilisable à 50 %",
               columns: ["Référence de capacité", "Énergie utilisable", "Plage de SOC appliquée"],
               rows: [
                 ["Résiduelle", "175 kWh", "40–90 %"],
@@ -815,7 +825,12 @@ export const guideContent = {
         items: [
           { id: "mean-q95", title: "Utiliser la moyenne et le Q95 agrégé", text: "Dans Général, utilisez Afficher le résultat optimisé à côté des onglets pour passer de Moyenne à Q95. La moyenne dimensionne la configuration pour la consommation attendue dans les conditions choisies. Le Q95 la dimensionne pour un profil représentatif de consommation élevée. Comparez le verdict, les blocs batterie et les bornes partagées, puis ouvrez le même service voiture dans les deux configurations pour comparer le plan de recharge, le SOC minimal atteint et la marge au-dessus de la limite configurée. Le sélecteur charge la configuration enregistrée complète sans nouveau calcul et conserve l’onglet ouvert. Si le résultat demandé est en cours, a échoué ou manque, la configuration affichée reste visible et un message indique pourquoi." },
           { title: "Commencer par Général", text: "Pour une configuration faisable : Général résume tous les services voiture analysés et la plus grande batterie choisie. Chaque service conserve sa propre batterie; tous participent au dimensionnement et partagent l’infrastructure. Le volet GTFS compact de l’en-tête montre l’édition enregistrée lors de la création." },
-          { title: "Vérifier chaque service voiture", text: "Pour un service voiture physiquement vérifié : Le résumé affiche la consommation moyenne ou Q95 active, la consommation spécifique ainsi que les SOC minimal et maximal réellement atteints. Ces SOC sont des résultats, tandis que Fenêtre SOC configurée désigne les limites appliquées. Lisez-les avec la batterie, les recharges planifiées et la trajectoire SOC vérifiée. Les pourcentages de SOC se rapportent à la capacité résiduelle. Les hypothèses de batterie montrent les capacités initiale, résiduelle et utilisable ainsi que la plage de SOC appliquée ; kWh utilisables = kWh initiaux × SOH × (SOC maximal appliqué − SOC minimal appliqué). Pour 500 kWh et SOH 70%, il reste 350 kWh : SOC 40–90% donne 175 kWh utilisables, tandis que l’énergie utilisable initiale constante donne 250 kWh à 18,57–90%. L’avertissement concerne uniquement un minimum appliqué inférieur à 20%, distinct du SOC le plus bas atteint. Les tableaux de prévision et d’énergie utilisent le même SOH et la même plage appliquée." },
+          {
+            title: "Vérifier chaque service voiture",
+            text: "Pour un service voiture physiquement vérifié, le résumé affiche la consommation du profil actif (moyenne ou Q95), la consommation spécifique et les SOC minimal et maximal réellement atteints. Fenêtre SOC configurée indique les limites appliquées lors de l’évaluation. Vérifiez le nombre de packs et les recharges planifiées sur la courbe de SOC. Les pourcentages de SOC se rapportent à la capacité résiduelle.",
+            paragraphs: ["Énergie utilisable (kWh) = capacité résiduelle (kWh) × (SOC maximal configuré en % − SOC minimal configuré en %) / 100."],
+            links: [{ href: "#battery-capacity-soh", label: "Voir l’exemple sur la capacité de la batterie et le SOH" }],
+          },
           {
             id: "demand-soc",
             title: "Lire la demande totale et vérifier les limites de SOC",
@@ -990,10 +1005,11 @@ export const guideContent = {
           { title: "Verificare il numero iniziale di prese", text: "Le nuove valutazioni propongono 1 presa per ogni capolinea non di deposito nelle modalità Solo batteria, Ricarica e Congiunta. Per i depositi il numero iniziale deriva invece dai turni selezionati che rientrano in ciascun deposito: N turni corrispondono a N bus e inizialmente N prese in quel deposito. Sono ipotesi modificabili. Solo batteria usa il numero installato; Ricarica e Congiunta il massimo consentito. Con le potenze predefinite, una presa al capolinea ha un limite di sito di 450 kW e N prese al deposito un limite di 150 × N kW. Verificare quantità e potenze prima dell’avvio. Le valutazioni duplicate conservano la configurazione salvata." },
           { title: "Verifica la ripartenza il giorno seguente con ricarica in deposito", text: "Nelle nuove valutazioni questa verifica è attiva per impostazione predefinita. Per ogni turno seleziona tra i siti di ricarica il deposito da cui il bus parte e a cui rientra. ELETTRA verifica se il bus può raggiungere lo stato di carica richiesto entro la partenza successiva. Puoi disattivare l’opzione per valutare solo il servizio della giornata." },
           {
+            id: "battery-capacity-soh",
             title: "Capacità della batteria e SOH",
             text: "Impostare SOH (70% predefinito) e Capacità utilizzabile (50% predefinito). In Riferimento della capacità, scegliere Residua o Iniziale.",
             table: {
-              caption: "Esempio con capacità iniziale di 500 kWh, SOH del 70% e Capacità utilizzabile impostata al 50%",
+              caption: "Esempio con capacità iniziale di 500 kWh (350 kWh residui al 70% di SOH) e Capacità utilizzabile impostata al 50%",
               columns: ["Riferimento della capacità", "Energia utilizzabile", "Intervallo SOC applicato"],
               rows: [
                 ["Residua", "175 kWh", "40–90%"],
@@ -1022,7 +1038,12 @@ export const guideContent = {
         items: [
           { id: "mean-q95", title: "Come usare Media e Q95 aggregato", text: "In Generale, usa Mostra risultato ottimizzato accanto alle schede per passare da Media a Q95. Media dimensiona la configurazione per il consumo atteso nelle condizioni scelte. Q95 la dimensiona per un profilo rappresentativo ad alto consumo. Confronta l’esito, i pacchi batteria e le prese condivise, poi apri lo stesso turno macchina in entrambe le configurazioni per confrontare il piano di ricarica, il SOC minimo raggiunto e il margine rispetto al limite configurato. Il selettore carica l’intero progetto salvato senza nuovi calcoli e mantiene aperta la scheda. Se il risultato richiesto è in corso, non è riuscito o non è disponibile, resta visibile il progetto già mostrato e compare un messaggio." },
           { title: "Iniziare da Generale", text: "Per una configurazione fattibile: Generale riepiloga tutti i turni macchina analizzati e la batteria scelta più grande. Ogni turno mantiene la propria batteria; tutti partecipano al dimensionamento e condividono l’infrastruttura. Il riquadro GTFS compatto nell’intestazione mostra l’edizione registrata alla creazione." },
-          { title: "Controllare ogni turno macchina", text: "Per un turno macchina fisicamente verificato: Il riepilogo mostra consumo Media o Q95 attivo, consumo specifico e valori minimo e massimo del SOC effettivamente raggiunti. Questi sono risultati, mentre Intervallo SOC configurato identifica i limiti applicati nella valutazione. Leggerli insieme a batteria, ricariche pianificate e traiettoria SOC verificata. Le percentuali di SOC si riferiscono alla capacità residua. Le ipotesi della batteria mostrano capacità iniziale, residua e utilizzabile e finestra SOC applicata; kWh utilizzabili = kWh iniziali × SOH × (SOC massimo applicato − SOC minimo applicato). Con 500 kWh e SOH 70% restano 350 kWh: SOC 40–90% dà 175 kWh utilizzabili, mentre l’energia utilizzabile iniziale costante dà 250 kWh a 18,57–90%. L’avviso riguarda solo un minimo applicato sotto il 20%, distinto dal SOC minimo raggiunto. Le tabelle delle previsioni e dell’energia usano lo stesso SOH e la stessa finestra applicata." },
+          {
+            title: "Controllare ogni turno macchina",
+            text: "Per un turno macchina fisicamente verificato, il riepilogo mostra il consumo del profilo attivo (Media o Q95), il consumo specifico e il SOC minimo e massimo effettivamente raggiunti. Intervallo SOC configurato mostra i limiti applicati nella valutazione. Leggi la curva del SOC insieme al numero di pacchi e alle ricariche pianificate. Le percentuali di SOC si riferiscono alla capacità residua.",
+            paragraphs: ["Energia utilizzabile (kWh) = capacità residua (kWh) × (SOC massimo configurato in % − SOC minimo configurato in %) / 100."],
+            links: [{ href: "#battery-capacity-soh", label: "Vedi l’esempio sulla capacità della batteria e sul SOH" }],
+          },
           {
             id: "demand-soc",
             title: "Leggere il consumo totale e verificare i limiti SOC",
