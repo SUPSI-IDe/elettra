@@ -439,8 +439,9 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     const { sections } = guideContent[language];
     const stickyBar = page.locator(page.viewportSize().width <= 850 ? ".guide-sidebar" : ".guide-header");
     const shortcuts = {
+      feasibility: ["feasibility-modes", "feasibility-depot", "battery-capacity-soh", "run-evaluation", "battery-only-example"],
       results: ["results-verdict", "demand-soc", "resolve-feasibility"],
-      yearly: ["yearly-start", "yearly-energy-costs", "yearly-assumptions-export"],
+      yearly: ["yearly-start", "yearly-energy-costs", "yearly-economic-assumptions", "yearly-manage"],
     };
 
     for (const [id, destinations] of Object.entries(shortcuts)) {
@@ -449,13 +450,18 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
       const links = section.getByRole("navigation", { name: chapter.title, exact: true }).getByRole("link");
       await expect(links).toHaveCount(destinations.length);
       for (const [index, destination] of destinations.entries()) {
-        const item = chapter.items.find(item => item.id === destination);
+        const item = [...chapter.items, ...(chapter.example ? [chapter.example] : [])]
+          .find(item => item.id === destination);
         const link = links.nth(index);
         await expect(link).toHaveAccessibleName(item.shortcut);
         await expect(link).toHaveAttribute("href", `#${destination}`);
         await link.click();
         await expect(page).toHaveURL(new RegExp(`#${destination}$`));
-        const heading = section.locator(`#${destination}`).getByRole("heading", { level: 3, name: item.title, exact: true });
+        const heading = section.locator(`#${destination}`).getByRole("heading", {
+          level: item.groupTitle ? 4 : 3,
+          name: item.title,
+          exact: true,
+        });
         await expectHeadingBelow(heading, stickyBar);
       }
     }
@@ -483,6 +489,42 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await page.reload();
     await expect(languageSelector).toHaveValue(nextLanguage);
     await checkExample(nextLanguage);
+  });
+
+  test(`yearly analysis separates launching from reading, editing and managing in ${language}`, async ({ page }) => {
+    await page.goto("./guide/#yearly-assumptions-export");
+    await page.locator("#guide-language").selectOption(language);
+
+    const chapter = guideContent[language].sections.find(section => section.id === "yearly");
+    const yearly = page.locator("#yearly");
+    const steps = yearly.locator(":scope > ol.guide-item-list");
+    await expect(steps).toHaveCount(1);
+    await expect(steps).toHaveAttribute("data-ordered", "true");
+    await expect(steps.locator(":scope > li")).toHaveCount(3);
+    await expect(steps.locator(":scope > li > h3")).toHaveText(chapter.items.slice(0, 3).map(({ title }) => title));
+
+    const groups = yearly.locator(":scope > ul.guide-item-list");
+    await expect(groups).toHaveCount(3);
+    await expect(yearly.locator(":scope > ol.guide-item-list ~ h3 + ul.guide-item-list")).toHaveCount(3);
+    const groupStarts = ["yearly-energy-costs", "yearly-economic-assumptions", "yearly-manage"];
+    const groupTitles = groupStarts.map(id => chapter.items.find(item => item.id === id).groupTitle);
+    await expect(yearly.locator(":scope > h3:has(+ ul.guide-item-list)")).toHaveText(groupTitles);
+    for (const [index, id] of groupStarts.entries()) {
+      const group = groups.nth(index);
+      await expect(group).toHaveAttribute("data-ordered", "false");
+      await expect(group).toHaveAccessibleName(groupTitles[index]);
+      await expect(group.locator(`:scope > li#${id}:first-child > h4`)).toHaveCount(1);
+    }
+    await expect(groups.locator(":scope > li > h4")).toHaveText(chapter.items.slice(3).map(({ title }) => title));
+
+    const exportItem = groups.last().locator("#yearly-manage ~ #yearly-assumptions-export");
+    const exportHeading = exportItem.getByRole("heading", { level: 4 });
+    const stickyBar = page.locator(page.viewportSize().width <= 850 ? ".guide-sidebar" : ".guide-header");
+    await expect(page).toHaveURL(/#yearly-assumptions-export$/);
+    await expectHeadingBelow(exportHeading, stickyBar);
+    await exportItem.locator('a[href="#yearly-economic-assumptions"]').click();
+    await expect(page).toHaveURL(/#yearly-economic-assumptions$/);
+    await expectHeadingBelow(groups.nth(1).locator("#yearly-economic-assumptions > h4"), stickyBar);
   });
 
   test(`Quick Start and chapter navigation work in ${language} on desktop and mobile`, async ({ page }) => {
@@ -679,7 +721,7 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
       await expect(row.getByRole("rowheader")).toHaveText(expectedRow[0]);
       await expect(row.getByRole("cell")).toHaveText(expectedRow.slice(1));
     }
-    const exampleLink = page.locator('#results a[href="#battery-capacity-soh"]');
+    const exampleLink = page.locator('#results .guide-item a[href="#battery-capacity-soh"]');
     await expect(exampleLink).toHaveCount(1);
     await exampleLink.focus();
     await page.keyboard.press("Enter");
@@ -775,7 +817,7 @@ test("a saved workflow URL opens Quick Start", async ({ page }) => {
 
 test("feasibility links to Mean and Q95 guidance in the selected language", async ({ page }) => {
   await page.goto("./guide/#feasibility");
-  await page.locator('#feasibility a[href="#mean-q95"]').click();
+  await page.locator('#run-evaluation a[href="#mean-q95"]').click();
   for (const lang of ["de", "fr", "it", "en"]) {
     await page.locator("#guide-language").selectOption(lang);
     const results = guideContent[lang].sections.find(section => section.id === "results");

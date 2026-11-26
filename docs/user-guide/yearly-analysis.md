@@ -12,7 +12,7 @@ The current result page separates two questions:
 - each named **vehicle block** shows its own temperature-dependent efficiency
   and annual energy contribution.
 
-[Start the analysis](#create-a-yearly-analysis) · [Read energy, costs and emissions](#general-annual-fleet-assessment) · [Review assumptions](#costs) or [export](#export).
+[Start the analysis](#create-a-yearly-analysis) · [Read energy, costs and emissions](#read-the-results) · [Change assumptions](#change-assumptions) · [Manage and export analyses](#manage-and-export-analyses)
 
 ---
 
@@ -20,71 +20,34 @@ The current result page separates two questions:
 
 Open **Simulations → Yearly analyses** and select **New**.
 
-1. Enter a **Name** and select a completed, feasible, eligible evaluation in
-   **Simulation**. It must have a recorded battery-pack count. When both Mean
-   and Aggregate Q95 are eligible, select the intended saved variant.
-2. Review the inherited vehicle blocks, optimization mode, sizing temperature,
-   pack counts and capacities. A multi-block evaluation can carry different
-   batteries for different blocks.
-3. Set **Average passengers on board (%)** for the annual forecasts. The form
+1. **Select an eligible feasibility design.** Enter a **Name** and select a
+   completed, feasible, eligible evaluation in **Simulation**. It must have a
+   recorded battery-pack count. When both Mean and Aggregate Q95 are eligible,
+   select the intended saved variant.
+2. **Review the inputs.** Check the inherited vehicle blocks, optimization
+   mode, sizing temperature, pack counts and capacities. A multi-block
+   evaluation can carry different batteries for different blocks. Set
+   **Average passengers on board (%)** for the annual forecasts. The form
    proposes the source evaluation’s occupancy if it is one of the available
    options and otherwise selects 50%.
-4. Review the automatically selected weather reference depot and the
-   read-only **Temperature scenarios**. ELETTRA uses the vehicle blocks’
-   arrival depots to establish the weather reference when available. Each row
-   shows a representative
-   daytime temperature (05:00–24:00) and its occurrences in days/year.
-   A total other than 365 produces a warning. A total of zero prevents
-   the analysis from starting.
-5. Click **Run yearly analysis**, check the block count, scenario count and
-   reference depot, then select **Start analysis**. ELETTRA applies each
-   scenario to all the vehicle blocks in the evaluation, keeping each block’s
-   battery and charging design. The results open automatically when finished.
+
+   Review the automatically selected weather reference depot and the read-only
+   **Temperature scenarios**. ELETTRA uses the vehicle blocks’ arrival depots to
+   establish the weather reference when available. Each row shows a
+   representative daytime temperature (05:00–24:00) and its occurrences in
+   days/year. A total other than 365 produces a warning. A total of zero
+   prevents the analysis from starting.
+3. **Launch the analysis.** Click **Run yearly analysis**, check the block
+   count, scenario count and reference depot, then select **Start analysis**.
+   ELETTRA applies each scenario to all the vehicle blocks in the evaluation,
+   keeping each block’s battery and charging design. The results open
+   automatically when finished.
 
 ---
 
-## Duplicate a saved analysis
+## Read the results
 
-Choose **Duplicate** on the source row to open a new-analysis form with the
-source feasibility evaluation and occupancy already selected. Review the
-inherited inputs before starting the new calculation.
-
-The editable proposed name uses the first available suffix in the original
-name family: `_copy`, `_copy_1`, `_copy_2`, and so on. ELETTRA checks all list
-pages and uses the suffix for the interface language.
-
----
-
-## Preserved configuration and provenance
-
-The analysis inherits the feasibility evaluation's:
-
-- bus model and physical vehicle count;
-- vehicle blocks and battery group assigned to each block;
-- selected battery configurations;
-- charging infrastructure and schedule context;
-- optimization and operating assumptions;
-- recorded GTFS timetable edition.
-
-The result preserves this snapshot instead of silently following later edits.
-Use the compact **GTFS timetable** disclosure and **View configuration data**
-to inspect it.
-
-The compact **HVAC assumptions** disclosure identifies the policy used by the
-saved result:
-
-- feasibility uses one engineering GHI value for each temperature;
-- yearly analysis uses hourly PVGIS GHI, interpolated at each service minute in
-  the local GTFS timezone;
-- terminal HVAC covers at most the last 10 minutes at the same non-depot stop,
-  with an empty bus and no thermal-inertia model.
-
-It also reports trip and terminal HVAC energy, traceability data, and JSON
-downloads of the assumptions or complete reproduction inputs.
-
----
-
-## General: annual fleet assessment
+### General: annual fleet assessment
 
 The **Annual fleet assessment** starts with a compact six-metric summary:
 
@@ -116,58 +79,22 @@ the same scope gives the TCO in CHF/km.
 
 Bus and battery investment follows the physical buses in scope. Shared
 charging infrastructure counts once for the fleet, with an equal share per
-physical bus. Its investment includes charging points, site works and the grid
-connection. The electric and diesel designs use the same mileage, analysis
-horizon and discount rate. The comparison excludes driver costs, taxes,
-financing fees, depot buildings and diesel refuelling infrastructure.
+physical bus.
+
 Break-even is the first year after which discounted electric costs stay below
 diesel costs through the selected horizon. The result flags a crossing due only
 to the final residual value.
-
-Open **Edit economic assumptions** below the charts to change electricity price
-(CHF/kWh of purchased grid electricity), diesel price (CHF/l), diesel consumption
-(l/km), electric and diesel bus maintenance (CHF/km), and annual mileage
-(km per bus) for each battery group. **Additional economic parameters** contains
-charging infrastructure maintenance, analysis horizon and component lifetimes
-(years), discount rate (%), and diesel purchase price (CHF/bus).
-**Calculation method and boundaries** explains how TCO treats those inputs and
-the residual values. Changes save automatically. Costs and Emissions share the
-mileage and physical assumptions relevant to both views, while the linked
-technical design and simulated block results retain their original inputs.
-
-For charging infrastructure maintenance, select either an editable percentage
-of charging investment per year or a fixed amount in CHF/year. The default
-percentage is **2%/year**, with the INFRAS 2026 reference range of **2–5%**.
-A fixed amount of zero excludes infrastructure maintenance.
-
-The percentage applies to the full charging investment. Maintenance of
-charging infrastructure is counted once per fleet. The tooltip beside the
-reference explains this modeling assumption.
 
 ### Emissions
 
 The Emissions view presents climate impact by lifecycle phase, energy boundary,
 environmental indicators, assumptions/provenance, and further information.
-The lifecycle assessment uses representative Mobitool inventories. For charging
-infrastructure, it uses a generic inventory. Assessing the environmental impact
-of a specific depot requires project data.
-
-**Activity and diesel consumption** is an expandable card below the phase
-charts. There is one mileage control per bus model and battery size, plus the
-diesel-consumption control. A mileage change scales the assigned blocks in that
-group proportionally while preserving their distance-weighted consumption.
-
-When a control changes, the previous environmental bars remain visible with an
-update status until the recalculated response arrives. A failed refresh leaves
-the previous result visible and marks the update failure.
 
 For VECTO analyses, saved diesel-heater fuel energy is converted with the
 versioned Swiss average fuel profile. Missing required heater consumption is
 kept missing: affected reductions are omitted instead of treating it as zero.
 
----
-
-## Vehicle-block efficiency
+### Vehicle-block efficiency
 
 Select a named vehicle block to see its original simulated annual energy,
 distance and average consumption, followed by its temperature charts and
@@ -189,9 +116,103 @@ scenario quantiles scale by the cluster’s day count. The weighted range applie
 to that scenario’s contribution. The annual total is presented as a point
 estimate, and scenarios without quantiles still show their point estimates.
 
+### Preserved configuration and provenance
+
+The analysis inherits the feasibility evaluation's:
+
+- bus model and physical vehicle count;
+- vehicle blocks and battery group assigned to each block;
+- selected battery configurations;
+- charging infrastructure and schedule context;
+- optimization and operating assumptions;
+- recorded GTFS timetable edition.
+
+The result preserves this snapshot instead of silently following later edits.
+Use the compact **GTFS timetable** disclosure and **View configuration data**
+to inspect it.
+
+The compact **HVAC assumptions** disclosure identifies the policy used by the
+saved result:
+
+- feasibility uses one engineering GHI value for each temperature;
+- yearly analysis uses hourly PVGIS GHI, interpolated at each service minute in
+  the local GTFS timezone;
+- terminal HVAC covers at most the last 10 minutes at the same non-depot stop,
+  with an empty bus and no thermal-inertia model.
+
+It also reports trip and terminal HVAC energy, traceability data, and JSON
+downloads of the assumptions or complete reproduction inputs.
+
 ---
 
-## Export
+## Change assumptions
+
+### Edit economic assumptions and activity
+
+In **Costs**, open **Edit economic assumptions** below the charts to change electricity price
+(CHF/kWh of purchased grid electricity), diesel price (CHF/l), diesel consumption
+(l/km), electric and diesel bus maintenance (CHF/km), and annual mileage
+(km per bus) for each battery group. **Additional economic parameters** contains
+charging infrastructure maintenance, analysis horizon and component lifetimes
+(years), discount rate (%), and diesel purchase price (CHF/bus).
+**Calculation method and boundaries** explains how TCO treats those inputs and
+the residual values. Changes save automatically. Costs and Emissions share the
+mileage and physical assumptions relevant to both views, while the linked
+technical design and simulated block results retain their original inputs.
+
+In **Emissions**, open **Activity and diesel consumption** below the phase
+charts. There is one mileage control per bus model and battery size, plus the
+diesel-consumption control. A mileage change scales the assigned blocks in that
+group proportionally while preserving their distance-weighted consumption.
+
+When a control changes, the previous environmental bars remain visible with an
+update status until the recalculated response arrives. A failed refresh leaves
+the previous result visible and marks the update failure.
+
+### Set charging infrastructure maintenance
+
+For charging infrastructure maintenance, select either an editable percentage
+of charging investment per year or a fixed amount in CHF/year. The default
+percentage is **2%/year**, with the INFRAS 2026 reference range of **2–5%**.
+A fixed amount of zero excludes infrastructure maintenance.
+
+The percentage applies to the full charging investment. Maintenance of
+charging infrastructure is counted once per fleet. The tooltip beside the
+reference explains this modeling assumption.
+
+### Costs and emissions boundaries
+
+Charging-infrastructure investment includes charging points, site works and the
+grid connection. The electric and diesel designs use the same mileage,
+analysis horizon and discount rate. The comparison excludes driver costs,
+taxes, financing fees, depot buildings and diesel refuelling infrastructure.
+
+The lifecycle assessment uses representative Mobitool inventories. For charging
+infrastructure, it uses a generic inventory. Assessing the environmental impact
+of a specific depot requires project data.
+
+---
+
+## Manage and export analyses
+
+### Duplicate a saved analysis
+
+Choose **Duplicate** on the source row to open a new-analysis form with the
+source feasibility evaluation and occupancy already selected. Review the
+inherited inputs before starting the new calculation.
+
+The editable proposed name uses the first available suffix in the original
+name family: `_copy`, `_copy_1`, `_copy_2`, and so on. ELETTRA checks all list
+pages and uses the suffix for the interface language.
+
+### Check the save status before closing
+
+Check the save status before closing. A failed save or invalid input keeps the
+result page open so you can correct the changes or save again. The complete
+JSON export reports the status of the current assumptions. An export made
+during a pending or failed save still describes the displayed assessment.
+
+### Export
 
 **Download all results (JSON)** appears in General, next to the close action.
 The export contains General and a separate entry for every available vehicle
@@ -214,11 +235,6 @@ even when a single representative bus is selected. The separate download in
 assessment is ready. After a failed update, use **Retry** to obtain current
 environmental results.
 
-The complete file also reports whether the current assumptions have been saved.
-An export made during a pending or failed save still describes the displayed
-assessment. Check the save status before closing; a failed save or invalid input
-keeps the result page open so the changes can be corrected or saved again.
-
 The [JSON export contract](../technical/yearly-analysis-export.md) describes the
 fields, units and version differences.
 
@@ -231,6 +247,6 @@ fields, units and version differences.
 
 ---
 
-> Reference versions: Frontend v1.4.5-rc.2 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5 · Backend v1.9.0
 >
 > Last updated: 2026-11-26

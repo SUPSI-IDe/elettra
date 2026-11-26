@@ -195,6 +195,13 @@ const renderComparisonTable = ({ caption, columns, rows }) => {
   return table;
 };
 
+const createItemList = (ordered) => {
+  const list = document.createElement(ordered ? "ol" : "ul");
+  list.className = "guide-item-list";
+  list.dataset.ordered = String(Boolean(ordered));
+  return list;
+};
+
 const renderSection = (section, ui, quickStart) => {
   const wrapper = document.createElement("section");
   wrapper.className = "guide-section";
@@ -222,6 +229,7 @@ const renderSection = (section, ui, quickStart) => {
   }
 
   const shortcuts = section.items.filter(item => item.shortcut);
+  if (section.example?.shortcut) shortcuts.push(section.example);
   if (shortcuts.length) {
     const nav = document.createElement("nav");
     nav.className = "guide-chapter-links guide-item-links";
@@ -230,15 +238,23 @@ const renderSection = (section, ui, quickStart) => {
     wrapper.append(nav);
   }
 
-  const list = document.createElement(section.ordered ? "ol" : "ul");
-  list.className = "guide-item-list";
-  list.dataset.ordered = String(Boolean(section.ordered));
+  let list = createItemList(section.ordered);
+  let headingTag = "h3";
+  wrapper.append(list);
 
   section.items.forEach((item) => {
+    if (item.groupTitle) {
+      const heading = createTextElement("h3", "guide-item-group-title", item.groupTitle);
+      heading.id = `${item.id}-group`;
+      list = createItemList(false);
+      list.setAttribute("aria-labelledby", heading.id);
+      wrapper.append(heading, list);
+      headingTag = "h4";
+    }
     const entry = document.createElement("li");
     entry.className = "guide-item";
     if (item.id) entry.id = item.id;
-    entry.append(createTextElement("h3", "", item.title));
+    entry.append(createTextElement(headingTag, "", item.title));
     if (item.text) entry.append(createTextElement("p", "", item.text));
     if (item.table) entry.append(renderComparisonTable(item.table));
     for (const paragraph of item.paragraphs ?? []) entry.append(createTextElement("p", "", paragraph));
@@ -259,8 +275,6 @@ const renderSection = (section, ui, quickStart) => {
     if (item.figures?.length) entry.append(renderFigures(item.figures, ui));
     list.append(entry);
   });
-
-  wrapper.append(list);
 
   if (section.example) {
     const { id, title, steps } = section.example;

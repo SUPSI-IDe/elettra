@@ -5,6 +5,13 @@ operated with the configured bus, battery, charging, and environmental inputs.
 New evaluations calculate a **Mean** design and an **Aggregate Q95** design
 together.
 
+
+- [Optimization modes](#3-optimization-mode)
+- [Depot charging](#5-charging-and-depot-behavior)
+- [Battery capacity and SOH](#battery-capacity-and-soh)
+- [Start the evaluation](#starting-and-monitoring-the-evaluation)
+- [Complete example](#from-depot-charging-to-cost-per-kilometer)
+
 ---
 
 ## Create an evaluation
@@ -226,6 +233,6 @@ records.
 
 ---
 
-> Reference versions: Frontend v1.4.5-rc.2 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5 · Backend v1.9.0
 >
 > Last updated: 2026-11-26

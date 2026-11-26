@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.5] - 2026-11-26
+
+- Organize the guide around three planning questions and link each one to its feasibility mode, scope and investment decision.
+- Explain battery sizing, smart depot charging and the scope of yearly costs and emissions. Add a guided example from depot charging to yearly cost per kilometer.
+- Add shortcuts in Feasibility, Results and Yearly analysis. Separate the three steps for creating a yearly analysis from reading results, editing assumptions and managing or exporting analyses in all four languages.
+
 ## [1.4.5-rc.2] - 2026-11-26
 
 - Explain individual and uniform battery sizing, the next-day departure check and smart depot charging in all four guide languages.

@@ -251,6 +251,13 @@ a:hover {
   margin-top: 1rem;
 }
 
+.guide-item-group-title {
+  margin: 1.5rem 0 0.65rem;
+  color: var(--guide-brand-dark);
+  font-size: 1.15rem;
+  break-after: avoid;
+}
+
 .guide-item-list {
   display: grid;
   gap: 0.85rem;
@@ -294,7 +301,8 @@ a:hover {
   scroll-margin-top: var(--guide-anchor-offset);
 }
 
-.guide-item h3 {
+.guide-item > h3,
+.guide-item > h4 {
   margin: 0;
   color: var(--guide-brand-dark);
   font-size: 1rem;
