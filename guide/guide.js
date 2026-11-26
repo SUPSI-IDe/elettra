@@ -75,17 +75,7 @@ const renderWorkflowDiagram = (section) => {
   const description = createTextElement("p", "", diagram.description);
   description.id = "use-cases-workflow-description";
   caption.append(title, description);
-  figure.append(caption, createTextElement("p", "guide-flow-label", diagram.choose));
-
-  const choices = document.createElement("div");
-  choices.className = "guide-flow-branches";
-  items.forEach((item, index) => {
-    const choice = createSectionLink(item.id, "", "guide-flow-node guide-use-case-tone");
-    choice.dataset.case = String(index + 1);
-    choice.append(createTextElement("strong", "", `UC${index + 1}`), createTextElement("span", "", item.shortQuestion));
-    choices.append(choice);
-  });
-  figure.append(choices, flowArrow());
+  figure.append(caption, createTextElement("h4", "guide-flow-label", diagram.preparation));
 
   const preparation = document.createElement("ol");
   preparation.className = "guide-flow-preparation";
@@ -95,17 +85,23 @@ const renderWorkflowDiagram = (section) => {
     if (index < 2) step.append(flowArrow());
     preparation.append(step);
   });
-  figure.append(preparation, createTextElement("p", "guide-flow-label", diagram.modes));
+  figure.append(preparation, flowArrow(), createTextElement("h4", "guide-flow-label", diagram.modes));
 
   const modes = document.createElement("div");
   modes.className = "guide-flow-branches";
   items.forEach((item, index) => {
     const mode = createSectionLink(item.id, "", "guide-flow-node guide-use-case-tone");
     mode.dataset.case = String(index + 1);
-    mode.textContent = `UC${index + 1} · ${item.modeLabel}`;
+    mode.append(
+      createTextElement("strong", "", `UC${index + 1} · ${item.modeLabel}`),
+      createTextElement("span", "", item.title),
+      createTextElement("span", "guide-flow-summary", item.summary),
+    );
     modes.append(mode);
   });
-  figure.append(modes, flowArrow(), createTextElement("p", "guide-flow-decision", diagram.decision));
+  figure.append(modes, flowArrow(),
+    createSectionLink("feasibility", diagram.run, "guide-flow-node guide-flow-run"),
+    flowArrow(), createTextElement("p", "guide-flow-decision", diagram.decision));
 
   const outcomes = document.createElement("div");
   outcomes.className = "guide-flow-outcomes";

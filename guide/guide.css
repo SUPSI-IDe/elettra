@@ -471,6 +471,21 @@ a:hover {
   border-top: 4px solid var(--case-color);
 }
 
+.guide-flow-branches .guide-flow-node {
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.guide-flow-summary {
+  color: var(--guide-muted);
+}
+
+.guide-flow-run {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
 .guide-flow-node strong {
   color: var(--case-color);
 }
