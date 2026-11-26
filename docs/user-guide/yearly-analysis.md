@@ -227,6 +227,6 @@ fields, units and version differences.
 
 ---
 
-> Reference versions: Frontend v1.4.4 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5-rc.1 · Backend v1.9.0
 >
 > Last updated: 2026-11-26

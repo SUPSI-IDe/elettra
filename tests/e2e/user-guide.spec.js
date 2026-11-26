@@ -290,6 +290,84 @@ test("the guide uses the application language selector and keeps its header cont
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });
 
+test("the phone header uses one row and leaves only section navigation on scroll", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    window.print = () => {
+      document.documentElement.dataset.printRequested = "true";
+    };
+  });
+  await page.goto("./guide/");
+
+  const header = page.locator(".guide-header");
+  const back = header.getByRole("link", { name: /Back to ELETTRA$/ });
+  const language = header.getByRole("combobox", { name: "Select language", exact: true });
+  const print = header.getByRole("button", { name: "Print guide", exact: true });
+  const boxes = [];
+  for (const control of [back, language, print]) {
+    await expect(control).toBeInViewport({ ratio: 1 });
+    boxes.push(await control.boundingBox());
+  }
+  const [backBox, languageBox, printBox] = boxes;
+  const controlCenters = boxes.map(({ y, height }) => y + height / 2);
+  expect(Math.max(...controlCenters) - Math.min(...controlCenters)).toBeLessThanOrEqual(2);
+  expect(backBox.x + backBox.width).toBeLessThan(languageBox.x);
+  expect(languageBox.x + languageBox.width).toBeLessThan(printBox.x);
+  expect(printBox.width).toBeGreaterThanOrEqual(24);
+  expect(printBox.height).toBeGreaterThanOrEqual(24);
+  await print.press("Enter");
+  await expect(page.locator("html")).toHaveAttribute("data-print-requested", "true");
+
+  const standaloneLinks = page.locator([
+    ".guide-back-link",
+    "#guide-nav a",
+    "#use-cases .guide-section-intro a",
+    ".guide-item-links a",
+    ".guide-workflow-return",
+    ".guide-footer a",
+  ].join(", "));
+  const undersizedLinks = await standaloneLinks.evaluateAll(links => links.flatMap(link => {
+    const { width, height } = link.getBoundingClientRect();
+    return width < 24 || height < 24 ? [link.textContent.trim()] : [];
+  }));
+  expect(undersizedLinks).toEqual([]);
+
+  const sidebar = page.locator(".guide-sidebar");
+  const navigation = sidebar.getByRole("navigation");
+  const expectHeadingBelowNavigation = async (heading) => {
+    await expect(heading).toBeInViewport({ ratio: 1 });
+    const navBottom = await sidebar.evaluate(element => element.getBoundingClientRect().bottom);
+    const { y } = await heading.boundingBox();
+    expect(y).toBeGreaterThanOrEqual(navBottom);
+    return y - navBottom;
+  };
+
+  await page.evaluate(() => window.scrollTo(0, 500));
+  await expect(header).not.toBeInViewport();
+  await expect(navigation).toBeInViewport({ ratio: 1 });
+  await expect.poll(() => sidebar.evaluate(element => element.getBoundingClientRect().top)).toBe(0);
+
+  await navigation.locator('a[href="#use-cases"]').click();
+  await expect(page).toHaveURL(/#use-cases$/);
+  await expectHeadingBelowNavigation(page.locator("#use-cases > h2"));
+  await page.locator(".guide-flow-branches a").first().click();
+  const { id } = guideContent.en.sections[0].items[0];
+  await expect(page).toHaveURL(new RegExp(`#${id}$`));
+  const mode = page.locator(`#${id}`);
+  await expectHeadingBelowNavigation(mode.getByRole("heading", { level: 4 }));
+  expect((await mode.boundingBox()).width).toBeGreaterThanOrEqual(295);
+  await page.locator(".guide-workflow-return").click();
+  await expect(page).toHaveURL(/#use-cases-workflow$/);
+  await expectHeadingBelowNavigation(page.locator("#use-cases-workflow").getByRole("heading", { level: 3 }));
+
+  await page.goto("./guide/#battery-capacity-soh");
+  const nestedHeading = page.locator("#battery-capacity-soh > h3");
+  expect(await expectHeadingBelowNavigation(nestedHeading)).toBeLessThanOrEqual(32);
+  await expect(header).not.toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+});
+
 test("reference versions and the localized update date appear only in the guide footer, including print", async ({ page }) => {
   await page.goto("./guide/");
   const versions = `Frontend v${GUIDE_BASELINE_VERSION} · Backend v${GUIDE_BACKEND_BASELINE_VERSION}`;
@@ -676,9 +754,7 @@ test("the guide screenshots load and the guide fits the viewport", async ({ page
   await expect(page.locator(".guide-figure figcaption")).toHaveCount(figureCount);
   for (const image of await page.locator(".guide-figure img").all()) {
     await image.scrollIntoViewIfNeeded();
-    await expect.poll(() =>
-      image.evaluate((element) => element.complete && element.naturalWidth > 0)
-    ).toBe(true);
+    await image.evaluate(element => element.decode());
   }
 
   const hasHorizontalOverflow = await page.evaluate(

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.5-rc.1] - 2026-11-26
+
+- Explain the three feasibility planning modes and streamline the guide around the current feasibility and yearly analysis workflows.
+- Keep section navigation visible while scrolling on mobile and give the planning mode cards more room.
+
 ## [1.4.4] - 2026-11-25
 
 - Update the user guide in English, German, French and Italian, with screenshots of the vehicle-block planner, feasibility results and yearly analysis.

@@ -15,6 +15,7 @@
   --guide-focus: rgba(15, 60, 60, 0.25);
   --guide-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
   --guide-radius: 12px;
+  --guide-anchor-offset: 5.25rem;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--guide-text);
   background: var(--guide-background);
@@ -107,6 +108,10 @@ a:hover {
 
 .guide-print-button {
   cursor: pointer;
+}
+
+.guide-print-icon {
+  display: none;
 }
 
 .guide-print-button:hover {
@@ -225,7 +230,7 @@ a:hover {
 }
 
 .guide-section {
-  scroll-margin-top: 5.25rem;
+  scroll-margin-top: var(--guide-anchor-offset);
   padding: 3rem 0 0;
 }
 
@@ -286,7 +291,7 @@ a:hover {
 }
 
 .guide-item[id] {
-  scroll-margin-top: 5.25rem;
+  scroll-margin-top: var(--guide-anchor-offset);
 }
 
 .guide-item h3 {
@@ -422,7 +427,7 @@ a:hover {
 
 .guide-workflow-alias {
   display: block;
-  scroll-margin-top: 5.25rem;
+  scroll-margin-top: var(--guide-anchor-offset);
 }
 
 .guide-use-case-tone {
@@ -443,7 +448,7 @@ a:hover {
   border: 1px solid var(--guide-border);
   border-radius: var(--guide-radius);
   background: var(--guide-muted-surface);
-  scroll-margin-top: 5.25rem;
+  scroll-margin-top: var(--guide-anchor-offset);
 }
 
 .guide-flow figcaption h3 {
@@ -586,7 +591,7 @@ a:hover {
   padding: 0.75rem 1rem;
   border-left: 3px solid var(--case-color);
   background: var(--guide-surface);
-  scroll-margin-top: 5.25rem;
+  scroll-margin-top: var(--guide-anchor-offset);
 }
 
 .guide-use-case:target {
@@ -661,14 +666,26 @@ a:hover {
 }
 
 @media (width <= 850px) {
+  :root {
+    --guide-anchor-offset: 4.25rem;
+  }
+
+  .guide-header {
+    position: static;
+  }
+
   .guide-layout {
     display: block;
   }
 
   .guide-sidebar {
-    position: static;
+    position: sticky;
+    z-index: 9;
+    top: 0;
     max-height: none;
-    padding: 1rem;
+    padding: 0.35rem 1rem;
+    overflow: visible;
+    background: var(--guide-surface);
     border-bottom: 1px solid var(--guide-border);
   }
 
@@ -680,7 +697,8 @@ a:hover {
   #guide-nav {
     display: flex;
     overflow-x: auto;
-    padding-bottom: 0.35rem;
+    padding: 0.2rem;
+    overscroll-behavior-x: contain;
   }
 
   .guide-nav-group {
@@ -728,22 +746,41 @@ a:hover {
     padding: 0.65rem 0.4rem;
   }
 
-  .guide-section,
-  .guide-item[id],
-  .guide-workflow-alias,
-  .guide-flow,
-  .guide-use-case {
-    scroll-margin-top: 9rem;
-  }
-
   .guide-header {
-    align-items: flex-start;
-    flex-direction: column;
+    min-height: 3rem;
+    padding: 0.25rem 1rem;
+    gap: 0.5rem;
   }
 
-  .guide-header-actions {
-    width: 100%;
-    flex-wrap: wrap;
+  .guide-print-button {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+  }
+
+  .guide-print-icon {
+    display: block;
+  }
+
+  .guide-print-button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .guide-header .guide-back-link,
+  .guide-footer a,
+  .guide-section-intro a,
+  .guide-item-links a,
+  .guide-workflow-return {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2rem;
   }
 
   .guide-main {
@@ -755,7 +792,22 @@ a:hover {
   }
 
   .guide-item-list[data-ordered="true"] .guide-item {
-    padding-left: 3.5rem;
+    padding: 0.75rem;
+  }
+
+  .guide-item-list[data-ordered="true"] .guide-item::before {
+    top: 0.75rem;
+    left: 0.75rem;
+  }
+
+  .guide-item-list[data-ordered="true"] .guide-item > h3 {
+    min-height: 2rem;
+    padding-inline-start: 2.6rem;
+    align-content: center;
+  }
+
+  .guide-use-case {
+    padding: 0.75rem;
   }
 }
 

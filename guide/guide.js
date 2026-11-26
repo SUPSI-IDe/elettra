@@ -277,6 +277,7 @@ const applyUiText = (ui) => {
 
   const languageSelect = document.querySelector("#guide-language");
   languageSelect.setAttribute("aria-label", ui.languageAriaLabel);
+  document.querySelector('[data-action="print"]').title = ui.print;
   document.querySelector(".skip-link").textContent = ui.skipLink;
   document.querySelector(".guide-sidebar").setAttribute("aria-label", ui.sidebarAriaLabel);
   document.querySelector(".guide-brand").setAttribute("aria-label", ui.brandAriaLabel);

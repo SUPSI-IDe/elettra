@@ -1,6 +1,6 @@
 import { useCaseSections } from "./use-cases.js";
 
-export const GUIDE_BASELINE_VERSION = "1.4.4";
+export const GUIDE_BASELINE_VERSION = "1.4.5-rc.1";
 export const GUIDE_BACKEND_BASELINE_VERSION = "1.9.0";
 export const GUIDE_UPDATED_AT = "26 November 2026";
 
