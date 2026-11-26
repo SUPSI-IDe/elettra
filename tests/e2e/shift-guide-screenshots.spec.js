@@ -6,10 +6,10 @@ import {
 
 const dataset = { ...edition, valid_from: "2025-12-14", valid_to: "2026-12-12" };
 const scenarios = {
-  en: { locale: "en-GB", morning: "Morning service", daytime: "Daytime service on two lines", bus: "12 m electric bus" },
-  de: { locale: "de-CH", morning: "Morgendienst", daytime: "Tagesbetrieb auf zwei Linien", bus: "12-m-Elektrobus" },
-  fr: { locale: "fr-CH", morning: "Service du matin", daytime: "Service de jour sur deux lignes", bus: "Bus électrique de 12 m" },
-  it: { locale: "it-CH", morning: "Servizio del mattino", daytime: "Servizio diurno su due linee", bus: "Autobus elettrico 12 m" },
+  en: { locale: "en-GB", daytime: "Daytime service on two lines", bus: "12 m electric bus" },
+  de: { locale: "de-CH", daytime: "Tagesbetrieb auf zwei Linien", bus: "12-m-Elektrobus" },
+  fr: { locale: "fr-CH", daytime: "Service de jour sur deux lignes", bus: "Bus électrique de 12 m" },
+  it: { locale: "it-CH", daytime: "Servizio diurno su due linee", bus: "Autobus elettrico 12 m" },
 };
 const stopNames = {
   a: "Borgo",
@@ -104,7 +104,7 @@ const movements = [
 ];
 const serviceTrips = movements.filter(trip => trip.status === "gtfs");
 
-for (const [lang, { locale, morning, daytime, bus }] of Object.entries(scenarios)) {
+for (const [lang, { locale, daytime, bus }] of Object.entries(scenarios)) {
   test.describe(lang, () => {
     test.use({ locale });
     const labels = translations[lang];
@@ -216,62 +216,6 @@ for (const [lang, { locale, morning, daytime, bus }] of Object.entries(scenarios
       await page.evaluate(() => document.fonts.ready);
       await page.mouse.move(0, 0);
       await visualisation.screenshot({ path: `${output}/shift-visualisation.png`, animations: "disabled" });
-    });
-
-    test("captures editing a historical vehicle block", async ({ page, composer }) => {
-      await page.setViewportSize({ width: 1500, height: 1340 });
-      const row = {
-        id: "storico",
-        name: morning,
-        bus_id: "bus",
-        start_depot_id: "depot",
-        end_depot_id: "depot",
-        start_depot: { name: "Deposito Nord" },
-        end_depot: { name: "Deposito Nord" },
-        trip_count: 2,
-        start_time: "07:30:00",
-        end_time: "10:30:00",
-        gtfs_datasets: [dataset],
-      };
-      const trips = [
-        movement("trip-a", "gtfs-a", [["Borgo", "08:00:00"], ["Stazione", "08:25:00"]], "1"),
-        movement("trip-b", "gtfs-b", [["Stazione", "08:35:00"], ["Borgo", "09:00:00"]], "1"),
-        movement("trip-c", "gtfs-c", [["Borgo", "09:40:00"], ["Stazione", "10:05:00"]], "1"),
-      ];
-      const state = await composer({
-        application: true,
-        entry: "shifts",
-        datasets: [dataset],
-        trips,
-        models: [{ id: "model", user_id: "user", name: bus }],
-        depots: [{ id: "depot", user_id: "user", name: "Deposito Nord", stop_id: "depot-stop" }],
-        respond: ({ path }) => {
-          if (path.endsWith("/shifts/")) return { json: [row] };
-          if (path.endsWith("/buses/bus")) return { json: { id: "bus", bus_model_id: "model" } };
-          if (path.endsWith("/shifts/storico/yearly-distance")) return { json: { daily_distance_km: 28.4 } };
-          if (path.endsWith("/shifts/storico")) return { json: {
-            ...row,
-            structure: trips.slice(0, 2).map(({ id }, index) => ({ trip_id: id, sequence_number: index + 1 })),
-          } };
-          if (path.endsWith("/shifts/storico/info")) return {
-            json: { trips: trips.slice(0, 2), route_id: "line", days_of_week: ["monday"] },
-          };
-          return undefined;
-        },
-      });
-      await language(page, lang);
-      await expect(page.locator("html")).toHaveAttribute("lang", lang);
-      await page.locator('tr[data-id="storico"] [data-row-action="edit"]').click();
-      const editor = page.locator("section.shift-form");
-      await expect(editor.locator("h1")).toHaveText(labels["shifts.edit_shift"]);
-      await expect(editor.locator("#add-stops-heading")).toHaveText(labels["shifts.composer_available"]);
-      await expect(editor.locator("form")).toHaveAttribute("data-composer-step", "compose");
-      await expect(editor.locator('[data-role="shift-trips-body"] tr')).toHaveCount(2);
-      await expect(editor.locator('[data-action="add-trip"]')).toBeVisible();
-      await page.evaluate(() => document.fonts.ready);
-      await page.mouse.move(0, 0);
-      await editor.screenshot({ path: `${output}/shift-composer.png`, animations: "disabled" });
-      expect(state.writes).toEqual([]);
     });
   });
 }

@@ -55,7 +55,7 @@ the authenticated sidebar. It opens in a separate tab.
 
 ### GTFS edition and provenance
 
-GTFS is part of the analysis boundary, not just a trip-search input:
+The selected GTFS timetable defines the scheduled trips used in the analysis.
 
 - a vehicle block records the timetable edition used to build it;
 - a new feasibility evaluation accepts vehicle blocks from one selected
@@ -65,9 +65,8 @@ GTFS is part of the analysis boundary, not just a trip-search input:
 - a yearly result preserves the provenance captured by its feasibility
   evaluation instead of silently following later vehicle-block changes.
 
-Historical records that predate complete provenance may be labeled as derived
-from current vehicle-block data. Vehicle blocks that mix historical editions
-are excluded from new evaluations.
+Historical analysis results that predate complete provenance may be labeled as
+derived from current vehicle-block data.
 
 ### Interpretation boundary
 

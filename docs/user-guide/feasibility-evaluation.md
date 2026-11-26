@@ -16,8 +16,7 @@ Open **Simulations → Feasibility evaluation** and select **New**.
 Enter a descriptive name, select one GTFS timetable edition and choose a
 service day. The table lists vehicle blocks that run on that day in the
 selected edition. Changing the edition clears the current selection. Changing
-the day removes selected blocks that do not run on the new day. Blocks with
-mixed editions, incomplete calendars or no common weekday are excluded.
+the day removes selected blocks that do not run on the new day.
 
 ### 2. Vehicle blocks and bus model
 
@@ -102,13 +101,17 @@ while N depot plugs correspond to 150 × N kW. Review the plug counts and power
 limits before starting. Duplication preserves saved charging inputs rather
 than replacing them with new-evaluation defaults.
 
-Additional options can:
+**Verify next-day departure with depot charging** checks whether the same bus
+can recharge between the planned return and the next day’s departure and start
+the same vehicle block at its required departure SOC. The option is enabled by
+default for new evaluations. Include the depot where each block starts and ends
+in the selected charging infrastructure. For example, if a block starts and
+ends at Depot A and pauses at Depot B during the day, select Depot A for the
+next-day check.
 
-- verify the next day's departure using the depot stay already represented by
-  the vehicle block;
-- simulate controllable smart charging that reduces depot peaks while
-  preserving the selected design and daytime charging;
-- expose advanced infrastructure-cost assumptions.
+With that check enabled, **Simulate smart charging in the depot** can reduce
+charging peaks while preserving the selected design and daytime charging.
+Advanced infrastructure-cost assumptions are available separately.
 
 A connected bus occupies the same plug for its full stop, even after energy
 delivery finishes.

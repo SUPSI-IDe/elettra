@@ -66,7 +66,7 @@ test("all supported guide languages expose the same complete section structure",
     "practice",
     "api",
   ];
-  const expectedFigureCounts = [0, 2, 3, 1, 3, 3, 1, 1, 0, 0];
+  const expectedFigureCounts = [0, 2, 2, 1, 3, 3, 1, 1, 0, 0];
 
   assert.deepEqual(Object.keys(guideContent).sort(), [...SUPPORTED_GUIDE_LANGUAGES].sort());
 
@@ -206,7 +206,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     en: {
       start: ["Home", "user guide", "CARTO", "latest available GTFS edition", "indicative"],
       fleet: ["Details opens a read-only view", "Edit to complete missing fields in older custom stops", "position the map manually"],
-      shifts: ["Both fields are locked", "complete server-side list", "Duplicate saves a copy immediately", "dependent evaluation blocks deletion", "Space-time", "Map", "missing transfer data"],
+      shifts: ["Both fields are locked", "complete server-side list", "Duplicate saves a copy immediately", "dependent evaluation blocks deletion", "Space-time", "Map", "Dashed segments"],
       feasibility: ["one GTFS edition", "Duplicate", "compatible forecasts are unavailable"],
       results: ["recorded", "Configured SOC window", "initial physical-maximum reference", "expandable white cards"],
       yearly: ["GTFS edition", "recorded provenance"],
@@ -214,7 +214,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     de: {
       start: ["Startseite", "Benutzerhandbuch", "CARTO", "neueste verfügbare GTFS-Ausgabe", "Orientierung"],
       fleet: ["Details öffnet eine schreibgeschützte Ansicht", "fehlende Angaben älterer Haltestellen unter Bearbeiten", "tragen Sie Adresse und Stadt von Hand ein"],
-      shifts: ["Beide Felder sind gesperrt", "vollständige serverseitige Liste", "Duplizieren speichert sofort eine Kopie", "abhängige Bewertung das Löschen blockiert", "Weg-Zeit", "Karte", "Fehlende Überführungsdaten"],
+      shifts: ["Beide Felder sind gesperrt", "vollständige serverseitige Liste", "Duplizieren speichert sofort eine Kopie", "abhängige Bewertung das Löschen blockiert", "Weg-Zeit", "Karte", "Gestrichelte Abschnitte"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "unvollständig"],
       results: ["aufgezeichnete", "Konfiguriertes SOC-Fenster", "physischen Maximum", "aufklappbare weisse Karten"],
       yearly: ["GTFS-Ausgabe", "aufgezeichnete Herkunft"],
@@ -222,7 +222,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     fr: {
       start: ["Accueil", "guide", "CARTO", "dernière édition GTFS disponible", "indicative"],
       fleet: ["Détails ouvre une vue en lecture seule", "Modifier pour compléter les données manquantes des anciens arrêts", "placez le réticule manuellement"],
-      shifts: ["Ces champs sont verrouillés", "liste complète côté serveur", "Dupliquer enregistre immédiatement une copie", "évaluation dépendante bloque la suppression", "Espace-temps", "Carte", "données de transfert manquantes"],
+      shifts: ["Ces champs sont verrouillés", "liste complète côté serveur", "Dupliquer enregistre immédiatement une copie", "évaluation dépendante bloque la suppression", "Espace-temps", "Carte", "Les pointillés"],
       feasibility: ["édition GTFS", "Dupliquer", "partiellement"],
       results: ["enregistrée", "Fenêtre SOC configurée", "maximum physique", "cartes blanches dépliables"],
       yearly: ["édition GTFS", "provenance enregistrée"],
@@ -230,7 +230,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     it: {
       start: ["Home", "guida utente", "CARTO", "ultima edizione GTFS disponibile", "indicativa"],
       fleet: ["Dettagli apre una vista in sola lettura", "Modifica per completare i dati mancanti delle fermate storiche", "posizionare manualmente la mappa"],
-      shifts: ["I due campi rimangono bloccati", "elenco completo sul server", "Duplica salva subito una copia", "valutazione dipendente blocca l’eliminazione", "Spazio-tempo", "Mappa", "dati di trasferimento mancanti"],
+      shifts: ["I due campi rimangono bloccati", "elenco completo sul server", "Duplica salva subito una copia", "valutazione dipendente blocca l’eliminazione", "Spazio-tempo", "Mappa", "tratti tratteggiati"],
       feasibility: ["una sola edizione GTFS", "Duplica", "parzialmente"],
       results: ["registrata", "Intervallo SOC configurato", "massimo fisico", "schede bianche espandibili"],
       yearly: ["edizione GTFS", "provenienza registrata"],

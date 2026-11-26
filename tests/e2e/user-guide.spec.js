@@ -43,7 +43,7 @@ const LANGUAGES = {
     releaseTerms: {
       start: ["Home", "user guide"],
       fleet: ["9–13 m", "17–19 m", "LFP", "NMC", "Restore estimate", "Details opens a read-only view", "Line A_copy, Line A_copy_1"],
-      shifts: ["GTFS", "complete server-side list", "Space-time", "Map", "Duplicate saves a copy immediately", "Use Edit on the saved copy", "Manage intermediate stays", "Apply to block or Cancel"],
+      shifts: ["GTFS", "complete server-side list", "Space-time", "Map", "Duplicate saves a copy immediately", "Use Edit on the saved copy", "Insert before", "Undo last change"],
       feasibility: ["one GTFS edition", "Duplicate", "1 plug", "N blocks", "150 × N"],
       results: ["Configured SOC window", "initial physical-maximum reference", "Export the complete feasibility evaluation", "Check export availability"],
       yearly: ["recorded provenance", "complete fleet", "schema 4", "schema 3", "Check the save status before closing", "previous response", "Retry"],
@@ -59,7 +59,7 @@ const LANGUAGES = {
     releaseTerms: {
       start: ["Startseite", "Benutzerhandbuch"],
       fleet: ["9–13 m", "17–19 m", "LFP", "NMC", "Schätzwert wiederherstellen", "Details öffnet eine schreibgeschützte Ansicht", "Linie A_Kopie, Linie A_Kopie_1"],
-      shifts: ["GTFS", "vollständige serverseitige Liste", "Weg-Zeit", "Karte", "Duplizieren speichert sofort eine Kopie", "Bearbeiten in der Zeile der Kopie", "Zwischenaufenthalte bearbeiten", "In Umlauf übernehmen oder Abbrechen"],
+      shifts: ["GTFS", "vollständige serverseitige Liste", "Weg-Zeit", "Karte", "Duplizieren speichert sofort eine Kopie", "Bearbeiten in der Zeile der Kopie", "Davor einfügen", "Letzte Änderung rückgängig machen"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "1 Ladepunkt", "N Umläufe", "150 × N"],
       results: ["Konfiguriertes SOC-Fenster", "physischen Maximum", "Die vollständige Machbarkeitsbewertung exportieren", "Verfügbarkeit des Exports prüfen"],
       yearly: ["aufgezeichnete Herkunft", "gesamte Flotte", "Schema 4", "Schema 3", "Speicherstatus vor dem Schliessen prüfen", "frühere Antwort", "Erneut versuchen"],
@@ -75,7 +75,7 @@ const LANGUAGES = {
     releaseTerms: {
       start: ["Accueil", "guide"],
       fleet: ["9 à 13 m", "17 à 19 m", "LFP", "NMC", "Rétablir l’estimation", "Détails ouvre une vue en lecture seule", "Ligne A_copie, Ligne A_copie_1"],
-      shifts: ["GTFS", "liste complète côté serveur", "Espace-temps", "Carte", "Dupliquer enregistre immédiatement une copie", "Modifier sur la copie enregistrée", "Gérer les pauses intermédiaires", "Appliquer au service ou Annuler"],
+      shifts: ["GTFS", "liste complète côté serveur", "Espace-temps", "Carte", "Dupliquer enregistre immédiatement une copie", "Modifier sur la copie enregistrée", "Insérer avant", "Annuler la dernière modification"],
       feasibility: ["édition GTFS", "Dupliquer", "1 prise", "N services", "150 × N"],
       results: ["Fenêtre SOC configurée", "maximum physique", "Exporter l’évaluation de faisabilité complète", "Vérifier la disponibilité de l’export"],
       yearly: ["provenance enregistrée", "flotte complète", "schéma 4", "schéma 3", "Vérifier l’état de sauvegarde avant de fermer", "réponse précédente", "Réessayer"],
@@ -91,7 +91,7 @@ const LANGUAGES = {
     releaseTerms: {
       start: ["Home", "guida utente"],
       fleet: ["9–13 m", "17–19 m", "LFP", "NMC", "Ripristina stima", "Dettagli apre una vista in sola lettura", "Linea A_copia, Linea A_copia_1"],
-      shifts: ["GTFS", "elenco completo sul server", "Spazio-tempo", "Mappa", "Duplica salva subito una copia", "Modifica sulla copia salvata", "Gestisci soste intermedie", "Applica al turno o Annulla"],
+      shifts: ["GTFS", "elenco completo sul server", "Spazio-tempo", "Mappa", "Duplica salva subito una copia", "Modifica sulla copia salvata", "Inserisci prima", "Annulla ultima modifica"],
       feasibility: ["una sola edizione GTFS", "Duplica", "1 presa", "N turni", "150 × N"],
       results: ["Intervallo SOC configurato", "massimo fisico", "Esportare la valutazione di fattibilità completa", "Verificare la disponibilità dell’esportazione"],
       yearly: ["provenienza registrata", "flotta completa", "schema 4", "schema 3", "Controllare lo stato del salvataggio prima di chiudere", "risposte precedenti", "Riprova"],
@@ -698,11 +698,12 @@ for (const [language, labels] of Object.entries({
     const q95=result.locator('.guide-item').filter({has:page.getByRole('heading',{name:labels.q95,exact:true})});
     await expect(q95).toContainText('N/A');
     await expect(q95).toContainText('—');
-    for(const [section,suffix] of [['results','feasibility-infeasible'],['shifts','shift-composer']]) {
-      const image=page.locator(`#${section} img`);
-      const sources=await image.evaluateAll(images => images.map(img=>img.src));
-      expect(sources.some(src=>src.includes(suffix))).toBe(true);
-      await expect(image).toHaveCount(3);
+    await expect(result.locator('img')).toHaveCount(3);
+    await expect(result.locator('img[src*="feasibility-infeasible"]')).toHaveCount(1);
+    const blockImages = page.locator('#shifts img');
+    await expect(blockImages).toHaveCount(2);
+    for (const name of ['shift-planner', 'shift-visualisation']) {
+      await expect(page.locator(`#shifts img[src*="${name}"]`)).toHaveCount(1);
     }
     expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
     await page.setViewportSize({width:320,height:720});
