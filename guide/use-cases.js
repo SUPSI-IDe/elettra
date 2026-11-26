@@ -8,7 +8,7 @@ export const useCaseSections = {
     diagram: {
       title: "From planning question to annual assessment",
       description: "Prepare the service, then choose what ELETTRA should size.",
-      preparation: "Preparation for all three cases",
+      preparation: "Preparation",
       fleet: "Define the bus model, depots and stops", shifts: "Build the vehicle blocks",
       feasibility: "Select the timetable, service day and blocks",
       modes: "Choose the mode for your planning question", run: "Run the feasibility evaluation",
@@ -56,7 +56,7 @@ export const useCaseSections = {
     diagram: {
       title: "Von der Planungsfrage zur Jahresbewertung",
       description: "Bereiten Sie den Betrieb vor und wählen Sie anschliessend, was ELETTRA dimensionieren soll.",
-      preparation: "Vorbereitung für alle drei Fälle",
+      preparation: "Vorbereitung",
       fleet: "Busmodell, Depots und Haltestellen festlegen", shifts: "Fahrzeugumläufe erstellen",
       feasibility: "Fahrplan, Verkehrstag und Umläufe auswählen",
       modes: "Modus für Ihre Planungsfrage wählen", run: "Machbarkeitsprüfung starten",
@@ -104,7 +104,7 @@ export const useCaseSections = {
     diagram: {
       title: "De la question de planification au bilan annuel",
       description: "Préparez le service, puis choisissez ce qu’ELETTRA doit dimensionner.",
-      preparation: "Préparation commune aux trois cas",
+      preparation: "Préparation",
       fleet: "Définir le modèle de bus, les dépôts et les arrêts", shifts: "Construire les services voiture",
       feasibility: "Sélectionner l’horaire, le jour et les services voiture",
       modes: "Choisir le mode adapté à votre question", run: "Lancer l’évaluation de faisabilité",
@@ -152,7 +152,7 @@ export const useCaseSections = {
     diagram: {
       title: "Dalla domanda di pianificazione alla valutazione annuale",
       description: "Prepara il servizio, poi scegli cosa vuoi dimensionare con ELETTRA.",
-      preparation: "Preparazione comune ai tre casi",
+      preparation: "Preparazione",
       fleet: "Definisci il modello di bus, i depositi e le fermate", shifts: "Costruisci i turni macchina",
       feasibility: "Seleziona l’orario GTFS, il giorno e i turni da valutare",
       modes: "Scegli la modalità in base alla tua domanda", run: "Avvia la valutazione di fattibilità",
