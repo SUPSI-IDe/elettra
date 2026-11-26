@@ -353,9 +353,25 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await page.goto("./guide/#use-cases");
     await page.locator("#guide-language").selectOption(language);
     const content = guideContent[language].sections[0];
+    const diagram = page.locator("figure#use-cases-workflow");
+    const branches = diagram.locator(".guide-flow-branches");
     const table = page.getByRole("table", { name: content.title, exact: true });
-    const steps = page.locator("#use-cases-workflow");
+    const steps = page.locator("section.guide-case-workflow");
+    const expectDiagramBeforeTable = async () => {
+      await expect(diagram).toBeVisible();
+      await expect(table).toBeVisible();
+      await expect(diagram).toHaveAccessibleName(content.diagram.title);
+      await expect(diagram).toHaveAccessibleDescription(content.diagram.description);
+      const diagramBounds = await diagram.boundingBox();
+      const tableBounds = await table.boundingBox();
+      expect(diagramBounds.y + diagramBounds.height).toBeLessThanOrEqual(tableBounds.y);
+    };
 
+    await expectDiagramBeforeTable();
+    await expect(branches).toHaveCount(2);
+    for (const branch of await branches.all()) {
+      await expect(branch.getByRole("link")).toHaveCount(3);
+    }
     await expect(table.getByRole("columnheader")).toHaveText(content.columns);
     await expect(table.getByRole("rowheader")).toHaveCount(3);
     for (const [index, item] of content.items.entries()) {
@@ -366,7 +382,45 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
       await page.locator(`#guide-nav a[href="#${item.id}"]`).click();
       await expect(page).toHaveURL(new RegExp(`#${item.id}$`));
       await expect(row.getByRole("rowheader")).toBeInViewport();
+      for (const [branchIndex, label] of [item.shortQuestion, item.modeLabel].entries()) {
+        const link = branches.nth(branchIndex).getByRole("link").nth(index);
+        await expect(link).toHaveAttribute("data-case", String(index + 1));
+        await expect(link).toHaveAttribute("href", `#${item.id}`);
+        await expect(link).toContainText(label);
+        await page.goto("./guide/#use-cases");
+        await link.click();
+        await expect(page).toHaveURL(new RegExp(`#${item.id}$`));
+        await expect(row.getByRole("rowheader")).toBeInViewport();
+      }
     }
+    const preparation = diagram.locator(".guide-flow-preparation").getByRole("link");
+    const outcomes = diagram.locator(".guide-flow-outcomes").getByRole("link");
+    await expect(preparation).toHaveCount(3);
+    await expect(outcomes).toHaveCount(3);
+    await expect(diagram.locator(".guide-flow-revise")).toHaveAttribute("href", "#feasibility");
+    for (const [links, destinations] of [
+      [preparation, [
+        ["fleet", content.diagram.fleet],
+        ["shifts", content.diagram.shifts],
+        ["feasibility", content.diagram.feasibility],
+      ]],
+      [outcomes, [
+        ["feasibility", content.diagram.revise],
+        ["yearly", content.diagram.yearly],
+        ["comparison", content.diagram.compare],
+      ]],
+    ]) {
+      for (const [index, [id, label]] of destinations.entries()) {
+        const link = links.nth(index);
+        await expect(link).toHaveAccessibleName(label);
+        await expect(link).toHaveAttribute("href", `#${id}`);
+        await page.goto("./guide/#use-cases");
+        await link.click();
+        await expect(page).toHaveURL(new RegExp(`#${id}$`));
+        await expect(page.locator(`#${id} > h2`)).toBeInViewport();
+      }
+    }
+    await expect(steps).not.toHaveAttribute("id");
     await expect(steps.getByRole("heading")).toHaveText(content.workflow.title);
     await expect(steps).toContainText(content.workflow.service);
     const invalidLinks = await page.locator('#use-cases a[href^="#"]').evaluateAll((links) =>
@@ -383,6 +437,14 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await expect(page.locator("#yearly > h2")).toBeInViewport();
     await page.setViewportSize({ width: 320, height: 720 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await page.goto("./guide/#use-cases");
+    await expectDiagramBeforeTable();
+    const mobileLink = branches.first().getByRole("link").first();
+    const mobileCase = content.items[0];
+    await expect(mobileLink).toBeVisible();
+    await mobileLink.press("Enter");
+    await expect(page).toHaveURL(new RegExp(`#${mobileCase.id}$`));
+    await expect(table.locator(`#${mobileCase.id}`).getByRole("rowheader")).toBeInViewport();
   });
 
   test(`landing-to-guide-to-landing preserves the ${language} language`, async ({

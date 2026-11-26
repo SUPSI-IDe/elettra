@@ -50,6 +50,80 @@ const renderNavigation = (sections) => {
   });
 };
 
+const createSectionLink = (id, label, className = "") => {
+  const link = createTextElement("a", className, label);
+  link.href = `#${id}`;
+  return link;
+};
+
+const flowArrow = () => {
+  const arrow = createTextElement("span", "guide-flow-arrow", "↓");
+  arrow.setAttribute("aria-hidden", "true");
+  return arrow;
+};
+
+const renderWorkflowDiagram = (section) => {
+  const { diagram, items } = section;
+  const figure = document.createElement("figure");
+  figure.className = "guide-flow";
+  figure.id = "use-cases-workflow";
+  figure.setAttribute("aria-labelledby", "use-cases-workflow-title");
+  figure.setAttribute("aria-describedby", "use-cases-workflow-description");
+  const caption = document.createElement("figcaption");
+  const title = createTextElement("h3", "", diagram.title);
+  title.id = "use-cases-workflow-title";
+  const description = createTextElement("p", "", diagram.description);
+  description.id = "use-cases-workflow-description";
+  caption.append(title, description);
+  figure.append(caption, createTextElement("p", "guide-flow-label", diagram.choose));
+
+  const choices = document.createElement("div");
+  choices.className = "guide-flow-branches";
+  items.forEach((item, index) => {
+    const choice = createSectionLink(item.id, "", "guide-flow-node guide-use-case-tone");
+    choice.dataset.case = String(index + 1);
+    choice.append(createTextElement("strong", "", `UC${index + 1}`), createTextElement("span", "", item.shortQuestion));
+    choices.append(choice);
+  });
+  figure.append(choices, flowArrow());
+
+  const preparation = document.createElement("ol");
+  preparation.className = "guide-flow-preparation";
+  [["fleet", diagram.fleet], ["shifts", diagram.shifts], ["feasibility", diagram.feasibility]].forEach(([id, label], index) => {
+    const step = document.createElement("li");
+    step.append(createSectionLink(id, label, "guide-flow-node"));
+    if (index < 2) step.append(flowArrow());
+    preparation.append(step);
+  });
+  figure.append(preparation, createTextElement("p", "guide-flow-label", diagram.modes));
+
+  const modes = document.createElement("div");
+  modes.className = "guide-flow-branches";
+  items.forEach((item, index) => {
+    const mode = createSectionLink(item.id, "", "guide-flow-node guide-use-case-tone");
+    mode.dataset.case = String(index + 1);
+    mode.textContent = `UC${index + 1} · ${item.modeLabel}`;
+    modes.append(mode);
+  });
+  figure.append(modes, flowArrow(), createTextElement("p", "guide-flow-decision", diagram.decision));
+
+  const outcomes = document.createElement("div");
+  outcomes.className = "guide-flow-outcomes";
+  const revision = document.createElement("div");
+  revision.className = "guide-flow-outcome";
+  revision.append(createTextElement("strong", "", diagram.no), flowArrow(),
+    createSectionLink("feasibility", diagram.revise, "guide-flow-node guide-flow-revise"));
+  const feasible = document.createElement("div");
+  feasible.className = "guide-flow-outcome";
+  feasible.append(createTextElement("strong", "", diagram.yes), flowArrow(),
+    createSectionLink("yearly", diagram.yearly, "guide-flow-node"),
+    createTextElement("p", "guide-flow-impacts", diagram.impacts), flowArrow(),
+    createSectionLink("comparison", diagram.compare, "guide-flow-node"));
+  outcomes.append(revision, feasible);
+  figure.append(outcomes);
+  return figure;
+};
+
 const renderUseCases = (section) => {
   const table = document.createElement("table");
   table.className = "guide-case-table";
@@ -79,7 +153,6 @@ const renderUseCases = (section) => {
   const { workflow } = section;
   const steps = document.createElement("section");
   steps.className = "guide-case-workflow";
-  steps.id = "use-cases-workflow";
   steps.append(createTextElement("h3", "", workflow.title));
   for (const text of [workflow.service, workflow.evaluation, workflow.annual]) {
     steps.append(createTextElement("p", "", text));
@@ -93,7 +166,7 @@ const renderUseCases = (section) => {
   }
   steps.append(links);
   const fragment = document.createDocumentFragment();
-  fragment.append(table, steps);
+  fragment.append(renderWorkflowDiagram(section), table, steps);
   return fragment;
 };
 
