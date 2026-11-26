@@ -118,13 +118,14 @@ test("use cases have complete translations, stable modes and valid documentation
     for (const term of failureGuidanceTerms[language]) {
       assert.ok(serializedUseCases.includes(term), `${language} use cases are missing ${term}`);
     }
-    const ids = sections.map(({ id }) => id);
-    for (const item of useCases.items) {
-      assert.deepEqual(item.steps.map(({ section }) => section), [
-        "fleet", "shifts", "feasibility", "feasibility", "results", "yearly",
-      ]);
-      assert.ok(item.steps.every(({ section }) => ids.includes(section)));
-    }
+    const modeKeys = ["mode_battery_only", "mode_charging", "mode_joint"];
+    assert.deepEqual(useCases.items.map(item => item.modeLabel),
+      modeKeys.map(key => translations[language][`simulation.${key}`]));
+    assert.equal(useCases.columns.length, 3);
+    assert.ok(useCases.items.every(item => item.title.trim().endsWith("?")));
+    const ids = new Set(sections.flatMap(section => [section.id, ...section.items.map(item => item.id)]));
+    assert.deepEqual(useCases.workflow.links.map(link => link.href), ["#feasibility", "#mean-q95", "#yearly"]);
+    assert.ok(useCases.workflow.links.every(link => ids.has(link.href.slice(1))));
   }
 });
 
@@ -134,7 +135,7 @@ test("the guide baseline follows the frontend version and exposes a valid update
   assert.equal(Number.isNaN(Date.parse(GUIDE_UPDATED_AT)), false);
   assert.deepEqual(
     SUPPORTED_GUIDE_LANGUAGES.map((language) => guideContent[language].ui.updatedValue),
-    ["25 November 2026", "25. November 2026", "25 novembre 2026", "25 novembre 2026"],
+    ["26 November 2026", "26. November 2026", "26 novembre 2026", "26 novembre 2026"],
   );
 });
 

@@ -128,4 +128,4 @@ stable evaluation-level selection.
 
 > Reference versions: Frontend v1.4.4 · Backend v1.9.0
 >
-> Last updated: 2026-11-25
+> Last updated: 2026-11-26

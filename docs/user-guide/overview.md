@@ -79,13 +79,15 @@ See the detailed chapters:
 
 ## Planning use cases
 
-The optimization mode should match the planning question:
-
-| Use case | What is already available | Mode | Main decision |
+| Planning question | What you provide | Mode | What ELETTRA determines |
 |---|---|---|---|
-| Fleet expansion | Charging infrastructure | **Battery only** (`battery_only`) | Required battery capacity |
-| Charging-infrastructure expansion | Bus and installed battery | **Charging** (`charging_only`) | Required charging configuration |
-| Initial electrification investment | Neither complete bus nor charging design | **Joint** (`joint`) | Battery and charging configuration together |
+| I know where to charge. What is the smallest battery that can cover the selected vehicle blocks? | The bus model and existing or planned charging sites, with fixed plug counts and power per plug | **Battery only** (`battery_only`) | The minimum number of battery packs and when to charge |
+| I have chosen the bus and battery. Where should I charge? | The bus model, fixed battery pack count, candidate sites, maximum plug counts, and fixed power per plug | **Charging** (`charging_only`) | Which sites to use, how many plugs to install at each, and when to charge |
+| Which combination minimizes the upfront investment in batteries and charging plugs? | The bus model, candidate sites, plug limits, power per plug, and battery and charging costs | **Joint** (`joint`) | The battery pack counts, charging sites and plug counts that minimize upfront investment, plus when to charge |
+
+To assess a line, select the vehicle blocks that cover it on the chosen service day.
+Follow the recommended workflow above to compare the Mean and Q95 designs and
+then assess the total annual cost of a verified design.
 
 The modes optimize only within the bus models, charging candidates, costs, and
 constraints supplied by the user. They do not select a manufacturer, design a
@@ -147,4 +149,4 @@ than as zero impact.
 
 > Reference versions: Frontend v1.4.4 · Backend v1.9.0
 >
-> Last updated: 2026-11-25
+> Last updated: 2026-11-26

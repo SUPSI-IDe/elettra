@@ -2,7 +2,7 @@ import { useCaseSections } from "./use-cases.js";
 
 export const GUIDE_BASELINE_VERSION = "1.4.4";
 export const GUIDE_BACKEND_BASELINE_VERSION = "1.9.0";
-export const GUIDE_UPDATED_AT = "25 November 2026";
+export const GUIDE_UPDATED_AT = "26 November 2026";
 
 export const SUPPORTED_GUIDE_LANGUAGES = ["en", "de", "fr", "it"];
 
@@ -509,7 +509,7 @@ export const guideContent = {
       baselineLabel: "Referenzversionen",
       baselineValue: referenceVersions,
       updatedLabel: "Handbuch aktualisiert",
-      updatedValue: "25. November 2026",
+      updatedValue: "26. November 2026",
       footer:
         "ELETTRA unterstützt Vorstudien. Endgültige Fahrzeug-, Lade-, Netz- und Infrastrukturentscheidungen müssen durch eine detaillierte Fachplanung bestätigt werden.",
       skipLink: "Zum Handbuch springen",
@@ -704,7 +704,7 @@ export const guideContent = {
       baselineLabel: "Versions de référence",
       baselineValue: referenceVersions,
       updatedLabel: "Guide mis à jour",
-      updatedValue: "25 novembre 2026",
+      updatedValue: "26 novembre 2026",
       footer:
         "ELETTRA soutient les études de préfaisabilité. Les décisions finales relatives aux véhicules, à la recharge, au réseau et aux infrastructures doivent être confirmées par des études d’ingénierie détaillées.",
       skipLink: "Accéder au guide",
@@ -885,7 +885,7 @@ export const guideContent = {
       baselineLabel: "Versioni di riferimento",
       baselineValue: referenceVersions,
       updatedLabel: "Guida aggiornata",
-      updatedValue: "25 novembre 2026",
+      updatedValue: "26 novembre 2026",
       footer:
         "ELETTRA supporta studi di prefattibilità. Le decisioni finali su veicoli, ricarica, rete e infrastrutture devono essere confermate mediante una progettazione tecnica dettagliata.",
       skipLink: "Vai alla guida",

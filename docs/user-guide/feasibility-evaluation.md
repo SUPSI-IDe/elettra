@@ -29,11 +29,11 @@ model whenever you change the block selection.
 
 ### 3. Optimization mode
 
-| Mode | Fixed input | Optimized decision | Typical use |
+| Planning question | What you provide | Mode | What ELETTRA determines |
 |---|---|---|---|
-| **Battery only** (`battery_only`) | Charging configuration | Battery pack count and planned charging within the installed limits | Fleet expansion with existing chargers |
-| **Charging** (`charging_only`) | Installed battery pack count | Charging locations and plugs within the configured power limits, plus their schedule | Charging-infrastructure expansion |
-| **Joint** (`joint`) | User constraints and candidates | Battery and charging configuration together | Initial electrification investment |
+| I know where to charge. What is the smallest battery that can cover the selected vehicle blocks? | The bus model and existing or planned charging sites, with fixed plug counts and power per plug | **Battery only** (`battery_only`) | The minimum number of battery packs and when to charge |
+| I have chosen the bus and battery. Where should I charge? | The bus model, fixed battery pack count, candidate sites, maximum plug counts, and fixed power per plug | **Charging** (`charging_only`) | Which sites to use, how many plugs to install at each, and when to charge |
+| Which combination minimizes the upfront investment in batteries and charging plugs? | The bus model, candidate sites, plug limits, power per plug, and battery and charging costs | **Joint** (`joint`) | The battery pack counts, charging sites and plug counts that minimize upfront investment, plus when to charge |
 
 Charging mode requires a fixed pack count within the selected bus model's
 allowed minimum and maximum. Battery-only and Joint can size each vehicle
@@ -206,4 +206,4 @@ records.
 
 > Reference versions: Frontend v1.4.4 · Backend v1.9.0
 >
-> Last updated: 2026-11-25
+> Last updated: 2026-11-26

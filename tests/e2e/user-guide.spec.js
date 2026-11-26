@@ -296,10 +296,10 @@ test("reference versions and the localized update date appear only in the guide 
   await expect(page.locator('header .guide-screenshot-note, .guide-hero .guide-screenshot-note, [data-guide-ui="screenshotNote"]')).toHaveCount(0);
 
   for (const [language, date] of Object.entries({
-    en: "25 November 2026",
-    de: "25. November 2026",
-    fr: "25 novembre 2026",
-    it: "25 novembre 2026",
+    en: "26 November 2026",
+    de: "26. November 2026",
+    fr: "26 novembre 2026",
+    it: "26 novembre 2026",
   })) {
     await page.locator("#guide-language").selectOption(language);
     await expect(footerMetadata.locator("dt")).toHaveText([
@@ -316,7 +316,7 @@ test("reference versions and the localized update date appear only in the guide 
   await page.emulateMedia({ media: "print" });
   await expect(page.locator(".guide-header")).toBeHidden();
   await expect(footerMetadata.getByText(versions, { exact: true })).toBeVisible();
-  await expect(footerMetadata.getByText("25 novembre 2026", { exact: true })).toBeVisible();
+  await expect(footerMetadata.getByText("26 novembre 2026", { exact: true })).toBeVisible();
 });
 
 
@@ -353,39 +353,34 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await page.goto("./guide/#use-cases");
     await page.locator("#guide-language").selectOption(language);
     const content = guideContent[language].sections[0];
-    const diagram = page.locator(".guide-flow");
+    const table = page.getByRole("table", { name: content.title, exact: true });
+    const steps = page.locator("#use-cases-workflow");
 
-    await expect(page.locator("#use-cases > h2")).toHaveText(content.title);
-    await expect(diagram.locator("figcaption h3")).toHaveText(content.diagram.title);
-    await expect(diagram.locator("figcaption p")).toHaveText(content.diagram.description);
-    await expect(diagram).toHaveAccessibleName(content.diagram.title);
-    await expect(diagram).toHaveAccessibleDescription(content.diagram.description);
-    for (const label of Object.values(content.diagram)) {
-      await expect(diagram).toContainText(label);
-    }
-    for (const item of content.items) {
-      await expect(page.locator(`#${item.id} > h3`)).toContainText(item.title);
-      await expect(page.locator(`#${item.id}`)).toContainText(item.scope);
-      await diagram.locator(`a[href="#${item.id}"]`).first().click();
-      await expect(page.locator(`#${item.id} > h3`)).toBeInViewport();
-      await expect(page).toHaveURL(new RegExp(`#${item.id}$`));
+    await expect(table.getByRole("columnheader")).toHaveText(content.columns);
+    await expect(table.getByRole("rowheader")).toHaveCount(3);
+    for (const [index, item] of content.items.entries()) {
+      const row = table.locator(`#${item.id}`);
+      await expect(row.getByRole("rowheader")).toHaveText(`${index + 1}. ${item.title}`);
+      await expect(row.getByRole("cell").first()).toHaveText(item.text);
+      await expect(row.locator("strong")).toHaveText(item.modeLabel);
       await page.locator(`#guide-nav a[href="#${item.id}"]`).click();
-      await expect(page.locator(`#${item.id} > h3`)).toBeInViewport();
+      await expect(page).toHaveURL(new RegExp(`#${item.id}$`));
+      await expect(row.getByRole("rowheader")).toBeInViewport();
     }
+    await expect(steps.getByRole("heading")).toHaveText(content.workflow.title);
+    await expect(steps).toContainText(content.workflow.service);
     const invalidLinks = await page.locator('#use-cases a[href^="#"]').evaluateAll((links) =>
-      links.filter((link) => !document.getElementById(link.hash.slice(1))).map((link) => link.hash)
+      links.filter(link => !document.getElementById(link.hash.slice(1))).map(link => link.hash)
     );
     expect(invalidLinks).toEqual([]);
-    await diagram.locator(".guide-flow-revise").click();
-    await expect(diagram.locator("h3")).toBeInViewport();
-    await diagram.locator('a[href="#yearly"]').click();
-    await expect(page.locator("#yearly > h2")).toBeInViewport();
-    await diagram.locator('a[href="#comparison"]').click();
-    await expect(page.locator("#comparison > h2")).toBeInViewport();
+    for (const link of content.workflow.links) {
+      await steps.getByRole("link", { name: link.label }).click();
+      await expect(page.locator(link.href).locator("h2,h3").first()).toBeInViewport();
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await page.reload();
     await expect(page.locator("#guide-language")).toHaveValue(language);
-    await expect(page.locator("#comparison > h2")).toBeInViewport();
+    await expect(page.locator("#yearly > h2")).toBeInViewport();
     await page.setViewportSize({ width: 320, height: 720 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   });
@@ -445,13 +440,14 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
   });
 }
 
-test("switching languages preserves the active use-case anchor and updates its diagram", async ({ page }) => {
+test("switching languages preserves the active use-case anchor and translates its question", async ({ page }) => {
   await page.goto("./guide/#use-case-charging");
   for (const language of ["de", "fr", "it", "en"]) {
     await page.locator("#guide-language").selectOption(language);
     await expect(page).toHaveURL(/#use-case-charging$/);
-    await expect(page.locator("#use-case-charging > h3")).toBeInViewport();
-    await expect(page.locator(".guide-flow-decision")).toHaveText(guideContent[language].sections[0].diagram.decision);
+    const question = page.locator("#use-case-charging th");
+    await expect(question).toBeInViewport();
+    await expect(question).toContainText(guideContent[language].sections[0].items[1].title);
     await expect(page.locator("html")).toHaveAttribute("lang", language);
   }
 });
