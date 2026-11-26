@@ -205,7 +205,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
   const expectedTerms = {
     en: {
       start: ["Home", "user guide", "CARTO", "latest available GTFS edition", "indicative"],
-      fleet: ["Details opens a read-only view", "Edit to complete missing fields in older custom stops", "position the map manually"],
+      fleet: ["Details opens a read-only view", "Edit to update the stop", "position the map manually"],
       shifts: ["Both fields are locked", "complete server-side list", "Duplicate saves a copy immediately", "dependent evaluation blocks deletion", "Space-time", "Map", "Dashed segments"],
       feasibility: ["one GTFS edition", "Duplicate", "compatible forecasts are unavailable"],
       results: ["recorded", "Configured SOC window", "initial physical-maximum reference", "expandable white cards"],
@@ -213,7 +213,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     },
     de: {
       start: ["Startseite", "Benutzerhandbuch", "CARTO", "neueste verfügbare GTFS-Ausgabe", "Orientierung"],
-      fleet: ["Details öffnet eine schreibgeschützte Ansicht", "fehlende Angaben älterer Haltestellen unter Bearbeiten", "tragen Sie Adresse und Stadt von Hand ein"],
+      fleet: ["Details öffnet eine schreibgeschützte Ansicht", "Bearbeiten, um die Haltestelle zu aktualisieren", "tragen Sie Adresse und Stadt von Hand ein"],
       shifts: ["Beide Felder sind gesperrt", "vollständige serverseitige Liste", "Duplizieren speichert sofort eine Kopie", "abhängige Bewertung das Löschen blockiert", "Weg-Zeit", "Karte", "Gestrichelte Abschnitte"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "unvollständig"],
       results: ["aufgezeichnete", "Konfiguriertes SOC-Fenster", "physischen Maximum", "aufklappbare weisse Karten"],
@@ -221,7 +221,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     },
     fr: {
       start: ["Accueil", "guide", "CARTO", "dernière édition GTFS disponible", "indicative"],
-      fleet: ["Détails ouvre une vue en lecture seule", "Modifier pour compléter les données manquantes des anciens arrêts", "placez le réticule manuellement"],
+      fleet: ["Détails ouvre une vue en lecture seule", "Modifier pour mettre à jour l’arrêt", "placez le réticule manuellement"],
       shifts: ["Ces champs sont verrouillés", "liste complète côté serveur", "Dupliquer enregistre immédiatement une copie", "évaluation dépendante bloque la suppression", "Espace-temps", "Carte", "Les pointillés"],
       feasibility: ["édition GTFS", "Dupliquer", "partiellement"],
       results: ["enregistrée", "Fenêtre SOC configurée", "maximum physique", "cartes blanches dépliables"],
@@ -229,7 +229,7 @@ test("every guide language covers the user-facing workflows added in 0.9.0 and 0
     },
     it: {
       start: ["Home", "guida utente", "CARTO", "ultima edizione GTFS disponibile", "indicativa"],
-      fleet: ["Dettagli apre una vista in sola lettura", "Modifica per completare i dati mancanti delle fermate storiche", "posizionare manualmente la mappa"],
+      fleet: ["Dettagli apre una vista in sola lettura", "Modifica per aggiornare la fermata", "posizionare manualmente la mappa"],
       shifts: ["I due campi rimangono bloccati", "elenco completo sul server", "Duplica salva subito una copia", "valutazione dipendente blocca l’eliminazione", "Spazio-tempo", "Mappa", "tratti tratteggiati"],
       feasibility: ["una sola edizione GTFS", "Duplica", "parzialmente"],
       results: ["registrata", "Intervallo SOC configurato", "massimo fisico", "schede bianche espandibili"],
@@ -386,7 +386,7 @@ test("Markdown chapters share the published guide baseline and document the thre
   assert.deepEqual([...shifts.matchAll(/^### \d\. (.+)$/gm)].map(match => match[1]), ['Set up the block','Compose the day','Review and save']);
   assert.match(shifts,/Undo last\s+change/);
   assert.match(shifts, /Duplicate\*\* saves a new copy directly to the list/);
-  assert.match(shifts, /while the programme contains activities/);
+  assert.match(shifts, /while the schedule contains activities/);
 
   const fleet = await readProjectFile("docs/user-guide/fleet-management.md");
   assert.match(fleet, /Details\*\* opens a read-only view/);

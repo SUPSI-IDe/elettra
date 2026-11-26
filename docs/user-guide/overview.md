@@ -7,7 +7,7 @@ For your first visit, see [Account and access](#account-and-access).
 
 1. Define the bus model, depots and any other custom stops. Build the vehicle blocks, then select the GTFS timetable, day and blocks to evaluate.
 2. Choose a feasibility mode. **Battery only** finds the smallest battery for the charging sites you specify. **Charging** finds where plugs are needed for a fixed battery. **Joint** sizes batteries and charging infrastructure together to minimize upfront investment. [Set up the optimization mode](feasibility-evaluation.md#3-optimization-mode).
-3. Run the evaluation and compare the Mean and Q95 designs, including pack count, planned charging and lowest SOC for the same block. If a design is infeasible, revise the inputs and run it again. If feasibility is not determined, wait for an active run to finish or check the reason if it stopped. Only verified feasible designs can proceed to yearly analysis and comparison. [Interpret Mean and Q95](simulation-results.md#compare-the-mean-and-q95-designs).
+3. Run the evaluation and compare the Mean and Q95 designs, including pack count, planned charging and lowest SOC for the same block. If a design is infeasible, revise the inputs and run it again. If the result is **Not determined**, open **General** to check the reported cause. Where a vehicle block is identified, open it and follow **How to resolve**. Only verified feasible designs can proceed to yearly analysis and comparison. [Interpret Mean and Q95](simulation-results.md#compare-the-mean-and-q95-designs).
 
 ## Operating guide
 
@@ -64,9 +64,6 @@ The selected GTFS timetable defines the scheduled trips used in the analysis.
   disclosure;
 - a yearly result preserves the provenance captured by its feasibility
   evaluation instead of silently following later vehicle-block changes.
-
-Historical analysis results that predate complete provenance may be labeled as
-derived from current vehicle-block data.
 
 ### Interpretation boundary
 

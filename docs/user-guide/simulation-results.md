@@ -39,11 +39,6 @@ If the requested result is pending, failed or unavailable, the selector keeps
 the current design and displays a message. The design shown still belongs to
 the active profile. Return to the evaluation list to check its status.
 
-Historical single-basis evaluations retain their original semantics. When an
-alternative design was never calculated, the interface may expose an explicit
-compatibility calculation rather than relabelling historical per-trip
-quantiles as Aggregate Q95.
-
 ---
 
 ## Start with General
@@ -83,7 +78,7 @@ A successful solver execution alone does not certify feasibility. Conversely,
 a block marked not evaluated because another block failed is not automatically
 infeasible.
 
-If the evaluation is running, wait for it to finish. If validation stopped and General lists vehicle-block outcomes, open the affected block for the reason and **How to resolve** guidance. For example, a block returns to its starting depot and you ask ELETTRA to verify the next day’s departure, but the only selected charging site is a terminus. Validation stops before battery sizing. If the operating plan includes charging at the depot, select the depot as a charging site and run a separately named evaluation.
+When a result is **Not determined**, check the reported cause in **General**. If a vehicle block is identified, open it and follow **How to resolve**. For example, a block returns to its starting depot and you ask ELETTRA to verify the next day’s departure, but the only selected charging site is a terminus. Validation stops before battery sizing. If the operating plan includes charging at the depot, select the depot as a charging site and run a separately named evaluation.
 
 An orange **paired feasibility verdict** means that one profile is feasible and
 the other is infeasible. Read the label to identify which design passed.
@@ -132,7 +127,7 @@ results and separate diagnostics: block summary,
 battery graphic, and **More information** with the saved operating conditions.
 Unavailable battery details keep an explicit placeholder in the same layout.
 The tooltip beside the outcome explains identified battery or charging constraints.
-The battery estimate and colour legend have their own tooltips; numeric limits
+The battery estimate and color legend have their own tooltips; numeric limits
 and missing packs remain visible without repeated explanatory paragraphs.
 General table headings explain estimated and missing packs in tooltips.
 Help is available by hover, keyboard focus, or tap; Escape closes it.
@@ -145,7 +140,7 @@ An unavailable Q95 consumption is shown as **N/A**, with a short tooltip
 explaining that the saved result does not contain it. Its kWh/km value remains
 an em dash, without a separate tooltip.
 
-A block without a battery shortfall in a relaxed diagnostic is labelled
+A block without a battery shortfall in a relaxed diagnostic is labeled
 accordingly, without asserting that its complete daily cycle is feasible.
 Diagnostic blocks do not display virtual SOC or charging plans as verified
 physical operation. Physical, feasible blocks retain their existing detail,
@@ -240,8 +235,7 @@ delay allowance, active and idle charging time, and average power.
 
 Available time is the stop duration after connection/disconnection and any
 terminal delay allowance; actual charging may use less time. With full-stop
-connection, these times describe the planned stop. Historical freely connected
-sessions may describe only the connected interval.
+connection, these times describe the planned stop.
 
 Battery-only evaluations can schedule charging within the fixed infrastructure.
 The plan may have no sessions or be partially unavailable. If a complete daily
@@ -268,8 +262,6 @@ values available without obscuring the primary verdict.
 ## GTFS and raw configuration data
 
 The compact GTFS disclosure shows the edition recorded at evaluation creation.
-For historical results without a complete snapshot, the interface explicitly
-labels provenance derived from current vehicle-block data.
 
 **View raw feasibility data** is always visible at the top right of the page,
 in place of the close icon, in both General and individual vehicle-block views.
@@ -301,8 +293,7 @@ pending or failed profiles are reported explicitly; the file may be partial.
 Download again to retry loading. An inconsistent calculation family produces an
 error instead of combining unrelated designs. Leaving the page cancels a pending
 download. A partial file is not proof of infeasibility, and diagnostic records do
-not establish a verified charging plan. Historical defaults and current catalogue
-price fallbacks remain labelled. Missing values remain missing, rather than zero.
+not establish a verified charging plan. Missing values remain missing, rather than zero.
 
 Original results and forecast records remain available for audit. Complete HVAC
 reproduction inputs require the separate HVAC download. Annual costs and emissions

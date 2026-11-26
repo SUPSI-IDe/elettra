@@ -24,10 +24,8 @@ a relative difference also requires a non-zero A.
 ## Compatibility summary
 
 The **Compatible** badge requires the same non-empty set of vehicle blocks
-and the same optimization mode. The comparison uses block IDs where available
-and can fall back to recorded block names for historical analyses. If one
-criterion differs but the analyses share a block, block count or mode, the
-page shows **Partially comparable**. Otherwise it shows **Not directly
+and the same optimization mode. If one criterion differs but the analyses share
+a block, block count or mode, the page shows **Partially comparable**. Otherwise it shows **Not directly
 comparable**. The badge is advisory and the metrics remain available when data
 exist.
 
@@ -98,7 +96,7 @@ Open the saved feasibility result, select **General**, and choose
 schema 1 export includes all
 vehicle blocks and available Mean/Q95 designs, with their technical evidence,
 configuration and investments. It reads existing calculations only. Check its
-availability warnings before interpreting partial or historical results.
+availability warnings before interpreting partial results.
 See [Feasibility Results](simulation-results.md#export-the-complete-evaluation)
 for the complete workflow and the distinction from yearly exports.
 

@@ -78,8 +78,7 @@ saved result:
   with an empty bus and no thermal-inertia model.
 
 It also reports trip and terminal HVAC energy, traceability data, and JSON
-downloads of the assumptions or complete reproduction inputs. Historical
-results retain their recorded legacy policy.
+downloads of the assumptions or complete reproduction inputs.
 
 ---
 
@@ -135,13 +134,11 @@ technical design and simulated block results retain their original inputs.
 For charging infrastructure maintenance, select either an editable percentage
 of charging investment per year or a fixed amount in CHF/year. The default
 percentage is **2%/year**, with the INFRAS 2026 reference range of **2–5%**.
-This is not a default of CHF 2/year. Historical analyses retain their saved
-method and values; a fixed amount of zero excludes infrastructure maintenance.
-Check the selected method and its units when reviewing an older analysis.
+A fixed amount of zero excludes infrastructure maintenance.
 
 The percentage applies to the full charging investment, including chargers,
 shared works and connection. Maintenance is counted once per fleet, excluding
-buses and batteries. The tooltip beside the reference explains this modelling
+buses and batteries. The tooltip beside the reference explains this modeling
 assumption.
 
 ### Emissions
@@ -182,16 +179,11 @@ range of 8,857–10,735 kWh/year.
 For each temperature scenario, ELETTRA draws sampled consumption independently
 for each trip, including trips across different blocks, and sums the trips in
 scope before taking the quantiles. Q50 is the median and Q05–Q95 is the central
-90% of the modelled consumption for that representative day. In kWh/km, the
+90% of the modeled consumption for that representative day. In kWh/km, the
 sampled total is divided by the corresponding distance. In kWh/year, the same
 scenario quantiles scale by the cluster’s day count. The weighted range applies
 to that scenario’s contribution. The annual total is presented as a point
 estimate, and scenarios without quantiles still show their point estimates.
-
-Historical analyses can use a legacy layout with Costs and Emissions on
-individual block tabs. Historical block cost reports can allocate shared
-infrastructure by annual DC energy. An older analysis with aggregate-only
-results may show only General.
 
 ---
 
@@ -204,15 +196,13 @@ recorded GTFS and weather references, and the saved scenario energy and
 distance, uncertainty and forecast identifiers where available. The separate
 HVAC download provides the complete HVAC reproduction inputs.
 
-For analyses with the current fleet investment snapshot, the file uses JSON
-schema 4 and includes fleet totals, representative groups and the effective
-economic assumptions. Simulated technical activity is kept separate from edited
-annual mileage. Environmental results identify their scope and availability;
-previous responses retained during an update are labelled separately. Use the
+The file uses JSON schema 4 and includes fleet totals, representative groups
+and the effective economic assumptions. Simulated technical activity is kept
+separate from edited annual mileage. Environmental results identify their scope and availability;
+previous responses retained during an update are labeled separately. Use the
 group’s fleet contribution to add group values to a fleet total and the
 representative-bus entry to read values per bus. Vehicle blocks point to their
-group for environmental results. Historical analyses without the investment
-snapshot retain schema 3.
+group for environmental results.
 
 The complete JSON always contains fleet totals and all representative groups,
 even when a single representative bus is selected. The separate download in

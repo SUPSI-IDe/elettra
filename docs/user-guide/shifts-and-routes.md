@@ -16,8 +16,8 @@ planner.
 Select the service day, GTFS timetable edition, starting depot and depot
 departure time. The newest available timetable is selected initially. Choose
 the day and edition before adding the first activity, since both are locked
-while the programme contains activities. Use service-day times in HH:MM.
-For example, enter 25:10 for 01:10 the next day. The programme displays this
+while the schedule contains activities. Use service-day times in HH:MM.
+For example, enter 25:10 for 01:10 the next day. The schedule displays this
 as 01:10 (+1).
 
 ### 2. Compose the day
@@ -28,7 +28,7 @@ the current terminus, including platforms grouped in the same GTFS station.
 Select **Include trips that require driving empty** to see departures from
 other stops. Recheck this filter after changing line or advancing to another
 terminus. Choose **Profile** to compare the route map, stop times and
-elevation profile when available. This preview leaves the programme unchanged.
+elevation profile when available. This preview leaves the schedule unchanged.
 A trip marked **Direct connection** can be added in one click. For a trip
 that requires a transfer, review the suggested times, adjust them as needed
 and select **Add activity**. Published GTFS times are fixed.
@@ -48,22 +48,22 @@ or saving.
 ### 3. Review and save
 
 Add at least one service trip and use **Plan return to depot** to end the
-programme at the starting depot. In the example above, the planned return is
+schedule at the starting depot. In the example above, the planned return is
 to Depot A. Check the return times and select **Add activity** to confirm.
 Check **Your working day**, resolve any conflicts, and enter the name and bus
 model in **Review & save**. Select **Save vehicle block**. The selected service
-day and GTFS edition are saved with the programme.
+day and GTFS edition are saved with the schedule.
 
 ---
 
 ## Edit a block
 
 On a block created in the sequential planner, choose **Edit** to reopen the
-saved programme. Edit a transfer, stay or return in place, choose **Insert
+saved schedule. Edit a transfer, stay or return in place, choose **Insert
 before** to add an activity before an existing one, or remove an activity.
 To add a trip after planning the return, insert it before the return and
 check the resulting connections. Use **Undo last change** to restore the
-preceding programme, then select **Update vehicle block**.
+preceding schedule, then select **Update vehicle block**.
 
 ---
 
@@ -88,7 +88,7 @@ The visualization offers two views:
   times. Dashed segments and their legend entry identify non-revenue movements.
   Vehicle blocks that serve more than one line use one diagram with shared
   axes. A single-line duty uses blue for all scheduled trips. In a multi-line
-  duty, each line has a consistent colour, identified in the legend; shared
+  duty, each line has a consistent color, identified in the legend; shared
   stops occupy one row and each branch retains its exclusive stops. Hover a
   trip or stop time to see its line. Route variants and terminal loops retain
   their actual stop sequence. Stop rows show the schematic order of stops.
@@ -110,14 +110,14 @@ It supports sorting, pagination, and these actions:
   matching blocks are not limited to the visible page.
 - Each row ends with **Visualize**, **Edit**, **Duplicate**, and **Delete** icons,
   with an action label available on hover and keyboard focus.
-- **Edit** reopens the saved programme for a block created in the sequential
+- **Edit** reopens the saved schedule for a block created in the sequential
   planner.
 - On a sequential block, **Duplicate** saves a new copy directly to the list
-  with the bus model, GTFS edition, service day and complete programme, including
+  with the bus model, GTFS edition, service day and complete schedule, including
   stays and transfers. The new name uses the first available suffix across all
   pages, such as `_copy`, `_copy_1` or `_copy_2`.
   Copying a copy uses the original name family. The suffix follows the interface
-  language. Use **Edit** on the copy to change its name or programme.
+  language. Use **Edit** on the copy to change its name or schedule.
 - The row **Delete** icon removes one block after confirmation. Select multiple
   checkboxes and use the top **Delete** button for a batch. A block referenced
   by a protected evaluation can remain in the list. Check the deletion message

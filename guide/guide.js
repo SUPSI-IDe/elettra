@@ -129,8 +129,8 @@ const renderModeInstructions = (modes, quickStart) => {
     const header = document.createElement("div");
     header.className = "guide-mode-header";
     header.append(createTextElement("h4", "", mode.modeLabel),
-      createSectionLink("use-cases-workflow", quickStart.title));
-    option.append(header);
+      createSectionLink("use-cases-workflow", quickStart.backToWorkflow));
+    option.append(header, createTextElement("h5", "guide-mode-steps", quickStart.stepsLabel));
     const instructions = document.createElement("ol");
     for (const step of mode.instructions) instructions.append(createTextElement("li", "", step));
     const guidance = document.createElement("dl");

@@ -46,7 +46,7 @@ const LANGUAGES = {
       shifts: ["GTFS", "complete server-side list", "Space-time", "Map", "Duplicate saves a copy immediately", "Use Edit on the saved copy", "Insert before", "Undo last change"],
       feasibility: ["one GTFS edition", "Duplicate", "1 plug", "N blocks", "150 × N"],
       results: ["Configured SOC window", "initial physical-maximum reference", "Export the complete feasibility evaluation", "Check export availability"],
-      yearly: ["recorded provenance", "complete fleet", "schema 4", "schema 3", "Check the save status before closing", "previous response", "Retry"],
+      yearly: ["recorded provenance", "complete fleet", "schema 4", "Check the save status before closing", "previous response", "Retry"],
     },
   },
   de: {
@@ -62,7 +62,7 @@ const LANGUAGES = {
       shifts: ["GTFS", "vollständige serverseitige Liste", "Weg-Zeit", "Karte", "Duplizieren speichert sofort eine Kopie", "Bearbeiten in der Zeile der Kopie", "Davor einfügen", "Letzte Änderung rückgängig machen"],
       feasibility: ["GTFS-Ausgabe", "Duplizieren", "1 Ladepunkt", "N Umläufe", "150 × N"],
       results: ["Konfiguriertes SOC-Fenster", "physischen Maximum", "Die vollständige Machbarkeitsbewertung exportieren", "Verfügbarkeit des Exports prüfen"],
-      yearly: ["aufgezeichnete Herkunft", "gesamte Flotte", "Schema 4", "Schema 3", "Speicherstatus vor dem Schliessen prüfen", "frühere Antwort", "Erneut versuchen"],
+      yearly: ["aufgezeichnete Herkunft", "gesamte Flotte", "Schema 4", "Speicherstatus vor dem Schliessen prüfen", "frühere Antwort", "Erneut versuchen"],
     },
   },
   fr: {
@@ -78,7 +78,7 @@ const LANGUAGES = {
       shifts: ["GTFS", "liste complète côté serveur", "Espace-temps", "Carte", "Dupliquer enregistre immédiatement une copie", "Modifier sur la copie enregistrée", "Insérer avant", "Annuler la dernière modification"],
       feasibility: ["édition GTFS", "Dupliquer", "1 prise", "N services", "150 × N"],
       results: ["Fenêtre SOC configurée", "maximum physique", "Exporter l’évaluation de faisabilité complète", "Vérifier la disponibilité de l’export"],
-      yearly: ["provenance enregistrée", "flotte complète", "schéma 4", "schéma 3", "Vérifier l’état de sauvegarde avant de fermer", "réponse précédente", "Réessayer"],
+      yearly: ["provenance enregistrée", "flotte complète", "schéma 4", "Vérifier l’état de sauvegarde avant de fermer", "réponse précédente", "Réessayer"],
     },
   },
   it: {
@@ -94,7 +94,7 @@ const LANGUAGES = {
       shifts: ["GTFS", "elenco completo sul server", "Spazio-tempo", "Mappa", "Duplica salva subito una copia", "Modifica sulla copia salvata", "Inserisci prima", "Annulla ultima modifica"],
       feasibility: ["una sola edizione GTFS", "Duplica", "1 presa", "N turni", "150 × N"],
       results: ["Intervallo SOC configurato", "massimo fisico", "Esportare la valutazione di fattibilità completa", "Verificare la disponibilità dell’esportazione"],
-      yearly: ["provenienza registrata", "flotta completa", "schema 4", "schema 3", "Controllare lo stato del salvataggio prima di chiudere", "risposte precedenti", "Riprova"],
+      yearly: ["provenienza registrata", "flotta completa", "schema 4", "Controllare lo stato del salvataggio prima di chiudere", "risposte precedenti", "Riprova"],
     },
   },
 };
@@ -472,6 +472,7 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
       await expect(page).toHaveURL(new RegExp(`#${item.id}$`));
       const mode = page.locator(`#feasibility li.guide-use-case#${item.id}`);
       await expect(mode.getByRole("heading", { level: 4, name: item.modeLabel, exact: true })).toBeInViewport();
+      await expect(mode.getByRole("heading", { level: 5, name: quickStart.stepsLabel, exact: true })).toBeVisible();
       await expect(mode.locator(":scope > ol > li")).toHaveText(item.instructions);
       const definitions = mode.locator(":scope > ol ~ dl");
       await expect(definitions.locator(":scope > dt, :scope > dd")).toHaveText([
@@ -480,7 +481,7 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
         quickStart.decisionLabel,
         item.decision,
       ]);
-      const workflowLink = mode.getByRole("link", { name: quickStart.title, exact: true });
+      const workflowLink = mode.getByRole("link", { name: quickStart.backToWorkflow, exact: true });
       await expect(workflowLink).toHaveAttribute("href", "#use-cases-workflow");
       await workflowLink.click();
       await expect(page).toHaveURL(/#use-cases-workflow$/);
@@ -509,7 +510,7 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await page.reload();
     await expect(languageSelector).toHaveValue(language);
     await expect(mobileHeading).toBeInViewport();
-    const mobileWorkflowLink = mobileMode.getByRole("link", { name: quickStart.title, exact: true });
+    const mobileWorkflowLink = mobileMode.getByRole("link", { name: quickStart.backToWorkflow, exact: true });
     await mobileWorkflowLink.focus();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/#use-cases-workflow$/);

@@ -39,7 +39,7 @@ allowed minimum and maximum. Battery-only and Joint can size each vehicle
 individually or use the same battery size for all selected blocks, depending on
 the battery-sizing option.
 
-For a **Battery only** purchase, compare the packs required for each block in the Mean and Q95 designs. You choose the bus model and manufacturer. Reported infrastructure costs use the modeling assumptions. Consult your accounts for actual past spending on installed chargers.
+For a **Battery only** purchase, compare the packs required for each block in the Mean and Q95 designs. You choose the bus model and manufacturer. Fleet TCO includes the modeled capital cost of every selected charging site with at least one plug, even if its chargers are already installed or unused. The estimate covers charging points, site infrastructure and the grid connection. Consult your accounts for actual past spending.
 
 For **Charging**, compare the selected plugs at each candidate site with your installed inventory to identify additions. The calculation considers only the sites you specify.
 
@@ -191,11 +191,7 @@ The form restores, where available:
 - forecast settings, depot options, and solver-related options.
 
 If original resources or compatible forecasts are unavailable, duplication is
-cancelled instead of submitting a partial copy. Historical copies created by
-older versions may still require manual review and recalculation.
-Historical battery assumptions are preserved, including SOH 100% and zero
-technical time where recorded or historically assumed; new-evaluation defaults
-do not overwrite them.
+canceled.
 
 The list also supports search, sorting, viewing results, and deletion. Analysis
 comparison is performed between saved yearly analyses, not between feasibility

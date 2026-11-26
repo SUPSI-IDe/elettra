@@ -610,6 +610,12 @@ a:hover {
   font-size: 0.85rem;
 }
 
+.guide-mode-steps {
+  margin: 0.4rem 0 0;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
 .guide-mode-guidance {
   margin: 0.75rem 0 0;
   padding-top: 0.6rem;
@@ -653,6 +659,7 @@ a:hover {
 }
 
 .guide-use-case ol {
+  margin: 0.2rem 0 0;
   padding-left: 1.4rem;
 }
 
