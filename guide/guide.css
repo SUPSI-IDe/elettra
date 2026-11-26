@@ -553,7 +553,7 @@ a:hover {
 
 .guide-flow-outcomes {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -596,6 +596,60 @@ a:hover {
 .guide-use-case h4 {
   margin: 0 0 0.3rem;
   color: var(--guide-brand-dark);
+}
+
+.guide-mode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.guide-mode-header a {
+  font-size: 0.85rem;
+}
+
+.guide-mode-guidance {
+  margin: 0.75rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--guide-border);
+}
+
+.guide-mode-guidance dt {
+  font-weight: 650;
+}
+
+.guide-mode-guidance dd {
+  margin: 0 0 0.5rem;
+}
+
+.guide-mode-guidance dd:last-child {
+  margin-bottom: 0;
+}
+
+.guide-comparison-table {
+  width: 100%;
+  margin: 0.8rem 0;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.guide-comparison-table caption {
+  padding-bottom: 0.35rem;
+  text-align: start;
+  font-weight: 650;
+}
+
+.guide-comparison-table th,
+.guide-comparison-table td {
+  padding: 0.4rem;
+  border-bottom: 1px solid var(--guide-border);
+  text-align: start;
+}
+
+.guide-comparison-table thead {
+  background: var(--guide-background);
 }
 
 .guide-use-case ol {
@@ -666,6 +720,7 @@ a:hover {
   }
 
   .guide-flow-outcomes {
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.65rem;
   }
 

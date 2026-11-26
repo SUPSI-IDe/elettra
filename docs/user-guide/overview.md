@@ -2,12 +2,12 @@
 
 ## Quick start
 
-To assess a line, select the vehicle blocks that cover it on the chosen service day.
+ELETTRA helps you check whether electric buses can cover a scheduled service and size the batteries and charging needed. To assess a line, select the vehicle blocks that cover it on the chosen service day.
 For your first visit, see [Account and access](#account-and-access).
 
 1. Define the bus model, depots and any other custom stops. Build the vehicle blocks, then select the GTFS timetable, day and blocks to evaluate.
-2. Choose a feasibility mode. **Battery only** finds the smallest battery for the charging sites you specify. **Charging** finds where plugs are needed for a fixed battery. **Joint** sizes batteries and charging infrastructure together to minimise upfront investment. [Set up the optimisation mode](feasibility-evaluation.md#3-optimization-mode).
-3. Run the evaluation and compare the Mean and Q95 designs, including pack count, planned charging and lowest SOC for the same block. A verified feasible design can proceed to yearly analysis and scenario comparison. [Interpret Mean and Q95](simulation-results.md#compare-the-mean-and-q95-designs).
+2. Choose a feasibility mode. **Battery only** finds the smallest battery for the charging sites you specify. **Charging** finds where plugs are needed for a fixed battery. **Joint** sizes batteries and charging infrastructure together to minimize upfront investment. [Set up the optimization mode](feasibility-evaluation.md#3-optimization-mode).
+3. Run the evaluation and compare the Mean and Q95 designs, including pack count, planned charging and lowest SOC for the same block. If a design is infeasible, revise the inputs and run it again. If feasibility is not determined, wait for an active run to finish or check the reason if it stopped. Only verified feasible designs can proceed to yearly analysis and comparison. [Interpret Mean and Q95](simulation-results.md#compare-the-mean-and-q95-designs).
 
 ## Operating guide
 
@@ -65,7 +65,7 @@ GTFS is part of the analysis boundary, not just a trip-search input:
 - a yearly result preserves the provenance captured by its feasibility
   evaluation instead of silently following later vehicle-block changes.
 
-Historical records that predate complete provenance may be labelled as derived
+Historical records that predate complete provenance may be labeled as derived
 from current vehicle-block data. Vehicle blocks that mix historical editions
 are excluded from new evaluations.
 
@@ -84,7 +84,7 @@ Confirm procurement, depot, charger, civil-work and grid-connection decisions th
 Open `/docs` at the root of the ELETTRA server to browse endpoints, request
 parameters and responses in Swagger UI. The same server publishes the
 machine-readable schema at `/openapi.json`. Both documents are public.
-Protected API operations require an authorised account.
+Protected API operations require an authorized account.
 
 [Public ELETTRA Swagger UI](https://elettra.supsi.ch/docs) ·
 [OpenAPI schema](https://elettra.supsi.ch/openapi.json)

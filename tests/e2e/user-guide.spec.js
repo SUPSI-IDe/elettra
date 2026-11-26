@@ -360,9 +360,11 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     const quickStart = sections[0];
     const quickStartSection = page.locator("#use-cases");
     const diagram = quickStartSection.locator("figure#use-cases-workflow");
+    const diagramHeading = diagram.getByRole("heading", { name: quickStart.diagram.title, exact: true });
     const preparation = diagram.locator("ol.guide-flow-preparation");
     const branches = diagram.locator(".guide-flow-branches");
     const outcomes = diagram.locator(".guide-flow-outcomes");
+    const outcomeColumns = outcomes.locator(":scope > .guide-flow-outcome");
     const registration = quickStartSection.getByRole("link", { name: quickStart.firstAccess, exact: true });
 
     const navigation = page.locator("#guide-nav");
@@ -403,8 +405,33 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await expect(diagram.locator(
       "ol.guide-flow-preparation ~ .guide-flow-branches ~ .guide-flow-run ~ .guide-flow-decision ~ .guide-flow-outcomes",
     )).toHaveCount(1);
-    for (const label of [quickStart.diagram.no, quickStart.diagram.yes, quickStart.diagram.impacts]) {
-      await expect(outcomes.getByText(label, { exact: true })).toBeVisible();
+    const outcomePaths = [
+      [quickStart.diagram.no, [["feasibility", quickStart.diagram.revise, "h2"]]],
+      [quickStart.diagram.unknown, [["resolve-feasibility", quickStart.diagram.resolve, "h3"]]],
+      [quickStart.diagram.yes, [
+        ["yearly", quickStart.diagram.yearly, "h2"],
+        ["comparison", quickStart.diagram.compare, "h2"],
+      ]],
+    ];
+    await expect(outcomeColumns).toHaveCount(outcomePaths.length);
+    await expect(outcomeColumns.nth(1).getByText(quickStart.diagram.unknownHint, { exact: true })).toBeVisible();
+    await expect(outcomeColumns.last().getByText(quickStart.diagram.impacts, { exact: true })).toBeVisible();
+    if (page.viewportSize().width > 600) {
+      const [no, unknown, yes] = await outcomeColumns.evaluateAll(elements =>
+        elements.map(element => element.getBoundingClientRect().toJSON())
+      );
+      expect(no.y).toBe(unknown.y);
+      expect(unknown.y).toBe(yes.y);
+      expect(no.right).toBeLessThan(unknown.left);
+      expect(unknown.right).toBeLessThan(yes.left);
+      expect(Math.abs(no.width - yes.width)).toBeLessThan(1);
+      expect(Math.abs(unknown.width - yes.width)).toBeLessThan(1);
+    }
+    const outcomeDestinations = [];
+    for (const [index, [label, destinations]] of outcomePaths.entries()) {
+      const outcome = outcomeColumns.nth(index);
+      await expect(outcome.getByText(label, { exact: true })).toBeVisible();
+      outcomeDestinations.push([outcome.getByRole("link"), destinations]);
     }
     for (const [links, destinations] of [
       [preparation.getByRole("link"), [
@@ -415,11 +442,7 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
       [diagram.locator("a.guide-flow-run"), [
         ["run-evaluation", quickStart.diagram.run, "h3"],
       ]],
-      [outcomes.getByRole("link"), [
-        ["resolve-feasibility", quickStart.diagram.revise, "h3"],
-        ["yearly", quickStart.diagram.yearly, "h2"],
-        ["comparison", quickStart.diagram.compare, "h2"],
-      ]],
+      ...outcomeDestinations,
     ]) {
       await expect(links).toHaveCount(destinations.length);
       for (const [index, [id, label, heading]] of destinations.entries()) {
@@ -433,7 +456,7 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     }
     const branchLinks = branches.getByRole("link");
     await expect(branchLinks).toHaveCount(3);
-    const invalidLinks = await quickStartSection.locator('a[href^="#"]').evaluateAll(links =>
+    const invalidLinks = await page.locator('#guide-sections a[href^="#"]').evaluateAll(links =>
       links.filter(link => !document.getElementById(link.hash.slice(1))).map(link => link.hash)
     );
     expect(invalidLinks).toEqual([]);
@@ -449,22 +472,84 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
       await expect(page).toHaveURL(new RegExp(`#${item.id}$`));
       const mode = page.locator(`#feasibility li.guide-use-case#${item.id}`);
       await expect(mode.getByRole("heading", { level: 4, name: item.modeLabel, exact: true })).toBeInViewport();
-      await expect(mode.locator("ol > li")).toHaveText(item.instructions);
+      await expect(mode.locator(":scope > ol > li")).toHaveText(item.instructions);
+      const definitions = mode.locator(":scope > ol ~ dl");
+      await expect(definitions.locator(":scope > dt, :scope > dd")).toHaveText([
+        quickStart.scopeLabel,
+        item.scope,
+        quickStart.decisionLabel,
+        item.decision,
+      ]);
+      const workflowLink = mode.getByRole("link", { name: quickStart.title, exact: true });
+      await expect(workflowLink).toHaveAttribute("href", "#use-cases-workflow");
+      await workflowLink.click();
+      await expect(page).toHaveURL(/#use-cases-workflow$/);
+      await expect(diagramHeading).toBeInViewport();
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await page.setViewportSize({ width: 320, height: 720 });
     await page.goto("./guide/#use-cases");
+    await expect(outcomeColumns).toHaveCount(outcomePaths.length);
+    const [no, unknown, yes] = await outcomeColumns.evaluateAll(elements =>
+      elements.map(element => element.getBoundingClientRect().toJSON())
+    );
+    expect(no.x).toBe(unknown.x);
+    expect(unknown.x).toBe(yes.x);
+    expect(no.bottom).toBeLessThan(unknown.top);
+    expect(unknown.bottom).toBeLessThan(yes.top);
     const mobileLink = branchLinks.first();
     const mobileCase = quickStart.items[0];
     await mobileLink.focus();
     await expect(mobileLink).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(new RegExp(`#${mobileCase.id}$`));
-    const mobileHeading = page.locator(`#feasibility #${mobileCase.id} > h4`);
+    const mobileMode = page.locator(`#feasibility #${mobileCase.id}`);
+    const mobileHeading = mobileMode.getByRole("heading", { level: 4, name: mobileCase.modeLabel, exact: true });
     await expect(mobileHeading).toBeInViewport();
     await page.reload();
     await expect(languageSelector).toHaveValue(language);
     await expect(mobileHeading).toBeInViewport();
+    const mobileWorkflowLink = mobileMode.getByRole("link", { name: quickStart.title, exact: true });
+    await mobileWorkflowLink.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/#use-cases-workflow$/);
+    await expect(diagramHeading).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  });
+
+  test(`the SOH table and demand and SOC paragraphs are readable in ${language} at 320 px`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.goto("./guide/#feasibility");
+    await page.locator("#guide-language").selectOption(language);
+    const sections = Object.fromEntries(guideContent[language].sections.map(section => [section.id, section]));
+    const battery = sections.feasibility.items.find(({ table }) => table);
+    const example = battery.table;
+    const batteryItem = page.locator("#feasibility .guide-item").filter({
+      has: page.getByRole("heading", { level: 3, name: battery.title, exact: true }),
+    });
+    const table = batteryItem.getByRole("table", { name: example.caption, exact: true });
+    await expect(table.locator("caption")).toHaveText(example.caption);
+    await expect(table.getByRole("columnheader")).toHaveText(example.columns);
+    await expect(batteryItem.locator(":scope > p + table")).toHaveCount(1);
+    await expect(batteryItem.locator(":scope > h3 + p")).toHaveText(battery.text);
+    await expect(batteryItem.locator(":scope > table ~ p")).toHaveText(battery.paragraphs);
+    const bodyRows = table.locator("tbody > tr");
+    await expect(bodyRows).toHaveCount(example.rows.length);
+    for (const [index, expectedRow] of example.rows.entries()) {
+      const row = bodyRows.nth(index);
+      await expect(row.getByRole("rowheader")).toHaveText(expectedRow[0]);
+      await expect(row.getByRole("cell")).toHaveText(expectedRow.slice(1));
+    }
+    const lastCell = bodyRows.last().getByRole("cell").last();
+    await lastCell.scrollIntoViewIfNeeded();
+    await expect(lastCell).toBeInViewport();
+
+    const demand = sections.results.items.find(({ id }) => id === "demand-soc");
+    const demandItem = page.locator("#results #demand-soc");
+    await page.goto("./guide/#demand-soc");
+    await expect(demandItem.getByRole("heading", { level: 3, name: demand.title, exact: true })).toBeInViewport();
+    await expect(demandItem.locator(":scope > p")).toHaveText([demand.text, ...demand.paragraphs]);
+    await expect(page.locator("#use-cases").getByRole("table")).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   });
 
@@ -528,7 +613,7 @@ test("switching languages preserves the active use-case anchor and translates it
   for (const language of ["de", "fr", "it", "en"]) {
     await page.locator("#guide-language").selectOption(language);
     await expect(page).toHaveURL(/#use-case-charging$/);
-    const mode = page.locator("#feasibility #use-case-charging > h4");
+    const mode = page.locator("#feasibility #use-case-charging").getByRole("heading", { level: 4 });
     await expect(mode).toBeInViewport();
     await expect(mode).toHaveText(guideContent[language].sections[0].items[1].modeLabel);
     await expect(page.locator("html")).toHaveAttribute("lang", language);

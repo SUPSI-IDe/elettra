@@ -83,10 +83,7 @@ A successful solver execution alone does not certify feasibility. Conversely,
 a block marked not evaluated because another block failed is not automatically
 infeasible.
 
-When a calculation is not determined, General lists the outcome of every
-selected block. The block view identifies the reason, any blocking vehicle
-block, and translated **How to resolve** guidance. Correct the indicated source
-data or configuration and run a separately named evaluation.
+If the evaluation is running, wait for it to finish. If validation stopped and General lists vehicle-block outcomes, open the affected block for the reason and **How to resolve** guidance. For example, a block returns to its starting depot and you ask ELETTRA to verify the next day’s departure, but the only selected charging site is a terminus. Validation stops before battery sizing. If the operating plan includes charging at the depot, select the depot as a charging site and run a separately named evaluation.
 
 An orange **paired feasibility verdict** means that one profile is feasible and
 the other is infeasible. Read the label to identify which design passed.

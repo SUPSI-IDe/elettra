@@ -101,19 +101,24 @@ const renderWorkflowDiagram = (section) => {
   const revision = document.createElement("div");
   revision.className = "guide-flow-outcome";
   revision.append(createTextElement("strong", "", diagram.no), flowArrow(),
-    createSectionLink("resolve-feasibility", diagram.revise, "guide-flow-node guide-flow-revise"));
+    createSectionLink("feasibility", diagram.revise, "guide-flow-node guide-flow-revise"));
+  const unresolved = document.createElement("div");
+  unresolved.className = "guide-flow-outcome";
+  unresolved.append(createTextElement("strong", "", diagram.unknown), flowArrow(),
+    createSectionLink("resolve-feasibility", diagram.resolve, "guide-flow-node"),
+    createTextElement("p", "guide-flow-impacts", diagram.unknownHint));
   const feasible = document.createElement("div");
   feasible.className = "guide-flow-outcome";
   feasible.append(createTextElement("strong", "", diagram.yes), flowArrow(),
     createSectionLink("yearly", diagram.yearly, "guide-flow-node"),
     createTextElement("p", "guide-flow-impacts", diagram.impacts), flowArrow(),
     createSectionLink("comparison", diagram.compare, "guide-flow-node"));
-  outcomes.append(revision, feasible);
+  outcomes.append(revision, unresolved, feasible);
   figure.append(outcomes);
   return figure;
 };
 
-const renderModeInstructions = (modes) => {
+const renderModeInstructions = (modes, quickStart) => {
   const options = document.createElement("ul");
   options.className = "guide-mode-options";
   modes.forEach((mode, index) => {
@@ -121,10 +126,18 @@ const renderModeInstructions = (modes) => {
     option.className = "guide-use-case guide-use-case-tone";
     option.dataset.case = String(index + 1);
     option.id = mode.id;
-    option.append(createTextElement("h4", "", mode.modeLabel));
+    const header = document.createElement("div");
+    header.className = "guide-mode-header";
+    header.append(createTextElement("h4", "", mode.modeLabel),
+      createSectionLink("use-cases-workflow", quickStart.title));
+    option.append(header);
     const instructions = document.createElement("ol");
     for (const step of mode.instructions) instructions.append(createTextElement("li", "", step));
-    option.append(instructions);
+    const guidance = document.createElement("dl");
+    guidance.className = "guide-mode-guidance";
+    guidance.append(createTextElement("dt", "", quickStart.scopeLabel), createTextElement("dd", "", mode.scope),
+      createTextElement("dt", "", quickStart.decisionLabel), createTextElement("dd", "", mode.decision));
+    option.append(instructions, guidance);
     options.append(option);
   });
   return options;
@@ -164,7 +177,28 @@ const renderFigures = (figures, ui) => {
   return gallery;
 };
 
-const renderSection = (section, ui) => {
+const renderComparisonTable = ({ caption, columns, rows }) => {
+  const table = document.createElement("table");
+  table.className = "guide-comparison-table";
+  table.createCaption().textContent = caption;
+  const headings = table.createTHead().insertRow();
+  for (const label of columns) {
+    const th = createTextElement("th", "", label);
+    th.scope = "col";
+    headings.append(th);
+  }
+  const body = table.createTBody();
+  for (const [label, ...values] of rows) {
+    const row = body.insertRow();
+    const th = createTextElement("th", "", label);
+    th.scope = "row";
+    row.append(th);
+    for (const value of values) row.insertCell().textContent = value;
+  }
+  return table;
+};
+
+const renderSection = (section, ui, quickStart) => {
   const wrapper = document.createElement("section");
   wrapper.className = "guide-section";
   wrapper.id = section.id;
@@ -199,7 +233,9 @@ const renderSection = (section, ui) => {
     if (item.id) entry.id = item.id;
     entry.append(createTextElement("h3", "", item.title));
     if (item.text) entry.append(createTextElement("p", "", item.text));
-    if (item.modes) entry.append(renderModeInstructions(item.modes));
+    if (item.table) entry.append(renderComparisonTable(item.table));
+    for (const paragraph of item.paragraphs ?? []) entry.append(createTextElement("p", "", paragraph));
+    if (item.modes) entry.append(renderModeInstructions(item.modes, quickStart));
     if (item.links?.length) {
       const links = document.createElement("p");
       links.className = "guide-item-links";
@@ -270,10 +306,11 @@ const renderGuide = (language) => {
 
   const sectionsRoot = document.querySelector("#guide-sections");
   const chapters = document.createDocumentFragment();
+  const quickStart = content.sections.find(section => section.id === "use-cases");
   for (const section of content.sections) {
     const group = sectionGroupLabel(section.id, content.ui);
     if (group) chapters.append(createTextElement("p", "guide-chapter-group", group));
-    chapters.append(renderSection(section, content.ui));
+    chapters.append(renderSection(section, content.ui, quickStart));
   }
   sectionsRoot.replaceChildren(chapters);
 

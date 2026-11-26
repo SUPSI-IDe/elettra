@@ -31,17 +31,20 @@ model whenever you change the block selection.
 
 | Planning question | What you provide | Mode | What ELETTRA determines |
 |---|---|---|---|
-| I know where to charge. What is the smallest battery that can cover the selected vehicle blocks? | The bus model and existing or planned charging sites, with fixed plug counts and power per plug | **Battery only** (`battery_only`) | The minimum number of battery packs and when to charge |
-| I have chosen the bus and battery. Where should I charge? | The bus model, fixed battery pack count, candidate sites, maximum plug counts, and fixed power per plug | **Charging** (`charging_only`) | Which sites to use, how many plugs to install at each, and when to charge |
-| Which combination minimizes the upfront investment in batteries and charging plugs? | The bus model, candidate sites, plug limits, power per plug, and battery and charging costs | **Joint** (`joint`) | The battery pack counts, charging sites and plug counts that minimize upfront investment, plus when to charge |
+| I know where to charge. What is the smallest battery that can cover the selected vehicle blocks? | The bus model and existing or planned charging sites, with fixed plug counts and power per plug | **Battery only** | The minimum number of battery packs and when to charge |
+| I have chosen the bus and battery. Where should I charge? | The bus model, fixed battery pack count, candidate sites, maximum plug counts, and fixed power per plug | **Charging** | Which sites to use, how many plugs to install at each, and when to charge |
+| Which combination minimizes the upfront investment in batteries and charging plugs? | The bus model, candidate sites, plug limits, power per plug, and battery and charging costs | **Joint** | The battery pack counts, charging sites and plug counts that minimize upfront investment, plus when to charge |
 
 Charging mode requires a fixed pack count within the selected bus model's
 allowed minimum and maximum. Battery-only and Joint can size each vehicle
 individually or use the same battery size for all selected blocks, depending on
 the battery-sizing option.
 
-The optimizer does not discover unconstrained geographic sites or choose a
-commercial vehicle. It works only with the supplied candidates and limits.
+For a **Battery only** purchase, compare the packs required for each block in the Mean and Q95 designs. You choose the bus model and manufacturer. Reported infrastructure costs use the modeling assumptions. Consult your accounts for actual past spending on installed chargers.
+
+For **Charging**, compare the selected plugs at each candidate site with your installed inventory to identify additions. The calculation considers only the sites you specify.
+
+For **Joint**, record the packs and chargers together. Carry that verified design into yearly analysis and compare total cost with diesel on the same service. Detailed depot layout and grid connection require a separate engineering study.
 
 ### 4. Operating assumptions
 
