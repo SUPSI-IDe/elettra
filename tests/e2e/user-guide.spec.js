@@ -508,7 +508,7 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await expect(yearly.locator(":scope > ol.guide-item-list ~ h3 + ul.guide-item-list")).toHaveCount(3);
     const groupStarts = ["yearly-energy-costs", "yearly-economic-assumptions", "yearly-manage"];
     const groupTitles = groupStarts.map(id => chapter.items.find(item => item.id === id).groupTitle);
-    await expect(yearly.locator(":scope > h3:has(+ ul.guide-item-list)")).toHaveText(groupTitles);
+    await expect(yearly.locator(":scope > h3.guide-item-group-title")).toHaveText(groupTitles);
     for (const [index, id] of groupStarts.entries()) {
       const group = groups.nth(index);
       await expect(group).toHaveAttribute("data-ordered", "false");
