@@ -56,17 +56,17 @@ test("the public guide contains the expected accessible shell", async () => {
 test("all supported guide languages expose the same complete section structure", () => {
   const expectedIds = [
     "use-cases",
-    "start",
-    "workflow",
     "fleet",
     "shifts",
     "feasibility",
     "results",
     "yearly",
     "comparison",
+    "start",
     "practice",
+    "api",
   ];
-  const expectedFigureCounts = [0, 1, 0, 2, 3, 1, 3, 3, 1, 0];
+  const expectedFigureCounts = [0, 2, 3, 1, 3, 3, 1, 1, 0, 0];
 
   assert.deepEqual(Object.keys(guideContent).sort(), [...SUPPORTED_GUIDE_LANGUAGES].sort());
 
@@ -81,19 +81,23 @@ test("all supported guide languages expose the same complete section structure",
     );
     assert.ok(content.ui.title);
     assert.ok(content.ui.introduction);
-    assert.ok(content.sections.every(({ title, intro, items }) =>
-      title && intro && items.length >= 3 && items.every(({ title: itemTitle, text }) => itemTitle && text)
-    ));
+    for (const section of content.sections) {
+      assert.ok(section.title?.trim(), `${language}.${section.id} should have a title`);
+      if (section.id !== "api") assert.ok(section.intro?.trim());
+      if (section.id === "use-cases") continue;
+      assert.ok(section.items.length, `${language}.${section.id} should have content`);
+      assert.ok(section.items.every(({ title, text, modes }) => title?.trim() && (text?.trim() || modes?.length)));
+    }
+
+    const sections = Object.fromEntries(content.sections.map(section => [section.id, section]));
+    assert.ok(sections.start.items.some(({ id }) => id === "registration"));
+    assert.ok(sections.results.items.some(({ id }) => id === "mean-q95"));
+    const api = sections.api.items.find(({ id }) => id === "api-docs");
+    assert.deepEqual(api?.links.map(({ href }) => new URL(href).pathname), ["/docs", "/openapi.json"]);
   }
 });
 
-test("use cases have complete translations, stable modes and valid documentation links", () => {
-  const failureGuidanceTerms = {
-    en: ["not completed", "correction guidance"],
-    de: ["nicht abgeschlossen", "Korrekturhinweisen"],
-    fr: ["n’est pas terminée", "conseils de correction"],
-    it: ["non viene completata", "suggerimenti correttivi"],
-  };
+test("Quick Start has localized workflow text and instructions for the three stable feasibility modes", () => {
   const shape = (value) => {
     if (Array.isArray(value)) return value.map(shape);
     if (typeof value === "object") {
@@ -108,24 +112,25 @@ test("use cases have complete translations, stable modes and valid documentation
   for (const language of SUPPORTED_GUIDE_LANGUAGES) {
     const { sections } = guideContent[language];
     const useCases = sections[0];
+    const feasibility = sections.find(({ id }) => id === "feasibility");
     assert.deepEqual(shape(useCases), shape(reference), language);
+    assert.equal(typeof useCases.firstAccess, "string");
+    assert.equal(useCases.columns, undefined);
+    assert.equal(useCases.workflow, undefined);
     assert.deepEqual(useCases.items.map(({ id, mode }) => ({ id, mode })), [
       { id: "use-case-fleet", mode: "BATTERY_ONLY" },
       { id: "use-case-charging", mode: "CHARGING" },
       { id: "use-case-initial", mode: "JOINT" },
     ]);
-    const serializedUseCases = JSON.stringify(useCases);
-    for (const term of failureGuidanceTerms[language]) {
-      assert.ok(serializedUseCases.includes(term), `${language} use cases are missing ${term}`);
-    }
     const modeKeys = ["mode_battery_only", "mode_charging", "mode_joint"];
     assert.deepEqual(useCases.items.map(item => item.modeLabel),
       modeKeys.map(key => translations[language][`simulation.${key}`]));
-    assert.equal(useCases.columns.length, 3);
-    assert.ok(useCases.items.every(item => item.title.trim().endsWith("?")));
-    const ids = new Set(sections.flatMap(section => [section.id, ...section.items.map(item => item.id)]));
-    assert.deepEqual(useCases.workflow.links.map(link => link.href), ["#feasibility", "#mean-q95", "#yearly"]);
-    assert.ok(useCases.workflow.links.every(link => ids.has(link.href.slice(1))));
+    assert.deepEqual(feasibility.items.filter(({ modes }) => modes).map(({ modes }) => modes), [useCases.items]);
+    for (const item of useCases.items) {
+      assert.ok(item.title.trim().endsWith("?"), `${language}.${item.id} should retain the planning question`);
+      assert.ok(item.instructions.length >= 2, `${language}.${item.id} should explain the mode in steps`);
+      assert.ok(item.instructions.every(step => typeof step === "string" && step.trim()));
+    }
   }
 });
 

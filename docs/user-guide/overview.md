@@ -1,16 +1,39 @@
-# User Guide: Overview
+# ELETTRA user guide
 
-ELETTRA supports preliminary planning for battery-electric bus services. It
-connects fleet and timetable data to a technical feasibility gate, then uses a
-verified design for yearly energy, cost, and environmental assessment.
+## Quick start
 
-The result is decision support, not an operational certificate. Procurement,
-depot, charger, civil-work, and grid-connection decisions still require the
-corresponding engineering studies.
+To assess a line, select the vehicle blocks that cover it on the chosen service day.
+For your first visit, see [Account and access](#account-and-access).
 
----
+1. Define the bus model, depots and any other custom stops. Build the vehicle blocks, then select the GTFS timetable, day and blocks to evaluate.
+2. Choose a feasibility mode. **Battery only** finds the smallest battery for the charging sites you specify. **Charging** finds where plugs are needed for a fixed battery. **Joint** sizes batteries and charging infrastructure together to minimise upfront investment. [Set up the optimisation mode](feasibility-evaluation.md#3-optimization-mode).
+3. Run the evaluation and compare the Mean and Q95 designs, including pack count, planned charging and lowest SOC for the same block. A verified feasible design can proceed to yearly analysis and scenario comparison. [Interpret Mean and Q95](simulation-results.md#compare-the-mean-and-q95-designs).
 
-## Application layout
+## Operating guide
+
+1. [Bus models and custom stops](fleet-management.md)
+2. [Building a vehicle block](shifts-and-routes.md)
+3. [Feasibility evaluation](feasibility-evaluation.md)
+4. [Interpreting feasibility results](simulation-results.md)
+5. [Yearly analysis](yearly-analysis.md)
+6. [Comparing and exporting analyses](comparison-and-export.md)
+
+## Reference
+
+### Account and access
+
+To create an account, select your operator from the suggestions during registration.
+After signing in, open Home to reach your fleet and analyses.
+
+The interface and online guide are available in English, German, French, and
+Italian. The globe menu uses the language codes EN, DE, FR and IT. The browser
+remembers the selected language. Stop and depot names retain their local names.
+
+The landing page, sign-in, registration, About page, and online user guide are
+public. Fleet data and analyses require an authenticated account. Data exposed
+in the workspace is scoped by the authenticated backend context.
+
+### Application layout
 
 After sign-in, **Home** links directly to the six working sections. The same
 sections remain available in the sidebar:
@@ -30,72 +53,7 @@ guide** to open its instructions in a new tab.
 The public user guide is linked from the landing page, Home, and the bottom of
 the authenticated sidebar. It opens in a separate tab.
 
----
-
-## Recommended workflow
-
-```text
-Bus model and locations
-        ↓
-Vehicle blocks with recorded GTFS edition
-        ↓
-Feasibility evaluation (Mean and Q95 designs)
-        ↓
-Verified feasible design
-        ↓
-Yearly fleet assessment and vehicle-block efficiency
-        ↓
-Comparison and export
-```
-
-1. Open **Fleet → Buses** and select **Add Bus Model**. Enter the actual
-   vehicle length and use operator or manufacturer data when available.
-2. Add the custom depots, charging locations, or hubs required by the service.
-3. Build each vehicle block from one selected GTFS timetable edition, including
-   its start, return, and auxiliary movements.
-4. Create a feasibility evaluation. Select the GTFS edition and service day,
-   then select compatible vehicle blocks. Choose the optimization mode and
-   operating assumptions.
-5. In **General**, switch between **Mean** and **Q95** and open the same block
-   in each design. Compare the pack count, planned charging and lowest SOC.
-   A completed calculation can still be physically infeasible.
-   [Read how to interpret Mean and Q95](simulation-results.md#compare-the-mean-and-q95-designs).
-6. Create a yearly analysis from a feasible evaluation eligible for yearly
-   analysis with a recorded battery-pack count. The battery and charging design
-   selected in feasibility carry through to the annual calculation.
-7. Compare saved yearly analyses whose service scope and assumptions are
-   sufficiently consistent.
-
-See the detailed chapters:
-
-- [Fleet Management](fleet-management.md)
-- [Vehicle Blocks and Routes](shifts-and-routes.md)
-- [Feasibility Evaluation](feasibility-evaluation.md)
-- [Feasibility Results](simulation-results.md)
-- [Yearly Analysis](yearly-analysis.md)
-- [Comparison and Export](comparison-and-export.md)
-
----
-
-## Planning use cases
-
-| Planning question | What you provide | Mode | What ELETTRA determines |
-|---|---|---|---|
-| I know where to charge. What is the smallest battery that can cover the selected vehicle blocks? | The bus model and existing or planned charging sites, with fixed plug counts and power per plug | **Battery only** (`battery_only`) | The minimum number of battery packs and when to charge |
-| I have chosen the bus and battery. Where should I charge? | The bus model, fixed battery pack count, candidate sites, maximum plug counts, and fixed power per plug | **Charging** (`charging_only`) | Which sites to use, how many plugs to install at each, and when to charge |
-| Which combination minimizes the upfront investment in batteries and charging plugs? | The bus model, candidate sites, plug limits, power per plug, and battery and charging costs | **Joint** (`joint`) | The battery pack counts, charging sites and plug counts that minimize upfront investment, plus when to charge |
-
-To assess a line, select the vehicle blocks that cover it on the chosen service day.
-Follow the recommended workflow above to compare the Mean and Q95 designs and
-then assess the total annual cost of a verified design.
-
-The modes optimize only within the bus models, charging candidates, costs, and
-constraints supplied by the user. They do not select a manufacturer, design a
-complete depot, or assess the grid connection.
-
----
-
-## GTFS provenance
+### GTFS edition and provenance
 
 GTFS is part of the analysis boundary, not just a trip-search input:
 
@@ -111,21 +69,17 @@ Historical records that predate complete provenance may be labelled as derived
 from current vehicle-block data. Vehicle blocks that mix historical editions
 are excluded from new evaluations.
 
----
+### Interpretation boundary
 
-## Languages and access
+A result is conditional on the selected service, timetable edition, vehicle,
+weather, occupancy, heating, battery, state-of-charge, charging, economic, and
+environmental assumptions. Record important sources and dates outside ELETTRA,
+compare like with like, and treat missing or partial data as a limitation rather
+than as zero impact.
 
-The interface and online guide are available in English, German, French, and
-Italian. The globe menu uses the language codes EN, DE, FR and IT. The browser
-remembers the selected language. Stop and depot names retain their local names.
+Confirm procurement, depot, charger, civil-work and grid-connection decisions through the corresponding engineering studies.
 
-The landing page, sign-in, registration, About page, and online user guide are
-public. Fleet data and analyses require an authenticated account. Data exposed
-in the workspace is scoped by the authenticated backend context.
-
----
-
-## Public API documentation
+### Public API documentation
 
 Open `/docs` at the root of the ELETTRA server to browse endpoints, request
 parameters and responses in Swagger UI. The same server publishes the
@@ -134,16 +88,6 @@ Protected API operations require an authorised account.
 
 [Public ELETTRA Swagger UI](https://elettra.supsi.ch/docs) ·
 [OpenAPI schema](https://elettra.supsi.ch/openapi.json)
-
----
-
-## Interpretation boundary
-
-A result is conditional on the selected service, timetable edition, vehicle,
-weather, occupancy, heating, battery, state-of-charge, charging, economic, and
-environmental assumptions. Record important sources and dates outside ELETTRA,
-compare like with like, and treat missing or partial data as a limitation rather
-than as zero impact.
 
 ---
 

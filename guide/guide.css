@@ -242,6 +242,10 @@ a:hover {
   color: var(--guide-muted);
 }
 
+.guide-section > h2 + .guide-item-list {
+  margin-top: 1rem;
+}
+
 .guide-item-list {
   display: grid;
   gap: 0.85rem;
@@ -393,9 +397,32 @@ a:hover {
   margin: 0 0 0.5rem;
 }
 
-#guide-nav .guide-nav-child {
-  padding-left: 1.35rem;
+.guide-nav-group,
+.guide-chapter-group {
+  color: var(--guide-brand);
+  font-weight: 700;
+}
+
+.guide-nav-group {
+  margin: 1rem 0 0.15rem;
+  padding-left: 0.7rem;
   font-size: 0.8rem;
+}
+
+.guide-chapter-group {
+  margin: 3rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--guide-border);
+  font-size: 1rem;
+}
+
+.guide-chapter-group + .guide-section {
+  padding-top: 0.65rem;
+}
+
+.guide-workflow-alias {
+  display: block;
+  scroll-margin-top: 5.25rem;
 }
 
 .guide-use-case-tone {
@@ -424,12 +451,6 @@ a:hover {
   color: var(--guide-brand-dark);
   font-size: 1.2rem;
   line-height: 1.4;
-}
-
-.guide-flow figcaption p {
-  margin: 0.6rem 0 1.25rem;
-  color: var(--guide-muted);
-  font-size: 0.9rem;
 }
 
 .guide-flow-label {
@@ -553,59 +574,36 @@ a:hover {
   font-size: 0.85rem;
 }
 
-.guide-case-table {
-  margin-top: 1.5rem;
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: collapse;
-  text-align: left;
+.guide-mode-options {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.guide-case-table th,
-.guide-case-table td {
-  padding: 0.8rem;
-  vertical-align: top;
-  border-bottom: 1px solid var(--guide-border);
-  overflow-wrap: anywhere;
-}
-
-.guide-case-table thead {
-  color: var(--guide-brand);
-  background: var(--guide-muted-surface);
-}
-
-.guide-case-table th:first-child {
-  width: 33%;
-}
-
-.guide-case-table th:last-child {
-  width: 18%;
-}
-
-.guide-use-case:target {
-  background: var(--guide-muted-surface);
-}
-
-.guide-case-mobile-label {
-  display: none;
-}
-
-.guide-use-case,
-.guide-case-workflow {
+.guide-use-case {
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--case-color);
+  background: var(--guide-surface);
   scroll-margin-top: 5.25rem;
 }
 
-.guide-case-workflow {
-  margin-top: 1.5rem;
+.guide-use-case:target {
+  outline: 1px solid var(--case-color);
 }
 
-.guide-case-workflow h3 {
-  margin-bottom: 0.5rem;
+.guide-use-case h4 {
+  margin: 0 0 0.3rem;
   color: var(--guide-brand-dark);
 }
 
-.guide-case-workflow p {
-  margin: 0.5rem 0;
+.guide-use-case ol {
+  padding-left: 1.4rem;
+}
+
+.guide-use-case li + li {
+  margin-top: 0.3rem;
 }
 
 @media (width <= 850px) {
@@ -629,6 +627,12 @@ a:hover {
     display: flex;
     overflow-x: auto;
     padding-bottom: 0.35rem;
+  }
+
+  .guide-nav-group {
+    flex: 0 0 auto;
+    align-self: center;
+    margin: 0 0.3rem;
   }
 
   #guide-nav a {
@@ -669,39 +673,11 @@ a:hover {
     padding: 0.65rem 0.4rem;
   }
 
-  .guide-case-table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-
-  .guide-case-table tbody tr {
-    display: grid;
-    padding: 0.9rem 0;
-    gap: 0.4rem;
-    border-bottom: 1px solid var(--guide-border);
-  }
-
-  .guide-case-table tbody th:first-child,
-  .guide-case-table td {
-    width: auto;
-    padding: 0;
-    border: 0;
-  }
-
-  .guide-case-mobile-label {
-    display: inline;
-    margin-inline-end: 0.5rem;
-    color: var(--guide-muted);
-  }
-
   .guide-section,
   .guide-item[id],
+  .guide-workflow-alias,
   .guide-flow,
-  .guide-use-case,
-  .guide-case-workflow {
+  .guide-use-case {
     scroll-margin-top: 9rem;
   }
 
@@ -755,6 +731,10 @@ a:hover {
     box-shadow: none;
   }
 
+  .guide-chapter-group {
+    break-after: avoid;
+  }
+
   .guide-section,
   .guide-item,
   .guide-note,
@@ -772,8 +752,7 @@ a:hover {
   }
 
   .guide-flow,
-  .guide-use-case,
-  .guide-case-workflow {
+  .guide-use-case {
     break-inside: avoid;
   }
 }

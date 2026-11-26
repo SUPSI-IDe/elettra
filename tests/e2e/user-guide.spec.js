@@ -21,24 +21,23 @@ const figureCount = guideContent.en.sections.flatMap(({ figures = [], items }) =
   [...figures, ...items.flatMap(item => item.figures ?? [])]
 ).length;
 
-const GUIDE_SECTIONS = [
-  "use-cases",
-  "start",
-  "workflow",
+const OPERATING_CHAPTERS = [
   "fleet",
   "shifts",
   "feasibility",
   "results",
   "yearly",
   "comparison",
-  "practice",
 ];
+const REFERENCE_CHAPTERS = ["start", "practice", "api"];
+const GUIDE_SECTIONS = ["use-cases", ...OPERATING_CHAPTERS, ...REFERENCE_CHAPTERS];
 
 const LANGUAGES = {
   en: {
     landingLink: "User guide",
     guideTitle: "ELETTRA user guide",
     backLink: "Back to ELETTRA",
+    navGroups: ["Operating guide", "Reference"],
     resultTerms: ["Start with General", "Check every vehicle block tab"],
     yearlyTerms: ["Review Costs and Emissions for the fleet", "physical bus count"],
     releaseTerms: {
@@ -54,6 +53,7 @@ const LANGUAGES = {
     landingLink: "Benutzerhandbuch",
     guideTitle: "ELETTRA-Benutzerhandbuch",
     backLink: "Zurück zu ELETTRA",
+    navGroups: ["Bedienungsanleitung", "Zum Nachschlagen"],
     resultTerms: ["Mit Allgemein beginnen", "Jeden Fahrzeugumlauf prüfen"],
     yearlyTerms: ["Kosten und Emissionen der Flotte prüfen", "Anzahl physischer Busse"],
     releaseTerms: {
@@ -69,6 +69,7 @@ const LANGUAGES = {
     landingLink: "Guide d’utilisation",
     guideTitle: "Guide d’utilisation ELETTRA",
     backLink: "Retour à ELETTRA",
+    navGroups: ["Guide pratique", "Références"],
     resultTerms: ["Commencer par Général", "Vérifier chaque service"],
     yearlyTerms: ["Examiner les Coûts et les Émissions de la flotte", "nombre de bus physiques"],
     releaseTerms: {
@@ -84,6 +85,7 @@ const LANGUAGES = {
     landingLink: "Guida utente",
     guideTitle: "Guida utente ELETTRA",
     backLink: "Torna a ELETTRA",
+    navGroups: ["Guida operativa", "Riferimenti"],
     resultTerms: ["Iniziare da Generale", "Controllare ogni turno"],
     yearlyTerms: ["Esaminare Costi ed Emissioni della flotta", "numero di bus fisici"],
     releaseTerms: {
@@ -324,7 +326,7 @@ test("every guide section is reachable from the guide navigation", async ({ page
   await page.goto("./guide/");
 
   const navigationLinks = page.locator("#guide-nav a");
-  await expect(navigationLinks).toHaveCount(GUIDE_SECTIONS.length + 3);
+  await expect(navigationLinks).toHaveCount(GUIDE_SECTIONS.length);
 
   for (const sectionId of GUIDE_SECTIONS) {
     const link = page.locator(`#guide-nav a[href="#${sectionId}"]`);
@@ -349,116 +351,121 @@ test("a direct guide-section URL can return to the landing page", async ({ page 
 
 
 for (const [language, labels] of Object.entries(LANGUAGES)) {
-  test(`use cases and workflow navigation are translated and fit the viewport in ${language}`, async ({ page }) => {
+  test(`Quick Start and chapter navigation work in ${language} on desktop and mobile`, async ({ page }) => {
     await page.goto("./guide/#use-cases");
-    await page.locator("#guide-language").selectOption(language);
-    const content = guideContent[language].sections[0];
-    const diagram = page.locator("figure#use-cases-workflow");
+
+    const languageSelector = page.locator("#guide-language");
+    await languageSelector.selectOption(language);
+    const { sections } = guideContent[language];
+    const quickStart = sections[0];
+    const quickStartSection = page.locator("#use-cases");
+    const diagram = quickStartSection.locator("figure#use-cases-workflow");
     const preparation = diagram.locator("ol.guide-flow-preparation");
     const branches = diagram.locator(".guide-flow-branches");
-    const run = diagram.getByRole("link", { name: content.diagram.run, exact: true });
-    const decision = diagram.locator(".guide-flow-decision");
     const outcomes = diagram.locator(".guide-flow-outcomes");
-    const table = page.getByRole("table", { name: content.title, exact: true });
-    const steps = page.locator("section.guide-case-workflow");
-    const expectDiagramBeforeTable = async () => {
-      await expect(diagram).toBeVisible();
-      await expect(table).toBeVisible();
-      await expect(diagram).toHaveAccessibleName(content.diagram.title);
-      await expect(diagram).toHaveAccessibleDescription(content.diagram.description);
-      const diagramBounds = await diagram.boundingBox();
-      const tableBounds = await table.boundingBox();
-      expect(diagramBounds.y + diagramBounds.height).toBeLessThanOrEqual(tableBounds.y);
-    };
+    const registration = quickStartSection.getByRole("link", { name: quickStart.firstAccess, exact: true });
 
-    await expectDiagramBeforeTable();
-    await expect(diagram.getByRole("heading", { name: content.diagram.preparation, exact: true })).toBeVisible();
-    await expect(diagram.getByRole("heading", { name: content.diagram.modes, exact: true })).toBeVisible();
-    await expect(preparation).toHaveCount(1);
-    await expect(branches).toHaveCount(1);
-    await expect(branches.getByRole("link")).toHaveCount(3);
-    await expect(run).toHaveAttribute("href", "#feasibility");
-    await expect(decision).toHaveText(content.diagram.decision);
+    const navigation = page.locator("#guide-nav");
+    await expect(navigation.locator(".guide-nav-group")).toHaveText(labels.navGroups);
+    await expect(navigation.getByRole("link")).toHaveText(sections.map(({ title }) => title));
+    const entries = await navigation.locator(".guide-nav-group, a").evaluateAll(elements =>
+      elements.map(element => element.getAttribute("href") ?? element.textContent.trim())
+    );
+    expect(entries).toEqual([
+      "#use-cases",
+      labels.navGroups[0],
+      ...OPERATING_CHAPTERS.map(id => `#${id}`),
+      labels.navGroups[1],
+      ...REFERENCE_CHAPTERS.map(id => `#${id}`),
+    ]);
+    const headings = page.locator("#guide-sections > section > h2");
+    await expect(headings).toHaveText(sections.map(({ title }) => title));
+    for (const [index, id] of OPERATING_CHAPTERS.entries()) {
+      await expect(page.locator(`#${id} > h2`)).toHaveText(new RegExp(`^${index + 1}\\. `));
+    }
+    for (const id of ["use-cases", ...REFERENCE_CHAPTERS]) {
+      await expect(page.locator(`#${id} > h2`)).not.toHaveText(/^\d+\./);
+    }
+
+    await expect(quickStartSection.getByRole("table")).toHaveCount(0);
+    await expect(quickStartSection.locator(".guide-case-workflow")).toHaveCount(0);
+    await expect(registration).toHaveAttribute("href", "#registration");
+    await expect(registration).toHaveText(quickStart.firstAccess);
+    await registration.click();
+    await expect(page).toHaveURL(/#registration$/);
+    await expect(page.locator("#start #registration h3")).toBeInViewport();
+
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAccessibleName(quickStart.diagram.title);
+    await expect(diagram.getByRole("heading", { name: quickStart.diagram.preparation, exact: true })).toBeVisible();
+    await expect(diagram.getByRole("heading", { name: quickStart.diagram.modes, exact: true })).toBeVisible();
+    await expect(diagram.locator(".guide-flow-decision")).toHaveText(quickStart.diagram.decision);
     await expect(diagram.locator(
       "ol.guide-flow-preparation ~ .guide-flow-branches ~ .guide-flow-run ~ .guide-flow-decision ~ .guide-flow-outcomes",
     )).toHaveCount(1);
-    await expect(table.getByRole("columnheader")).toHaveText(content.columns);
-    await expect(table.getByRole("rowheader")).toHaveCount(3);
-    for (const [index, item] of content.items.entries()) {
-      const row = table.locator(`#${item.id}`);
-      await expect(row.getByRole("rowheader")).toHaveText(`${index + 1}. ${item.title}`);
-      await expect(row.getByRole("cell").first()).toHaveText(item.text);
-      await expect(row.locator("strong")).toHaveText(item.modeLabel);
-      await page.locator(`#guide-nav a[href="#${item.id}"]`).click();
-      await expect(page).toHaveURL(new RegExp(`#${item.id}$`));
-      await expect(row.getByRole("rowheader")).toBeInViewport();
-      const link = branches.getByRole("link").nth(index);
+    for (const label of [quickStart.diagram.no, quickStart.diagram.yes, quickStart.diagram.impacts]) {
+      await expect(outcomes.getByText(label, { exact: true })).toBeVisible();
+    }
+    for (const [links, destinations] of [
+      [preparation.getByRole("link"), [
+        ["fleet", quickStart.diagram.fleet, "h2"],
+        ["shifts", quickStart.diagram.shifts, "h2"],
+        ["feasibility", quickStart.diagram.feasibility, "h2"],
+      ]],
+      [diagram.locator("a.guide-flow-run"), [
+        ["run-evaluation", quickStart.diagram.run, "h3"],
+      ]],
+      [outcomes.getByRole("link"), [
+        ["resolve-feasibility", quickStart.diagram.revise, "h3"],
+        ["yearly", quickStart.diagram.yearly, "h2"],
+        ["comparison", quickStart.diagram.compare, "h2"],
+      ]],
+    ]) {
+      await expect(links).toHaveCount(destinations.length);
+      for (const [index, [id, label, heading]] of destinations.entries()) {
+        const link = links.nth(index);
+        await expect(link).toHaveAccessibleName(label);
+        await expect(link).toHaveAttribute("href", `#${id}`);
+        await link.click();
+        await expect(page).toHaveURL(new RegExp(`#${id}$`));
+        await expect(page.locator(`#${id} > ${heading}`)).toBeInViewport();
+      }
+    }
+    const branchLinks = branches.getByRole("link");
+    await expect(branchLinks).toHaveCount(3);
+    const invalidLinks = await quickStartSection.locator('a[href^="#"]').evaluateAll(links =>
+      links.filter(link => !document.getElementById(link.hash.slice(1))).map(link => link.hash)
+    );
+    expect(invalidLinks).toEqual([]);
+    for (const [index, item] of quickStart.items.entries()) {
+      const link = branchLinks.nth(index);
       await expect(link).toHaveAttribute("data-case", String(index + 1));
       await expect(link).toHaveAttribute("href", `#${item.id}`);
       for (const label of [`UC${index + 1} · ${item.modeLabel}`, item.title, item.summary]) {
         await expect(link.getByText(label, { exact: true })).toBeVisible();
       }
-      await page.goto("./guide/#use-cases");
+
       await link.click();
       await expect(page).toHaveURL(new RegExp(`#${item.id}$`));
-      await expect(row.getByRole("rowheader")).toBeInViewport();
-    }
-    await page.goto("./guide/#use-cases");
-    await run.click();
-    await expect(page).toHaveURL(/#feasibility$/);
-    await expect(page.locator("#feasibility > h2")).toBeInViewport();
-    await expect(outcomes).toContainText(content.diagram.no);
-    await expect(outcomes).toContainText(content.diagram.yes);
-    await expect(outcomes).toContainText(content.diagram.impacts);
-    await expect(diagram.locator(".guide-flow-revise")).toHaveAttribute("href", "#feasibility");
-    for (const [links, destinations] of [
-      [preparation.getByRole("link"), [
-        ["fleet", content.diagram.fleet],
-        ["shifts", content.diagram.shifts],
-        ["feasibility", content.diagram.feasibility],
-      ]],
-      [outcomes.getByRole("link"), [
-        ["feasibility", content.diagram.revise],
-        ["yearly", content.diagram.yearly],
-        ["comparison", content.diagram.compare],
-      ]],
-    ]) {
-      await expect(links).toHaveCount(destinations.length);
-      for (const [index, [id, label]] of destinations.entries()) {
-        const link = links.nth(index);
-        await expect(link).toHaveAccessibleName(label);
-        await expect(link).toHaveAttribute("href", `#${id}`);
-        await page.goto("./guide/#use-cases");
-        await link.click();
-        await expect(page).toHaveURL(new RegExp(`#${id}$`));
-        await expect(page.locator(`#${id} > h2`)).toBeInViewport();
-      }
-    }
-    await expect(steps).not.toHaveAttribute("id");
-    await expect(steps.getByRole("heading")).toHaveText(content.workflow.title);
-    await expect(steps).toContainText(content.workflow.service);
-    const invalidLinks = await page.locator('#use-cases a[href^="#"]').evaluateAll((links) =>
-      links.filter(link => !document.getElementById(link.hash.slice(1))).map(link => link.hash)
-    );
-    expect(invalidLinks).toEqual([]);
-    for (const link of content.workflow.links) {
-      await steps.getByRole("link", { name: link.label }).click();
-      await expect(page.locator(link.href).locator("h2,h3").first()).toBeInViewport();
+      const mode = page.locator(`#feasibility li.guide-use-case#${item.id}`);
+      await expect(mode.getByRole("heading", { level: 4, name: item.modeLabel, exact: true })).toBeInViewport();
+      await expect(mode.locator("ol > li")).toHaveText(item.instructions);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
-    await page.reload();
-    await expect(page.locator("#guide-language")).toHaveValue(language);
-    await expect(page.locator("#yearly > h2")).toBeInViewport();
     await page.setViewportSize({ width: 320, height: 720 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await page.goto("./guide/#use-cases");
-    await expectDiagramBeforeTable();
-    const mobileLink = branches.getByRole("link").first();
-    const mobileCase = content.items[0];
-    await expect(mobileLink).toBeVisible();
-    await mobileLink.press("Enter");
+    const mobileLink = branchLinks.first();
+    const mobileCase = quickStart.items[0];
+    await mobileLink.focus();
+    await expect(mobileLink).toBeFocused();
+    await page.keyboard.press("Enter");
     await expect(page).toHaveURL(new RegExp(`#${mobileCase.id}$`));
-    await expect(table.locator(`#${mobileCase.id}`).getByRole("rowheader")).toBeInViewport();
+    const mobileHeading = page.locator(`#feasibility #${mobileCase.id} > h4`);
+    await expect(mobileHeading).toBeInViewport();
+    await page.reload();
+    await expect(languageSelector).toHaveValue(language);
+    await expect(mobileHeading).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   });
 
   test(`landing-to-guide-to-landing preserves the ${language} language`, async ({
@@ -473,7 +480,7 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
     await expect(
       page.getByRole("heading", { level: 1, name: labels.guideTitle })
     ).toBeVisible();
-    const apiGuide = page.locator("#start #api-docs");
+    const apiGuide = page.locator("#api #api-docs");
     await expect(apiGuide.getByRole("link", { name: "Swagger UI (/docs)" })).toHaveAttribute("href", "https://elettra.supsi.ch/docs");
     await expect(apiGuide.getByRole("link", { name: "OpenAPI (/openapi.json)" })).toHaveAttribute("href", "https://elettra.supsi.ch/openapi.json");
     for (const term of labels.resultTerms) {
@@ -516,22 +523,29 @@ for (const [language, labels] of Object.entries(LANGUAGES)) {
   });
 }
 
-test("switching languages preserves the active use-case anchor and translates its question", async ({ page }) => {
+test("switching languages preserves the active use-case anchor and translates its mode", async ({ page }) => {
   await page.goto("./guide/#use-case-charging");
   for (const language of ["de", "fr", "it", "en"]) {
     await page.locator("#guide-language").selectOption(language);
     await expect(page).toHaveURL(/#use-case-charging$/);
-    const question = page.locator("#use-case-charging th");
-    await expect(question).toBeInViewport();
-    await expect(question).toContainText(guideContent[language].sections[0].items[1].title);
+    const mode = page.locator("#feasibility #use-case-charging > h4");
+    await expect(mode).toBeInViewport();
+    await expect(mode).toHaveText(guideContent[language].sections[0].items[1].modeLabel);
     await expect(page.locator("html")).toHaveAttribute("lang", language);
   }
 });
 
 
-test("the workflow opens Mean and Q95 guidance in the selected language", async ({ page }) => {
+test("a saved workflow URL opens Quick Start", async ({ page }) => {
   await page.goto("./guide/#workflow");
-  await page.locator('#workflow a[href="#mean-q95"]').click();
+  await expect(page.locator("#use-cases > h2")).toBeInViewport();
+  await expect(page.locator("#use-cases-workflow")).toBeVisible();
+  await expect(page.locator("section#workflow")).toHaveCount(0);
+});
+
+test("feasibility links to Mean and Q95 guidance in the selected language", async ({ page }) => {
+  await page.goto("./guide/#feasibility");
+  await page.locator('#feasibility a[href="#mean-q95"]').click();
   for (const lang of ["de", "fr", "it", "en"]) {
     await page.locator("#guide-language").selectOption(lang);
     const results = guideContent[lang].sections.find(section => section.id === "results");
