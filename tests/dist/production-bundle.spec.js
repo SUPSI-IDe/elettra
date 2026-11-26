@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { guideContent } from "../../guide/content.js";
 
 test.beforeEach(async ({ context }) => {
   await context.route("**/api/v1/version", route => route.fulfill({
@@ -51,22 +52,27 @@ test("the optimized guide packages diagnostic guidance and all current screensho
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./guide/');
   await expect(page.locator('.guide-meta')).toContainText(`Frontend v${version}`);
-  await expect(page.locator('.guide-figure img')).toHaveCount(14);
-  for(const image of await page.locator('.guide-figure img').all()) {
-    await image.scrollIntoViewIfNeeded();
-    await expect.poll(()=>image.evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
-  }
-  for(const language of ['en','de','fr','it']) {
+  for (const language of ['en', 'de', 'fr', 'it']) {
     await page.locator('#guide-language').selectOption(language);
+    const expectedFigures = guideContent[language].sections.flatMap(({ figures = [], items }) =>
+      [...figures, ...items.flatMap(item => item.figures ?? [])]
+    );
+    const images = page.locator('.guide-figure img');
+    await expect(images).toHaveCount(expectedFigures.length);
+    await images.evaluateAll(elements => Promise.all(elements.map(async img => {
+      img.loading = 'eager';
+      await img.decode();
+    })));
     await expect(page.locator('#results')).toContainText('N/A');
     await expect(page.locator('#results')).toContainText('—');
     await expect(page.locator('#results img[src*="feasibility-infeasible"]')).toHaveCount(1);
     await expect(page.locator('#fleet img[src*="bus-model-battery"]')).toHaveCount(1);
     await expect(page.locator('#yearly img[src*="yearly-temperature"]')).toHaveCount(1);
     await expect(page.locator('#comparison img[src*="annual-comparison"]')).toHaveCount(1);
-    const steps = page.locator('#shifts .guide-item img');
-    await expect(steps.nth(0)).toHaveAttribute('src', /shift-planner/);
-    await expect(steps.nth(1)).toHaveAttribute('src', /shift-composer/);
+    const blockFigures = page.locator('#shifts img');
+    await expect(blockFigures).toHaveCount(2);
+    await expect(blockFigures.nth(0)).toHaveAttribute('src', /shift-planner/);
+    await expect(blockFigures.nth(1)).toHaveAttribute('src', /shift-visualisation/);
   }
   expect(errors).toEqual([]);
 });

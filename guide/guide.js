@@ -30,24 +30,20 @@ const createTextElement = (tagName, className, value) => {
   return element;
 };
 
-const renderNavigation = (sections) => {
+const renderNavigation = (sections, ui) => {
   const nav = document.querySelector("#guide-nav");
   nav.replaceChildren();
 
-  sections.forEach((section) => {
-    const link = document.createElement("a");
-    link.href = `#${section.id}`;
-    link.textContent = section.title;
-    nav.append(link);
+  for (const section of sections) {
+    const group = sectionGroupLabel(section.id, ui);
+    if (group) nav.append(createTextElement("p", "guide-nav-group", group));
+    nav.append(createSectionLink(section.id, section.title));
+  }
+};
 
-    if (section.diagram) {
-      section.items.forEach((item, index) => {
-        const child = createTextElement("a", "guide-nav-child", `UC${index + 1} · ${item.title}`);
-        child.href = `#${item.id}`;
-        nav.append(child);
-      });
-    }
-  });
+const sectionGroupLabel = (id, ui) => {
+  if (id === "fleet") return ui.operatingGuide;
+  if (id === "start") return ui.references;
 };
 
 const createSectionLink = (id, label, className = "") => {
@@ -68,24 +64,11 @@ const renderWorkflowDiagram = (section) => {
   figure.className = "guide-flow";
   figure.id = "use-cases-workflow";
   figure.setAttribute("aria-labelledby", "use-cases-workflow-title");
-  figure.setAttribute("aria-describedby", "use-cases-workflow-description");
   const caption = document.createElement("figcaption");
   const title = createTextElement("h3", "", diagram.title);
   title.id = "use-cases-workflow-title";
-  const description = createTextElement("p", "", diagram.description);
-  description.id = "use-cases-workflow-description";
-  caption.append(title, description);
-  figure.append(caption, createTextElement("p", "guide-flow-label", diagram.choose));
-
-  const choices = document.createElement("div");
-  choices.className = "guide-flow-branches";
-  items.forEach((item, index) => {
-    const choice = createSectionLink(item.id, "", "guide-flow-node guide-use-case-tone");
-    choice.dataset.case = String(index + 1);
-    choice.append(createTextElement("strong", "", `UC${index + 1}`), createTextElement("span", "", item.title));
-    choices.append(choice);
-  });
-  figure.append(choices, flowArrow());
+  caption.append(title);
+  figure.append(caption, createTextElement("h4", "guide-flow-label", diagram.preparation));
 
   const preparation = document.createElement("ol");
   preparation.className = "guide-flow-preparation";
@@ -95,81 +78,66 @@ const renderWorkflowDiagram = (section) => {
     if (index < 2) step.append(flowArrow());
     preparation.append(step);
   });
-  figure.append(preparation, createTextElement("p", "guide-flow-label", diagram.modes));
+  figure.append(preparation, flowArrow(), createTextElement("h4", "guide-flow-label", diagram.modes));
 
   const modes = document.createElement("div");
   modes.className = "guide-flow-branches";
   items.forEach((item, index) => {
     const mode = createSectionLink(item.id, "", "guide-flow-node guide-use-case-tone");
     mode.dataset.case = String(index + 1);
-    mode.append(createTextElement("span", "", `UC${index + 1} · ${item.modeLabel}`), createTextElement("code", "", item.mode));
+    mode.append(
+      createTextElement("strong", "", `UC${index + 1} · ${item.modeLabel}`),
+      createTextElement("span", "", item.title),
+      createTextElement("span", "guide-flow-summary", item.summary),
+    );
     modes.append(mode);
   });
-  figure.append(modes, flowArrow(), createTextElement("p", "guide-flow-decision", diagram.decision));
+  figure.append(modes, flowArrow(),
+    createSectionLink("run-evaluation", diagram.run, "guide-flow-node guide-flow-run"),
+    flowArrow(), createTextElement("p", "guide-flow-decision", diagram.decision));
 
   const outcomes = document.createElement("div");
   outcomes.className = "guide-flow-outcomes";
   const revision = document.createElement("div");
   revision.className = "guide-flow-outcome";
   revision.append(createTextElement("strong", "", diagram.no), flowArrow(),
-    createSectionLink("use-cases-workflow", diagram.revise, "guide-flow-node guide-flow-revise"));
+    createSectionLink("feasibility", diagram.revise, "guide-flow-node guide-flow-revise"));
+  const unresolved = document.createElement("div");
+  unresolved.className = "guide-flow-outcome";
+  unresolved.append(createTextElement("strong", "", diagram.unknown), flowArrow(),
+    createSectionLink("resolve-feasibility", diagram.resolve, "guide-flow-node"),
+    createTextElement("p", "guide-flow-impacts", diagram.unknownHint));
   const feasible = document.createElement("div");
   feasible.className = "guide-flow-outcome";
   feasible.append(createTextElement("strong", "", diagram.yes), flowArrow(),
     createSectionLink("yearly", diagram.yearly, "guide-flow-node"),
     createTextElement("p", "guide-flow-impacts", diagram.impacts), flowArrow(),
     createSectionLink("comparison", diagram.compare, "guide-flow-node"));
-  outcomes.append(revision, feasible);
+  outcomes.append(revision, unresolved, feasible);
   figure.append(outcomes);
   return figure;
 };
 
-const renderUseCases = (section, sections) => {
-  const fragment = document.createDocumentFragment();
-  fragment.append(renderWorkflowDiagram(section));
-  const { labels } = section;
-  const sectionTitle = (id) => sections.find((entry) => entry.id === id).title;
-
-  section.items.forEach((item, index) => {
-    const article = document.createElement("article");
-    article.className = "guide-use-case guide-use-case-tone";
-    article.id = item.id;
-    article.dataset.case = String(index + 1);
-    article.setAttribute("aria-labelledby", `${item.id}-title`);
-    const title = createTextElement("h3", "", `UC${index + 1} · ${item.title}`);
-    title.id = `${item.id}-title`;
-    article.append(title);
-
-    const addParagraph = (heading, text, className = "") => {
-      article.append(createTextElement("h4", "", heading), createTextElement("p", className, text));
-    };
-    addParagraph(labels.situation, item.text);
-    addParagraph(labels.question, item.question, "guide-use-case-question");
-    addParagraph(labels.available, item.available);
-    article.append(createTextElement("h4", "", labels.workflow));
-    const steps = document.createElement("ol");
-    steps.className = "guide-use-case-steps";
-    item.steps.forEach((step) => {
-      const entry = createTextElement("li", "", `${step.text} `);
-      entry.append(createSectionLink(step.section, sectionTitle(step.section)));
-      steps.append(entry);
-    });
-    article.append(steps, createTextElement("h4", "", labels.mode));
-    const mode = createTextElement("p", "guide-use-case-mode", `${item.modeLabel} · `);
-    mode.append(createTextElement("code", "", item.mode));
-    article.append(mode, createTextElement("p", "", item.scope));
-    addParagraph(labels.next, item.nextSteps);
-    const nextLink = createTextElement("p", "", `${labels.instructions}: `);
-    nextLink.append(createSectionLink("comparison", sectionTitle("comparison")));
-    article.append(nextLink);
-    fragment.append(article);
+const renderModeInstructions = (modes, quickStart) => {
+  const options = document.createElement("ul");
+  options.className = "guide-mode-options";
+  modes.forEach((mode, index) => {
+    const option = document.createElement("li");
+    option.className = "guide-use-case guide-use-case-tone";
+    option.dataset.case = String(index + 1);
+    option.id = mode.id;
+    option.append(createTextElement("h4", "", mode.modeLabel),
+      createTextElement("h5", "guide-mode-steps", quickStart.stepsLabel));
+    const instructions = document.createElement("ol");
+    for (const step of mode.instructions) instructions.append(createTextElement("li", "", step));
+    const guidance = document.createElement("dl");
+    guidance.className = "guide-mode-guidance";
+    guidance.append(createTextElement("dt", "", quickStart.scopeLabel), createTextElement("dd", "", mode.scope),
+      createTextElement("dt", "", quickStart.decisionLabel), createTextElement("dd", "", mode.decision));
+    option.append(instructions, guidance);
+    options.append(option);
   });
-
-  const note = document.createElement("aside");
-  note.className = "guide-note";
-  note.append(createTextElement("h3", "", labels.boundary), createTextElement("p", "", section.boundary));
-  fragment.append(note);
-  return fragment;
+  return options;
 };
 
 const renderFigures = (figures, ui) => {
@@ -206,29 +174,94 @@ const renderFigures = (figures, ui) => {
   return gallery;
 };
 
-const renderSection = (section, ui, sections) => {
+const renderComparisonTable = ({ caption, columns, rows }) => {
+  const table = document.createElement("table");
+  table.className = "guide-comparison-table";
+  table.createCaption().textContent = caption;
+  const headings = table.createTHead().insertRow();
+  for (const label of columns) {
+    const th = createTextElement("th", "", label);
+    th.scope = "col";
+    headings.append(th);
+  }
+  const body = table.createTBody();
+  for (const [label, ...values] of rows) {
+    const row = body.insertRow();
+    const th = createTextElement("th", "", label);
+    th.scope = "row";
+    row.append(th);
+    for (const value of values) row.insertCell().textContent = value;
+  }
+  return table;
+};
+
+const createItemList = (ordered) => {
+  const list = document.createElement(ordered ? "ol" : "ul");
+  list.className = "guide-item-list";
+  list.dataset.ordered = String(Boolean(ordered));
+  return list;
+};
+
+const renderSection = (section, ui, quickStart) => {
   const wrapper = document.createElement("section");
   wrapper.className = "guide-section";
   wrapper.id = section.id;
 
-  wrapper.append(createTextElement("h2", "", section.title));
-  wrapper.append(createTextElement("p", "guide-section-intro", section.intro));
+  const title = createTextElement("h2", "", section.title);
+  title.id = `${section.id}-title`;
+  if (section.id === "use-cases") {
+    // Keep incoming links to the former workflow chapter at the Quick start heading.
+    const workflow = createTextElement("span", "guide-workflow-alias", section.title);
+    workflow.id = "workflow";
+    title.replaceChildren(workflow);
+  }
+  wrapper.append(title);
+  if (section.intro) {
+    const intro = createTextElement("p", "guide-section-intro", section.intro);
+    if (section.firstAccess) intro.append(" ", createSectionLink("registration", section.firstAccess));
+    wrapper.append(intro);
+  }
 
-  if (section.diagram) {
-    wrapper.append(renderUseCases(section, sections));
+  if (section.id === "use-cases") {
+    wrapper.append(renderWorkflowDiagram(section),
+      createSectionLink("battery-only-example", section.exampleLink, "guide-workflow-return"));
     return wrapper;
   }
 
-  const list = document.createElement(section.ordered ? "ol" : "ul");
-  list.className = "guide-item-list";
-  list.dataset.ordered = String(Boolean(section.ordered));
+  const shortcuts = section.items.filter(item => item.shortcut);
+  if (section.example?.shortcut) shortcuts.push(section.example);
+  if (shortcuts.length) {
+    const nav = document.createElement("nav");
+    nav.className = "guide-chapter-links guide-item-links";
+    nav.setAttribute("aria-labelledby", title.id);
+    for (const { id, shortcut } of shortcuts) nav.append(createSectionLink(id, shortcut));
+    wrapper.append(nav);
+  }
+
+  let list = createItemList(section.ordered);
+  let headingTag = "h3";
+  wrapper.append(list);
 
   section.items.forEach((item) => {
+    if (item.groupTitle) {
+      const heading = createTextElement("h3", "guide-item-group-title", item.groupTitle);
+      heading.id = `${item.id}-group`;
+      list = createItemList(false);
+      list.setAttribute("aria-labelledby", heading.id);
+      wrapper.append(heading, list);
+      headingTag = "h4";
+    }
     const entry = document.createElement("li");
     entry.className = "guide-item";
     if (item.id) entry.id = item.id;
-    entry.append(createTextElement("h3", "", item.title));
-    entry.append(createTextElement("p", "", item.text));
+    entry.append(createTextElement(headingTag, "", item.title));
+    if (item.text) entry.append(createTextElement("p", "", item.text));
+    if (item.table) entry.append(renderComparisonTable(item.table));
+    for (const paragraph of item.paragraphs ?? []) entry.append(createTextElement("p", "", paragraph));
+    if (item.modes) {
+      entry.append(renderModeInstructions(item.modes, quickStart),
+        createSectionLink("use-cases-workflow", quickStart.backToWorkflow, "guide-workflow-return"));
+    }
     if (item.links?.length) {
       const links = document.createElement("p");
       links.className = "guide-item-links";
@@ -243,7 +276,19 @@ const renderSection = (section, ui, sections) => {
     list.append(entry);
   });
 
-  wrapper.append(list);
+  if (section.example) {
+    const { id, title, steps } = section.example;
+    const example = document.createElement("aside");
+    example.id = id;
+    example.className = "guide-item guide-example";
+    const heading = createTextElement("h3", "", title);
+    heading.id = `${id}-title`;
+    example.setAttribute("aria-labelledby", heading.id);
+    const sequence = document.createElement("ol");
+    for (const step of steps) sequence.append(createTextElement("li", "", step));
+    example.append(heading, sequence);
+    wrapper.append(example);
+  }
 
   if (section.figures?.length) {
     wrapper.append(renderFigures(section.figures, ui));
@@ -270,13 +315,14 @@ const applyUiText = (ui) => {
 
   const languageSelect = document.querySelector("#guide-language");
   languageSelect.setAttribute("aria-label", ui.languageAriaLabel);
+  document.querySelector('[data-action="print"]').title = ui.print;
   document.querySelector(".skip-link").textContent = ui.skipLink;
   document.querySelector(".guide-sidebar").setAttribute("aria-label", ui.sidebarAriaLabel);
   document.querySelector(".guide-brand").setAttribute("aria-label", ui.brandAriaLabel);
 };
 
 const updateCurrentSection = () => {
-  const sections = Array.from(document.querySelectorAll(".guide-section, .guide-use-case"));
+  const sections = Array.from(document.querySelectorAll(".guide-section"));
   const links = Array.from(document.querySelectorAll("#guide-nav a"));
   const current = sections
     .filter((section) => section.getBoundingClientRect().top <= 150)
@@ -295,10 +341,17 @@ const renderGuide = (language) => {
   const content = guideContent[language] ?? guideContent[DEFAULT_LANGUAGE];
   document.documentElement.lang = language;
   applyUiText(content.ui);
-  renderNavigation(content.sections);
+  renderNavigation(content.sections, content.ui);
 
   const sectionsRoot = document.querySelector("#guide-sections");
-  sectionsRoot.replaceChildren(...content.sections.map((section) => renderSection(section, content.ui, content.sections)));
+  const chapters = document.createDocumentFragment();
+  const quickStart = content.sections.find(section => section.id === "use-cases");
+  for (const section of content.sections) {
+    const group = sectionGroupLabel(section.id, content.ui);
+    if (group) chapters.append(createTextElement("p", "guide-chapter-group", group));
+    chapters.append(renderSection(section, content.ui, quickStart));
+  }
+  sectionsRoot.replaceChildren(chapters);
 
   const languageSelect = document.querySelector("#guide-language");
   languageSelect.value = language;

@@ -30,14 +30,14 @@ export function registerGuideLayoutTests(test, expect) {
         await page.goto('./guide/#yearly', { waitUntil: 'domcontentloaded' });
         const heading = page.locator('#yearly > h2');
         await expect(heading).toBeInViewport();
-        // Check the served guide, including the production bundle, documents both annual export paths.
+        // Check the served guide, including the production bundle, documents the current feasibility and annual exports.
         await expect(page.locator('#yearly')).toContainText('JSON');
         await expect(page.locator('#results')).toContainText('JSON');
         await expect(page.locator('#results')).toContainText(/(?:schema|Schema|schéma) 1/);
         await expect(page.locator('#results')).toContainText('Mean');
         await expect(page.locator('#results')).toContainText('Aggregate Q95');
         await expect(page.locator('#yearly')).toContainText(/(?:schema|Schema|schéma) 4/);
-        await expect(page.locator('#yearly')).toContainText(/(?:schema|Schema|schéma) 3/);
+        await expect(page.locator('#yearly')).not.toContainText(/(?:schema|Schema|schéma) 3/);
         await expect.poll(() => delayedImages).toBeGreaterThan(0);
         const before = await metrics();
         release();

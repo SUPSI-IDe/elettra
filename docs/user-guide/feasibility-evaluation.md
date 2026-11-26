@@ -5,6 +5,13 @@ operated with the configured bus, battery, charging, and environmental inputs.
 New evaluations calculate a **Mean** design and an **Aggregate Q95** design
 together.
 
+
+- [Optimization modes](#3-optimization-mode)
+- [Depot charging](#5-charging-and-depot-behavior)
+- [Battery capacity and SOH](#battery-capacity-and-soh)
+- [Start the evaluation](#starting-and-monitoring-the-evaluation)
+- [Complete example](#from-depot-charging-to-cost-per-kilometer)
+
 ---
 
 ## Create an evaluation
@@ -16,8 +23,7 @@ Open **Simulations → Feasibility evaluation** and select **New**.
 Enter a descriptive name, select one GTFS timetable edition and choose a
 service day. The table lists vehicle blocks that run on that day in the
 selected edition. Changing the edition clears the current selection. Changing
-the day removes selected blocks that do not run on the new day. Blocks with
-mixed editions, incomplete calendars or no common weekday are excluded.
+the day removes selected blocks that do not run on the new day.
 
 ### 2. Vehicle blocks and bus model
 
@@ -29,19 +35,23 @@ model whenever you change the block selection.
 
 ### 3. Optimization mode
 
-| Mode | Fixed input | Optimized decision | Typical use |
+| Planning question | What you provide | Mode | What ELETTRA determines |
 |---|---|---|---|
-| **Battery only** (`battery_only`) | Charging configuration | Battery pack count and planned charging within the installed limits | Fleet expansion with existing chargers |
-| **Charging** (`charging_only`) | Installed battery pack count | Charging locations and plugs within the configured power limits, plus their schedule | Charging-infrastructure expansion |
-| **Joint** (`joint`) | User constraints and candidates | Battery and charging configuration together | Initial electrification investment |
+| I know where to charge. What is the smallest battery that can cover the selected vehicle blocks? | The bus model and existing or planned charging sites, with fixed plug counts and power per plug | **Battery only** | The minimum number of battery packs and when to charge |
+| I have chosen the bus and battery. Where should I charge? | The bus model, fixed battery pack count, candidate sites, maximum plug counts, and fixed power per plug | **Charging** | Which sites to use, how many plugs to install at each, and when to charge |
+| Which combination minimizes the upfront investment in batteries and charging plugs? | The bus model, candidate sites, plug limits, power per plug, and battery and charging costs | **Joint** | The battery pack counts, charging sites and plug counts that minimize upfront investment, plus when to charge |
 
-Charging mode requires a fixed pack count within the selected bus model's
-allowed minimum and maximum. Battery-only and Joint can size each vehicle
-individually or use the same battery size for all selected blocks, depending on
-the battery-sizing option.
+**Battery sizing mode** appears in **Battery only** and **Joint**. The default,
+**Individual batteries**, lets ELETTRA select a different pack count for each
+vehicle block. Choose **Same size for all** to require the same pack count and
+battery capacity on every selected bus. In **Charging**, enter a fixed pack
+count within the selected bus model’s minimum and maximum.
 
-The optimizer does not discover unconstrained geographic sites or choose a
-commercial vehicle. It works only with the supplied candidates and limits.
+For a **Battery only** purchase, compare the packs required for each block in the Mean and Q95 designs. You choose the bus model and manufacturer. Fleet TCO includes the modeled capital cost of every selected charging site with at least one plug, even if its chargers are already installed or unused. The estimate covers charging points, site infrastructure and the grid connection. Consult your accounts for actual past spending.
+
+For **Charging**, compare the selected plugs at each candidate site with your installed inventory to identify additions. The calculation considers only the sites you specify.
+
+For **Joint**, record the packs and chargers together. Carry that verified design into yearly analysis and compare total cost with diesel on the same service. Detailed depot layout and grid connection require a separate engineering study.
 
 ### 4. Operating assumptions
 
@@ -61,10 +71,19 @@ usage** appears only for Initial. SOC limits are calculated automatically. A sho
 preview shows the resulting energy; tooltips explain the controls and show the calculated SOC window.
 SOH changes capacity, not the installed packs’ physical mass or cost.
 
-With 500 kWh initially, SOH 70% and usable capacity 50%, **Residual** provides
-175 kWh; **Initial** preserves 250 kWh. Their applied SOC windows are respectively
-40–90% and 18.57–90%. Initial is incompatible when the requested fraction divided
-by SOH exceeds maximum residual usage.
+#### Battery capacity and SOH
+
+At 70% SOH, a battery with 500 kWh of initial capacity has 350 kWh of residual
+capacity. With usable capacity set to 50%, the capacity reference determines
+how much energy is usable.
+
+| Capacity reference | Usable energy | Applied SOC window |
+|---|---:|---:|
+| Residual | 175 kWh | 40–90% |
+| Initial | 250 kWh | 18.57–90% |
+
+Initial is incompatible when the requested usable fraction divided by SOH
+exceeds maximum residual usage.
 
 For fractions U (usable capacity), h (SOH) and M (maximum residual usage), the
 applied window width is U for Residual and U/h for Initial. Residual automatically
@@ -72,8 +91,8 @@ uses M = max(0.85, U). The allowed upper bound is H = max(0.95, M), the lower
 bound L = H − M, and the reference maximum is min(H, max(0.90, L + U)). The
 applied minimum decreases first; only after reaching L does the maximum increase
 up to H. Thus the default preference is 90% and default expansion range 10–95%.
-The API and usable-energy formula remain unchanged:
-initial capacity × SOH × (applied maximum SOC − applied minimum SOC).
+Usable energy equals residual capacity (initial capacity × SOH as a fraction)
+times the applied SOC window width as a fraction.
 
 Applied limits differ from SOC actually reached in the optimized trajectory.
 A minimum below 20% produces a short informational warning without blocking
@@ -99,16 +118,23 @@ while N depot plugs correspond to 150 × N kW. Review the plug counts and power
 limits before starting. Duplication preserves saved charging inputs rather
 than replacing them with new-evaluation defaults.
 
-Additional options can:
+**Verify next-day departure with depot charging** checks whether each bus can
+restore its initial SOC before repeating the same block 24 hours later. Each
+block must start and end at the same registered depot. Include that depot in
+the selected charging infrastructure. For example, if a block starts and ends
+at Depot A and pauses at Depot B during the day, select Depot A for the
+next-day check. ELETTRA uses the transfers already in the block. A connected
+bus occupies the same plug for its full stay, even after charging finishes.
 
-- verify the next day's departure using the depot stay already represented by
-  the vehicle block;
-- simulate controllable smart charging that reduces depot peaks while
-  preserving the selected design and daytime charging;
-- expose advanced infrastructure-cost assumptions.
+**Simulate smart charging in the depot** requires the next-day departure check.
+With controllable chargers, ELETTRA adjusts the power between return and next
+departure to reduce the depot charging peak. It keeps batteries, chargers,
+plug assignments, the in-service charging plan and the departure SOC fixed.
+Other site loads are outside the simulation.
 
-A connected bus occupies the same plug for its full stop, even after energy
-delivery finishes.
+Both options are enabled by default for new evaluations. To check the next
+departure alone, leave the first option enabled and turn off smart charging.
+Turning off the next-day departure check also disables smart charging.
 
 **Optional charging parameters** is collapsed by default, like the infrastructure
 cost options. Open it to edit **Connecting/disconnecting the bus** (default
@@ -185,17 +211,20 @@ The form restores, where available:
 - forecast settings, depot options, and solver-related options.
 
 If original resources or compatible forecasts are unavailable, duplication is
-cancelled instead of submitting a partial copy. Historical copies created by
-older versions may still require manual review and recalculation.
-Historical battery assumptions are preserved, including SOH 100% and zero
-technical time where recorded or historically assumed; new-evaluation defaults
-do not overwrite them.
+canceled.
 
 The list also supports search, sorting, viewing results, and deletion. Analysis
 comparison is performed between saved yearly analyses, not between feasibility
 records.
 
 ---
+
+## From depot charging to cost per kilometer
+
+1. In your operator's GTFS timetable, select a Monday block that starts and ends at the same depot. If you build a practice block, use an outward trip and its return. Record the timetable edition, line, departure times and depot so you can repeat the run.
+2. Choose a 12 m bus with 40 kWh packs and **Battery only**. Select only the depot, with one 150 kW plug and a 150 kW site limit. Keep the next-day departure check on. Record the pack limits, temperature, occupancy and battery settings.
+3. Run the evaluation. For the same block, check the Mean and Q95 pack counts. Multiply each count by 40 kWh for the nominal capacity. Inspect the lowest SOC and whether the bus regains its required SOC by the next departure.
+4. Start a yearly analysis for a verified feasible design. Under **General → Costs**, read electric and diesel TCO in CHF/km at the same mileage. If neither profile is feasible, inspect the reported constraint before changing an input and rerunning the evaluation.
 
 ## Next steps
 
@@ -204,6 +233,6 @@ records.
 
 ---
 
-> Reference versions: Frontend v1.4.4 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5 · Backend v1.9.0
 >
-> Last updated: 2026-11-25
+> Last updated: 2026-11-26

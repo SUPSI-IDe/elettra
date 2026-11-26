@@ -1,16 +1,41 @@
-# User Guide: Overview
+# ELETTRA user guide
 
-ELETTRA supports preliminary planning for battery-electric bus services. It
-connects fleet and timetable data to a technical feasibility gate, then uses a
-verified design for yearly energy, cost, and environmental assessment.
+## Quick start
 
-The result is decision support, not an operational certificate. Procurement,
-depot, charger, civil-work, and grid-connection decisions still require the
-corresponding engineering studies.
+ELETTRA helps you check whether electric buses can cover a scheduled service and size the batteries and charging needed. To assess a line, select the vehicle blocks that cover it on the chosen service day.
+For your first visit, see [Account and access](#account-and-access).
 
----
+1. Define the bus model, depots and any other custom stops. Build the vehicle blocks, then select the GTFS timetable, day and blocks to evaluate.
+2. Choose a feasibility mode. **Battery only** finds the smallest battery for the charging sites you specify. **Charging** finds where plugs are needed for a fixed battery. **Joint** sizes batteries and charging infrastructure together to minimize upfront investment. [Set up the optimization mode](feasibility-evaluation.md#3-optimization-mode).
+3. Run the evaluation and compare the Mean and Q95 designs, including pack count, planned charging and lowest SOC for the same block. If a design is infeasible, revise the inputs and run it again. If the result is **Not determined**, open **General** to check the reported cause. Where a vehicle block is identified, open it and follow **How to resolve**. Only verified feasible designs can proceed to yearly analysis and comparison. [Interpret Mean and Q95](simulation-results.md#compare-the-mean-and-q95-designs).
 
-## Application layout
+[Follow a battery-only example](feasibility-evaluation.md#from-depot-charging-to-cost-per-kilometer).
+
+## Operating guide
+
+1. [Bus models and custom stops](fleet-management.md)
+2. [Building a vehicle block](shifts-and-routes.md)
+3. [Feasibility evaluation](feasibility-evaluation.md)
+4. [Interpreting feasibility results](simulation-results.md)
+5. [Yearly analysis](yearly-analysis.md)
+6. [Comparing and exporting analyses](comparison-and-export.md)
+
+## Reference
+
+### Account and access
+
+To create an account, select your operator from the suggestions during registration.
+After signing in, open Home to reach your fleet and analyses.
+
+The interface and online guide are available in English, German, French, and
+Italian. The globe menu uses the language codes EN, DE, FR and IT. The browser
+remembers the selected language. Stop and depot names retain their local names.
+
+The landing page, sign-in, registration, About page, and online user guide are
+public. Fleet data and analyses require an authenticated account. Data exposed
+in the workspace is scoped by the authenticated backend context.
+
+### Application layout
 
 After sign-in, **Home** links directly to the six working sections. The same
 sections remain available in the sidebar:
@@ -30,72 +55,9 @@ guide** to open its instructions in a new tab.
 The public user guide is linked from the landing page, Home, and the bottom of
 the authenticated sidebar. It opens in a separate tab.
 
----
+### GTFS edition and provenance
 
-## Recommended workflow
-
-```text
-Bus model and locations
-        ↓
-Vehicle blocks with recorded GTFS edition
-        ↓
-Feasibility evaluation (Mean and Q95 designs)
-        ↓
-Verified feasible design
-        ↓
-Yearly fleet assessment and vehicle-block efficiency
-        ↓
-Comparison and export
-```
-
-1. Open **Fleet → Buses** and select **Add Bus Model**. Enter the actual
-   vehicle length and use operator or manufacturer data when available.
-2. Add the custom depots, charging locations, or hubs required by the service.
-3. Build each vehicle block from one selected GTFS timetable edition, including
-   its start, return, and auxiliary movements.
-4. Create a feasibility evaluation. Select the GTFS edition and service day,
-   then select compatible vehicle blocks. Choose the optimization mode and
-   operating assumptions.
-5. In **General**, switch between **Mean** and **Q95** and open the same block
-   in each design. Compare the pack count, planned charging and lowest SOC.
-   A completed calculation can still be physically infeasible.
-   [Read how to interpret Mean and Q95](simulation-results.md#compare-the-mean-and-q95-designs).
-6. Create a yearly analysis from a feasible evaluation eligible for yearly
-   analysis with a recorded battery-pack count. The battery and charging design
-   selected in feasibility carry through to the annual calculation.
-7. Compare saved yearly analyses whose service scope and assumptions are
-   sufficiently consistent.
-
-See the detailed chapters:
-
-- [Fleet Management](fleet-management.md)
-- [Vehicle Blocks and Routes](shifts-and-routes.md)
-- [Feasibility Evaluation](feasibility-evaluation.md)
-- [Feasibility Results](simulation-results.md)
-- [Yearly Analysis](yearly-analysis.md)
-- [Comparison and Export](comparison-and-export.md)
-
----
-
-## Planning use cases
-
-The optimization mode should match the planning question:
-
-| Use case | What is already available | Mode | Main decision |
-|---|---|---|---|
-| Fleet expansion | Charging infrastructure | **Battery only** (`battery_only`) | Required battery capacity |
-| Charging-infrastructure expansion | Bus and installed battery | **Charging** (`charging_only`) | Required charging configuration |
-| Initial electrification investment | Neither complete bus nor charging design | **Joint** (`joint`) | Battery and charging configuration together |
-
-The modes optimize only within the bus models, charging candidates, costs, and
-constraints supplied by the user. They do not select a manufacturer, design a
-complete depot, or assess the grid connection.
-
----
-
-## GTFS provenance
-
-GTFS is part of the analysis boundary, not just a trip-search input:
+The selected GTFS timetable defines the scheduled trips used in the analysis.
 
 - a vehicle block records the timetable edition used to build it;
 - a new feasibility evaluation accepts vehicle blocks from one selected
@@ -105,37 +67,7 @@ GTFS is part of the analysis boundary, not just a trip-search input:
 - a yearly result preserves the provenance captured by its feasibility
   evaluation instead of silently following later vehicle-block changes.
 
-Historical records that predate complete provenance may be labelled as derived
-from current vehicle-block data. Vehicle blocks that mix historical editions
-are excluded from new evaluations.
-
----
-
-## Languages and access
-
-The interface and online guide are available in English, German, French, and
-Italian. The globe menu uses the language codes EN, DE, FR and IT. The browser
-remembers the selected language. Stop and depot names retain their local names.
-
-The landing page, sign-in, registration, About page, and online user guide are
-public. Fleet data and analyses require an authenticated account. Data exposed
-in the workspace is scoped by the authenticated backend context.
-
----
-
-## Public API documentation
-
-Open `/docs` at the root of the ELETTRA server to browse endpoints, request
-parameters and responses in Swagger UI. The same server publishes the
-machine-readable schema at `/openapi.json`. Both documents are public.
-Protected API operations require an authorised account.
-
-[Public ELETTRA Swagger UI](https://elettra.supsi.ch/docs) ·
-[OpenAPI schema](https://elettra.supsi.ch/openapi.json)
-
----
-
-## Interpretation boundary
+### Interpretation boundary
 
 A result is conditional on the selected service, timetable edition, vehicle,
 weather, occupancy, heating, battery, state-of-charge, charging, economic, and
@@ -143,8 +75,20 @@ environmental assumptions. Record important sources and dates outside ELETTRA,
 compare like with like, and treat missing or partial data as a limitation rather
 than as zero impact.
 
+Confirm procurement, depot, charger, civil-work and grid-connection decisions through the corresponding engineering studies.
+
+### Public API documentation
+
+Open `/docs` at the root of the ELETTRA server to browse endpoints, request
+parameters and responses in Swagger UI. The same server publishes the
+machine-readable schema at `/openapi.json`. Both documents are public.
+Protected API operations require an authorized account.
+
+[Public ELETTRA Swagger UI](https://elettra.supsi.ch/docs) ·
+[OpenAPI schema](https://elettra.supsi.ch/openapi.json)
+
 ---
 
-> Reference versions: Frontend v1.4.4 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5 · Backend v1.9.0
 >
-> Last updated: 2026-11-25
+> Last updated: 2026-11-26

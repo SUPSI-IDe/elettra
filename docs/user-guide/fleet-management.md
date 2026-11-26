@@ -77,9 +77,7 @@ manually and fill in the address and city yourself. The map sets the read-only
 coordinates.
 
 The list supports search, details, edit, duplicate, and single or batch
-delete. **Details** opens a read-only view. Use **Edit** to fill missing
-required fields in an older record and assign a current stop type before
-saving.
+delete. **Details** opens a read-only view.
 
 Use names that distinguish depots, chargers, and hubs clearly. Select a
 Depot for the starting point of a new vehicle block. Linked Charging and Hub
@@ -126,6 +124,6 @@ stable evaluation-level selection.
 
 ---
 
-> Reference versions: Frontend v1.4.4 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5 · Backend v1.9.0
 >
-> Last updated: 2026-11-25
+> Last updated: 2026-11-26

@@ -5,6 +5,8 @@ and yearly assessment. Read the overall verdict first, then inspect every
 vehicle block and the complete Mean/Q95 design before creating a yearly
 analysis.
 
+[Read the verdict](#read-the-technical-verdict) · [Check battery and SOC](#consumption-histogram-and-soc-trajectory) · [Troubleshoot](#infeasible-configurations) or [export](#export-the-complete-evaluation).
+
 ---
 
 ## Result navigation
@@ -38,11 +40,6 @@ and model.
 If the requested result is pending, failed or unavailable, the selector keeps
 the current design and displays a message. The design shown still belongs to
 the active profile. Return to the evaluation list to check its status.
-
-Historical single-basis evaluations retain their original semantics. When an
-alternative design was never calculated, the interface may expose an explicit
-compatibility calculation rather than relabelling historical per-trip
-quantiles as Aggregate Q95.
 
 ---
 
@@ -83,10 +80,7 @@ A successful solver execution alone does not certify feasibility. Conversely,
 a block marked not evaluated because another block failed is not automatically
 infeasible.
 
-When a calculation is not determined, General lists the outcome of every
-selected block. The block view identifies the reason, any blocking vehicle
-block, and translated **How to resolve** guidance. Correct the indicated source
-data or configuration and run a separately named evaluation.
+When a result is **Not determined**, check the reported cause in **General**. If a vehicle block is identified, open it and follow **How to resolve**. For example, a block returns to its starting depot and you ask ELETTRA to verify the next day’s departure, but the only selected charging site is a terminus. Validation stops before battery sizing. If the operating plan includes charging at the depot, select the depot as a charging site and run a separately named evaluation.
 
 An orange **paired feasibility verdict** means that one profile is feasible and
 the other is infeasible. Read the label to identify which design passed.
@@ -135,7 +129,7 @@ results and separate diagnostics: block summary,
 battery graphic, and **More information** with the saved operating conditions.
 Unavailable battery details keep an explicit placeholder in the same layout.
 The tooltip beside the outcome explains identified battery or charging constraints.
-The battery estimate and colour legend have their own tooltips; numeric limits
+The battery estimate and color legend have their own tooltips; numeric limits
 and missing packs remain visible without repeated explanatory paragraphs.
 General table headings explain estimated and missing packs in tooltips.
 Help is available by hover, keyboard focus, or tap; Escape closes it.
@@ -148,7 +142,7 @@ An unavailable Q95 consumption is shown as **N/A**, with a short tooltip
 explaining that the saved result does not contain it. Its kWh/km value remains
 an em dash, without a separate tooltip.
 
-A block without a battery shortfall in a relaxed diagnostic is labelled
+A block without a battery shortfall in a relaxed diagnostic is labeled
 accordingly, without asserting that its complete daily cycle is feasible.
 Diagnostic blocks do not display virtual SOC or charging plans as verified
 physical operation. Physical, feasible blocks retain their existing detail,
@@ -169,24 +163,14 @@ reports:
 Use **Battery and energy margin** for selected packs, the installable maximum,
 nominal and usable capacities, and the available margin when recorded.
 
-**Configured SOC window** identifies the limits entered in the evaluation.
+**Configured SOC window** shows the limits applied in the evaluation.
 **Minimum SOC reached** and **Maximum SOC reached** are trajectory outcomes.
-They must not be presented as the same quantity.
 
-SOC percentages refer to **residual capacity**. The battery assumptions show
-initial, residual and usable capacity, SOH, usage policy, applied SOC window,
-technical time and terminal layover reduction. Usable energy is initial kWh ×
-SOH × (applied maximum SOC − applied minimum SOC); physical pack counts remain
-unchanged by this conversion. The forecast and energy tables use the same SOH
-and applied window.
+SOC percentages refer to **residual capacity**.
 
-For an initial 500 kWh battery at SOH 70%, residual capacity is 350 kWh. The
-default residual-capacity policy with SOC 40–90% gives 175 kWh usable. Constant
-initial usable energy with a 40–90% reference preserves 250 kWh and applies
-18.57–90% at SOH 70%. It lowers the minimum towards the allowed 10% before
-raising the preferred maximum of 90% towards the allowed 95%. The informational
-warning concerns an **applied minimum below 20%**, not the minimum reached by
-the trajectory; it does not require confirmation.
+Usable energy (kWh) = residual capacity (kWh) × (configured maximum SOC % − configured minimum SOC %) / 100.
+
+See the [battery capacity and SOH example](feasibility-evaluation.md#battery-capacity-and-soh).
 
 The operational-energy view combines usable battery energy, planned charging,
 and temporal energy drawdown. Required usable energy is derived from the
@@ -243,16 +227,24 @@ delay allowance, active and idle charging time, and average power.
 
 Available time is the stop duration after connection/disconnection and any
 terminal delay allowance; actual charging may use less time. With full-stop
-connection, these times describe the planned stop. Historical freely connected
-sessions may describe only the connected interval.
+connection, these times describe the planned stop.
 
 Battery-only evaluations can schedule charging within the fixed infrastructure.
 The plan may have no sessions or be partially unavailable. If a complete daily
-cycle was requested, **Daily cycle and depot charging** shows in-service and
-overnight energy separately, and the block view compares departure SOC with
-the target. In an infeasible result, open the **Identified constraints** tooltip
-beside the verdict or block status for the available depot diagnostic. Depot peak shaving, when verified, changes
-the depot power profile within the selected design.
+cycle was verified, **Daily cycle and depot charging** shows energy charged
+during the vehicle block and between return and the next departure separately.
+In the vehicle-block view, compare departure SOC with the target and open
+**Depot charging schedule** for the time, power and energy in each interval. In an
+infeasible result, open the **Identified constraints** tooltip beside the verdict
+or block status for the available depot diagnostic.
+
+If smart charging completed, in **General** expand **Simulated charging peak
+with smart charging** under **Daily cycle and depot charging**. Compare
+**Previous feasible plan** and **With peak shaving** for each depot in kW DC.
+The baseline is the feasible schedule before peak shaving. The two values
+include bus charging at the depot, including any overlapping in-service load.
+If peak shaving did not complete, ELETTRA retains the feasible schedule and
+reports that the daily cycle was verified.
 
 Distinguish available charging time, active charging time, connected time and
 available time without charging. The default technical time is 1 minute total
@@ -271,8 +263,6 @@ values available without obscuring the primary verdict.
 ## GTFS and raw configuration data
 
 The compact GTFS disclosure shows the edition recorded at evaluation creation.
-For historical results without a complete snapshot, the interface explicitly
-labels provenance derived from current vehicle-block data.
 
 **View raw feasibility data** is always visible at the top right of the page,
 in place of the close icon, in both General and individual vehicle-block views.
@@ -304,8 +294,7 @@ pending or failed profiles are reported explicitly; the file may be partial.
 Download again to retry loading. An inconsistent calculation family produces an
 error instead of combining unrelated designs. Leaving the page cancels a pending
 download. A partial file is not proof of infeasibility, and diagnostic records do
-not establish a verified charging plan. Historical defaults and current catalogue
-price fallbacks remain labelled. Missing values remain missing, rather than zero.
+not establish a verified charging plan. Missing values remain missing, rather than zero.
 
 Original results and forecast records remain available for audit. Complete HVAC
 reproduction inputs require the separate HVAC download. Annual costs and emissions
@@ -331,6 +320,6 @@ scenario as an annual average.
 
 ---
 
-> Reference versions: Frontend v1.4.4 · Backend v1.9.0
+> Reference versions: Frontend v1.4.5 · Backend v1.9.0
 >
-> Last updated: 2026-11-25
+> Last updated: 2026-11-26
